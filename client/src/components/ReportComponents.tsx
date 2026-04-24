@@ -352,10 +352,23 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
 
   // Filter out non-vehicle images entirely — they are background/document images
   // that contribute nothing to damage analysis and should not appear in the report.
+  // Two-layer check:
+  //   1. Explicit flag: r.isNonVehicle (set by AI pipeline when is_non_vehicle === true)
+  //   2. Text-pattern check: AI vision description indicates a document/form/text image
+  //      rather than a photograph of vehicle damage
+  const isDocumentImage = (text: string): boolean => {
+    if (!text) return false;
+    // Starts with document-style headers (estimate forms, damage lists, etc.)
+    if (/^\s*(DAMAGE\s+DESCRIPTION|ESTIMATE|QUOTATION|INVOICE|CLAIM\s+FORM|REPAIR\s+ORDER|PARTS\s+LIST|LABOUR\s+SCHEDULE|SCHEDULE\s+OF|VEHICLE\s+INSPECTION\s+REPORT|ASSESSMENT\s+REPORT|BASED\s+ON\s+ESTIMATE)/i.test(text)) return true;
+    // Contains dense list-like text characteristic of forms ("Listed for replacement", "Qty:", "Item:", etc.)
+    if (/listed\s+for\s+(replacement|repair)|qty\s*:|item\s*:|unit\s+price|labour\s+rate|parts\s+cost/i.test(text)) return true;
+    // LLM refusal patterns
+    if (/^\s*(i\s+am\s+sorry|i\s+cannot|i\s+can't|i\s+apologize|i\s+apologise|unable\s+to|this\s+image\s+does\s+not|the\s+image\s+does\s+not\s+(?:show|contain|depict))/i.test(text)) return true;
+    return false;
+  };
   const vehicleResults = results.filter((r) => {
     const rawText = r.aiVisionDescription ?? '';
-    const isRefusal = /^\s*(i\s+am\s+sorry|i\s+cannot|i\s+can't|i\s+apologize|i\s+apologise|unable\s+to|this\s+image\s+does\s+not|the\s+image\s+does\s+not\s+(?:show|contain|depict))/i.test(rawText);
-    return !r.isNonVehicle && !isRefusal;
+    return !r.isNonVehicle && !isDocumentImage(rawText);
   });
 
   const analysed = vehicleResults.length;

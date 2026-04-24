@@ -2898,9 +2898,18 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         });
         const exifData: PhotoExifForensicsData = { results: exifResults };
         // ── Hedged photo integrity summary verdict ──────────────────────
-        const vehiclePhotos = exifResults.filter(r => !r.isNonVehicle);
+        // Use the same two-layer document-detection logic as PhotoExifForensicsPanel
+        const isDocumentVisionText = (text: string): boolean => {
+          if (!text) return false;
+          if (/^\s*(DAMAGE\s+DESCRIPTION|ESTIMATE|QUOTATION|INVOICE|CLAIM\s+FORM|REPAIR\s+ORDER|PARTS\s+LIST|LABOUR\s+SCHEDULE|SCHEDULE\s+OF|VEHICLE\s+INSPECTION\s+REPORT|ASSESSMENT\s+REPORT|BASED\s+ON\s+ESTIMATE)/i.test(text)) return true;
+          if (/listed\s+for\s+(replacement|repair)|qty\s*:|item\s*:|unit\s+price|labour\s+rate|parts\s+cost/i.test(text)) return true;
+          if (/^\s*(i\s+am\s+sorry|i\s+cannot|i\s+can't|i\s+apologize|i\s+apologise|unable\s+to|this\s+image\s+does\s+not|the\s+image\s+does\s+not\s+(?:show|contain|depict))/i.test(text)) return true;
+          return false;
+        };
+        const vehiclePhotos = exifResults.filter(r => !r.isNonVehicle && !isDocumentVisionText(r.aiVisionDescription ?? ''));
         const totalAnalysed = vehiclePhotos.length;
-        const flaggedCount = vehiclePhotos.filter(r => r.manipulationScore > 50).length;
+        // Threshold: 40% — catches borderline post-processing cases
+        const flaggedCount = vehiclePhotos.filter(r => r.manipulationScore > 40).length;
         const summaryVerdict: string = totalAnalysed === 0
           ? "No vehicle damage photos were available for integrity analysis."
           : flaggedCount > 0
@@ -2914,9 +2923,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
             </div>
             <div className="p-4">
               {/* Hedged integrity summary — shown before per-image detail */}
-              <div style={{ marginBottom: '14px', padding: '10px 14px', background: 'var(--muted)', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}>Photo Integrity Summary</p>
-                <p className="text-sm" style={{ color: 'var(--foreground)', lineHeight: '1.6' }}>{summaryVerdict}</p>
+              <div className="photo-integrity-summary" style={{ marginBottom: '14px', padding: '10px 14px', background: 'var(--muted)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                <p className="pis-label text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}>Photo Integrity Summary</p>
+                <p className="pis-text text-sm" style={{ color: 'var(--foreground)', lineHeight: '1.6' }}>{summaryVerdict}</p>
               </div>
               <PhotoExifForensicsPanel data={exifData} />
             </div>
@@ -4292,6 +4301,10 @@ const REPORT_CSS = `
 .kinga-report .photo-forensics-table .photo-finding{font-size:11px;color:#333;line-height:1.5}
 .kinga-report .photo-forensics-table .photo-detail{font-size:10px;color:#666;margin-top:3px;font-style:italic;line-height:1.4}
 .kinga-report .photo-forensics-table tr.flagged-row td{background:#fff;color:#c00;font-weight:600}
+/* Photo Integrity Summary box — print-safe override */
+.kinga-report .photo-integrity-summary{background:#f8f9fa !important;border:1px solid #ddd !important;border-radius:0 !important;padding:10px 14px !important;margin-bottom:14px !important}
+.kinga-report .photo-integrity-summary .pis-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;margin-bottom:4px}
+.kinga-report .photo-integrity-summary .pis-text{font-size:12px;color:#111;line-height:1.6}
 .kinga-report .fraud-score-block{display:flex;gap:24px;align-items:flex-start;margin-bottom:16px}
 .kinga-report .fraud-big{font-size:64px;font-weight:700;color:#111;line-height:1}
 .kinga-report .fraud-denom{font-size:22px;color:#888}
