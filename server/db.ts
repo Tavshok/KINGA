@@ -92,6 +92,16 @@ export async function getDb() {
 }
 
 /**
+ * Returns the raw mysql2 Pool so callers can use pool.execute(sql, params)
+ * with the standard 2-argument signature (unlike drizzle's 1-arg wrapper).
+ * Returns null when DATABASE_URL is not configured.
+ */
+export async function getRawPool(): Promise<mysql.Pool | null> {
+  await getDb(); // ensure pool is initialised
+  return _pool;
+}
+
+/**
  * Execute a database operation with automatic retry on transient connection errors.
  * Handles ECONNRESET / PROTOCOL_CONNECTION_LOST by resetting the pool and retrying.
  * Use this wrapper for any DB call that runs outside of a live HTTP request context

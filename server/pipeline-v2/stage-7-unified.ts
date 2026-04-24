@@ -182,10 +182,10 @@ export async function runUnifiedStage7(
           vehicle_make_model:
             `${claimRecord.vehicle?.make ?? ""} ${claimRecord.vehicle?.model ?? ""}`.trim() || "Unknown vehicle",
           // Stakeholder context — wired from Stage 3 extraction and Stage 5 scenario detection
-          police_charged_party: claimRecord.accidentDetails?.policeReport?.chargedParty ?? null,
-          police_investigation_status: claimRecord.accidentDetails?.policeReport?.investigationStatus ?? null,
-          police_officer_findings: claimRecord.accidentDetails?.policeReport?.officerFindings ?? null,
-          third_party_account: claimRecord.accidentDetails?.policeReport?.thirdPartyAccountSummary ?? null,
+          police_charged_party: claimRecord.policeReport?.chargedParty ?? null,
+          police_investigation_status: claimRecord.policeReport?.investigationStatus ?? null,
+          police_officer_findings: claimRecord.policeReport?.officerFindings ?? null,
+          third_party_account: (claimRecord.policeReport as any)?.thirdPartyAccountSummary ?? null,
           collision_scenario: claimRecord.accidentDetails?.collisionScenario ?? null,
           is_struck_party: claimRecord.accidentDetails?.isStruckParty ?? false,
         });

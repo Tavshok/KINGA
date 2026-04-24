@@ -182,13 +182,13 @@ async function runAutoValuation(
     const claim = ctx.claim;
     // Prefer freshly extracted vehicle data from claimRecord (Stage 5 output),
     // fall back to the original DB claim record (which may be stale/empty on first run).
-    const vehicleMake = claimRecord?.vehicleMake || claim.vehicleMake;
-    const vehicleModel = claimRecord?.vehicleModel || claim.vehicleModel;
-    const vehicleYear = claimRecord?.vehicleYear || claim.vehicleYear;
-    const vehicleMileageRaw = claimRecord?.vehicleMileage != null
-      ? String(claimRecord.vehicleMileage)
+    const vehicleMake = claimRecord?.vehicle?.make || claim.vehicleMake;
+    const vehicleModel = claimRecord?.vehicle?.model || claim.vehicleModel;
+    const vehicleYear = claimRecord?.vehicle?.year || claim.vehicleYear;
+    const vehicleMileageRaw = claimRecord?.vehicle?.mileageKm != null
+      ? String(claimRecord.vehicle.mileageKm)
       : claim.vehicleMileage;
-    const vehicleRegistration = claimRecord?.vehicleRegistration || claim.vehicleRegistration;
+    const vehicleRegistration = claimRecord?.vehicle?.registration || claim.vehicleRegistration;
     if (!vehicleMake || !vehicleModel) {
       log("VALUATION", "Skipping auto-valuation: vehicle make/model not available");
       return;
@@ -1400,6 +1400,7 @@ export async function runPipelineV2(
       missingFields: claimRecord?.dataQuality?.missingFields ?? [],
       evidenceTrace: null,
       decisionReadiness: null,
+      degradationReasons: [reason],
     };
     return {
       status: "degraded" as const,
@@ -1706,7 +1707,7 @@ export async function runPipelineV2(
       });
     }
     // MISSING_POLICY_NUMBER: policy number absent from all extracted documents
-    if (claimRecord && !claimRecord.policyNumber) {
+    if (claimRecord && !claimRecord.insuranceContext?.policyNumber) {
       domainPenalties.push({
         code: 'MISSING_POLICY_NUMBER',
         reason: 'Policy number could not be extracted from any submitted document. Coverage verification is not possible without a policy reference.',
@@ -1863,7 +1864,7 @@ function buildResult(
   reportReadiness: ReportReadinessResult | null = null,
   forensicAnalysis: Record<string, any> | null = null,
   enrichedPhotosJson: string | null = null,
-  classifiedImages: import('./imageClassifier').ImageClassificationResult | null = null
+  classifiedImages: import('./imageClassifier').ClassificationResult | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
 
@@ -1990,6 +1991,17 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
       airbagDeployment: null,
       policeReportNumber: null,
       policeStation: null,
+      policeOfficerName: null,
+      policeChargeNumber: null,
+      policeFineAmountCents: null,
+      policeReportDate: null,
+      policeChargedParty: null,
+      policeInvestigationStatus: null,
+      policeOfficerFindings: null,
+      thirdPartyAccountSummary: null,
+      thirdPartyName: null,
+      thirdPartyInsurerName: null,
+      thirdPartyPolicyNumber: null,
       damageDescription: null,
       damagedComponents: [],
       panelBeater: null,
@@ -2063,8 +2075,9 @@ function buildMinimalClaimRecord(ctx: PipelineContext): ClaimRecord {
       narrativeAnalysis: null,
       collisionScenario: "unknown" as const, isStruckParty: false,
       thirdPartyClaimRequired: false, isHitAndRun: false, isParkingLotDamage: false,
+      multiEventSequence: null,
     },
-    policeReport: { reportNumber: null, station: null },
+    policeReport: { reportNumber: null, station: null, officerName: null, chargeNumber: null, fineAmountCents: null, reportDate: null },
     damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },
     repairQuote: {
       repairerName: null, repairerCompany: null, assessorName: null,

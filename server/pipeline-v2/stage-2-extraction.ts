@@ -259,7 +259,8 @@ After extracting, rate your confidence per field in fieldConfidence (0-100).`,
       },
     },
       });
-      const content = response.choices?.[0]?.message?.content;
+      const rawContent = response.choices?.[0]?.message?.content;
+      const content = typeof rawContent === 'string' ? rawContent : (Array.isArray(rawContent) ? (rawContent as any[]).map((c: any) => (c.text ?? '')).join('') : '');
       if (!content || content.trim() === '' || content.trim() === '{}') {
         throw new Error('Empty or truncated LLM response');
       }
@@ -410,7 +411,8 @@ Rules:
           },
         },
       });
-      const content = response.choices?.[0]?.message?.content;
+      const rawContent = response.choices?.[0]?.message?.content;
+      const content = typeof rawContent === 'string' ? rawContent : (Array.isArray(rawContent) ? (rawContent as any[]).map((c: any) => (c.text ?? '')).join('') : '');
       if (!content || content.trim() === '' || content.trim() === '{}') {
         throw new Error('Empty or truncated LLM response');
       }

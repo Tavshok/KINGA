@@ -185,7 +185,7 @@ export async function runAssemblyStage(
     if (incidentClassification.incident_type === "unknown") {
       // Final fallback — only if the engine found no evidence at all
       incidentType = "collision";
-      incidentClassification.incident_type = "collision"; // Update classification so Decision Readiness Engine sees the resolved type
+      incidentClassification.incident_type = "vehicle_collision" as any; // Update classification so Decision Readiness Engine sees the resolved type
       incidentClassification.canonical_type = "collision";
       isDegraded = true;
       assumptions.push({
@@ -555,8 +555,9 @@ export async function runAssemblyStage(
         narrativeAnalysis: null,
         collisionScenario: "unknown" as const, isStruckParty: false,
         thirdPartyClaimRequired: false, isHitAndRun: false, isParkingLotDamage: false,
+        multiEventSequence: null,
       },
-      policeReport: { reportNumber: null, station: null },
+      policeReport: { reportNumber: null, station: null, officerName: null, chargeNumber: null, fineAmountCents: null, reportDate: null },
       damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },
       repairQuote: {
         repairerName: null, repairerCompany: null, assessorName: null,
@@ -743,7 +744,7 @@ function detectCollisionScenario(params: {
     collisionScenario = "head_on";
     isStruckParty = isStruckByNarrative;
     thirdPartyClaimRequired = true; // Head-on always involves another party
-  } else if (dir === "rollover") {
+  } else if ((dir as string) === "rollover") {
     collisionScenario = "rollover";
     isStruckParty = false;
     thirdPartyClaimRequired = false;

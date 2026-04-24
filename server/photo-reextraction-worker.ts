@@ -13,7 +13,7 @@
  * damageDescription if the re-extraction produces better photos.
  */
 
-import { getDb } from "./db";
+import { getRawPool } from "./db";
 import { extractImagesWithSummary } from "./pdf-image-extractor";
 import { runDamageAnalysisStage } from "./pipeline-v2/stage-6-damage-analysis";
 
@@ -36,10 +36,14 @@ export interface ReextractionResult {
 // ─── Worker ───────────────────────────────────────────────────────────────────
 export async function runPhotoReextraction(jobId: number): Promise<ReextractionResult> {
   const start = Date.now();
-  const db = await getDb();
+  const pool = await getRawPool();
+
+  if (!pool) {
+    return { jobId, status: "failed", photosExtracted: 0, renderDpi: HIGH_DPI, isScannedPdf: false, avgSharpness: 0, error: "Database not available", durationMs: Date.now() - start };
+  }
 
   // 1. Load the job record
-  const [jobRows] = await db.execute(`SELECT * FROM photo_reextraction_jobs WHERE id = ? LIMIT 1`, [jobId]);
+  const [jobRows] = await pool.execute(`SELECT * FROM photo_reextraction_jobs WHERE id = ? LIMIT 1`, [jobId]);
   const jobs = jobRows as any[];
 
   if (jobs.length === 0) {
@@ -49,7 +53,7 @@ export async function runPhotoReextraction(jobId: number): Promise<ReextractionR
   const job = jobs[0];
 
   // Mark as running
-  await db.execute(`UPDATE photo_reextraction_jobs SET status = 'running', started_at = NOW() WHERE id = ?`, [jobId]);
+  await pool.execute(`UPDATE photo_reextraction_jobs SET status = 'running', started_at = NOW() WHERE id = ?`, [jobId]);
 
   try {
     const assessmentId = job.assessment_id as number;
@@ -90,7 +94,7 @@ export async function runPhotoReextraction(jobId: number): Promise<ReextractionR
       : 0;
 
     // 4. Load the existing assessment to get the claimRecord for Stage 6
-    const [assessRows] = await db.execute(`SELECT claim_record_json, tenant_id FROM ai_assessments WHERE id = ? LIMIT 1`, [assessmentId]);
+    const [assessRows] = await pool.execute(`SELECT claim_record_json, tenant_id FROM ai_assessments WHERE id = ? LIMIT 1`, [assessmentId]);
     const assessments = assessRows as any[];
 
     if (assessments.length === 0) {
@@ -113,7 +117,6 @@ export async function runPhotoReextraction(jobId: number): Promise<ReextractionR
           claim: {},
           pdfUrl,
           damagePhotoUrls: newPhotoUrls,
-          db,
           log: (stage: string, msg: string) => {
             const entry = `[${stage}] ${msg}`;
             logs.push(entry);
@@ -124,8 +127,17 @@ export async function runPhotoReextraction(jobId: number): Promise<ReextractionR
         const stage6Result = await runDamageAnalysisStage(ctx, claimRecord);
 
         if (stage6Result.data) {
-          damageDescription = stage6Result.data.summary ?? stage6Result.data.overallSeverity ?? undefined;
-          console.log(`✅ [ReExtract] Job ${jobId}: Stage 6 re-analysis complete. Severity: ${stage6Result.data.overallSeverity}`);
+          // Stage6Output has overallSeverityScore (number) not overallSeverity (string).
+          // Build a human-readable description from the score.
+          const score = stage6Result.data.overallSeverityScore;
+          const severityLabel =
+            score >= 80 ? "critical" :
+            score >= 60 ? "severe" :
+            score >= 40 ? "moderate" :
+            score >= 20 ? "minor" :
+            "cosmetic";
+          damageDescription = `Overall severity: ${severityLabel} (score: ${score})`;
+          console.log(`✅ [ReExtract] Job ${jobId}: Stage 6 re-analysis complete. Severity score: ${score}`);
         }
       } catch (stage6Err: any) {
         console.warn(`⚠️  [ReExtract] Job ${jobId}: Stage 6 re-analysis failed (non-fatal): ${stage6Err.message}`);
@@ -134,12 +146,12 @@ export async function runPhotoReextraction(jobId: number): Promise<ReextractionR
 
     // 6. Update the assessment with the new photo URLs
     if (damageDescription) {
-      await db.execute(
+      await pool.execute(
         `UPDATE ai_assessments SET damage_photos_json = ?, image_analysis_total_count = ?, image_analysis_success_count = ?, image_analysis_success_rate = ?, damage_description = ? WHERE id = ?`,
         [JSON.stringify(newPhotoUrls), newPhotoUrls.length, newPhotoUrls.length, newPhotoUrls.length > 0 ? 100 : 0, damageDescription, assessmentId]
       );
     } else {
-      await db.execute(
+      await pool.execute(
         `UPDATE ai_assessments SET damage_photos_json = ?, image_analysis_total_count = ?, image_analysis_success_count = ?, image_analysis_success_rate = ? WHERE id = ?`,
         [JSON.stringify(newPhotoUrls), newPhotoUrls.length, newPhotoUrls.length, newPhotoUrls.length > 0 ? 100 : 0, assessmentId]
       );
@@ -158,7 +170,7 @@ export async function runPhotoReextraction(jobId: number): Promise<ReextractionR
         rejectedByDimension: summary.rejectedByDimension,
       },
     });
-    await db.execute(
+    await pool.execute(
       `UPDATE photo_reextraction_jobs SET status = 'completed', completed_at = NOW(), photos_extracted = ?, render_dpi = ?, avg_sharpness = ?, result_json = ?, duration_ms = ? WHERE id = ?`,
       [newPhotoUrls.length, summary.renderDpi, avgSharpness, resultJson, durationMs, jobId]
     );
@@ -183,7 +195,7 @@ export async function runPhotoReextraction(jobId: number): Promise<ReextractionR
     console.error(`❌ [ReExtract] Job ${jobId}: Failed — ${errorMsg}`);
 
     try {
-      await db.execute(
+      await pool.execute(
         `UPDATE photo_reextraction_jobs SET status = 'failed', completed_at = NOW(), error_message = ?, duration_ms = ? WHERE id = ?`,
         [errorMsg, durationMs, jobId]
       );

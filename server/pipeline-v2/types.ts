@@ -49,6 +49,7 @@ export type RecoveryStrategy =
   | "cross_document_search"
   | "historical_data"
   | "contextual_inference"
+  | "domain_correction"
   | "manufacturer_lookup"
   | "industry_average"
   | "damage_based_estimate"
@@ -822,6 +823,10 @@ export interface FraudIndicator {
   category: string;
   score: number;
   description: string;
+  /** Optional severity label for display — does not affect scoring */
+  severity?: "critical" | "high" | "medium" | "low" | "advisory";
+  /** Supporting evidence strings */
+  evidence?: string[];
 }
 
 export interface Stage8Output {
@@ -945,21 +950,24 @@ export interface RepairIntelligenceItem {
   location: string;
   severity: string;
   recommendedAction: string;
-  partsCost: number;
-  labourCost: number;
-  paintCost: number;
-  totalCost: number;
+  partsCost: number | null;
+  labourCost: number | null;
+  paintCost: number | null;
+  totalCost: number | null;
   currency: string;
   notes: string | null;
 }
 
 export interface PartsReconciliationItem {
   component: string;
-  aiEstimate: number;
+  aiEstimate: number | null;
   quotedAmount: number | null;
+  quotedCurrency?: string | null;
   variance: number | null;
   variancePct: number | null;
   flag: string | null;
+  reconciliation_status?: string;
+  is_structural?: boolean;
 }
 
 export interface Stage9Output {

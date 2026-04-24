@@ -19,7 +19,7 @@
  * so future predictions improve silently over time.
  */
 
-import { getDb } from "../db";
+import { getRawPool } from "../db";
 
 // --- Types -------------------------------------------------------------------
 
@@ -118,8 +118,9 @@ async function queryLearningDB(
   severity: string
 ): Promise<LearningResult | null> {
   try {
-    const db = await getDb();
-    const [rows] = await db.execute(
+    const pool = await getRawPool();
+    if (!pool) return null;
+    const [rows] = await pool.execute(
       `SELECT outcome, COUNT(*) AS cnt
        FROM component_repair_outcomes
        WHERE LOWER(component_name) = LOWER(?)
@@ -250,8 +251,9 @@ export async function recordAdjusterOutcome(params: {
   const currentYear = new Date().getFullYear();
   const vehicleAgeYears = params.vehicleYear ? currentYear - params.vehicleYear : null;
 
-  const db = await getDb();
-  await db.execute(
+  const pool = await getRawPool();
+  if (!pool) return;
+  await pool.execute(
     `INSERT INTO component_repair_outcomes
       (claim_id, assessment_id, component_name, component_category,
        severity_at_decision, vehicle_make, vehicle_model, vehicle_year,
