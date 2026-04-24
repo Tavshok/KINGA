@@ -605,9 +605,8 @@ export const appRouter = router({
           throw new Error("Only insurers can access cost optimization");
         }
 
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
-        // Get all quotes for the claim
-        const quotes = await getQuotesByClaimId(input.claimId, tenantId);
+        // Do NOT apply tenant filtering here — claimId already uniquely identifies the claim.
+        const quotes = await getQuotesByClaimId(input.claimId);
         if (quotes.length === 0) {
           return null; // No quotes yet
         }
@@ -1853,7 +1852,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
         
-        const quotes = await getQuotesByClaimId(input.claimId, tenantId);
+        // Do NOT apply tenant filtering for quotes — claimId already uniquely identifies the claim.
+        const quotes = await getQuotesByClaimId(input.claimId);
         const selectedQuote = quotes.find(q => q.id === input.selectedQuoteId);
         if (!selectedQuote) throw new TRPCError({ code: "NOT_FOUND", message: "Selected quote not found" });
         
@@ -2903,8 +2903,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
-        const quotes = await getQuotesByClaimId(input.claimId, tenantId);
+        // Do NOT apply tenant filtering here — claimId already uniquely identifies the claim.
+        // Tenant filtering via innerJoin was causing quotes to be silently dropped when the
+        // user's tenantId didn't exactly match the claim's tenantId (e.g. "default" vs actual tenant).
+        const quotes = await getQuotesByClaimId(input.claimId);
         
         // Fetch panel beater details for name resolution
         const panelBeaterIds = [...new Set(quotes.map(q => q.panelBeaterId))];

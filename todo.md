@@ -11080,3 +11080,4 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Remove pre-report panels entirely: Decision Narrative, Claim Quality, Forensic Audit Validation
 - [x] Fix blank page in PDF export (report-cover-card break-after: page)
 - [x] Ensure post-report sections (Audit Trail, Lifecycle, etc.) are hidden in print
+- [x] Bug: Forensic report shows 'No submitted quote' even when a panel beater quote is present — trace and fix the full data flow from DB to report
