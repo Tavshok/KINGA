@@ -370,26 +370,36 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
         const manipPct = Math.round(r.manipulationScore);
 
         // Bullet 1: Observation — first 2 clean sentences from AI vision description
-        const rawDesc = (r.aiVisionDescription ?? '')
-          .replace(/\*\*([^*]+)\*\*/g, '$1')
-          .replace(/\*([^*]+)\*/g, '$1')
-          // Strip LLM preamble like "Here's an analysis...", "Here is...", "The following..."
-          .replace(/^[\s\S]*?(?:analysis[^:]*:|description[^:]*:|following[^:]*:)\s*/i, '')
-          // Strip numbered list markers like "1. ", "2. "
-          .replace(/^\d+\.\s*/gm, '')
-          // Strip section headers like "DAMAGE DESCRIPTION:", "PHOTO AUTHENTICITY:"
-          .replace(/^[A-Z][A-Z\s]+:\s*/gm, '')
-          .trim();
-        // Extract first 2 sentences (split on sentence-ending punctuation followed by space or end)
-        const sentences = rawDesc.match(/[^.!?]+[.!?]+(?=\s|$)/g) ?? [];
-        const twoSentences = sentences.slice(0, 2).join(' ').trim();
-        const observation = twoSentences
-          ? twoSentences
-          : rawDesc
-          ? rawDesc.slice(0, 220) + (rawDesc.length > 220 ? '\u2026' : '')
-          : r.label
-          ? `Documents ${r.label.toLowerCase()} area`
-          : 'Damage area documented';
+        // Check for non-vehicle image or LLM refusal before processing
+        const rawVisionText = r.aiVisionDescription ?? '';
+        const isRefusal = /^\s*(i\s+am\s+sorry|i\s+cannot|i\s+can't|i\s+apologize|i\s+apologise|unable\s+to|this\s+image\s+does\s+not|the\s+image\s+does\s+not\s+(?:show|contain|depict))/i.test(rawVisionText);
+        const isNonVehicleImage = r.isNonVehicle || isRefusal;
+
+        let observation: string;
+        if (isNonVehicleImage) {
+          observation = 'Image does not depict vehicle damage — excluded from damage analysis.';
+        } else {
+          const rawDesc = rawVisionText
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/\*([^*]+)\*/g, '$1')
+            // Strip LLM preamble like "Here's an analysis...", "Here is...", "The following..."
+            .replace(/^[\s\S]*?(?:analysis[^:]*:|description[^:]*:|following[^:]*:)\s*/i, '')
+            // Strip numbered list markers like "1. ", "2. "
+            .replace(/^\d+\.\s*/gm, '')
+            // Strip section headers like "DAMAGE DESCRIPTION:", "PHOTO AUTHENTICITY:"
+            .replace(/^[A-Z][A-Z\s]+:\s*/gm, '')
+            .trim();
+          // Extract first 2 sentences (split on sentence-ending punctuation followed by space or end)
+          const sentences = rawDesc.match(/[^.!?]+[.!?]+(?=\s|$)/g) ?? [];
+          const twoSentences = sentences.slice(0, 2).join(' ').trim();
+          observation = twoSentences
+            ? twoSentences
+            : rawDesc
+            ? rawDesc.slice(0, 220) + (rawDesc.length > 220 ? '\u2026' : '')
+            : r.label
+            ? `Documents ${r.label.toLowerCase()} area`
+            : 'Damage area documented';
+        }
 
         // Bullet 2: EXIF metadata status
         const exifNote = r.exifPresent

@@ -142,16 +142,26 @@ function filterAssessorConclusions(text: string): string {
   if (!text) return text;
   // Sentence-level patterns that indicate assessor-authored conclusions
   const CONCLUSION_PATTERNS = [
+    // Assessor cost/consistency conclusions
     /\b(damages?\s+(?:sustained\s+are|are)\s+consistent\s+with\s+(?:the\s+)?circumstances?\s+reported)[^.]*\./gi,
     /\b(cost[s]?\s+agreed?\s+are\s+within\s+(?:prevailing\s+)?market\s+rates?)[^.]*\./gi,
-    /\b(kindly\s+authoris[e|z]\s+repairs?)[^.]*\./gi,
-    /\b(authoris[e|z]\s+repairs?\s+to\s+the\s+vehicle)[^.]*\./gi,
+    /\b(kindly\s+authoris[ez]\s+repairs?)[^.]*\./gi,
+    /\b(authoris[ez]\s+repairs?\s+to\s+the\s+vehicle)[^.]*\./gi,
     /\b(cost[s]?\s+(?:of\s+repairs?\s+)?are\s+(?:damage\s+)?consistent)[^.]*\./gi,
     /\b(labour\s+charges?\s+are\s+fair)[^.]*\./gi,
     /\b(spares?\s+prices?\s+(?:for\s+the\s+rest\s+of\s+the\s+parts\s+)?have\s+been\s+verified)[^.]*\./gi,
     /\b(circumstances?\s+of\s+loss\s+are\s+genuine)[^.]*\./gi,
     /\b(images?\s+of\s+damage\s+are\s+included)[^.]*\./gi,
     /\b(repairs?\s+to\s+the\s+vehicle)[^.,]*(?:costs?\s+are\s+damage\s+consistent)[^.]*\./gi,
+    // Repairer/assessor commercial observations (not claimant statements)
+    /\b(\w+\s+(?:was|were|is|are)\s+the\s+(?:lowest|cheapest|most\s+expensive)\s+repairer)[^.]*\./gi,
+    /\b(they\s+quoted\s+for\s+(?:the\s+)?[^,.]*)(?:which\s+is\s+not\s+damaged)[^.]*\./gi,
+    /\b(repairer\s+(?:has\s+)?quoted\s+for\s+(?:parts?|items?)\s+(?:that\s+(?:are|were)\s+not\s+damaged))[^.]*\./gi,
+    /\b(quote\s+(?:includes?|contains?)\s+(?:items?|parts?)\s+(?:that\s+(?:are|were)\s+not\s+(?:damaged|affected)))[^.]*\./gi,
+    /\b(recommend\s+(?:approval|authoris[ez]ation|settlement))[^.]*\./gi,
+    /\b(claim\s+is\s+(?:valid|genuine|legitimate))[^.]*\./gi,
+    /\b(vehicle\s+is\s+(?:repairable|a\s+write.?off))[^.]*\./gi,
+    /\b(parts?\s+are\s+(?:available|sourced)\s+locally)[^.]*\./gi,
   ];
   let filtered = text;
   for (const pat of CONCLUSION_PATTERNS) {
