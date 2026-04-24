@@ -3657,8 +3657,8 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
 
 // ─── Mockup v4.2 scoped CSS ──────────────────────────────────────────────────
 const REPORT_CSS = `
-.kinga-report{font-family:'Georgia','Times New Roman',serif;font-size:13px;color:#111;background:#fff;line-height:1.55;padding:32px 44px}
-.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#fff;border-bottom:1px solid #111;font-family:Inter,system-ui,sans-serif;font-size:10px;color:#666;margin:-32px -44px 24px}
+.kinga-report{font-family:'Georgia','Times New Roman',serif;font-size:13px;color:#111;background:#fff;line-height:1.55;padding:24px 20px}
+.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#fff;border-bottom:1px solid #111;font-family:Inter,system-ui,sans-serif;font-size:10px;color:#666;margin:-24px -20px 24px}
 .kinga-report .page-header .brand{font-family:sans-serif;font-weight:700;font-size:11px;color:#111;letter-spacing:.05em;border:1.5px solid #111;padding:2px 8px}
 .kinga-report .cover-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #111}
 .kinga-report .cover-title-row h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
@@ -3810,7 +3810,7 @@ const REPORT_CSS = `
 .kinga-report *{box-sizing:border-box}
 .kinga-report h1,.kinga-report h2,.kinga-report h3,.kinga-report h4{font-family:'Georgia','Times New Roman',serif}
 /* ── CSS variable overrides: map all dark-theme vars to white-document values ── */
-.kinga-report{
+.kinga-report,.dark .kinga-report{color-scheme:light !important;background:#fff !important;color:#111 !important;
   --background:#fff;
   --foreground:#111;
   --card:#fff;
@@ -3847,8 +3847,15 @@ const REPORT_CSS = `
   --status-reject-text:#c00;
 }
 /* Force white background and serif font on all child elements */
-.kinga-report, .kinga-report *:not(button):not(.no-print){
-  color-scheme: light;
+.kinga-report, .kinga-report *:not(button):not(.no-print),
+.dark .kinga-report, .dark .kinga-report *:not(button):not(.no-print){
+  color-scheme: light !important;
+}
+/* Nuke all dark: utility classes inside the report */
+.kinga-report [class*="dark:"]{
+  all: revert;
+  color: inherit !important;
+  background: inherit !important;
 }
 .kinga-report [class*="rounded"]{
   border-radius:0 !important;

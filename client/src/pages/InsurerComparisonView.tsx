@@ -11,18 +11,13 @@ import { useState, useEffect, useRef } from "react";
 import { INSURER_CLAIMS_LIST_PATH } from "@/lib/roleRouting";
 import { toast } from "sonner";
 // PoliceReportForm removed — police reports belong in claim inputs, not AI analysis
-import VehicleValuationCard from "@/components/VehicleValuationCard";
 import { QuoteComparison } from "@/components/QuoteComparison";
 import { generateComparisonPDF, generateDamageReportPDF } from "@/lib/pdfExport";
 import ThemeToggle from "@/components/ThemeToggle";
 import PhysicsConfidenceDashboard from "@/components/PhysicsConfidenceDashboard";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
-import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
-import { RepairReplacePanel } from "@/components/RepairReplacePanel";
-import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
-import { MultiQuoteComparisonPanel } from "@/components/MultiQuoteComparisonPanel";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
 import FraudScorePanel from "@/components/FraudScorePanel";
 import IntelligenceEnforcementPanel from "@/components/IntelligenceEnforcementPanel";
@@ -32,10 +27,6 @@ import { DamageImagesPanel } from "@/components/DamageImagesPanel";
 import { VehicleImpactVectorDiagram } from "@/components/VehicleImpactVectorDiagram";
 import { IncidentTypeOverrideDialog } from "@/components/IncidentTypeOverrideDialog";
 import { DamageConsistencyPanel } from "@/components/DamageConsistencyPanel";
-import DecisionAuthorityPanel from "@/components/DecisionAuthorityPanel";
-import ReportReadinessPanel from "@/components/ReportReadinessPanel";
-import ClaimsExplanationPanel from "@/components/ClaimsExplanationPanel";
-import EscalationRoutingPanel from "@/components/EscalationRoutingPanel";
 import ClaimApprovalToolbar from "@/components/ClaimApprovalToolbar";
 import ApprovalHistoryPanel from "@/components/ApprovalHistoryPanel";
 import { Pencil } from "lucide-react";
@@ -422,25 +413,25 @@ export default function InsurerComparisonView() {
     fraudLevel === 'low' || fraudLevel === 'minimal' ? 'success' : 'neutral';
 
   return (
-    <div className="min-h-screen dark" style={{ background: 'var(--background)', colorScheme: 'dark' }}>
-      {/* BI Hero Header */}
-      <header className="bi-hero">
-        <div className="bi-hero-grid" />
+    <div className="min-h-screen" style={{ background: '#ffffff' }}>
+      {/* BI Hero Header — light themed */}
+      <header className="bi-hero" style={{ colorScheme: 'light', background: '#f8f9fa', borderBottom: '1px solid #e5e7eb' }}>
+        {/* Grid overlay removed for light theme */}
         <div className="container mx-auto px-4 py-5 relative z-10">
           {/* Top bar: Logo + user */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <KingaLogo />
-              <div className="h-5 w-px" style={{ background: 'var(--bi-gradient-accent)' }} />
-              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--chart-1)' }}>AutoVerify AI</span>
+              <div className="h-5 w-px" style={{ background: '#d1d5db' }} />
+              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#374151' }}>AutoVerify AI</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{user?.name}</p>
-                <p className="text-xs capitalize" style={{ color: 'var(--muted-foreground)' }}>{user?.role}</p>
+                <p className="text-sm font-medium" style={{ color: '#111827' }}>{user?.name}</p>
+                <p className="text-xs capitalize" style={{ color: '#6b7280' }}>{user?.role}</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => logout()}
-                style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)', background: 'transparent' }}>
+                style={{ borderColor: '#d1d5db', color: '#374151', background: 'transparent' }}>
                 Sign Out
               </Button>
             </div>
@@ -451,21 +442,21 @@ export default function InsurerComparisonView() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Button variant="ghost" size="sm" onClick={() => setLocation(INSURER_CLAIMS_LIST_PATH)}
-                  className="gap-1.5 px-2 h-7" style={{ color: 'var(--muted-foreground)' }}>
+                  className="gap-1.5 px-2 h-7" style={{ color: '#6b7280' }}>
                   <ArrowLeft className="h-3.5 w-3.5" /> Claims
                 </Button>
-                <span style={{ color: 'var(--muted-foreground)' }}>/</span>
-                <span className="text-xs font-mono" style={{ color: 'var(--muted-foreground)' }}>{claim.claimNumber}</span>
+                <span style={{ color: '#9ca3af' }}>/</span>
+                <span className="text-xs font-mono" style={{ color: '#6b7280' }}>{claim.claimNumber}</span>
               </div>
-              <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+              <h1 className="text-2xl font-bold mb-1" style={{ color: '#111827' }}>
                 {claim.vehicleMake && claim.vehicleModel
                   ? `${claim.vehicleMake} ${claim.vehicleModel}${claim.vehicleYear ? ` · ${claim.vehicleYear}` : ''}`
                   : 'AI Intelligence Report'}
               </h1>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-mono" style={{ color: 'var(--muted-foreground)' }}>{claim.claimNumber}</span>
+                <span className="text-sm font-mono" style={{ color: '#6b7280' }}>{claim.claimNumber}</span>
                 {claim.vehicleRegistration && (
-                  <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--border)', color: 'var(--muted-foreground)', border: '1px solid var(--border)' }}>
+                  <span className="text-xs px-2 py-0.5 rounded" style={{ background: '#e5e7eb', color: '#374151', border: '1px solid #d1d5db' }}>
                     {claim.vehicleRegistration}
                   </span>
                 )}
@@ -480,59 +471,59 @@ export default function InsurerComparisonView() {
             {/* Hero KPI strip */}
             <div className="flex flex-wrap gap-3">
               {aiCostDollars > 0 && (
-                <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>AI Estimate</p>
-                  <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--chart-1)' }}>
+                <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>AI Estimate</p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
                     US${aiCostDollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               )}
               {assessorCostCents > 0 && (
-                <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>Assessor</p>
-                  <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--info)' }}>
+                <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Assessor</p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
                     US${assessorCostCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               )}
               {lowestQuoteCents > 0 && (
-                <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>Best Quote</p>
-                  <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--success)' }}>
+                <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Best Quote</p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
                     US${lowestQuoteCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               )}
               {confidenceScore > 0 && (
-                <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>AI Confidence</p>
-                  <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--warning)' }}>{confidenceScore}%</p>
+                <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>AI Confidence</p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>{confidenceScore}%</p>
                 </div>
               )}
               {/* Quote Sufficiency badge — subtle colour-coded indicator of quote coverage quality */}
               {aiAssessment && (() => {
                 if (aiEstimateSource === 'insufficient_data') return (
-                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)' }}>
-                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.6)' }}>Quote Coverage</p>
-                    <p className="text-xs font-semibold" style={{ color: 'rgb(252,165,165)' }}>Awaiting Quote</p>
+                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Quote Coverage</p>
+                    <p className="text-xs font-semibold" style={{ color: '#dc2626' }}>Awaiting Quote</p>
                   </div>
                 );
                 if (quoteCount === 1) return (
-                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)' }}>
-                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.6)' }}>Quote Coverage</p>
-                    <p className="text-xs font-semibold" style={{ color: 'rgb(253,230,138)' }}>1 Quote</p>
+                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Quote Coverage</p>
+                    <p className="text-xs font-semibold" style={{ color: '#d97706' }}>1 Quote</p>
                   </div>
                 );
                 if (quoteCount === 2) return (
-                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)' }}>
-                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.6)' }}>Quote Coverage</p>
-                    <p className="text-xs font-semibold" style={{ color: 'rgb(147,197,253)' }}>2 Quotes</p>
+                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Quote Coverage</p>
+                    <p className="text-xs font-semibold" style={{ color: '#2563eb' }}>2 Quotes</p>
                   </div>
                 );
                 if (quoteCount >= 3) return (
-                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}>
-                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.6)' }}>Quote Coverage</p>
-                    <p className="text-xs font-semibold" style={{ color: 'rgb(110,231,183)' }}>Optimised ({quoteCount})</p>
+                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ecfdf5', border: '1px solid #a7f3d0' }}>
+                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Quote Coverage</p>
+                    <p className="text-xs font-semibold" style={{ color: '#059669' }}>Optimised ({quoteCount})</p>
                   </div>
                 );
                 return null;
@@ -541,12 +532,12 @@ export default function InsurerComparisonView() {
           </div>
 
           {/* Action bar — bi-hero is always dark so use explicit white-tinted styles */}
-          <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+          <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: '1px solid #e5e7eb' }}>
             <div className="flex gap-2">
               <Button 
                 variant="outline" 
                 size="sm"
-                style={{ borderColor: 'rgba(255,255,255,0.28)', color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.06)' }}
+                style={{ borderColor: '#d1d5db', color: '#374151', background: 'transparent' }}
                 onClick={() => {
                   // Prepare data for PDF export
                   const pdfData = {
@@ -738,7 +729,7 @@ export default function InsurerComparisonView() {
               <Button 
                 variant="outline" 
                 size="sm"
-                style={{ borderColor: 'rgba(255,255,255,0.28)', color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.06)' }}
+                style={{ borderColor: '#d1d5db', color: '#374151', background: 'transparent' }}
                 onClick={() => setLocation(INSURER_CLAIMS_LIST_PATH)}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -750,7 +741,7 @@ export default function InsurerComparisonView() {
       </header>
 
       {/* Main Content — 8-section KINGA Claim Report Display Engine */}
-      <main className="container mx-auto px-4 py-8 space-y-5">
+      <main className="container mx-auto px-2 py-4 space-y-5" style={{ background: '#ffffff', color: '#111111' }}>
 
         {/* ═══════════════════════════════════════════════════════════════
              FORENSIC AUDIT REPORT — replaces old Sections 1–7
@@ -777,42 +768,7 @@ export default function InsurerComparisonView() {
           </div>
         )}
 
-        {/* ══ OPERATIONAL PANELS (kept from original layout) ══ */}
-        {/* Panel beater choices & repair intelligence — interactive, not in ForensicAuditReport */}
-        <div className="comparison-section">
-          <div className="comparison-section-header">
-            <span className="bi-section-num">7</span>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Operational Performance</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Assessor turnaround, panel beater performance, and quote selection</p>
-            </div>
-          </div>
-          <div className="comparison-section-body">
-            <div className="space-y-4">
-              <PanelBeaterChoicesCard claimId={claimId} />
-              <RepairIntelligencePanel claimId={claimId} />
-              {/* Repair-vs-Replace probability engine */}
-              <div className="p-4 bg-card rounded-lg border border-border">
-                <div className="mb-3">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Repair vs. Replace Analysis</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Probability-based suggestion per component — confirm or annotate to improve future accuracy</p>
-                </div>
-                <RepairReplacePanel
-                  claimId={claimId}
-                  vehicleMake={claim?.vehicleMake ?? undefined}
-                  vehicleModel={claim?.vehicleModel ?? undefined}
-                  vehicleYear={claim?.vehicleYear ?? undefined}
-                />
-              </div>
-              {/* Quote Optimisation — QUOTE-FIRST architecture results */}
-              {aiAssessment && (
-                <div className="p-4 bg-card rounded-lg border border-border">
-                  <MultiQuoteComparisonPanel costIntelligenceJson={(aiAssessment as any).costIntelligenceJson} />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* ══ OPERATIONAL PANELS — only actionable items kept ══ */}
 
         {/* ══ SECTION 8: MISSING INFORMATION ══ */}
         {(() => {
@@ -870,103 +826,8 @@ export default function InsurerComparisonView() {
           </div>
         </div>
 
-        {/* Vehicle Valuation — reference panel for market value context */}
-        <div className="comparison-section mb-5">
-          <div className="comparison-section-header">
-            <span className="bi-section-num" style={{ background: 'var(--info)' }}>$</span>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Vehicle Valuation</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Market value reference for total loss assessment</p>
-            </div>
-          </div>
-          <div className="comparison-section-body">
-            <VehicleValuationCard
-              claimId={claimId}
-              vehicleMileage={claim?.vehicleMileage ?? null}
-              vehicleYear={claim?.vehicleYear ?? null}
-            />
-           </div>
-        </div>
 
-        {/* Section: Claims Decision Authority */}
-        {aiAssessment && (
-          <div className="comparison-section mb-5">
-            <div className="comparison-section-header">
-              <span className="bi-section-num" style={{ background: 'var(--chart-5)' }}>&#9878;</span>
-              <div>
-                <p className="font-bold" style={{ color: 'var(--foreground)' }}>Claims Decision Authority</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Final recommendation — sole authoritative decision output</p>
-              </div>
-            </div>
-            <div className="comparison-section-body">
-              <DecisionAuthorityPanel
-                claimId={claimId}
-                aiAssessment={aiAssessment as any}
-                claim={claim as any}
-                assessorValidated={!!(claim as any)?.assessorId}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Section: Report Readiness Gate */}
-        {aiAssessment && (
-          <div className="comparison-section mb-5">
-            <div className="comparison-section-header">
-              <span className="bi-section-num" style={{ background: 'var(--success)' }}>&#10003;</span>
-              <div>
-                <p className="font-bold" style={{ color: 'var(--foreground)' }}>Report Readiness Gate</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Export eligibility check — validates decision, contradictions, and confidence</p>
-              </div>
-            </div>
-            <div className="comparison-section-body">
-              <ReportReadinessPanel
-                claimId={claimId}
-                aiAssessment={aiAssessment as any}
-                claim={claim as any}
-                assessorValidated={!!(claim as any)?.assessorId}
-                onExport={() => {
-                  setLocation(`/insurer/claims/${claimId}/verdict?print=1`);
-                  toast.success("Opening Decision Report for PDF export...");
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Section: Claims Assessment Report (Professional Explanation) */}
-        {aiAssessment && (
-          <div className="comparison-section mb-5">
-            <div className="comparison-section-header">
-              <span className="bi-section-num" style={{ background: 'var(--chart-5)' }}>&#128196;</span>
-              <div>
-                <p className="font-bold" style={{ color: 'var(--foreground)' }}>Claims Assessment Report</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Professional explanation for adjusters and auditors</p>
-              </div>
-            </div>
-            <div className="comparison-section-body">
-              <ClaimsExplanationPanel claimId={claimId} />
-            </div>
-          </div>
-        )}
-
-        {/* Section: Escalation Routing */}
-        {aiAssessment && (
-          <div className="comparison-section mb-5">
-            <div className="comparison-section-header">
-              <span className="bi-section-num" style={{ background: 'var(--chart-1)' }}>&#8594;</span>
-              <div>
-                <p className="font-bold" style={{ color: 'var(--foreground)' }}>Escalation Routing</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Automated routing to the appropriate handling queue</p>
-              </div>
-            </div>
-            <div className="comparison-section-body">
-              <EscalationRoutingPanel claimId={claimId} />
-            </div>
-          </div>
-        )}
-
-        {/* ── Section 12: Approval Workflow ── */}
+        {/* ── Approval Workflow ── */}
         {aiAssessment && (
           <div className="comparison-section">
             <div className="comparison-section-header">

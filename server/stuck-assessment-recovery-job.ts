@@ -101,6 +101,34 @@ function recordRetrigger(claimId: number): void {
 }
 
 /**
+ * When max retries are reached, mark the claim as processing_failed and reset to
+ * intake_pending so it appears in the UI as a failed claim that needs manual attention.
+ * This prevents claims from being silently stuck forever.
+ */
+async function markAsFailedAfterMaxRetries(claimId: number, caseName: string): Promise<void> {
+  console.warn(
+    `[StuckRecovery] Claim ${claimId} — max retries (${MAX_RECOVERY_RETRIES}) reached in ${caseName}. ` +
+    `Marking as processing_failed so it surfaces in the UI.`
+  );
+  try {
+    await withDbRetry(async () => {
+      const db = await getDb();
+      if (!db) return;
+      return db.update(claims).set({
+        status: "intake_pending",
+        workflowState: "intake_queue",
+        documentProcessingStatus: "failed",
+        aiAssessmentTriggered: 0,
+        aiAssessmentCompleted: 0,
+        updatedAt: new Date().toISOString(),
+      }).where(eq(claims.id, claimId));
+    }, 3, 2000, `StuckRecovery markFailed claim ${claimId}`);
+  } catch (err) {
+    console.error(`[StuckRecovery] Failed to mark claim ${claimId} as failed:`, err);
+  }
+}
+
+/**
  * Startup cleanup — runs ONCE on server start.
  * Any claim still in an active transient state (extracting/analysing/parsing)
  * from a previous server run is guaranteed dead. Reset them immediately so
@@ -221,7 +249,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of ranButIncomplete) {
         if (!canRetrigger(claim.id)) {
-          console.warn(`[StuckRecovery] Skipping claim ${claim.id} — max retries reached`);
+          await markAsFailedAfterMaxRetries(claim.id, 'Case5B');
+          totalFixed++;
           continue;
         }
         try {
@@ -274,7 +303,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of neverStarted) {
         if (!canRetrigger(claim.id)) {
-          console.warn(`[StuckRecovery] Skipping claim ${claim.id} — max retries reached`);
+          await markAsFailedAfterMaxRetries(claim.id, 'Case1');
+          totalFixed++;
           continue;
         }
         try {
@@ -320,7 +350,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of timedOut) {
         if (!canRetrigger(claim.id)) {
-          console.warn(`[StuckRecovery] Skipping claim ${claim.id} — max retries reached`);
+          await markAsFailedAfterMaxRetries(claim.id, 'Case2');
+          totalFixed++;
           continue;
         }
         try {
@@ -382,7 +413,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of crashedAndReset) {
         if (!canRetrigger(claim.id)) {
-          console.warn(`[StuckRecovery] Skipping claim ${claim.id} — max retries reached`);
+          await markAsFailedAfterMaxRetries(claim.id, 'Case4');
+          totalFixed++;
           continue;
         }
         try {
@@ -439,7 +471,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of stuckInActiveTransient) {
         if (!canRetrigger(claim.id)) {
-          console.warn(`[StuckRecovery] Skipping claim ${claim.id} — max retries reached`);
+          await markAsFailedAfterMaxRetries(claim.id, 'Case6');
+          totalFixed++;
           continue;
         }
         try {

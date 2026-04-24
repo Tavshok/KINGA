@@ -11024,3 +11024,21 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Update ClaimsProcessorDashboard to show current stage name instead of generic "AI is analyzing" message
 - [x] Fix reporting.ts TypeScript errors (z.record Zod v4 signature, tenantId null→undefined coercions)
 - [x] Fix all stuck claims with valid assessments to assessment_complete
+
+## Recovery Job & Report UI Fix (Apr 24, 2026)
+- [x] Fix recovery job: mark claims as processing_failed when max retries reached instead of silently skipping
+- [x] Audit ForensicAuditReport UI colors — enforce white/black/grey palette uniformly
+- [x] Fix excessive margins in report — ensure report fills width properly
+- [x] Verify report color consistency across all sections
+- [ ] Save checkpoint with all fixes
+
+## Pipeline Hardening — Succeed on First Try (Apr 24, 2026)
+- [ ] Audit triggerAiAssessment for silent failure paths (unhandled promise rejections, missing error propagation)
+- [ ] Add proper timeouts to all LLM calls and S3 uploads in the pipeline
+- [ ] Ensure every catch block properly sets documentProcessingStatus=failed and status=intake_pending
+- [ ] Add structured logging to every pipeline stage entry/exit for traceability
+- [x] Fix dark mode leaking into ForensicAuditReport — force light mode on report container
+
+## Report Page Cleanup
+- [x] Audit and remove/consolidate low-value bottom sections below ForensicAuditReport
+- [x] Keep only sections that add direct value to the claims decision workflow
