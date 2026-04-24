@@ -250,11 +250,14 @@ const ARROW_GEOM: Record<string, { x1:number; y1:number; x2:number; y2:number }>
 const EVENT_COLOURS = ["#ef4444", "#3b82f6", "#f59e0b", "#8b5cf6"];
 const EVENT_LABELS  = ["Event 1", "Event 2", "Event 3", "Event 4"];
 
-function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multiEventSequence }: {
+function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multiEventSequence, deltaV, energyKj, impactForceKn }: {
   damageZones: string[];
   incidentType: string;
   inconsistencyLabel?: string;
   multiEventSequence?: { is_multi_event: boolean; events: Array<{ event_order: number; event_type: string; involves_third_party: boolean; damage_contribution: string[] }> } | null;
+  deltaV?: number;
+  energyKj?: number;
+  impactForceKn?: number;
 }) {
   const zones = [
     { id: "front",     label: "Front",      x: 110, y: 8,   w: 100, h: 48 },
@@ -412,6 +415,14 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
             const g = ARROW_GEOM[arrow.dir];
             if (!g) return null;
             const markerId = `ev-arrow-${idx}`;
+            // Physics force label: show alongside arrow
+            const isFirst = idx === 0;
+            // Label position: offset from arrow midpoint
+            const midX = (g.x1 + g.x2) / 2;
+            const midY = (g.y1 + g.y2) / 2;
+            const isHoriz = Math.abs(g.y1 - g.y2) < 5;
+            const lblX = isHoriz ? midX : (arrow.dir === 'front' ? midX + 28 : midX + 28);
+            const lblY = isHoriz ? midY - 7 : midY;
             return (
               <g key={idx}>
                 <defs>
@@ -422,10 +433,14 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
                 <line
                   x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2}
                   stroke={arrow.colour}
-                  strokeWidth={idx === 0 ? 4 : 3}
+                  strokeWidth={isFirst ? 4 : 3}
                   strokeDasharray={arrow.dashed ? "6 3" : undefined}
                   markerEnd={`url(#${markerId})`}
                 />
+                {/* Arrow label */}
+                <text x={lblX} y={lblY} fontSize="8" fontWeight="bold" fill={arrow.colour} textAnchor="middle">
+                  {arrow.label}
+                </text>
               </g>
             );
           })}
@@ -440,6 +455,20 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
               </text>
             </g>
           )}
+
+          {/* Physics force annotations — shown at bottom of diagram when data is available */}
+          {(deltaV != null && deltaV > 0) || (energyKj != null && energyKj > 0) || (impactForceKn != null && impactForceKn > 0) ? (
+            <g>
+              <rect x="52" y="274" width="216" height="16" rx="3" fill="var(--muted)" stroke="var(--border)" strokeWidth="1" opacity="0.9" />
+              <text x="160" y="285" textAnchor="middle" fontSize="7.5" fill="var(--muted-foreground)">
+                {[
+                  deltaV != null && deltaV > 0 ? `ΔV ${deltaV.toFixed(1)} km/h` : null,
+                  energyKj != null && energyKj > 0 ? `KE ${energyKj.toFixed(1)} kJ` : null,
+                  impactForceKn != null && impactForceKn > 0 ? `F ${impactForceKn.toFixed(1)} kN` : null,
+                ].filter(Boolean).join('  ·  ')}
+              </text>
+            </g>
+          ) : null}
         </svg>
       </div>
 
@@ -913,9 +942,11 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                     </div>
                   </div>
                 ) : (
-                  <p className="leading-relaxed" style={{ color: "var(--foreground)" }}>
-                    {description || narrativeAnalysis?.cleaned_incident_narrative}
-                  </p>
+                  <div className="leading-relaxed" style={{ color: "var(--foreground)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                    {(description || narrativeAnalysis?.cleaned_incident_narrative || '').split('\n').map((line: string, li: number) => (
+                      <p key={li} style={{ marginBottom: line.trim() === '' ? '0.5em' : '0', minHeight: line.trim() === '' ? '0.5em' : undefined }}>{line || '\u00a0'}</p>
+                    ))}
+                  </div>
                 )}
                 {narrativeAnalysis?.was_contaminated && (
                   <p className="mt-1 text-[10px]" style={{ color: "var(--fp-warning-text)" }}>
@@ -1251,24 +1282,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
         </div>
       </div>
 
-      {corrections.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-          <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-            <AlertTriangle className="h-3.5 w-3.5" style={{ color: "var(--fp-warning-text)" }} />
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>
-              Phase 1 Auto-Corrections ({corrections.length})
-            </p>
-          </div>
-          <div className="p-4 space-y-1">
-            {corrections.map((c, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs" style={{ color: "var(--foreground)" }}>
-                <span className="font-mono font-bold" style={{ color: "var(--fp-warning-text)" }}>{i + 1}.</span>
-                {c}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {/* 1.4 Gap Attribution Table — data quality gaps with attribution */}
       {(() => {
@@ -1533,9 +1547,9 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
 
           {directionExplanation && (
             <div className="p-2 rounded-lg text-xs" style={{
-              background: directionMismatch ? "var(--status-review-bg)" : "var(--status-approve-bg)",
-              border: `1px solid ${directionMismatch ? "var(--status-review-border)" : "var(--status-approve-border)"}`,
-              color: directionMismatch ? "var(--status-review-text)" : "var(--status-approve-text)",
+              background: directionMismatch ? "var(--status-review-bg)" : "var(--muted)",
+              border: `1px solid ${directionMismatch ? "var(--status-review-border)" : "var(--border)"}`,
+              color: directionMismatch ? "var(--status-review-text)" : "var(--foreground)",
             }}>
               {directionMismatch ? "⚠ Direction mismatch: " : "✓ Direction consistent: "}{directionExplanation}
             </div>
@@ -1557,7 +1571,7 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Damage Zone Map</p>
-              <VehicleDamageMap damageZones={damageZones} incidentType={incidentType} multiEventSequence={multiEventSequence} />
+              <VehicleDamageMap damageZones={damageZones} incidentType={incidentType} multiEventSequence={multiEventSequence} deltaV={deltaV > 0 ? deltaV : undefined} energyKj={energyKj > 0 ? energyKj : undefined} impactForceKn={impactForceKnDisplay > 0 ? impactForceKnDisplay : undefined} />
               {damageZones.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {damageZones.map((z, i) => (
@@ -1830,14 +1844,21 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
     if (r.component) reconStatusMap[r.component.toLowerCase()] = r.reconciliation_status ?? 'no_quote_available';
   }
 
-  const pbQuotes = (quotes ?? []).map((q: any) => ({
-    name: q.panelBeaterName ?? "Panel Beater",
-    total: (q.quotedAmount ?? 0) / 100,
-    parts: (q.partsCost ?? 0) / 100,
-    labour: (q.laborCost ?? 0) / 100,
-    status: q.status ?? "submitted",
-    lineItems: q.lineItems ?? [],
-  }));
+  const pbQuotes = (quotes ?? []).map((q: any) => {
+    // Compute total from lineItems if quotedAmount is 0 or missing
+    const lineItemsTotal = (q.lineItems ?? []).reduce((sum: number, li: any) => sum + ((li.lineTotal ?? li.unitPrice ?? 0) / 100), 0);
+    const rawTotal = (q.quotedAmount ?? 0) / 100;
+    const total = rawTotal > 0 ? rawTotal : lineItemsTotal;
+    return {
+      name: q.panelBeaterName ?? q.repairerName ?? (q.panelBeaterId ? `Repairer #${q.panelBeaterId}` : 'Panel Beater'),
+      total,
+      parts: (q.partsCost ?? 0) / 100,
+      labour: (q.laborCost ?? q.labourCost ?? 0) / 100,
+      status: q.status ?? 'submitted',
+      lineItems: q.lineItems ?? [],
+      id: q.id,
+    };
+  });
 
   const primaryQuote = pbQuotes[0];
   const quotedTotal = primaryQuote?.total ?? 0;
@@ -1845,7 +1866,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const quotedLabour = primaryQuote?.labour ?? 0;
 
   // No AI estimate to compare against — verdict is purely based on quote presence
-  const verdict: string = quotedTotal > 0 ? "QUOTE_SUBMITTED" : "NO_QUOTE";
+  const verdict: string = pbQuotes.length > 0 ? "QUOTE_SUBMITTED" : "NO_QUOTE";
   const totalVar = null;
   const partsVar = null;
   const labourVar = null;
@@ -1873,9 +1894,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           <StatusBadge status={verdict === "QUOTE_SUBMITTED" ? "pass" : "warn"} label={verdict === "QUOTE_SUBMITTED" ? "Quote Received" : "No Quote"} />
         </div>
         <div className="p-4">
-          {/* Document-sourced cost section — no AI estimates, no benchmarks */}
-          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>3.1 Submitted Quote</p>
-          {quotedTotal > 0 ? (
+          {pbQuotes.length > 0 ? (
             <table className="w-full text-xs mb-3 report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
@@ -1977,56 +1996,53 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         </div>
       )}
 
-      {/* Multiple quotes */}
+      {/* Multiple quotes — shown inline below the primary quote table when > 1 quote exists */}
       {pbQuotes.length > 1 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>All Repairer Quotes</p>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>3.1b Quote Comparison — All Repairers</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                  {["Repairer", "Parts", "Labour", "Total", "vs Benchmark", "Status"].map(h => (
+                  {["Repairer", "Parts", "Labour", "Total", "Status"].map(h => (
                     <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {pbQuotes.map((q, i) => {
-                  const v = null; // No AI estimate to compare against — system uses document-sourced costs only
-                  return (
-                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
-                      <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{q.name}</td>
-                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{q.parts > 0 ? fmtMoney(q.parts) : "—"}</td>
-                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{q.labour > 0 ? fmtMoney(q.labour) : "—"}</td>
-                      <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--foreground)" }}>{fmtMoney(q.total)}</td>
-                      <td className="px-3 py-2">{v != null ? <StatusBadge status={Math.abs(v) <= 15 ? "pass" : Math.abs(v) <= 30 ? "warn" : "fail"} label={`${v > 0 ? "+" : ""}${Math.round(v)}%`} /> : "—"}</td>
-                      <td className="px-3 py-2"><StatusBadge status={q.status === "accepted" ? "pass" : q.status === "rejected" ? "fail" : "info"} label={q.status.toUpperCase()} /></td>
-                    </tr>
-                  );
-                })}
+                {pbQuotes.map((q, i) => (
+                  <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
+                    <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{q.name}</td>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{q.parts > 0 ? fmtMoney(q.parts) : "—"}</td>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{q.labour > 0 ? fmtMoney(q.labour) : "—"}</td>
+                    <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--foreground)" }}>{fmtMoney(q.total)}</td>
+                    <td className="px-3 py-2"><StatusBadge status={q.status === "accepted" ? "pass" : q.status === "rejected" ? "fail" : "info"} label={q.status.toUpperCase()} /></td>
+                  </tr>
+                ))}
               </tbody>
+              <tfoot>
+                <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
+                  <td className="px-3 py-2 font-bold" style={{ color: "var(--foreground)" }}>Average</td>
+                  <td className="px-3 py-2 font-mono" style={{ color: "var(--muted-foreground)" }}>
+                    {pbQuotes.some(q => q.parts > 0) ? fmtMoney(pbQuotes.filter(q => q.parts > 0).reduce((s, q) => s + q.parts, 0) / pbQuotes.filter(q => q.parts > 0).length) : "—"}
+                  </td>
+                  <td className="px-3 py-2 font-mono" style={{ color: "var(--muted-foreground)" }}>
+                    {pbQuotes.some(q => q.labour > 0) ? fmtMoney(pbQuotes.filter(q => q.labour > 0).reduce((s, q) => s + q.labour, 0) / pbQuotes.filter(q => q.labour > 0).length) : "—"}
+                  </td>
+                  <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>
+                    {fmtMoney(pbQuotes.reduce((s, q) => s + q.total, 0) / pbQuotes.length)}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
       )}
 
-      {costCorrections.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-          <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-            <AlertTriangle className="h-3.5 w-3.5" style={{ color: "var(--fp-warning-text)" }} />
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Cost Auto-Corrections ({costCorrections.length})</p>
-          </div>
-          <div className="p-4 space-y-1">
-            {costCorrections.map((c, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs" style={{ color: "var(--foreground)" }}>
-                <span className="font-mono font-bold" style={{ color: "var(--fp-warning-text)" }}>{i + 1}.</span>{c}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {/* Cost Decision Engine output — surfaced from costIntelligenceJson (C-3 fix) */}
       {(costDecision || costNarrative || reconciliationSummary) && (
@@ -2170,8 +2186,9 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
         </table>
         {repairToValue != null && (
           <div className="mt-3 p-2 rounded text-xs" style={{
-            background: isWriteOff ? "var(--status-reject-bg)" : "var(--fp-success-bg)",
-            color: isWriteOff ? "var(--fp-critical-text)" : "var(--fp-success-text)",
+            background: isWriteOff ? "var(--status-reject-bg)" : "var(--muted)",
+            color: isWriteOff ? "var(--fp-critical-text)" : "var(--foreground)",
+            border: `1px solid ${isWriteOff ? "var(--fp-critical-border)" : "var(--border)"}`,
           }}>
             {isWriteOff
               ? `Repair cost is ${repairToValue.toFixed(1)}% of market value — exceeds 75% threshold. Potential economic write-off.`
@@ -2364,7 +2381,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
             </div>
           )}
           {photoStatus === "ANALYSED" && (
-            <div className="p-2 rounded text-xs mb-2" style={{ background: "var(--status-approve-bg)", border: "1px solid var(--fp-success-border)", color: "var(--status-approve-text)" }}>
+            <div className="p-2 rounded text-xs mb-2" style={{ background: "var(--muted)", border: "1px solid var(--border)", color: "var(--foreground)" }}>
               <strong>✓ Photos analysed</strong> — {photosProcessed} of {photosDetected} photos successfully processed.
             </div>
           )}
@@ -3189,8 +3206,8 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
         </div>
       </div>
 
-      <div className="rounded-xl p-4 text-center" style={{ background: "var(--muted)", border: "1px solid var(--border)" }}>
-        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--foreground)" }}>KINGA AutoVerify AI</p>
+      <div style={{ background: "#fff", border: "1px solid #ddd", padding: "16px", textAlign: "center", marginTop: "16px" }}>
+        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#111" }}>KINGA AutoVerify AI</p>
         <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>Engine v{engineVersion} · Report {reportHash} · {fmtDate(aiAssessment?.createdAt ?? new Date().toISOString())}</p>
         <p className="text-xs mt-2" style={{ color: "var(--muted-foreground)" }}>
           This report is generated by an AI system and is intended to assist human adjusters. All decisions require human review and authorisation. KINGA AutoVerify AI does not constitute legal advice.
@@ -3672,12 +3689,12 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
 
 // ─── Mockup v4.2 scoped CSS ──────────────────────────────────────────────────
 const REPORT_CSS = `
-.kinga-report{font-family:'Georgia','Times New Roman',serif;font-size:13px;color:#111;background:#fff;line-height:1.55;padding:24px 20px}
+.kinga-report{font-family:Inter,'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#111;background:#fff;line-height:1.6;padding:24px 20px}
 .kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#fff;border-bottom:1px solid #111;font-family:Inter,system-ui,sans-serif;font-size:10px;color:#666;margin:-24px -20px 24px}
 .kinga-report .page-header .brand{font-family:sans-serif;font-weight:700;font-size:11px;color:#111;letter-spacing:.05em;border:1.5px solid #111;padding:2px 8px}
 .kinga-report .cover-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #111}
-.kinga-report .cover-title-row h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
-.kinga-report .cover-title-row .subtitle{font-size:12px;color:#555;margin-top:4px;font-style:italic}
+.kinga-report .cover-title-row h1{font-size:22px;font-weight:700;letter-spacing:-.02em;font-family:Inter,'Helvetica Neue',Arial,sans-serif}
+.kinga-report .cover-title-row .subtitle{font-size:12px;color:#555;margin-top:4px;font-style:normal}
 .kinga-report .cover-meta{text-align:right}
 .kinga-report .cover-meta .claim-id{font-size:14px;font-weight:700}
 .kinga-report .cover-meta .meta-line{font-size:11px;color:#555;margin-top:2px}
@@ -3726,9 +3743,9 @@ const REPORT_CSS = `
 .kinga-report .section-heading{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#888;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #ddd}
 .kinga-report .sub-heading{font-size:14px;font-weight:700;color:#111;margin:16px 0 10px}
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px}
-.kinga-report .data-table td,.kinga-report .data-table th{padding:7px 12px;font-size:12px;border-bottom:1px solid #eee;vertical-align:top}
+.kinga-report .data-table td,.kinga-report .data-table th{padding:7px 12px;font-size:12px !important;border-bottom:1px solid #eee;vertical-align:top}
 .kinga-report .data-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#fff;border-bottom:1px solid #ddd}
-.kinga-report .data-table td:first-child{color:#555;width:210px;font-size:11px}
+.kinga-report .data-table td:first-child{color:#555;width:210px;font-size:12px}
 .kinga-report .data-table td:last-child{color:#111;font-weight:500}
 .kinga-report .data-table tr:last-child td{border-bottom:none}
 .kinga-report .flag-red{color:#c00;font-weight:700}
@@ -3807,7 +3824,7 @@ const REPORT_CSS = `
 .kinga-report .lc-step:last-child{border-right:1px solid #ddd}
 .kinga-report .lc-step.active{background:#fff;color:#7a5c00;border-color:#c8a000;border-bottom:3px solid #c8a000}
 .kinga-report .lc-step.done{background:#fff;color:#2e7d32;border-color:#a5d6a7;border-bottom:3px solid #2e7d32}
-.kinga-report .conf-footer{font-size:9px;color:#aaa;text-align:center;padding:12px 20px;border-top:1px solid #eee;line-height:1.5}
+.kinga-report .conf-footer{font-size:10px;color:#888;text-align:center;padding:12px 20px;border-top:1px solid #ddd;line-height:1.5;background:#fff}
 .kinga-report .two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .kinga-report .section-divider{border:none;border-top:1px solid #ddd;margin:24px 0}
 .kinga-report .text-muted{color:#888}
@@ -3823,7 +3840,16 @@ const REPORT_CSS = `
 .kinga-report .party-row .pr-value{font-weight:500;color:#111;text-align:right;max-width:160px}
 /* Override any Tailwind/dark-mode variables inside the report */
 .kinga-report *{box-sizing:border-box}
-.kinga-report h1,.kinga-report h2,.kinga-report h3,.kinga-report h4{font-family:'Georgia','Times New Roman',serif}
+.kinga-report h1,.kinga-report h2,.kinga-report h3,.kinga-report h4{font-family:Inter,'Helvetica Neue',Arial,sans-serif;font-weight:700}
+.kinga-report h1{font-size:22px}
+.kinga-report h2{font-size:16px}
+.kinga-report h3{font-size:14px}
+.kinga-report h4{font-size:13px}
+/* Body text: uniform 12px throughout */
+.kinga-report p,.kinga-report td,.kinga-report li,.kinga-report span{font-size:12px}
+/* Sub-labels: 10px only for section headings and KPI labels */
+.kinga-report .section-heading{font-size:9px}
+.kinga-report .kpi-label{font-size:9px}
 /* ── CSS variable overrides: map all dark-theme vars to white-document values ── */
 .kinga-report,.dark .kinga-report{color-scheme:light !important;background:#fff !important;color:#111 !important;
   --background:#fff;
@@ -3831,7 +3857,7 @@ const REPORT_CSS = `
   --card:#fff;
   --card-foreground:#111;
   --border:#ddd;
-  --muted:#fff;
+  --muted:#f8f8f8;
   --muted-foreground:#666;
   --primary:#111;
   --primary-foreground:#fff;
@@ -3892,9 +3918,9 @@ const REPORT_CSS = `
 }
 /* Table rows */
 .kinga-report table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
-.kinga-report table td,.kinga-report table th{padding:7px 12px;border-bottom:1px solid #eee;vertical-align:top;color:#111;background:#fff}
-.kinga-report table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#fff;border-bottom:1px solid #ddd}
-.kinga-report table td:first-child{color:#555;font-size:11px}
+.kinga-report table td,.kinga-report table th{padding:7px 12px;font-size:12px !important;border-bottom:1px solid #eee;vertical-align:top;color:#111;background:#fff}
+.kinga-report table th{font-size:10px !important;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#fff;border-bottom:1px solid #ddd}
+.kinga-report table td:first-child{color:#555;font-size:12px !important}
 /* Narrative boxes */
 .kinga-report [class*="p-3"][class*="rounded"]{background:#fff !important;border:1px solid #ddd !important;border-radius:0 !important;color:#333 !important}
 /* Section sub-headings */
@@ -4002,37 +4028,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
   return (
     <div className="kinga-report">
       <style dangerouslySetInnerHTML={{ __html: REPORT_CSS }} />
-      {/* C-5: Contradiction warning banner — shown when the pre-generation check found self-contradicting report states */}
-      {hasContradictions && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "2px solid var(--fp-warning-border)", background: "var(--fp-warning-bg)" }}>
-          <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid var(--fp-warning-border)" }}>
-            <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: "var(--fp-warning-text)" }} />
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--fp-warning-text)" }}>
-              Report Integrity Alert — {contradictions.length} Contradiction{contradictions.length > 1 ? "s" : ""} Detected
-            </p>
-          </div>
-          <div className="p-4 space-y-3">
-            <p className="text-xs" style={{ color: "var(--fp-warning-text)" }}>
-              The following self-contradicting states were detected in this report. Auto-corrections have been applied where possible.
-              Items marked <strong>Requires Re-run</strong> need the claim to be re-assessed with corrected input data.
-            </p>
-            {contradictions.map((c: any, i: number) => (
-              <div key={i} className="rounded p-3 text-xs space-y-1" style={{ background: "var(--card)", border: "1px solid var(--fp-warning-border)" }}>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--fp-warning-bg)", color: "var(--fp-warning-text)" }}>{c.rule_id}</span>
-                  {c.auto_corrected
-                    ? <StatusBadge status="pass" label="Auto-Corrected" />
-                    : <StatusBadge status="fail" label={c.requires_rerun ? "Requires Re-run" : "Flagged"} />}
-                </div>
-                <p style={{ color: "var(--foreground)" }}>{c.description}</p>
-                {c.correction_applied && (
-                  <p className="italic" style={{ color: "var(--muted-foreground)" }}>Correction: {c.correction_applied}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* C-5: Contradiction warning banner — hidden from report per design decision */}
       {/* Page header bar */}
       <div className="page-header">
         <span>

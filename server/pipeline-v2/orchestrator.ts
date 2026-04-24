@@ -1038,15 +1038,19 @@ export async function runPipelineV2(
     ctx.log?.("7d_confidence", `failed: ${err}`);
   }
 
-  // ── STAGE 7b RE-RUN: Causal Reasoning with Downstream Scores ─────────────
-  // After Stages 8 (fraud) and 9 (cost) complete, re-run Stage 7b with the
-  // fraud risk score, fraud indicators, and quote deviation populated in
-  // precomputedScores. This gives the causal engine a complete forensic picture.
+  // ── POST-S8/S9 PARALLEL BLOCK ────────────────────────────────────────────
+  // Stage 7b re-run (LLM, ~15-30s) and all deterministic post-processing stages
+  // (36, 37, 38, 40, 41, 42, 9b) share the same inputs (stage8Data, stage9Data,
+  // stage6Data, stage7Data, claimRecord) and have NO dependency on each other.
+  // Running them concurrently saves ~15-30s per claim.
   //
-  // COMPLEXITY GATE: Skipped for SIMPLE tier claims (low value, clean data,
-  // no fraud pre-signals). All 13 fraud detection layers remain fully active.
-  // The primary Stage 7b Pass 1 verdict is already captured above.
-  if (stage8Data && stage9Data && !complexityScore?.skipStage7bPass2) {
+  // DEPENDENCY NOTE: The reconciliation pass (below) needs causalVerdict from
+  // Stage 7b re-run, so it runs AFTER this Promise.all resolves.
+  ctx.log("Pipeline", "Starting Stage 7b re-run ‖ deterministic post-processing (36,37,38,40,41,42,9b) in parallel...");
+
+  // Stage 7b re-run task
+  const stage7bRerunTask = async (): Promise<CausalVerdict | null> => {
+    if (!(stage8Data && stage9Data && !complexityScore?.skipStage7bPass2)) return null;
     try {
       const enrichedPhotosJsonRerun: string | null = (ctx as any).enrichedPhotosJson ?? null;
       const precomputedScores = {
@@ -1065,132 +1069,132 @@ export async function runPipelineV2(
         enrichedPhotosJsonRerun,
         precomputedScores
       );
-      causalVerdict = updatedVerdict;
       ctx.log(
         "Stage 7b (re-run)",
         `Updated causal verdict with downstream scores: ` +
-        `plausibility=${causalVerdict.plausibilityScore}% (${causalVerdict.plausibilityBand}), ` +
-        `fraudFlag=${causalVerdict.flagForFraud}, ` +
+        `plausibility=${updatedVerdict.plausibilityScore}% (${updatedVerdict.plausibilityBand}), ` +
+        `fraudFlag=${updatedVerdict.flagForFraud}, ` +
         `fraudScore=${precomputedScores.fraudRiskScore ?? 'N/A'}, ` +
         `quoteDeviation=${precomputedScores.quoteDeviationPct != null ? precomputedScores.quoteDeviationPct.toFixed(1) + '%' : 'N/A'}`
       );
+      return updatedVerdict;
     } catch (err) {
       ctx.log("Stage 7b (re-run)", `Re-run with downstream scores failed (non-fatal): ${String(err)}`);
+      return null;
     }
-  }
+  };
 
-  // ── STAGE 36: Cost Realism Validationn ────────────────────────────────
-  try {
-    const componentCount = stage6Data?.damagedParts?.length ?? 0;
-    const overallSeverity = stage7Data?.accidentSeverity ?? null;
-    const costValidation = validateCostRealism(
-      stage9Data,
-      componentCount,
-      overallSeverity
-    );
-    if (stage9Data) {
-      stage9Data = mergeValidatedCost(stage9Data, costValidation) as typeof stage9Data;
-    }
-    ctx.log("Stage 36", `Cost realism: validated=${costValidation.validated_cost}, adjustments=${costValidation.adjustments_applied}, confidence=×${costValidation.confidence_multiplier.toFixed(2)}. ${costValidation.summary}`);
-  } catch (err) {
-    ctx.log("Stage 36", `Cost realism validation failed (non-fatal): ${String(err)}`);
-  }
-
-  // ── STAGE 37: Causal Chain Builder ──────────────────────────────────────
-  try {
-    const preliminaryConfidence = claimRecord?.dataQuality?.completenessScore ?? 50;
-    causalChain = buildCausalChain(
-      claimRecord,
-      stage6Data,
-      stage7Data,
-      stage8Data,
-      stage9Data,
-      preliminaryConfidence
-    );
-    ctx.log("Stage 37", `Causal chain built: ${causalChain.step_count} steps, outcome=${causalChain.decision_outcome}, escalation=${causalChain.escalation_required}, critical=${causalChain.critical_step_count}`);
-  } catch (err) {
-    ctx.log("Stage 37", `Causal chain build failed (non-fatal): ${String(err)}`);
-  }
-
-  // ── STAGE 38: Evidence Strength Scorer ──────────────────────────────────
-  if (claimRecord && stage6Data && stage7Data && stage8Data && stage9Data) {
+  // Deterministic post-processing task (stages 36, 37, 38, 40, 41, 42, 9b)
+  const deterministicPostTask = async () => {
+    // Stage 36: Cost Realism Validation
+    let validatedStage9Data = stage9Data;
     try {
-      evidenceBundle = computeEvidenceBundle(
-        claimRecord,
-        stage6Data,
-        stage7Data,
-        stage8Data,
-        stage9Data
-      );
-      ctx.log("Stage 38", `Evidence bundle computed: composite=${evidenceBundle.composite.evidence_label}(${evidenceBundle.composite.evidence_strength.toFixed(2)}), damage=${evidenceBundle.damage.evidence_label}, physics=${evidenceBundle.physics.evidence_label}, fraud=${evidenceBundle.fraud.evidence_label}, cost=${evidenceBundle.cost.evidence_label}`);
+      const componentCount = stage6Data?.damagedParts?.length ?? 0;
+      const overallSeverity = stage7Data?.accidentSeverity ?? null;
+      const costValidation = validateCostRealism(stage9Data, componentCount, overallSeverity);
+      if (stage9Data) {
+        validatedStage9Data = mergeValidatedCost(stage9Data, costValidation) as typeof stage9Data;
+      }
+      ctx.log("Stage 36", `Cost realism: validated=${costValidation.validated_cost}, adjustments=${costValidation.adjustments_applied}, confidence=×${costValidation.confidence_multiplier.toFixed(2)}. ${costValidation.summary}`);
     } catch (err) {
-      ctx.log("Stage 38", `Evidence scoring failed (non-fatal): ${String(err)}`);
+      ctx.log("Stage 36", `Cost realism validation failed (non-fatal): ${String(err)}`);
     }
-  }  // ── STAGE 40: Output Realism Validator ─────────────────────────────────
-  if (stage7Data && stage8Data && stage9Data) {
+
+    // Stage 37: Causal Chain Builder
+    let localCausalChain: typeof causalChain = null;
     try {
-      const componentCount = stage6Data?.damageZones?.reduce(
-        (acc, z) => acc + (z.componentCount ?? 0), 0
-      ) ?? 0;
-      realismBundle = buildRealismBundle(stage7Data, stage9Data, stage8Data, componentCount);
-      ctx.log("Stage 40", `Realism bundle: overall=${realismBundle.overall_realism_flag}, confidence_multiplier=${realismBundle.overall_confidence_multiplier.toFixed(3)}, physics=${realismBundle.physics.realism_flag}, cost=${realismBundle.cost.realism_flag}, fraud=${realismBundle.fraud.realism_flag}`);
+      const preliminaryConfidence = claimRecord?.dataQuality?.completenessScore ?? 50;
+      localCausalChain = buildCausalChain(claimRecord, stage6Data, stage7Data, stage8Data, validatedStage9Data, preliminaryConfidence);
+      ctx.log("Stage 37", `Causal chain built: ${localCausalChain.step_count} steps, outcome=${localCausalChain.decision_outcome}, escalation=${localCausalChain.escalation_required}, critical=${localCausalChain.critical_step_count}`);
     } catch (err) {
-      ctx.log("Stage 40", `Realism validation failed (non-fatal): ${String(err)}`);
+      ctx.log("Stage 37", `Causal chain build failed (non-fatal): ${String(err)}`);
     }
-  }
 
-  // ── STAGE 41: Benchmark Deviation Engine ──────────────────────────────
-  if (stage7Data && stage8Data && stage9Data) {
+    // Stage 38: Evidence Strength Scorer
+    let localEvidenceBundle: typeof evidenceBundle = null;
+    if (claimRecord && stage6Data && stage7Data && stage8Data && validatedStage9Data) {
+      try {
+        localEvidenceBundle = computeEvidenceBundle(claimRecord, stage6Data, stage7Data, stage8Data, validatedStage9Data);
+        ctx.log("Stage 38", `Evidence bundle computed: composite=${localEvidenceBundle.composite.evidence_label}(${localEvidenceBundle.composite.evidence_strength.toFixed(2)}), damage=${localEvidenceBundle.damage.evidence_label}, physics=${localEvidenceBundle.physics.evidence_label}, fraud=${localEvidenceBundle.fraud.evidence_label}, cost=${localEvidenceBundle.cost.evidence_label}`);
+      } catch (err) {
+        ctx.log("Stage 38", `Evidence scoring failed (non-fatal): ${String(err)}`);
+      }
+    }
+
+    // Stage 40: Output Realism Validator
+    let localRealismBundle: typeof realismBundle = null;
+    if (stage7Data && stage8Data && validatedStage9Data) {
+      try {
+        const componentCount = stage6Data?.damageZones?.reduce((acc, z) => acc + (z.componentCount ?? 0), 0) ?? 0;
+        localRealismBundle = buildRealismBundle(stage7Data, validatedStage9Data, stage8Data, componentCount);
+        ctx.log("Stage 40", `Realism bundle: overall=${localRealismBundle.overall_realism_flag}, confidence_multiplier=${localRealismBundle.overall_confidence_multiplier.toFixed(3)}, physics=${localRealismBundle.physics.realism_flag}, cost=${localRealismBundle.cost.realism_flag}, fraud=${localRealismBundle.fraud.realism_flag}`);
+      } catch (err) {
+        ctx.log("Stage 40", `Realism validation failed (non-fatal): ${String(err)}`);
+      }
+    }
+
+    // Stage 41: Benchmark Deviation Engine
+    let localBenchmarkBundle: typeof benchmarkBundle = null;
+    if (stage7Data && stage8Data && validatedStage9Data) {
+      try {
+        const bCtx: BenchmarkInputContext = {
+          vehicleMassKg: claimRecord?.vehicle?.massKg ?? null,
+          vehicleMake: claimRecord?.vehicle?.make ?? null,
+          vehicleModel: claimRecord?.vehicle?.model ?? null,
+          vehicleYear: claimRecord?.vehicle?.year ?? null,
+          incidentType: claimRecord?.accidentDetails?.incidentType ?? null,
+          severity: stage7Data?.accidentSeverity ?? null,
+          impactDirection: stage7Data?.impactVector?.direction ?? null,
+          marketRegion: validatedStage9Data?.marketRegion ?? null,
+        };
+        const liveStats: LiveBenchmarkStats = { comparableClaimCount: 0 };
+        localBenchmarkBundle = buildBenchmarkBundle(stage7Data, stage8Data, validatedStage9Data, bCtx, liveStats);
+        ctx.log("Stage 41", `Benchmark bundle: source=${localBenchmarkBundle.benchmark_source}, cost_flag=${localBenchmarkBundle.cost.deviation_flag}(${localBenchmarkBundle.cost.deviation_percent.toFixed(1)}%), physics_flag=${localBenchmarkBundle.physics.deviation_flag}(${localBenchmarkBundle.physics.deviation_percent.toFixed(1)}%), fraud_flag=${localBenchmarkBundle.fraud.deviation_flag}(${localBenchmarkBundle.fraud.deviation_percent.toFixed(1)}%), overall=${localBenchmarkBundle.overall_deviation_flag}`);
+      } catch (err) {
+        ctx.log("Stage 41", `Benchmark deviation failed (non-fatal): ${String(err)}`);
+      }
+    }
+
+    // Stage 42: Cross-Engine Consensus Scorer
+    let localConsensusResult: typeof consensusResult = null;
     try {
-      const bCtx: BenchmarkInputContext = {
-        vehicleMassKg: claimRecord?.vehicle?.massKg ?? null,
-        vehicleMake: claimRecord?.vehicle?.make ?? null,
-        vehicleModel: claimRecord?.vehicle?.model ?? null,
-        vehicleYear: claimRecord?.vehicle?.year ?? null,
-        incidentType: claimRecord?.accidentDetails?.incidentType ?? null,
-        severity: stage7Data?.accidentSeverity ?? null,
-        impactDirection: stage7Data?.impactVector?.direction ?? null,
-        marketRegion: stage9Data?.marketRegion ?? null,
-      };
-      const liveStats: LiveBenchmarkStats = { comparableClaimCount: 0 };
-      benchmarkBundle = buildBenchmarkBundle(stage7Data, stage8Data, stage9Data, bCtx, liveStats);
-      ctx.log("Stage 41", `Benchmark bundle: source=${benchmarkBundle.benchmark_source}, cost_flag=${benchmarkBundle.cost.deviation_flag}(${benchmarkBundle.cost.deviation_percent.toFixed(1)}%), physics_flag=${benchmarkBundle.physics.deviation_flag}(${benchmarkBundle.physics.deviation_percent.toFixed(1)}%), fraud_flag=${benchmarkBundle.fraud.deviation_flag}(${benchmarkBundle.fraud.deviation_percent.toFixed(1)}%), overall=${benchmarkBundle.overall_deviation_flag}`);
+      localConsensusResult = computeConsensus(claimRecord, stage6Data, stage7Data, stage8Data, coherenceResult, undefined, validatedStage9Data);
+      ctx.log("Stage 42", `Consensus: score=${localConsensusResult.consensus_score}, label=${localConsensusResult.consensus_label}, conflict=${localConsensusResult.conflict_present}, conflicts=${localConsensusResult.conflict_dimension_count}`);
+      if (localConsensusResult.conflict_present && localConsensusResult.consensus_label === "CONFLICTING") {
+        psm.flagException(`Cross-engine consensus CONFLICTING (score=${localConsensusResult.consensus_score}/100): ${localConsensusResult.conflict_summary}`);
+        ctx.log("Stage 42", `FLAGGED_EXCEPTION: ${localConsensusResult.conflict_summary}`);
+      }
     } catch (err) {
-      ctx.log("Stage 41", `Benchmark deviation failed (non-fatal): ${String(err)}`);
+      ctx.log("Stage 42", `Cross-engine consensus failed (non-fatal): ${String(err)}`);
     }
-  }
 
-  // ── STAGE 42: Cross-Engine Consensus Scorer ───────────────────────────
-  try {
-    consensusResult = computeConsensus(
-      claimRecord,
-      stage6Data,
-      stage7Data,
-      stage8Data,
-      coherenceResult,
-      undefined, // truthResolution
-      stage9Data  // Phase 2C: D9 damage-cost + D10 cost-fraud dimensions
-    );
-    ctx.log("Stage 42", `Consensus: score=${consensusResult.consensus_score}, label=${consensusResult.consensus_label}, conflict=${consensusResult.conflict_present}, conflicts=${consensusResult.conflict_dimension_count}`);
+    // Stage 9b: Turnaround Time Analysis
+    const localS9b = await runTurnaroundTimeStage(ctx, claimRecord!, stage6Data!, validatedStage9Data);
 
-    // Phase 2C: FLAGGED_EXCEPTION routing when consensus is CONFLICTING
-    // A CONFLICTING consensus means multiple engines fundamentally disagree.
-    // This is not a pipeline failure — the pipeline completes, but the state
-    // machine records the exception so the report and dashboard can surface it.
-    if (consensusResult.conflict_present && consensusResult.consensus_label === "CONFLICTING") {
-      psm.flagException(
-        `Cross-engine consensus CONFLICTING (score=${consensusResult.consensus_score}/100): ${consensusResult.conflict_summary}`
-      );
-      ctx.log("Stage 42", `FLAGGED_EXCEPTION: ${consensusResult.conflict_summary}`);
-    }
-  } catch (err) {
-    ctx.log("Stage 42", `Cross-engine consensus failed (non-fatal): ${String(err)}`);
-  }
+    return { validatedStage9Data, localCausalChain, localEvidenceBundle, localRealismBundle, localBenchmarkBundle, localConsensusResult, localS9b };
+  };
 
-  // ── STAGE 9b: Turnaround Time Analysis ─────────────────────────────────
-  const s9b = await runTurnaroundTimeStage(ctx, claimRecord, stage6Data!, stage9Data);
-  recordStage("9b_turnaround", s9b);
-  stage9bData = s9b.data; // Always has data (self-healing)
+  // Fire Stage 7b re-run and all deterministic post-processing concurrently
+  const [updatedCausalVerdict, deterministicResults] = await Promise.all([
+    stage7bRerunTask(),
+    deterministicPostTask(),
+  ]);
+
+  // Apply results from Stage 7b re-run
+  if (updatedCausalVerdict) causalVerdict = updatedCausalVerdict;
+
+  // Apply results from deterministic post-processing
+  const { validatedStage9Data, localCausalChain, localEvidenceBundle, localRealismBundle, localBenchmarkBundle, localConsensusResult, localS9b } = deterministicResults;
+  stage9Data = validatedStage9Data;
+  causalChain = localCausalChain;
+  evidenceBundle = localEvidenceBundle;
+  realismBundle = localRealismBundle;
+  benchmarkBundle = localBenchmarkBundle;
+  consensusResult = localConsensusResult;
+  recordStage("9b_turnaround", localS9b);
+  stage9bData = localS9b.data;
+
+  ctx.log("Pipeline", `Post-S8/S9 parallel block complete. causalVerdict updated=${!!updatedCausalVerdict}, stage9b=${localS9b.status}`);
 
   // ── CROSS-STAGE RECONCILIATION PASS ──────────────────────────────────────
   // Arbitrates conflicts between stages and patches claimRecord with the

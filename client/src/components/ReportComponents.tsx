@@ -511,53 +511,71 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
                 </div>
               </div>
 
-              {/* Summarised findings — max 4 bullets, clean prose, no raw LLM output */}
+              {/* Actionable findings — 4 specific, investigator-facing bullets */}
               {(() => {
-                // Build up to 4 concise finding bullets from flags + vision description
-                const bullets: string[] = [];
-                // Bullet 1: EXIF/GPS forensic status
+                const bullets: { text: string; severity: 'critical' | 'warn' | 'info' }[] = [];
+
+                // Finding 1: Damage observation from AI vision (most important — what does the photo show?)
+                if (r.aiVisionDescription) {
+                  const stripped = r.aiVisionDescription
+                    .replace(/\*\*([^*]+)\*\*/g, '$1')
+                    .replace(/\*([^*]+)\*/g, '$1')
+                    .replace(/^[\s\d.*\-]+/, '')
+                    .trim();
+                  const firstSentence = stripped.split(/(?<=[.!?])\s+/)[0]?.trim();
+                  if (firstSentence && firstSentence.length > 10) {
+                    bullets.push({ text: firstSentence, severity: 'info' });
+                  }
+                  // Second sentence if available and meaningful
+                  const sentences = stripped.split(/(?<=[.!?])\s+/);
+                  if (sentences.length > 1 && bullets.length < 2) {
+                    const second = sentences[1]?.trim();
+                    if (second && second.length > 10 && second.length < 200) {
+                      bullets.push({ text: second, severity: 'info' });
+                    }
+                  }
+                } else if (r.label) {
+                  bullets.push({ text: `Photo documents ${r.label.toLowerCase()} — no AI vision description available.`, severity: 'warn' });
+                }
+
+                // Finding 2: Metadata integrity verdict
                 if (!r.exifPresent) {
-                  bullets.push('EXIF metadata absent — image origin cannot be verified.');
+                  bullets.push({ text: 'EXIF metadata absent — image origin unverifiable; may be a screenshot, re-saved copy, or downloaded from the internet.', severity: 'critical' });
                 } else if (r.gpsPresent) {
-                  bullets.push('EXIF intact with GPS coordinates — capture location verified.');
+                  bullets.push({ text: 'EXIF intact with GPS coordinates — capture location independently verifiable against claimed incident location.', severity: 'info' });
                 } else {
-                  bullets.push('EXIF intact — no GPS data recorded.');
+                  bullets.push({ text: 'EXIF present but no GPS data — capture device identified, location cannot be independently verified.', severity: 'info' });
                 }
-                // Bullet 2: manipulation score
+
+                // Finding 3: Manipulation / integrity risk
                 if (r.manipulationScore > 50) {
-                  bullets.push(`High manipulation score (${r.manipulationScore}%) — treat image with caution.`);
+                  bullets.push({ text: `Manipulation score ${r.manipulationScore}% — high risk of digital alteration; do not rely on this image without independent verification.`, severity: 'critical' });
                 } else if (r.manipulationScore > 20) {
-                  bullets.push(`Elevated manipulation score (${r.manipulationScore}%) — minor metadata irregularity.`);
+                  bullets.push({ text: `Manipulation score ${r.manipulationScore}% — elevated; minor metadata irregularity detected, treat with caution.`, severity: 'warn' });
+                } else if (r.manipulationScore <= 20 && r.exifPresent) {
+                  bullets.push({ text: `Manipulation score ${r.manipulationScore}% — within normal range; no digital alteration indicators detected.`, severity: 'info' });
                 }
-                // Bullet 3: first meaningful flag (skip generic EXIF/GPS flags already covered)
-                const meaningfulFlag = (r.flags ?? []).find(f => {
+
+                // Finding 4: Specific flags (skip generic EXIF/GPS already covered above)
+                const actionableFlags = (r.flags ?? []).filter(f => {
                   const fl = f.toLowerCase();
                   return !fl.includes('exif') && !fl.includes('gps') && f.length > 10;
                 });
-                if (meaningfulFlag) {
-                  // Strip markdown bold markers and truncate
-                  const clean = meaningfulFlag.replace(/\*\*/g, '').replace(/\*/g, '').split('.')[0].trim();
-                  if (clean.length > 5) bullets.push(clean + '.');
+                if (actionableFlags.length > 0 && bullets.length < 4) {
+                  const clean = actionableFlags[0].replace(/\*\*/g, '').replace(/\*/g, '').split('.')[0].trim();
+                  if (clean.length > 5) bullets.push({ text: clean + '.', severity: 'warn' });
                 }
-                // Bullet 4: first sentence of AI vision description (stripped of markdown)
-                if (r.aiVisionDescription && bullets.length < 4) {
-                  const stripped = r.aiVisionDescription
-                    .replace(/\*\*[^*]+\*\*/g, (m) => m.replace(/\*\*/g, '')) // remove bold markers
-                    .replace(/\*[^*]+\*/g, (m) => m.replace(/\*/g, ''))
-                    .replace(/^[\s\d.*]+/, '') // strip leading numbering
-                    .trim();
-                  const firstSentence = stripped.split(/(?<=[.!?])\s+/)[0]?.trim();
-                  if (firstSentence && firstSentence.length > 10 && firstSentence.length < 200) {
-                    bullets.push(firstSentence);
-                  }
-                }
+
                 if (bullets.length === 0) return null;
                 return (
                   <ul className="space-y-1 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
                     {bullets.slice(0, 4).map((b, bi) => (
-                      <li key={bi} className="text-xs leading-snug flex gap-1.5" style={{ color: 'var(--foreground)' }}>
-                        <span style={{ color: 'var(--muted-foreground)', flexShrink: 0 }}>•</span>
-                        <span>{b}</span>
+                      <li key={bi} className="text-xs leading-snug flex gap-1.5">
+                        <span style={{
+                          color: b.severity === 'critical' ? 'var(--fp-critical-text)' : b.severity === 'warn' ? 'var(--fp-warning-text)' : 'var(--muted-foreground)',
+                          flexShrink: 0
+                        }}>•</span>
+                        <span style={{ color: b.severity === 'critical' ? 'var(--fp-critical-text)' : 'var(--foreground)' }}>{b.text}</span>
                       </li>
                     ))}
                   </ul>
