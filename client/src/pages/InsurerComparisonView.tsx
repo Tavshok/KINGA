@@ -774,74 +774,17 @@ export default function InsurerComparisonView() {
 
         {/* ══ OPERATIONAL PANELS — only actionable items kept ══ */}
 
-        {/* ══ SECTION 8: MISSING INFORMATION ══ */}
-        {(() => {
-          const missingFields: Array<{ field: string; reason: string; severity: 'critical' | 'warning' | 'info' }> = [];
-          if (!claim.vehicleMake || claim.vehicleMake === 'Unknown') missingFields.push({ field: 'Vehicle Make/Model', reason: 'Required for accurate parts pricing and repair estimates', severity: 'critical' });
-          if (!claim.vehicleRegistration) missingFields.push({ field: 'Vehicle Registration', reason: 'Required for ownership verification', severity: 'critical' });
-          if (!(claim as any).incidentDate) missingFields.push({ field: 'Incident Date', reason: 'Required for policy coverage validation', severity: 'critical' });
-          if (!(claim as any).incidentType) missingFields.push({ field: 'Incident Type', reason: 'Required for physics analysis and fraud scoring', severity: 'warning' });
-          if (!aiAssessment) missingFields.push({ field: 'AI Assessment', reason: 'Click "Re-run AI Assessment" to generate computer vision analysis', severity: 'warning' });
-          if (quotes.length === 0) missingFields.push({ field: 'Panel Beater Quotes', reason: 'No repair quotes submitted yet — required for cost comparison', severity: 'warning' });
-          if (quotes.length === 1) missingFields.push({ field: 'Second Quote', reason: 'Only one quote received — a second quote is recommended for comparison', severity: 'info' });
-          if (!assessorEval) missingFields.push({ field: 'Assessor Evaluation', reason: 'No independent assessor evaluation on file', severity: 'info' });
-          if (missingFields.length === 0) return null;
-          const colorMap = { critical: { bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', text: 'text-red-400', icon: '✗' }, warning: { bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'text-amber-400', icon: '!' }, info: { bg: 'var(--fp-info-bg)', border: 'var(--fp-info-border)', text: 'text-blue-400', icon: 'i' } };
-          return (
-            <div className="comparison-section">
-              <div className="comparison-section-header">
-                <span className="bi-section-num" style={{ background: 'var(--destructive)' }}>!</span>
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Missing Information</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{missingFields.filter(f => f.severity === 'critical').length} critical, {missingFields.filter(f => f.severity === 'warning').length} warnings, {missingFields.filter(f => f.severity === 'info').length} informational</p>
-                </div>
-              </div>
-              <div className="comparison-section-body">
-                <div className="space-y-2">
-                  {missingFields.map(({ field, reason, severity }) => {
-                    const c = colorMap[severity];
-                    return (
-                      <div key={field} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: c.bg, border: `1px solid ${c.border}` }}>
-                        <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${c.text}`} style={{ border: `1px solid currentColor` }}>{c.icon}</span>
-                        <div>
-                          <p className={`text-sm font-semibold ${c.text}`}>{field}</p>
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{reason}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ══ CLAIM APPROVAL (always last) ══ */}
-        <div className="comparison-section">
-          <div className="comparison-section-header">
-            <span className="bi-section-num" style={{ background: 'var(--success)' }}>✓</span>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Claim Approval & Panel Beater Selection</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Select the winning quote and approve the claim for repair</p>
-            </div>
-          </div>
-          <div className="comparison-section-body">
-            <ClaimApprovalSection claimId={claimId} quotes={quotes} currencyCode={(claim as any)?.currencyCode} />
-          </div>
-        </div>
-
-
         {/* ── Approval Workflow ── */}
         {aiAssessment && (
-          <div className="comparison-section">
-            <div className="comparison-section-header">
+          <div className="comparison-section" style={{ background: '#ffffff' }}>
+            <div className="comparison-section-header" style={{ background: '#ffffff', borderBottom: '1px solid var(--border)' }}>
               <span className="bi-section-num" style={{ background: 'var(--success)' }}>12</span>
               <div>
                 <p className="font-bold" style={{ color: 'var(--foreground)' }}>Multi-Layer Approval Workflow</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Configurable approval chain — claim must pass all required stages before export</p>
               </div>
             </div>
-            <div className="comparison-section-body space-y-4">
+            <div className="comparison-section-body space-y-4" style={{ background: '#ffffff' }}>
               <ClaimApprovalToolbar claimId={claimId} />
               <ApprovalHistoryPanel claimId={claimId} />
             </div>

@@ -130,6 +130,38 @@ function decisionLabel(d: string): string {
   return map[d] ?? d;
 }
 
+/**
+ * Strip assessor-authored conclusion phrases from the raw narrative text.
+ * These phrases (e.g. "damages are consistent", "kindly authorise repairs")
+ * are written by the assessor/repairer as recommendations, not by the AI engine.
+ * Displaying them verbatim in the forensic report is misleading because they
+ * assert conclusions that the engine has not independently verified.
+ * The engine's own cross-validation verdict is shown separately below the narrative.
+ */
+function filterAssessorConclusions(text: string): string {
+  if (!text) return text;
+  // Sentence-level patterns that indicate assessor-authored conclusions
+  const CONCLUSION_PATTERNS = [
+    /\b(damages?\s+(?:sustained\s+are|are)\s+consistent\s+with\s+(?:the\s+)?circumstances?\s+reported)[^.]*\./gi,
+    /\b(cost[s]?\s+agreed?\s+are\s+within\s+(?:prevailing\s+)?market\s+rates?)[^.]*\./gi,
+    /\b(kindly\s+authoris[e|z]\s+repairs?)[^.]*\./gi,
+    /\b(authoris[e|z]\s+repairs?\s+to\s+the\s+vehicle)[^.]*\./gi,
+    /\b(cost[s]?\s+(?:of\s+repairs?\s+)?are\s+(?:damage\s+)?consistent)[^.]*\./gi,
+    /\b(labour\s+charges?\s+are\s+fair)[^.]*\./gi,
+    /\b(spares?\s+prices?\s+(?:for\s+the\s+rest\s+of\s+the\s+parts\s+)?have\s+been\s+verified)[^.]*\./gi,
+    /\b(circumstances?\s+of\s+loss\s+are\s+genuine)[^.]*\./gi,
+    /\b(images?\s+of\s+damage\s+are\s+included)[^.]*\./gi,
+    /\b(repairs?\s+to\s+the\s+vehicle)[^.,]*(?:costs?\s+are\s+damage\s+consistent)[^.]*\./gi,
+  ];
+  let filtered = text;
+  for (const pat of CONCLUSION_PATTERNS) {
+    filtered = filtered.replace(pat, '');
+  }
+  // Collapse multiple consecutive spaces/newlines left by removals
+  filtered = filtered.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  return filtered;
+}
+
 // ─── Section Divider ─────────────────────────────────────────────────────────
 
 function SectionDivider({ number, title }: { number: string; title: string }) {
@@ -253,11 +285,12 @@ function resolveDirection(eventType: string): "front" | "rear" | "left" | "right
 }
 
 // Arrow geometry: direction → {x1,y1,x2,y2} for the SVG line
+// Arrows start well outside the vehicle body so labels are clear of zone text.
 const ARROW_GEOM: Record<string, { x1:number; y1:number; x2:number; y2:number }> = {
-  front:   { x1: 160, y1: -12, x2: 160, y2: 14  },
-  rear:    { x1: 160, y1: 292, x2: 160, y2: 266  },
-  left:    { x1: -12, y1: 140, x2: 14,  y2: 140  },
-  right:   { x1: 332, y1: 140, x2: 306, y2: 140  },
+  front:   { x1: 160, y1: -28, x2: 160, y2: 6   },  // from above compass label
+  rear:    { x1: 160, y1: 308, x2: 160, y2: 276  },  // from below
+  left:    { x1: -30, y1: 140, x2: 8,   y2: 140  },  // from left margin
+  right:   { x1: 350, y1: 140, x2: 312, y2: 140  },  // from right margin
 };
 
 // Per-event arrow colours (up to 4 events)
@@ -357,7 +390,7 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
     <div className="flex items-start gap-4">
       {/* SVG diagram */}
       <div className="flex flex-col items-center shrink-0">
-        <svg viewBox="-20 -20 360 320" width="288" height="256" style={{ maxWidth: "100%" }}>
+        <svg viewBox="-50 -36 420 360" width="320" height="288" style={{ maxWidth: "100%" }}>
           <defs>
             <marker id="tp-arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
               <polygon points="0 0, 7 3.5, 0 7" fill="#ef4444" />
@@ -435,8 +468,13 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
             const midX = (g.x1 + g.x2) / 2;
             const midY = (g.y1 + g.y2) / 2;
             const isHoriz = Math.abs(g.y1 - g.y2) < 5;
-            const lblX = isHoriz ? midX : (arrow.dir === 'front' ? midX + 28 : midX + 28);
-            const lblY = isHoriz ? midY - 7 : midY;
+            // Place label beside the arrow, clear of the zone rectangles
+            const lblX = isHoriz
+              ? midX
+              : (arrow.dir === 'front' ? midX + 36 : midX + 36);
+            const lblY = isHoriz
+              ? midY - 10
+              : (arrow.dir === 'front' ? midY - 4 : midY + 12);
             return (
               <g key={idx}>
                 <defs>
@@ -892,7 +930,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                     )}
                     {isClassifiedByLLM && classifiedReasoning && (
                       <span className="text-[10px] italic" style={{ color: "var(--muted-foreground)" }}>
-                        {classifiedReasoning.length > 180 ? classifiedReasoning.substring(0, 180) + "…" : classifiedReasoning}
+                        {classifiedReasoning}
                       </span>
                     )}
                   </span>
@@ -953,8 +991,9 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                     </div>
                   </div>
                 ) : (
-                  <div className="leading-relaxed" style={{ color: "var(--foreground)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                    {(description || narrativeAnalysis?.cleaned_incident_narrative || '').split('\n').map((line: string, li: number) => (
+                  <div className="leading-relaxed" style={{ color: "var(--foreground)", fontFamily: "inherit", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                    {/* Filter out assessor-authored conclusion phrases that are not engine-derived findings */}
+                    {filterAssessorConclusions(description || narrativeAnalysis?.cleaned_incident_narrative || '').split('\n').map((line: string, li: number) => (
                       <p key={li} style={{ marginBottom: line.trim() === '' ? '0.5em' : '0', minHeight: line.trim() === '' ? '0.5em' : undefined }}>{line || '\u00a0'}</p>
                     ))}
                   </div>

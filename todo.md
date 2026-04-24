@@ -11092,3 +11092,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] SVG diagram impact forces not visible — annotations too small
 - [ ] SVG diagram needs 20% scale up without interfering with surrounding content
 - [ ] Incident type text wraps and truncates ("consiste...") — needs full display
+
+## Forensic Report Fixes (Apr 24 batch)
+- [ ] Fix 1: Incident type text truncated — expand container so full AI reasoning text is visible (no overflow/clip)
+- [ ] Fix 2: Narrative passthrough filter — strip assessor-authored statements that assert conclusions (e.g. "damages consistent", "authorise repairs") before rendering; replace with engine-derived cross-validation verdict
+- [ ] Fix 3: Font type and colour consistency throughout the report (one font family, one foreground colour for body text)
+- [ ] Fix 4: SVG damage zone diagram — fix text labels and arrows being clipped by adjacent lines/margins
+- [ ] Fix 5: Photo forensics section — restore column widths so all columns are visible and readable
+- [ ] Fix 6: Remove bottom blocks (Missing Information, Panel Beater Quotes placeholder, Assessor Evaluation, Claim Approval & Panel Beater Selection); move panel beater quotes into Section 3 itemised parts & labour breakdown as comparison tables with optimised quote at end
+- [ ] Fix 7: Approval Workflow section — set white background (remove grey/tinted background)

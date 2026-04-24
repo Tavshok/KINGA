@@ -365,11 +365,20 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
         {allExifStripped ? ' · Note: all images have EXIF metadata stripped — origin unverifiable' : ''}
       </p>
 
-      {/* Per-photo table — clean, no coloured backgrounds */}
-      <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+      {/* Per-photo table — full-width with explicit column widths so all 6 columns are visible */}
+      <div style={{ overflowX: 'auto' }}>
+      <table className="w-full text-xs" style={{ borderCollapse: 'collapse', minWidth: 640 }}>
+        <colgroup>
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '38%' }} />
+          <col style={{ width: '8%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '22%' }} />
+        </colgroup>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border)' }}>
-            {['Photo', 'Observation', 'EXIF', 'GPS', 'Manip. score', 'Integrity verdict'].map(h => (
+            {['Photo', 'Observation', 'EXIF', 'GPS', 'Manip.', 'Integrity verdict'].map(h => (
               <th key={h} className="text-left py-1.5 px-2 font-semibold" style={{ color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{h}</th>
             ))}
           </tr>
@@ -414,6 +423,7 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
           })}
         </tbody>
       </table>
+      </div>{/* end overflow-x:auto wrapper */}
 
       {/* Additional flags — plain text note, no coloured boxes */}
       {results.some(r => r.flags && r.flags.filter(f => !f.toLowerCase().includes('exif') && !f.toLowerCase().includes('gps') && f.length > 10).length > 0) && (
