@@ -2134,38 +2134,109 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   // Learning benchmark from cost extraction engine
   const learningBenchmark3 = (e?.costExtraction as any)?.learningBenchmark ?? null;
 
+  // ── Build item-per-row cross-repairer comparison table ──────────────────────
+  // Collect all unique line-item descriptions across all quotes
+  const allDescriptions: string[] = [];
+  for (const q of pbQuotes) {
+    for (const li of (q.lineItems ?? [])) {
+      const desc = (li.description ?? '').trim();
+      if (desc && !allDescriptions.find(d => d.toLowerCase() === desc.toLowerCase())) {
+        allDescriptions.push(desc);
+      }
+    }
+  }
+  type ItemRow3 = { description: string; category: string; cells: Array<{ amount: number | null; aiReview?: string | null }> };
+  const matchedRows3: ItemRow3[] = [];
+  const missedRows3: ItemRow3[] = [];
+  for (const desc of allDescriptions) {
+    const cells = pbQuotes.map(q => {
+      const li = (q.lineItems ?? []).find((l: any) => (l.description ?? '').toLowerCase() === desc.toLowerCase());
+      return li ? { amount: (li.lineTotal ?? li.unitPrice ?? 0) / 100, aiReview: li.aiReview ?? null } : { amount: null };
+    });
+    const presentCount = cells.filter(c => c.amount !== null).length;
+    const row: ItemRow3 = {
+      description: desc,
+      category: (pbQuotes[0]?.lineItems ?? []).find((l: any) => (l.description ?? '').toLowerCase() === desc.toLowerCase())?.category ?? '',
+      cells,
+    };
+    if (presentCount === pbQuotes.length || pbQuotes.length <= 1) matchedRows3.push(row);
+    else missedRows3.push(row);
+  }
+  const allRows3 = [...matchedRows3, ...missedRows3];
+
   return (
     <div className="mb-4 space-y-4">
-      {/* Cost waterfall — Chart.js horizontal bar, matches CostBenchmarkDeviation style */}
+      {/* ── Cross-repairer itemised quote comparison table ── */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Submitted Quote</p>
-          <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{verdict === "QUOTE_SUBMITTED" ? "Quote received" : "No quote"}</span>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Itemised Parts &amp; Labour — Quote Comparison</p>
+          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>{pbQuotes.length > 0 ? `${pbQuotes.length} quote${pbQuotes.length !== 1 ? 's' : ''} received` : 'No quotes'}</span>
         </div>
-        <div className="p-4">
+        <div className="overflow-x-auto">
           {pbQuotes.length > 0 ? (
-            <table className="w-full text-xs mb-3 report-table">
+            <table className="w-full text-xs report-table" style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                  {["Repairer", "Parts", "Labour", "Total", "Status"].map(h => (
-                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)", minWidth: 180 }}>Repair Item</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)", whiteSpace: 'nowrap' }}>Category</th>
+                  {pbQuotes.map((q, qi) => (
+                    <th key={qi} className="text-right px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)", whiteSpace: 'nowrap' }}>{q.name}</th>
                   ))}
+                  {pbQuotes.length > 1 && (
+                    <th className="text-right px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)", whiteSpace: 'nowrap' }}>Optimised</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {pbQuotes.map((q, i) => (
-                  <tr key={i} style={{ borderTop: "1px solid var(--border)", background: "var(--background)" }}>
-                    <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{q.name}</td>
-                    <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{q.parts > 0 ? fmtMoney(q.parts) : "—"}</td>
-                    <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{q.labour > 0 ? fmtMoney(q.labour) : "—"}</td>
-                    <td className="px-3 py-2 tabular-nums font-bold" style={{ color: "var(--foreground)" }}>{fmtMoney(q.total)}</td>
-                    <td className="px-3 py-2"><span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Submitted</span></td>
-                  </tr>
-                ))}
+                {allRows3.map((row, ri) => {
+                  const isMissedRow = ri >= matchedRows3.length;
+                  const validAmounts = row.cells.map(c => c.amount).filter((a): a is number => a !== null);
+                  const optimised = validAmounts.length > 0 ? Math.min(...validAmounts) : null;
+                  return (
+                    <tr key={ri} style={{ borderTop: "1px solid var(--border)", background: isMissedRow ? "var(--muted)" : "var(--background)" }}>
+                      <td className="px-3 py-2 font-medium" style={{ color: isMissedRow ? "var(--muted-foreground)" : "var(--foreground)" }}>
+                        {row.description}
+                        {isMissedRow && <span className="ml-2 text-xs" style={{ color: "var(--muted-foreground)", fontStyle: 'italic' }}>(not in all quotes)</span>}
+                      </td>
+                      <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{row.category || '—'}</td>
+                      {row.cells.map((cell, ci) => (
+                        <td key={ci} className="px-3 py-2 tabular-nums text-right" style={{ color: cell.amount !== null ? "var(--foreground)" : "var(--muted-foreground)", fontStyle: cell.amount === null ? 'italic' : 'normal' }}>
+                          {cell.amount !== null ? fmtMoney(cell.amount) : '—'}
+                          {cell.aiReview && cell.aiReview !== 'Consistent' && (
+                            <span className="block text-xs" style={{ color: "var(--muted-foreground)" }}>{cell.aiReview}</span>
+                          )}
+                        </td>
+                      ))}
+                      {pbQuotes.length > 1 && (
+                        <td className="px-3 py-2 tabular-nums text-right font-semibold" style={{ color: "var(--foreground)" }}>
+                          {optimised !== null ? fmtMoney(optimised) : '—'}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
+              <tfoot>
+                <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
+                  <td colSpan={2} className="px-3 py-2 font-bold" style={{ color: "var(--foreground)" }}>TOTAL</td>
+                  {pbQuotes.map((q, qi) => (
+                    <td key={qi} className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: "var(--foreground)" }}>
+                      {fmtMoney(q.total)}
+                    </td>
+                  ))}
+                  {pbQuotes.length > 1 && (
+                    <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: "var(--foreground)" }}>
+                      {fmtMoney(allRows3.reduce((sum, row) => {
+                        const va = row.cells.map(c => c.amount).filter((a): a is number => a !== null);
+                        return sum + (va.length > 0 ? Math.min(...va) : 0);
+                      }, 0))}
+                    </td>
+                  )}
+                </tr>
+              </tfoot>
             </table>
           ) : (
-            <div className="p-3 rounded text-xs mb-3" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
+            <div className="p-4 text-xs" style={{ color: "var(--muted-foreground)" }}>
               No repair quote has been submitted for this claim. Cost assessment cannot be performed until a quotation is received.
             </div>
           )}
@@ -2180,30 +2251,6 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           fmtMoney={fmtMoney}
         />
       )}
-
-      {/* Per-quote line-item detail with AI Review column */}
-      {pbQuotes.map((q, qi) => {
-        const hasLineItems = q.lineItems && q.lineItems.length > 0;
-        if (!hasLineItems) return null;
-        const auditData = (() => {
-          try {
-            const raw = (quotes?.[qi] as any)?.quoteAuditJson;
-            return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
-          } catch { return null; }
-        })();
-        const congruencyScore = (quotes?.[qi] as any)?.quoteCongruencyScore;
-        return (
-          <QuoteLineItemAuditTable
-            key={qi}
-            quote={q}
-            quoteId={(quotes?.[qi] as any)?.id}
-            claimId={claimId}
-            auditData={auditData}
-            congruencyScore={congruencyScore}
-            fmtMoney={fmtMoney}
-          />
-        );
-      })}
 
       {/* Itemised parts */}
       {itemisedParts.length > 0 && (
