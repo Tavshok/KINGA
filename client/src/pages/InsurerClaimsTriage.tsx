@@ -280,6 +280,8 @@ export default function InsurerClaimsTriage() {
               >
                 Sign Out
               </button>
+              <div className="w-px h-6 mx-1" style={{ background: 'var(--border)' }} />
+              <KingaLogo showText={false} size="sm" />
             </div>
           </div>
         </div>

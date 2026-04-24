@@ -124,6 +124,17 @@ export default function InsurerComparisonView() {
     }
   }, [aiAssessment]);
 
+  // Update browser tab title to show claim reference when data is loaded
+  useEffect(() => {
+    if (claim) {
+      const ref = claim.claimNumber ?? claim.claimReference ?? `Claim ${claimId}`;
+      document.title = `KINGA AI — ${ref}`;
+    } else {
+      document.title = 'KINGA AI — Forensic Report';
+    }
+    return () => { document.title = 'KINGA AI'; };
+  }, [claim, claimId]);
+
   // Get assessor evaluation
   const { data: assessorEval, isLoading: assessorLoading } = trpc.assessorEvaluations.byClaim.useQuery(
     { claimId },

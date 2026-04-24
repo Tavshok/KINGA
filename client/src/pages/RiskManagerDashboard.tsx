@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Shield, CheckCircle, XCircle, AlertCircle, Eye } from "lucide-react";
+import KingaLogo from "@/components/KingaLogo";
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { Link } from "wouter";
 import { currencySymbol } from "@/lib/currency";
@@ -90,6 +91,8 @@ export default function RiskManagerDashboard() {
               <Shield className="h-5 w-5 mr-2" />
               {approvalQueue.length} pending approval
             </Badge>
+            <div className="h-5 w-px bg-border" />
+            <KingaLogo showText={false} size="sm" />
           </div>
         </div>
 
