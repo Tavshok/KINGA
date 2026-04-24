@@ -3938,7 +3938,7 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
 // ─── Section 7: Machine Learning Insights ────────────────────────────────────────────
 
 function Section7Learning({
-  aiAssessment,
+  aiAssessment: _aiAssessment,
   enforcement,
   fmtMoney = fmtUsd,
 }: {
@@ -3946,111 +3946,88 @@ function Section7Learning({
   enforcement: any;
   fmtMoney?: (n: number | null | undefined) => string;
 }) {
-  const ce = enforcement?.costExtraction;
-  const lb = ce?.learningBenchmark ?? null;
+  const lb = enforcement?.costExtraction?.learningBenchmark ?? null;
 
-  // Validated outcome quality tier from the pipeline
-  const validatedOutcome = (() => {
-    try {
-      const raw = (aiAssessment as any)?.validatedOutcomeJson;
-      if (!raw) return null;
-      return typeof raw === 'string' ? JSON.parse(raw) : raw;
-    } catch { return null; }
-  })();
-  const qualityTier: string | null = validatedOutcome?.quality_tier ?? null;
-  const storeForLearning: boolean = validatedOutcome?.store === true;
-  const outcomeReason: string | null = validatedOutcome?.reason ?? null;
-
-  // Cost extraction source label
-  const costSource: string | null = ce?.source ?? null;
-  const costBasis: string | null = ce?.basis ?? null;
-
-  // Case signature
-  const caseSignatureRaw = (aiAssessment as any)?.caseSignatureJson;
-  const caseSignature = (() => {
-    try {
-      const raw = caseSignatureRaw;
-      if (!raw) return null;
-      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      return parsed?.case_signature ?? parsed?.grouping_key ?? null;
-    } catch { return null; }
-  })();
-
-  // Determine if there is meaningful ML data to show
+  // Only show the benchmark when we have at least 3 validated historical claims.
+  // Fewer than 3 is statistically insufficient and should not be surfaced.
   const hasBenchmark = lb?.avgCostUsd != null && (lb?.sampleSize ?? 0) >= 3;
-  const hasLearningData = hasBenchmark || qualityTier != null || caseSignature != null;
 
-  const rows: Array<{ label: string; value: string }> = [];
-
-  if (caseSignature) {
-    rows.push({ label: 'Case signature', value: caseSignature });
-  }
-  if (hasBenchmark && lb) {
-    rows.push({ label: 'Vehicle descriptor', value: lb.vehicleDescriptor });
-    rows.push({ label: 'Historical sample size', value: `${lb.sampleSize} validated claims` });
-    rows.push({ label: 'Average cost (historical)', value: fmtMoney(lb.avgCostUsd) });
-  }
-  if (costSource) {
-    const sourceLabel = costSource === 'quote_line_items' ? 'Submitted quote line items'
-      : costSource === 'learning_db' ? 'Learning database benchmark'
-      : costSource === 'extracted' ? 'AI-extracted estimate'
-      : costSource === 'insufficient_data' ? 'Insufficient data'
-      : costSource;
-    rows.push({ label: 'Cost basis source', value: sourceLabel });
-  }
-  if (qualityTier) {
-    rows.push({ label: 'Outcome quality tier', value: qualityTier });
-  }
-  if (outcomeReason) {
-    rows.push({ label: 'Quality assessment', value: outcomeReason });
-  }
-  rows.push({ label: 'Stored for learning', value: storeForLearning ? 'Yes — this claim will contribute to future cost benchmarks' : 'No — insufficient data quality for learning storage' });
-
-  if (!hasLearningData && !costBasis) {
+  if (!hasBenchmark) {
     return (
       <div className="mb-4">
         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-          No machine learning benchmark data is available for this claim yet. As more claims of the same vehicle type and collision pattern are processed, the system will accumulate historical cost data and surface benchmark comparisons here.
+          A historical cost benchmark for this vehicle type and collision pattern is not yet available.
+          The system requires at least 3 validated claims of the same profile before a benchmark can be
+          presented. Data is currently accumulating.
+        </p>
+        <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
+          Benchmark data is derived from anonymised historical claims. No personally identifiable
+          information is used in cost pattern analysis.
         </p>
       </div>
     );
   }
 
+  // Compute variance between submitted quote and historical average
+  const primaryQuoteTotal = (() => {
+    try {
+      const quotes = (enforcement as any)?.quotes ?? [];
+      if (quotes.length === 0) return null;
+      const q = quotes[0];
+      const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + ((li.lineTotal ?? li.unitPrice ?? 0) / 100), 0);
+      const raw = (q.quotedAmount ?? 0) / 100;
+      return raw > 0 ? raw : lineTotal > 0 ? lineTotal : null;
+    } catch { return null; }
+  })();
+
+  const avgCost = lb!.avgCostUsd!;
+  const variancePct = primaryQuoteTotal != null && avgCost > 0
+    ? ((primaryQuoteTotal - avgCost) / avgCost) * 100
+    : null;
+  const varianceLabel = variancePct == null ? null
+    : variancePct > 20 ? `${variancePct.toFixed(0)}% above historical average — review recommended`
+    : variancePct < -20 ? `${Math.abs(variancePct).toFixed(0)}% below historical average — verify scope completeness`
+    : `Within normal range (${variancePct > 0 ? '+' : ''}${variancePct.toFixed(0)}% vs historical average)`;
+
   return (
     <div className="mb-4 space-y-4">
       <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)' }}>
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>Cost Pattern Analysis</p>
-          {hasBenchmark && lb && (
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-              Benchmark derived from {lb.sampleSize} historical claims for {lb.vehicleDescriptor}
-            </p>
-          )}
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>Historical cost benchmark</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+            Based on {lb!.sampleSize} anonymised validated claims for {lb!.vehicleDescriptor} ({lb!.collisionDirection} impact, {lb!.marketRegion} market)
+          </p>
         </div>
         <div className="p-4">
           <table className="w-full text-xs report-table">
             <tbody>
-              {rows.map((row, i) => (
-                <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
-                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)', width: '40%' }}>{row.label}</td>
-                  <td className="px-3 py-2" style={{ color: 'var(--foreground)' }}>{row.value}</td>
+              <tr>
+                <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)', width: '40%' }}>Historical average repair cost</td>
+                <td className="px-3 py-2 tabular-nums font-semibold" style={{ color: 'var(--foreground)' }}>{fmtMoney(avgCost)}</td>
+              </tr>
+              <tr style={{ borderTop: '1px solid var(--border)' }}>
+                <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)' }}>Sample size</td>
+                <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--foreground)' }}>{lb!.sampleSize} validated claims</td>
+              </tr>
+              {primaryQuoteTotal != null && (
+                <tr style={{ borderTop: '1px solid var(--border)' }}>
+                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)' }}>Submitted quote</td>
+                  <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--foreground)' }}>{fmtMoney(primaryQuoteTotal)}</td>
                 </tr>
-              ))}
+              )}
+              {varianceLabel && (
+                <tr style={{ borderTop: '1px solid var(--border)' }}>
+                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)' }}>Variance assessment</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--foreground)' }}>{varianceLabel}</td>
+                </tr>
+              )}
             </tbody>
           </table>
-          {costBasis && (
-            <p className="text-xs mt-3 pt-3" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
-              {costBasis}
-            </p>
-          )}
+          <p className="text-xs mt-3 pt-3" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
+            Benchmark data is derived from anonymised historical claims. No personally identifiable information is used in cost pattern analysis.
+          </p>
         </div>
       </div>
-
-      {!hasBenchmark && (
-        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-          A cost benchmark for this vehicle and collision type will become available once at least 3 validated claims of the same profile have been processed. The system is currently accumulating data.
-        </p>
-      )}
     </div>
   );
 }
