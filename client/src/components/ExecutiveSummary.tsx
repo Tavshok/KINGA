@@ -284,7 +284,7 @@ export function ExecutiveSummary({
           )}
           {(narrativeValidation.deductions ?? []).length > 0 && (
             <div className="mb-2">
-              <p className="text-xs font-semibold text-gray-600 dark:text-muted-foreground mb-1">AI Deductions:</p>
+              <p className="text-xs font-semibold text-gray-600 dark:text-muted-foreground mb-1">KINGA Deductions:</p>
               <ul className="space-y-1">
                 {(narrativeValidation.deductions ?? []).map((d, i) => (
                   <li key={i} className="text-xs text-gray-700 dark:text-foreground/80 flex items-start gap-1.5">

@@ -127,7 +127,7 @@ export function AiStatusBadge({ claim, aiAssessment, className }: Props) {
         containerClass,
         className
       )}
-      title={`AI Assessment Status: ${label}`}
+      title={`KINGA Assessment Status: ${label}`}
     >
       <Brain className="h-3 w-3 shrink-0 opacity-70" />
       <Icon className={cn("h-3 w-3 shrink-0", iconClass, spin && "animate-spin")} />

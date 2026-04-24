@@ -1860,7 +1860,7 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
                 </table>
                 {missingCount > 0 && (
                   <p className="text-xs mt-2 p-2" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
-                    <strong style={{ color: 'var(--foreground)' }}>Coverage gap:</strong> {missingCount} damage component{missingCount > 1 ? 's' : ''} identified by AI analysis
+                    <strong style={{ color: 'var(--foreground)' }}>Coverage gap:</strong> {missingCount} damage component{missingCount > 1 ? 's' : ''} identified by KINGA analysis
                     {missingCount === 1 ? ' is' : ' are'} not covered by any line item in the submitted quotation.
                     This may indicate an incomplete quote or undisclosed damage.
                   </p>
@@ -1930,7 +1930,7 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
         <table className="w-full text-xs report-table">
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-              {["Description", "Category", "Qty", "Unit Price", "Total", "AI Review"].map(h => (
+              {["Description", "Category", "Qty", "Unit Price", "Total", "KINGA Review"].map(h => (
                 <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
               ))}
             </tr>
@@ -2596,7 +2596,7 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
         )}
         {verdictReason && (
           <p className="mt-2 text-[11px] leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
-            <span className="font-semibold" style={{ color: "var(--foreground)" }}>AI Valuation Note: </span>{verdictReason}
+            <span className="font-semibold" style={{ color: "var(--foreground)" }}>KINGA Valuation Note: </span>{verdictReason}
           </p>
         )}
       </div>

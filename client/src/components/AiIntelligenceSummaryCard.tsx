@@ -228,7 +228,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
         <CardContent className="py-5 flex items-center gap-3 text-muted-foreground">
           <AlertCircle className="h-5 w-5 shrink-0" />
           <p className="text-sm">
-            AI Intelligence Summary will appear here once the AI assessment has completed.
+            KINGA Intelligence Summary will appear here once the KINGA assessment has completed.
           </p>
         </CardContent>
       </Card>
@@ -260,7 +260,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
               Repair Cost Intelligence
             </p>
             <div className="space-y-1.5 text-sm">
-              {/* Show AI benchmark (independent) if available, otherwise show document-extracted */}
+              {/* Show KINGA benchmark (independent) if available, otherwise show document-extracted */}
               {(() => {
                 const ci = (() => { try { return aiAssessment.costIntelligenceJson ? JSON.parse(aiAssessment.costIntelligenceJson) : null; } catch { return null; } })();
                 const hasBenchmark = ci && ci.aiBenchmarkTotalCents > 0;
@@ -277,7 +277,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
                     {hasBenchmark && (
                       <>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">AI Benchmark</span>
+                          <span className="text-muted-foreground">KINGA Benchmark</span>
                           <span className="font-semibold" style={{ color: 'var(--chart-3)' }}>{formatAmount(ci.aiBenchmarkTotalCents)}</span>
                         </div>
                         <div className="flex justify-between">
@@ -317,7 +317,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
                 if (src === "insufficient_data") {
                   return (
                     <div className="flex justify-between pt-1 border-t border-border/50">
-                      <span className="text-muted-foreground text-xs">AI benchmark</span>
+                      <span className="text-muted-foreground text-xs">KINGA benchmark</span>
                       <span className="text-xs text-muted-foreground italic">Awaiting itemised quote</span>
                     </div>
                   );
@@ -325,7 +325,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
                 if (src === "learning_db") {
                   return (
                     <div className="flex justify-between pt-1 border-t border-border/50">
-                      <span className="text-muted-foreground text-xs">AI benchmark</span>
+                      <span className="text-muted-foreground text-xs">KINGA benchmark</span>
                       <span className="text-xs text-blue-500">Learning DB</span>
                     </div>
                   );
@@ -333,7 +333,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
                 if (src === "quote_derived") {
                   return (
                     <div className="flex justify-between pt-1 border-t border-border/50">
-                      <span className="text-muted-foreground text-xs">AI benchmark</span>
+                      <span className="text-muted-foreground text-xs">KINGA benchmark</span>
                       <span className="text-xs text-green-500">Quote-derived</span>
                     </div>
                   );

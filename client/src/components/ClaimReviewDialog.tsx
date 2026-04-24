@@ -122,7 +122,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
           <Tabs defaultValue="overview" className="w-full">
             <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="ai">AI Assessment</TabsTrigger>
+              <TabsTrigger value="ai">KINGA Assessment</TabsTrigger>
               <TabsTrigger value="assessor">Assessor Evaluation</TabsTrigger>
               <TabsTrigger value="quotes">Panel Beater Quotes</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
@@ -218,7 +218,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                   </h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">AI Estimate:</span>
+                      <span className="text-muted-foreground">KINGA Estimate:</span>
                       <span className="font-medium">
                         {aiAssessment?.estimatedCost ? fmt((aiAssessment.estimatedCost || 0) * 100) : "N/A"}
                       </span>
@@ -280,7 +280,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
               </div>
             </TabsContent>
 
-            {/* AI Assessment Tab */}
+            {/* KINGA Assessment Tab */}
             <TabsContent value="ai" className="space-y-4">
               {aiAssessment ? (
                 <div className="space-y-4">
@@ -337,7 +337,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                 </div>
               ) : (
                 <Card className="p-8 text-center">
-                  <p className="text-muted-foreground">No AI assessment available for this claim</p>
+                  <p className="text-muted-foreground">No KINGA assessment available for this claim</p>
                 </Card>
               )}
             </TabsContent>
@@ -400,7 +400,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                         </div>
                         {assessorEval.disagreesWithAi && (
                           <div className="pt-2 border-t">
-                            <p className="text-xs text-orange-600 font-medium">⚠️ Disagrees with AI Assessment</p>
+                            <p className="text-xs text-orange-600 font-medium">⚠️ Disagrees with KINGA Assessment</p>
                             {assessorEval.aiDisagreementReason && (
                               <p className="text-xs text-muted-foreground mt-1">{assessorEval.aiDisagreementReason}</p>
                             )}

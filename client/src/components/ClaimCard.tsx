@@ -208,7 +208,7 @@ export function ClaimCard({
                 className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
               >
                 <Brain className="h-4 w-4 mr-2" />
-                Trigger AI Assessment
+                Trigger KINGA Assessment
               </Button>
             )}
             

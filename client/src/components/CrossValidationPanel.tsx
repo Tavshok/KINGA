@@ -114,7 +114,7 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
           </div>
           <div>
             <h2 className="text-xl font-semibold">Quote vs Photo Cross-Validation</h2>
-            <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">AI comparison of quoted repair items against visible damage in photos</p>
+            <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">KINGA comparison of quoted repair items against visible damage in photos</p>
           </div>
           <Badge className={`ml-auto text-sm px-3 py-1 ${
             summary.overallRiskLevel === 'low' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' :

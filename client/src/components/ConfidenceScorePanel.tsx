@@ -266,7 +266,7 @@ export function ConfidenceScorePanel({
             </Badge>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="max-w-xs">
-            <p className="text-xs">AI confidence in this assessment. Click the confidence section in the report for a full breakdown.</p>
+            <p className="text-xs">KINGA confidence in this assessment. Click the confidence section in the report for a full breakdown.</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -382,7 +382,7 @@ export function ConfidenceScorePanel({
       {!breakdown && (
         <div className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground bg-gray-50 dark:bg-muted/50 rounded-lg p-3 border border-gray-200 dark:border-border">
           <p className="font-medium text-gray-600 dark:text-muted-foreground mb-1">Detailed breakdown not available</p>
-          <p>Re-run the AI assessment to generate a full 8-input confidence breakdown with improvement suggestions.</p>
+          <p>Re-run the KINGA assessment to generate a full 8-input confidence breakdown with improvement suggestions.</p>
         </div>
       )}
     </div>

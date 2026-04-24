@@ -393,7 +393,7 @@ export default function ClaimsProcessorDashboard() {
         return (
           <Badge className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700 flex items-center gap-1">
             <Loader2 className="h-3 w-3 animate-spin" />
-            AI Processing...
+            KINGA Processing...
           </Badge>
         );
       }
@@ -421,7 +421,7 @@ export default function ClaimsProcessorDashboard() {
         return (
           <Badge className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700 flex items-center gap-1">
             <Loader2 className="h-3 w-3 animate-spin" />
-            AI Analyzing... {elapsedLabel}
+            KINGA Analyzing... {elapsedLabel}
           </Badge>
         );
       }
@@ -597,8 +597,12 @@ export default function ClaimsProcessorDashboard() {
                         <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
                         <span className="truncate">
                           {(claim as any).pipelineCurrentStage
-                            ? (claim as any).pipelineCurrentStage
-                            : "AI is analyzing this claim..."}
+                            ? (() => {
+                                const raw: string = (claim as any).pipelineCurrentStage;
+                                // Convert "Stage N — Description" → "Stage N of 10 — Description"
+                                return raw.replace(/^Stage (\d+)/, 'Stage $1 of 10');
+                              })()
+                            : "KINGA is analyzing this claim..."}
                         </span>
                       </div>
                       <Button

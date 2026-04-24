@@ -122,7 +122,7 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-600 dark:text-muted-foreground">AI Confidence</p>
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground">KINGA Confidence</p>
                         <p className="font-medium text-blue-600 dark:text-blue-400">{claim.aiConfidence}%</p>
                       </div>
                     </div>
@@ -157,7 +157,7 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
                       <div className="flex items-center gap-3">
                         <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                         <div className="flex-1">
-                          <p className="font-medium">AI Assessment</p>
+                          <p className="font-medium">KINGA Assessment</p>
                           <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">2024-02-15 09:15</p>
                         </div>
                         <ArrowRight className="h-4 w-4 text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />

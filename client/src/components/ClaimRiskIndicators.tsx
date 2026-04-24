@@ -141,7 +141,7 @@ interface AiAssessButtonProps {
 }
 
 /**
- * AI Assessment trigger button with loading state and result dialog.
+ * KINGA Assessment trigger button with loading state and result dialog.
  * Can be placed on any dashboard to trigger AI analysis of a claim.
  */
 export function AiAssessButton({ 
@@ -156,12 +156,12 @@ export function AiAssessButton({
   
   const triggerAiAssessment = trpc.claims.triggerAiAssessment.useMutation({
     onSuccess: () => {
-      toast.success("AI Assessment completed successfully");
+      toast.success("KINGA Assessment completed successfully");
       onSuccess?.();
       setShowResults(true);
     },
     onError: (error) => {
-      toast.error(`AI Assessment failed: ${error.message}`);
+      toast.error(`KINGA Assessment failed: ${error.message}`);
     },
   });
 
@@ -202,7 +202,7 @@ export function AiAssessButton({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Brain className="h-5 w-5 text-teal-600" />
-              AI Assessment Complete
+              KINGA Assessment Complete
             </DialogTitle>
             <DialogDescription>
               {claimNumber ? `Claim ${claimNumber}` : `Claim #${claimId}`} has been assessed.

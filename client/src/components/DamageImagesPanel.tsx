@@ -361,7 +361,7 @@ function InconsistencyPanel({ inconsistencies }: { inconsistencies: PhotoInconsi
     return (
       <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 border border-green-300 dark:border-green-700 rounded-lg px-3 py-2 bg-green-50 dark:bg-green-950/20 mt-4">
         <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-        All photo findings are consistent with the reported damage and AI assessment.
+        All photo findings are consistent with the reported damage and KINGA assessment.
       </div>
     );
   }

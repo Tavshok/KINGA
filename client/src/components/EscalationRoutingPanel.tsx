@@ -62,7 +62,7 @@ export default function EscalationRoutingPanel({ claimId }: EscalationRoutingPan
     return (
       <div style={{ padding: "16px", color: "var(--muted-foreground)", fontSize: "13px" }}>
         {error?.message?.includes("NOT_FOUND")
-          ? "No AI assessment available for routing."
+          ? "No KINGA assessment available for routing."
           : "Unable to determine escalation route. The claim may not have been assessed yet."}
       </div>
     );

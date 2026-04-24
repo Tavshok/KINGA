@@ -88,7 +88,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5" />
-            AI Assessment History
+            KINGA Assessment History
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -110,7 +110,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Brain className="h-5 w-5" />
-                AI Assessment History
+                KINGA Assessment History
               </CardTitle>
               <CardDescription>
                 {versions.length} version{versions.length !== 1 ? "s" : ""} available
@@ -295,7 +295,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
       <Dialog open={comparisonDialogOpen} onOpenChange={setComparisonDialogOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>AI Assessment Comparison</DialogTitle>
+            <DialogTitle>KINGA Assessment Comparison</DialogTitle>
             <DialogDescription>
               Comparing Version #{comparison?.assessment1.versionNumber} (Original) with Version #{comparison?.assessment2.versionNumber} (Re-analysis)
             </DialogDescription>
