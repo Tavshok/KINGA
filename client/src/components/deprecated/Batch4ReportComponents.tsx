@@ -1,5 +1,5 @@
 /**
- * Batch 4 Report Components — KINGA AutoVerify v4.2
+ * Batch 4 Report Components — KINGA AI v4.2
  *
  * Surfaces Phase 1 / Phase 2 engine internals that were previously invisible:
  *

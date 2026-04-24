@@ -1,7 +1,7 @@
 /**
  * claimsDecisionAuthority.ts
  *
- * Claims Decision Authority — Phase 4 of the KINGA AutoVerify AI pipeline.
+ * Claims Decision Authority — Phase 4 of the KINGA AI pipeline.
  *
  * This is the ONLY component authorised to issue a final recommendation.
  * It synthesises all upstream validated signals and produces a single,

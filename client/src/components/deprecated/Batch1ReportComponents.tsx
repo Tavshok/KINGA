@@ -1,5 +1,5 @@
 /**
- * Batch 1 Report Components — KINGA AutoVerify v4.2
+ * Batch 1 Report Components — KINGA AI v4.2
  *
  * Components:
  * 1. ExecutiveAuthorityCover   — full-width cover card
@@ -182,7 +182,7 @@ export function ExecutiveAuthorityCover({
       >
         <div>
           <div style={{ fontSize: "11px", opacity: 0.6, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-            KINGA AutoVerify AI v4.2 — Forensic Audit Report
+            KINGA AI v4.2 — Forensic Audit Report
           </div>
           <div style={{ fontSize: "14px", fontWeight: 700, marginTop: "2px" }}>
             Claim: {claim?.claimNumber ?? claim?.id ?? "—"} &nbsp;|&nbsp; Reg:{" "}

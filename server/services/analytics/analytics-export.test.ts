@@ -175,7 +175,7 @@ describe("Analytics Export Service", () => {
       const csvContent = await generateCSVReport(analyticsData);
 
       // Check for key content in the CSV
-      expect(csvContent).toContain("KINGA AutoVerify AI - Fast-Track Analytics Report");
+      expect(csvContent).toContain("KINGA AI - Fast-Track Analytics Report");
       expect(csvContent).toContain("Fast-Track Eligibility Rate");
       expect(csvContent).toContain("Auto-Approval Rate");
       expect(csvContent).toContain("Processing Time Comparison");

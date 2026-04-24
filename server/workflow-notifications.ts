@@ -62,7 +62,7 @@ https://kinga.manus.space/assessor/dashboard
 If you have any questions or need support, please contact your claims manager.
 
 ---
-KINGA AutoVerify AI - Intelligent Claims Management
+KINGA AI - Intelligent Claims Management
   `.trim();
 
   return await notifyOwner({
@@ -117,10 +117,10 @@ Please log in to your KINGA panel beater portal to view the full repair details 
 **Access Your Portal:**
 https://kinga.manus.space/panel-beater/dashboard
 
-Thank you for your partnership with KINGA AutoVerify AI.
+Thank you for your partnership with KINGA AI.
 
 ---
-KINGA AutoVerify AI - Intelligent Claims Management
+KINGA AI - Intelligent Claims Management
   `.trim();
 
   return await notifyOwner({
@@ -175,7 +175,7 @@ The quote is now available for review in the comparison view. Once all quotes ar
 https://kinga.manus.space/insurer/claims/${params.claimId}/comparison
 
 ---
-KINGA AutoVerify AI - Intelligent Claims Management
+KINGA AI - Intelligent Claims Management
   `.trim();
 
   return await notifyOwner({
@@ -232,7 +232,7 @@ https://kinga.manus.space/claimant/dashboard
 If you have any questions about your claim or the repair process, please don't hesitate to contact us.
 
 ---
-KINGA AutoVerify AI - Intelligent Claims Management
+KINGA AI - Intelligent Claims Management
   `.trim();
 
   return await notifyOwner({
@@ -280,15 +280,15 @@ Your vehicle repair has been completed and your claim is now closed.
 2. If you have any concerns, please contact the panel beater directly
 3. Your claim documentation is available in your dashboard for your records
 
-We hope you're satisfied with the service provided by KINGA AutoVerify AI. Your feedback is important to us.
+We hope you're satisfied with the service provided by KINGA AI. Your feedback is important to us.
 
 **View Claim History:**
 https://kinga.manus.space/claimant/dashboard
 
-Thank you for choosing KINGA AutoVerify AI for your insurance claim management.
+Thank you for choosing KINGA AI for your insurance claim management.
 
 ---
-KINGA AutoVerify AI - Intelligent Claims Management
+KINGA AI - Intelligent Claims Management
   `.trim();
 
   return await notifyOwner({
@@ -348,7 +348,7 @@ https://kinga.manus.space/claimant/dashboard
 If you have any questions about this update, please contact your claims handler.
 
 ---
-KINGA AutoVerify AI - Intelligent Claims Management
+KINGA AI - Intelligent Claims Management
   `.trim();
 
   return await notifyOwner({

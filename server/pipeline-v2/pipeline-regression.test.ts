@@ -1,7 +1,7 @@
 /**
  * pipeline-regression.test.ts
  *
- * Regression tests for the KINGA AutoVerify AI pipeline.
+ * Regression tests for the KINGA AI pipeline.
  * Covers the three root-cause failures identified from the Mazda BT50 claim audit:
  *
  *   Stage 3 — Extraction quality scorer: quality score ≥ 70, quoteTotalCents non-null,

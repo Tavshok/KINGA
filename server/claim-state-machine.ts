@@ -1,5 +1,5 @@
 /**
- * Claim Workflow State Machine Guards — KINGA AutoVerify AI
+ * Claim Workflow State Machine Guards — KINGA AI
  *
  * Centralises all PRECONDITION_FAILED guards for invalid state transitions.
  * Import and call the relevant guard at the top of each tRPC procedure.

@@ -350,30 +350,41 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
   const { results } = data;
   if (!results || results.length === 0) return null;
 
-  const analysed = results.length;
-  const suspicious = results.filter((r) => r.isSuspicious).length;
-  const gpsPresent = results.filter((r) => r.gpsPresent).length;
-  const allExifStripped = results.length > 0 && results.every((r) => !r.exifPresent);
+  // Filter out non-vehicle images entirely — they are background/document images
+  // that contribute nothing to damage analysis and should not appear in the report.
+  const vehicleResults = results.filter((r) => {
+    const rawText = r.aiVisionDescription ?? '';
+    const isRefusal = /^\s*(i\s+am\s+sorry|i\s+cannot|i\s+can't|i\s+apologize|i\s+apologise|unable\s+to|this\s+image\s+does\s+not|the\s+image\s+does\s+not\s+(?:show|contain|depict))/i.test(rawText);
+    return !r.isNonVehicle && !isRefusal;
+  });
+
+  const analysed = vehicleResults.length;
+  const totalSubmitted = results.length;
+  const excluded = totalSubmitted - analysed;
+  const suspicious = vehicleResults.filter((r) => r.isSuspicious).length;
+  const gpsPresent = vehicleResults.filter((r) => r.gpsPresent).length;
+  const allExifStripped = vehicleResults.length > 0 && vehicleResults.every((r) => !r.exifPresent);
 
   return (
     <div className="space-y-2">
       {/* Summary line */}
       <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-        {analysed} photo{analysed !== 1 ? 's' : ''} analysed
+        {analysed} vehicle photo{analysed !== 1 ? 's' : ''} analysed
+        {excluded > 0 ? ` · ${excluded} non-vehicle image${excluded !== 1 ? 's' : ''} excluded` : ''}
         {suspicious > 0 ? ` · ${suspicious} flagged as suspicious` : ' · no suspicious images detected'}
         {gpsPresent > 0 ? ` · ${gpsPresent} with GPS data` : ' · no GPS data present'}
         {allExifStripped ? ' · Note: all images have EXIF metadata stripped — origin unverifiable' : ''}
       </p>
 
-      {/* Per-image entries — 4 bullet points each */}
-      {results.map((r, i) => {
+      {/* Per-image entries — 4 bullet points each (vehicle images only) */}
+      {vehicleResults.map((r, i) => {
         const manipPct = Math.round(r.manipulationScore);
 
         // Bullet 1: Observation — first 2 clean sentences from AI vision description
         // Check for non-vehicle image or LLM refusal before processing
         const rawVisionText = r.aiVisionDescription ?? '';
-        const isRefusal = /^\s*(i\s+am\s+sorry|i\s+cannot|i\s+can't|i\s+apologize|i\s+apologise|unable\s+to|this\s+image\s+does\s+not|the\s+image\s+does\s+not\s+(?:show|contain|depict))/i.test(rawVisionText);
-        const isNonVehicleImage = r.isNonVehicle || isRefusal;
+        const isRefusal = false; // non-vehicle images already filtered out above
+        const isNonVehicleImage = false;
 
         let observation: string;
         if (isNonVehicleImage) {
@@ -414,8 +425,6 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
         // Bullet 4: Manipulation score + integrity verdict
         const integrityVerdict = r.isSuspicious
           ? `Manipulation score ${manipPct}% — image flagged as suspicious; manual review required`
-          : r.isNonVehicle
-          ? `Non-vehicle image — excluded from damage analysis (manipulation score ${manipPct}%)`
           : !r.exifPresent
           ? `Manipulation score ${manipPct}% — no anomalies detected; EXIF absence noted`
           : `Manipulation score ${manipPct}% — no integrity anomalies detected`;

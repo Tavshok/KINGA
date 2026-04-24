@@ -1,5 +1,5 @@
 /**
- * verifyClaimIntegrity — KINGA AutoVerify AI
+ * verifyClaimIntegrity — KINGA AI
  *
  * Validates the internal consistency of a single claim record.
  * Returns a structured report of all integrity issues found.

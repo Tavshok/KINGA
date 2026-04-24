@@ -248,7 +248,7 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
     doc.setFontSize(8);
     doc.setTextColor(128, 128, 128);
     doc.text(
-      `Page ${i} of ${pageCount} | Generated: ${new Date().toLocaleString()} | KINGA AutoVerify AI`,
+      `Page ${i} of ${pageCount} | Generated: ${new Date().toLocaleString()} | KINGA AI`,
       pageWidth / 2,
       doc.internal.pageSize.getHeight() - 10,
       { align: 'center' }

@@ -56,7 +56,7 @@ export default function TenantManagement() {
     {
       id: "kinga-default",
       name: "KINGA",
-      displayName: "KINGA AutoVerify AI",
+      displayName: "KINGA AI",
       primaryColor: "#10b981",
       secondaryColor: "#64748b",
       documentRetentionYears: 7,

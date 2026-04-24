@@ -466,7 +466,7 @@ export default function SubmitClaim() {
             <div className="flex items-center gap-3">
               <Shield className="h-8 w-8 text-emerald-600" />
               <div>
-                <h1 className="text-2xl font-bold">KINGA - AutoVerify AI</h1>
+                <h1 className="text-2xl font-bold">KINGA AI</h1>
                 <p className="text-sm text-muted-foreground">Claim Submitted Successfully</p>
               </div>
             </div>

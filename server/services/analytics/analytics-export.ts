@@ -271,7 +271,7 @@ export async function generatePDFReport(data: AnalyticsReportData): Promise<Buff
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.text(
-      `Page ${i} of ${pageCount} | KINGA AutoVerify AI - Fast-Track Analytics`,
+      `Page ${i} of ${pageCount} | KINGA AI - Fast-Track Analytics`,
       pageWidth / 2,
       doc.internal.pageSize.getHeight() - 10,
       { align: "center" }
@@ -288,7 +288,7 @@ export async function generateCSVReport(data: AnalyticsReportData): Promise<stri
   const lines: string[] = [];
   
   // Header
-  lines.push("KINGA AutoVerify AI - Fast-Track Analytics Report");
+  lines.push("KINGA AI - Fast-Track Analytics Report");
   lines.push("");
   
   // Metadata

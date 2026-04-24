@@ -106,10 +106,7 @@ export default function PortalHub() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <KingaLogo />
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">KINGA</h1>
-                <p className="text-sm text-muted-foreground">Portal Hub</p>
-              </div>
+              <p className="text-sm text-muted-foreground">Portal Hub</p>
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle />

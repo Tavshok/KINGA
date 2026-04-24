@@ -212,7 +212,7 @@ export function generateClaimDossierHTML(data: ClaimDossierData): string {
 </head>
 <body>
   <div class="header">
-    <h1>KINGA - AutoVerify AI</h1>
+    <h1>KINGA AI</h1>
     <p style="font-size: 18px; color: #6b7280;">Portable Claim Dossier</p>
     <p style="font-size: 14px; color: #9ca3af;">Generated on ${new Date().toLocaleDateString()}</p>
   </div>
@@ -359,7 +359,7 @@ export function generateClaimDossierHTML(data: ClaimDossierData): string {
   ` : ''}
 
   <div class="footer">
-    <p><strong>KINGA - AutoVerify AI</strong></p>
+    <p><strong>KINGA AI</strong></p>
     <p>This is a portable claim dossier generated for submission to your insurance provider.</p>
     <p>For questions or support, contact your fleet administrator.</p>
   </div>

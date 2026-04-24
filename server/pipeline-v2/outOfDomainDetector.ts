@@ -1,7 +1,7 @@
 /**
  * outOfDomainDetector.ts
  *
- * Out-of-Domain Detector for the KINGA AutoVerify AI pipeline.
+ * Out-of-Domain Detector for the KINGA AI pipeline.
  *
  * Checks whether an incoming claim's case_signature matches known patterns
  * in the historical signatures database. If no similar cases are found the

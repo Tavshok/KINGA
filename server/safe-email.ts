@@ -1,5 +1,5 @@
 /**
- * Safe Email Helper — KINGA AutoVerify AI
+ * Safe Email Helper — KINGA AI
  *
  * Wraps every outbound email send with five safety layers:
  *   1. SYSTEM_TEST_MODE guard — when SYSTEM_TEST_MODE=true, all sends are suppressed,
@@ -270,7 +270,7 @@ export async function sendAssessorAssignmentEmail(opts: {
     recipientEmail: opts.assessorEmail,
     tenantId: opts.tenantId,
     subject: `New Claim Assignment: ${opts.claimNumber}`,
-    body: `Hello ${opts.assessorName},\n\nYou have been assigned claim ${opts.claimNumber} for assessment.\n\nVehicle: ${opts.vehicleMake} ${opts.vehicleModel}\nIncident Date: ${opts.incidentDate}\n\nPlease log in to KINGA to review the details.\n\nKINGA AutoVerify AI`,
+    body: `Hello ${opts.assessorName},\n\nYou have been assigned claim ${opts.claimNumber} for assessment.\n\nVehicle: ${opts.vehicleMake} ${opts.vehicleModel}\nIncident Date: ${opts.incidentDate}\n\nPlease log in to KINGA to review the details.\n\nKINGA AI`,
   });
 }
 
@@ -293,7 +293,7 @@ export async function sendQuoteSubmittedEmail(opts: {
     recipientEmail: opts.recipientEmail,
     tenantId: opts.tenantId,
     subject: `Quote Submitted for Claim ${opts.claimNumber}`,
-    body: `A quote has been submitted for claim ${opts.claimNumber}.\n\nPanel Beater: ${opts.panelBeaterName}\nAmount: R${opts.quotedAmount.toFixed(2)}\n\nLog in to KINGA to review.\n\nKINGA AutoVerify AI`,
+    body: `A quote has been submitted for claim ${opts.claimNumber}.\n\nPanel Beater: ${opts.panelBeaterName}\nAmount: R${opts.quotedAmount.toFixed(2)}\n\nLog in to KINGA to review.\n\nKINGA AI`,
   });
 }
 
@@ -316,7 +316,7 @@ export async function sendAiOptimisationCompleteEmail(opts: {
     recipientEmail: opts.recipientEmail,
     tenantId: opts.tenantId,
     subject: `AI Optimisation Complete: ${opts.claimNumber}`,
-    body: `AI optimisation has completed for claim ${opts.claimNumber}.\n\nRisk Score: ${opts.riskScore}/100\nRecommended Repairer: ${opts.recommendedRepairer}\n\nLog in to KINGA to review and make a decision.\n\nKINGA AutoVerify AI`,
+    body: `AI optimisation has completed for claim ${opts.claimNumber}.\n\nRisk Score: ${opts.riskScore}/100\nRecommended Repairer: ${opts.recommendedRepairer}\n\nLog in to KINGA to review and make a decision.\n\nKINGA AI`,
   });
 }
 
@@ -338,6 +338,6 @@ export async function sendFleetQuoteResponseEmail(opts: {
     recipientEmail: opts.recipientEmail,
     tenantId: opts.tenantId,
     subject: `Fleet Insurance Quote Received from ${opts.insurerName}`,
-    body: `${opts.insurerName} has submitted a fleet insurance quote.\n\nQuoted Premium: R${opts.quotedPremium.toFixed(2)}\n\nLog in to KINGA Agency to compare and accept.\n\nKINGA AutoVerify AI`,
+    body: `${opts.insurerName} has submitted a fleet insurance quote.\n\nQuoted Premium: R${opts.quotedPremium.toFixed(2)}\n\nLog in to KINGA Agency to compare and accept.\n\nKINGA AI`,
   });
 }

@@ -62,7 +62,7 @@ export async function generatePolicyPDF(policyData: PolicyData): Promise<Buffer>
       
       doc.fontSize(12)
          .fillColor('#6b7280')
-         .text('AutoVerify AI - Insurance Platform', { align: 'center' });
+         .text('KINGA AI - Insurance Platform', { align: 'center' });
       
       doc.moveDown(0.5);
       doc.fontSize(18)
@@ -300,7 +300,7 @@ export async function generatePolicyPDF(policyData: PolicyData): Promise<Buffer>
       
       doc.fontSize(8)
          .fillColor('#6b7280')
-         .text('KINGA - AutoVerify AI Insurance Platform', { align: 'center' });
+         .text('KINGA AI Insurance Platform', { align: 'center' });
 
       // Finalize the PDF
       doc.end();

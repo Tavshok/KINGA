@@ -1,7 +1,7 @@
 /**
  * decisionTraceGenerator.ts
  *
- * Decision Trace Generator — Phase 4 of the KINGA AutoVerify AI pipeline.
+ * Decision Trace Generator — Phase 4 of the KINGA AI pipeline.
  *
  * Creates a structured, human-readable audit trail showing HOW a claim
  * decision was reached, stage by stage. Each entry records:

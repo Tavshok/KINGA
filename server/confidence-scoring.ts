@@ -1,7 +1,7 @@
 /**
  * confidence-scoring.ts
  *
- * Standardised AI confidence scoring engine for KINGA AutoVerify.
+ * Standardised AI confidence scoring engine for KINGA AI.
  *
  * Confidence is derived from 8 weighted inputs:
  *   1. Image Quality            22%

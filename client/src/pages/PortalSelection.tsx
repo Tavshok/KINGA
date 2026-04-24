@@ -107,7 +107,7 @@ export default function PortalSelection() {
           {/* Footer */}
           <div className="text-center mt-12 text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-sm">
             <p>Eliminating Fraud & Accelerating Claims Processing</p>
-            <p className="mt-2">© 2026 KINGA - AutoVerify AI. All rights reserved.</p>
+            <p className="mt-2">© 2026 KINGA AI. All rights reserved.</p>
           </div>
         </div>
       </div>

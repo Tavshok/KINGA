@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * KINGA - AutoVerify AI Insurance Claims Management Platform
+ * KINGA AI Insurance Claims Management Platform
  * 
  * This file defines all tRPC API procedures for the application.
  * Procedures are organized by domain (claims, assessors, panel beaters, etc.)

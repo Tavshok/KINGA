@@ -707,7 +707,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
   <div class="report-header no-break">
     <div>
       <div class="report-title">Claim Report</div>
-      <div class="report-subtitle">KINGA AutoVerify AI — Insurer Export</div>
+      <div class="report-subtitle">KINGA AI — Insurer Export</div>
       <div class="header-meta">
         <span class="header-meta-label">Claim Number:</span>
         <span class="header-meta-value">${claim.claimNumber}</span>
@@ -801,7 +801,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
 
   <!-- ── Footer ─────────────────────────────────────────────────────────── -->
   <div class="report-footer">
-    KINGA AutoVerify AI &nbsp;|&nbsp; Claim ${claim.claimNumber} &nbsp;|&nbsp; Confidential — For Insurance Use Only
+    KINGA AI &nbsp;|&nbsp; Claim ${claim.claimNumber} &nbsp;|&nbsp; Confidential — For Insurance Use Only
   </div>
 
 </div>
@@ -1013,7 +1013,7 @@ export const exportClaimPDF = insurerDomainProcedure
           headerTemplate: "<div></div>",
           footerTemplate: `
             <div style="width:100%;font-size:8px;color:#6b7280;text-align:center;padding:0 10mm;">
-              KINGA AutoVerify AI &nbsp;|&nbsp; Claim ${claim.claimNumber} &nbsp;|&nbsp; Confidential
+              KINGA AI &nbsp;|&nbsp; Claim ${claim.claimNumber} &nbsp;|&nbsp; Confidential
               <span style="float:right;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
             </div>`,
         })

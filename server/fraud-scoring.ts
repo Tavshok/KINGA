@@ -1,5 +1,5 @@
 /**
- * fraud-scoring.ts — KINGA AutoVerify AI Fraud Scoring Engine
+ * fraud-scoring.ts — KINGA AI Fraud Scoring Engine
  *
  * 10 indicators, 5-level risk scale, multi-indicator escalation.
  * Total max = 100 pts.

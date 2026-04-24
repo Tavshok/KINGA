@@ -422,13 +422,8 @@ export default function InsurerComparisonView() {
       <header className="bi-hero" style={{ colorScheme: 'light', background: '#f8f9fa', borderBottom: '1px solid #e5e7eb' }}>
         {/* Grid overlay removed for light theme */}
         <div className="container mx-auto px-4 py-5 relative z-10">
-          {/* Top bar: Logo + user */}
+          {/* Top bar: user info on left, KINGA logo on right */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <KingaLogo />
-              <div className="h-5 w-px" style={{ background: '#d1d5db' }} />
-              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#374151' }}>AutoVerify AI</span>
-            </div>
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="text-sm font-medium" style={{ color: '#111827' }}>{user?.name}</p>
@@ -438,6 +433,12 @@ export default function InsurerComparisonView() {
                 style={{ borderColor: '#d1d5db', color: '#374151', background: 'transparent' }}>
                 Sign Out
               </Button>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#374151' }}>KINGA AI</span>
+              <div className="h-5 w-px" style={{ background: '#d1d5db' }} />
+              {/* Logo image only — no text, to avoid duplicate KINGA text */}
+              <KingaLogo showText={false} size="sm" />
             </div>
           </div>
 

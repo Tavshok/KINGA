@@ -1,5 +1,5 @@
 /**
- * Batch 2 Report Components — KINGA AutoVerify v4.2
+ * Batch 2 Report Components — KINGA AI v4.2
  *
  * Components:
  * 1. CostWaterfallChart        — horizontal waterfall: Parts → Labour → Total vs Benchmark

@@ -78,7 +78,7 @@ This report is confidential and intended solely for authorized personnel. Please
 If you have any questions about this report, please contact your claims manager.
 
 ---
-KINGA AutoVerify AI - Intelligent Claims Management
+KINGA AI - Intelligent Claims Management
   `.trim();
 
   // Send notification to owner (as a proxy for email delivery)

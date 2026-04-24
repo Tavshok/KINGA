@@ -1405,7 +1405,7 @@ export default function ClaimDecisionReport() {
       <div className="print-report-header" style={{ display: 'none' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0D7377', paddingBottom: '8px', marginBottom: '12px' }}>
           <div>
-            <div style={{ fontSize: '14pt', fontWeight: 700, color: '#0D7377' }}>KINGA AutoVerify AI</div>
+            <div style={{ fontSize: '14pt', fontWeight: 700, color: '#0D7377' }}>KINGA AI</div>
             <div style={{ fontSize: '9pt', color: '#475569' }}>Forensic Claim Decision Report v4.2</div>
           </div>
           <div style={{ textAlign: 'right', fontSize: '9pt', color: '#475569' }}>
