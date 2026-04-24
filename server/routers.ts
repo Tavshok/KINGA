@@ -1330,6 +1330,43 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }));
       }),
 
+    // Get all claims for the insurer tenant (no status filter) — used by Risk Manager Dashboard
+    allForTenant: insurerDomainProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const rows = await db
+          .select()
+          .from(claims)
+          .where(eq(claims.tenantId, ctx.insurerTenantId))
+          .orderBy(desc(claims.createdAt))
+          .limit(300);
+        if (rows.length === 0) return rows;
+        const completedIds = rows
+          .filter((r: any) => r.aiAssessmentCompleted === 1)
+          .map((r: any) => r.id);
+        if (completedIds.length === 0) return rows;
+        const { aiAssessments: aiAssessmentsTable } = await import("../drizzle/schema");
+        const { inArray: inArrayOp } = await import("drizzle-orm");
+        const qualityRows = await db
+          .select({ claimId: aiAssessmentsTable.claimId, claimQualityJson: aiAssessmentsTable.claimQualityJson })
+          .from(aiAssessmentsTable)
+          .where(inArrayOp(aiAssessmentsTable.claimId, completedIds));
+        const qualityMap = new Map<number, any>();
+        for (const qr of qualityRows) {
+          if (qr.claimId && qr.claimQualityJson) {
+            try {
+              const parsed = JSON.parse(qr.claimQualityJson as string);
+              qualityMap.set(qr.claimId, { grade: parsed.grade, overallScore: parsed.overallScore, requiresManualReview: parsed.requiresManualReview });
+            } catch { /* non-fatal */ }
+          }
+        }
+        return rows.map((r: any) => ({
+          ...r,
+          _qualityGrade: qualityMap.get(r.id) ?? null,
+        }));
+      }),
+
     // Get single claim by ID
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))

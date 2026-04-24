@@ -559,15 +559,12 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   // Physics tile status
   const physicsStatus = physicsScore >= 70 ? "pass" : physicsScore >= 30 ? "warn" : "fail";
   const physicsLabel = physicsScore >= 70 ? "Consistent" : physicsScore >= 30 ? "Minor anomaly" : "Anomaly";
-  const physicsIcon = physicsScore >= 70 ? "✅" : "⚠️";
 
   // Cost tile status — based on whether a quote was submitted
   const costStatus = quotedTotal > 0 ? "pass" : "na";
-  const costIcon = quotedTotal > 0 ? "✅" : "—";
 
   // Evidence tile status
   const evidenceStatus = photoStatus === "ANALYSED" ? "pass" : photoStatus === "SYSTEM_FAILURE" ? "warn" : "fail";
-  const evidenceIcon = photoStatus === "ANALYSED" ? "✅" : photoStatus === "SYSTEM_FAILURE" ? "⚠️" : "❌";
   const evidenceLabel = photoStatus === "SYSTEM_FAILURE" ? "system error" : photoStatus === "ANALYSED" ? "analysed" : "not ingested";
 
   // FCDI tile — use DB column (always present) with fallback to nested forensicAnalysis object
@@ -575,7 +572,6 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const fcdiTileScore: number = typeof fcdiRaw === 'number' ? Math.round(fcdiRaw) : -1;
   // fcdiTileScore is 0–100 where 100 = fully reliable, 0 = fully degraded
   const fcdiTileLabel = fcdiTileScore < 0 ? "N/A" : fcdiTileScore >= 80 ? "HIGH" : fcdiTileScore >= 55 ? "MEDIUM" : fcdiTileScore >= 30 ? "LOW" : "CRITICAL";
-  const fcdiTileIcon = fcdiTileScore < 0 ? "—" : fcdiTileScore >= 80 ? "✅" : fcdiTileScore >= 55 ? "⚠️" : "❌";
   const fcdiTileColor = fcdiTileScore < 0 ? "var(--muted-foreground)" : fcdiTileScore >= 80 ? "var(--fp-success-text)" : fcdiTileScore >= 55 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
 
   // Determine decision colour for the decision box border
@@ -879,8 +875,8 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                           }
                         >
                           {multiEventSequence?.is_multi_event
-                            ? `⚡ MULTI-EVENT INCIDENT (${multiEventSequence.events?.length ?? 2})`
-                            : "⚠ CONFLICT DETECTED"}
+                            ? `Multi-event incident (${multiEventSequence.events?.length ?? 2} events)`
+                            : "Conflict detected"}
                         </span>
                       )}
                       {!isClassifiedByLLM && incidentType !== "N/A" && (
@@ -905,18 +901,18 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 ["Incident date", fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)],
                 ["Incident time", accidentTime ?? "Not recorded"],
                 ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not recorded"],
-                ["Weather conditions", weatherConditions ?? "Not recorded"],
-                ["Road surface", roadSurface ?? "Not recorded"],
+                ["Weather conditions", weatherConditions ? toSentenceCase(weatherConditions) : "Not recorded"],
+                ["Road surface", roadSurface ? toSentenceCase(roadSurface) : "Not recorded"],
                 animalType ? ["Animal type", <span className="font-semibold capitalize">{animalType}</span>] : null,
-                ["Driver", driverName ?? "Not recorded"],
+                ["Driver", driverName ? toTitleCase(driverName) : "Not recorded"],
                 ["Driver licence", driverLicenseNumber ?? "Not provided"],
                 ["Claimant", claimantName ?? claim?.claimantName ?? "Not recorded"],
                 ["Inspection date", fmtDate(aiAssessment?.assessmentDate)],
                 ["Assessor", aiAssessment?.assessorName ?? claimRecord0?.repairQuote?.assessorName ?? "Not assigned"],
-                ["Repairer", aiAssessment?.panelBeaterName ?? claimRecord0?.repairQuote?.repairerName ?? claim?.repairerName ?? "Not specified"],
+                ["Repairer", toTitleCase(aiAssessment?.panelBeaterName ?? claimRecord0?.repairQuote?.repairerName ?? claim?.repairerName) || "Not specified"],
                 ["Police report No.", policeReportNumber
                   ? policeReportNumber
-                  : (<span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--fp-critical-bg)", color: "var(--fp-critical-text)", border: "1px solid var(--fp-critical-border)" }}>Not Extracted</span>)],
+                  : (<span className="text-[10px] font-semibold" style={{ color: "var(--muted-foreground)" }}>Not extracted</span>)],
                 policeStation ? ["Police station", policeStation + (policeReportNumber ? "" : " — case number not extracted")] : null,
               ].filter(Boolean).map((row: any, i: number) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
@@ -935,23 +931,24 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                   <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "var(--muted-foreground)" }}>Incident Narrative</span>
                   {narrativeAnalysis && narrativeAnalysis.consistency_verdict && (() => {
                     const v = narrativeAnalysis.consistency_verdict;
-                    const colour = v === "CONSISTENT" ? { bg: "var(--fp-success-bg)", text: "var(--fp-success-text)", border: "var(--fp-success-border)" }
-                      : v === "MINOR_DISCREPANCY" ? { bg: "var(--fp-warning-bg)", text: "var(--fp-warning-text)", border: "var(--fp-warning-border)" }
-                      : v === "INCONSISTENT" ? { bg: "var(--fp-critical-bg)", text: "var(--fp-critical-text)", border: "var(--fp-critical-border)" }
-                      : v === "CONTAMINATED" ? { bg: "var(--fp-warning-bg)", text: "var(--fp-warning-text)", border: "var(--fp-warning-border)" }
-                      : { bg: "var(--muted)", text: "var(--muted-foreground)", border: "var(--border)" };
+                    // Plain text verdict — no coloured badge
+                    const verdictLabel = v === "CONSISTENT" ? "Consistent"
+                      : v === "MINOR_DISCREPANCY" ? "Minor discrepancy"
+                      : v === "INCONSISTENT" ? "Inconsistent"
+                      : v === "CONTAMINATED" ? "Contaminated"
+                      : toSentenceCase(v);
                     return (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: colour.bg, color: colour.text, border: `1px solid ${colour.border}` }}>
-                        {v.replace(/_/g, " ")}
+                      <span className="text-[10px] font-semibold" style={{ color: "var(--foreground)" }}>
+                        {verdictLabel}
                       </span>
                     );
                   })()}
                 </div>
                 {(!description && !narrativeAnalysis?.cleaned_incident_narrative) ? (
-                  <div className="flex items-start gap-2 p-2.5 rounded-lg text-xs" style={{ background: "var(--fp-critical-bg)", border: "1px solid var(--fp-critical-border)", color: "var(--fp-critical-text)" }}>
+                  <div className="flex items-start gap-2 p-2.5 text-xs" style={{ border: "1px solid var(--border)", color: "var(--foreground)" }}>
                     <span className="shrink-0 font-bold text-[11px]">&#9888;</span>
                     <div>
-                      <p className="font-semibold">Incident Description Not Extracted</p>
+                      <p className="font-semibold">Incident description not extracted</p>
                       <p className="mt-0.5 opacity-80">The incident description could not be extracted from the submitted documents. This may be due to garbled OCR output, a missing narrative section, or an unsupported document format. The pipeline has flagged this field as unreadable and nullified it to prevent corrupted data from propagating. Please verify the source documents and consider re-submitting with clearer scans.</p>
                     </div>
                   </div>
@@ -985,12 +982,14 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                       { label: "Damage alignment", verdict: narrativeAnalysis.cross_validation.damage_verdict, notes: narrativeAnalysis.cross_validation.damage_notes },
                       { label: "Crush depth alignment", verdict: narrativeAnalysis.cross_validation.crush_depth_verdict, notes: narrativeAnalysis.cross_validation.crush_depth_notes },
                     ].filter(r => r.verdict && r.verdict !== "NOT_ASSESSED").map((r, i) => {
-                      const vc = r.verdict === "CONSISTENT" ? { bg: "var(--fp-success-bg)", text: "var(--fp-success-text)", border: "var(--fp-success-border)" }
-                        : r.verdict === "PARTIAL" ? { bg: "var(--fp-warning-bg)", text: "var(--fp-warning-text)", border: "var(--fp-warning-border)" }
-                        : { bg: "var(--fp-critical-bg)", text: "var(--fp-critical-text)", border: "var(--fp-critical-border)" };
+                      // Plain text verdict — no coloured badge
+                      const verdictText = r.verdict === "CONSISTENT" ? "Consistent"
+                        : r.verdict === "PARTIAL" ? "Partial"
+                        : r.verdict === "INCONSISTENT" ? "Inconsistent"
+                        : toSentenceCase(r.verdict);
                       return (
                         <div key={i} className="flex items-start gap-2">
-                          <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: vc.bg, color: vc.text, border: `1px solid ${vc.border}` }}>{r.verdict}</span>
+                          <span className="shrink-0 text-[10px] font-semibold" style={{ color: "var(--foreground)", minWidth: "60px" }}>{verdictText}:</span>
                           <span style={{ color: "var(--muted-foreground)" }}><span className="font-semibold" style={{ color: "var(--foreground)" }}>{r.label}:</span> {r.notes}</span>
                         </div>
                       );
@@ -1001,20 +1000,18 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
 
               {/* Narrative fraud signals */}
               {narrativeAnalysis?.fraud_signals && narrativeAnalysis.fraud_signals.length > 0 && (
-                <div className="p-3 rounded-lg text-xs" style={{ background: "var(--fp-critical-bg)", border: "1px solid var(--fp-critical-border)" }}>
-                  <p className="font-bold uppercase tracking-wide text-[10px] mb-2" style={{ color: "var(--fp-critical-text)" }}>Narrative Fraud Signals ({narrativeAnalysis.fraud_signals.length})</p>
+                <div className="p-3 rounded-lg text-xs" style={{ border: "1px solid var(--border)" }}>
+                  <p className="font-bold uppercase tracking-wide text-[10px] mb-2" style={{ color: "var(--muted-foreground)" }}>Narrative fraud signals ({narrativeAnalysis.fraud_signals.length})</p>
                   <div className="space-y-1.5">
                     {narrativeAnalysis.fraud_signals.map((sig: any, i: number) => {
-                      const sc = sig.severity === "HIGH" ? { bg: "var(--fp-critical-bg)", text: "var(--fp-critical-text)", border: "var(--fp-critical-border)" }
-                        : sig.severity === "MEDIUM" ? { bg: "var(--fp-warning-bg)", text: "var(--fp-warning-text)", border: "var(--fp-warning-border)" }
-                        : { bg: "var(--muted)", text: "var(--muted-foreground)", border: "var(--border)" };
+                      const severityLabel = sig.severity === "HIGH" ? "High" : sig.severity === "MEDIUM" ? "Medium" : "Low";
                       return (
                         <div key={i} className="flex items-start gap-2">
-                          <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}>{sig.severity}</span>
+                          <span className="shrink-0 text-[10px] font-semibold" style={{ color: "var(--foreground)", minWidth: "42px" }}>{severityLabel}:</span>
                           <div>
                             <span className="font-semibold" style={{ color: "var(--foreground)" }}>{sig.code?.replace(/_/g, " ")}: </span>
                             <span style={{ color: "var(--foreground)" }}>{sig.description}</span>
-                            {sig.evidence && <span className="block text-[10px] mt-0.5" style={{ color: "var(--fp-critical-text)" }}>Evidence: “{sig.evidence}”</span>}
+                            {sig.evidence && <span className="block text-[10px] mt-0.5" style={{ color: "var(--muted-foreground)" }}>Evidence: "{sig.evidence}"</span>}
                           </div>
                         </div>
                       );
@@ -1040,7 +1037,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
           <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>1.1b Multi-Event Incident Sequence</p>
-            <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--fp-warning-bg)", color: "var(--fp-warning-text)" }}>
+            <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>
               {multiEventSequence.events.length} events detected
             </span>
             <span className="text-xs ml-auto" style={{ color: "var(--muted-foreground)" }}>
@@ -1353,7 +1350,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                         G5_TERMINOLOGY: 'Terminology Standardisation',
                       } as Record<string, string>)[g.gate] ?? (g.gate ? g.gate.replace(/^G\d+_?/i, '').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : `Check ${i + 1}`)}</td>
                     <td className="px-3 py-2">
-                      <StatusBadge status={g.status === "PASS" ? "pass" : g.status === "WARN" ? "warn" : "fail"} label={g.status ?? "UNKNOWN"} />
+                      <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{toSentenceCase((g.status ?? "Unknown").toLowerCase())}</span>
                     </td>
                     <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{g.corrections?.length ?? 0}</td>
                   </tr>
@@ -1498,7 +1495,7 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>2.1 Impact Physics</p>
-          <StatusBadge status={physicsScore >= 70 ? "pass" : physicsScore >= 30 ? "warn" : "fail"} label={`${Math.round(physicsScore)}% consistent`} />
+          <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{Math.round(physicsScore)}% consistent</span>
         </div>
         <div className="p-4">
           <div className="grid grid-cols-2 gap-4 mb-4">
@@ -1511,8 +1508,8 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
                     ["Impact energy (KE)", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
                     ["Impact force", impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : "N/A"],
                     ["Vehicle mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
-                    ["Accident severity", severity.replace(/_/g, " ")],
-                    ["Incident type", incidentType.replace(/_/g, " ")],
+                    ["Accident severity", toSentenceCase(severity.replace(/_/g, " "))],
+                    ["Incident type", toSentenceCase(incidentType.replace(/_/g, " "))],
                   ].map(([k, v], i) => (
                     <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                       <td className="py-1.5 pr-3 font-semibold" style={{ color: "var(--muted-foreground)" }}>{k}</td>
@@ -1561,11 +1558,11 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
 
           {directionExplanation && (
             <div className="p-2 rounded-lg text-xs" style={{
-              background: directionMismatch ? "var(--status-review-bg)" : "var(--muted)",
-              border: `1px solid ${directionMismatch ? "var(--status-review-border)" : "var(--border)"}`,
-              color: directionMismatch ? "var(--status-review-text)" : "var(--foreground)",
+              background: "var(--muted)",
+              border: "1px solid var(--border)",
+              color: "var(--foreground)",
             }}>
-              {directionMismatch ? "⚠ Direction mismatch: " : "✓ Direction consistent: "}{directionExplanation}
+              {directionMismatch ? "Direction mismatch: " : "Direction consistent: "}{directionExplanation}
             </div>
           )}
         </div>
@@ -1575,10 +1572,7 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>2.2 Damage Consistency</p>
-          <StatusBadge
-            status={physicsScore >= 70 ? "pass" : physicsScore >= 30 ? "warn" : "fail"}
-            label={anomalyLevel === "none" ? "Consistent" : toTitleCase(anomalyLevel)}
-          />
+          <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{anomalyLevel === "none" ? "Consistent" : toTitleCase(anomalyLevel)}</span>
         </div>
         <div className="p-4">
           {/* Zone map + 3-col comparison table side by side */}
@@ -1622,8 +1616,8 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
                         <td className="px-2 py-1.5" style={{ color: "var(--muted-foreground)" }}>{String(observed)}</td>
                         <td className="px-2 py-1.5">
                           {damageZones.length > 0
-                            ? <StatusBadge status={zoneMatch ? "pass" : "warn"} label={zoneMatch ? "✓" : "?"} />
-                            : <StatusBadge status="na" label="N/A" />}
+                            ? <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{zoneMatch ? "Match" : "Review"}</span>
+                            : <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>N/A</span>}
                         </td>
                       </tr>
                     );
@@ -1661,19 +1655,18 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
                           <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{c.expected ?? (c.suppressed ? "Advisory only" : "Pass")}</td>
                           <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>{c.actual ?? (c.suppressed ? "Suppressed" : "Within range")}</td>
                           <td className="px-3 py-2">
-                            <StatusBadge status={c.suppressed ? "warn" : "pass"} label={c.suppressed ? "⚠ ADVISORY" : "✅ PASS"} />
+                            <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{c.suppressed ? "Advisory" : "Pass"}</span>
                           </td>
                         </tr>
                         {c.advisory && (
-                          <tr style={{ background: c.suppressed ? "var(--fp-warning-bg)" : "var(--muted)" }}>
+                          <tr style={{ background: "var(--muted)" }}>
                             <td colSpan={4} className="px-3 pb-2 pt-0">
-                              <div className="flex items-start gap-1.5 text-xs rounded px-2 py-1.5"
+                              <div className="flex items-start gap-1.5 text-xs px-2 py-1.5"
                                 style={{
-                                  background: c.suppressed ? "var(--fp-warning-bg)" : "var(--muted)",
-                                  border: `1px solid ${c.suppressed ? "var(--status-review-border)" : "var(--border)"}`,
-                                  color: c.suppressed ? "var(--status-review-text)" : "var(--muted-foreground)",
+                                  border: "1px solid var(--border)",
+                                  color: "var(--muted-foreground)",
                                 }}>
-                                <span style={{ flexShrink: 0 }}>{c.suppressed ? "⚠" : "ℹ"}</span>
+                                <span style={{ flexShrink: 0 }}>{c.suppressed ? "Note:" : ""}</span>
                                 <span>{c.advisory}</span>
                               </div>
                             </td>
@@ -2108,7 +2101,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Submitted Quote</p>
-          <StatusBadge status={verdict === "QUOTE_SUBMITTED" ? "pass" : "warn"} label={verdict === "QUOTE_SUBMITTED" ? "Quote Received" : "No Quote"} />
+          <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{verdict === "QUOTE_SUBMITTED" ? "Quote received" : "No quote"}</span>
         </div>
         <div className="p-4">
           {pbQuotes.length > 0 ? (
@@ -2127,7 +2120,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                     <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{q.parts > 0 ? fmtMoney(q.parts) : "—"}</td>
                     <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{q.labour > 0 ? fmtMoney(q.labour) : "—"}</td>
                     <td className="px-3 py-2 tabular-nums font-bold" style={{ color: "var(--foreground)" }}>{fmtMoney(q.total)}</td>
-                    <td className="px-3 py-2"><StatusBadge status="pass" label="Submitted" /></td>
+                    <td className="px-3 py-2"><span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Submitted</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -2209,21 +2202,21 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                         {(() => {
                           const rs = reconStatusMap[(part.component ?? '').toLowerCase()] ?? 'no_quote_available';
                           const statusMap: Record<string, { status: 'pass' | 'warn' | 'fail' | 'na'; label: string }> = {
-                            matched: { status: 'pass', label: '✓ Matched' },
-                            missing_from_quote: { status: 'fail', label: '✗ Missing' },
-                            quoted_not_detected: { status: 'warn', label: '⚠ Extra' },
-                            unmatched: { status: 'warn', label: '? Unmatched' },
+                            matched: { status: 'pass', label: 'Matched' },
+                            missing_from_quote: { status: 'fail', label: 'Missing' },
+                            quoted_not_detected: { status: 'warn', label: 'Extra' },
+                            unmatched: { status: 'warn', label: 'Unmatched' },
                             no_quote_available: { status: 'na', label: 'No quote' },
                           };
                           const s = statusMap[rs] ?? { status: 'na' as const, label: rs };
-                          return <StatusBadge status={s.status} label={s.label} />;
+                          return <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{s.label}</span>;
                         })()}
                       </td>
                       <td className="px-3 py-2">
-                        {v != null ? <StatusBadge status={Math.abs(v) <= 20 ? "pass" : Math.abs(v) <= 40 ? "warn" : "fail"} label={`${v > 0 ? "+" : ""}${Math.round(v)}%`} /> : <span style={{ color: "var(--muted-foreground)" }}>—</span>}
+                        {v != null ? <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>{v > 0 ? "+" : ""}{Math.round(v)}%</span> : <span style={{ color: "var(--muted-foreground)" }}>—</span>}
                       </td>
                       <td className="px-3 py-2">
-                        <StatusBadge status={sourceStatus as any} label={sourceLabel} />
+                        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>{sourceLabel}</span>
                       </td>
                     </tr>
                   );
@@ -2268,7 +2261,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                     <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{q.parts > 0 ? fmtMoney(q.parts) : "—"}</td>
                     <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{q.labour > 0 ? fmtMoney(q.labour) : "—"}</td>
                     <td className="px-3 py-2 tabular-nums font-semibold" style={{ color: "var(--foreground)" }}>{fmtMoney(q.total)}</td>
-                    <td className="px-3 py-2"><StatusBadge status={q.status === "accepted" ? "pass" : q.status === "rejected" ? "fail" : "info"} label={toTitleCase(q.status)} /></td>
+                    <td className="px-3 py-2"><span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{toTitleCase(q.status)}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -2300,10 +2293,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>3.1a Cost Decision Engine</p>
             {costReliability && (
-              <StatusBadge
-                status={costReliability === "high" ? "pass" : costReliability === "medium" ? "warn" : "fail"}
-                label={`Reliability: ${toTitleCase(costReliability)}`}
-              />
+              <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>Reliability: {toTitleCase(costReliability)}</span>
             )}
           </div>
           <div className="p-4 space-y-3">
@@ -2410,7 +2400,7 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
       <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
         <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>3.2 Vehicle Valuation</p>
         {isWriteOff != null && (
-          <StatusBadge status={isWriteOff ? "fail" : "pass"} label={isWriteOff ? "POTENTIAL WRITE-OFF" : "REPAIRABLE"} />
+          <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{isWriteOff ? "Potential write-off" : "Repairable"}</span>
         )}
       </div>
       <div className="p-4">
@@ -2605,7 +2595,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Photo Evidence</p>
-          <StatusBadge status={photoStatus === "ANALYSED" ? "pass" : photoStatus === "SYSTEM_FAILURE" ? "warn" : "na"} label={photoStatus.replace(/_/g, " ")} />
+          <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{toSentenceCase(photoStatus.replace(/_/g, " "))}</span>
         </div>
         <div className="p-4">
           <div className="grid grid-cols-3 gap-4 mb-3">
@@ -2694,7 +2684,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                   <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
                     <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{doc.id}</td>
                     <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{doc.type}</td>
-                    <td className="px-3 py-2"><StatusBadge status={doc.extracted ? "pass" : "fail"} label={doc.extracted ? "YES" : "NO"} /></td>
+                    <td className="px-3 py-2"><span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{doc.extracted ? "Yes" : "No"}</span></td>
                     <td className="px-3 py-2" style={{ minWidth: 100 }}>
                       {doc.extracted ? (
                         <div className="flex items-center gap-2">
@@ -2742,7 +2732,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
               <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>4.3 Photo Forensics — EXIF & Manipulation Analysis</p>
-              <StatusBadge status={overallStatus} label={pf.anySuspicious ? "SUSPICIOUS" : "CLEAN"} />
+              <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{pf.anySuspicious ? "Suspicious" : "Clean"}</span>
             </div>
             <div className="p-4">
               <PhotoExifForensicsPanel data={exifData} />
@@ -2777,11 +2767,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
               <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>4.4 Photo Quality Intelligence</p>
               <div className="flex items-center gap-2">
                 {isScanned && (
-                  <span className="text-xs px-2 py-0.5 rounded font-semibold" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
-                    SCANNED PDF
-                  </span>
+                  <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>Scanned PDF</span>
                 )}
-                <StatusBadge status={qualityStatus} label={qualityLabel} />
+                <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{qualityLabel}</span>
               </div>
             </div>
             <div className="p-4">
@@ -2897,7 +2885,7 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
       <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${fraudColor}40`, background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Overall Fraud Risk Score</p>
-          <StatusBadge status={fraudScore >= 70 ? "fail" : fraudScore >= 40 ? "warn" : "pass"} label={fraudBand} />
+          <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{toSentenceCase(fraudBand)}</span>
         </div>
         <div className="p-4">
           <div className="flex items-center gap-6 mb-4">
@@ -3090,7 +3078,7 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
                           <div className="h-1.5 rounded-full" style={{ width: `${isExcluded ? 0 : Math.min(100, (score / maxScore) * 100)}%`, background: scoreColor }} />
                         </div>
                       </td>
-                      <td className="px-3 py-2"><StatusBadge status={c.triggered && !isExcluded ? "fail" : "pass"} label={c.triggered && !isExcluded ? "YES" : "NO"} /></td>
+                      <td className="px-3 py-2"><span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{c.triggered && !isExcluded ? "Yes" : "No"}</span></td>
                       <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{mitigation}</td>
                     </tr>
                   );
@@ -3386,8 +3374,8 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
                 {wf.full_contributions.map((c: any, i: number) => (
                   <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
                     <td className="px-3 py-2 font-semibold" style={{ color: "var(--primary)" }}>{c.factor}</td>
-                    <td className="px-3 py-2 tabular-nums" style={{ color: c.triggered ? "var(--fp-critical-text)" : "var(--muted-foreground)" }}>{c.triggered ? `+${c.value}` : "0"}</td>
-                    <td className="px-3 py-2"><StatusBadge status={c.triggered ? "fail" : "pass"} label={c.triggered ? "YES" : "NO"} /></td>
+                    <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{c.triggered ? `+${c.value}` : "0"}</td>
+                    <td className="px-3 py-2"><span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{c.triggered ? "Yes" : "No"}</span></td>
                     <td className="px-3 py-2 max-w-xs" style={{ color: "var(--muted-foreground)" }}>{c.detail}</td>
                   </tr>
                 ))}
@@ -3650,10 +3638,10 @@ function CongruencyPanel({ aiAssessment }: { aiAssessment: any }) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold" style={{ color: panelColor }}>
             {hasBlockingIssues
-              ? "⛔ REPORT INTEGRITY BLOCKED"
+              ? "Report integrity blocked"
               : hasWarnings || hasPhotoIssue
-              ? "⚠️ INTEGRITY GATE: PROCEED WITH CAUTION"
-              : "✅ INTEGRITY GATE: CLEAR"}
+              ? "Integrity gate: proceed with caution"
+              : "Integrity gate: clear"}
           </span>
           {congruencyScore !== null && (
             <span
@@ -3827,7 +3815,7 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
       <div className="px-5 py-2 flex items-center justify-between" style={{ borderBottom: `1px solid ${fcdiBorder}40` }}>
         <div className="flex items-center gap-3">
           <span className="text-sm font-bold" style={{ color: fcdiColor }}>
-            {fcdiScore >= 80 ? "✓ PIPELINE RELIABLE" : fcdiScore >= 55 ? "⚠️ PIPELINE DEGRADED" : "⛔ PIPELINE UNRELIABLE"}
+            {fcdiScore >= 80 ? "Pipeline reliable" : fcdiScore >= 55 ? "Pipeline degraded" : "Pipeline unreliable"}
           </span>
           <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${fcdiColor}20`, color: fcdiColor }}>
             FCDI {fcdiScore}/100 — {fcdiLabel}
