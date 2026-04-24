@@ -1444,7 +1444,7 @@
     break-after: avoid;
   }
   .report-cover-card {
-    break-after: page;
+    break-after: avoid;
   }
   details[open] summary ~ * {
     display: block !important;

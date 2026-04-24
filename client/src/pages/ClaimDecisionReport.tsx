@@ -44,8 +44,7 @@ import {
   ReportIntegritySeal,
   AdjusterSignOffPanel,
 } from "@/components/Batch3ReportComponents";
-import { DecisionNarrativeView } from "@/components/DecisionNarrativeView";
-import { ForensicAuditValidationPanel } from "@/components/ForensicAuditValidationPanel";
+// Removed: DecisionNarrativeView, ForensicAuditValidationPanel (pre-report panels removed)
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1385,7 +1384,8 @@ export default function ClaimDecisionReport() {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
-      {/* v4.2 B3: Unified Report Page Header (replaces old top bar) */}
+      {/* v4.2 B3: Unified Report Page Header (replaces old top bar) — hidden in print */}
+      <div className="no-print">
       <ReportPageHeader
         claim={claim}
         aiAssessment={aiAssessment}
@@ -1395,6 +1395,7 @@ export default function ClaimDecisionReport() {
         reRunPending={reRunMutation.isPending}
         isPolling={isPollingForPipeline}
       />
+      </div>
 
       {/* Print-only header — visible only in @media print */}
       <div className="print-report-header" style={{ display: 'none' }}>
@@ -1414,8 +1415,9 @@ export default function ClaimDecisionReport() {
       {/* Main content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
 
-        {/* ── PIPELINE RUNNING banner ── */}
+        {/* ── PIPELINE RUNNING banner — hidden in print ── */}
         {isPollingForPipeline && (
+          <div className="no-print">
           <div className="mb-4 rounded-xl border-2 p-4 flex gap-3" style={{ borderColor: "var(--primary)", background: "var(--fp-info-bg)" }}>
             <div style={{ color: "var(--primary)", fontSize: "20px", marginTop: "2px" }}>⟳</div>
             <div>
@@ -1428,16 +1430,17 @@ export default function ClaimDecisionReport() {
               </div>
             </div>
           </div>
+          </div>
         )}
 
-        {/* ── PIPELINE_INCOMPLETE banner ── */}
+        {/* ── PIPELINE_INCOMPLETE banner — hidden in print ── */}
         {(() => {
           const summaryJson = (aiAssessment as any)?.pipelineExecutionSummaryJson;
           let summary: any = null;
           try { summary = summaryJson ? JSON.parse(summaryJson) : null; } catch {}
           if (summary?.status === 'PIPELINE_INCOMPLETE') {
             return (
-              <div className="mb-4 rounded-xl border-2 border-red-500 bg-red-50 dark:bg-red-950/30 p-4 flex gap-3">
+              <div className="mb-4 rounded-xl border-2 border-red-500 bg-red-50 dark:bg-red-950/30 p-4 flex gap-3 no-print">
                 <div className="text-red-600 text-xl mt-0.5">⛔</div>
                 <div>
                   <div className="font-bold text-red-700 dark:text-red-400 text-sm mb-1">AI Assessment Incomplete — Manual Review Required</div>
@@ -1452,49 +1455,7 @@ export default function ClaimDecisionReport() {
           return null;
         })()}
 
-        {/* ── Pre-report panels: forced light theme for visual consistency with the white forensic report ── */}
-        <div className="light" data-theme="light">
-          {/* Audit Replay Incomplete — only shown when there are genuinely missing hash records */}
-          {(() => {
-            const felSnap = (aiAssessment as any)?._felVersionSnapshot;
-            if (felSnap && felSnap.replaySupported === false && felSnap.replayLimitation) {
-              return (
-                <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 flex gap-3">
-                  <div className="text-amber-600 text-lg mt-0.5">⚠️</div>
-                  <div>
-                    <div className="font-semibold text-amber-700 text-sm mb-0.5">Audit Replay Incomplete</div>
-                    <div className="text-amber-600 text-xs">{felSnap.replayLimitation}</div>
-                  </div>
-                </div>
-              );
-            }
-            return null;
-          })()}
-
-          {/* Claim Quality Score */}
-          {(aiAssessment as any)?._claimQuality && (
-            <ClaimQualityPanel quality={(aiAssessment as any)._claimQuality} />
-          )}
-
-          {/* Stage 36: Forensic Audit Validation — hidden in print (QA tool, not report section) */}
-          {(aiAssessment as any)?._forensicAuditValidation && (
-            <div className="mb-4 no-print">
-              <ForensicAuditValidationPanel validation={(aiAssessment as any)._forensicAuditValidation} />
-            </div>
-          )}
-        </div>
-
-        {/* ── Phase 5A: Decision Narrative View ── hidden in print (workflow UI, not report section) */}
-        <div className="no-print"><ReportSectionDivider label="Decision Narrative" icon="🧠" /></div>
-        <div className="mb-6 rounded-xl overflow-hidden no-print" style={{ border: '1px solid var(--border)', background: 'var(--card)', padding: '1.25rem' }}>
-          <DecisionNarrativeView
-            ifeResult={(aiAssessment as any)?._ifeResult ?? null}
-            doeResult={(aiAssessment as any)?._doeResult ?? null}
-            fcdiScore={aiAssessment?.fcdiScore ? Number(aiAssessment.fcdiScore) : null}
-            reportVersion={(aiAssessment as any)?.reportVersion ?? null}
-            claimId={claimId}
-          />
-        </div>
+        {/* Pre-report panels (Decision Narrative, Claim Quality, Forensic Audit Validation) removed — report starts directly with ForensicAuditReport */}
                 {/* ── Forensic Audit Report v4.2 — 6-section structured format ── */}
         <ForensicAuditReport
           claim={claim}
@@ -1503,7 +1464,8 @@ export default function ClaimDecisionReport() {
           quotes={quotesWithItems}
         />
 
-        {/* 7b. Audit Trail */}
+        {/* ── Post-report interactive panels — hidden in print/PDF ── */}
+        <div className="no-print">
         <ReportSectionDivider label="Audit Trail & Decision History" icon="📜" />
         {/* 7. Snapshot History */}
         {(snapshotHistory as any[]).length > 0 && (
@@ -1996,6 +1958,7 @@ export default function ClaimDecisionReport() {
             </div>
           </div>
         )}
+        </div>{/* end no-print wrapper for post-report panels */}
       </div>
 
       {/* Reason Dialog (Governance Rule 1 — mandatory justification) */}
@@ -2081,144 +2044,4 @@ export default function ClaimDecisionReport() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CLAIM QUALITY PANEL
-// Surfaces the 6-dimension quality score computed by claimQualityScorer.ts
-// ─────────────────────────────────────────────────────────────────────────────
-function ClaimQualityPanel({ quality }: { quality: any }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const gradeColors: Record<string, { bg: string; border: string; text: string }> = {
-    A: { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "var(--success)" },
-    B: { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "var(--success)" },
-    C: { bg: "var(--fp-warning-bg)", border: "var(--fp-warning-border)", text: "var(--chart-3)" },
-    D: { bg: "var(--fp-critical-bg)", border: "var(--fp-critical-border)", text: "var(--chart-4)" },
-    F: { bg: "var(--fp-critical-bg)", border: "var(--fp-critical-border)", text: "var(--chart-4)" },
-  };
-
-  const grade = quality.grade ?? "C";
-  const colors = gradeColors[grade] ?? gradeColors.C;
-
-  const dimensionLabels: Record<string, string> = {
-    dataCompleteness: "Data Completeness",
-    imageConfidence: "Image Confidence",
-    costSource: "Cost Source",
-    classification: "Classification",
-    physics: "Physics Analysis",
-    consistency: "Cross-Stage Consistency",
-  };
-
-  const dimensionIcons: Record<string, string> = {
-    dataCompleteness: "📋",
-    imageConfidence: "📷",
-    costSource: "💰",
-    classification: "🏷️",
-    physics: "⚙️",
-    consistency: "🔗",
-  };
-
-  return (
-    <div className="mb-4 rounded-xl overflow-hidden" style={{ border: `1px solid ${colors.border}`, background: colors.bg }}>
-      {/* Header row */}
-      <button
-        className="w-full flex items-center justify-between px-4 py-3"
-        onClick={() => setExpanded(v => !v)}
-      >
-        <div className="flex items-center gap-3">
-          {/* Grade badge */}
-          <div
-            className="flex items-center justify-center w-10 h-10 rounded-lg font-black text-xl"
-            style={{ background: colors.border, color: "white" }}
-          >
-            {grade}
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-bold" style={{ color: colors.text }}>
-              Claim Quality Score — {quality.overallScore}/100
-            </p>
-            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-              {quality.adjusterGuidance}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {quality.requiresManualReview && (
-            <span
-              className="text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "var(--fp-critical-border)", color: "white" }}
-            >
-              Manual Review Required
-            </span>
-          )}
-          {expanded ? <ChevronUp className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} /> : <ChevronDown className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} />}
-        </div>
-      </button>
-
-      {/* Expanded content */}
-      {expanded && (
-        <div className="px-4 pb-4" style={{ borderTop: `1px solid ${colors.border}` }}>
-          {/* Mandatory actions */}
-          {quality.mandatoryActions?.length > 0 && (
-            <div className="mt-3 mb-4 rounded-lg p-3" style={{ background: "var(--fp-critical-bg)", border: "1px solid var(--fp-critical-border)" }}>
-              <p className="text-xs font-bold mb-2" style={{ color: "var(--chart-4)" }}>⚠ Mandatory Actions</p>
-              <ul className="space-y-1">
-                {quality.mandatoryActions.map((action: string, i: number) => (
-                  <li key={i} className="text-xs flex gap-2" style={{ color: "var(--foreground)" }}>
-                    <span style={{ color: "var(--chart-4)" }}>•</span>
-                    {action}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Dimension grid */}
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {Object.entries(quality.dimensions ?? {}).map(([key, dim]: [string, any]) => {
-              const dimScore = dim.score ?? 0;
-              const dimGrade = dimScore >= 80 ? "A" : dimScore >= 65 ? "B" : dimScore >= 50 ? "C" : dimScore >= 35 ? "D" : "F";
-              const dimColors = gradeColors[dimGrade] ?? gradeColors.C;
-              return (
-                <div
-                  key={key}
-                  className="rounded-lg p-3"
-                  style={{ background: "var(--card)", border: "1px solid var(--border)" }}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
-                      {dimensionIcons[key] ?? "•"} {dimensionLabels[key] ?? key}
-                    </span>
-                    <span
-                      className="text-xs font-bold px-1.5 py-0.5 rounded"
-                      style={{ background: dimColors.border, color: "white" }}
-                    >
-                      {dimGrade}
-                    </span>
-                  </div>
-                  {/* Score bar */}
-                  <div className="h-1.5 rounded-full mb-1.5" style={{ background: "var(--muted)" }}>
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${dimScore}%`, background: dimColors.border }}
-                    />
-                  </div>
-                  <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{dim.label}</p>
-                  {dim.issues?.length > 0 && (
-                    <ul className="mt-1 space-y-0.5">
-                      {dim.issues.slice(0, 3).map((issue: string, i: number) => (
-                        <li key={i} className="text-xs" style={{ color: "var(--chart-4)" }}>↳ {issue}</li>
-                      ))}
-                      {dim.issues.length > 3 && (
-                        <li className="text-xs" style={{ color: "var(--muted-foreground)" }}>+{dim.issues.length - 3} more issues</li>
-                      )}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+// ClaimQualityPanel removed — pre-report panels no longer rendered

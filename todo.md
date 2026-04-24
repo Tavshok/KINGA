@@ -11063,3 +11063,20 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Recovery job fix — claims marked processing_failed when max retries reached
 - [x] Verified pipeline health — 25 assessment_complete, 30 submitted, 19 comparison, no stuck claims
 - [x] Save final checkpoint with all fixes
+
+## Report Quality Issues — Apr 24 Session (Batch 2)
+
+- [ ] Issue 1: Claims taking too long to finish analysis — audit pipeline stages for bottlenecks
+- [ ] Issue 2: Bottom of claim report still has green background — fix CSS
+- [ ] Issue 3: Photo forensics section bullets are useless — implement 4 actionable findings per image
+- [ ] Issue 4: Font and sentence case not uniform in report — standardize typography
+- [ ] Issue 5: Incident analysis cuts midway, parts beneath not properly formatted
+- [ ] Issue 6: Submitted quote section and quote average analysis overlap — merge and make valuable
+- [ ] Issue 7: SVG diagram not showing proper info, no impact arrows/physics forces
+- [ ] Issue 8: Remove Phase 1 auto-corrections section (parts are already autocorrected everywhere)
+- [ ] Issue 9: Quote data not showing in report despite panel beater quote being submitted — investigate quote data flow
+- [x] PDF export: old/previous report section appears before the Forensic Audit Report — must be removed
+- [x] PDF export: blank page appears in the report — must be removed
+- [x] Remove pre-report panels entirely: Decision Narrative, Claim Quality, Forensic Audit Validation
+- [x] Fix blank page in PDF export (report-cover-card break-after: page)
+- [x] Ensure post-report sections (Audit Trail, Lifecycle, etc.) are hidden in print
