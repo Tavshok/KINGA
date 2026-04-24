@@ -425,7 +425,7 @@ export function CostComparisonChart({ aiAssessment, enforcement, quotes }: CostC
                       {varStr}
                     </span>
                   )}
-                  <span className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>
+                  <span className="text-xs tabular-nums" style={{ color: "var(--muted-foreground)" }}>
                     {value !== null
                       ? `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                       : "Not available"}
@@ -670,7 +670,7 @@ export function KINGAAuditTrail({ claim, aiAssessment, enforcement, quotes }: KI
   return (
     <div className="rpt-page-break-avoid mb-4" style={{ border: "1px solid var(--border)", borderRadius: "8px", padding: "16px", background: "var(--muted)" }}>
       <p className="text-sm font-bold mb-3" style={{ color: "var(--foreground)" }}>Audit Trail</p>
-      <div className="font-mono text-xs space-y-1" style={{ color: "var(--foreground)" }}>
+      <div className="tabular-nums text-xs space-y-1" style={{ color: "var(--foreground)" }}>
         {rows.map(([key, val]) => (
           <div key={key} className="flex gap-2">
             <span className="shrink-0 font-semibold" style={{ color: "var(--muted-foreground)", minWidth: "180px" }}>{key}:</span>

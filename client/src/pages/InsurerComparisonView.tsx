@@ -32,6 +32,7 @@ import ApprovalHistoryPanel from "@/components/ApprovalHistoryPanel";
 import { Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { sanitiseField } from "@/lib/sanitise";
+import { currencySymbol } from "@/lib/currency";
 import { ForensicAuditReport } from "@/components/ForensicAuditReport";
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
@@ -152,6 +153,9 @@ export default function InsurerComparisonView() {
   );
 
   const isLoading = claimLoading || aiLoading || assessorLoading || quotesLoading || enforcementLoading;
+
+  // Currency symbol — resolved from claim.currencyCode (e.g. ZIG → ZiG)
+  const csym = currencySymbol(claim?.currencyCode);
 
   // Utils for cache invalidation
   const utils = trpc.useUtils();
@@ -474,7 +478,7 @@ export default function InsurerComparisonView() {
                 <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
                   <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>AI Estimate</p>
                   <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
-                    US${aiCostDollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {csym}{aiCostDollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               )}
@@ -482,7 +486,7 @@ export default function InsurerComparisonView() {
                 <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
                   <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Assessor</p>
                   <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
-                    US${assessorCostCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {csym}{assessorCostCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               )}
@@ -490,7 +494,7 @@ export default function InsurerComparisonView() {
                 <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
                   <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Best Quote</p>
                   <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
-                    US${lowestQuoteCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {csym}{lowestQuoteCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               )}
@@ -822,7 +826,7 @@ export default function InsurerComparisonView() {
             </div>
           </div>
           <div className="comparison-section-body">
-            <ClaimApprovalSection claimId={claimId} quotes={quotes} />
+            <ClaimApprovalSection claimId={claimId} quotes={quotes} currencyCode={(claim as any)?.currencyCode} />
           </div>
         </div>
 
@@ -864,7 +868,7 @@ export default function InsurerComparisonView() {
   );
 }
 // Claim Approval Componentt
-function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: any[] }) {
+function ClaimApprovalSection({ claimId, quotes, currencyCode }: { claimId: number; quotes: any[]; currencyCode?: string | null }) {
   const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null);
   const utils = trpc.useUtils();
   
@@ -910,7 +914,7 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
                   <div>
                     <p className="font-medium">{(quote as any).panelBeaterName || `Panel Beater #${quote.panelBeaterId}`}</p>
                     <p className="text-sm text-muted-foreground">
-                      Quote: US${(quote.quotedAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} • {quote.estimatedDuration} days
+                      Quote: {currencySymbol(currencyCode)}{((quote.quotedAmount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} • {quote.estimatedDuration} days
                     </p>
                   </div>
                   {selectedQuoteId === quote.id && (
@@ -1128,15 +1132,15 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
           </div>
           <div className="p-4 bg-card rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">Parts Cost</p>
-            <p className="text-2xl font-bold text-primary">{partsCost != null ? `US$${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
+            <p className="text-2xl font-bold text-primary">{partsCost != null ? `${currencySymbol(claim?.currencyCode)}${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
           </div>
           <div className="p-4 bg-card rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">Labor Cost</p>
-            <p className="text-2xl font-bold text-green-600">{laborCost != null ? `US$${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
+            <p className="text-2xl font-bold text-green-600">{laborCost != null ? `${currencySymbol(claim?.currencyCode)}${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
           </div>
           <div className="p-4 bg-card rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">Total Estimated</p>
-            <p className="text-2xl font-bold text-secondary">US${estimatedCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-2xl font-bold text-secondary">{currencySymbol(claim?.currencyCode)}{estimatedCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
         </div>
         {/* Detected Components */}
@@ -1166,7 +1170,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
                   </div>
                   {comp.severity && (
                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0 ${sevColor}`}>
-                      {sev === 'total_loss' ? 'TOTAL' : sev.toUpperCase()}
+                      {sev === 'total_loss' ? 'Total loss' : sev.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
                     </span>
                   )}
                 </div>
@@ -1254,11 +1258,11 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
         </div>
         <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-sm text-muted-foreground">Parts Cost</p>
-          <p className="text-2xl font-bold text-primary">{partsCost != null ? `US$${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
+          <p className="text-2xl font-bold text-primary">{partsCost != null ? `${currencySymbol(claim?.currencyCode)}${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
         </div>
         <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-sm text-muted-foreground">Labor Cost</p>
-          <p className="text-2xl font-bold text-green-600">{laborCost != null ? `US$${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
+          <p className="text-2xl font-bold text-green-600">{laborCost != null ? `${currencySymbol(claim?.currencyCode)}${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
         </div>
       </div>
 
@@ -1336,7 +1340,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
                       </div>
                       {comp.severity && (
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0 ${sevColor}`}>
-                          {sev === 'total_loss' ? 'TOTAL' : sev.toUpperCase()}
+                          {sev === 'total_loss' ? 'Total loss' : sev.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
                         </span>
                       )}
                     </div>
@@ -2171,15 +2175,15 @@ function ExecutiveSummaryInline({
 
   const summaryText = aiAssessment.damageDescription
     ? sanitiseField(aiAssessment.damageDescription)
-    : `${vehicle} (Reg: ${reg}) was involved in a ${incidentType.toLowerCase()} incident on ${incidentDate}. AI computer vision analysis identified ${aiAssessment.damagedComponentsJson ? (() => { try { const c = JSON.parse(aiAssessment.damagedComponentsJson); return Array.isArray(c) ? c.length : 0; } catch { return 0; } })() : 0} damaged components with an estimated repair cost of US$${aiCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}. Fraud risk is assessed as ${fraudLevel.toUpperCase()} with ${confidence}% AI confidence.`;
+    : `${vehicle} (Reg: ${reg}) was involved in a ${incidentType.toLowerCase()} incident on ${incidentDate}. AI computer vision analysis identified ${aiAssessment.damagedComponentsJson ? (() => { try { const c = JSON.parse(aiAssessment.damagedComponentsJson); return Array.isArray(c) ? c.length : 0; } catch { return 0; } })() : 0} damaged components with an estimated repair cost of ${currencySymbol(claim?.currencyCode)}${aiCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}. Fraud risk is assessed as ${fraudLevel.toUpperCase()} with ${confidence}% AI confidence.`;
 
   const metrics = [
     { label: 'Vehicle', value: vehicle },
     { label: 'Registration', value: reg },
     { label: 'Incident Type', value: incidentType },
     { label: 'Incident Date', value: incidentDate },
-    { label: 'AI Estimated Cost', value: `US$${aiCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
-    { label: 'Avg Quote', value: avgQuote > 0 ? `US$${avgQuote.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No quotes' },
+    { label: 'AI Estimated Cost', value: `${currencySymbol(claim?.currencyCode)}${aiCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
+    { label: 'Avg Quote', value: avgQuote > 0 ? `${currencySymbol(claim?.currencyCode)}${avgQuote.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No quotes' },
     { label: 'Fraud Risk', value: fraudLevel.toUpperCase(), className: fraudColor },
     { label: 'AI Confidence', value: `${confidence}%` },
     { label: 'Outcome', value: isTotalLoss ? 'Total Loss' : (fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical') ? 'Investigate' : 'Proceed with Repair', className: isTotalLoss || (fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical') ? 'text-red-400' : 'text-green-400' },

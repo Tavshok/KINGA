@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { sanitiseField } from "@/lib/sanitise";
+import { currencySymbol } from "@/lib/currency";
 import {
   Phase3DecisionBox,
   DataCompletenessDashboard,
@@ -182,9 +183,10 @@ function computeCostVerdict(
   aiCostDollars: number,
   fairMin: number,
   fairMax: number,
-  quotedAmounts: number[]
+  quotedAmounts: number[],
+  sym: string = '$'
 ): { verdict: "UNDERPRICED" | "FAIR" | "OVERPRICED"; color: string; Icon: typeof TrendingUp; explanation: string } {
-  // All values are in dollars
+  // All values are in dollars/currency units
   const aiCost = aiCostDollars;
   const compareAmount = quotedAmounts.length > 0
     ? quotedAmounts.reduce((a, b) => a + b, 0) / quotedAmounts.length
@@ -196,8 +198,8 @@ function computeCostVerdict(
       color: "var(--fp-critical-text)",
       Icon: TrendingUp,
       explanation: quotedAmounts.length > 0
-        ? `The submitted quote of $${compareAmount.toLocaleString()} exceeds the fair cost ceiling of $${fairMax.toLocaleString()} by ${Math.round(((compareAmount - fairMax) / fairMax) * 100)}%.`
-        : `The AI estimate of $${aiCost.toLocaleString()} is above the expected fair range for this damage profile.`,
+        ? `The submitted quote of ${sym}${compareAmount.toLocaleString()} exceeds the fair cost ceiling of ${sym}${fairMax.toLocaleString()} by ${Math.round(((compareAmount - fairMax) / fairMax) * 100)}%.`
+        : `The AI estimate of ${sym}${aiCost.toLocaleString()} is above the expected fair range for this damage profile.`,
     };
   }
   if (compareAmount < fairMin * 0.85) {
@@ -206,7 +208,7 @@ function computeCostVerdict(
       color: "var(--fp-warning-text)",
       Icon: TrendingDown,
       explanation: quotedAmounts.length > 0
-        ? `The submitted quote of $${compareAmount.toLocaleString()} is significantly below the fair cost floor of $${fairMin.toLocaleString()}. This may indicate incomplete scope of work.`
+        ? `The submitted quote of ${sym}${compareAmount.toLocaleString()} is significantly below the fair cost floor of ${sym}${fairMin.toLocaleString()}. This may indicate incomplete scope of work.`
         : `The AI estimate is below the expected fair range — verify that all damage components are captured.`,
     };
   }
@@ -215,8 +217,8 @@ function computeCostVerdict(
     color: "var(--fp-success-text)",
     Icon: Minus,
     explanation: quotedAmounts.length > 0
-      ? `The submitted quote of $${compareAmount.toLocaleString()} falls within the fair cost range of $${fairMin.toLocaleString()}–$${fairMax.toLocaleString()}.`
-      : `The AI estimate of $${aiCost.toLocaleString()} is consistent with the expected cost for this damage profile.`,
+      ? `The submitted quote of ${sym}${compareAmount.toLocaleString()} falls within the fair cost range of ${sym}${fairMin.toLocaleString()}–${sym}${fairMax.toLocaleString()}.`
+      : `The AI estimate of ${sym}${aiCost.toLocaleString()} is consistent with the expected cost for this damage profile.`,
   };
 }
 
@@ -323,9 +325,9 @@ function RuleTracePanel({ ruleTrace }: { ruleTrace: NonNullable<EnforcementResul
             <div key={i} className="flex items-center gap-2 text-xs rounded px-2 py-1.5" style={{ background: r.triggered ? "var(--fp-warning-bg)" : "var(--muted)", border: r.triggered ? "1px solid var(--fp-warning-border)" : "1px solid transparent" }}>
               <span className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black shrink-0" style={{ background: r.triggered ? "var(--fp-warning-text)" : "var(--muted-foreground)", color: r.triggered ? "var(--background)" : "var(--background)" }}>{r.triggered ? "!" : "✓"}</span>
               <span className="flex-1" style={{ color: "var(--foreground)" }}>{r.rule}</span>
-              <span className="font-mono px-1.5 py-0.5 rounded" style={{ background: r.triggered ? "var(--fp-warning-bg)" : "var(--muted)", color: r.triggered ? "var(--fp-warning-text)" : "var(--muted-foreground)" }}>{String(r.value)}</span>
+              <span className="tabular-nums px-1.5 py-0.5 rounded" style={{ background: r.triggered ? "var(--fp-warning-bg)" : "var(--muted)", color: r.triggered ? "var(--fp-warning-text)" : "var(--muted-foreground)" }}>{String(r.value)}</span>
               <span style={{ color: "var(--muted-foreground)" }}>vs</span>
-              <span className="font-mono" style={{ color: "var(--muted-foreground)" }}>{r.threshold}</span>
+              <span className="tabular-nums" style={{ color: "var(--muted-foreground)" }}>{r.threshold}</span>
             </div>
           ))}
         </div>
@@ -334,7 +336,7 @@ function RuleTracePanel({ ruleTrace }: { ruleTrace: NonNullable<EnforcementResul
   );
 }
 
-function VerdictBanner({ assessment, enforcement, quotes }: { assessment: any; enforcement: EnforcementResult; quotes: any[] }) {
+function VerdictBanner({ assessment, enforcement, quotes, claimCurrencyCode }: { assessment: any; enforcement: EnforcementResult; quotes: any[]; claimCurrencyCode?: string }) {
   const riskLevel = enforcement.fraudLevelEnforced;
   const style = RISK_STYLE[riskLevel] ?? RISK_STYLE.moderate;
   const severityKey = assessment.structuralDamageSeverity ?? "unknown";
@@ -346,7 +348,8 @@ function VerdictBanner({ assessment, enforcement, quotes }: { assessment: any; e
     assessment.estimatedCost ?? 0,  // already in dollars
     enforcement.costBenchmark.estimatedFairMin,
     enforcement.costBenchmark.estimatedFairMax,
-    quotedAmounts
+    quotedAmounts,
+    currencySymbol(claimCurrencyCode)
   );
   const { Icon: CostIcon } = costVerdict;
 
@@ -364,7 +367,7 @@ function VerdictBanner({ assessment, enforcement, quotes }: { assessment: any; e
           <div className="flex items-center gap-3">
             <div className="w-3 h-3 rounded-full shrink-0" style={{ background: style.dot, boxShadow: `0 0 10px ${style.dot}` }} />
             <h1 className="text-2xl font-black" style={{ color: style.text }}>
-              {enforcement.fraudLevelLabel.toUpperCase()} RISK
+              {enforcement.fraudLevelLabel.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())} Risk
             </h1>
           </div>
         </div>
@@ -626,7 +629,8 @@ function DamageImpact({ assessment, enforcement }: { assessment: any; enforcemen
   );
 }
 
-function CostDecision({ assessment, enforcement, quotes }: { assessment: any; enforcement: EnforcementResult & { costExtraction?: any }; quotes: any[] }) {
+function CostDecision({ assessment, enforcement, quotes, claimCurrencyCode }: { assessment: any; enforcement: EnforcementResult & { costExtraction?: any }; quotes: any[]; claimCurrencyCode?: string }) {
+  const sym = currencySymbol(claimCurrencyCode);
   const [showItemised, setShowItemised] = useState(false);
   // Use guaranteed costExtraction object if available, fall back to raw assessment fields
   const ce = enforcement.costExtraction;
@@ -643,7 +647,7 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
 
   const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100);
   // aiCost is already in dollars — pass directly to computeCostVerdict (which also expects dollars)
-  const costVerdict = computeCostVerdict(aiCost, fairMin, fairMax, quotedAmounts);
+  const costVerdict = computeCostVerdict(aiCost, fairMin, fairMax, quotedAmounts, sym);
   const { Icon: CostIcon } = costVerdict;
 
   // Confidence colour
@@ -686,23 +690,23 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
       <div className="space-y-1.5 mb-3">
         <div className="flex justify-between items-center py-1.5" style={{ borderBottom: "1px solid var(--border)" }}>
           <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>Total Estimate</span>
-          <span className="text-sm font-black" style={{ color: "var(--foreground)" }}>${aiCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span className="text-sm font-black" style={{ color: "var(--foreground)" }}>{sym}{aiCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="flex justify-between items-center py-1" style={{ borderBottom: "1px solid var(--border)" }}>
           <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Parts</span>
-          <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>${partsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{sym}{partsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="flex justify-between items-center py-1" style={{ borderBottom: "1px solid var(--border)" }}>
           <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Labour</span>
-          <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>${labourCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{sym}{labourCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         {quotedAmounts.length > 0 && (
           <div className="flex justify-between items-center py-1" style={{ borderBottom: "1px solid var(--border)" }}>
             <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Panel Beater Quote{quotedAmounts.length > 1 ? "s" : ""}</span>
             <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
               {quotedAmounts.length === 1
-                ? `$${quotedAmounts[0].toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                : `$${Math.min(...quotedAmounts).toLocaleString()} – $${Math.max(...quotedAmounts).toLocaleString()}`
+                ? `${sym}${quotedAmounts[0].toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : `${sym}${Math.min(...quotedAmounts).toLocaleString()} – ${sym}${Math.max(...quotedAmounts).toLocaleString()}`
               }
             </span>
           </div>
@@ -712,7 +716,7 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
       {/* Reconciliation note */}
       {hasReconciliationGap && (
         <div className="mb-2 px-2 py-1.5 rounded text-xs" style={{ background: "var(--fp-warn-bg)", color: "var(--fp-warn-text)", border: "1px solid var(--fp-warn-border)" }}>
-          ⚠ Note: Parts (${partsCost.toLocaleString()}) + Labour (${labourCost.toLocaleString()}) = ${computedTotal.toLocaleString()} — differs from AI total estimate of ${aiCost.toLocaleString()}. The AI total is used as the authoritative figure.
+          ⚠ Note: Parts ({sym}{partsCost.toLocaleString()}) + Labour ({sym}{labourCost.toLocaleString()}) = {sym}{computedTotal.toLocaleString()} — differs from AI total estimate of {sym}{aiCost.toLocaleString()}. The AI total is used as the authoritative figure.
         </div>
       )}
 
@@ -720,7 +724,7 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
       <div className="mb-3">
         <div className="flex justify-between text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
           <span>Fair Range</span>
-          <span>${fairMin.toLocaleString()} – ${fairMax.toLocaleString()}</span>
+          <span>{sym}{fairMin.toLocaleString()} – {sym}{fairMax.toLocaleString()}</span>
         </div>
         <div className="relative h-2 rounded-full" style={{ background: "var(--muted)" }}>
           <div
@@ -762,14 +766,14 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
                     )}
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>${item.total.toLocaleString()}</span>
-                    <span className="text-xs ml-1" style={{ color: "var(--muted-foreground)" }}>Parts: ${item.parts_cost.toLocaleString()} · Labour: ${item.labour_cost.toLocaleString()}</span>
+                    <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{sym}{item.total.toLocaleString()}</span>
+                    <span className="text-xs ml-1" style={{ color: "var(--muted-foreground)" }}>Parts: {sym}{item.parts_cost.toLocaleString()} · Labour: {sym}{item.labour_cost.toLocaleString()}</span>
                   </div>
                 </div>
               ))}
               <div className="flex justify-between items-center py-1.5 px-2 rounded font-bold" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
                 <span className="text-xs" style={{ color: "var(--foreground)" }}>Itemised Total</span>
-                <span className="text-xs" style={{ color: "var(--foreground)" }}>${itemisedParts.reduce((s, p) => s + p.total, 0).toLocaleString()}</span>
+                <span className="text-xs" style={{ color: "var(--foreground)" }}>{sym}{itemisedParts.reduce((s, p) => s + p.total, 0).toLocaleString()}</span>
               </div>
             </div>
           )}
@@ -1494,11 +1498,11 @@ export default function ClaimDecisionReport() {
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>
+                      <p className="text-xs tabular-nums" style={{ color: "var(--muted-foreground)" }}>
                         {new Date(snap.createdAt).toLocaleString()}
                       </p>
                       <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                        Fraud {snap.fraud.score}/100 · ${((snap.cost.aiEstimate ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Fraud {snap.fraud.score}/100 · {currencySymbol(claim?.currencyCode)}{((snap.cost.aiEstimate ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                     </div>
                   </div>
@@ -1649,7 +1653,7 @@ export default function ClaimDecisionReport() {
                         <tbody>
                           {replayResult.differences.map((diff, i) => (
                             <tr key={diff.field} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
-                              <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--primary)" }}>{diff.field}</td>
+                              <td className="px-3 py-2 tabular-nums font-semibold" style={{ color: "var(--primary)" }}>{diff.field}</td>
                               <td className="px-3 py-2" style={{ color: "var(--fp-critical-text)" }}>{JSON.stringify(diff.original)}</td>
                               <td className="px-3 py-2" style={{ color: "var(--fp-success-text)" }}>{JSON.stringify(diff.new)}</td>
                             </tr>
@@ -1862,7 +1866,7 @@ export default function ClaimDecisionReport() {
                     : <XCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--fp-critical-text)" }} />
                   }
                   <div>
-                    <p className="text-xs font-mono font-semibold" style={{ color: check.passed ? "var(--fp-success-text)" : "var(--fp-critical-text)" }}>{check.check}</p>
+                    <p className="text-xs tabular-nums font-semibold" style={{ color: check.passed ? "var(--fp-success-text)" : "var(--fp-critical-text)" }}>{check.check}</p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{check.detail}</p>
                   </div>
                 </div>

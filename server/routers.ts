@@ -3002,6 +3002,88 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         return extracted;
       }),
+
+    // AI audit: review line items against damage analysis and annotate each with a short verdict
+    runAudit: protectedProcedure
+      .input(z.object({ quoteId: z.number(), claimId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const { invokeLLM } = await import("./_core/llm");
+        const { getDb, getQuoteLineItemsByQuoteId, getAiAssessmentByClaimId } = await import("./db");
+        const { panelBeaterQuotes, quoteLineItems: qliTable } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // Load line items and AI assessment
+        const lineItems = await getQuoteLineItemsByQuoteId(input.quoteId);
+        if (lineItems.length === 0) return { success: false, reason: "No line items found" };
+
+        const assessment = await getAiAssessmentByClaimId(input.claimId);
+        const damageZones: string[] = [];
+        const detectedComponents: string[] = [];
+        if (assessment) {
+          try {
+            const ci = assessment.costIntelligenceJson ? JSON.parse(assessment.costIntelligenceJson as string) : null;
+            if (ci?.components) ci.components.forEach((c: any) => detectedComponents.push(c.name || c.component || ""));
+            if (ci?.damage_zones) ci.damage_zones.forEach((z: any) => damageZones.push(z.zone || z.name || ""));
+          } catch { /* ignore */ }
+        }
+
+        const lineItemSummary = lineItems.map((li, i) => `${i+1}. ${li.description} (${li.category}) qty:${li.quantity} unit:${li.unitPrice} total:${li.lineTotal}`).join("\n");
+        const detectedSummary = detectedComponents.length > 0 ? detectedComponents.join(", ") : "(no AI component data available)";
+
+        const prompt = `You are a motor vehicle insurance claims auditor. Review each quoted line item against the AI-detected damage components.
+
+AI-detected damage components: ${detectedSummary}
+
+Quoted line items:
+${lineItemSummary}
+
+For each line item, assign a short AI review tag (max 3 words, plain text, no symbols):
+- "Consistent" — item matches detected damage
+- "Price high" — item present but price seems disproportionate to damage severity
+- "Scope broad" — item present but scope of work seems wider than damage warrants
+- "Not detected" — no corresponding damage detected for this item
+- "Verify qty" — quantity seems high relative to damage
+- "Insufficient data" — cannot assess without more information
+
+Also list any detected damage components that are NOT quoted (unquoted items).
+Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "unquotedComponents": ["component name", ...], "congruencyScore": 0-100, "summary": "one sentence" }`;
+
+        let auditResult: any = null;
+        try {
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: "You are a motor vehicle insurance claims auditor. Return valid JSON only." },
+              { role: "user", content: prompt },
+            ],
+            response_format: { type: "json_schema", json_schema: { name: "quote_audit", strict: true, schema: { type: "object", properties: { lineItemReviews: { type: "array", items: { type: "object", properties: { index: { type: "integer" }, review: { type: "string" } }, required: ["index", "review"], additionalProperties: false } }, unquotedComponents: { type: "array", items: { type: "string" } }, congruencyScore: { type: "integer" }, summary: { type: "string" } }, required: ["lineItemReviews", "unquotedComponents", "congruencyScore", "summary"], additionalProperties: false } } },
+          });
+          auditResult = JSON.parse((response.choices[0].message.content as string) || "{}");
+        } catch (err) {
+          console.error("[QuoteAudit] LLM failed:", err);
+          return { success: false, reason: "AI audit failed" };
+        }
+
+        // Persist ai_review on each line item
+        if (auditResult?.lineItemReviews) {
+          for (const review of auditResult.lineItemReviews) {
+            const li = lineItems[review.index - 1];
+            if (li) {
+              await db.update(qliTable).set({ aiReview: review.review }).where(eq(qliTable.id, li.id));
+            }
+          }
+        }
+
+        // Persist audit summary on the quote
+        await db.update(panelBeaterQuotes).set({
+          quoteAuditJson: JSON.stringify({ unquotedComponents: auditResult.unquotedComponents, summary: auditResult.summary }),
+          quoteCongruencyScore: String(auditResult.congruencyScore ?? 0),
+        }).where(eq(panelBeaterQuotes.id, input.quoteId));
+
+        return { success: true, congruencyScore: auditResult.congruencyScore, summary: auditResult.summary, unquotedComponents: auditResult.unquotedComponents };
+      }),
   }),
 
   // Appointments operations

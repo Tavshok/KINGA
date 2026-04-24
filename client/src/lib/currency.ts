@@ -89,3 +89,50 @@ export function getCurrencySymbol(): string {
 export function getCurrencyCode(): string {
   return currentCurrency.primaryCurrency;
 }
+
+// ─── ISO 4217 Currency Symbol Map ──────────────────────────────────────────
+const SYMBOL_MAP: Record<string, string> = {
+  USD: '$', EUR: '€', GBP: '£', ZAR: 'R', ZMW: 'ZMW', ZIG: 'ZiG',
+  KES: 'KSh', NGN: '₦', GHS: 'GH₵', BWP: 'P', MWK: 'MK', TZS: 'TSh',
+  UGX: 'USh', MZN: 'MT', NAD: 'N$', SZL: 'L', LSL: 'L', AOA: 'Kz',
+};
+
+/**
+ * Resolve a currency code to its display symbol.
+ * Falls back to the code itself if no symbol mapping exists.
+ */
+export function currencySymbol(currencyCode: string | null | undefined): string {
+  const code = (currencyCode ?? 'USD').toUpperCase().trim();
+  return SYMBOL_MAP[code] ?? code;
+}
+
+/**
+ * Format a number with the correct currency symbol.
+ * @param n Amount in whole currency units (NOT cents)
+ * @param currencyCode ISO 4217 code (e.g. "USD", "ZIG", "ZAR")
+ * @param decimals Number of decimal places (default 2)
+ * @returns Formatted string like "ZiG5,000.00" or "$1,234.56"
+ */
+export function fmtCurrency(
+  n: number | null | undefined,
+  currencyCode: string | null | undefined,
+  decimals: number = 2
+): string {
+  if (n == null || isNaN(n)) return '—';
+  const sym = currencySymbol(currencyCode);
+  return `${sym}${n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+}
+
+/**
+ * Create a curried currency formatter bound to a specific currency code.
+ * Useful when you need to format many values with the same currency.
+ * @param currencyCode ISO 4217 code (e.g. "USD", "ZIG", "ZAR")
+ * @returns A function that formats numbers with the bound currency symbol
+ */
+export function makeFmtCurrency(currencyCode: string | null | undefined) {
+  const sym = currencySymbol(currencyCode);
+  return function fmt(n: number | null | undefined, decimals: number = 2): string {
+    if (n == null || isNaN(n)) return '—';
+    return `${sym}${n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+  };
+}

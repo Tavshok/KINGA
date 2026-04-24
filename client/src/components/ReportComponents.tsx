@@ -353,238 +353,83 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
   const analysed = results.length;
   const suspicious = results.filter((r) => r.isSuspicious).length;
   const gpsPresent = results.filter((r) => r.gpsPresent).length;
-  const errors = results.filter((r) => r.flags.some((f) => f.toLowerCase().includes("error"))).length;
   const allExifStripped = results.length > 0 && results.every((r) => !r.exifPresent);
 
   return (
-    <div className="space-y-4">
-      {/* KPI summary row */}
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          { label: "Analysed", value: analysed, color: "var(--foreground)" },
-          {
-            label: "Suspicious",
-            value: suspicious,
-            color: suspicious > 0 ? "var(--fp-critical-text)" : "var(--fp-success-text)",
-          },
-          {
-            label: "GPS Present",
-            value: gpsPresent,
-            color: gpsPresent > 0 ? "var(--fp-success-text)" : "var(--muted-foreground)",
-          },
-          {
-            label: "Errors",
-            value: errors,
-            color: errors > 0 ? "var(--fp-warning-text)" : "var(--muted-foreground)",
-          },
-        ].map((kpi, i) => (
-          <div
-            key={i}
-            className="text-center py-3 rounded-lg"
-            style={{ background: "var(--muted)", border: "1px solid var(--border)" }}
-          >
-            <p className="text-2xl font-bold" style={{ color: kpi.color }}>
-              {kpi.value}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
-              {kpi.label}
-            </p>
-          </div>
-        ))}
-      </div>
+    <div className="space-y-3">
+      {/* Summary line — plain text, no coloured boxes */}
+      <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+        {analysed} photo{analysed !== 1 ? 's' : ''} analysed
+        {suspicious > 0 ? ` · ${suspicious} flagged as suspicious` : ' · no suspicious images detected'}
+        {gpsPresent > 0 ? ` · ${gpsPresent} with GPS data` : ' · no GPS data present'}
+        {allExifStripped ? ' · Note: all images have EXIF metadata stripped — origin unverifiable' : ''}
+      </p>
 
-      {/* Pattern alert — all EXIF stripped */}
-      {allExifStripped && (
-        <div
-          className="rounded-lg px-3 py-2 text-xs flex items-start gap-2"
-          style={{
-            background: "var(--fp-warning-bg)",
-            border: "1px solid var(--fp-warning-border)",
-            color: "var(--fp-warning-text)",
-          }}
-        >
-          <span className="font-bold shrink-0">⚠ PATTERN ALERT</span>
-          <span>
-            All {analysed} photos have EXIF metadata stripped. This is consistent with deliberate
-            metadata removal — images may be screenshots, re-saved copies, or sourced from the
-            internet. Treat all photos as unverified.
-          </span>
+      {/* Per-photo table — clean, no coloured backgrounds */}
+      <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--border)' }}>
+            {['Photo', 'Observation', 'EXIF', 'GPS', 'Manip. score', 'Integrity verdict'].map(h => (
+              <th key={h} className="text-left py-1.5 px-2 font-semibold" style={{ color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {results.map((r, i) => {
+            const manipPct = Math.round(r.manipulationScore);
+            const integrityVerdict = r.isSuspicious
+              ? 'Suspicious — review required'
+              : r.isNonVehicle
+              ? 'Non-vehicle image'
+              : !r.exifPresent
+              ? 'EXIF absent — origin unverifiable'
+              : 'No anomalies detected';
+            const observation = r.aiVisionDescription
+              ? r.aiVisionDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/^[\s\d.*\-]+/, '').split(/(?<=[.!?])\s+/)[0]?.trim() ?? ''
+              : r.label
+              ? `Documents ${r.label.toLowerCase()} area`
+              : 'Damage area documented';
+            return (
+              <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td className="py-2 px-2 font-medium" style={{ color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
+                  Photo {r.photoIndex}{r.label ? ` — ${r.label}` : ''}
+                </td>
+                <td className="py-2 px-2" style={{ color: 'var(--foreground)', maxWidth: 240 }}>
+                  {observation.length > 120 ? observation.slice(0, 117) + '…' : observation}
+                </td>
+                <td className="py-2 px-2" style={{ color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
+                  {r.exifPresent ? 'Present' : 'Absent'}
+                </td>
+                <td className="py-2 px-2" style={{ color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
+                  {r.gpsPresent ? (r.captureDate ? r.captureDate.slice(0, 10) : 'Present') : 'Absent'}
+                </td>
+                <td className="py-2 px-2" style={{ color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
+                  {manipPct}%
+                </td>
+                <td className="py-2 px-2" style={{ color: 'var(--foreground)' }}>
+                  {integrityVerdict}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {/* Additional flags — plain text note, no coloured boxes */}
+      {results.some(r => r.flags && r.flags.filter(f => !f.toLowerCase().includes('exif') && !f.toLowerCase().includes('gps') && f.length > 10).length > 0) && (
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+          <p className="text-xs font-semibold mb-1" style={{ color: 'var(--foreground)' }}>Additional flags</p>
+          {results.map((r, i) => {
+            const flags = (r.flags ?? []).filter(f => !f.toLowerCase().includes('exif') && !f.toLowerCase().includes('gps') && f.length > 10);
+            if (flags.length === 0) return null;
+            return (
+              <p key={i} className="text-xs" style={{ color: 'var(--muted-foreground)', marginBottom: 2 }}>
+                Photo {r.photoIndex}: {flags.map(f => f.replace(/\*\*/g, '').replace(/\*/g, '')).join('; ')}
+              </p>
+            );
+          })}
         </div>
       )}
-
-      {/* Per-photo 3-column grid */}
-      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
-        {results.map((r, i) => {
-          const manipPct = Math.round(r.manipulationScore);
-          const barColor =
-            manipPct > 50
-              ? "var(--fp-critical-text)"
-              : manipPct > 20
-              ? "var(--fp-warning-text)"
-              : "var(--fp-success-text)";
-          const statusBg = r.isSuspicious ? "var(--fp-critical-bg)" : "var(--fp-success-bg)";
-          const statusBorder = r.isSuspicious
-            ? "var(--fp-critical-border)"
-            : "var(--fp-success-border)";
-          const statusText = r.isSuspicious ? "var(--fp-critical-text)" : "var(--fp-success-text)";
-
-          return (
-            <div
-              key={i}
-              className="rounded-lg p-3 space-y-2"
-              style={{ background: "var(--card)", border: `1px solid ${statusBorder}` }}
-            >
-              {/* Header row */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold" style={{ color: "var(--foreground)" }}>
-                  Photo {r.photoIndex}
-                  {r.label ? ` — ${r.label}` : ""}
-                </span>
-                <span
-                  className="text-xs font-bold px-1.5 py-0.5 rounded"
-                  style={{ background: statusBg, color: statusText, border: `1px solid ${statusBorder}` }}
-                >
-                  {r.isSuspicious ? "SUSPICIOUS" : "CLEAN"}
-                </span>
-              </div>
-
-              {/* 2-line forensic detail */}
-              <div className="space-y-0.5">
-                {/* Line 1: damage finding from AI vision */}
-                <p className="text-xs leading-snug" style={{ color: "var(--foreground)" }}>
-                  {r.aiVisionDescription
-                    ? r.aiVisionDescription.split(/[.!?]/)[0].trim() + "."
-                    : r.label
-                    ? `Photo documents ${r.label.toLowerCase()} area.`
-                    : "Damage area documented."}
-                </p>
-                {/* Line 2: forensic note */}
-                <p className="text-xs leading-snug" style={{ color: "var(--muted-foreground)" }}>
-                  {r.manipulationScore > 50
-                    ? `Forensic: High manipulation score (${Math.round(r.manipulationScore)}%) — ${r.flags?.[0] ?? "metadata anomaly detected"}.`
-                    : r.manipulationScore > 20
-                    ? `Forensic: Elevated score (${Math.round(r.manipulationScore)}%) — ${r.flags?.[0] ?? "minor metadata irregularity"}.`
-                    : r.exifPresent
-                    ? `Forensic: EXIF intact${r.gpsPresent ? ", GPS coordinates verified" : ", no GPS data"}.`
-                    : `Forensic: EXIF metadata absent — image origin unverifiable.`}
-                </p>
-              </div>
-
-              {/* Non-vehicle flag */}
-              {r.isNonVehicle && (
-                <div
-                  className="text-xs px-2 py-1 rounded font-semibold"
-                  style={{
-                    background: "var(--fp-critical-bg)",
-                    color: "var(--fp-critical-text)",
-                    border: "1px solid var(--fp-critical-border)",
-                  }}
-                >
-                  ⛔ NON-VEHICLE IMAGE DETECTED
-                </div>
-              )}
-
-              {/* EXIF / GPS row */}
-              <div className="flex gap-3 text-xs">
-                <span style={{ color: r.exifPresent ? "var(--fp-success-text)" : "var(--fp-critical-text)" }}>
-                  {r.exifPresent ? "✓ EXIF" : "✗ No EXIF"}
-                </span>
-                <span style={{ color: r.gpsPresent ? "var(--fp-success-text)" : "var(--muted-foreground)" }}>
-                  {r.gpsPresent ? "✓ GPS" : "— No GPS"}
-                </span>
-                {r.captureDate && (
-                  <span style={{ color: "var(--muted-foreground)" }}>{r.captureDate.slice(0, 10)}</span>
-                )}
-              </div>
-
-              {/* Manipulation bar */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span style={{ color: "var(--muted-foreground)" }}>Manipulation score</span>
-                  <span className="font-semibold" style={{ color: barColor }}>{manipPct}%</span>
-                </div>
-                <div className="h-1 rounded-full" style={{ background: "var(--muted)" }}>
-                  <div
-                    className="h-1 rounded-full"
-                    style={{ width: `${manipPct}%`, background: barColor }}
-                  />
-                </div>
-              </div>
-
-              {/* Actionable findings — 4 specific, investigator-facing bullets */}
-              {(() => {
-                const bullets: { text: string; severity: 'critical' | 'warn' | 'info' }[] = [];
-
-                // Finding 1: Damage observation from AI vision (most important — what does the photo show?)
-                if (r.aiVisionDescription) {
-                  const stripped = r.aiVisionDescription
-                    .replace(/\*\*([^*]+)\*\*/g, '$1')
-                    .replace(/\*([^*]+)\*/g, '$1')
-                    .replace(/^[\s\d.*\-]+/, '')
-                    .trim();
-                  const firstSentence = stripped.split(/(?<=[.!?])\s+/)[0]?.trim();
-                  if (firstSentence && firstSentence.length > 10) {
-                    bullets.push({ text: firstSentence, severity: 'info' });
-                  }
-                  // Second sentence if available and meaningful
-                  const sentences = stripped.split(/(?<=[.!?])\s+/);
-                  if (sentences.length > 1 && bullets.length < 2) {
-                    const second = sentences[1]?.trim();
-                    if (second && second.length > 10 && second.length < 200) {
-                      bullets.push({ text: second, severity: 'info' });
-                    }
-                  }
-                } else if (r.label) {
-                  bullets.push({ text: `Photo documents ${r.label.toLowerCase()} — no AI vision description available.`, severity: 'warn' });
-                }
-
-                // Finding 2: Metadata integrity verdict
-                if (!r.exifPresent) {
-                  bullets.push({ text: 'EXIF metadata absent — image origin unverifiable; may be a screenshot, re-saved copy, or downloaded from the internet.', severity: 'critical' });
-                } else if (r.gpsPresent) {
-                  bullets.push({ text: 'EXIF intact with GPS coordinates — capture location independently verifiable against claimed incident location.', severity: 'info' });
-                } else {
-                  bullets.push({ text: 'EXIF present but no GPS data — capture device identified, location cannot be independently verified.', severity: 'info' });
-                }
-
-                // Finding 3: Manipulation / integrity risk
-                if (r.manipulationScore > 50) {
-                  bullets.push({ text: `Manipulation score ${r.manipulationScore}% — high risk of digital alteration; do not rely on this image without independent verification.`, severity: 'critical' });
-                } else if (r.manipulationScore > 20) {
-                  bullets.push({ text: `Manipulation score ${r.manipulationScore}% — elevated; minor metadata irregularity detected, treat with caution.`, severity: 'warn' });
-                } else if (r.manipulationScore <= 20 && r.exifPresent) {
-                  bullets.push({ text: `Manipulation score ${r.manipulationScore}% — within normal range; no digital alteration indicators detected.`, severity: 'info' });
-                }
-
-                // Finding 4: Specific flags (skip generic EXIF/GPS already covered above)
-                const actionableFlags = (r.flags ?? []).filter(f => {
-                  const fl = f.toLowerCase();
-                  return !fl.includes('exif') && !fl.includes('gps') && f.length > 10;
-                });
-                if (actionableFlags.length > 0 && bullets.length < 4) {
-                  const clean = actionableFlags[0].replace(/\*\*/g, '').replace(/\*/g, '').split('.')[0].trim();
-                  if (clean.length > 5) bullets.push({ text: clean + '.', severity: 'warn' });
-                }
-
-                if (bullets.length === 0) return null;
-                return (
-                  <ul className="space-y-1 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
-                    {bullets.slice(0, 4).map((b, bi) => (
-                      <li key={bi} className="text-xs leading-snug flex gap-1.5">
-                        <span style={{
-                          color: b.severity === 'critical' ? 'var(--fp-critical-text)' : b.severity === 'warn' ? 'var(--fp-warning-text)' : 'var(--muted-foreground)',
-                          flexShrink: 0
-                        }}>•</span>
-                        <span style={{ color: b.severity === 'critical' ? 'var(--fp-critical-text)' : 'var(--foreground)' }}>{b.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                );
-              })()}
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

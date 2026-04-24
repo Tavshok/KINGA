@@ -11083,3 +11083,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Bug: Forensic report shows 'No submitted quote' even when a panel beater quote is present — trace and fix the full data flow from DB to report
 - [x] Audit: Fixed getAiAssessmentByClaimId innerJoin tenant filter bug in db.ts — was silently returning null for entire forensic report data
 - [x] Audit: Fixed getAssessorEvaluationByClaimId innerJoin tenant filter bug in db.ts — was silently returning null for assessor evaluation section
+- [ ] Currency sign $ instead of ZIG throughout report and header
+- [ ] Quote still showing NO_QUOTE despite quote being submitted (comparison page says "No quotes available yet")
+- [ ] Font not uniform — mixed monospace/serif/sans; needs consistent sans-serif (Inter) throughout
+- [ ] Sentence case not uniform — ALL CAPS values (SUNNY, TARRED, SOLWELL MASALADZA) need sentence case
+- [ ] Bottom sections have coloured backgrounds — need white/neutral
+- [ ] Photo forensics text design not professional/readable — wall of text per photo
+- [ ] SVG diagram impact forces not visible — annotations too small
+- [ ] SVG diagram needs 20% scale up without interfering with surrounding content
+- [ ] Incident type text wraps and truncates ("consiste...") — needs full display

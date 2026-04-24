@@ -2136,6 +2136,9 @@ export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
 	tenantId: varchar("tenant_id", { length: 255 }),
 	// Currency for this quote (ISO 4217). Defaults to USD for Zimbabwe deployment.
 	currencyCode: varchar("currency_code", { length: 10 }).default('USD'),
+	// AI audit results: JSON with unquoted components and overall congruency score
+	quoteAuditJson: text("quote_audit_json"),
+	quoteCongruencyScore: decimal("quote_congruency_score", { precision: 5, scale: 2 }),
 },
 (table) => [
 	index("idx_quotes_claim_id").on(table.claimId),
@@ -2441,6 +2444,8 @@ export const quoteLineItems = mysqlTable("quote_line_items", {
 	isUnrelatedDamage: tinyint("is_unrelated_damage").default(0),
 	isMissingInOtherQuotes: tinyint("is_missing_in_other_quotes").default(0),
 	notes: text(),
+	// AI Review tag: short plain-text verdict (max 30 chars) e.g. "Consistent", "Price high", "Not detected"
+	aiReview: varchar("ai_review", { length: 50 }),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
