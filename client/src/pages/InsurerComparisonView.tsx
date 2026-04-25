@@ -412,6 +412,15 @@ export default function InsurerComparisonView() {
   // Derive key metrics for the hero header
   // Prefer normalised total cost; fall back to raw estimatedCost only if normalised is unavailable
   const aiCostDollars = normCosts?.totalUsd ?? aiAssessment?.estimatedCost ?? 0;
+  // Derive the correct label for the primary cost KPI based on what source it came from
+  const aiCostLabel = (() => {
+    const src = normCosts?.source;
+    if (src === 'agreed_cost') return 'Agreed Cost';
+    if (src === 'original_quote') return 'Quote Total';
+    if (src === 'parts_labour_sum') return 'Parts + Labour';
+    if (src === 'ai_estimate') return 'AI Estimate';
+    return 'AI Estimate'; // fallback
+  })();
   const assessorCostCents = assessorEval?.estimatedRepairCost || 0;
   const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100); // cents → dollars
   const lowestQuoteCents = quotedAmounts.length > 0 ? Math.min(...quotedAmounts) : 0; // already in dollars
@@ -488,7 +497,7 @@ export default function InsurerComparisonView() {
             <div className="flex flex-wrap gap-3">
               {aiCostDollars > 0 && (
                 <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>AI Estimate</p>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>{aiCostLabel}</p>
                   <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
                     {csym}{aiCostDollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>

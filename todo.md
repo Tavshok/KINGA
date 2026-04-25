@@ -11112,3 +11112,14 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Section 2.7 Speed Forensics dual-speed panel — claimed vs physics-inferred with deviation classification
 - [x] Section 5 fraud risk — Speed-Physics Discrepancy injected as named indicator row
 - [ ] Section 2.6 field name mismatch — align UI with SpeedInferenceResult fields (consensusSpeedKmh, overallConfidence, highDivergence, methodsRan)
+
+## Speed Ensemble & Cost Integrity Fixes (Apr 2026)
+- [ ] Trace AI Estimate source — ensure no hardcoded/fabricated costs, must derive from real quote/damage data only
+- [ ] Fix training data deduplication — re-runs must upsert by claimId, not insert duplicate rows
+- [ ] Enable all 5 speed inference ensemble methods — wire vision crush depth (M5), damage area (M3), repair cost proxy (M2), airbag threshold (M4) from existing pipeline data
+
+## Physics Display Redesign Phase
+- [ ] Section 2.6: Redesign speed ensemble with consensus gauge, per-method contribution bars, plain-English verdict
+- [ ] Section 2.7: Redesign speed forensics with claimed vs inferred visual comparison and verdict badge
+- [ ] Section 3: Add financial delta narrative — quote vs agreed breakdown, panel scope analysis
+- [ ] Section 5: Enhance fraud indicators with physics-backed speed deviation and visual risk meter

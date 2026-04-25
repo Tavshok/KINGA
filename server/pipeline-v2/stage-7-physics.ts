@@ -673,11 +673,55 @@ export async function runPhysicsStage(
     // of the Forensic Audit Report for adjuster transparency.
     try {
       const { runSpeedInferenceEnsemble } = await import('./speedInferenceEnsemble');
-      const partsCostUsd = claimRecord.repairQuote.partsCostCents
-        ? claimRecord.repairQuote.partsCostCents / 100
-        : null;
+
+      // ── Resolve totalDamageAreaM2 ─────────────────────────────────────────
+      // Priority 1: explicit document value (from claim form)
+      // Priority 2: Stage 6 aggregate (if > 0)
+      // Priority 3: Geometric panel dimension calculation
+      //   — uses vehicle body type + panel area lookup table + per-component
+      //     damage fraction (derived from severity + estimatedDepth + panelDeformation)
+      //   — this is a physics-grounded estimate, not a rough count-based proxy
+      let resolvedDamageAreaM2: number | null = null;
+      if (claimRecord.accidentDetails.totalDamageAreaM2 && claimRecord.accidentDetails.totalDamageAreaM2 > 0) {
+        resolvedDamageAreaM2 = claimRecord.accidentDetails.totalDamageAreaM2;
+        ctx.log('Stage 7', `Damage area: using document value ${resolvedDamageAreaM2.toFixed(3)} m²`);
+      } else if (damageAnalysis.totalDamageArea && damageAnalysis.totalDamageArea > 0) {
+        resolvedDamageAreaM2 = damageAnalysis.totalDamageArea;
+        ctx.log('Stage 7', `Damage area: using Stage 6 aggregate ${resolvedDamageAreaM2.toFixed(3)} m²`);
+      } else if (damageAnalysis.damagedParts.length > 0) {
+        // Geometric panel dimension calculation
+        const { computeTotalDamageAreaM2, inferBodyType } = await import('./vehiclePanelDimensions');
+        const bodyType = inferBodyType(
+          `${claimRecord.vehicle.make ?? ''} ${claimRecord.vehicle.model ?? ''}`
+        );
+        const geoResult = computeTotalDamageAreaM2(
+          bodyType,
+          damageAnalysis.damagedParts.map(p => ({
+            name: p.name,
+            severity: p.severity,
+            estimatedDepth: (p as any).estimatedDepth,
+            panelDeformation: (p as any).panelDeformation,
+            // Use LLM-extracted fraction if available (most accurate),
+            // otherwise fall back to severity-derived fraction
+            damageFractionOverride: typeof (p as any).damageFractionEstimate === 'number'
+              ? (p as any).damageFractionEstimate
+              : undefined,
+          }))
+        );
+        resolvedDamageAreaM2 = geoResult.totalAreaM2 > 0 ? geoResult.totalAreaM2 : null;
+        ctx.log('Stage 7', `Damage area: geometric panel calc (${bodyType}) = ${resolvedDamageAreaM2?.toFixed(3)} m² from ${geoResult.perComponent.length} components`);
+        // Store per-component breakdown for report display
+        (output as any)._panelAreaBreakdown = geoResult.perComponent;
+      }
+
+      // ── Resolve airbagDeployment / seatbeltPretensioner ──────────────────
+      // Treat undefined as false — a missing field means not recorded, not deployed.
+      const airbagDeployed = claimRecord.accidentDetails.airbagDeployment === true;
+      const seatbeltFired = (claimRecord.accidentDetails as any).seatbeltPretensioner === true;
+
       // Vision crush depth: extracted from photo forensics if available
       const visionCrushDepthM = (claimRecord as any)._forensicAnalysis?.visionCrushDepthM ?? null;
+
       const ensembleResult = runSpeedInferenceEnsemble({
         massKg: claimRecord.vehicle.massKg,
         bodyType: claimRecord.vehicle.bodyType,
@@ -685,12 +729,13 @@ export async function runPhysicsStage(
         documentCrushDepthM: claimRecord.accidentDetails.maxCrushDepthM,
         inferredCrushDepthM: inferCrushDepth(damageAnalysis, claimRecord),
         visionCrushDepthM,
-        totalDamageAreaM2: claimRecord.accidentDetails.totalDamageAreaM2 ?? damageAnalysis.totalDamageArea,
-        partsCostUsd,
-        structuralDamage: claimRecord.accidentDetails.structuralDamage,
-        airbagDeployment: claimRecord.accidentDetails.airbagDeployment,
-        seatbeltPretensioner: (claimRecord.accidentDetails as any).seatbeltPretensioner ?? false,
+        totalDamageAreaM2: resolvedDamageAreaM2,
+        partsCostUsd: null, // M2 disabled — cost is not a reliable physics input
+        structuralDamage: claimRecord.accidentDetails.structuralDamage ?? damageAnalysis.structuralDamageDetected,
+        airbagDeployment: airbagDeployed,
+        seatbeltPretensioner: seatbeltFired,
       });
+      ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², airbag=${airbagDeployed}, seatbelt=${seatbeltFired}, visionDepth=${visionCrushDepthM}`);
       output.speedInferenceEnsemble = ensembleResult;
       ctx.log('Stage 7', `Speed ensemble: consensus=${ensembleResult.consensusSpeedKmh} km/h, methods=${ensembleResult.methodsRan}, confidence=${ensembleResult.overallConfidence}${ensembleResult.highDivergence ? ' [HIGH_DIVERGENCE]' : ''}`);
 

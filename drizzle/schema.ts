@@ -626,7 +626,7 @@ export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset",
 	anonymizedAt: timestamp("anonymized_at", { mode: 'string' }),
 },
 (table) => [
-	index("idx_cid_claim_id").on(table.claimId),
+	uniqueIndex("idx_cid_claim_id_unique").on(table.claimId),
 	index("idx_cid_tenant_id").on(table.tenantId),
 	index("idx_cid_captured_at").on(table.capturedAt),
 	index("idx_cid_schema_version").on(table.schemaVersion),
@@ -2012,6 +2012,7 @@ export const modelTrainingQueue = mysqlTable("model_training_queue", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 },
 (table) => [
+	uniqueIndex("idx_mtq_claim_id_unique").on(table.claimId),
 	index("idx_mtq_processed").on(table.processed),
 	index("idx_mtq_training_priority").on(table.trainingPriority),
 	index("idx_mtq_created_at").on(table.createdAt),

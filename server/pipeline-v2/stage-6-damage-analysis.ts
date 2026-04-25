@@ -170,9 +170,16 @@ const VISION_RESPONSE_SCHEMA = {
                 type: "string",
                 enum: ["unlikely", "possible", "likely"],
               },
+              // ── Panel area fraction ───────────────────────────────────────
+              // Estimate what fraction (0.0–1.0) of this panel's surface area
+              // is visibly damaged. Used for geometric damage area calculation.
+              // Examples: small scratch = 0.05, quarter dent = 0.25,
+              // half panel crushed = 0.55, full panel replacement needed = 1.0
+              damageFractionEstimate: { type: "number" },
             },
             required: ["name", "location", "damageType", "severity", "visible",
-                       "estimatedDepth", "panelDeformation", "structuralInvolvement"],
+                       "estimatedDepth", "panelDeformation", "structuralInvolvement",
+                       "damageFractionEstimate"],
             additionalProperties: false,
           },
         },
@@ -226,6 +233,8 @@ DEPTH INFERENCE — for each component also assess:
   - estimatedDepth: "superficial" (paint/surface only), "moderate" (panel dented but not bent), "severe" (panel crushed, crumpled, or missing)
   - panelDeformation: true if the panel shape is visibly distorted beyond a dent
   - structuralInvolvement: "unlikely" (cosmetic only), "possible" (deep crumple near structural member), "likely" (visible frame/chassis/pillar damage)
+  - damageFractionEstimate: a number 0.0–1.0 representing what fraction of this panel's surface area is visibly damaged
+    (e.g. 0.05 = small scratch, 0.25 = quarter-panel dent, 0.55 = half-panel crushed, 1.0 = full panel replacement needed)
 
 CRITICAL RULES:
   - If the image is blurry, dark, or partially obscured, STILL extract any visible damage
@@ -262,13 +271,14 @@ Even if the image quality is imperfect, extract whatever damage evidence is visi
     const rawContent = response.choices?.[0]?.message?.content || "{}";
     const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
     const parsed = JSON.parse(content);
-    const rawComponents: Array<{
+    const rawComponentsWithFraction: Array<{
       name: string; location: string; damageType: string;
       severity: string; visible: boolean; notes?: string;
+      estimatedDepth?: string; panelDeformation?: boolean;
+      structuralInvolvement?: string; damageFractionEstimate?: number;
     }> = parsed.components || [];
-
     primaryResult = {
-      components: rawComponents.map((c, i) => ({
+      components: rawComponentsWithFraction.map((c, i) => ({
         // normalisePartName maps LLM output to canonical vocabulary — prevents hallucinated names
         name: normalisePartName(c.name || "Unknown Component"),
         location: c.location || "general",
@@ -276,6 +286,12 @@ Even if the image quality is imperfect, extract whatever damage evidence is visi
         severity: normaliseSeverity(c.severity),
         visible: c.visible !== false,
         distanceFromImpact: i * 0.3,
+        estimatedDepth: c.estimatedDepth,
+        panelDeformation: c.panelDeformation,
+        structuralInvolvement: c.structuralInvolvement,
+        damageFractionEstimate: typeof c.damageFractionEstimate === 'number'
+          ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate))
+          : undefined,
       })),
       confidence: parsed.confidence ?? "low",
     };

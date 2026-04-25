@@ -202,45 +202,29 @@ function runCampbell(
   };
 }
 
-// ── M2: Energy-Momentum Balance (repair cost proxy) ──────────────────────────
+// ── M2: Energy-Momentum Balance — DISABLED ───────────────────────────────────
+// This method used repair cost as a proxy for deformation energy (Strother et al.
+// 1986, SAE 860924). It has been disabled because repair costs are market-dependent
+// and region-specific — the 1986 US-market cost/energy correlation does not transfer
+// reliably to other markets or time periods. Using cost as a physics input introduces
+// more noise than signal and risks producing misleading speed estimates.
+// The method slot is preserved in the output schema for UI consistency.
 
 function runEnergyMomentum(
-  partsCostUsd: number | null,
-  massKg: number,
-  collisionDirection: string | null | undefined,
-  airbagDeployment: boolean,
+  _partsCostUsd: number | null,
+  _massKg: number,
+  _collisionDirection: string | null | undefined,
+  _airbagDeployment: boolean,
 ): MethodEstimate {
-  if (!partsCostUsd || partsCostUsd <= 0 || massKg <= 0) {
-    return {
-      method: 'ENERGY_MOMENTUM', label: 'Energy-momentum balance (repair cost)',
-      speedKmh: null, isLowerBoundOnly: false,
-      confidenceWeight: 0, confidence: 'LOW',
-      basis: 'Insufficient data: parts cost or mass missing',
-      ran: false,
-    };
-  }
-
-  // E_deform ≈ partsCostUsd × factor (Strother et al. 1986)
-  // Only ~65% of kinetic energy goes into deformation (rest: heat, sound, friction)
-  const energyDeformJ = partsCostUsd * PARTS_COST_TO_ENERGY_FACTOR;
-  const kineticEnergyJ = energyDeformJ / 0.65;
-  let speedMs = Math.sqrt((2 * kineticEnergyJ) / massKg);
-  let speedKmh = speedMs * 3.6;
-
-  speedKmh *= getAccidentMultiplier(collisionDirection);
-  if (airbagDeployment) speedKmh = Math.max(speedKmh, 22);
-
-  speedKmh = Math.round(speedKmh);
-
   return {
     method: 'ENERGY_MOMENTUM',
     label: 'Energy-momentum balance (repair cost proxy)',
-    speedKmh,
+    speedKmh: null,
     isLowerBoundOnly: false,
-    confidenceWeight: 0.45, // Lower confidence — cost is a proxy
-    confidence: 'MEDIUM',
-    basis: `Parts cost: USD ${partsCostUsd.toFixed(0)}, inferred deformation energy: ${(energyDeformJ / 1000).toFixed(1)} kJ (Strother et al. 1986 correlation)`,
-    ran: true,
+    confidenceWeight: 0,
+    confidence: 'LOW',
+    basis: 'Method disabled — repair cost is not a reliable physics input across different markets and time periods.',
+    ran: false,
   };
 }
 

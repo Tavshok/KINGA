@@ -211,8 +211,28 @@ export async function captureClaimIntelligenceDataset(
     // 10. Check for police report
     const policeReportPresence = 0; // TODO: Check if police report exists in database
     
-    // 11. Insert dataset record
-    const datasetResult = await db.insert(claimIntelligenceDataset).values({
+    // 11. Derive negotiation delta — the difference between the original panel beater quote
+    // and the agreed/settled amount. A large reduction is a high-value training signal
+    // (vehicle type, damage scope, region → expected negotiation range).
+    const costIntelRaw = ai.costIntelligenceJson
+      ? (typeof ai.costIntelligenceJson === 'string' ? JSON.parse(ai.costIntelligenceJson) : ai.costIntelligenceJson)
+      : null;
+    const documentedOriginalQuoteUsd: number = costIntelRaw?.documentedOriginalQuoteUsd ?? 0;
+    const documentedAgreedCostUsd: number = costIntelRaw?.documentedAgreedCostUsd ?? 0;
+    // Negotiation reduction in cents (positive = insurer saved money)
+    const negotiationReductionCents = documentedOriginalQuoteUsd > 0 && documentedAgreedCostUsd > 0
+      ? Math.round((documentedOriginalQuoteUsd - documentedAgreedCostUsd) * 100)
+      : 0;
+    // Reduction as a percentage of the original quote (0–100)
+    const negotiationReductionPct = documentedOriginalQuoteUsd > 0 && negotiationReductionCents > 0
+      ? Math.round((negotiationReductionCents / (documentedOriginalQuoteUsd * 100)) * 1000) / 10
+      : 0;
+    // Training priority: large reductions (>20%) are high-value learning examples
+    const trainingPriority = negotiationReductionPct >= 20 ? 'high' : 'normal';
+
+    // Upsert: if a dataset record already exists for this claim (from a previous pipeline run),
+    // update it in-place rather than inserting a duplicate training row.
+    const datasetValues = {
       claimId,
       tenantId: claim.tenantId,
       schemaVersion: 1,
@@ -221,9 +241,9 @@ export async function captureClaimIntelligenceDataset(
       vehicleMake: claim.vehicleMake,
       vehicleModel: claim.vehicleModel,
       vehicleYear: claim.vehicleYear,
-      vehicleMass: null, // TODO: Add vehicle mass lookup from external API
-      accidentType: "unknown", // TODO: Extract from physics_analysis JSON
-      impactDirection: "unknown", // TODO: Extract from physics_analysis JSON
+      vehicleMass: null as number | null,
+      accidentType: "unknown",
+      impactDirection: "unknown",
       accidentDescriptionText: claim.incidentDescription,
       policeReportPresence,
       
@@ -242,7 +262,7 @@ export async function captureClaimIntelligenceDataset(
       costVarianceAiVsFinal: varianceAiVsFinal,
       
       // Fraud features
-      aiFraudScore: 0, // TODO: Calculate from fraudRiskLevel enum
+      aiFraudScore: 0,
       fraudExplanation: ai.fraudIndicators ? JSON.stringify(ai.fraudIndicators) : null,
       finalFraudOutcome: fraudOutcome,
       
@@ -254,15 +274,67 @@ export async function captureClaimIntelligenceDataset(
       approvalTimelineHours: approvalTimeline.toFixed(2),
       
       capturedAt: new Date(),
-    });
-    
-    // 12. Add to training queue
-    await db.insert(modelTrainingQueue).values({
-      claimId,
-      datasetRecordId: 0, // Will be updated after insert
-      trainingPriority: "normal",
-      processed: 0,
-    });
+    };
+
+    const datasetResult = await db.insert(claimIntelligenceDataset)
+      .values(datasetValues)
+      .onDuplicateKeyUpdate({
+        set: {
+          schemaVersion: datasetValues.schemaVersion,
+          vehicleMake: datasetValues.vehicleMake,
+          vehicleModel: datasetValues.vehicleModel,
+          vehicleYear: datasetValues.vehicleYear,
+          accidentDescriptionText: datasetValues.accidentDescriptionText,
+          detectedDamageComponents: datasetValues.detectedDamageComponents,
+          damageSeverityScores: datasetValues.damageSeverityScores,
+          llmDamageReasoning: datasetValues.llmDamageReasoning,
+          physicsPlausibilityScore: datasetValues.physicsPlausibilityScore,
+          aiEstimatedCost: datasetValues.aiEstimatedCost,
+          assessorAdjustedCost: datasetValues.assessorAdjustedCost,
+          insurerApprovedCost: datasetValues.insurerApprovedCost,
+          costVarianceAiVsAssessor: datasetValues.costVarianceAiVsAssessor,
+          costVarianceAssessorVsFinal: datasetValues.costVarianceAssessorVsFinal,
+          costVarianceAiVsFinal: datasetValues.costVarianceAiVsFinal,
+          aiFraudScore: datasetValues.aiFraudScore,
+          fraudExplanation: datasetValues.fraudExplanation,
+          finalFraudOutcome: datasetValues.finalFraudOutcome,
+          assessorId: datasetValues.assessorId,
+          assessorTier: datasetValues.assessorTier,
+          assessmentTurnaroundHours: datasetValues.assessmentTurnaroundHours,
+          reassignmentCount: datasetValues.reassignmentCount,
+          approvalTimelineHours: datasetValues.approvalTimelineHours,
+          capturedAt: datasetValues.capturedAt,
+        },
+      });
+
+    // Log negotiation delta for high-value training records
+    if (negotiationReductionPct >= 20) {
+      console.log(
+        `[Dataset] High-value training record: claim ${claimId} — ` +
+        `original quote $${documentedOriginalQuoteUsd.toFixed(2)}, ` +
+        `agreed $${documentedAgreedCostUsd.toFixed(2)}, ` +
+        `reduction ${negotiationReductionPct}% ($${(negotiationReductionCents/100).toFixed(2)}) — ` +
+        `priority: ${trainingPriority}`
+      );
+    }
+
+    // 12. Add to training queue (upsert — re-runs reset processed=0 so the latest data gets re-queued,
+    // and the training priority is updated based on the negotiation delta).
+    await db.insert(modelTrainingQueue)
+      .values({
+        claimId,
+        datasetRecordId: 0,
+        trainingPriority,
+        processed: 0,
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          datasetRecordId: 0,
+          trainingPriority,
+          processed: 0,
+          processedAt: null,
+        },
+      });
     
     console.log(`[Dataset] Captured intelligence dataset for claim ${claimId}`);
   } catch (error) {
