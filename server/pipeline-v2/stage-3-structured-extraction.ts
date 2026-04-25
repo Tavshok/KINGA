@@ -52,7 +52,7 @@ const EXTRACTION_SCHEMA = {
         vehicleMileage: { type: ["integer", "null"], description: "Vehicle mileage in km" },
         accidentDate: { type: ["string", "null"], description: "Date of accident in YYYY-MM-DD format. IMPORTANT: For dates in DD/MM/YYYY format (common in Zimbabwe, South Africa, UK), convert correctly — e.g. '02/09/2024' means 2 September 2024 = '2024-09-02'. Do NOT interpret as month/day." },
         accidentLocation: { type: ["string", "null"], description: "Location where accident occurred" },
-        accidentDescription: { type: ["string", "null"], description: "Description of the accident" },
+        accidentDescription: { type: ["string", "null"], description: "The claimant's first-person account of the physical circumstances of the accident ONLY. Include: what happened, how the collision occurred, road/weather conditions, who was involved, direction of travel, what was struck. STRICTLY EXCLUDE: any assessor commentary, cost opinions, repair recommendations, quote assessments, damage consistency verdicts, authorisation requests, or any sentence about the claim being valid/genuine. Do NOT include all-caps assessor verdict lines such as 'DAMAGE CONSISTENT WITH ACCIDENT DESCRIPTION' or 'THE ADJUSTED QUOTE APPEARS TO BE FAIR AND REASONABLE'." },
         incidentType: { type: ["string", "null"], description: "Type of incident. MUST be one of: animal_strike, collision, theft, vandalism, flood, fire, hail, rollover, mechanical_failure. CRITICAL: Use 'animal_strike' when the vehicle hit or was hit by ANY animal (cow, dog, buck, goat, livestock, wildlife, game). Do NOT classify animal impacts as 'collision'. 'collision' is reserved for vehicle-to-vehicle or vehicle-to-object impacts only." },
         accidentType: { type: ["string", "null"], description: "Collision direction: frontal, rear, side_driver, side_passenger, rollover, multi_impact" },
         impactPoint: { type: ["string", "null"], description: "Primary point of impact on the vehicle" },
@@ -229,10 +229,31 @@ CRITICAL IMAGE DETECTION RULES:
 - If the document contains embedded photographs, damage images, or references to attached photos, note this in damageDescription.
 
 CRITICAL DESCRIPTION RULES:
-- accidentDescription: extract ONLY the narrative of how the accident occurred — the event BEFORE and INCLUDING the impact.
-  INCLUDE: what happened, how the collision/incident occurred, road conditions, speed, weather, animal on road, etc.
-  EXCLUDE: inspection actions, stripping notes, repair process, omitted damages found later, final inspection findings, seatbelt checks, reprogramming, extras quotations.
-  Example of what to EXCLUDE: "The vehicle was stripped in order to identify omitted damages", "After final inspection we noted that...", "The repairer omitted seatbelts".
+- accidentDescription: This field MUST contain ONLY the claimant's first-person account of the physical circumstances of the accident.
+  DEFINITION: The incident narrative is the claimant's description of WHAT HAPPENED — the sequence of events leading to and including the collision or incident.
+  INCLUDE ONLY:
+    * Where the accident happened (road, location, intersection)
+    * When it happened (time, date, conditions)
+    * How the collision occurred (direction of travel, what was struck, angle of impact)
+    * Who was involved (other vehicles, pedestrians, animals)
+    * Road/weather/visibility conditions at the time
+    * Speed if the claimant stated it
+    * Any evasive action taken by the claimant
+  STRICTLY EXCLUDE — these are assessor commentary, NOT incident narrative:
+    * Any sentence about whether the quote is fair, reasonable, or market-related
+    * Any sentence about repair costs, labour rates, parts prices, or cost adjustments
+    * Any sentence recommending approval, authorisation, or settlement
+    * Any sentence stating damage is 'consistent with the accident description'
+    * Any sentence about the vehicle being repairable or a write-off
+    * Any sentence about the claim being valid, genuine, or legitimate
+    * Any sentence about parts being sourced, verified, or available locally
+    * Any sentence about images or photos being attached or included
+    * Any sentence identifying the assessor, surveyor, or loss adjuster
+    * Any sentence about the repair process, stripping, inspection findings, or omitted damages
+    * All-caps verdict lines such as: 'DAMAGE CONSISTENT WITH ACCIDENT DESCRIPTION', 'THE ADJUSTED QUOTE APPEARS TO BE FAIR AND REASONABLE', 'KINDLY AUTHORISE REPAIRS', 'RECOMMEND APPROVAL'
+  IMPORTANT: In ZW/SA assessor reports, the assessor often appends their conclusions directly after the claimant's narrative in the same text block. You MUST separate these — extract ONLY the claimant's account and discard the assessor's appended conclusions.
+  Example of what to INCLUDE: "I was travelling along Borrowdale Road when a vehicle pulled out from a side street and collided with the right front of my vehicle."
+  Example of what to EXCLUDE: "The vehicle was stripped in order to identify omitted damages", "After final inspection we noted that...", "The repairer omitted seatbelts", "DAMAGE CONSISTENT WITH ACCIDENT DESCRIPTION.", "THE ADJUSTED QUOTE APPEARS TO BE FAIR AND REASONABLE.", "Kindly authorise repairs to the above vehicle.", "Costs agreed are within prevailing market rates.", "Circumstances of loss are genuine.", "Claim is valid."
 - damageDescription: extract the complete list of damaged parts and repair actions.
 - For damagedComponents damageType: use ONLY standard automotive damage terms (dent, scratch, crack, shatter, bend, tear, puncture, corrosion, deformation, misalignment, breakage). NEVER invent terms.
 - For damagedComponents name: PRESERVE the EXACT component name as written in the document. Do NOT normalise South African automotive terminology to US English.

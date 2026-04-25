@@ -140,64 +140,111 @@ function decisionLabel(d: string): string {
  */
 function filterAssessorConclusions(text: string): string {
   if (!text) return text;
-  // Sentence-level patterns that indicate assessor-authored conclusions
-  const CONCLUSION_PATTERNS = [
-    // Assessor cost/consistency conclusions
-    /\b(damages?\s+(?:sustained\s+are|are)\s+consistent\s+with\s+(?:the\s+)?circumstances?\s+reported)[^.]*\./gi,
-    /\b(cost[s]?\s+agreed?\s+are\s+within\s+(?:prevailing\s+)?market\s+rates?)[^.]*\./gi,
-    /\b(kindly\s+authoris[ez]\s+repairs?)[^.]*\./gi,
-    /\b(authoris[ez]\s+repairs?\s+to\s+the\s+vehicle)[^.]*\./gi,
-    /\b(cost[s]?\s+(?:of\s+repairs?\s+)?are\s+(?:damage\s+)?consistent)[^.]*\./gi,
-    /\b(labour\s+charges?\s+are\s+fair)[^.]*\./gi,
-    /\b(spares?\s+prices?\s+(?:for\s+the\s+rest\s+of\s+the\s+parts\s+)?have\s+been\s+verified)[^.]*\./gi,
-    /\b(circumstances?\s+of\s+loss\s+are\s+genuine)[^.]*\./gi,
-    /\b(images?\s+of\s+damage\s+are\s+included)[^.]*\./gi,
-    /\b(repairs?\s+to\s+the\s+vehicle)[^.,]*(?:costs?\s+are\s+damage\s+consistent)[^.]*\./gi,
-    // Repairer/assessor commercial observations (not claimant statements)
-    /\b(\w+\s+(?:was|were|is|are)\s+the\s+(?:lowest|cheapest|most\s+expensive)\s+repairer)[^.]*\./gi,
-    /\b(they\s+quoted\s+for\s+(?:the\s+)?[^,.]*)(?:which\s+is\s+not\s+damaged)[^.]*\./gi,
-    /\b(repairer\s+(?:has\s+)?quoted\s+for\s+(?:parts?|items?)\s+(?:that\s+(?:are|were)\s+not\s+damaged))[^.]*\./gi,
-    /\b(quote\s+(?:includes?|contains?)\s+(?:items?|parts?)\s+(?:that\s+(?:are|were)\s+not\s+(?:damaged|affected)))[^.]*\./gi,
-    /\b(recommend\s+(?:approval|authoris[ez]ation|settlement))[^.]*\./gi,
-    /\b(claim\s+is\s+(?:valid|genuine|legitimate))[^.]*\./gi,
-    /\b(vehicle\s+is\s+(?:repairable|a\s+write.?off))[^.]*\./gi,
-    /\b(parts?\s+are\s+(?:available|sourced)\s+locally)[^.]*\./gi,
-    // Repairer operational/commercial notes (panel beater comments, not claimant statements)
-    /\b(some\s+adjustments?\s+(?:have\s+been|were)\s+made\s+on\s+(?:some\s+)?spares?)[^.]*\./gi,
-    /\b(adjustments?\s+(?:have\s+been|were)\s+made\s+(?:on\s+)?(?:labour|parts?|spares?))[^.]*\./gi,
-    /\b(after\s+verification\s+with\s+(?:local\s+)?parts?\s+suppliers?)[^.]*\./gi,
-    /\b(prices?\s+(?:have\s+been|were)\s+(?:verified|confirmed|checked)\s+with)[^.]*\./gi,
-    /\b((?:motion|top\s+class|[a-z]+\s+panel(?:\s+beaters?)?)\s+(?:some|has|have|made|adjusted))[^.]*\./gi,
-    /\b(the\s+(?:cost|price|amount|quote)\s+(?:has\s+been|was|were)\s+(?:adjusted|revised|updated|corrected))[^.]*\./gi,
-    /\b((?:parts?|labour|spares?)\s+(?:costs?|prices?|rates?)\s+(?:have\s+been|were|are)\s+(?:adjusted|revised|verified|confirmed))[^.]*\./gi,
-    /\b(the\s+(?:rear\s+end|front|back|side)\s+damages?\s+are\s+consistent\s+with\s+the\s+accident\s+description)[^.]*\./gi,
-    /\b(the\s+third\s+party\s+car\s+was\s+hit)[^.]*(?:insured\s+car)[^.]*\./gi,
-    // All-caps assessor verdict lines (common in ZW/SA assessor reports)
-    // e.g. "DAMAGE CONSISTENT WITH ACCIDENT DESCRIPTION."
-    //      "THE ADJUSTED QUOTE APPEARS TO BE FAIR AND REASONABLE."
-    /\bDAMAGE\s+CONSISTENT\s+WITH\s+(?:THE\s+)?ACCIDENT\s+DESCRIPTION[^.]*\./gi,
-    /\bDAMAGE\s+(?:IS\s+)?CONSISTENT\s+WITH\s+(?:THE\s+)?CIRCUMSTANCES?[^.]*\./gi,
-    /\b(?:THE\s+)?ADJUSTED\s+QUOTE\s+(?:APPEARS?\s+TO\s+BE\s+)?FAIR\s+AND\s+REASONABLE[^.]*\./gi,
-    /\b(?:THE\s+)?QUOTE\s+(?:APPEARS?\s+TO\s+BE\s+)?FAIR\s+AND\s+REASONABLE[^.]*\./gi,
-    /\b(?:THE\s+)?REPAIR\s+COSTS?\s+(?:APPEAR?\s+TO\s+BE\s+)?FAIR\s+AND\s+REASONABLE[^.]*\./gi,
-    /\b(?:THE\s+)?COSTS?\s+(?:APPEAR?\s+TO\s+BE\s+)?FAIR\s+AND\s+REASONABLE[^.]*\./gi,
-    /\bKINDLY\s+AUTHORIS[EZ]\s+REPAIRS?[^.]*\./gi,
-    /\bAUTHORIS[EZ]\s+REPAIRS?\s+TO\s+THE\s+VEHICLE[^.]*\./gi,
-    /\bRECOMMEND\s+(?:APPROVAL|AUTHORIS[EZ]ATION|SETTLEMENT)[^.]*\./gi,
-    /\bCLAIM\s+IS\s+(?:VALID|GENUINE|LEGITIMATE)[^.]*\./gi,
-    /\bVEHICLE\s+IS\s+(?:REPAIRABLE|A\s+WRITE.?OFF)[^.]*\./gi,
-    // Catch entire lines that are ONLY assessor conclusions (no claimant narrative)
-    // These appear as the ENTIRE narrative text in some assessor reports
-    /^\s*DAMAGE\s+CONSISTENT\s+WITH\s+ACCIDENT\s+DESCRIPTION[.\s]*$/gim,
-    /^\s*THE\s+ADJUSTED\s+QUOTE\s+APPEARS\s+TO\s+BE\s+FAIR\s+AND\s+REASONABLE[.\s]*$/gim,
+
+  // ── Incident Narrative Filter ─────────────────────────────────────────────────
+  //
+  // PURPOSE: Remove assessor commentary that has been appended to the claimant's
+  // incident narrative in ZW/SA claim documents.  The assessor often writes their
+  // conclusions directly after the claimant's account in the same text block.
+  //
+  // DESIGN PRINCIPLE: Distinguish by GRAMMATICAL ROLE, not individual words.
+  //
+  // An incident narrative sentence has the claimant as the subject and describes
+  // a physical event:  "I was travelling along Borrowdale Road when a vehicle
+  // pulled out and struck my right front."
+  //
+  // An assessor commentary sentence has an abstract subject (the claim, the quote,
+  // the damage, the vehicle, the costs) and expresses an opinion or instruction:
+  // "The adjusted quote appears to be fair and reasonable."
+  // "Damage is consistent with the accident description."
+  // "Kindly authorise repairs to the above vehicle."
+  //
+  // We detect assessor commentary by recognising three structural patterns:
+  //
+  //   PATTERN A — Assessor verdict: abstract subject + opinion predicate
+  //     Subject:   damage | quote | costs | vehicle | claim | circumstances
+  //     Predicate: is consistent with | is fair | is repairable | is valid | etc.
+  //
+  //   PATTERN B — Assessor instruction: imperative directed at the insurer
+  //     "Kindly authorise...", "Please approve...", "Recommend settlement..."
+  //
+  //   PATTERN C — All-caps stamp lines
+  //     Lines written entirely in capitals are assessor verdict stamps, never
+  //     claimant narrative.  A claimant writes in mixed case.
+  //
+  // We do NOT strip sentences based on individual words like "repair", "parts",
+  // "confirmed", "check", "adjusted" — those appear legitimately in claimant
+  // narratives ("I confirmed the other driver's details", "the rear parts of my
+  // vehicle were damaged", "I adjusted my speed").
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // PATTERN C: All-caps stamp lines (15+ chars, only uppercase letters and punctuation)
+  const isAllCapsStamp = (s: string) => /^[A-Z\s.,;:!\-()]{15,}$/.test(s);
+
+  // PATTERN A: Assessor verdict subjects — things the assessor evaluates, not the claimant
+  const ASSESSOR_VERDICT_SUBJECTS = [
+    /^(?:the\s+)?(?:adjusted\s+)?quote/i,
+    /^(?:the\s+)?(?:repair\s+)?costs?/i,
+    /^(?:the\s+)?damage/i,
+    /^(?:the\s+)?(?:claimed?\s+)?vehicle/i,
+    /^(?:the\s+)?claim/i,
+    /^(?:the\s+)?circumstances/i,
+    /^(?:the\s+)?(?:repair\s+)?(?:quote\s+)?items?/i,
+    /^(?:the\s+)?(?:spares?|parts?)\s+(?:and\s+labour\s+)?(?:rates?|costs?|prices?)/i,
+    /^spares?\s+prices?/i,
+    /^(?:the\s+)?labour/i,
+    /^(?:the\s+)?(?:overall\s+)?(?:repair\s+)?(?:total|amount)/i,
   ];
-  let filtered = text;
-  for (const pat of CONCLUSION_PATTERNS) {
-    filtered = filtered.replace(pat, '');
-  }
-  // Collapse multiple consecutive spaces/newlines left by removals
-  filtered = filtered.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
-  return filtered;
+
+  // Opinion/verdict predicates that follow an assessor subject
+  const ASSESSOR_VERDICT_PREDICATES = [
+    /(?:is|are|appears?\s+to\s+be|seems?\s+to\s+be)\s+(?:fair|reasonable|market.?related|within\s+(?:market|prevailing|acceptable)|consistent\s+with|genuine|valid|legitimate)/i,
+    /(?:is|are)\s+(?:repairable|a\s+write.?off|beyond\s+economic\s+repair|a\s+total\s+loss)/i,
+    /(?:is|are)\s+consistent\s+with\s+(?:the\s+)?(?:accident|reported|claimed|circumstances)/i,
+    /(?:has|have)\s+been\s+(?:verified|confirmed|sourced|checked|adjusted|revised)/i,
+    /\bconsistent\s+with\s+(?:the\s+)?(?:accident|reported|claimed|circumstances|description)/i,
+    /(?:is|are)\s+(?:within|at)\s+(?:prevailing|market|current|acceptable)\s+(?:rates?|prices?|levels?)/i,
+  ];
+
+  // PATTERN B: Assessor instructions — imperatives directed at the insurer
+  const ASSESSOR_INSTRUCTIONS = [
+    /^(?:kindly|please)\s+(?:authoris[ez]|authorize|approve|proceed\s+with|settle|pay)/i,
+    /^(?:authoris[ez]|authorize|approve)\s+(?:the\s+)?repairs?/i,
+    /^(?:we\s+)?recommend\s+(?:approval|authoris[ez]ation|settlement|payment|that\s+(?:the\s+)?claim)/i,
+    /^(?:we\s+)?(?:kindly\s+)?request\s+(?:authoris[ez]ation|approval|settlement)/i,
+    /^(?:please\s+)?(?:proceed\s+with|effect)\s+(?:the\s+)?(?:repairs?|payment|settlement)/i,
+    /^kindly\s+note/i,
+    /^we\s+hereby\s+(?:confirm|certify|declare)/i,
+  ];
+
+  // Specific multi-word phrases that are always assessor commentary
+  const SPECIFIC_ASSESSOR_PHRASES = [
+    /lowest\s+(?:available\s+)?(?:repairer|quote|quotation)/i,
+    /motion\s+panel/i,
+    /vehicle\s+was\s+stripped\s+(?:in\s+order\s+to|to\s+identify)/i,
+    /omitted\s+damages?\s+(?:found|identified|noted)/i,
+    /after\s+(?:final\s+)?inspection\s+(?:we\s+)?noted/i,
+    /(?:images?|photos?|pictures?)\s+(?:of\s+(?:the\s+)?damage\s+)?(?:are\s+)?(?:attached|enclosed|included|herewith)/i,
+    /(?:as\s+per\s+)?(?:the\s+)?(?:attached|enclosed)\s+(?:images?|photos?|quotation|quote|report)/i,
+    /they\s+quoted\s+for/i,
+    /(?:the\s+)?(?:repairer|assessor|panel\s+beater)\s+(?:has|have)?\s*quoted\s+for/i,
+  ];
+
+  const sentences = text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const narrativeSentences = sentences.filter(sentence => {
+    if (isAllCapsStamp(sentence)) return false;
+    if (ASSESSOR_INSTRUCTIONS.some(p => p.test(sentence))) return false;
+    const hasAssessorSubject = ASSESSOR_VERDICT_SUBJECTS.some(p => p.test(sentence));
+    if (hasAssessorSubject && ASSESSOR_VERDICT_PREDICATES.some(p => p.test(sentence))) return false;
+    if (SPECIFIC_ASSESSOR_PHRASES.some(p => p.test(sentence))) return false;
+    return true;
+  });
+
+  return narrativeSentences.join(' ').replace(/[ \t]{2,}/g, ' ').trim();
 }
 
 // ─── Section Divider ─────────────────────────────────────────────────────────
