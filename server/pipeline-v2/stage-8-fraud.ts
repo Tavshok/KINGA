@@ -546,11 +546,19 @@ export async function runFraudAnalysisStage(
     if (photoUrlsForForensics.length > 0) {
       try {
         const forensics = await runPhotoForensics(photoUrlsForForensics);
+        // Attach vision crush depth to claimRecord so Stage 7 ensemble can use it.
+        // Stage 8 runs before Stage 7 in the pipeline, making this the correct injection point.
+        if (forensics.visionCrushDepthM != null) {
+          (claimRecord as any)._forensicAnalysis = (claimRecord as any)._forensicAnalysis ?? {};
+          (claimRecord as any)._forensicAnalysis.visionCrushDepthM = forensics.visionCrushDepthM;
+          ctx.log('Stage 8 (photo-forensics)', `Vision crush depth: ${(forensics.visionCrushDepthM * 100).toFixed(1)} cm (median across ${forensics.analysedCount} photos)`);
+        }
         photoForensicsResult = {
           analysedCount: forensics.analysedCount,
           errorCount: forensics.errorCount,
           anyGpsPresent: forensics.anyGpsPresent,
           anySuspicious: forensics.anySuspicious,
+          visionCrushDepthM: forensics.visionCrushDepthM ?? null,
           photos: forensics.photos.map(p => ({
             url: p.url,
             error: p.error,

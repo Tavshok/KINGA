@@ -1494,3 +1494,8 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.3; }
 }
+
+/* ── Approval Workflow section: force white background regardless of bi-bg-elevated ── */
+.approval-workflow-header.comparison-section-header {
+  background: #ffffff !important;
+}

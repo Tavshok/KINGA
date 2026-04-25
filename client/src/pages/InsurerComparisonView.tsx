@@ -788,8 +788,8 @@ export default function InsurerComparisonView() {
 
         {/* ── Approval Workflow ── */}
         {aiAssessment && (
-          <div className="comparison-section" style={{ background: '#ffffff' }}>
-            <div className="comparison-section-header" style={{ background: '#ffffff', borderBottom: '1px solid var(--border)' }}>
+          <div className="comparison-section" style={{ background: '#ffffff', '--bi-bg-elevated': '#ffffff', '--bi-bg-alt': '#ffffff', '--bi-bg': '#ffffff' } as React.CSSProperties}>
+            <div className="comparison-section-header approval-workflow-header" style={{ borderBottom: '1px solid var(--border)' }}>
               <span className="bi-section-num" style={{ background: 'var(--success)' }}>12</span>
               <div>
                 <p className="font-bold" style={{ color: 'var(--foreground)' }}>Multi-Layer Approval Workflow</p>

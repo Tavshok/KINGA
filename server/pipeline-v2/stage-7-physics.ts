@@ -66,15 +66,65 @@ function buildPhysicsInput(claimRecord: ClaimRecord, damageAnalysis: Stage6Outpu
   return { vehicleData, accidentData, damageAssessment };
 }
 
+/**
+ * Infer crush depth from available damage evidence using a multi-factor model.
+ *
+ * Priority:
+ *   1. Explicit crush depth from claim document (most accurate — use as-is)
+ *   2. Multi-factor estimate from damage evidence when no document value exists:
+ *
+ *      Severity baseline (driven by most severe component):
+ *        cosmetic / minor  → 0.05 m
+ *        moderate          → 0.12 m
+ *        severe            → 0.22 m
+ *        catastrophic      → 0.38 m
+ *
+ *      Additive modifiers (applied to baseline):
+ *        Component count   : each component beyond 3 adds 0.01 m (cap +0.08 m)
+ *        Structural damage : +0.06 m  (chassis/frame deformation = high energy)
+ *        Damage area       : each 0.1 m² beyond 0.2 m² adds 0.008 m (cap +0.04 m)
+ *        Airbag deployment : floor raised to 0.15 m (airbags deploy at ~20-30 km/h)
+ *
+ *      Result clamped to [0.04 m, 0.55 m] — physically plausible range for
+ *      passenger vehicles in insurance-relevant accidents.
+ *
+ * Correlation basis: NHTSA crash test data and Campbell (1974) stiffness model.
+ */
 function inferCrushDepth(damageAnalysis: Stage6Output, claimRecord: ClaimRecord): number {
+  // 1. Use explicit document value if present and plausible
   if (claimRecord.accidentDetails.maxCrushDepthM && claimRecord.accidentDetails.maxCrushDepthM >= 0.05) {
     return claimRecord.accidentDetails.maxCrushDepthM;
   }
-  const severities = damageAnalysis.damagedParts.map(p => p.severity);
-  if (severities.includes("catastrophic")) return 0.40;
-  if (severities.includes("severe")) return 0.25;
-  if (severities.includes("moderate")) return 0.15;
-  return 0.08;
+
+  const parts = damageAnalysis.damagedParts;
+  const severities = parts.map(p => (p.severity ?? '').toLowerCase());
+
+  // 2. Severity-based baseline — most severe component drives the baseline
+  let baseline: number;
+  if (severities.includes('catastrophic'))      baseline = 0.38;
+  else if (severities.includes('severe'))       baseline = 0.22;
+  else if (severities.includes('moderate'))     baseline = 0.12;
+  else                                          baseline = 0.05;
+
+  // 3. Component count modifier: more components = wider / deeper deformation zone
+  //    Each component beyond 3 adds ~0.01 m, capped at +0.08 m
+  const componentBonus = Math.min(0.08, Math.max(0, (parts.length - 3) * 0.01));
+
+  // 4. Structural damage modifier: chassis/frame deformation requires significant energy
+  const structuralBonus = damageAnalysis.structuralDamageDetected ? 0.06 : 0;
+
+  // 5. Damage area modifier: larger area implies more distributed deformation
+  //    Each 0.1 m² beyond 0.2 m² adds 0.008 m, capped at +0.04 m
+  const damageArea = damageAnalysis.totalDamageArea ?? 0;
+  const areaBonus = Math.min(0.04, Math.max(0, (damageArea - 0.2) / 0.1 * 0.008));
+
+  // 6. Airbag deployment implies at least moderate-speed impact
+  const airbagFloor = claimRecord.accidentDetails.airbagDeployment ? 0.15 : 0;
+
+  const estimated = baseline + componentBonus + structuralBonus + areaBonus;
+
+  // Apply airbag floor and clamp to physically plausible range [0.04 m, 0.55 m]
+  return Math.min(0.55, Math.max(0.04, Math.max(estimated, airbagFloor)));
 }
 
 function mapSeverity(raw: string): AccidentSeverity {
@@ -611,6 +661,37 @@ export async function runPhysicsStage(
     // Run damage pattern validation for collision
     const collisionPatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
     output.damagePatternValidation = collisionPatternValidation;
+
+    // ── Multi-method speed inference ensemble ──────────────────────────────────
+    // Runs 5 independent physics methods in parallel (pure math, < 1 ms).
+    // The consensus speed and per-method breakdown are surfaced in Section 2
+    // of the Forensic Audit Report for adjuster transparency.
+    try {
+      const { runSpeedInferenceEnsemble } = await import('./speedInferenceEnsemble');
+      const partsCostUsd = claimRecord.repairQuote.partsCostCents
+        ? claimRecord.repairQuote.partsCostCents / 100
+        : null;
+      // Vision crush depth: extracted from photo forensics if available
+      const visionCrushDepthM = (claimRecord as any)._forensicAnalysis?.visionCrushDepthM ?? null;
+      const ensembleResult = runSpeedInferenceEnsemble({
+        massKg: claimRecord.vehicle.massKg,
+        bodyType: claimRecord.vehicle.bodyType,
+        collisionDirection: claimRecord.accidentDetails.collisionDirection,
+        documentCrushDepthM: claimRecord.accidentDetails.maxCrushDepthM,
+        inferredCrushDepthM: inferCrushDepth(damageAnalysis, claimRecord),
+        visionCrushDepthM,
+        totalDamageAreaM2: claimRecord.accidentDetails.totalDamageAreaM2 ?? damageAnalysis.totalDamageArea,
+        partsCostUsd,
+        structuralDamage: claimRecord.accidentDetails.structuralDamage,
+        airbagDeployment: claimRecord.accidentDetails.airbagDeployment,
+        seatbeltPretensioner: (claimRecord.accidentDetails as any).seatbeltPretensioner ?? false,
+      });
+      output.speedInferenceEnsemble = ensembleResult;
+      ctx.log('Stage 7', `Speed ensemble: consensus=${ensembleResult.consensusSpeedKmh} km/h, methods=${ensembleResult.methodsRan}, confidence=${ensembleResult.overallConfidence}${ensembleResult.highDivergence ? ' [HIGH_DIVERGENCE]' : ''}`);
+    } catch (ensembleErr) {
+      ctx.log('Stage 7', `Speed ensemble failed (non-fatal): ${String(ensembleErr)}`);
+      output.speedInferenceEnsemble = null;
+    }
 
     return {
       status: "success",

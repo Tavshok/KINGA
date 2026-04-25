@@ -806,6 +806,8 @@ export interface Stage7Output {
   damagePatternValidation?: import('./damagePatternValidationEngine').DamagePatternOutput | null;
   /** Severity consensus result — fuses physics, damage, and image severity signals */
   severityConsensus?: import('./severityConsensusEngine').SeverityConsensusOutput | null;
+  /** Multi-method speed inference ensemble — populated by Stage 7 for all collision incidents */
+  speedInferenceEnsemble?: import('./speedInferenceEnsemble').SpeedInferenceResult | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -918,6 +920,8 @@ export interface Stage8Output {
     errorCount: number;
     anyGpsPresent: boolean;
     anySuspicious: boolean;
+    /** Median vision-estimated crush depth in metres from photo analysis */
+    visionCrushDepthM?: number | null;
     photos: Array<{
       url: string;
       error?: string;
@@ -930,6 +934,8 @@ export interface Stage8Output {
         manipulation_indicators: { manipulation_score?: number };
         image_hash: string;
         recommendations: string[];
+        ai_vision_description?: string;
+        is_non_vehicle?: boolean;
       } | null;
     }>;
   } | null;

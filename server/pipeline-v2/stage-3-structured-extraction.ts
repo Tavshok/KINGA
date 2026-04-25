@@ -456,6 +456,10 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
       // Reject values that are common English words, not actual case/report numbers.
       // A valid police report number MUST contain at least one digit.
       if (!/\d/.test(v)) return null;
+      // Reject bare 1-3 digit numbers (e.g. "3", "12") — these are page numbers or
+      // confidence scores extracted by mistake. A real ZW/SA police case number is at
+      // least 4 characters long (e.g. "RB 45", "CR/2024", "P123", "AR 456").
+      if (/^\d{1,3}$/.test(v)) return null;
       // Reject single-word values that look like dictionary words (no digits)
       const INVALID_WORDS = /^(reported|yes|no|none|na|n\/a|not|unknown|nil|provided|available|present|incident|case|report|police|station|officer|number|ref|reference|accident|claim|form|document|submitted|attached|enclosed|included|see|above|below|page|section|details|information|data|record|file|docket|charge|tab|traffic|fine|penalty|infringement|ticket|issued|given|assigned|registered|lodged|opened|closed|withdrawn|completed|processed|pending|under|investigation|charged|uncharged)$/i;
       if (INVALID_WORDS.test(v)) return null;

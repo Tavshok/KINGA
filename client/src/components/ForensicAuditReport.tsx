@@ -172,6 +172,24 @@ function filterAssessorConclusions(text: string): string {
     /\b((?:parts?|labour|spares?)\s+(?:costs?|prices?|rates?)\s+(?:have\s+been|were|are)\s+(?:adjusted|revised|verified|confirmed))[^.]*\./gi,
     /\b(the\s+(?:rear\s+end|front|back|side)\s+damages?\s+are\s+consistent\s+with\s+the\s+accident\s+description)[^.]*\./gi,
     /\b(the\s+third\s+party\s+car\s+was\s+hit)[^.]*(?:insured\s+car)[^.]*\./gi,
+    // All-caps assessor verdict lines (common in ZW/SA assessor reports)
+    // e.g. "DAMAGE CONSISTENT WITH ACCIDENT DESCRIPTION."
+    //      "THE ADJUSTED QUOTE APPEARS TO BE FAIR AND REASONABLE."
+    /\bDAMAGE\s+CONSISTENT\s+WITH\s+(?:THE\s+)?ACCIDENT\s+DESCRIPTION[^.]*\./gi,
+    /\bDAMAGE\s+(?:IS\s+)?CONSISTENT\s+WITH\s+(?:THE\s+)?CIRCUMSTANCES?[^.]*\./gi,
+    /\b(?:THE\s+)?ADJUSTED\s+QUOTE\s+(?:APPEARS?\s+TO\s+BE\s+)?FAIR\s+AND\s+REASONABLE[^.]*\./gi,
+    /\b(?:THE\s+)?QUOTE\s+(?:APPEARS?\s+TO\s+BE\s+)?FAIR\s+AND\s+REASONABLE[^.]*\./gi,
+    /\b(?:THE\s+)?REPAIR\s+COSTS?\s+(?:APPEAR?\s+TO\s+BE\s+)?FAIR\s+AND\s+REASONABLE[^.]*\./gi,
+    /\b(?:THE\s+)?COSTS?\s+(?:APPEAR?\s+TO\s+BE\s+)?FAIR\s+AND\s+REASONABLE[^.]*\./gi,
+    /\bKINDLY\s+AUTHORIS[EZ]\s+REPAIRS?[^.]*\./gi,
+    /\bAUTHORIS[EZ]\s+REPAIRS?\s+TO\s+THE\s+VEHICLE[^.]*\./gi,
+    /\bRECOMMEND\s+(?:APPROVAL|AUTHORIS[EZ]ATION|SETTLEMENT)[^.]*\./gi,
+    /\bCLAIM\s+IS\s+(?:VALID|GENUINE|LEGITIMATE)[^.]*\./gi,
+    /\bVEHICLE\s+IS\s+(?:REPAIRABLE|A\s+WRITE.?OFF)[^.]*\./gi,
+    // Catch entire lines that are ONLY assessor conclusions (no claimant narrative)
+    // These appear as the ENTIRE narrative text in some assessor reports
+    /^\s*DAMAGE\s+CONSISTENT\s+WITH\s+ACCIDENT\s+DESCRIPTION[.\s]*$/gim,
+    /^\s*THE\s+ADJUSTED\s+QUOTE\s+APPEARS\s+TO\s+BE\s+FAIR\s+AND\s+REASONABLE[.\s]*$/gim,
   ];
   let filtered = text;
   for (const pat of CONCLUSION_PATTERNS) {
@@ -865,9 +883,28 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const phase2 = (enforcement as any)?._phase2 as any;
   const phase1 = (aiAssessment as any)?._phase1 as any;
   const normalised = (aiAssessment as any)?._normalised as any;
-
+  // claimRecord0 declared early — used by claimedSpeed and _s1accidentType below
+  const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   const incidentType = phase2?.incidentType ?? normalised?.incidentType ?? aiAssessment?.incidentType ?? "N/A";
-  const claimedSpeed = normalised?.physics?.claimedSpeedKmh ?? aiAssessment?.claimedSpeedKmh ?? null;
+  // Claimed speed: primary source is the extracted field from the claim document.
+  // normalised does not carry a physics sub-object — read from claimRecord0 directly.
+  const claimedSpeed = claimRecord0?.accidentDetails?.estimatedSpeedKmh
+    ?? normalised?.physics?.claimedSpeedKmh
+    ?? aiAssessment?.claimedSpeedKmh
+    ?? null;
+  // Physics-inferred speed: when claimant didn't record a speed (common in rear-end impacts
+  // where the struck driver has no knowledge of the other vehicle's speed), the Stage7
+  // physics engine can estimate impact speed from deformation depth and energy dissipation.
+  const _s1phys = (enforcement as any)?._physics as { estimatedSpeedKmh?: number; deltaVKmh?: number } | undefined;
+  const _s1pe = (enforcement as any)?.physicsEstimate;
+  const physicsInferredSpeed = (_s1phys?.estimatedSpeedKmh ?? 0) > 0
+    ? _s1phys!.estimatedSpeedKmh!
+    : (_s1pe?.estimatedVelocityKmh ?? 0) > 0
+    ? _s1pe.estimatedVelocityKmh
+    : null;
+  // Determine if this is a rear-end impact (struck vehicle — claimant may not know other vehicle's speed)
+  const _s1accidentType = claimRecord0?.accidentDetails?.accidentType ?? aiAssessment?.accidentType ?? null;
+  const isRearImpact = _s1accidentType && /rear|behind|back/i.test(String(_s1accidentType));
   const description = aiAssessment?.incidentDescription ?? claim?.incidentDescription ?? null;
   const corrections: string[] = phase1?.allCorrections ?? [];
   const gates: any[] = phase1?.gates ?? [];
@@ -878,7 +915,6 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const photoConfidence = phase2?.photoAnalysis?.confidence ?? 0;
 
   // LLM-reasoned incident classification (Stage 5 incidentClassificationEngine)
-  const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   const incidentClassification = claimRecord0?.accidentDetails?.incidentClassification ?? null;
   const classifiedType: string | null = incidentClassification?.incident_type ?? null;
   const classifiedConfidence: number = incidentClassification?.confidence ?? 0;
@@ -987,7 +1023,23 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                     )}
                   </span>
                 )],
-                ["Claimed speed", claimedSpeed != null ? `${claimedSpeed} km/h` : "Not stated"],
+                ["Speed", (() => {
+                  if (claimedSpeed != null) return `${claimedSpeed} km/h (claimed by driver)`;
+                  if (physicsInferredSpeed != null && physicsInferredSpeed > 0) {
+                    const note = isRearImpact
+                      ? 'inferred from rear deformation — other vehicle speed'
+                      : 'inferred from deformation depth';
+                    return (
+                      <span className="flex flex-col gap-0.5">
+                        <span style={{ color: 'var(--muted-foreground)' }}>Not stated on claim form</span>
+                        <span className="text-[10px] font-semibold" style={{ color: 'var(--status-review-text)' }}>
+                          Physics estimate: ~{Math.round(physicsInferredSpeed)} km/h ({note})
+                        </span>
+                      </span>
+                    ) as any;
+                  }
+                  return 'Not stated';
+                })()],
                 ["Incident date", fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)],
                 ["Incident time", accidentTime ?? "Not recorded"],
                 ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not recorded"],
@@ -1457,9 +1509,11 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
 
 // ─── Section 2: Technical Forensics ──────────────────────────────────────────
 
-function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiAssessment: any; enforcement: any }) {
+function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: any; aiAssessment: any; enforcement: any; quotes?: any[] }) {
   const e = enforcement;
   const pe = e?.physicsEstimate;
+  // claimRecord0 — needed for panel beater name and repair cost total in 2.5
+  const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   // _physics contains the authoritative Stage7 values (actual physics engine output)
   // physicsEstimate is only populated when Stage7 didn't run (estimated values)
   const _phys = (e as any)?._physics as { deltaVKmh: number; impactForceKn: number; energyKj: number; vehicleMassKg: number; estimatedSpeedKmh: number } | undefined;
@@ -1798,10 +1852,22 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
               incidentType: incidentType.replace(/_/g, " "),
               rows,
             };
+            const mismatchRows = rows.filter(r => r.matchStatus === 'mismatch');
+            const unknownRows = rows.filter(r => r.matchStatus === 'unknown');
             return (
               <div className="mt-4">
                 <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>2.4 Damage Pattern Matching</p>
                 <DamagePatternTable data={damagePatternData} />
+                {(mismatchRows.length > 0 || unknownRows.length > 0) && (
+                  <div className="mt-2 p-2 rounded text-xs" style={{ background: mismatchRows.length > 0 ? 'var(--status-review-bg)' : 'var(--muted)', border: `1px solid ${mismatchRows.length > 0 ? 'var(--status-review-border)' : 'var(--border)'}`, color: mismatchRows.length > 0 ? 'var(--status-review-text)' : 'var(--muted-foreground)' }}>
+                    {mismatchRows.length > 0 && (
+                      <p><strong>Damage mismatch detected:</strong> {mismatchRows.length} expected damage zone{mismatchRows.length > 1 ? 's' : ''} ({mismatchRows.map(r => r.expected).join(', ')}) {mismatchRows.length > 1 ? 'are' : 'is'} not corroborated by the reported damage zones. This may indicate incomplete damage documentation, an atypical impact trajectory, or a discrepancy between the reported incident type and the observed damage pattern. Independent physical inspection is recommended before settlement.</p>
+                    )}
+                    {unknownRows.length > 0 && mismatchRows.length === 0 && (
+                      <p><strong>Damage zone data unavailable:</strong> Pattern matching could not be completed because no damage zones were extracted from the submitted documents. Physical inspection is required to verify damage consistency.</p>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -1834,9 +1900,28 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
               if (status === 'unmatched') return { bg: 'var(--status-review-bg)', text: 'var(--status-review-text)', label: 'Unmatched' };
               return { bg: 'var(--muted)', text: 'var(--muted-foreground)', label: 'No Quote' };
             };
+            // Get panel beater name from quotes or claimRecord
+            const pbName = (quotes ?? []).find((q: any) => q.panelBeaterName || q.repairerName)?.panelBeaterName
+              ?? (quotes ?? []).find((q: any) => q.panelBeaterName || q.repairerName)?.repairerName
+              ?? claimRecord0?.repairQuote?.repairerName
+              ?? aiAssessment?.panelBeaterName
+              ?? null;
+            // Get total repair cost from claim and sum of quote line items
+            const claimedRepairCostCents = claimRecord0?.repairQuote?.totalRepairCostCents
+              ?? (aiAssessment?.repairCostUsd != null ? Math.round(aiAssessment.repairCostUsd * 100) : null);
+            const quotedItemsTotal = partsRecon.reduce((sum: number, r: any) => sum + (r.quotedAmount ?? 0), 0);
+            const costDeltaCents = claimedRepairCostCents != null && quotedItemsTotal > 0
+              ? claimedRepairCostCents - Math.round(quotedItemsTotal * 100)
+              : null;
             return (
               <div className="mt-6">
                 <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>2.5 Quote Coverage Analysis</p>
+                {pbName && (
+                  <p className="text-xs mb-1" style={{ color: "var(--foreground)" }}>
+                    <span style={{ color: 'var(--muted-foreground)' }}>Quoting repairer: </span>
+                    <strong>{pbName}</strong>
+                  </p>
+                )}
                 <p className="text-xs mb-3" style={{ color: "var(--muted-foreground)" }}>
                   Cross-reference of AI-identified damage components against submitted repair quotation line items.
                   Coverage ratio: <strong style={{ color: coverageRatio >= 0.8 ? 'var(--status-pass-text)' : coverageRatio >= 0.5 ? 'var(--status-review-text)' : 'var(--status-fail-text)' }}>{Math.round(coverageRatio * 100)}%</strong>
@@ -1907,6 +1992,97 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
                     This may indicate an incomplete quote or undisclosed damage.
                   </p>
                 )}
+                {costDeltaCents != null && Math.abs(costDeltaCents) > 500 && (
+                  <div className="text-xs mt-2 p-2" style={{ borderTop: '1px solid var(--border)', background: Math.abs(costDeltaCents) > 10000 ? 'var(--status-review-bg)' : 'var(--muted)', color: Math.abs(costDeltaCents) > 10000 ? 'var(--status-review-text)' : 'var(--muted-foreground)' }}>
+                    <strong style={{ color: 'var(--foreground)' }}>Quote total vs claimed repair cost: </strong>
+                    The sum of itemised line amounts ({fmtMoney(quotedItemsTotal)}) {costDeltaCents > 0 ? 'falls short of' : 'exceeds'} the total repair cost on the claim ({fmtMoney(claimedRepairCostCents! / 100)}) by{' '}
+                    <strong>{fmtMoney(Math.abs(costDeltaCents) / 100)}</strong>.
+                    {costDeltaCents > 0
+                      ? ' The itemised quote does not account for the full claimed amount — verify whether additional labour, consumables, or undocumented parts make up the difference.'
+                      : ' The itemised quote total exceeds the claimed repair cost — verify whether discounts, adjustments, or a revised quote have been applied.'}
+                  </div>
+                )}
+              </div>
+            );
+           })()}
+
+          {/* 2.6 Speed Inference Ensemble */}
+          {(() => {
+            const ensemble = (_phys as any)?.speedInferenceEnsemble;
+            if (!ensemble) return null;
+            const methods: Array<{ id: string; name: string; estimateKmh: number | null; confidenceWeight: number; available: boolean; note?: string }> = ensemble.methods ?? [];
+            const availableMethods = methods.filter((m: any) => m.available && m.estimateKmh != null);
+            if (availableMethods.length === 0) return null;
+            const consensusKmh: number = ensemble.consensusKmh ?? 0;
+            const confidenceLevel: string = ensemble.confidenceLevel ?? 'low';
+            const divergenceFlag: boolean = ensemble.divergenceFlag ?? false;
+            const spread: number = ensemble.crossValidation?.spread ?? 0;
+            const outlierMethods: string[] = ensemble.crossValidation?.outlierMethods ?? [];
+            const recommendation: string = ensemble.crossValidation?.recommendation ?? '';
+            const confidenceColour = confidenceLevel === 'high' ? 'var(--bi-accent)' : confidenceLevel === 'medium' ? '#d97706' : 'var(--muted-foreground)';
+            return (
+              <div className="mt-6">
+                <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted-foreground)' }}>2.6 Speed Inference Ensemble</p>
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)' }}>
+                  <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+                    <div>
+                      <p className="text-xs font-bold" style={{ color: 'var(--foreground)' }}>Consensus Estimate</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                        {availableMethods.length} of {methods.length} methods contributed &middot; Confidence: <span style={{ color: confidenceColour, fontWeight: 600 }}>{confidenceLevel.charAt(0).toUpperCase() + confidenceLevel.slice(1)}</span>
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold" style={{ color: divergenceFlag ? '#dc2626' : 'var(--foreground)', fontFamily: 'monospace' }}>{consensusKmh.toFixed(0)} km/h</p>
+                      {divergenceFlag && (
+                        <p className="text-xs" style={{ color: '#dc2626' }}>High divergence — independent review recommended</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--muted)' }}>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Method</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'right', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimate</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'right', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Weight</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {methods.map((m: any, i: number) => {
+                          const isOutlier = outlierMethods.includes(m.id);
+                          return (
+                            <tr key={m.id} style={{ borderTop: '1px solid var(--border)', background: i % 2 === 0 ? 'var(--background)' : 'var(--card)', opacity: m.available ? 1 : 0.45 }}>
+                              <td style={{ padding: '6px 10px', color: 'var(--foreground)', fontWeight: 500 }}>
+                                {m.name}{isOutlier && <span className="ml-1" style={{ color: '#d97706', fontSize: '10px' }}>▲ outlier</span>}
+                              </td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: m.available ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
+                                {m.available && m.estimateKmh != null ? `${m.estimateKmh.toFixed(0)} km/h` : '— N/A'}
+                              </td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', color: 'var(--muted-foreground)' }}>
+                                {m.available ? `${Math.round(m.confidenceWeight * 100)}%` : '—'}
+                              </td>
+                              <td style={{ padding: '6px 10px', color: 'var(--muted-foreground)', fontStyle: m.note ? 'normal' : 'italic' }}>
+                                {m.note ?? (m.available ? '' : 'Insufficient data for this method')}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="px-4 py-2" style={{ borderTop: '1px solid var(--border)', background: 'var(--muted)' }}>
+                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                      <span className="font-semibold" style={{ color: 'var(--foreground)' }}>Cross-validation: </span>
+                      Spread {spread.toFixed(0)} km/h across contributing methods.
+                      {outlierMethods.length > 0 && ` Outlier method${outlierMethods.length > 1 ? 's' : ''}: ${outlierMethods.join(', ')}.`}
+                      {recommendation ? ` ${recommendation}` : ''}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+                      Methods: M1 Campbell’s formula (crush depth / vehicle stiffness) &middot; M2 Energy-momentum balance (repair cost proxy) &middot; M3 Impulse method (damage area / contact time) &middot; M4 Deployment threshold (airbag / pretensioner activation) &middot; M5 Vision deformation (AI-estimated crush depth from photos)
+                    </p>
+                  </div>
+                </div>
               </div>
             );
           })()}
@@ -1915,7 +2091,6 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
     </div>
   );
 }
-
 // ─── Quote Line-Item Audit Table ─────────────────────────────────────────────
 
 function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruencyScore, fmtMoney }: {
@@ -1980,8 +2155,8 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
           <tbody>
             {lineItems.map((li: any, i: number) => (
               <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
-                <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>{li.description}</td>
-                <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{li.category ?? '—'}</td>
+                <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>{toTitleCase(li.description)}</td>
+                <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{li.category ? toTitleCase(li.category) : '—'}</td>
                 <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{li.quantity ?? 1}</td>
                 <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{fmtMoney((li.unitPrice ?? 0) / 100)}</td>
                 <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{fmtMoney((li.lineTotal ?? li.unitPrice ?? 0) / 100)}</td>
@@ -4648,7 +4823,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
       <Section1Incident claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
 
       <div className="section-heading">02 — Technical Forensics</div>
-      <Section2Physics claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
+      <Section2Physics claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
 
       <div className="section-heading">03 — Financial Validation</div>
       <Section3Financial aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} claimId={claim?.id} />

@@ -50,6 +50,12 @@ export interface PhotoForensicsSummary {
   anyGpsPresent: boolean;
   /** Whether any photo was flagged as suspicious */
   anySuspicious: boolean;
+  /**
+   * Median vision-estimated crush depth in metres, derived from per-photo
+   * CRUSH_DEPTH_CM estimates. Used by the speed inference ensemble (M5).
+   * Null when no photos provided a crush depth estimate.
+   */
+  visionCrushDepthM?: number | null;
 }
 
 interface RawAnalysisResult {
@@ -273,6 +279,11 @@ interface VisionClassification {
   isNonVehicle: boolean;
   /** Human-readable description (damage analysis if vehicle, reason if not) */
   description: string;
+  /**
+   * Vision-estimated maximum crush depth in centimetres.
+   * Null when not estimable from the photo.
+   */
+  crushDepthCm?: number | null;
 }
 
 async function runAiVisionAnalysis(photoUrl: string): Promise<VisionClassification | null> {
@@ -318,6 +329,8 @@ STEP 2 — DAMAGE ANALYSIS (only if IMAGE_TYPE is VEHICLE_DAMAGE):
 3. PHOTO AUTHENTICITY: Any signs the photo is staged, digitally altered, or taken at a different time/location than claimed?
 4. DAMAGE SEVERITY: Estimate severity (minor/moderate/severe/total loss).
 5. AFFECTED PARTS: List specific vehicle parts affected.
+6. CRUSH_DEPTH_CM: Estimate the maximum visible deformation/crush depth in centimetres using visual reference cues (door handle ≈10 cm, wheel arch ≈30 cm, door panel ≈80 cm). If not estimable, write: CRUSH_DEPTH_CM: NOT_ESTIMABLE
+   Examples: light scuff=0, bumper pushed in 5 cm=5, door crushed 15 cm=15, severe frontal collapse=35
 
 Be concise but thorough. Flag any fraud indicators clearly.`,
             },
@@ -343,7 +356,14 @@ Be concise but thorough. Flag any fraud indicators clearly.`,
       const analysisText = text
         .replace(/^IMAGE_TYPE\s*:\s*VEHICLE_DAMAGE[^\n]*\n?/im, '')
         .trim();
-      return { isNonVehicle: false, description: analysisText || text };
+      // Extract structured crush depth estimate
+      const crushMatch = analysisText.match(/CRUSH_DEPTH_CM\s*:\s*(\d+(?:\.\d+)?|NOT_ESTIMABLE)/i);
+      let crushDepthCm: number | null = null;
+      if (crushMatch && crushMatch[1].toUpperCase() !== 'NOT_ESTIMABLE') {
+        const parsed = parseFloat(crushMatch[1]);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 120) crushDepthCm = parsed;
+      }
+      return { isNonVehicle: false, description: analysisText || text, crushDepthCm };
     }
     // No IMAGE_TYPE tag — treat as vehicle damage (legacy / fallback)
     return { isNonVehicle: false, description: text };
@@ -375,6 +395,10 @@ async function analysePhoto(
         result.ai_vision_description = vision.description;
         if (vision.isNonVehicle) {
           result.is_non_vehicle = true;
+        }
+        // Store vision-estimated crush depth for the speed inference ensemble
+        if (vision.crushDepthCm != null) {
+          (result as any).vision_crush_depth_cm = vision.crushDepthCm;
         }
       }
     }
@@ -539,6 +563,21 @@ export async function runPhotoForensics(
     });
   }
 
+  // ── Aggregate vision crush depth estimates (median across all vehicle photos) ──────────
+  const crushDepthsCm: number[] = photos
+    .filter(p => p.analysisResult && !p.analysisResult.is_non_vehicle)
+    .map(p => (p.analysisResult as any).vision_crush_depth_cm)
+    .filter((v): v is number => typeof v === 'number' && v >= 0);
+  let visionCrushDepthM: number | null = null;
+  if (crushDepthsCm.length > 0) {
+    const sorted = [...crushDepthsCm].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
+      : sorted[mid];
+    visionCrushDepthM = median / 100; // cm → m
+  }
+
   return {
     photos,
     indicators,
@@ -546,5 +585,6 @@ export async function runPhotoForensics(
     errorCount,
     anyGpsPresent,
     anySuspicious,
+    visionCrushDepthM,
   };
 }

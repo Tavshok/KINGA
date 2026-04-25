@@ -3786,6 +3786,7 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
             energyKj: Number(energyKj) || 0,
             vehicleMassKg: Number(vehicleMassKg) || 0,
             estimatedSpeedKmh: Number(estimatedSpeedKmh) || 0,
+            speedInferenceEnsemble: bridge.speedInferenceEnsemble ?? null,
           },
           // Override photosDetected with numeric count so ForensicAuditReport renders correctly
           photosDetected: photosDetectedCount > 0 ? photosDetectedCount : (bridge.photosDetected ? phase2PhotoUrls.length : 0),

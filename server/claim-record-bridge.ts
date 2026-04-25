@@ -113,6 +113,28 @@ export interface ResolvedClaimRecord {
 
   // ── Police ────────────────────────────────────────────────────────────────
   policeReportNumber: string | null;
+
+  // ── Speed Inference Ensemble ───────────────────────────────────────────
+  /** Multi-method speed inference result from Stage 7. Null for pre-feature claims. */
+  speedInferenceEnsemble: {
+    consensusKmh: number;
+    confidenceLevel: string;
+    methodCount: number;
+    divergenceFlag: boolean;
+    methods: Array<{
+      id: string;
+      name: string;
+      estimateKmh: number | null;
+      confidenceWeight: number;
+      available: boolean;
+      note?: string;
+    }>;
+    crossValidation: {
+      spread: number;
+      outlierMethods: string[];
+      recommendation: string;
+    };
+  } | null;
 }
 
 // ─── Resolution Logic ─────────────────────────────────────────────────────────
@@ -331,6 +353,7 @@ export function resolveClaimRecord(assessment: Record<string, unknown>): Resolve
     policeReportNumber: cr?.insuranceContext?.policeReportNumber
       ?? (assessment.policeReportNumber as string)
       ?? null,
+    speedInferenceEnsemble: physicsRaw?.speedInferenceEnsemble ?? null,
   };
 }
 
