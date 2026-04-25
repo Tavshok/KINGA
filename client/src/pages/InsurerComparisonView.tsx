@@ -385,7 +385,7 @@ export default function InsurerComparisonView() {
     // Extract cost estimates (stored in cents, so divide by 100 for dollars)
     const aiCost = aiAssessment.estimatedCost || 0;
     const assessorCost = assessorEval.estimatedRepairCost || 0;
-    const avgQuoteCost = quotes.reduce((sum, q) => sum + (q.quotedAmount || 0), 0) / quotes.length;
+    const avgQuoteCost = quotes.reduce((sum, q) => sum + (q.quotedAmount || 0) / 100, 0) / quotes.length; // cents → dollars
 
     /**
      * Calculate percentage differences between each pair of estimates
@@ -413,8 +413,8 @@ export default function InsurerComparisonView() {
   // Prefer normalised total cost; fall back to raw estimatedCost only if normalised is unavailable
   const aiCostDollars = normCosts?.totalUsd ?? aiAssessment?.estimatedCost ?? 0;
   const assessorCostCents = assessorEval?.estimatedRepairCost || 0;
-  const quotedAmounts = quotes.map((q: any) => q.quotedAmount || 0);
-  const lowestQuoteCents = quotedAmounts.length > 0 ? Math.min(...quotedAmounts) : 0;
+  const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100); // cents → dollars
+  const lowestQuoteCents = quotedAmounts.length > 0 ? Math.min(...quotedAmounts) : 0; // already in dollars
   // Use normalised fraud score as the single authoritative value
   const fraudLevel = normFraud?.level ?? aiAssessment?.fraudRiskLevel ?? assessorEval?.fraudRiskLevel ?? 'unknown';
   const confidenceScore = aiAssessment?.confidenceScore || 0;
@@ -571,7 +571,7 @@ export default function InsurerComparisonView() {
                     } : undefined,
                     quotes: quotes.map((q: any) => ({
                       panelBeaterName: `Panel Beater #${q.panelBeaterId}`,
-                      totalCost: q.quotedAmount || 0,
+                      totalCost: (q.quotedAmount || 0) / 100, // cents → dollars
                       laborCost: q.laborCost || 0,
                       partsCost: q.partsCost || 0,
                       estimatedDuration: q.estimatedDuration || 0,
@@ -585,7 +585,7 @@ export default function InsurerComparisonView() {
                     })),
                     quoteComparison: quotes.length > 1 ? {
                       discrepancyCount: 4, // From comparison analysis
-                      averageQuote: quotes.reduce((sum: number, q: any) => sum + (q.quotedAmount || 0), 0) / quotes.length,
+                      averageQuote: quotes.reduce((sum: number, q: any) => sum + (q.quotedAmount || 0) / 100, 0) / quotes.length,
                       missingItems: [] // Can be enhanced later
                     } : undefined,
                     // Accident circumstances
@@ -596,7 +596,7 @@ export default function InsurerComparisonView() {
                     },
                     // AI Intelligence Summary — derived from existing AI assessment record and quotes
                     aiIntelligence: (() => {
-                      const amounts: number[] = quotes.map((q: any) => q.quotedAmount || 0);
+                      const amounts: number[] = quotes.map((q: any) => (q.quotedAmount || 0) / 100); // cents → dollars
                       const sorted = [...amounts].sort((a: number, b: number) => a - b);
                       const mid = Math.floor(sorted.length / 2);
                       const medianQuote = sorted.length % 2 !== 0
@@ -2115,7 +2115,7 @@ function ExecutiveSummaryInline({
   const incidentType = ((claim.incidentType || aiAssessment.accidentType || '') as string).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'N/A';
   const incidentDate = claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
   const aiCost = aiAssessment._normalised?.costs?.totalUsd ?? aiAssessment.estimatedCost ?? 0;
-  const avgQuote = quotes.length > 0 ? quotes.reduce((s: number, q: any) => s + (q.quotedAmount || 0), 0) / quotes.length : 0;
+  const avgQuote = quotes.length > 0 ? quotes.reduce((s: number, q: any) => s + (q.quotedAmount || 0) / 100, 0) / quotes.length : 0; // cents → dollars
   // Use the normalised fraud level passed from the parent (which already resolves
   // _normalised.fraud.level → raw fraudRiskLevel → assessorEval fallback).
   // This ensures ExecutiveSummaryInline always shows the same fraud level as the

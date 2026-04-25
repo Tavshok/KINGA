@@ -1487,7 +1487,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
 
       {/* 1.4 Gap Attribution Table — data quality gaps with attribution */}
       {(() => {
-        const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
+        // claimRecord0 is available from the outer Section1Incident scope
         const gapEntries: GapEntry[] = [];
         // Derive gaps from missing critical fields
         if (!policeReportNumber) gapEntries.push({ field: "Police Report Number", explanation: "Police report number not provided in claim documents.", attribution: "CLAIMANT_DEFICIENCY" });
@@ -1573,7 +1573,10 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: 
   const incidentType = _unresolved2 ? (claim?.incidentType ?? "unknown") : _rawIt2;
   // Use actual Stage7 values first, fall back to physicsEstimate (estimated)
   const deltaV = (_phys?.deltaVKmh ?? 0) > 0 ? _phys!.deltaVKmh : (pe?.deltaVKmh ?? 0);
-  const claimedSpeed = (aiAssessment as any)?._normalised?.physics?.claimedSpeedKmh ?? aiAssessment?.claimedSpeedKmh ?? 0;
+  const claimedSpeed = claimRecord0?.accidentDetails?.estimatedSpeedKmh
+    ?? (aiAssessment as any)?._normalised?.physics?.claimedSpeedKmh
+    ?? aiAssessment?.claimedSpeedKmh
+    ?? 0;
   // energyKj: prefer Stage7 actual value, then physicsEstimate range midpoint
   const energyKj = (_phys?.energyKj ?? 0) > 0
     ? _phys!.energyKj
@@ -1586,6 +1589,8 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: 
   const vehicleMassKg = (_phys?.vehicleMassKg ?? 0) > 0 ? _phys!.vehicleMassKg : null;
   // estimatedSpeedKmh: from Stage7 or physicsEstimate
   const estimatedSpeedKmh = (_phys?.estimatedSpeedKmh ?? 0) > 0 ? _phys!.estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? 0);
+  // physicsInferredSpeed: the best available physics-derived speed estimate
+  const physicsInferredSpeed = estimatedSpeedKmh > 0 ? estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? null);
   const severity = aiAssessment?.structuralDamageSeverity ?? "unknown";
 
   const damageZones: string[] = e?.directionFlag?.damageZones ?? [];
@@ -2053,19 +2058,42 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: 
             );
            })()}
 
+          {/* 2.7 Speed Forensics — Claimed vs Physics-Inferred */}
+          <Section27SpeedForensics
+            speedForensics={(_phys as any)?.speedForensics ?? null}
+            claimedSpeed={claimedSpeed ?? null}
+            physicsSpeed={physicsInferredSpeed ?? null}
+          />
+
           {/* 2.6 Speed Inference Ensemble */}
           {(() => {
             const ensemble = (_phys as any)?.speedInferenceEnsemble;
             if (!ensemble) return null;
-            const methods: Array<{ id: string; name: string; estimateKmh: number | null; confidenceWeight: number; available: boolean; note?: string }> = ensemble.methods ?? [];
+            // SpeedInferenceResult fields: consensusSpeedKmh, overallConfidence, highDivergence, methodsRan
+            // MethodEstimate fields: ran (not available), speedKmh (not estimateKmh), label (not name), method (id)
+            const rawMethods: any[] = ensemble.methods ?? [];
+            // Normalise per-method fields to UI-expected names
+            const methods = rawMethods.map((m: any) => ({
+              id: m.method ?? m.id ?? '',
+              name: m.label ?? m.name ?? m.method ?? '',
+              estimateKmh: m.speedKmh ?? m.estimateKmh ?? null,
+              confidenceWeight: m.confidenceWeight ?? 0,
+              available: m.ran ?? m.available ?? false,
+              isLowerBoundOnly: m.isLowerBoundOnly ?? false,
+              basis: m.basis ?? m.note ?? '',
+              confidence: m.confidence ?? '',
+            }));
             const availableMethods = methods.filter((m: any) => m.available && m.estimateKmh != null);
-            if (availableMethods.length === 0) return null;
-            const consensusKmh: number = ensemble.consensusKmh ?? 0;
-            const confidenceLevel: string = ensemble.confidenceLevel ?? 'low';
-            const divergenceFlag: boolean = ensemble.divergenceFlag ?? false;
+            if (availableMethods.length === 0 && !(ensemble.consensusSpeedKmh ?? ensemble.consensusKmh)) return null;
+            const consensusKmh: number = ensemble.consensusSpeedKmh ?? ensemble.consensusKmh ?? 0;
+            const confidenceLevel: string = (ensemble.overallConfidence ?? ensemble.confidenceLevel ?? 'LOW').toLowerCase();
+            const divergenceFlag: boolean = ensemble.highDivergence ?? ensemble.divergenceFlag ?? false;
+            const ciLow: number | null = ensemble.confidenceInterval?.[0] ?? null;
+            const ciHigh: number | null = ensemble.confidenceInterval?.[1] ?? null;
+            const lowerBoundKmh: number | null = ensemble.lowerBoundKmh ?? null;
             const spread: number = ensemble.crossValidation?.spread ?? 0;
             const outlierMethods: string[] = ensemble.crossValidation?.outlierMethods ?? [];
-            const recommendation: string = ensemble.crossValidation?.recommendation ?? '';
+            const recommendation: string = ensemble.summary ?? ensemble.crossValidation?.recommendation ?? '';
             const confidenceColour = confidenceLevel === 'high' ? 'var(--bi-accent)' : confidenceLevel === 'medium' ? '#d97706' : 'var(--muted-foreground)';
             return (
               <div className="mt-6">
@@ -2080,6 +2108,12 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: 
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold" style={{ color: divergenceFlag ? '#dc2626' : 'var(--foreground)', fontFamily: 'monospace' }}>{consensusKmh.toFixed(0)} km/h</p>
+                      {ciLow != null && ciHigh != null && (
+                        <p className="text-xs" style={{ color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>90% CI: {ciLow.toFixed(0)}–{ciHigh.toFixed(0)} km/h</p>
+                      )}
+                      {lowerBoundKmh != null && (
+                        <p className="text-xs" style={{ color: '#d97706', fontFamily: 'monospace' }}>Lower bound: ≥{lowerBoundKmh.toFixed(0)} km/h</p>
+                      )}
                       {divergenceFlag && (
                         <p className="text-xs" style={{ color: '#dc2626' }}>High divergence — independent review recommended</p>
                       )}
@@ -2109,8 +2143,9 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: 
                               <td style={{ padding: '6px 10px', textAlign: 'right', color: 'var(--muted-foreground)' }}>
                                 {m.available ? `${Math.round(m.confidenceWeight * 100)}%` : '—'}
                               </td>
-                              <td style={{ padding: '6px 10px', color: 'var(--muted-foreground)', fontStyle: m.note ? 'normal' : 'italic' }}>
-                                {m.note ?? (m.available ? '' : 'Insufficient data for this method')}
+                              <td style={{ padding: '6px 10px', color: 'var(--muted-foreground)', fontStyle: (m.basis || m.note) ? 'normal' : 'italic' }}>
+                                {m.isLowerBoundOnly && <span className="mr-1" style={{ color: '#d97706', fontSize: '10px' }}>LB</span>}
+                                {m.basis ?? m.note ?? (m.available ? '' : 'Insufficient data for this method')}
                               </td>
                             </tr>
                           );
@@ -2138,6 +2173,153 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: 
     </div>
   );
 }
+// ─── Section 2.7: Speed Forensics Panel ─────────────────────────────────────
+// Objective physics comparison: claimed speed vs physics-inferred speed.
+// A significant deviation is surfaced as a risk indicator in Section 5.
+function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }: {
+  speedForensics: any | null;
+  claimedSpeed: number | null;
+  physicsSpeed: number | null;
+}) {
+  // Derive values — prefer speedForensics object, fall back to raw numbers
+  const sf = speedForensics;
+  const claimed: number | null = sf?.claimedSpeedKmh ?? claimedSpeed;
+  const physics: number | null = sf?.physicsSpeedKmh ?? physicsSpeed;
+  const ensemble: number | null = sf?.ensembleSpeedKmh ?? null;
+  const devPct: number | null = sf?.deviationPct ?? null;
+  const devKmh: number | null = sf?.deviationKmh ?? null;
+  const devClass: string = sf?.deviationClass ?? (claimed == null ? 'no_claim' : 'consistent');
+  const devLabel: string = sf?.deviationLabel ?? 'N/A';
+  const requiresVerification: boolean = sf?.requiresVerification ?? false;
+  const verificationPriority: string = sf?.verificationPriority ?? 'none';
+  const interpretation: string = sf?.interpretation ?? '';
+  const severityUpgraded: boolean = sf?.severityUpgraded ?? false;
+  const injuryPhysics: string = sf?.injuryRiskFromPhysics ?? 'low';
+  const injuryClaimed: string = sf?.injuryRiskFromClaimed ?? 'low';
+
+  // If no physics speed at all, don't render
+  if (!physics && !claimed) return null;
+
+  const deviationColor = devClass === 'consistent' ? 'var(--fp-success-text)'
+    : devClass === 'moderate' ? 'var(--fp-warning-text)'
+    : devClass === 'significant' ? '#f97316'
+    : devClass === 'critical' ? 'var(--fp-critical-text)'
+    : 'var(--muted-foreground)';
+
+  const priorityBadgeStyle = verificationPriority === 'high'
+    ? { background: 'var(--fp-critical-text)', color: '#fff' }
+    : verificationPriority === 'medium'
+    ? { background: '#f97316', color: '#fff' }
+    : verificationPriority === 'low'
+    ? { background: 'var(--fp-warning-text)', color: '#fff' }
+    : { background: 'var(--fp-success-text)', color: '#fff' };
+
+  const injuryRiskColor = (r: string) =>
+    r === 'critical' ? 'var(--fp-critical-text)' :
+    r === 'high' ? '#f97316' :
+    r === 'medium' ? 'var(--fp-warning-text)' :
+    'var(--fp-success-text)';
+
+  return (
+    <div className="mb-4">
+      <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${deviationColor}40`, background: 'var(--card)' }}>
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>2.7 Speed Forensics — Claimed vs Physics-Inferred</p>
+          {requiresVerification && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide" style={priorityBadgeStyle}>
+              Verification Required
+            </span>
+          )}
+        </div>
+        <div className="p-4">
+          {/* Speed comparison cards */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            {/* Claimed speed */}
+            <div className="rounded-lg p-3 text-center" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Claimed Speed</p>
+              <p className="text-3xl font-black" style={{ color: claimed != null ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
+                {claimed != null ? claimed : '—'}
+              </p>
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{claimed != null ? 'km/h (driver statement)' : 'Not recorded'}</p>
+            </div>
+            {/* Physics-inferred speed */}
+            <div className="rounded-lg p-3 text-center" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Physics-Inferred Speed</p>
+              <p className="text-3xl font-black" style={{ color: 'var(--foreground)' }}>
+                {physics != null ? Math.round(physics) : '—'}
+              </p>
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                {ensemble != null ? `km/h (ensemble: ${Math.round(ensemble)} km/h)` : 'km/h (Campbell\'s formula)'}
+              </p>
+            </div>
+            {/* Deviation */}
+            <div className="rounded-lg p-3 text-center" style={{ background: 'var(--muted)', border: `1px solid ${deviationColor}60` }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Deviation</p>
+              <p className="text-3xl font-black" style={{ color: deviationColor }}>
+                {devPct != null ? `${devPct}%` : '—'}
+              </p>
+              <p className="text-xs font-semibold" style={{ color: deviationColor }}>{devLabel}</p>
+            </div>
+          </div>
+
+          {/* Deviation bar */}
+          {devPct != null && (
+            <div className="mb-4">
+              <div className="flex justify-between text-[10px] mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                <span>0% — Consistent</span>
+                <span>15%</span>
+                <span>35%</span>
+                <span>60%</span>
+                <span>100% — Critical</span>
+              </div>
+              <div className="h-3 rounded-full relative" style={{ background: 'var(--muted)' }}>
+                {/* Zone markers */}
+                <div className="absolute top-0 bottom-0 rounded-full" style={{ left: 0, width: '15%', background: 'var(--fp-success-text)', opacity: 0.15 }} />
+                <div className="absolute top-0 bottom-0" style={{ left: '15%', width: '20%', background: 'var(--fp-warning-text)', opacity: 0.15 }} />
+                <div className="absolute top-0 bottom-0" style={{ left: '35%', width: '25%', background: '#f97316', opacity: 0.15 }} />
+                <div className="absolute top-0 bottom-0 rounded-r-full" style={{ left: '60%', right: 0, background: 'var(--fp-critical-text)', opacity: 0.15 }} />
+                {/* Actual deviation marker */}
+                <div className="absolute top-0 h-3 rounded-full transition-all" style={{ width: `${Math.min(100, devPct)}%`, background: deviationColor, opacity: 0.85 }} />
+              </div>
+            </div>
+          )}
+
+          {/* Injury risk comparison */}
+          {claimed != null && (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="rounded p-2" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Occupant Risk (Claimed Speed)</p>
+                <p className="text-sm font-bold capitalize" style={{ color: injuryRiskColor(injuryClaimed) }}>{injuryClaimed}</p>
+              </div>
+              <div className="rounded p-2" style={{ background: 'var(--muted)', border: `1px solid ${injuryRiskColor(injuryPhysics)}40` }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Occupant Risk (Physics Speed)</p>
+                <p className="text-sm font-bold capitalize" style={{ color: injuryRiskColor(injuryPhysics) }}>
+                  {injuryPhysics}
+                  {severityUpgraded && <span className="ml-1 text-[10px] font-semibold" style={{ color: '#f97316' }}>(upgraded)</span>}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Interpretation */}
+          {interpretation && (
+            <div className="rounded p-3" style={{ background: 'var(--muted)', border: `1px solid ${deviationColor}30` }}>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{interpretation}</p>
+            </div>
+          )}
+
+          {/* Methodology note */}
+          <p className="text-[10px] mt-3" style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+            Physics-inferred speed is derived from Campbell\'s structural stiffness formula applied to the observed crush depth and vehicle mass,
+            cross-validated by the 5-method Speed Inference Ensemble (Section 2.6). The claimed speed is the driver\'s stated speed from the claim form.
+            This comparison is an objective forensic measurement — the adjuster determines its significance.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Quote Line-Item Audit Table ─────────────────────────────────────────────
 
 function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruencyScore, fmtMoney }: {
@@ -3346,7 +3528,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
 
 // ─── Section 5: Risk & Fraud Assessment ──────────────────────────────────────────────────────────────────────────────
 
-function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enforcement: any }) {
+function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssessment: any; enforcement: any; speedForensics?: any | null }) {
   const e = enforcement;
   const wf = e?.weightedFraud;
   const phase2 = (e as any)?._phase2 as any;
@@ -3567,6 +3749,34 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
                     </tr>
                   );
                 })}
+                {/* Speed-Physics Discrepancy row — injected from Section 2.7 speedForensics */}
+                {(() => {
+                  const sf = speedForensics;
+                  if (!sf || sf.deviationClass === 'consistent' || sf.deviationClass === 'no_claim') return null;
+                  const devPct: number = sf.deviationPct ?? 0;
+                  // Map deviation class to a risk score out of 20
+                  const speedScore = sf.deviationClass === 'critical' ? 18
+                    : sf.deviationClass === 'significant' ? 13
+                    : sf.deviationClass === 'moderate' ? 7
+                    : 0;
+                  const speedColor = speedScore > 10 ? "var(--fp-critical-text)" : speedScore > 5 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
+                  return (
+                    <tr style={{ borderTop: "1px solid var(--border)", background: "var(--background)" }}>
+                      <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>
+                        Speed-Physics Discrepancy
+                        <span className="ml-1 text-[10px] font-semibold" style={{ color: "var(--muted-foreground)" }}>({devPct}% deviation)</span>
+                      </td>
+                      <td className="px-3 py-2 font-bold" style={{ color: speedColor }}>{speedScore}/20</td>
+                      <td className="px-3 py-2" style={{ minWidth: 80 }}>
+                        <div className="h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
+                          <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (speedScore / 20) * 100)}%`, background: speedColor }} />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2"><span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>Yes</span></td>
+                      <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>Engineering review of claimed speed vs damage evidence recommended (see Section 2.7)</td>
+                    </tr>
+                  );
+                })()}
               </tbody>
             </table>
           </div>
@@ -4879,7 +5089,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
       <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
 
       <div className="section-heading">05 — Risk &amp; Fraud Assessment</div>
-      <Section5Fraud aiAssessment={aiAssessment} enforcement={enforcement} />
+      <Section5Fraud aiAssessment={aiAssessment} enforcement={enforcement} speedForensics={(enforcement as any)?._physics?.speedForensics ?? null} />
 
       <div className="section-heading">06 — Decision Authority &amp; Audit Trail</div>
       <Section6Decision claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />

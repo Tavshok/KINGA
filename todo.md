@@ -11101,3 +11101,14 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Fix 5: Photo forensics section — restore column widths so all columns are visible and readable
 - [ ] Fix 6: Remove bottom blocks (Missing Information, Panel Beater Quotes placeholder, Assessor Evaluation, Claim Approval & Panel Beater Selection); move panel beater quotes into Section 3 itemised parts & labour breakdown as comparison tables with optimised quote at end
 - [ ] Fix 7: Approval Workflow section — set white background (remove grey/tinted background)
+
+## Quote Ingestion — Universal Persistence (all routes → panel_beater_quotes)
+- [ ] Route 1: Pipeline PDF extraction — persist extracted quote to panel_beater_quotes after pipeline completes in db.ts
+- [ ] Route 2: Separate document upload — persist quote when a quote document is uploaded via document upload UI
+- [ ] Route 3: Client upload — ensure client-uploaded quotes go through the same persistence path
+- [ ] Route 4: Panel beater portal submission — add idempotency guard to prevent duplicate rows
+
+## Speed & Physics Improvements
+- [x] Section 2.7 Speed Forensics dual-speed panel — claimed vs physics-inferred with deviation classification
+- [x] Section 5 fraud risk — Speed-Physics Discrepancy injected as named indicator row
+- [ ] Section 2.6 field name mismatch — align UI with SpeedInferenceResult fields (consensusSpeedKmh, overallConfidence, highDivergence, methodsRan)

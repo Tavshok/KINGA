@@ -2737,7 +2737,45 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        
+
+        // ── ROUTE 4 idempotency guard ─────────────────────────────────────────
+        // Prevent duplicate quotes from the same panel beater for the same claim.
+        // If a quote already exists (e.g. from pipeline extraction or a prior
+        // submission), update it rather than inserting a second row.
+        const _existingDb = await getDb();
+        if (_existingDb) {
+          const { panelBeaterQuotes: _pbq } = await import('../drizzle/schema');
+          const { eq: _eq2, and: _and2 } = await import('drizzle-orm');
+          const [_existing] = await _existingDb
+            .select({ id: _pbq.id })
+            .from(_pbq)
+            .where(_and2(
+              _eq2(_pbq.claimId, input.claimId),
+              _eq2(_pbq.panelBeaterId, input.panelBeaterId),
+            ))
+            .limit(1);
+          if (_existing) {
+            const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            await _existingDb.update(_pbq).set({
+              quotedAmount: input.quotedAmount,
+              laborCost: input.laborCost ?? null,
+              partsCost: input.partsCost ?? null,
+              laborHours: input.laborHours ?? null,
+              estimatedDuration: input.estimatedDuration,
+              itemizedBreakdown: JSON.stringify(input.itemizedBreakdown),
+              notes: input.notes ?? null,
+              status: 'submitted',
+              updatedAt: now,
+            }).where(_eq2(_pbq.id, _existing.id));
+            console.log(`[quotes.submit] Updated existing quote id=${_existing.id} for claim ${input.claimId} panel beater ${input.panelBeaterId}`);
+            // Skip the createPanelBeaterQuote insert below and continue to post-submit logic
+            const allQuotes = await getQuotesByClaimId(input.claimId);
+            const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+            const claim = await getClaimById(input.claimId, tenantId);
+            return { success: true, quoteId: _existing.id, allQuotesCount: allQuotes.length, claimStatus: claim?.status };
+          }
+        }
+
         await createPanelBeaterQuote({
           claimId: input.claimId,
           panelBeaterId: input.panelBeaterId,
@@ -3787,6 +3825,14 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
             vehicleMassKg: Number(vehicleMassKg) || 0,
             estimatedSpeedKmh: Number(estimatedSpeedKmh) || 0,
             speedInferenceEnsemble: bridge.speedInferenceEnsemble ?? null,
+            // Dual-speed forensics: claimed vs physics-inferred speed comparison
+            speedForensics: (() => {
+              try {
+                const pa = (assessment as any).physicsAnalysis;
+                const parsed = typeof pa === 'string' ? JSON.parse(pa) : pa;
+                return parsed?.speedForensics ?? null;
+              } catch { return null; }
+            })(),
           },
           // Override photosDetected with numeric count so ForensicAuditReport renders correctly
           photosDetected: photosDetectedCount > 0 ? photosDetectedCount : (bridge.photosDetected ? phase2PhotoUrls.length : 0),
@@ -4460,6 +4506,61 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           entityType: "document",
           changeDescription: `Uploaded document: ${input.fileName} (${input.documentCategory})`,
         });
+
+        // ── ROUTE 2: Separate document upload → panel_beater_quotes ────────────
+        // When a repair_quote or invoice document is uploaded, automatically
+        // extract the quote using AI vision and persist it to panel_beater_quotes.
+        // This runs fire-and-forget so upload response is never delayed.
+        if (input.documentCategory === 'repair_quote' || input.documentCategory === 'invoice') {
+          (async () => {
+            try {
+              const { invokeLLM } = await import('./_core/llm.ts');
+              const extractionPrompt = `You are analyzing a motor vehicle repair quote document. Extract the following and return ONLY valid JSON:
+{
+  "repairerName": "<business name of the repairer/panel beater, or null>",
+  "totalAmountUsd": <total quoted amount as a decimal number, 0 if not found>,
+  "labourCostUsd": <labour/labor cost as decimal, 0 if not found>,
+  "partsCostUsd": <parts cost as decimal, 0 if not found>,
+  "currency": "<ISO currency code, default USD>",
+  "lineItems": [
+    { "description": "<item>", "quantity": 1, "unitPrice": 0.0, "lineTotal": 0.0, "category": "parts" }
+  ]
+}
+If any value is not found, use null or 0. Line items category must be one of: parts, labor, paint, diagnostic, sundries, other.`;
+              const visionResp = await invokeLLM({
+                messages: [{ role: 'user', content: [
+                  { type: 'text', text: extractionPrompt },
+                  { type: 'image_url', image_url: { url: result.url } }
+                ] as any }],
+                response_format: { type: 'json_object' } as any,
+              });
+              const extracted = JSON.parse(visionResp.choices[0].message.content as string);
+              if (extracted?.totalAmountUsd > 0) {
+                const { persistExtractedQuote } = await import('./persistExtractedQuote');
+                await persistExtractedQuote({
+                  claimId: input.claimId,
+                  tenantId: ctx.user.tenantId ?? null,
+                  repairerName: extracted.repairerName ?? input.documentTitle ?? 'Uploaded Repairer',
+                  quotedAmountUnits: extracted.totalAmountUsd,
+                  labourCostUnits: extracted.labourCostUsd ?? null,
+                  partsCostUnits: extracted.partsCostUsd ?? null,
+                  currency: extracted.currency ?? 'USD',
+                  lineItems: (extracted.lineItems ?? []).map((li: any) => ({
+                    description: li.description ?? 'Item',
+                    quantity: Number(li.quantity) || 1,
+                    unitPrice: Number(li.unitPrice) || 0,
+                    lineTotal: Number(li.lineTotal) || 0,
+                    category: li.category ?? 'parts',
+                  })),
+                  source: 'document_upload',
+                });
+                console.log(`[documents.upload] Claim ${input.claimId}: Quote extracted and persisted from uploaded ${input.documentCategory}`);
+              }
+            } catch (e: any) {
+              console.warn(`[documents.upload] Claim ${input.claimId}: Quote auto-extraction failed (non-fatal):`, e?.message);
+            }
+          })();
+        }
 
         return { success: true, url: result.url, key: result.key };
       }),

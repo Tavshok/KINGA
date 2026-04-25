@@ -98,6 +98,9 @@ export interface PhysicsAnalysisResult {
     value: number; // km/h
     confidenceInterval: [number, number]; // [min, max]
     method: string;
+    claimedSpeed?: number;       // km/h — driver-stated speed from claim form
+    physicsSpeed?: number;       // km/h — Campbell's formula estimate from damage
+    speedDiscrepancyPct?: number; // % difference between claimed and physics speed
   };
   kineticEnergy: number; // Joules
   energyDissipated: number; // Joules
@@ -146,6 +149,34 @@ export interface PhysicsAnalysisResult {
   frictionAnalysis?: FrictionAnalysis;
   restitutionAnalysis?: RestitutionAnalysis;
   rolloverAnalysis?: RolloverAnalysis;
+
+  // Dual-Speed Forensics (NEW)
+  speedForensics?: SpeedForensics;
+}
+
+// ── Dual-Speed Forensic Analysis ────────────────────────────────────────────
+// Compares the driver's claimed speed against the physics-inferred speed.
+// A significant deviation flags the claim for adjuster verification — the
+// system never concludes fraud; that determination rests with the adjuster.
+export interface SpeedForensics {
+  claimedSpeedKmh: number | null;      // From claim form (driver statement)
+  physicsSpeedKmh: number;              // Campbell's formula from crush depth
+  ensembleSpeedKmh: number | null;      // Speed Inference Ensemble consensus (if available)
+  finalSpeedKmh: number;                // Best estimate used for all downstream physics
+  deviationPct: number | null;          // |physics - claimed| / max(physics, claimed) * 100
+  deviationKmh: number | null;          // physics - claimed (signed: positive = physics > claimed)
+  deviationClass: 'consistent' | 'moderate' | 'significant' | 'critical' | 'no_claim';
+  deviationLabel: string;               // Human-readable label for the UI
+  requiresVerification: boolean;        // true if deviation >= 36% — flags for adjuster review
+  verificationPriority: 'none' | 'low' | 'medium' | 'high'; // review urgency level
+  riskScoreContribution: number;        // Points added to overall risk score (0, 5, 15, 25)
+  speedLimitKmh: number | null;         // Road speed limit if known
+  physicsExceedsLimit: boolean | null;  // true if physics speed > speed limit
+  claimedExceedsLimit: boolean | null;  // true if claimed speed > speed limit
+  interpretation: string;               // Plain-language forensic interpretation
+  severityUpgraded: boolean;            // true if severity was upgraded due to physics speed
+  injuryRiskFromPhysics: 'low' | 'medium' | 'high' | 'critical'; // based on physics speed
+  injuryRiskFromClaimed: 'low' | 'medium' | 'high' | 'critical'; // based on claimed speed
 }
 
 // NEW: Multi-vehicle momentum analysis
@@ -204,8 +235,8 @@ export async function analyzeAccidentPhysics(
   damage: DamageAssessment
 ): Promise<PhysicsAnalysisResult> {
   
-  // 1. Estimate impact speed from damage severity
-  const speedEstimate = estimateImpactSpeed(vehicle, damage, accident.accidentType);
+  // 1. Estimate impact speed — use claimed speed as primary, cross-validate with physics
+  const speedEstimate = estimateImpactSpeed(vehicle, damage, accident.accidentType, accident.estimatedSpeed);
   
   // 2. Calculate kinetic energy and energy dissipation
   const kineticEnergy = calculateKineticEnergy(vehicle.mass, speedEstimate.value);
@@ -265,7 +296,19 @@ export async function analyzeAccidentPhysics(
       speedEstimate.value
     );
   }
-  
+
+  // 13. Dual-speed forensics ────────────────────────────────────────────
+  // Compare claimed speed (driver statement) vs physics-inferred speed.
+  // The deviation is a primary fraud signal and feeds into the fraud score.
+  const speedForensics = computeSpeedForensics({
+    claimedSpeedKmh: speedEstimate.claimedSpeed ?? null,
+    physicsSpeedKmh: speedEstimate.physicsSpeed ?? speedEstimate.value,
+    ensembleSpeedKmh: null, // populated later in stage-7 after ensemble runs
+    speedLimitKmh: null,    // populated from claim record in stage-7
+    accidentSeverity,
+    occupantInjuryRisk,
+  });
+
   return {
     estimatedSpeed: speedEstimate,
     kineticEnergy,
@@ -280,8 +323,112 @@ export async function analyzeAccidentPhysics(
     accidentSeverity,
     collisionType: accident.accidentType,
     occupantInjuryRisk,
+    speedForensics,
   };
 }
+
+// ============================================================================
+// DUAL-SPEED FORENSICS ENGINE
+// ============================================================================
+
+function injuryRiskFromSpeed(speedKmh: number): 'low' | 'medium' | 'high' | 'critical' {
+  if (speedKmh < 20) return 'low';
+  if (speedKmh < 40) return 'medium';
+  if (speedKmh < 70) return 'high';
+  return 'critical';
+}
+
+function computeSpeedForensics(params: {
+  claimedSpeedKmh: number | null;
+  physicsSpeedKmh: number;
+  ensembleSpeedKmh: number | null;
+  speedLimitKmh: number | null;
+  accidentSeverity: string;
+  occupantInjuryRisk: string;
+}): SpeedForensics {
+  const { claimedSpeedKmh, physicsSpeedKmh, ensembleSpeedKmh, speedLimitKmh } = params;
+
+  // Use ensemble speed as best physics estimate if available
+  const bestPhysicsKmh = ensembleSpeedKmh ?? physicsSpeedKmh;
+  const finalSpeedKmh = claimedSpeedKmh ?? bestPhysicsKmh;
+
+  // Deviation calculation
+  let deviationPct: number | null = null;
+  let deviationKmh: number | null = null;
+  let deviationClass: SpeedForensics['deviationClass'] = 'no_claim';
+  let deviationLabel = 'No claimed speed on record';
+  let requiresVerification = false;
+  let verificationPriority: SpeedForensics['verificationPriority'] = 'none';
+  let riskScoreContribution = 0;
+  let interpretation = 'No claimed speed was recorded. Physics-inferred speed used for all calculations.'
+
+  if (claimedSpeedKmh !== null && claimedSpeedKmh > 0) {
+    const maxSpeed = Math.max(bestPhysicsKmh, claimedSpeedKmh);
+    deviationPct = maxSpeed > 0 ? Math.round(Math.abs(bestPhysicsKmh - claimedSpeedKmh) / maxSpeed * 100) : 0;
+    deviationKmh = Math.round(bestPhysicsKmh - claimedSpeedKmh);
+
+    if (deviationPct <= 15) {
+      deviationClass = 'consistent';
+      deviationLabel = 'Consistent';
+      verificationPriority = 'none';
+      riskScoreContribution = 0;
+      interpretation = `The claimed speed of ${claimedSpeedKmh} km/h is physically consistent with the observed damage pattern (physics estimate: ${bestPhysicsKmh} km/h, deviation: ${deviationPct}%). The speed evidence supports the claim narrative.`;
+    } else if (deviationPct <= 35) {
+      deviationClass = 'moderate';
+      deviationLabel = 'Moderate Discrepancy';
+      verificationPriority = 'low';
+      riskScoreContribution = 5;
+      interpretation = `The claimed speed of ${claimedSpeedKmh} km/h shows a moderate discrepancy against the physics estimate of ${bestPhysicsKmh} km/h (${deviationPct}% deviation). This may reflect measurement uncertainty or rounding in the driver's recollection. Noted for adjuster awareness.`;
+    } else if (deviationPct <= 60) {
+      deviationClass = 'significant';
+      deviationLabel = 'Significant Discrepancy';
+      requiresVerification = true;
+      verificationPriority = 'medium';
+      riskScoreContribution = 15;
+      interpretation = `The claimed speed of ${claimedSpeedKmh} km/h is materially inconsistent with the physics-inferred speed of ${bestPhysicsKmh} km/h (${deviationPct}% deviation). The damage evidence indicates a higher-energy impact than the stated speed would produce. Independent verification of the speed is recommended.`;
+    } else {
+      deviationClass = 'critical';
+      deviationLabel = 'Requires Independent Verification';
+      requiresVerification = true;
+      verificationPriority = 'high';
+      riskScoreContribution = 25;
+      interpretation = `The claimed speed of ${claimedSpeedKmh} km/h is significantly inconsistent with the physics-inferred speed of ${bestPhysicsKmh} km/h (${deviationPct}% deviation). The observed damage pattern is not consistent with the stated speed. This discrepancy requires independent verification before the claim can proceed.`;
+    }
+  }
+
+  // Speed limit comparison
+  const physicsExceedsLimit = speedLimitKmh != null ? bestPhysicsKmh > speedLimitKmh : null;
+  const claimedExceedsLimit = speedLimitKmh != null && claimedSpeedKmh != null ? claimedSpeedKmh > speedLimitKmh : null;
+
+  // Severity upgrade check: if physics speed implies a higher severity than claimed speed would
+  const injuryRiskFromPhysics = injuryRiskFromSpeed(bestPhysicsKmh);
+  const injuryRiskFromClaimed = claimedSpeedKmh != null ? injuryRiskFromSpeed(claimedSpeedKmh) : injuryRiskFromPhysics;
+  const riskOrder = { low: 0, medium: 1, high: 2, critical: 3 };
+  const severityUpgraded = riskOrder[injuryRiskFromPhysics] > riskOrder[injuryRiskFromClaimed];
+
+  return {
+    claimedSpeedKmh,
+    physicsSpeedKmh: bestPhysicsKmh,
+    ensembleSpeedKmh,
+    finalSpeedKmh,
+    deviationPct,
+    deviationKmh,
+    deviationClass,
+    deviationLabel,
+    requiresVerification,
+    verificationPriority,
+    riskScoreContribution,
+    speedLimitKmh,
+    physicsExceedsLimit,
+    claimedExceedsLimit,
+    interpretation,
+    severityUpgraded,
+    injuryRiskFromPhysics,
+    injuryRiskFromClaimed,
+  };
+}
+
+export { computeSpeedForensics };
 
 // ============================================================================
 // SPEED ESTIMATION
@@ -300,8 +447,9 @@ export async function analyzeAccidentPhysics(
 function estimateImpactSpeed(
   vehicle: VehicleData,
   damage: DamageAssessment,
-  accidentType: AccidentType
-): { value: number; confidenceInterval: [number, number]; method: string } {
+  accidentType: AccidentType,
+  claimedSpeedKmh?: number
+): { value: number; confidenceInterval: [number, number]; method: string; claimedSpeed?: number; physicsSpeed?: number; speedDiscrepancyPct?: number } {
   
   // Get vehicle-specific stiffness coefficient
   const stiffness = getVehicleStiffness(vehicle);
@@ -338,20 +486,43 @@ function estimateImpactSpeed(
     estimatedSpeed = Math.max(estimatedSpeed, 25); // Airbags typically deploy at 20-30 km/h
   }
   
+  // Physics-derived speed (Campbell's formula result)
+  const physicsSpeed = Math.round(estimatedSpeed);
+
+  // ── Claimed speed integration ────────────────────────────────────────────
+  // If the driver reported a speed, use it as the primary value.
+  // The physics-derived speed becomes a cross-check: a large discrepancy
+  // (>40%) is a fraud signal surfaced in the report.
+  let finalSpeed = physicsSpeed;
+  let method = "Campbell's formula with crash test correlation";
+  let speedDiscrepancyPct: number | undefined;
+
+  if (claimedSpeedKmh && claimedSpeedKmh > 0 && claimedSpeedKmh < 300) {
+    finalSpeed = Math.round(claimedSpeedKmh);
+    method = "Claimed speed (driver statement) — cross-validated against Campbell's formula";
+    // Discrepancy: how much does physics differ from claimed?
+    speedDiscrepancyPct = physicsSpeed > 0
+      ? Math.round(Math.abs(physicsSpeed - claimedSpeedKmh) / Math.max(physicsSpeed, claimedSpeedKmh) * 100)
+      : undefined;
+  }
+
   // Calculate confidence interval based on data quality
-  const uncertainty = 0.15; // ±15% typical uncertainty
+  const uncertainty = claimedSpeedKmh ? 0.10 : 0.15; // tighter CI when speed is known
   const confidenceInterval: [number, number] = [
-    estimatedSpeed * (1 - uncertainty),
-    estimatedSpeed * (1 + uncertainty),
+    finalSpeed * (1 - uncertainty),
+    finalSpeed * (1 + uncertainty),
   ];
   
   return {
-    value: Math.round(estimatedSpeed),
+    value: finalSpeed,
     confidenceInterval: [
       Math.round(confidenceInterval[0]),
       Math.round(confidenceInterval[1]),
     ],
-    method: "Campbell's formula with crash test correlation",
+    method,
+    claimedSpeed: claimedSpeedKmh,
+    physicsSpeed,
+    speedDiscrepancyPct,
   };
 }
 

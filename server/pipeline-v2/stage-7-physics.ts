@@ -46,6 +46,11 @@ function buildPhysicsInput(claimRecord: ClaimRecord, damageAnalysis: Stage6Outpu
     damagePhotos: claimRecord.damage.imageUrls,
     incidentDescription: claimRecord.accidentDetails.description || "No description provided",
     impactPoint: claimRecord.accidentDetails.impactPoint || "unknown",
+    // Pass claimed speed so the physics engine can use it as primary input
+    // and cross-validate against the damage-derived estimate.
+    estimatedSpeed: claimRecord.accidentDetails.estimatedSpeedKmh && claimRecord.accidentDetails.estimatedSpeedKmh > 0
+      ? claimRecord.accidentDetails.estimatedSpeedKmh
+      : undefined,
   };
 
   const damageAssessment = {
@@ -688,6 +693,25 @@ export async function runPhysicsStage(
       });
       output.speedInferenceEnsemble = ensembleResult;
       ctx.log('Stage 7', `Speed ensemble: consensus=${ensembleResult.consensusSpeedKmh} km/h, methods=${ensembleResult.methodsRan}, confidence=${ensembleResult.overallConfidence}${ensembleResult.highDivergence ? ' [HIGH_DIVERGENCE]' : ''}`);
+
+      // ── Enrich speedForensics with ensemble consensus and speed limit ───────────
+      // Now that the ensemble has run, recompute speedForensics with the
+      // ensemble consensus as the best physics estimate (more accurate than
+      // Campbell's formula alone) and add the road speed limit if known.
+      if (output.physicsAnalysis?.speedForensics) {
+        const { computeSpeedForensics } = await import('../accidentPhysics');
+        const speedLimitKmh = (claimRecord.accidentDetails as any).speedLimitKmh ?? null;
+        const enriched = computeSpeedForensics({
+          claimedSpeedKmh: output.physicsAnalysis.speedForensics.claimedSpeedKmh,
+          physicsSpeedKmh: output.physicsAnalysis.speedForensics.physicsSpeedKmh,
+          ensembleSpeedKmh: ensembleResult.consensusSpeedKmh,
+          speedLimitKmh,
+          accidentSeverity: output.physicsAnalysis.accidentSeverity ?? 'minor',
+          occupantInjuryRisk: output.physicsAnalysis.occupantInjuryRisk ?? 'low',
+        });
+        output.physicsAnalysis.speedForensics = enriched;
+        ctx.log('Stage 7', `Speed forensics: claimed=${enriched.claimedSpeedKmh ?? 'N/A'} km/h, physics=${enriched.physicsSpeedKmh} km/h, deviation=${enriched.deviationPct ?? 'N/A'}% [${enriched.deviationClass}]${enriched.fraudSignal ? ' ⚠️ FRAUD_SIGNAL' : ''}`);
+      }
     } catch (ensembleErr) {
       ctx.log('Stage 7', `Speed ensemble failed (non-fatal): ${String(ensembleErr)}`);
       output.speedInferenceEnsemble = null;

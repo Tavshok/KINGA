@@ -914,6 +914,10 @@ export async function triggerAiAssessment(claimId: number) {
     // Numerical contract — guarantees non-zero speed/deltaV even when LLM returns 0
     physicsNumerical: (physicsAnalysis as any).physicsNumerical ?? null,
     velocityRange: (physicsAnalysis as any).velocityRange ?? null,
+    // Speed inference ensemble — 5-method consensus speed (Section 2.6)
+    speedInferenceEnsemble: (physicsAnalysis as any).speedInferenceEnsemble ?? null,
+    // Speed forensics — claimed vs physics-inferred dual-speed comparison (Section 2.7)
+    speedForensics: (physicsAnalysis as any).speedForensics ?? null,
   }) : null;
 
   // Build fraud indicators JSON
@@ -1332,6 +1336,66 @@ export async function triggerAiAssessment(claimId: number) {
   // Apply the global NaN sanitizer before passing to Drizzle.
   // This catches any numeric field that slipped through safeInt/safeFloat guards.
   await db.insert(aiAssessments).values(sanitizeNaNDeep(_rawInsertValues));
+
+  // ── ROUTE 1: Pipeline PDF extraction → panel_beater_quotes ─────────────────
+  // Every claim that has an extracted quote must have a panel_beater_quotes row
+  // so Section 3 Financial Validation always has data to render.
+  // This runs non-blocking (fire-and-forget) so a quote persistence failure
+  // never blocks the main assessment save.
+  if (documentedOriginalQuoteUsd && documentedOriginalQuoteUsd > 0) {
+    const { persistExtractedQuote } = await import('./persistExtractedQuote');
+    // Build line items from repairQuote.lineItems (Stage 3/4 extraction)
+    const extractedLineItems = (repairQuote?.lineItems ?? []).map((li: any) => ({
+      description: li.description ?? li.partName ?? 'Item',
+      partNumber: li.partNumber ?? null,
+      category: (['parts','labor','paint','diagnostic','sundries','other'].includes(li.category) ? li.category : 'parts') as any,
+      quantity: Number(li.quantity) || 1,
+      unitPrice: li.unitPriceCents ? li.unitPriceCents / 100 : (li.unitPrice ?? 0),
+      lineTotal: li.lineTotalCents ? li.lineTotalCents / 100 : (li.lineTotal ?? 0),
+      isRepair: Boolean(li.isRepair),
+      isReplacement: li.isReplacement !== false,
+      notes: li.notes ?? null,
+    }));
+    persistExtractedQuote({
+      claimId,
+      tenantId: claim.tenantId ?? null,
+      repairerName: panelBeaterName ?? 'Extracted Repairer',
+      quotedAmountUnits: documentedOriginalQuoteUsd,
+      labourCostUnits: documentedLabourCostUsd ?? null,
+      partsCostUnits: documentedPartsCostUsd ?? null,
+      currency: costAnalysis?.currency ?? 'USD',
+      lineItems: extractedLineItems,
+      source: 'pipeline_extracted',
+    }).then(async qid => {
+      if (qid) {
+        console.log(`[AI Assessment] Claim ${claimId}: Extracted quote persisted → panel_beater_quotes id=${qid}`);
+        // Patch costIntelligenceJson so the Quote Coverage badge shows correctly
+        try {
+          const db2 = await getDb();
+          if (db2) {
+            const latestRow = await db2.select({ id: aiAssessments.id, costIntelligenceJson: aiAssessments.costIntelligenceJson })
+              .from(aiAssessments)
+              .where(eq(aiAssessments.claimId, claimId))
+              .orderBy(desc(aiAssessments.createdAt))
+              .limit(1);
+            if (latestRow[0]) {
+              const ci = (() => { try { return JSON.parse(latestRow[0].costIntelligenceJson ?? '{}'); } catch { return {}; } })();
+              if (!ci.aiEstimateSource || ci.aiEstimateSource === 'insufficient_data') {
+                ci.aiEstimateSource = 'documented_quote';
+                ci.quoteCount = Math.max((ci.quoteCount ?? 0), 1);
+                await db2.update(aiAssessments)
+                  .set({ costIntelligenceJson: JSON.stringify(ci) })
+                  .where(eq(aiAssessments.id, latestRow[0].id));
+                console.log(`[AI Assessment] Claim ${claimId}: Patched costIntelligenceJson → documented_quote`);
+              }
+            }
+          }
+        } catch (patchErr) {
+          console.warn(`[AI Assessment] Claim ${claimId}: costIntelligenceJson patch failed (non-fatal):`, (patchErr as any)?.message);
+        }
+      }
+    }).catch(e => console.warn(`[AI Assessment] Claim ${claimId}: Quote persistence failed (non-fatal):`, e?.message));
+  }
 
   // Update claim status to complete + backfill vehicle info from extraction
   const finalFraudScore = safeFloat(fraudAnalysis ? fraudAnalysis.fraudRiskScore : 0) ?? 0;
