@@ -102,33 +102,48 @@ function inferCrushDepth(damageAnalysis: Stage6Output, claimRecord: ClaimRecord)
   }
 
   const parts = damageAnalysis.damagedParts;
-  const severities = parts.map(p => (p.severity ?? '').toLowerCase());
 
-  // 2. Severity-based baseline — most severe component drives the baseline
-  let baseline: number;
-  if (severities.includes('catastrophic'))      baseline = 0.38;
-  else if (severities.includes('severe'))       baseline = 0.22;
-  else if (severities.includes('moderate'))     baseline = 0.12;
-  else                                          baseline = 0.05;
+  // 2. Primary path: use maximum crushDepthM from Stage 6 LLM measurements.
+  //    These are direct numeric measurements extracted from damage photos —
+  //    no qualitative string lookup tables.
+  const visionDepths = parts
+    .map(p => p.crushDepthM)
+    .filter((d): d is number => typeof d === 'number' && d > 0);
+  if (visionDepths.length > 0) {
+    const maxVision = Math.max(...visionDepths);
+    // Structural displacement adds directly to crush depth
+    const maxStructuralDisp = Math.max(
+      0,
+      ...parts.map(p => p.structuralDisplacementM ?? 0)
+    );
+    const airbagFloor = claimRecord.accidentDetails.airbagDeployment ? 0.15 : 0;
+    const combined = maxVision + maxStructuralDisp;
+    return Math.min(0.55, Math.max(0.04, Math.max(combined, airbagFloor)));
+  }
 
-  // 3. Component count modifier: more components = wider / deeper deformation zone
-  //    Each component beyond 3 adds ~0.01 m, capped at +0.08 m
+  // 3. Fallback path: energy-derived crush depth from deformationEnergyJ.
+  //    E = 0.5 × k × C²  →  C = √(2E/k)  where k = 1,000,000 N/m (body panel stiffness)
+  const totalEnergyJ = parts
+    .map(p => p.deformationEnergyJ ?? 0)
+    .reduce((sum, e) => sum + e, 0);
+  if (totalEnergyJ > 0) {
+    const k = 1_000_000; // N/m — typical body panel stiffness
+    const energyDerived = Math.sqrt((2 * totalEnergyJ) / k);
+    const airbagFloor = claimRecord.accidentDetails.airbagDeployment ? 0.15 : 0;
+    return Math.min(0.55, Math.max(0.04, Math.max(energyDerived, airbagFloor)));
+  }
+
+  // 4. Last-resort fallback: component count and damage area geometry.
+  //    Used only when Stage 6 did not extract numeric measurements
+  //    (e.g., text-only claims with no damage photos).
   const componentBonus = Math.min(0.08, Math.max(0, (parts.length - 3) * 0.01));
-
-  // 4. Structural damage modifier: chassis/frame deformation requires significant energy
   const structuralBonus = damageAnalysis.structuralDamageDetected ? 0.06 : 0;
-
-  // 5. Damage area modifier: larger area implies more distributed deformation
-  //    Each 0.1 m² beyond 0.2 m² adds 0.008 m, capped at +0.04 m
   const damageArea = damageAnalysis.totalDamageArea ?? 0;
   const areaBonus = Math.min(0.04, Math.max(0, (damageArea - 0.2) / 0.1 * 0.008));
-
-  // 6. Airbag deployment implies at least moderate-speed impact
   const airbagFloor = claimRecord.accidentDetails.airbagDeployment ? 0.15 : 0;
-
-  const estimated = baseline + componentBonus + structuralBonus + areaBonus;
-
-  // Apply airbag floor and clamp to physically plausible range [0.04 m, 0.55 m]
+  // Area-based baseline: 0.10 m² ≈ 0.05 m crush, 0.30 m² ≈ 0.12 m, 0.60 m² ≈ 0.22 m
+  const areaBaseline = Math.min(0.38, Math.max(0.05, damageArea * 0.40));
+  const estimated = areaBaseline + componentBonus + structuralBonus + areaBonus;
   return Math.min(0.55, Math.max(0.04, Math.max(estimated, airbagFloor)));
 }
 
@@ -679,7 +694,7 @@ export async function runPhysicsStage(
       // Priority 2: Stage 6 aggregate (if > 0)
       // Priority 3: Geometric panel dimension calculation
       //   — uses vehicle body type + panel area lookup table + per-component
-      //     damage fraction (derived from severity + estimatedDepth + panelDeformation)
+      //     damage fraction (damageFractionEstimate from Stage 6 LLM, or severity-derived fallback)
       //   — this is a physics-grounded estimate, not a rough count-based proxy
       let resolvedDamageAreaM2: number | null = null;
       if (claimRecord.accidentDetails.totalDamageAreaM2 && claimRecord.accidentDetails.totalDamageAreaM2 > 0) {
@@ -699,12 +714,11 @@ export async function runPhysicsStage(
           damageAnalysis.damagedParts.map(p => ({
             name: p.name,
             severity: p.severity,
-            estimatedDepth: (p as any).estimatedDepth,
-            panelDeformation: (p as any).panelDeformation,
-            // Use LLM-extracted fraction if available (most accurate),
-            // otherwise fall back to severity-derived fraction
-            damageFractionOverride: typeof (p as any).damageFractionEstimate === 'number'
-              ? (p as any).damageFractionEstimate
+            panelDeformation: p.panelDeformation,
+            // Use LLM-extracted fraction if available (most accurate, direct numeric measurement),
+            // otherwise fall back to severity-derived fraction in vehiclePanelDimensions
+            damageFractionOverride: typeof p.damageFractionEstimate === 'number'
+              ? p.damageFractionEstimate
               : undefined,
           }))
         );
@@ -719,8 +733,28 @@ export async function runPhysicsStage(
       const airbagDeployed = claimRecord.accidentDetails.airbagDeployment === true;
       const seatbeltFired = (claimRecord.accidentDetails as any).seatbeltPretensioner === true;
 
-      // Vision crush depth: extracted from photo forensics if available
-      const visionCrushDepthM = (claimRecord as any)._forensicAnalysis?.visionCrushDepthM ?? null;
+      // Vision crush depth: take maximum crushDepthM across all Stage 6 components.
+      // This is a direct numeric measurement from the LLM, not a qualitative proxy.
+      // Fall back to _forensicAnalysis for backward compatibility with older pipeline runs.
+      const visionDepthsFromParts = damageAnalysis.damagedParts
+        .map(p => p.crushDepthM)
+        .filter((d): d is number => typeof d === 'number' && d > 0);
+      const visionCrushDepthM = visionDepthsFromParts.length > 0
+        ? Math.max(...visionDepthsFromParts)
+        : ((claimRecord as any)._forensicAnalysis?.visionCrushDepthM ?? null);
+
+      // Aggregate per-component numeric physics measurements from Stage 6
+      const totalDeformationEnergyJ = damageAnalysis.damagedParts
+        .map(p => p.deformationEnergyJ ?? 0)
+        .reduce((sum, e) => sum + e, 0) || null;
+
+      // Average visionConfidenceScore across components that reported it
+      const confidenceScores = damageAnalysis.damagedParts
+        .map(p => p.visionConfidenceScore)
+        .filter((s): s is number => typeof s === 'number' && s > 0);
+      const avgVisionConfidenceScore = confidenceScores.length > 0
+        ? confidenceScores.reduce((sum, s) => sum + s, 0) / confidenceScores.length
+        : null;
 
       const ensembleResult = runSpeedInferenceEnsemble({
         massKg: claimRecord.vehicle.massKg,
@@ -734,8 +768,10 @@ export async function runPhysicsStage(
         structuralDamage: claimRecord.accidentDetails.structuralDamage ?? damageAnalysis.structuralDamageDetected,
         airbagDeployment: airbagDeployed,
         seatbeltPretensioner: seatbeltFired,
+        totalDeformationEnergyJ,
+        visionConfidenceScore: avgVisionConfidenceScore,
       });
-      ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², airbag=${airbagDeployed}, seatbelt=${seatbeltFired}, visionDepth=${visionCrushDepthM}`);
+      ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², airbag=${airbagDeployed}, seatbelt=${seatbeltFired}, visionDepth=${visionCrushDepthM}, deformEnergy=${totalDeformationEnergyJ?.toFixed(0)}J, visionConf=${avgVisionConfidenceScore?.toFixed(1)}`);
       output.speedInferenceEnsemble = ensembleResult;
       ctx.log('Stage 7', `Speed ensemble: consensus=${ensembleResult.consensusSpeedKmh} km/h, methods=${ensembleResult.methodsRan}, confidence=${ensembleResult.overallConfidence}${ensembleResult.highDivergence ? ' [HIGH_DIVERGENCE]' : ''}`);
 

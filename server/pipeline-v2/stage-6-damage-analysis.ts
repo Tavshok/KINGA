@@ -160,26 +160,28 @@ const VISION_RESPONSE_SCHEMA = {
               },
               visible:       { type: "boolean" },
               notes:         { type: "string" },
-              // ── Depth inference fields (new) ──────────────────────────────
-              estimatedDepth: {
-                type: "string",
-                enum: ["superficial", "moderate", "severe"],
-              },
-              panelDeformation:    { type: "boolean" },
-              structuralInvolvement: {
-                type: "string",
-                enum: ["unlikely", "possible", "likely"],
-              },
-              // ── Panel area fraction ───────────────────────────────────────
-              // Estimate what fraction (0.0–1.0) of this panel's surface area
-              // is visibly damaged. Used for geometric damage area calculation.
-              // Examples: small scratch = 0.05, quarter dent = 0.25,
-              // half panel crushed = 0.55, full panel replacement needed = 1.0
+              // ── Absolute numeric physics measurements (SI units) ──────────────────────────────
+              // crushDepthM: maximum visible crush/deformation depth [0.0, 0.55 m]
+              //   0.0=no depth deformation, 0.01=scratch, 0.02-0.04=shallow dent,
+              //   0.05-0.10=moderate dent, 0.12-0.22=severe crumple, 0.25-0.45=catastrophic
+              crushDepthM: { type: "number" },
+              // deformationEnergyJ: energy absorbed by this component [0, 500000 J]
+              //   E = 0.5 × k × C² where k ≈ 1,000,000 N/m for body panels
+              //   0=cosmetic, 50-500=minor dent, 500-5000=moderate, 5000-30000=severe
+              deformationEnergyJ: { type: "number" },
+              // structuralDisplacementM: lateral/axial displacement of structural members [0, 0.30 m]
+              //   0.0=cosmetic only, 0.005-0.015=minor flex, 0.020-0.050=confirmed displacement
+              structuralDisplacementM: { type: "number" },
+              // visionConfidenceScore: LLM confidence in these measurements [0, 100]
+              //   90-100=clear view, 70-89=minor occlusion, 40-69=partial view, <40=poor quality
+              visionConfidenceScore: { type: "number" },
+              panelDeformation: { type: "boolean" },
+              // damageFractionEstimate: fraction of panel surface visibly damaged [0.0, 1.0]
               damageFractionEstimate: { type: "number" },
             },
             required: ["name", "location", "damageType", "severity", "visible",
-                       "estimatedDepth", "panelDeformation", "structuralInvolvement",
-                       "damageFractionEstimate"],
+                       "crushDepthM", "deformationEnergyJ", "structuralDisplacementM",
+                       "visionConfidenceScore", "panelDeformation", "damageFractionEstimate"],
             additionalProperties: false,
           },
         },
@@ -229,20 +231,49 @@ Side prefix rules:
   - Example: "LH Front Door", "RH Tail Lamp Assembly", "LH A-Pillar"
   - Use "Bonnet" (not Hood), "Boot Lid" (not Trunk), "Windscreen" (not Windshield)
 
-DEPTH INFERENCE — for each component also assess:
-  - estimatedDepth: "superficial" (paint/surface only), "moderate" (panel dented but not bent), "severe" (panel crushed, crumpled, or missing)
-  - panelDeformation: true if the panel shape is visibly distorted beyond a dent
-  - structuralInvolvement: "unlikely" (cosmetic only), "possible" (deep crumple near structural member), "likely" (visible frame/chassis/pillar damage)
-  - damageFractionEstimate: a number 0.0–1.0 representing what fraction of this panel's surface area is visibly damaged
-    (e.g. 0.05 = small scratch, 0.25 = quarter-panel dent, 0.55 = half-panel crushed, 1.0 = full panel replacement needed)
+ABSOLUTE NUMERIC MEASUREMENTS — for each component provide ALL of the following in SI units. Do NOT use qualitative labels.
+
+  crushDepthM [metres] — maximum visible crush/deformation depth on this component:
+    0.0   = no depth deformation (glass, trim, paint only)
+    0.01  = paint scratch / surface scuff
+    0.02-0.04 = shallow dent (fingertip depth)
+    0.05-0.10 = moderate dent (fist depth, panel shape changed)
+    0.12-0.22 = severe crumple (panel folded or buckled)
+    0.25-0.45 = catastrophic crush (panel missing or fully collapsed)
+
+  deformationEnergyJ [Joules] — energy absorbed by this component during impact:
+    0        = cosmetic / glass breakage only
+    50-500   = minor dent
+    500-5000 = moderate crumple
+    5000-30000 = severe crumple
+    >30000   = catastrophic structural crush
+    Reference: E = 0.5 × k × C² where k ≈ 1,000,000 N/m for body panels.
+
+  structuralDisplacementM [metres] — lateral or axial displacement of structural members:
+    0.0       = no structural displacement (cosmetic damage only)
+    0.005-0.015 = minor structural flex
+    0.020-0.050 = confirmed structural displacement
+    >0.050    = severe structural deformation
+    Set to 0.0 for all cosmetic, glass, and trim components.
+
+  visionConfidenceScore [0-100] — your confidence in the accuracy of these measurements:
+    90-100 = clear, unobstructed, high-resolution view
+    70-89  = good view with minor occlusion or blur
+    40-69  = partial view, some uncertainty
+    <40    = poor image quality, high uncertainty
+
+  panelDeformation [boolean] — true if the panel shape is visibly distorted beyond a simple dent.
+
+  damageFractionEstimate [0.0-1.0] — fraction of this panel's surface area visibly damaged:
+    0.05=small scratch, 0.25=quarter-panel dent, 0.55=half-panel crushed, 1.0=full replacement needed
 
 CRITICAL RULES:
   - If the image is blurry, dark, or partially obscured, STILL extract any visible damage
   - Do NOT return an empty components array unless absolutely no vehicle damage is visible
   - If uncertain about a component name, choose the closest authorised name from the list above
-  - Infer likely damage zones conservatively from visible evidence
   - Always return at least one component if any damage is visible
-  - Always populate estimatedDepth, panelDeformation, and structuralInvolvement for every component
+  - Always populate ALL numeric fields for every component; use 0.0 for fields with no deformation
+  - Never use qualitative strings in place of numbers
 Return ONLY a JSON object matching the schema — no prose, no markdown.`,
         },
         {
@@ -271,14 +302,19 @@ Even if the image quality is imperfect, extract whatever damage evidence is visi
     const rawContent = response.choices?.[0]?.message?.content || "{}";
     const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
     const parsed = JSON.parse(content);
-    const rawComponentsWithFraction: Array<{
+    const rawComponents: Array<{
       name: string; location: string; damageType: string;
       severity: string; visible: boolean; notes?: string;
-      estimatedDepth?: string; panelDeformation?: boolean;
-      structuralInvolvement?: string; damageFractionEstimate?: number;
+      panelDeformation?: boolean;
+      // Absolute numeric physics inputs (SI units)
+      crushDepthM?: number;
+      deformationEnergyJ?: number;
+      structuralDisplacementM?: number;
+      visionConfidenceScore?: number;
+      damageFractionEstimate?: number;
     }> = parsed.components || [];
     primaryResult = {
-      components: rawComponentsWithFraction.map((c, i) => ({
+      components: rawComponents.map((c, i) => ({
         // normalisePartName maps LLM output to canonical vocabulary — prevents hallucinated names
         name: normalisePartName(c.name || "Unknown Component"),
         location: c.location || "general",
@@ -286,12 +322,18 @@ Even if the image quality is imperfect, extract whatever damage evidence is visi
         severity: normaliseSeverity(c.severity),
         visible: c.visible !== false,
         distanceFromImpact: i * 0.3,
-        estimatedDepth: c.estimatedDepth,
         panelDeformation: c.panelDeformation,
-        structuralInvolvement: c.structuralInvolvement,
+        // ── Absolute numeric physics inputs — clamp to physically plausible ranges ──
+        crushDepthM: typeof c.crushDepthM === 'number'
+          ? Math.min(0.55, Math.max(0.0, c.crushDepthM)) : undefined,
+        deformationEnergyJ: typeof c.deformationEnergyJ === 'number'
+          ? Math.min(500000, Math.max(0, c.deformationEnergyJ)) : undefined,
+        structuralDisplacementM: typeof c.structuralDisplacementM === 'number'
+          ? Math.min(0.30, Math.max(0.0, c.structuralDisplacementM)) : undefined,
+        visionConfidenceScore: typeof c.visionConfidenceScore === 'number'
+          ? Math.min(100, Math.max(0, c.visionConfidenceScore)) : undefined,
         damageFractionEstimate: typeof c.damageFractionEstimate === 'number'
-          ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate))
-          : undefined,
+          ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate)) : undefined,
       })),
       confidence: parsed.confidence ?? "low",
     };

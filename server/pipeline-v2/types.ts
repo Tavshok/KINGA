@@ -689,6 +689,35 @@ export interface DamageAnalysisComponent {
   severity: AccidentSeverity;
   visible: boolean;
   distanceFromImpact: number;
+  panelDeformation?: boolean;
+  /**
+   * Maximum visible crush/deformation depth on this component [metres].
+   * Extracted directly by the Stage 6 vision LLM as an absolute measurement.
+   * Range: 0.0 (no depth deformation) – 0.55 (catastrophic crush).
+   */
+  crushDepthM?: number;
+  /**
+   * Deformation energy absorbed by this component during impact [Joules].
+   * Enables M5 Path B: direct energy balance v = √(2E/m).
+   * Range: 0 (cosmetic) – 500,000 (catastrophic structural).
+   */
+  deformationEnergyJ?: number;
+  /**
+   * Lateral or axial displacement of structural members [metres].
+   * 0.0 = cosmetic only; >0.020 = confirmed structural displacement.
+   */
+  structuralDisplacementM?: number;
+  /**
+   * LLM's self-reported confidence in the numeric measurements [0–100].
+   * Replaces the former qualitative 'high'/'medium'/'low' confidence string.
+   * Used to weight M5 in the speed inference ensemble.
+   */
+  visionConfidenceScore?: number;
+  /**
+   * Fraction of this panel's surface area visibly damaged [0.0–1.0].
+   * Used for geometric damage area calculation in Stage 7.
+   */
+  damageFractionEstimate?: number;
 }
 
 export interface DamageZone {
