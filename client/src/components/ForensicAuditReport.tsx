@@ -1924,6 +1924,158 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: 
             );
           })()}
 
+          {/* 2.4b Per-Component Physics Measurements */}
+          {(() => {
+            const damagedPartsRaw = (aiAssessment as any)?.damagedComponentsJson;
+            const damagedParts: any[] = (() => {
+              if (!damagedPartsRaw) return [];
+              try { return typeof damagedPartsRaw === 'string' ? JSON.parse(damagedPartsRaw) : (Array.isArray(damagedPartsRaw) ? damagedPartsRaw : []); } catch { return []; }
+            })();
+            // Only render if at least one component has numeric physics data
+            const hasPhysicsData = damagedParts.some((p: any) =>
+              p.crushDepthM != null || p.deformationEnergyJ != null || p.structuralDisplacementM != null || p.visionConfidenceScore != null
+            );
+            if (!hasPhysicsData || damagedParts.length === 0) return null;
+
+            // Severity colour mapping for bar fills
+            const sevColour = (sev: string) => {
+              const s = (sev ?? '').toLowerCase();
+              if (s === 'catastrophic') return 'var(--fp-critical-text)';
+              if (s === 'severe' || s === 'major') return 'var(--fp-locked-text)';
+              if (s === 'moderate') return 'var(--fp-warning-text)';
+              return 'var(--fp-success-text)';
+            };
+
+            // Max values for bar scaling
+            const maxCrush = Math.max(0.01, ...damagedParts.map((p: any) => p.crushDepthM ?? 0));
+            const maxEnergy = Math.max(1, ...damagedParts.map((p: any) => p.deformationEnergyJ ?? 0));
+
+            return (
+              <div className="mt-6">
+                <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>2.4b Per-Component Physics Measurements</p>
+                <p className="text-xs mb-3" style={{ color: 'var(--muted-foreground)' }}>
+                  Absolute numeric measurements extracted by AI vision analysis from damage photographs.
+                  All values are SI-unit measurements — no qualitative proxies.
+                </p>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', minWidth: 620 }}>
+                    <thead>
+                      <tr style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Component</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Crush Depth</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Deformation Energy</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Struct. Displacement</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Vision Confidence</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Damage Fraction</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {damagedParts.map((p: any, i: number) => {
+                        const crushCm = p.crushDepthM != null ? (p.crushDepthM * 100).toFixed(1) : null;
+                        const energyKj = p.deformationEnergyJ != null ? (p.deformationEnergyJ / 1000).toFixed(2) : null;
+                        const dispMm = p.structuralDisplacementM != null ? (p.structuralDisplacementM * 1000).toFixed(1) : null;
+                        const conf = p.visionConfidenceScore != null ? Math.round(p.visionConfidenceScore) : null;
+                        const frac = p.damageFractionEstimate != null ? Math.round(p.damageFractionEstimate * 100) : null;
+                        const colour = sevColour(p.severity ?? '');
+                        const crushBarPct = p.crushDepthM != null ? Math.min(100, (p.crushDepthM / maxCrush) * 100) : 0;
+                        const energyBarPct = p.deformationEnergyJ != null ? Math.min(100, (p.deformationEnergyJ / maxEnergy) * 100) : 0;
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--muted)' }}>
+                            <td style={{ padding: '6px 8px' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--foreground)' }}>{p.name}</span>
+                              {p.isStructural && (
+                                <span style={{ marginLeft: 4, fontSize: 9, color: 'var(--fp-critical-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>STRUCTURAL</span>
+                              )}
+                              <div style={{ fontSize: 10, color: colour, textTransform: 'capitalize', marginTop: 1 }}>{p.severity ?? '—'}</div>
+                            </td>
+                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                              {crushCm != null ? (
+                                <div>
+                                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--foreground)' }}>{crushCm} cm</span>
+                                  <div style={{ marginTop: 3, height: 4, borderRadius: 2, background: 'var(--muted)', width: 60, margin: '3px auto 0' }}>
+                                    <div style={{ height: 4, borderRadius: 2, background: colour, width: `${crushBarPct}%`, opacity: 0.8 }} />
+                                  </div>
+                                </div>
+                              ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                            </td>
+                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                              {energyKj != null ? (
+                                <div>
+                                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--foreground)' }}>{energyKj} kJ</span>
+                                  <div style={{ marginTop: 3, height: 4, borderRadius: 2, background: 'var(--muted)', width: 60, margin: '3px auto 0' }}>
+                                    <div style={{ height: 4, borderRadius: 2, background: colour, width: `${energyBarPct}%`, opacity: 0.8 }} />
+                                  </div>
+                                </div>
+                              ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                            </td>
+                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                              {dispMm != null ? (
+                                <span style={{ fontFamily: 'monospace', fontWeight: 700, color: parseFloat(dispMm) > 20 ? 'var(--fp-critical-text)' : parseFloat(dispMm) > 5 ? 'var(--fp-warning-text)' : 'var(--foreground)' }}>
+                                  {dispMm} mm
+                                </span>
+                              ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                            </td>
+                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                              {conf != null ? (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <div style={{ width: 32, height: 4, borderRadius: 2, background: 'var(--muted)', overflow: 'hidden' }}>
+                                    <div style={{ height: 4, borderRadius: 2, background: conf >= 70 ? 'var(--fp-success-text)' : conf >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-info-text)', width: `${conf}%` }} />
+                                  </div>
+                                  <span style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--foreground)' }}>{conf}%</span>
+                                </div>
+                              ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                            </td>
+                            <td style={{ padding: '6px 8px' }}>
+                              {frac != null ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--muted)', overflow: 'hidden', maxWidth: 50 }}>
+                                    <div style={{ height: 4, borderRadius: 2, background: colour, width: `${frac}%`, opacity: 0.8 }} />
+                                  </div>
+                                  <span style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--foreground)' }}>{frac}%</span>
+                                </div>
+                              ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Physics totals row */}
+                {(() => {
+                  const totalEnergyKj = damagedParts.reduce((s: number, p: any) => s + (p.deformationEnergyJ ?? 0), 0) / 1000;
+                  const maxCrushCm = Math.max(0, ...damagedParts.map((p: any) => p.crushDepthM ?? 0)) * 100;
+                  const avgConf = (() => {
+                    const scores = damagedParts.map((p: any) => p.visionConfidenceScore).filter((s: any) => s != null);
+                    return scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null;
+                  })();
+                  if (totalEnergyKj === 0 && maxCrushCm === 0) return null;
+                  return (
+                    <div className="mt-2 px-3 py-2 rounded flex flex-wrap gap-6" style={{ background: 'var(--muted)', border: '1px solid var(--border)', fontSize: 11 }}>
+                      <div>
+                        <span style={{ color: 'var(--muted-foreground)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Max Crush Depth</span>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--foreground)', fontSize: 14 }}>{maxCrushCm.toFixed(1)} cm</div>
+                        <div style={{ fontSize: 9, color: 'var(--muted-foreground)' }}>Used as M5 Campbell input</div>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--muted-foreground)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Total Deformation Energy</span>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--foreground)', fontSize: 14 }}>{totalEnergyKj.toFixed(2)} kJ</div>
+                        <div style={{ fontSize: 9, color: 'var(--muted-foreground)' }}>Used as M5 energy-balance input</div>
+                      </div>
+                      {avgConf != null && (
+                        <div>
+                          <span style={{ color: 'var(--muted-foreground)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Avg Vision Confidence</span>
+                          <div style={{ fontFamily: 'monospace', fontWeight: 700, color: avgConf >= 70 ? 'var(--fp-success-text)' : avgConf >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-info-text)', fontSize: 14 }}>{Math.round(avgConf)}%</div>
+                          <div style={{ fontSize: 9, color: 'var(--muted-foreground)' }}>M5 confidence weight: {((Math.min(90, Math.max(30, avgConf)) / 100)).toFixed(2)}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })()}
+
           {/* 2.5 Quote Coverage — Damage vs Quote Reconciliation */}
           {(() => {
             // Parse partsReconciliationJson from Stage 9
@@ -2082,11 +2234,11 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: 
             }));
             // Plain-English descriptions for each method (no formulas)
             const methodDescriptions: Record<string, string> = {
-              M1: 'Measures how far the metal deformed on impact and uses the vehicle\'s structural stiffness to calculate the energy absorbed.',
-              M2: 'Disabled — repair cost is not a reliable physics proxy across different markets.',
-              M3: 'Estimates the force of impact from the total area of damaged panels and the duration of contact.',
-              M4: 'If airbags or seatbelt pretensioners deployed, the vehicle was travelling above the activation threshold speed.',
-              M5: 'Uses AI analysis of damage photos to measure crush depth directly from the image.',
+              M1: 'Campbell formula: measures maximum crush depth from structural deformation and applies vehicle stiffness coefficient to derive impact speed.',
+              M2: 'Disabled \u2014 repair cost is not a reliable physics proxy across different markets.',
+              M3: 'Impulse method: estimates impact force from total damaged panel area and contact duration, then derives speed from momentum change.',
+              M4: 'Deployment threshold: airbag or seatbelt pretensioner activation confirms speed exceeded the system trigger threshold.',
+              M5: 'Vision deformation: AI measures crush depth and deformation energy directly from damage photos. Two independent paths (Campbell + energy balance) are cross-validated.',
             };
             const availableMethods = methods.filter((m: any) => m.available && m.estimateKmh != null);
             if (availableMethods.length === 0 && !(ensemble.consensusSpeedKmh ?? ensemble.consensusKmh)) return null;
@@ -2235,6 +2387,54 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: 
                                 ? (m.basis || methodDescriptions[m.id] || '')
                                 : (m.basis || methodDescriptions[m.id] || 'Insufficient data for this method')}
                             </p>
+                            {/* M5 dual-path cross-validation display */}
+                            {m.id === 'M5' && m.available && (() => {
+                              const pathA = (m as any).pathA;
+                              const pathB = (m as any).pathB;
+                              const crossVal = (m as any).crossValidation;
+                              if (!pathA && !pathB) return null;
+                              const agree = crossVal?.agreement === true;
+                              const agreeColour = agree ? 'var(--fp-success-text)' : 'var(--fp-warning-text)';
+                              const agreeBg = agree ? 'var(--fp-success-bg)' : 'var(--fp-warning-bg)';
+                              const agreeBorder = agree ? 'var(--fp-success-border)' : 'var(--fp-warning-border)';
+                              return (
+                                <div className="ml-6 mt-1.5 rounded" style={{ border: '1px solid var(--border)', background: 'var(--muted)', overflow: 'hidden', fontSize: 10 }}>
+                                  <div className="flex" style={{ borderBottom: '1px solid var(--border)' }}>
+                                    <div className="flex-1 px-2 py-1.5" style={{ borderRight: '1px solid var(--border)' }}>
+                                      <div style={{ color: 'var(--muted-foreground)', textTransform: 'uppercase', fontSize: 9, fontWeight: 600, letterSpacing: '0.05em' }}>Path A \u2014 Campbell</div>
+                                      {pathA?.crushDepthM != null && (
+                                        <div style={{ fontFamily: 'monospace', color: 'var(--foreground)' }}>C = {(pathA.crushDepthM * 100).toFixed(1)} cm</div>
+                                      )}
+                                      {pathA?.speedKmh != null && (
+                                        <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--foreground)' }}>{pathA.speedKmh.toFixed(0)} km/h</div>
+                                      )}
+                                      {!pathA && <div style={{ color: 'var(--muted-foreground)' }}>No crush depth data</div>}
+                                    </div>
+                                    <div className="flex-1 px-2 py-1.5">
+                                      <div style={{ color: 'var(--muted-foreground)', textTransform: 'uppercase', fontSize: 9, fontWeight: 600, letterSpacing: '0.05em' }}>Path B \u2014 Energy Balance</div>
+                                      {pathB?.deformationEnergyJ != null && (
+                                        <div style={{ fontFamily: 'monospace', color: 'var(--foreground)' }}>E = {(pathB.deformationEnergyJ / 1000).toFixed(2)} kJ</div>
+                                      )}
+                                      {pathB?.speedKmh != null && (
+                                        <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--foreground)' }}>{pathB.speedKmh.toFixed(0)} km/h</div>
+                                      )}
+                                      {!pathB && <div style={{ color: 'var(--muted-foreground)' }}>No energy data</div>}
+                                    </div>
+                                  </div>
+                                  <div className="px-2 py-1" style={{ background: agreeBg, borderTop: `1px solid ${agreeBorder}` }}>
+                                    <span style={{ color: agreeColour, fontWeight: 600 }}>
+                                      {agree ? '\u2713 Paths agree' : '! Paths diverge'}
+                                    </span>
+                                    {crossVal?.spreadKmh != null && (
+                                      <span style={{ color: 'var(--muted-foreground)', marginLeft: 6 }}>\u0394 {crossVal.spreadKmh.toFixed(0)} km/h</span>
+                                    )}
+                                    {crossVal?.confidenceUpgraded && (
+                                      <span style={{ color: 'var(--fp-success-text)', marginLeft: 6, fontSize: 9, fontWeight: 600 }}>CONFIDENCE UPGRADED</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       })}

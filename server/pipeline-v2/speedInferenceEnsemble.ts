@@ -319,39 +319,87 @@ function runVisionDeformation(
   collisionDirection: string | null | undefined,
   structuralDamage: boolean,
   airbagDeployment: boolean,
+  totalDeformationEnergyJ: number | null,
+  visionConfidenceScore: number | null,
 ): MethodEstimate {
-  if (!visionCrushDepthM || visionCrushDepthM <= 0 || massKg <= 0) {
+  const hasCrush = visionCrushDepthM != null && visionCrushDepthM > 0;
+  const hasEnergy = totalDeformationEnergyJ != null && totalDeformationEnergyJ > 0;
+
+  if (!hasCrush && !hasEnergy) {
     return {
-      method: 'VISION_DEFORMATION', label: 'Vision deformation estimate',
+      method: 'VISION_DEFORMATION', label: 'M5 Vision Deformation',
       speedKmh: null, isLowerBoundOnly: false,
       confidenceWeight: 0, confidence: 'LOW',
-      basis: 'No vision-extracted crush depth available',
+      basis: 'No vision-extracted crush depth or deformation energy available',
       ran: false,
     };
   }
 
-  // Same Campbell formula as M1, but using vision-extracted depth
   const stiffnessNm = getStiffnessKnm(bodyType) * 1000;
-  const energyJ = 0.5 * stiffnessNm * Math.pow(visionCrushDepthM, 2);
-  let speedMs = Math.sqrt((2 * energyJ) / massKg);
-  let speedKmh = speedMs * 3.6;
+  const dirMultiplier = getAccidentMultiplier(collisionDirection);
 
-  speedKmh *= getAccidentMultiplier(collisionDirection);
-  if (structuralDamage) speedKmh *= 1.12;
-  if (airbagDeployment) speedKmh = Math.max(speedKmh, 22);
+  // ── Path A: Campbell formula from vision-extracted crush depth ────────────
+  let pathA: { crushDepthM: number; speedKmh: number } | null = null;
+  if (hasCrush) {
+    const energyJ = 0.5 * stiffnessNm * Math.pow(visionCrushDepthM!, 2);
+    let speedMs = Math.sqrt((2 * energyJ) / massKg);
+    let speedKmh = speedMs * 3.6 * dirMultiplier;
+    if (structuralDamage) speedKmh *= 1.12;
+    if (airbagDeployment) speedKmh = Math.max(speedKmh, 22);
+    pathA = { crushDepthM: visionCrushDepthM!, speedKmh: Math.round(speedKmh) };
+  }
 
-  speedKmh = Math.round(speedKmh);
+  // ── Path B: Energy balance v = sqrt(2E/m) from total deformation energy ───
+  let pathB: { deformationEnergyJ: number; speedKmh: number } | null = null;
+  if (hasEnergy) {
+    let speedMs = Math.sqrt((2 * totalDeformationEnergyJ!) / massKg);
+    let speedKmh = speedMs * 3.6 * dirMultiplier;
+    if (structuralDamage) speedKmh *= 1.12;
+    if (airbagDeployment) speedKmh = Math.max(speedKmh, 22);
+    pathB = { deformationEnergyJ: totalDeformationEnergyJ!, speedKmh: Math.round(speedKmh) };
+  }
+
+  // ── Cross-validation: do both paths agree within 20%? ─────────────────────
+  let consensusSpeedKmh: number;
+  let crossValidation: { agreement: boolean; spreadKmh: number; confidenceUpgraded: boolean } | null = null;
+  if (pathA && pathB) {
+    const spread = Math.abs(pathA.speedKmh - pathB.speedKmh);
+    const avg = (pathA.speedKmh + pathB.speedKmh) / 2;
+    const agreement = spread / Math.max(1, avg) <= 0.20;
+    crossValidation = { agreement, spreadKmh: spread, confidenceUpgraded: agreement };
+    // Weighted average: Path A gets 60%, Path B gets 40%
+    consensusSpeedKmh = Math.round(pathA.speedKmh * 0.6 + pathB.speedKmh * 0.4);
+  } else {
+    consensusSpeedKmh = pathA?.speedKmh ?? pathB!.speedKmh;
+  }
+
+  // ── Dynamic confidence weight from visionConfidenceScore ─────────────────
+  // Score 0–100 maps to weight 0.30–0.90. Paths agreeing upgrades by +0.10.
+  const baseWeight = visionConfidenceScore != null
+    ? 0.30 + (Math.min(100, Math.max(0, visionConfidenceScore)) / 100) * 0.60
+    : 0.70;
+  const finalWeight = crossValidation?.confidenceUpgraded ? Math.min(0.90, baseWeight + 0.10) : baseWeight;
+  const confidence = finalWeight >= 0.75 ? 'HIGH' : finalWeight >= 0.55 ? 'MEDIUM' : 'LOW';
+
+  const basisParts: string[] = [];
+  if (pathA) basisParts.push(`Path A (Campbell): C=${(pathA.crushDepthM * 100).toFixed(1)} cm → ${pathA.speedKmh} km/h`);
+  if (pathB) basisParts.push(`Path B (Energy): E=${(pathB.deformationEnergyJ / 1000).toFixed(2)} kJ → ${pathB.speedKmh} km/h`);
+  if (crossValidation) basisParts.push(crossValidation.agreement ? `✓ Paths agree (Δ${crossValidation.spreadKmh} km/h)` : `! Paths diverge (Δ${crossValidation.spreadKmh} km/h)`);
 
   return {
     method: 'VISION_DEFORMATION',
-    label: 'Vision deformation estimate (Campbell from photo analysis)',
-    speedKmh,
+    label: 'M5 Vision Deformation (AI photo analysis)',
+    speedKmh: consensusSpeedKmh,
     isLowerBoundOnly: false,
-    confidenceWeight: 0.70,
-    confidence: 'MEDIUM',
-    basis: `Vision-extracted crush depth: ${(visionCrushDepthM * 100).toFixed(1)} cm from damage photos, stiffness: ${getStiffnessKnm(bodyType)} kN/m`,
+    confidenceWeight: parseFloat(finalWeight.toFixed(3)),
+    confidence,
+    basis: basisParts.join(' | '),
     ran: true,
-  };
+    // Expose sub-paths for report display
+    pathA: pathA ?? undefined,
+    pathB: pathB ?? undefined,
+    crossValidation: crossValidation ?? undefined,
+  } as any;
 }
 
 // ── Weighted consensus ────────────────────────────────────────────────────────
@@ -396,6 +444,10 @@ export interface EnsembleInput {
   airbagDeployment: boolean;
   /** Whether seatbelt pretensioner deployment was recorded */
   seatbeltPretensioner: boolean;
+  /** Total deformation energy across all components from Stage 6 (Joules) */
+  totalDeformationEnergyJ?: number | null;
+  /** Average vision confidence score (0–100) from Stage 6 LLM measurements */
+  visionConfidenceScore?: number | null;
 }
 
 export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceResult {
@@ -417,7 +469,11 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
   const m2 = runEnergyMomentum(partsCostUsd ?? null, massKg, collisionDirection, airbagDeployment);
   const m3 = runImpulse(totalDamageAreaM2 ?? null, m1CrushDepth, massKg, collisionDirection);
   const m4 = runDeploymentThreshold(airbagDeployment, seatbeltPretensioner);
-  const m5 = runVisionDeformation(visionCrushDepthM ?? null, massKg, bodyType, collisionDirection, structuralDamage, airbagDeployment);
+  const m5 = runVisionDeformation(
+    visionCrushDepthM ?? null, massKg, bodyType, collisionDirection, structuralDamage, airbagDeployment,
+    input.totalDeformationEnergyJ ?? null,
+    input.visionConfidenceScore ?? null,
+  );
 
   const methods: MethodEstimate[] = [m1, m2, m3, m4, m5];
 
