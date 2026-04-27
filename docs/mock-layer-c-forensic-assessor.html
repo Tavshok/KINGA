@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KINGA — Layer C: Forensic Intelligence Package & Assessor Reports</title>
+<style>
+  :root {
+    --navy: #0f1b2d; --accent: #2563eb; --teal: #0d9488;
+    --amber: #d97706; --red: #dc2626; --green: #16a34a;
+    --light: #f8fafc; --border: #e2e8f0; --muted: #64748b; --text: #1e293b;
+    --gold: #b45309; --purple: #7c3aed;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #e8edf2; color: var(--text); }
+
+  .nav { background: var(--navy); padding: 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .nav-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; }
+  .nav-brand { padding: 14px 24px; color: white; font-weight: 700; font-size: 16px; border-right: 1px solid rgba(255,255,255,0.1); white-space: nowrap; }
+  .nav-brand span { color: #60a5fa; }
+  .nav-tabs { display: flex; overflow-x: auto; }
+  .nav-tab { padding: 14px 18px; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 13px; font-weight: 500; border-bottom: 3px solid transparent; white-space: nowrap; }
+  .nav-tab:hover { color: white; background: rgba(255,255,255,0.05); }
+  .nav-tab.active { color: white; border-bottom-color: #60a5fa; background: rgba(255,255,255,0.08); }
+  .tier-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; margin-left: 6px; }
+  .badge-t3 { background: #b45309; color: white; }
+  .badge-free { background: #6b7280; color: white; }
+  .badge-pro { background: #2563eb; color: white; }
+  .badge-partner { background: #7c3aed; color: white; }
+
+  .page { display: none; max-width: 960px; margin: 32px auto; padding: 0 16px 60px; }
+  .page.active { display: block; }
+  .tier-note { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 12px 16px; margin-bottom: 24px; font-size: 13px; color: #0369a1; }
+  .tier-note strong { font-weight: 700; }
+
+  /* Report shell */
+  .report { background: white; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08); overflow: hidden; }
+  .report-header { padding: 28px 40px 20px; border-bottom: 3px solid var(--gold); }
+  .report-header.assessor-free { border-bottom-color: #6b7280; }
+  .report-header.assessor-pro { border-bottom-color: var(--accent); }
+  .report-header.assessor-partner { border-bottom-color: var(--purple); }
+  .report-header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .report-logo { font-size: 20px; font-weight: 800; color: var(--navy); }
+  .report-logo span { color: var(--accent); }
+  .tier-label { padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
+  .tier-label.t3 { background: #fef3c7; color: #92400e; }
+  .tier-label.free { background: #f3f4f6; color: #374151; }
+  .tier-label.pro { background: #dbeafe; color: #1d4ed8; }
+  .tier-label.partner { background: #ede9fe; color: #5b21b6; }
+  .report-title { font-size: 20px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+  .report-subtitle { font-size: 13px; color: var(--muted); }
+  .report-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding-top: 16px; border-top: 1px solid var(--border); margin-top: 16px; }
+  .meta-item label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); display: block; margin-bottom: 3px; }
+  .meta-item value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .report-body { padding: 0 40px 40px; }
+  .section { margin-top: 28px; }
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+  /* Forensic-specific styles */
+  .forensic-banner { background: linear-gradient(135deg, #1e3a5f 0%, #0f1b2d 100%); padding: 20px 40px; color: white; display: flex; align-items: center; gap: 16px; }
+  .forensic-banner-icon { font-size: 28px; }
+  .forensic-banner-text h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .forensic-banner-text p { font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.5; }
+  .forensic-banner-right { margin-left: auto; text-align: right; }
+  .forensic-banner-right .conf { font-size: 28px; font-weight: 800; color: #60a5fa; }
+  .forensic-banner-right .conf-label { font-size: 11px; color: rgba(255,255,255,0.5); }
+
+  /* Physics methods table */
+  .physics-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .physics-table th { background: #f8fafc; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 2px solid var(--border); }
+  .physics-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .physics-table tr:last-child td { border-bottom: none; }
+  .method-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; background: #dbeafe; color: #1d4ed8; }
+  .method-badge.active { background: #dcfce7; color: #166534; }
+  .method-badge.inactive { background: #f3f4f6; color: #6b7280; }
+  .speed-val { font-size: 15px; font-weight: 700; color: var(--navy); }
+  .conf-bar { display: flex; align-items: center; gap: 8px; }
+  .conf-track { flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; max-width: 100px; }
+  .conf-fill { height: 100%; border-radius: 3px; background: var(--teal); }
+  .conf-pct { font-size: 12px; font-weight: 600; color: var(--teal); }
+
+  /* Consensus box */
+  .consensus-box { background: #f0fdf4; border: 2px solid #86efac; border-radius: 4px; padding: 20px; display: flex; align-items: center; gap: 20px; }
+  .consensus-speed { font-size: 40px; font-weight: 800; color: var(--navy); }
+  .consensus-unit { font-size: 16px; color: var(--muted); margin-left: 4px; }
+  .consensus-range { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .consensus-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--green); margin-bottom: 6px; }
+  .consensus-methods { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+  /* Component physics table */
+  .comp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .comp-table th { background: #f8fafc; padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 2px solid var(--border); }
+  .comp-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .depth-bar { display: flex; align-items: center; gap: 6px; }
+  .depth-track { width: 60px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+  .depth-fill { height: 100%; border-radius: 3px; background: var(--amber); }
+  .depth-val { font-size: 11px; font-weight: 600; color: var(--amber); }
+
+  /* Fraud signal detail */
+  .fraud-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fraud-signal-card { padding: 12px 14px; border-radius: 4px; border: 1px solid var(--border); }
+  .fraud-signal-card.clear { background: #f0fdf4; border-color: #bbf7d0; }
+  .fraud-signal-card.flagged { background: #fffbeb; border-color: #fde68a; }
+  .fraud-signal-card.critical { background: #fef2f2; border-color: #fecaca; }
+  .signal-name { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .signal-value { font-size: 13px; font-weight: 600; }
+  .signal-value.clear { color: var(--green); }
+  .signal-value.flagged { color: var(--amber); }
+  .signal-value.critical { color: var(--red); }
+  .signal-basis { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
+  /* Validation workflow */
+  .validation-steps { display: flex; flex-direction: column; gap: 0; }
+  .val-step { display: flex; align-items: flex-start; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .val-step:last-child { border-bottom: none; }
+  .val-number { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+  .val-number.complete { background: var(--green); }
+  .val-number.pending { background: var(--amber); }
+  .val-content h4 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .val-content p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .val-status { margin-left: auto; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+  .val-status.complete { background: #dcfce7; color: #166534; }
+  .val-status.pending { background: #fef9c3; color: #854d0e; }
+  .val-status.required { background: #f3f4f6; color: #374151; }
+
+  /* Ownership declaration */
+  .ownership-box { background: #fef3c7; border: 1px solid #fde68a; border-radius: 4px; padding: 20px; }
+  .ownership-box h4 { font-size: 13px; font-weight: 700; color: #92400e; margin-bottom: 10px; }
+  .ownership-box p { font-size: 12px; color: #78350f; line-height: 1.6; }
+  .ownership-sig { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .sig-field { border-top: 1px solid #fde68a; padding-top: 8px; }
+  .sig-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #92400e; }
+  .sig-value { font-size: 12px; color: #78350f; margin-top: 4px; }
+
+  /* Assessor-specific */
+  .assessor-summary { font-size: 14px; line-height: 1.7; color: var(--text); background: var(--light); padding: 16px; border-radius: 4px; border-left: 3px solid var(--border); }
+  .assessor-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .assessor-table th { background: #f8fafc; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 2px solid var(--border); }
+  .assessor-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  .assessor-table tr:last-child td { border-bottom: none; }
+  .ai-badge { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 700; background: #ede9fe; color: #5b21b6; margin-left: 6px; }
+  .override-field { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 3px; padding: 4px 8px; font-size: 12px; color: #9a3412; display: inline-block; }
+
+  /* Locked panel */
+  .locked-panel { border: 1px dashed #cbd5e1; border-radius: 4px; padding: 24px; text-align: center; background: #f8fafc; margin-top: 28px; }
+  .locked-icon { font-size: 28px; margin-bottom: 8px; }
+  .locked-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .locked-desc { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+  .locked-btn { display: inline-block; padding: 8px 20px; background: var(--accent); color: white; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+  .report-footer { padding: 16px 40px; background: var(--light); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); }
+  .report-footer strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-brand">KINGA <span>AutoVerify</span></div>
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="showTab('forensic')">Forensic Intelligence Package <span class="tier-badge badge-t3">Tier 3</span></div>
+      <div class="nav-tab" onclick="showTab('afree')">Assessor Report <span class="tier-badge badge-free">Free</span></div>
+      <div class="nav-tab" onclick="showTab('apro')">Assessor Report <span class="tier-badge badge-pro">Professional</span></div>
+      <div class="nav-tab" onclick="showTab('apartner')">Assessor Report <span class="tier-badge badge-partner">Forensic Partner</span></div>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TIER 3 — FORENSIC INTELLIGENCE PACKAGE -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page active" id="page-forensic">
+  <div class="tier-note"><strong>Tier 3 — Forensic Intelligence Package:</strong> The working behind the Operational Claims Report. Physics reconstruction, per-component measurements, full fraud signal analysis, and the insurer validation workflow. KINGA provides the computation. The insurer's designated reviewer validates and owns the conclusion. This document never leaves the platform as a KINGA determination — it is the insurer's validated intelligence package.</div>
+  <div class="report">
+    <div class="report-header">
+      <div class="report-header-top">
+        <div class="report-logo">KINGA <span>AutoVerify</span></div>
+        <div class="tier-label t3">Tier 3 Prove — Forensic Intelligence Package</div>
+      </div>
+      <div class="report-title">Forensic Intelligence Package</div>
+      <div class="report-subtitle">Physics reconstruction · Fraud signal analysis · Insurer validation workflow · Claim KGA-2026-04-7841</div>
+      <div class="report-meta">
+        <div class="meta-item"><label>Claim Reference</label><value>KGA-2026-04-7841</value></div>
+        <div class="meta-item"><label>Vehicle</label><value>Toyota Hilux 2019 · AEJ 4421</value></div>
+        <div class="meta-item"><label>Pipeline Run</label><value>27 Apr 2026, 09:12:44</value></div>
+        <div class="meta-item"><label>Ensemble Confidence</label><value style="color:var(--green);font-weight:700;">HIGH — 87%</value></div>
+      </div>
+    </div>
+
+    <div class="forensic-banner">
+      <div class="forensic-banner-icon">🔬</div>
+      <div class="forensic-banner-text">
+        <h3>Physics Reconstruction Complete</h3>
+        <p>5-method speed inference ensemble · M5 dual-path cross-validation · Per-component deformation analysis · Full fraud signal breakdown</p>
+      </div>
+      <div class="forensic-banner-right">
+        <div class="conf">87%</div>
+        <div class="conf-label">Ensemble Confidence</div>
+      </div>
+    </div>
+
+    <div class="report-body">
+
+      <!-- Section 1: Speed Inference Ensemble -->
+      <div class="section">
+        <div class="section-title">Section 1 — Speed Inference Ensemble (5-Method)</div>
+        <div class="consensus-box" style="margin-bottom:16px;">
+          <div>
+            <div class="consensus-label">Consensus Speed Estimate</div>
+            <div><span class="consensus-speed">32</span><span class="consensus-unit">km/h</span></div>
+            <div class="consensus-range">Range: 28 – 36 km/h · 95% confidence interval</div>
+            <div class="consensus-methods">4 of 5 methods converged within ±15% · M5 dual-path cross-validated ✓</div>
+          </div>
+        </div>
+        <table class="physics-table">
+          <thead>
+            <tr><th>Method</th><th>Basis</th><th>Speed Estimate</th><th>Confidence</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>M1 — Campbell Crush</strong></td>
+              <td>Crush depth 18.3 cm · Panel stiffness 285 kN/m · Contact width 0.62 m</td>
+              <td><span class="speed-val">31 km/h</span></td>
+              <td><div class="conf-bar"><div class="conf-track"><div class="conf-fill" style="width:82%"></div></div><span class="conf-pct">82%</span></div></td>
+              <td><span class="method-badge active">Active</span></td>
+            </tr>
+            <tr>
+              <td><strong>M3 — Impulse-Momentum</strong></td>
+              <td>Vehicle mass 1,840 kg · Deformation energy 14.2 kJ · Restitution 0.12</td>
+              <td><span class="speed-val">34 km/h</span></td>
+              <td><div class="conf-bar"><div class="conf-track"><div class="conf-fill" style="width:74%"></div></div><span class="conf-pct">74%</span></div></td>
+              <td><span class="method-badge active">Active</span></td>
+            </tr>
+            <tr>
+              <td><strong>M4 — Airbag Threshold</strong></td>
+              <td>Airbag deployed · Threshold 28–35 km/h for this vehicle model</td>
+              <td><span class="speed-val">28–35 km/h</span></td>
+              <td><div class="conf-bar"><div class="conf-track"><div class="conf-fill" style="width:65%"></div></div><span class="conf-pct">65%</span></div></td>
+              <td><span class="method-badge active">Active</span></td>
+            </tr>
+            <tr>
+              <td><strong>M5 — Vision Deformation</strong></td>
+              <td style="font-size:12px;">
+                <strong>Path A (Campbell):</strong> Vision crush 17.8 cm → 30 km/h<br>
+                <strong>Path B (Energy):</strong> Deformation energy 13.8 kJ → 33 km/h<br>
+                <strong>Cross-validation:</strong> Agreement within 10% ✓ → Confidence upgraded to HIGH
+              </td>
+              <td><span class="speed-val">31 km/h</span></td>
+              <td><div class="conf-bar"><div class="conf-track"><div class="conf-fill" style="width:88%"></div></div><span class="conf-pct">88%</span></div></td>
+              <td><span class="method-badge active">Active · Dual-Path ✓</span></td>
+            </tr>
+            <tr>
+              <td><strong>M2 — Skid Marks</strong></td>
+              <td>No skid marks present in evidence photos</td>
+              <td><span style="color:var(--muted);font-size:13px;">N/A</span></td>
+              <td><span style="color:var(--muted);font-size:12px;">—</span></td>
+              <td><span class="method-badge inactive">Inactive</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section 2: Per-Component Physics -->
+      <div class="section">
+        <div class="section-title">Section 2 — Per-Component Physics Measurements</div>
+        <table class="comp-table">
+          <thead>
+            <tr><th>Component</th><th>Crush Depth</th><th>Deformation Energy</th><th>Structural Displacement</th><th>Vision Confidence</th><th>Damage Fraction</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Bonnet</strong></td>
+              <td><div class="depth-bar"><div class="depth-track"><div class="depth-fill" style="width:55%"></div></div><span class="depth-val">11.0 cm</span></div></td>
+              <td>4.2 kJ</td>
+              <td>0 mm</td>
+              <td>91%</td>
+              <td>45%</td>
+            </tr>
+            <tr>
+              <td><strong>Front Bumper Assembly</strong></td>
+              <td><div class="depth-bar"><div class="depth-track"><div class="depth-fill" style="width:91%"></div></div><span class="depth-val">18.3 cm</span></div></td>
+              <td>6.8 kJ</td>
+              <td>3.2 mm</td>
+              <td>87%</td>
+              <td>78%</td>
+            </tr>
+            <tr>
+              <td><strong>Left Headlamp</strong></td>
+              <td><div class="depth-bar"><div class="depth-track"><div class="depth-fill" style="width:20%"></div></div><span class="depth-val">4.1 cm</span></div></td>
+              <td>1.4 kJ</td>
+              <td>0 mm</td>
+              <td>84%</td>
+              <td>100%</td>
+            </tr>
+            <tr>
+              <td><strong>Radiator Grille</strong></td>
+              <td><div class="depth-bar"><div class="depth-track"><div class="depth-fill" style="width:12%"></div></div><span class="depth-val">2.4 cm</span></div></td>
+              <td>1.8 kJ</td>
+              <td>0 mm</td>
+              <td>79%</td>
+              <td>65%</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:10px;font-size:12px;color:var(--muted);background:var(--light);padding:10px 12px;border-radius:4px;">
+          <strong>Total Deformation Energy:</strong> 14.2 kJ · <strong>Max Crush Depth:</strong> 18.3 cm (Front Bumper) · <strong>Max Structural Displacement:</strong> 3.2 mm (Front Bumper — within elastic range, no permanent structural damage)
+        </div>
+      </div>
+
+      <!-- Section 3: Fraud Signal Analysis -->
+      <div class="section">
+        <div class="section-title">Section 3 — Full Fraud Signal Analysis (FCDI Score: 24/100)</div>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:28px;font-weight:800;color:var(--green);">24</span>
+          <div><div style="font-size:13px;font-weight:700;color:var(--green);">Low Fraud Risk</div><div style="font-size:12px;color:var(--muted);">FCDI score 0–100 · Below 40 = Low · 40–70 = Elevated · Above 70 = High</div></div>
+        </div>
+        <div class="fraud-detail">
+          <div class="fraud-signal-card clear">
+            <div class="signal-name">Damage-Incident Consistency</div>
+            <div class="signal-value clear">✓ Consistent</div>
+            <div class="signal-basis">Physics reconstruction confirms damage pattern is consistent with reported low-speed frontal impact. Crush depth and energy measurements align with reported scenario.</div>
+          </div>
+          <div class="fraud-signal-card clear">
+            <div class="signal-name">Claimant Behavioural Pattern</div>
+            <div class="signal-value clear">✓ No Anomalies</div>
+            <div class="signal-basis">First claim in 36 months. Reporting timeline is within normal range (2 days post-incident). No suspicious policy modifications in prior 90 days.</div>
+          </div>
+          <div class="fraud-signal-card flagged">
+            <div class="signal-name">Quote Pricing Integrity</div>
+            <div class="signal-value flagged">⚠ Anomaly Detected</div>
+            <div class="signal-basis">2 line items (front bumper +43.8%, radiator grille +93.8%) are above KINGA market rate. Consistent with panel beater overcharging, not claimant fraud.</div>
+          </div>
+          <div class="fraud-signal-card clear">
+            <div class="signal-name">Document Integrity</div>
+            <div class="signal-value clear">✓ Verified</div>
+            <div class="signal-basis">Police report metadata consistent with reported incident date and location. Panel beater registration verified. No document tampering indicators detected.</div>
+          </div>
+          <div class="fraud-signal-card clear">
+            <div class="signal-name">Network Relationship Analysis</div>
+            <div class="signal-value clear">✓ No Suspicious Links</div>
+            <div class="signal-basis">No known associations between claimant, panel beater, and prior fraud-flagged claims in the KINGA network database.</div>
+          </div>
+          <div class="fraud-signal-card clear">
+            <div class="signal-name">Policy Timing Analysis</div>
+            <div class="signal-value clear">✓ No Suspicious Timing</div>
+            <div class="signal-basis">Policy inception 14 months prior to incident. No coverage upgrades in the 90 days preceding the incident. No suspicious timing patterns.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Insurer Validation Workflow -->
+      <div class="section">
+        <div class="section-title">Section 4 — Insurer Validation Workflow</div>
+        <div class="ownership-box" style="margin-bottom:16px;">
+          <h4>⚠ Ownership & Liability Declaration</h4>
+          <p>This Forensic Intelligence Package is provided by KINGA AutoVerify AI as decision-support intelligence only. It does not constitute a legal determination, expert opinion, or regulatory submission. The insurer's designated reviewer is responsible for validating the analysis, exercising independent professional judgment, and owning all conclusions drawn from this package. Any submission to IPEC, a court, or a dispute resolution body is the insurer's document, supported by this analysis.</p>
+        </div>
+        <div class="validation-steps">
+          <div class="val-step">
+            <div class="val-number complete">1</div>
+            <div class="val-content">
+              <h4>AI Analysis Complete</h4>
+              <p>Pipeline ran successfully. All 5 speed inference methods attempted. 4 methods active. FCDI score computed. Per-component physics measurements extracted.</p>
+            </div>
+            <div class="val-status complete">Complete</div>
+          </div>
+          <div class="val-step">
+            <div class="val-number pending">2</div>
+            <div class="val-content">
+              <h4>Designated Reviewer Assignment</h4>
+              <p>Assign a qualified reviewer (internal assessor, senior claims manager, or contracted forensic engineer) to validate the physics reconstruction and fraud signal analysis.</p>
+            </div>
+            <div class="val-status pending">Pending Assignment</div>
+          </div>
+          <div class="val-step">
+            <div class="val-number" style="background:#94a3b8;">3</div>
+            <div class="val-content">
+              <h4>Reviewer Validation & Sign-off</h4>
+              <p>Reviewer examines the reconstruction, confirms or overrides KINGA's findings, and adds professional judgment notes. The validated package is then the insurer's document.</p>
+            </div>
+            <div class="val-status required">Awaiting Reviewer</div>
+          </div>
+          <div class="val-step">
+            <div class="val-number" style="background:#94a3b8;">4</div>
+            <div class="val-content">
+              <h4>Validated Package Export</h4>
+              <p>The reviewer-signed package can be exported as a PDF for IPEC submission, dispute resolution, or litigation support. KINGA's analysis is cited as supporting evidence, not as the determination.</p>
+            </div>
+            <div class="val-status required">Locked until Step 3</div>
+          </div>
+        </div>
+        <div class="ownership-sig" style="margin-top:16px;">
+          <div class="sig-field"><div class="sig-label">Reviewer Name</div><div class="sig-value">_________________________</div></div>
+          <div class="sig-field"><div class="sig-label">Designation</div><div class="sig-value">_________________________</div></div>
+          <div class="sig-field"><div class="sig-label">Date Validated</div><div class="sig-value">_________________________</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="report-footer">
+      <div><strong>KINGA AutoVerify AI</strong> · Tier 3 Prove · Forensic Intelligence Package · Claim KGA-2026-04-7841<br>Decision-support intelligence only. Not a legal determination. Insurer owns validated conclusions.</div>
+      <div style="text-align:right;">Generated 27 Apr 2026 · Pipeline v2.4.1</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ASSESSOR — FREE TIER -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-afree">
+  <div class="tier-note"><strong>Assessor Free Tier ($0/month):</strong> KINGA-assisted damage summary and component list only. AI suggestions are visible but not editable. No quote comparison, no fraud signals, no physics. Designed to demonstrate value and drive upgrade to Professional.</div>
+  <div class="report">
+    <div class="report-header assessor-free">
+      <div class="report-header-top">
+        <div class="report-logo">KINGA <span>AutoVerify</span></div>
+        <div class="tier-label free">Assessor Free — AI-Assisted Assessment</div>
+      </div>
+      <div class="report-title">Vehicle Damage Assessment — AI Assisted</div>
+      <div class="report-subtitle">Prepared with KINGA AutoVerify AI · Free Tier · For assessor review and sign-off</div>
+      <div class="report-meta">
+        <div class="meta-item"><label>Assessment Ref</label><value>ASS-2026-04-1142</value></div>
+        <div class="meta-item"><label>Assessor</label><value>R. Dube · Independent</value></div>
+        <div class="meta-item"><label>Vehicle</label><value>Toyota Hilux 2019 · AEJ 4421</value></div>
+        <div class="meta-item"><label>Date</label><value>27 April 2026</value></div>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <div class="section">
+        <div class="section-title">AI-Generated Damage Summary <span class="ai-badge">AI</span></div>
+        <div class="assessor-summary">
+          The vehicle sustained moderate front-end damage consistent with a low-speed frontal impact. The bonnet, front bumper assembly, and left headlamp unit are damaged. The radiator grille shows cracking consistent with the impact direction. No structural frame damage was identified. The engine bay is intact.
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--muted);background:#fff7ed;padding:10px 12px;border-radius:4px;border:1px solid #fed7aa;">
+          ⚠ Free Tier: AI summary is read-only. Upgrade to Professional to edit, annotate, and override AI findings.
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Damaged Components <span class="ai-badge">AI</span></div>
+        <table class="assessor-table">
+          <thead><tr><th>Component</th><th>AI Damage Assessment</th><th>Assessor Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Bonnet</td><td>Moderate deformation · Replacement required</td><td style="color:var(--muted);font-style:italic;">Locked — upgrade to edit</td></tr>
+            <tr><td>Front Bumper Assembly</td><td>Severe deformation · Replacement required</td><td style="color:var(--muted);font-style:italic;">Locked — upgrade to edit</td></tr>
+            <tr><td>Left Headlamp Unit</td><td>Shattered · Replacement required</td><td style="color:var(--muted);font-style:italic;">Locked — upgrade to edit</td></tr>
+            <tr><td>Radiator Grille</td><td>Cracked · Replacement required</td><td style="color:var(--muted);font-style:italic;">Locked — upgrade to edit</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="locked-panel">
+        <div class="locked-icon">💰</div>
+        <div class="locked-title">Quote Comparison & Cost Analysis — Professional Tier</div>
+        <div class="locked-desc">Upgrade to Professional to see KINGA's fair-value estimate per component, compare against panel beater quotes, and identify overpriced line items. Assessors on Professional save an average of 2.5 hours per assessment.</div>
+        <div class="locked-btn">Upgrade to Professional ($49/month) →</div>
+      </div>
+    </div>
+
+    <div class="report-footer">
+      <div><strong>KINGA AutoVerify AI</strong> · Assessor Free Tier · Assessment ASS-2026-04-1142</div>
+      <div>Generated 27 Apr 2026</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ASSESSOR — PROFESSIONAL TIER -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-apro">
+  <div class="tier-note"><strong>Assessor Professional ($49/month):</strong> Full AI-assisted assessment with editable fields, quote comparison with fair-value estimates, fraud risk colour band, and assessor sign-off workflow. KINGA AI suggestions are visible and overridable. The assessor's judgment is the final output.</div>
+  <div class="report">
+    <div class="report-header assessor-pro">
+      <div class="report-header-top">
+        <div class="report-logo">KINGA <span>AutoVerify</span></div>
+        <div class="tier-label pro">Assessor Professional — AI-Assisted Assessment</div>
+      </div>
+      <div class="report-title">Vehicle Damage Assessment — Professional</div>
+      <div class="report-subtitle">Prepared with KINGA AutoVerify AI · Professional Tier · Assessor-validated output</div>
+      <div class="report-meta">
+        <div class="meta-item"><label>Assessment Ref</label><value>ASS-2026-04-1142</value></div>
+        <div class="meta-item"><label>Assessor</label><value>R. Dube · Independent</value></div>
+        <div class="meta-item"><label>Vehicle</label><value>Toyota Hilux 2019 · AEJ 4421</value></div>
+        <div class="meta-item"><label>Date</label><value>27 April 2026</value></div>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <div class="section">
+        <div class="section-title">Fraud Risk Indicator <span class="ai-badge">AI</span></div>
+        <div style="display:flex;align-items:center;gap:16px;padding:14px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;">
+          <div style="width:12px;height:12px;border-radius:50%;background:var(--amber);flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#b45309;">Amber — Quote Pricing Anomaly</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">2 line items above market rate. No identity or behavioural fraud indicators. Recommend quote negotiation.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Damage Summary <span class="ai-badge">AI — Editable</span></div>
+        <div style="border:1px solid var(--accent);border-radius:4px;padding:14px;font-size:13px;line-height:1.7;color:var(--text);background:#f8faff;">
+          The vehicle sustained moderate front-end damage consistent with a low-speed frontal impact. The bonnet, front bumper assembly, and left headlamp unit are damaged. The radiator grille shows cracking consistent with the impact direction. No structural frame damage was identified. The engine bay is intact.
+          <div style="margin-top:8px;font-size:11px;color:var(--accent);">✏ Click to edit · AI suggestion shown · Your edits will appear in the final report</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Component Assessment & Quote Comparison <span class="ai-badge">AI</span></div>
+        <table class="assessor-table">
+          <thead><tr><th>Component</th><th>AI Assessment</th><th>Quoted</th><th>KINGA Fair Value</th><th>Delta</th><th>Assessor Override</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Bonnet</td>
+              <td>Replacement required</td>
+              <td>USD 680</td>
+              <td style="color:var(--teal);font-weight:600;">USD 620</td>
+              <td style="color:var(--amber);">+9.7%</td>
+              <td><span style="color:var(--muted);font-size:12px;">No override</span></td>
+            </tr>
+            <tr style="background:#fff7ed;">
+              <td>Front Bumper Assembly</td>
+              <td>Replacement required</td>
+              <td>USD 920</td>
+              <td style="color:var(--teal);font-weight:600;">USD 640</td>
+              <td style="color:var(--red);font-weight:600;">+43.8% ⚠</td>
+              <td><span class="override-field">Assessor: USD 700</span></td>
+            </tr>
+            <tr>
+              <td>Left Headlamp Unit</td>
+              <td>Replacement required</td>
+              <td>USD 480</td>
+              <td style="color:var(--teal);font-weight:600;">USD 450</td>
+              <td style="color:var(--amber);">+6.7%</td>
+              <td><span style="color:var(--muted);font-size:12px;">No override</span></td>
+            </tr>
+            <tr style="background:#fff7ed;">
+              <td>Radiator Grille</td>
+              <td>Replacement required</td>
+              <td>USD 310</td>
+              <td style="color:var(--teal);font-weight:600;">USD 160</td>
+              <td style="color:var(--red);font-weight:600;">+93.8% ⚠</td>
+              <td><span class="override-field">Assessor: USD 180</span></td>
+            </tr>
+            <tr>
+              <td>Labour (8 hrs)</td>
+              <td>Standard labour rate</td>
+              <td>USD 450</td>
+              <td style="color:var(--teal);font-weight:600;">USD 440</td>
+              <td style="color:var(--green);">+2.3%</td>
+              <td><span style="color:var(--muted);font-size:12px;">No override</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="display:flex;justify-content:flex-end;gap:24px;padding:12px 0;font-size:13px;">
+          <div style="text-align:right;"><div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Panel Beater Quote</div><div style="font-weight:700;color:var(--navy);">USD 2,840</div></div>
+          <div style="text-align:right;"><div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Assessor Recommendation</div><div style="font-weight:700;color:var(--teal);">USD 2,390</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Assessor Sign-Off</div>
+        <div style="background:var(--light);border:1px solid var(--border);border-radius:4px;padding:16px;">
+          <div style="font-size:13px;color:var(--text);margin-bottom:12px;">I confirm that I have reviewed this assessment, examined the evidence, and that the findings above represent my professional judgment. Where I have overridden KINGA AI suggestions, my overrides are documented above.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+            <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Assessor Name</div><div style="border-top:1px solid var(--border);margin-top:24px;padding-top:4px;font-size:12px;color:var(--muted);">R. Dube</div></div>
+            <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Registration No.</div><div style="border-top:1px solid var(--border);margin-top:24px;padding-top:4px;font-size:12px;color:var(--muted);">ZIA-2021-0447</div></div>
+            <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Date</div><div style="border-top:1px solid var(--border);margin-top:24px;padding-top:4px;font-size:12px;color:var(--muted);">27 April 2026</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="locked-panel">
+        <div class="locked-icon">🔬</div>
+        <div class="locked-title">Physics-Backed Damage Validation — Forensic Partner Tier</div>
+        <div class="locked-desc">Upgrade to Forensic Partner to access physics reconstruction for every assessment, speed inference ensemble results, and the ability to produce litigation-ready forensic packages. Forensic Partners earn a referral fee on every Tier 3 insurer claim they support.</div>
+        <div class="locked-btn" style="background:var(--purple);">Upgrade to Forensic Partner ($149/month) →</div>
+      </div>
+    </div>
+
+    <div class="report-footer">
+      <div><strong>KINGA AutoVerify AI</strong> · Assessor Professional · Assessment ASS-2026-04-1142 · Assessor: R. Dube</div>
+      <div>Generated 27 Apr 2026</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ASSESSOR — FORENSIC PARTNER TIER -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-apartner">
+  <div class="tier-note"><strong>Assessor Forensic Partner ($149/month):</strong> Full Professional tier plus physics-backed damage validation, speed inference summary, and the ability to produce a validated forensic package for Tier 3 insurer clients. Forensic Partners earn a referral fee on every forensic package they validate. They are the human expert layer that transfers legal ownership from KINGA to the insurer.</div>
+  <div class="report">
+    <div class="report-header assessor-partner">
+      <div class="report-header-top">
+        <div class="report-logo">KINGA <span>AutoVerify</span></div>
+        <div class="tier-label partner">Assessor Forensic Partner — Physics-Validated Assessment</div>
+      </div>
+      <div class="report-title">Vehicle Damage Assessment — Forensic Partner</div>
+      <div class="report-subtitle">Prepared with KINGA AutoVerify AI · Forensic Partner Tier · Physics-validated · Assessor-certified</div>
+      <div class="report-meta">
+        <div class="meta-item"><label>Assessment Ref</label><value>ASS-2026-04-1142</value></div>
+        <div class="meta-item"><label>Assessor</label><value>R. Dube · ZIA-2021-0447</value></div>
+        <div class="meta-item"><label>Vehicle</label><value>Toyota Hilux 2019 · AEJ 4421</value></div>
+        <div class="meta-item"><label>Physics Confidence</label><value style="color:var(--green);font-weight:700;">HIGH — 87%</value></div>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <div class="section">
+        <div class="section-title">Physics-Backed Damage Validation <span class="ai-badge">AI + Assessor Certified</span></div>
+        <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:4px;padding:16px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px;">✓ Damage Confirmed Consistent — Physics Validated</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:12px;">
+            <div style="text-align:center;"><div style="font-size:22px;font-weight:800;color:var(--navy);">32 km/h</div><div style="font-size:11px;color:var(--muted);">Consensus Speed Estimate</div></div>
+            <div style="text-align:center;"><div style="font-size:22px;font-weight:800;color:var(--navy);">18.3 cm</div><div style="font-size:11px;color:var(--muted);">Max Crush Depth</div></div>
+            <div style="text-align:center;"><div style="font-size:22px;font-weight:800;color:var(--navy);">14.2 kJ</div><div style="font-size:11px;color:var(--muted);">Total Deformation Energy</div></div>
+          </div>
+        </div>
+        <div style="font-size:13px;line-height:1.7;color:var(--text);background:var(--light);padding:14px;border-radius:4px;border-left:3px solid var(--green);">
+          Physics reconstruction using a 5-method speed inference ensemble (4 methods active) confirms that the observed damage pattern is consistent with a low-speed frontal impact at approximately 32 km/h (range 28–36 km/h). The M5 Vision Deformation dual-path cross-validation (Path A: 30 km/h, Path B: 33 km/h) confirms agreement within 10%. No evidence of pre-existing damage or staged incident was detected. The assessor has reviewed and certifies these findings.
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Component Assessment, Physics & Quote Comparison</div>
+        <table class="assessor-table">
+          <thead><tr><th>Component</th><th>Crush Depth</th><th>Energy (kJ)</th><th>Quoted</th><th>KINGA Fair Value</th><th>Assessor Rec.</th></tr></thead>
+          <tbody>
+            <tr><td>Bonnet</td><td>11.0 cm</td><td>4.2</td><td>USD 680</td><td style="color:var(--teal);font-weight:600;">USD 620</td><td>USD 620</td></tr>
+            <tr style="background:#fff7ed;"><td>Front Bumper Assembly</td><td>18.3 cm</td><td>6.8</td><td>USD 920</td><td style="color:var(--teal);font-weight:600;">USD 640</td><td><span class="override-field">USD 700</span></td></tr>
+            <tr><td>Left Headlamp Unit</td><td>4.1 cm</td><td>1.4</td><td>USD 480</td><td style="color:var(--teal);font-weight:600;">USD 450</td><td>USD 450</td></tr>
+            <tr style="background:#fff7ed;"><td>Radiator Grille</td><td>2.4 cm</td><td>1.8</td><td>USD 310</td><td style="color:var(--teal);font-weight:600;">USD 160</td><td><span class="override-field">USD 180</span></td></tr>
+            <tr><td>Labour (8 hrs)</td><td>—</td><td>—</td><td>USD 450</td><td style="color:var(--teal);font-weight:600;">USD 440</td><td>USD 440</td></tr>
+          </tbody>
+        </table>
+        <div style="display:flex;justify-content:flex-end;gap:24px;padding:12px 0;font-size:13px;">
+          <div style="text-align:right;"><div style="color:var(--muted);font-size:11px;text-transform:uppercase;">Panel Beater Quote</div><div style="font-weight:700;color:var(--navy);">USD 2,840</div></div>
+          <div style="text-align:right;"><div style="color:var(--muted);font-size:11px;text-transform:uppercase;">Assessor Certified Recommendation</div><div style="font-weight:700;color:var(--teal);">USD 2,390</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Forensic Partner Certification</div>
+        <div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:4px;padding:16px;">
+          <div style="font-size:13px;color:var(--text);margin-bottom:12px;line-height:1.6;">I, the undersigned, certify that I have reviewed the KINGA AutoVerify AI physics reconstruction and forensic analysis for this claim, examined the photographic evidence and supporting documents, and that the findings in this assessment represent my independent professional judgment. I accept responsibility for the conclusions drawn from this analysis. This assessment may be submitted to the insurer as a validated forensic assessment in support of their claims decision.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+            <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--purple);">Assessor Name</div><div style="border-top:1px solid #ddd6fe;margin-top:24px;padding-top:4px;font-size:12px;">R. Dube</div></div>
+            <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--purple);">ZIA Registration</div><div style="border-top:1px solid #ddd6fe;margin-top:24px;padding-top:4px;font-size:12px;">ZIA-2021-0447</div></div>
+            <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--purple);">Date Certified</div><div style="border-top:1px solid #ddd6fe;margin-top:24px;padding-top:4px;font-size:12px;">27 April 2026</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="report-footer">
+      <div><strong>KINGA AutoVerify AI</strong> · Assessor Forensic Partner · Assessment ASS-2026-04-1142 · Certified by R. Dube (ZIA-2021-0447)</div>
+      <div>Generated 27 Apr 2026 · Physics-validated</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(tier) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tier).classList.add('active');
+  event.target.closest('.nav-tab').classList.add('active');
+}
+</script>
+</body>
+</html>

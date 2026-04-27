@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KINGA — Claim Intake: Claimant Portal & Insurer Intake</title>
+<style>
+  :root {
+    --navy: #0f1b2d; --accent: #2563eb; --teal: #0d9488;
+    --amber: #d97706; --red: #dc2626; --green: #16a34a;
+    --light: #f8fafc; --border: #e2e8f0; --muted: #64748b; --text: #1e293b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #e8edf2; color: var(--text); }
+
+  .nav { background: var(--navy); padding: 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .nav-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; }
+  .nav-brand { padding: 14px 24px; color: white; font-weight: 700; font-size: 16px; border-right: 1px solid rgba(255,255,255,0.1); white-space: nowrap; }
+  .nav-brand span { color: #60a5fa; }
+  .nav-tabs { display: flex; overflow-x: auto; }
+  .nav-tab { padding: 14px 20px; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 13px; font-weight: 500; border-bottom: 3px solid transparent; white-space: nowrap; }
+  .nav-tab:hover { color: white; background: rgba(255,255,255,0.05); }
+  .nav-tab.active { color: white; border-bottom-color: #60a5fa; background: rgba(255,255,255,0.08); }
+
+  .page { display: none; max-width: 1100px; margin: 32px auto; padding: 0 16px 60px; }
+  .page.active { display: block; }
+
+  /* Source channel badge */
+  .source-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .source-claimant { background: #dbeafe; color: #1d4ed8; }
+  .source-insurer { background: #dcfce7; color: #166534; }
+  .source-assessor { background: #ede9fe; color: #5b21b6; }
+
+  /* Portal header */
+  .portal-header { background: linear-gradient(135deg, #1e3a5f 0%, #0f1b2d 100%); border-radius: 8px 8px 0 0; padding: 28px 36px; color: white; margin-bottom: 0; }
+  .portal-header h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .portal-header p { font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.5; }
+  .portal-header .progress-bar { margin-top: 20px; }
+  .progress-steps { display: flex; gap: 0; }
+  .progress-step { flex: 1; text-align: center; position: relative; }
+  .progress-step::after { content: ''; position: absolute; top: 13px; left: 50%; width: 100%; height: 2px; background: rgba(255,255,255,0.2); z-index: 0; }
+  .progress-step:last-child::after { display: none; }
+  .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; margin: 0 auto 6px; position: relative; z-index: 1; }
+  .step-dot.done { background: var(--teal); color: white; }
+  .step-dot.active { background: #60a5fa; color: white; box-shadow: 0 0 0 4px rgba(96,165,250,0.3); }
+  .step-dot.pending { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.4); }
+  .step-label { font-size: 10px; color: rgba(255,255,255,0.5); }
+  .step-label.active { color: white; font-weight: 600; }
+
+  /* Form card */
+  .form-card { background: white; border-radius: 0 0 8px 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); overflow: hidden; }
+  .form-body { padding: 28px 36px; }
+  .form-section { margin-bottom: 28px; }
+  .form-section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field label { font-size: 12px; font-weight: 600; color: var(--text); }
+  .form-field .required { color: var(--red); }
+  .form-input { padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; color: var(--text); background: white; }
+  .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+  .form-input.filled { background: #f8fafc; border-color: #cbd5e1; }
+  .form-select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; color: var(--text); background: white; appearance: none; }
+  .form-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Upload zone */
+  .upload-zone { border: 2px dashed var(--border); border-radius: 6px; padding: 24px; text-align: center; background: var(--light); cursor: pointer; }
+  .upload-zone:hover { border-color: var(--accent); background: #eff6ff; }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .upload-hint { font-size: 12px; color: var(--muted); }
+  .upload-types { display: flex; gap: 6px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
+  .upload-type { padding: 3px 8px; background: white; border: 1px solid var(--border); border-radius: 10px; font-size: 11px; color: var(--muted); }
+
+  /* Uploaded files */
+  .uploaded-files { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .uploaded-file { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: white; border: 1px solid var(--border); border-radius: 4px; }
+  .file-icon { font-size: 16px; }
+  .file-name { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; }
+  .file-size { font-size: 11px; color: var(--muted); }
+  .file-status { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 10px; }
+  .file-status.ok { background: #dcfce7; color: #166534; }
+  .file-status.processing { background: #fef9c3; color: #854d0e; }
+
+  /* AI preview panel */
+  .ai-preview { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 16px; margin-top: 16px; }
+  .ai-preview-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .ai-preview-header span { font-size: 13px; font-weight: 700; color: #0369a1; }
+  .ai-preview-header .ai-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .ai-preview-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #e0f2fe; font-size: 12px; }
+  .ai-preview-item:last-child { border-bottom: none; }
+  .ai-check { color: var(--teal); font-weight: 700; }
+  .ai-warn { color: var(--amber); font-weight: 700; }
+
+  /* Rerun panel */
+  .rerun-panel { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; padding: 16px; margin-top: 16px; }
+  .rerun-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .rerun-header span { font-size: 13px; font-weight: 700; color: #9a3412; }
+  .rerun-body { font-size: 12px; color: #78350f; line-height: 1.6; }
+  .rerun-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 8px 16px; background: var(--amber); color: white; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+  /* Claim queue table */
+  .queue-table { width: 100%; border-collapse: collapse; font-size: 13px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .queue-table th { background: #f8fafc; padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 2px solid var(--border); }
+  .queue-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .queue-table tr:last-child td { border-bottom: none; }
+  .queue-table tr:hover td { background: #f8fafc; }
+  .status-pill { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .status-pending { background: #fef9c3; color: #854d0e; }
+  .status-processing { background: #dbeafe; color: #1d4ed8; }
+  .status-complete { background: #dcfce7; color: #166534; }
+  .status-review { background: #fce7f3; color: #9d174d; }
+  .action-btn { padding: 5px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+  .action-btn.primary { background: var(--accent); color: white; }
+  .action-btn.secondary { background: var(--light); color: var(--text); border: 1px solid var(--border); }
+
+  /* Info box */
+  .info-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 12px 16px; font-size: 13px; color: #0369a1; margin-bottom: 20px; }
+  .info-box strong { font-weight: 700; }
+
+  .form-footer { padding: 16px 36px; background: var(--light); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .btn-primary { padding: 10px 24px; background: var(--accent); color: white; border-radius: 4px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-secondary { padding: 10px 24px; background: white; color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn-teal { padding: 10px 24px; background: var(--teal); color: white; border-radius: 4px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-header h2 { font-size: 18px; font-weight: 700; color: var(--navy); }
+  .section-header p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .card { background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-header h3 { font-size: 14px; font-weight: 700; color: var(--navy); }
+  .card-body { padding: 20px; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stat-card { background: white; border-radius: 8px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 800; color: var(--navy); }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .stat-delta { font-size: 12px; font-weight: 600; }
+  .stat-delta.up { color: var(--green); }
+  .stat-delta.down { color: var(--red); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-brand">KINGA <span>AutoVerify</span></div>
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="showTab('claimant')">🧑 Claimant Portal — Submit Claim</div>
+      <div class="nav-tab" onclick="showTab('insurer-intake')">🏢 Insurer — Claim Intake & Queue</div>
+      <div class="nav-tab" onclick="showTab('rerun')">🔄 Insurer — Add Documents & Rerun</div>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- CLAIMANT PORTAL — SUBMIT CLAIM -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page active" id="page-claimant">
+  <div class="info-box"><strong>Claimant Portal:</strong> A claimant submits their own claim directly. KINGA runs AI pre-screening in real time as documents are uploaded — detecting completeness, photo quality, and document validity before the claim reaches the insurer's queue. The insurer sees a pre-screened, AI-enriched claim with a source tag of "Claimant Portal."</div>
+
+  <div class="portal-header">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <h1>Submit Your Motor Insurance Claim</h1>
+        <p>Complete all steps below. KINGA AI will pre-screen your documents as you upload them. Your insurer will be notified automatically once you submit.</p>
+      </div>
+      <span class="source-badge source-claimant">📱 Claimant Portal</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-steps">
+        <div class="progress-step"><div class="step-dot done">✓</div><div class="step-label">Incident Details</div></div>
+        <div class="progress-step"><div class="step-dot done">✓</div><div class="step-label">Vehicle Info</div></div>
+        <div class="progress-step"><div class="step-dot active">3</div><div class="step-label active">Documents & Photos</div></div>
+        <div class="progress-step"><div class="step-dot pending">4</div><div class="step-label">Review & Submit</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <div class="form-body">
+
+      <!-- Step 3: Documents & Photos -->
+      <div class="form-section">
+        <div class="form-section-title">Step 3 — Documents & Photos</div>
+
+        <!-- Police Report -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Police Accident Report <span class="required">*</span></div>
+          <div class="upload-zone">
+            <div class="upload-icon">📄</div>
+            <div class="upload-title">Upload Police Report</div>
+            <div class="upload-hint">Drag and drop or click to browse</div>
+            <div class="upload-types"><span class="upload-type">PDF</span><span class="upload-type">JPG</span><span class="upload-type">PNG</span></div>
+          </div>
+          <div class="uploaded-files">
+            <div class="uploaded-file">
+              <span class="file-icon">📄</span>
+              <span class="file-name">police-report-ZRP-2026-04-4421.pdf</span>
+              <span class="file-size">1.2 MB</span>
+              <span class="file-status ok">✓ Verified</span>
+            </div>
+          </div>
+          <div class="ai-preview">
+            <div class="ai-preview-header"><div class="ai-dot"></div><span>KINGA AI Pre-Screen — Police Report</span></div>
+            <div class="ai-preview-item"><span class="ai-check">✓</span> Report date: 24 April 2026 — matches incident date provided</div>
+            <div class="ai-preview-item"><span class="ai-check">✓</span> Vehicle registration AEJ 4421 — matches policy</div>
+            <div class="ai-preview-item"><span class="ai-check">✓</span> Document metadata consistent — no tampering indicators</div>
+          </div>
+        </div>
+
+        <!-- Damage Photos -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Vehicle Damage Photos <span class="required">*</span> <span style="font-size:11px;color:var(--muted);font-weight:400;">(minimum 4 photos — front, rear, both sides)</span></div>
+          <div class="upload-zone">
+            <div class="upload-icon">📷</div>
+            <div class="upload-title">Upload Damage Photos</div>
+            <div class="upload-hint">Clear photos from multiple angles. KINGA AI will analyse damage in real time.</div>
+            <div class="upload-types"><span class="upload-type">JPG</span><span class="upload-type">PNG</span><span class="upload-type">HEIC</span><span class="upload-type">Max 10MB each</span></div>
+          </div>
+          <div class="uploaded-files">
+            <div class="uploaded-file"><span class="file-icon">🖼</span><span class="file-name">damage-front.jpg</span><span class="file-size">3.4 MB</span><span class="file-status ok">✓ Good quality</span></div>
+            <div class="uploaded-file"><span class="file-icon">🖼</span><span class="file-name">damage-front-left.jpg</span><span class="file-size">2.8 MB</span><span class="file-status ok">✓ Good quality</span></div>
+            <div class="uploaded-file"><span class="file-icon">🖼</span><span class="file-name">damage-bumper-close.jpg</span><span class="file-size">4.1 MB</span><span class="file-status ok">✓ Good quality</span></div>
+            <div class="uploaded-file"><span class="file-icon">🖼</span><span class="file-name">damage-interior.jpg</span><span class="file-size">2.2 MB</span><span class="file-status processing">⟳ Analysing...</span></div>
+          </div>
+          <div class="ai-preview">
+            <div class="ai-preview-header"><div class="ai-dot"></div><span>KINGA AI Pre-Screen — Damage Photos (3 of 4 analysed)</span></div>
+            <div class="ai-preview-item"><span class="ai-check">✓</span> Front-end damage detected — bonnet, bumper, left headlamp</div>
+            <div class="ai-preview-item"><span class="ai-check">✓</span> Damage pattern consistent with frontal impact</div>
+            <div class="ai-preview-item"><span class="ai-warn">⚠</span> Interior photo still processing — please wait</div>
+          </div>
+        </div>
+
+        <!-- Panel Beater Quote -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Repair Quotation <span style="font-size:11px;color:var(--muted);font-weight:400;">(optional — you can add this later)</span></div>
+          <div class="upload-zone">
+            <div class="upload-icon">💰</div>
+            <div class="upload-title">Upload Repair Quote</div>
+            <div class="upload-hint">From a registered panel beater. Handwritten quotes are accepted — KINGA will digitise them.</div>
+            <div class="upload-types"><span class="upload-type">PDF</span><span class="upload-type">JPG</span><span class="upload-type">PNG</span><span class="upload-type">Handwritten OK</span></div>
+          </div>
+        </div>
+
+        <!-- Additional Documents -->
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Additional Supporting Documents</div>
+          <div class="upload-zone">
+            <div class="upload-icon">📎</div>
+            <div class="upload-title">Upload Any Additional Documents</div>
+            <div class="upload-hint">Driver's licence, other party details, witness statements, medical reports, etc.</div>
+            <div class="upload-types"><span class="upload-type">PDF</span><span class="upload-type">JPG</span><span class="upload-type">PNG</span><span class="upload-type">DOCX</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Claimant declaration -->
+      <div class="form-section">
+        <div class="form-section-title">Declaration</div>
+        <div style="background:var(--light);border:1px solid var(--border);border-radius:4px;padding:14px;font-size:13px;color:var(--text);line-height:1.6;">
+          I declare that the information provided in this claim is true and accurate to the best of my knowledge. I understand that providing false information may result in my claim being rejected and may constitute insurance fraud.
+        </div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="declare" style="width:16px;height:16px;">
+          <label for="declare" style="font-size:13px;color:var(--text);">I confirm the above declaration</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <button class="btn-secondary">← Back</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-secondary">Save & Continue Later</button>
+        <button class="btn-primary">Review & Submit Claim →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- INSURER — CLAIM INTAKE & QUEUE -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-insurer-intake">
+  <div class="info-box"><strong>Insurer Claim Intake:</strong> The claims manager sees all incoming claims in one queue, regardless of source — claimant portal, insurer-submitted, or assessor-referred. Each claim is tagged with its source channel and its AI pre-screen status. The insurer can also submit a new claim directly from this view.</div>
+
+  <div class="section-header">
+    <div>
+      <h2>Claims Intake Queue</h2>
+      <p>All incoming claims — claimant portal, insurer submission, and assessor referral</p>
+    </div>
+    <button class="btn-teal">+ Submit New Claim</button>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-label">New Today</div><div class="stat-value">14</div><div class="stat-sub">Awaiting assignment</div></div>
+    <div class="stat-card"><div class="stat-label">In Processing</div><div class="stat-value">31</div><div class="stat-sub">AI pipeline running</div></div>
+    <div class="stat-card"><div class="stat-label">Needs Review</div><div class="stat-value">8</div><div class="stat-sub" style="color:var(--amber);">Fraud flags or anomalies</div></div>
+    <div class="stat-card"><div class="stat-label">Completed Today</div><div class="stat-value">22</div><div class="stat-delta up">↑ 4 vs yesterday</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Incoming Claims</h3>
+      <div style="display:flex;gap:8px;">
+        <select class="form-select" style="font-size:12px;padding:6px 10px;">
+          <option>All Sources</option>
+          <option>Claimant Portal</option>
+          <option>Insurer Submitted</option>
+          <option>Assessor Referred</option>
+        </select>
+        <select class="form-select" style="font-size:12px;padding:6px 10px;">
+          <option>All Statuses</option>
+          <option>Pending</option>
+          <option>Processing</option>
+          <option>Needs Review</option>
+          <option>Complete</option>
+        </select>
+      </div>
+    </div>
+    <table class="queue-table">
+      <thead>
+        <tr>
+          <th>Claim Ref</th>
+          <th>Source</th>
+          <th>Claimant / Vehicle</th>
+          <th>Submitted</th>
+          <th>AI Pre-Screen</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>KGA-2026-04-7841</strong></td>
+          <td><span class="source-badge source-claimant">📱 Claimant Portal</span></td>
+          <td><div style="font-size:13px;font-weight:600;">T. Moyo</div><div style="font-size:12px;color:var(--muted);">Toyota Hilux · AEJ 4421</div></td>
+          <td style="font-size:12px;color:var(--muted);">27 Apr, 09:04</td>
+          <td><div style="font-size:12px;color:var(--green);font-weight:600;">✓ Complete</div><div style="font-size:11px;color:var(--muted);">4 photos · Police report · Quote</div></td>
+          <td><span class="status-pill status-processing">Processing</span></td>
+          <td><button class="action-btn primary">View</button></td>
+        </tr>
+        <tr>
+          <td><strong>KGA-2026-04-7840</strong></td>
+          <td><span class="source-badge source-insurer">🏢 Insurer Submitted</span></td>
+          <td><div style="font-size:13px;font-weight:600;">F. Ncube</div><div style="font-size:12px;color:var(--muted);">Honda Fit · ACB 2210</div></td>
+          <td style="font-size:12px;color:var(--muted);">27 Apr, 08:51</td>
+          <td><div style="font-size:12px;color:var(--green);font-weight:600;">✓ Complete</div><div style="font-size:11px;color:var(--muted);">6 photos · Police report · Quote</div></td>
+          <td><span class="status-pill status-complete">Complete</span></td>
+          <td><button class="action-btn primary">View Report</button></td>
+        </tr>
+        <tr style="background:#fffbeb;">
+          <td><strong>KGA-2026-04-7839</strong></td>
+          <td><span class="source-badge source-claimant">📱 Claimant Portal</span></td>
+          <td><div style="font-size:13px;font-weight:600;">S. Dlamini</div><div style="font-size:12px;color:var(--muted);">Mazda CX-5 · ADM 8874</div></td>
+          <td style="font-size:12px;color:var(--muted);">27 Apr, 08:22</td>
+          <td><div style="font-size:12px;color:var(--amber);font-weight:600;">⚠ Incomplete</div><div style="font-size:11px;color:var(--muted);">Missing police report</div></td>
+          <td><span class="status-pill status-review">Needs Docs</span></td>
+          <td><button class="action-btn secondary">Request Docs</button></td>
+        </tr>
+        <tr style="background:#fef2f2;">
+          <td><strong>KGA-2026-04-7838</strong></td>
+          <td><span class="source-badge source-insurer">🏢 Insurer Submitted</span></td>
+          <td><div style="font-size:13px;font-weight:600;">P. Mutasa</div><div style="font-size:12px;color:var(--muted);">Nissan Navara · ABZ 1102</div></td>
+          <td style="font-size:12px;color:var(--muted);">26 Apr, 16:44</td>
+          <td><div style="font-size:12px;color:var(--green);font-weight:600;">✓ Complete</div><div style="font-size:11px;color:var(--muted);">5 photos · All docs present</div></td>
+          <td><span class="status-pill status-review">Fraud Flag ⚠</span></td>
+          <td><button class="action-btn primary" style="background:var(--red);">Review Now</button></td>
+        </tr>
+        <tr>
+          <td><strong>KGA-2026-04-7837</strong></td>
+          <td><span class="source-badge source-assessor">🔍 Assessor Referred</span></td>
+          <td><div style="font-size:13px;font-weight:600;">B. Chirwa</div><div style="font-size:12px;color:var(--muted);">VW Polo · AEF 5521</div></td>
+          <td style="font-size:12px;color:var(--muted);">26 Apr, 14:30</td>
+          <td><div style="font-size:12px;color:var(--green);font-weight:600;">✓ Complete</div><div style="font-size:11px;color:var(--muted);">Assessor R. Dube · Certified</div></td>
+          <td><span class="status-pill status-complete">Complete</span></td>
+          <td><button class="action-btn primary">View Report</button></td>
+        </tr>
+        <tr>
+          <td><strong>KGA-2026-04-7836</strong></td>
+          <td><span class="source-badge source-claimant">📱 Claimant Portal</span></td>
+          <td><div style="font-size:13px;font-weight:600;">M. Sithole</div><div style="font-size:12px;color:var(--muted);">Toyota Corolla · ACD 3341</div></td>
+          <td style="font-size:12px;color:var(--muted);">26 Apr, 11:15</td>
+          <td><div style="font-size:12px;color:var(--green);font-weight:600;">✓ Complete</div><div style="font-size:11px;color:var(--muted);">3 photos · Police report · No quote yet</div></td>
+          <td><span class="status-pill status-pending">Pending</span></td>
+          <td><button class="action-btn primary">Assign</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- INSURER — ADD DOCUMENTS & RERUN -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-rerun">
+  <div class="info-box"><strong>Add Documents & Rerun AI Assessment:</strong> At any point after the initial pipeline run, the insurer or assessor can upload additional documents (new photos, a revised quote, a supplementary police report, medical records) and trigger a fresh AI assessment. KINGA reruns only the affected pipeline stages — it does not reprocess the entire claim from scratch.</div>
+
+  <div class="section-header">
+    <div>
+      <h2>Claim KGA-2026-04-7841 — Add Documents & Rerun</h2>
+      <p>Toyota Hilux 2019 · AEJ 4421 · T. Moyo · Submitted via Claimant Portal · 27 Apr 2026</p>
+    </div>
+    <span class="source-badge source-claimant">📱 Claimant Portal</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Current Assessment Status</h3></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;">
+        <div style="text-align:center;padding:12px;background:var(--light);border-radius:4px;">
+          <div style="font-size:20px;font-weight:800;color:var(--navy);">32 km/h</div>
+          <div style="font-size:11px;color:var(--muted);">Speed Estimate</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:var(--light);border-radius:4px;">
+          <div style="font-size:20px;font-weight:800;color:var(--amber);">24</div>
+          <div style="font-size:11px;color:var(--muted);">Fraud Score (Low)</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:var(--light);border-radius:4px;">
+          <div style="font-size:20px;font-weight:800;color:var(--teal);">USD 2,390</div>
+          <div style="font-size:11px;color:var(--muted);">Recommended Payout</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:var(--light);border-radius:4px;">
+          <div style="font-size:20px;font-weight:800;color:var(--green);">87%</div>
+          <div style="font-size:11px;color:var(--muted);">Ensemble Confidence</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;font-size:12px;color:var(--muted);background:var(--light);padding:10px 12px;border-radius:4px;">
+        Last pipeline run: 27 Apr 2026, 09:12:44 · Pipeline v2.4.1 · 4 photos processed · Police report verified · Quote analysed
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Upload Additional Documents</h3></div>
+    <div class="card-body">
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Additional Damage Photos</div>
+        <div class="upload-zone">
+          <div class="upload-icon">📷</div>
+          <div class="upload-title">Upload Additional Photos</div>
+          <div class="upload-hint">New angles, close-ups, or photos of previously undocumented damage. KINGA will merge with existing analysis.</div>
+          <div class="upload-types"><span class="upload-type">JPG</span><span class="upload-type">PNG</span><span class="upload-type">HEIC</span></div>
+        </div>
+        <div class="uploaded-files">
+          <div class="uploaded-file"><span class="file-icon">🖼</span><span class="file-name">damage-undercarriage.jpg</span><span class="file-size">3.8 MB</span><span class="file-status processing">⟳ New — pending rerun</span></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Revised or Additional Repair Quote</div>
+        <div class="upload-zone">
+          <div class="upload-icon">💰</div>
+          <div class="upload-title">Upload Revised Quote</div>
+          <div class="upload-hint">If the panel beater has submitted a revised quotation or a second quote for comparison.</div>
+          <div class="upload-types"><span class="upload-type">PDF</span><span class="upload-type">JPG</span><span class="upload-type">Handwritten OK</span></div>
+        </div>
+        <div class="uploaded-files">
+          <div class="uploaded-file"><span class="file-icon">📄</span><span class="file-name">revised-quote-panelbeater-2.pdf</span><span class="file-size">0.8 MB</span><span class="file-status processing">⟳ New — pending rerun</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Other Supporting Documents</div>
+        <div class="upload-zone">
+          <div class="upload-icon">📎</div>
+          <div class="upload-title">Upload Any Other Documents</div>
+          <div class="upload-hint">Supplementary police report, medical records, witness statements, other party insurance details.</div>
+          <div class="upload-types"><span class="upload-type">PDF</span><span class="upload-type">JPG</span><span class="upload-type">PNG</span><span class="upload-type">DOCX</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rerun-panel">
+    <div class="rerun-header"><span>🔄 Ready to Rerun AI Assessment</span></div>
+    <div class="rerun-body">
+      2 new documents have been uploaded (1 additional photo, 1 revised quote). KINGA will rerun the affected pipeline stages only:<br><br>
+      <strong>Stages to rerun:</strong> Stage 6 (Damage Analysis — merge new photo) · Stage 8 (Quote Reconciliation — compare revised quote) · Stage 9 (Fraud Scoring — update with new evidence) · Stage 10 (Report Assembly)<br><br>
+      <strong>Stages not affected:</strong> Stage 1–5 (Document extraction, vehicle lookup, incident reconstruction) · Stage 7 (Physics — no new crush depth data)<br><br>
+      Estimated rerun time: <strong>45–90 seconds</strong>. The updated report will replace the current assessment. The previous version will be archived in the audit trail.
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <div class="rerun-btn">🔄 Rerun AI Assessment Now</div>
+      <div class="rerun-btn" style="background:var(--teal);">📋 Rerun & Notify Claimant</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  event.target.closest('.nav-tab').classList.add('active');
+}
+</script>
+</body>
+</html>

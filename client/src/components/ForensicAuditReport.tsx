@@ -1556,7 +1556,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
 
 // ─── Section 2: Technical Forensics ──────────────────────────────────────────
 
-function Section2Physics({ claim, aiAssessment, enforcement, quotes }: { claim: any; aiAssessment: any; enforcement: any; quotes?: any[] }) {
+function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = fmtUsd }: { claim: any; aiAssessment: any; enforcement: any; quotes?: any[]; fmtMoney?: (n: number | null | undefined) => string }) {
   const e = enforcement;
   const pe = e?.physicsEstimate;
   // claimRecord0 — needed for panel beater name and repair cost total in 2.5

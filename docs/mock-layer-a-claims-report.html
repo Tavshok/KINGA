@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KINGA — Layer A: Operational Claims Report (All Tiers)</title>
+<style>
+  :root {
+    --kinga-navy: #0f1b2d;
+    --kinga-blue: #1a3a5c;
+    --kinga-accent: #2563eb;
+    --kinga-teal: #0d9488;
+    --kinga-amber: #d97706;
+    --kinga-red: #dc2626;
+    --kinga-green: #16a34a;
+    --kinga-light: #f8fafc;
+    --kinga-border: #e2e8f0;
+    --kinga-muted: #64748b;
+    --kinga-text: #1e293b;
+    --starter-color: #7c3aed;
+    --tier1-color: #2563eb;
+    --tier2-color: #0d9488;
+    --tier3-color: #b45309;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #e8edf2; color: var(--kinga-text); }
+
+  /* Navigation */
+  .nav { background: var(--kinga-navy); padding: 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .nav-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; gap: 0; }
+  .nav-brand { padding: 14px 24px; color: white; font-weight: 700; font-size: 16px; letter-spacing: 0.5px; border-right: 1px solid rgba(255,255,255,0.1); }
+  .nav-brand span { color: #60a5fa; }
+  .nav-tabs { display: flex; flex: 1; }
+  .nav-tab { padding: 14px 20px; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 13px; font-weight: 500; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; }
+  .nav-tab:hover { color: white; background: rgba(255,255,255,0.05); }
+  .nav-tab.active { color: white; border-bottom-color: #60a5fa; background: rgba(255,255,255,0.08); }
+  .nav-tab .tier-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+  .badge-starter { background: #7c3aed; color: white; }
+  .badge-t1 { background: #2563eb; color: white; }
+  .badge-t2 { background: #0d9488; color: white; }
+  .badge-t3 { background: #b45309; color: white; }
+
+  /* Page sections */
+  .page { display: none; max-width: 900px; margin: 32px auto; padding: 0 16px 60px; }
+  .page.active { display: block; }
+
+  /* Report document */
+  .report { background: white; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08); overflow: hidden; }
+
+  /* Report header */
+  .report-header { padding: 32px 40px 24px; border-bottom: 3px solid var(--kinga-accent); position: relative; }
+  .report-header.starter { border-bottom-color: var(--starter-color); }
+  .report-header.tier1 { border-bottom-color: var(--tier1-color); }
+  .report-header.tier2 { border-bottom-color: var(--tier2-color); }
+  .report-header.tier3 { border-bottom-color: var(--tier3-color); }
+  .report-header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+  .report-logo { font-size: 22px; font-weight: 800; color: var(--kinga-navy); letter-spacing: -0.5px; }
+  .report-logo span { color: var(--kinga-accent); }
+  .tier-label { padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
+  .tier-label.starter { background: #ede9fe; color: #5b21b6; }
+  .tier-label.tier1 { background: #dbeafe; color: #1d4ed8; }
+  .tier-label.tier2 { background: #ccfbf1; color: #0f766e; }
+  .tier-label.tier3 { background: #fef3c7; color: #92400e; }
+  .report-title { font-size: 20px; font-weight: 700; color: var(--kinga-navy); margin-bottom: 4px; }
+  .report-subtitle { font-size: 13px; color: var(--kinga-muted); }
+  .report-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding-top: 16px; border-top: 1px solid var(--kinga-border); }
+  .meta-item label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--kinga-muted); display: block; margin-bottom: 3px; }
+  .meta-item value { font-size: 13px; font-weight: 600; color: var(--kinga-text); }
+
+  /* Decision banner */
+  .decision-banner { margin: 0; padding: 20px 40px; display: flex; align-items: center; gap: 20px; }
+  .decision-banner.approve { background: #f0fdf4; border-left: 4px solid var(--kinga-green); }
+  .decision-banner.review { background: #fffbeb; border-left: 4px solid var(--kinga-amber); }
+  .decision-banner.reject { background: #fef2f2; border-left: 4px solid var(--kinga-red); }
+  .decision-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .decision-icon.approve { background: #dcfce7; }
+  .decision-icon.review { background: #fef9c3; }
+  .decision-icon.reject { background: #fee2e2; }
+  .decision-text h3 { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
+  .decision-text h3.approve { color: var(--kinga-green); }
+  .decision-text h3.review { color: var(--kinga-amber); }
+  .decision-text h3.reject { color: var(--kinga-red); }
+  .decision-text p { font-size: 13px; color: var(--kinga-muted); line-height: 1.5; }
+  .decision-amount { margin-left: auto; text-align: right; }
+  .decision-amount label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--kinga-muted); display: block; margin-bottom: 4px; }
+  .decision-amount value { font-size: 26px; font-weight: 800; color: var(--kinga-navy); }
+
+  /* Report body */
+  .report-body { padding: 0 40px 40px; }
+  .section { margin-top: 28px; }
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--kinga-muted); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--kinga-border); }
+
+  /* Damage summary */
+  .damage-summary { font-size: 14px; line-height: 1.7; color: var(--kinga-text); background: var(--kinga-light); padding: 16px; border-radius: 4px; border-left: 3px solid var(--kinga-border); }
+
+  /* Fraud band */
+  .fraud-band { display: flex; align-items: center; gap: 16px; padding: 14px 16px; border-radius: 4px; }
+  .fraud-band.green { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .fraud-band.amber { background: #fffbeb; border: 1px solid #fde68a; }
+  .fraud-band.red { background: #fef2f2; border: 1px solid #fecaca; }
+  .fraud-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .fraud-dot.green { background: var(--kinga-green); }
+  .fraud-dot.amber { background: var(--kinga-amber); }
+  .fraud-dot.red { background: var(--kinga-red); }
+  .fraud-band-text { font-size: 13px; font-weight: 600; }
+  .fraud-band-text.green { color: #15803d; }
+  .fraud-band-text.amber { color: #b45309; }
+  .fraud-band-text.red { color: #b91c1c; }
+  .fraud-band-sub { font-size: 12px; color: var(--kinga-muted); margin-top: 2px; }
+
+  /* Quote verdict */
+  .quote-verdict { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 4px; background: var(--kinga-light); border: 1px solid var(--kinga-border); }
+  .quote-verdict-badge { padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; }
+  .badge-overpriced { background: #fef2f2; color: #b91c1c; }
+  .badge-fair { background: #f0fdf4; color: #15803d; }
+  .badge-underpriced { background: #fffbeb; color: #b45309; }
+  .quote-verdict-detail { font-size: 13px; color: var(--kinga-text); }
+  .quote-verdict-delta { margin-left: auto; font-size: 16px; font-weight: 700; }
+  .delta-neg { color: var(--kinga-red); }
+  .delta-pos { color: var(--kinga-green); }
+
+  /* Repair vs write-off */
+  .recommendation-row { display: flex; gap: 12px; }
+  .rec-card { flex: 1; padding: 14px 16px; border-radius: 4px; border: 2px solid var(--kinga-border); }
+  .rec-card.selected { border-color: var(--kinga-accent); background: #eff6ff; }
+  .rec-card-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--kinga-muted); margin-bottom: 6px; }
+  .rec-card-value { font-size: 18px; font-weight: 700; color: var(--kinga-navy); margin-bottom: 4px; }
+  .rec-card-reason { font-size: 12px; color: var(--kinga-muted); line-height: 1.5; }
+  .rec-selected-badge { display: inline-block; padding: 2px 8px; background: var(--kinga-accent); color: white; border-radius: 10px; font-size: 10px; font-weight: 700; margin-left: 8px; vertical-align: middle; }
+
+  /* Line items table */
+  .line-items { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .line-items th { background: var(--kinga-light); padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--kinga-muted); border-bottom: 2px solid var(--kinga-border); }
+  .line-items td { padding: 9px 12px; border-bottom: 1px solid var(--kinga-border); vertical-align: middle; }
+  .line-items tr:last-child td { border-bottom: none; }
+  .line-items tr.flagged td { background: #fff7ed; }
+  .flag-icon { color: var(--kinga-amber); font-size: 14px; }
+  .line-total { font-weight: 700; }
+  .line-kinga { color: var(--kinga-teal); font-weight: 600; }
+  .line-delta-neg { color: var(--kinga-red); font-size: 12px; }
+  .line-delta-pos { color: var(--kinga-green); font-size: 12px; }
+  .table-footer { display: flex; justify-content: flex-end; padding: 12px 0; gap: 32px; }
+  .table-footer-item { text-align: right; }
+  .table-footer-item label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--kinga-muted); display: block; }
+  .table-footer-item value { font-size: 16px; font-weight: 700; color: var(--kinga-navy); }
+  .table-footer-item.savings value { color: var(--kinga-teal); }
+
+  /* Fraud signals (Tier 2+) */
+  .fraud-signals { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .signal-item { padding: 10px 14px; border-radius: 4px; border: 1px solid var(--kinga-border); }
+  .signal-item.clear { background: #f0fdf4; border-color: #bbf7d0; }
+  .signal-item.flagged { background: #fffbeb; border-color: #fde68a; }
+  .signal-label { font-size: 12px; font-weight: 600; color: var(--kinga-text); margin-bottom: 2px; }
+  .signal-status { font-size: 11px; }
+  .signal-status.clear { color: #15803d; }
+  .signal-status.flagged { color: #b45309; }
+
+  /* Evidence photos */
+  .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .photo-placeholder { background: #f1f5f9; border: 1px solid var(--kinga-border); border-radius: 4px; aspect-ratio: 4/3; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--kinga-muted); font-size: 12px; gap: 6px; }
+  .photo-placeholder .photo-icon { font-size: 24px; }
+  .photo-placeholder .photo-label { font-weight: 500; }
+  .photo-placeholder .photo-sub { font-size: 10px; }
+
+  /* Data quality */
+  .quality-bar { display: flex; align-items: center; gap: 12px; }
+  .quality-track { flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+  .quality-fill { height: 100%; border-radius: 3px; }
+  .quality-fill.high { background: var(--kinga-green); }
+  .quality-fill.medium { background: var(--kinga-amber); }
+  .quality-label { font-size: 13px; font-weight: 600; min-width: 60px; text-align: right; }
+
+  /* Footer */
+  .report-footer { padding: 20px 40px; background: var(--kinga-light); border-top: 1px solid var(--kinga-border); display: flex; justify-content: space-between; align-items: center; }
+  .report-footer-left { font-size: 11px; color: var(--kinga-muted); line-height: 1.6; }
+  .report-footer-right { font-size: 11px; color: var(--kinga-muted); text-align: right; }
+  .report-footer strong { color: var(--kinga-text); }
+
+  /* Locked panel */
+  .locked-panel { border: 1px dashed #cbd5e1; border-radius: 4px; padding: 24px; text-align: center; background: #f8fafc; margin-top: 28px; }
+  .locked-icon { font-size: 28px; margin-bottom: 8px; }
+  .locked-title { font-size: 14px; font-weight: 700; color: var(--kinga-text); margin-bottom: 6px; }
+  .locked-desc { font-size: 13px; color: var(--kinga-muted); margin-bottom: 14px; line-height: 1.5; }
+  .locked-btn { display: inline-block; padding: 8px 20px; background: var(--kinga-accent); color: white; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; }
+
+  /* Tier comparison note */
+  .tier-note { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 12px 16px; margin-bottom: 24px; font-size: 13px; color: #0369a1; }
+  .tier-note strong { font-weight: 700; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-brand">KINGA <span>AutoVerify</span></div>
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="showTab('starter')">Operational Report <span class="tier-badge badge-starter">Starter</span></div>
+      <div class="nav-tab" onclick="showTab('tier1')">Operational Report <span class="tier-badge badge-t1">Tier 1</span></div>
+      <div class="nav-tab" onclick="showTab('tier2')">Operational Report <span class="tier-badge badge-t2">Tier 2</span></div>
+      <div class="nav-tab" onclick="showTab('tier3')">Operational Report <span class="tier-badge badge-t3">Tier 3</span></div>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STARTER TIER -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page active" id="page-starter">
+  <div class="tier-note"><strong>Starter Tier ($200/month + $18/claim):</strong> Digitised claims workflow. Decision recommendation, recommended payout, plain-English damage summary, evidence snapshot, data quality indicator. No fraud score, no quote comparison, no financial analytics.</div>
+  <div class="report">
+    <div class="report-header starter">
+      <div class="report-header-top">
+        <div class="report-logo">KINGA <span>AutoVerify</span></div>
+        <div class="tier-label starter">Starter — Operational Claims Report</div>
+      </div>
+      <div class="report-title">Motor Vehicle Claims Assessment Report</div>
+      <div class="report-subtitle">Prepared by KINGA AutoVerify AI · For internal claims processing use only</div>
+      <div class="report-meta" style="margin-top:16px;">
+        <div class="meta-item"><label>Claim Reference</label><value>KGA-2026-04-7841</value></div>
+        <div class="meta-item"><label>Incident Date</label><value>18 April 2026</value></div>
+        <div class="meta-item"><label>Vehicle</label><value>Toyota Hilux 2019 · AEJ 4421</value></div>
+        <div class="meta-item"><label>Report Generated</label><value>27 April 2026, 09:14</value></div>
+      </div>
+    </div>
+
+    <div class="decision-banner approve">
+      <div class="decision-icon approve">✓</div>
+      <div class="decision-text">
+        <h3 class="approve">Recommended: Approve</h3>
+        <p>Damage is consistent with the reported incident. Repair estimate is within expected range for the damage observed.</p>
+      </div>
+      <div class="decision-amount">
+        <label>Recommended Payout</label>
+        <value>USD 2,840</value>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <div class="section">
+        <div class="section-title">Damage Summary</div>
+        <div class="damage-summary">
+          The vehicle sustained moderate front-end damage consistent with a low-speed frontal impact. The bonnet, front bumper assembly, and left headlamp unit are damaged. The radiator grille shows cracking consistent with the impact direction. No structural frame damage was identified. The engine bay is intact. Damage is localised to the front fascia and does not extend to the firewall or chassis rails.
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Evidence Snapshot</div>
+        <div class="photo-grid">
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Front View</div><div class="photo-sub">Uploaded by claimant</div></div>
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Left Front Quarter</div><div class="photo-sub">Uploaded by claimant</div></div>
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Damage Close-up</div><div class="photo-sub">Uploaded by claimant</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Data Quality</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div><div style="font-size:12px;color:var(--kinga-muted);margin-bottom:6px;">Overall Input Quality</div>
+          <div class="quality-bar"><div class="quality-track"><div class="quality-fill high" style="width:82%"></div></div><div class="quality-label" style="color:var(--kinga-green);">82 / 100</div></div></div>
+          <div style="font-size:12px;color:var(--kinga-muted);">3 photographs provided · Police report present · Panel beater quote received · All required fields complete</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="report-footer">
+      <div class="report-footer-left">
+        <strong>KINGA AutoVerify AI</strong> · Starter Tier · Claim KGA-2026-04-7841<br>
+        This report is generated by an AI system and is intended for internal claims processing use. It does not constitute a legal determination.
+      </div>
+      <div class="report-footer-right">
+        Page 1 of 1 · Generated 27 Apr 2026
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TIER 1 — PROCESS -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-tier1">
+  <div class="tier-note"><strong>Tier 1 — Process ($500/month + $12/claim):</strong> Adds fraud risk colour band, repair vs write-off recommendation with reasoning, and quote verdict (Overpriced / Fair / Underpriced with % delta).</div>
+  <div class="report">
+    <div class="report-header tier1">
+      <div class="report-header-top">
+        <div class="report-logo">KINGA <span>AutoVerify</span></div>
+        <div class="tier-label tier1">Tier 1 Process — Operational Claims Report</div>
+      </div>
+      <div class="report-title">Motor Vehicle Claims Assessment Report</div>
+      <div class="report-subtitle">Prepared by KINGA AutoVerify AI · For internal claims processing use only</div>
+      <div class="report-meta" style="margin-top:16px;">
+        <div class="meta-item"><label>Claim Reference</label><value>KGA-2026-04-7841</value></div>
+        <div class="meta-item"><label>Incident Date</label><value>18 April 2026</value></div>
+        <div class="meta-item"><label>Vehicle</label><value>Toyota Hilux 2019 · AEJ 4421</value></div>
+        <div class="meta-item"><label>Report Generated</label><value>27 April 2026, 09:14</value></div>
+      </div>
+    </div>
+
+    <div class="decision-banner review">
+      <div class="decision-icon review">⚠</div>
+      <div class="decision-text">
+        <h3 class="review">Recommended: Review Before Approval</h3>
+        <p>Quote is 23% above KINGA fair-value estimate. Recommend requesting a revised quote or obtaining a second opinion before settlement.</p>
+      </div>
+      <div class="decision-amount">
+        <label>Recommended Payout</label>
+        <value>USD 2,310</value>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <div class="section">
+        <div class="section-title">Fraud Risk Indicator</div>
+        <div class="fraud-band amber">
+          <div class="fraud-dot amber"></div>
+          <div>
+            <div class="fraud-band-text amber">Amber — Elevated Risk: Review Recommended</div>
+            <div class="fraud-band-sub">Quote pricing anomaly detected. No behavioural fraud indicators present. Recommend quote verification only.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Repair vs Write-Off Recommendation</div>
+        <div class="recommendation-row">
+          <div class="rec-card selected">
+            <div class="rec-card-label">KINGA Recommendation <span class="rec-selected-badge">Selected</span></div>
+            <div class="rec-card-value">Repair</div>
+            <div class="rec-card-reason">Damage is localised to front fascia components. No structural involvement. Repair cost (USD 2,310) is well below estimated market value (USD 18,500). Repair is economically justified.</div>
+          </div>
+          <div class="rec-card">
+            <div class="rec-card-label">Write-Off Threshold</div>
+            <div class="rec-card-value">USD 13,875</div>
+            <div class="rec-card-reason">Write-off would be recommended if repair cost exceeds 75% of market value. Current repair cost is 12.5% of market value.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Quote Assessment</div>
+        <div class="quote-verdict">
+          <div class="quote-verdict-badge badge-overpriced">Overpriced</div>
+          <div class="quote-verdict-detail">Panel beater quote of USD 2,840 is above KINGA fair-value estimate of USD 2,310 for the observed damage profile.</div>
+          <div class="quote-verdict-delta delta-neg">+23.0% above estimate</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Damage Summary</div>
+        <div class="damage-summary">
+          The vehicle sustained moderate front-end damage consistent with a low-speed frontal impact. The bonnet, front bumper assembly, and left headlamp unit are damaged. The radiator grille shows cracking consistent with the impact direction. No structural frame damage was identified. The engine bay is intact. Damage is localised to the front fascia and does not extend to the firewall or chassis rails.
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Evidence Snapshot</div>
+        <div class="photo-grid">
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Front View</div><div class="photo-sub">Uploaded by claimant</div></div>
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Left Front Quarter</div><div class="photo-sub">Uploaded by claimant</div></div>
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Damage Close-up</div><div class="photo-sub">Uploaded by claimant</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Data Quality</div>
+        <div class="quality-bar"><div class="quality-track"><div class="quality-fill high" style="width:82%"></div></div><div class="quality-label" style="color:var(--kinga-green);">82 / 100</div></div>
+      </div>
+    </div>
+
+    <div class="report-footer">
+      <div class="report-footer-left">
+        <strong>KINGA AutoVerify AI</strong> · Tier 1 Process · Claim KGA-2026-04-7841<br>
+        This report is generated by an AI system and is intended for internal claims processing use. It does not constitute a legal determination.
+      </div>
+      <div class="report-footer-right">Page 1 of 1 · Generated 27 Apr 2026</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TIER 2 — PROTECT -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-tier2">
+  <div class="tier-note"><strong>Tier 2 — Protect ($900/month + $12/claim):</strong> Adds line-item cost analysis with flagged overpriced items, fraud signal summary in plain English, and full financial breakdown. Executive Intelligence Dashboard unlocked separately.</div>
+  <div class="report">
+    <div class="report-header tier2">
+      <div class="report-header-top">
+        <div class="report-logo">KINGA <span>AutoVerify</span></div>
+        <div class="tier-label tier2">Tier 2 Protect — Operational Claims Report</div>
+      </div>
+      <div class="report-title">Motor Vehicle Claims Assessment Report</div>
+      <div class="report-subtitle">Prepared by KINGA AutoVerify AI · For internal claims processing use only</div>
+      <div class="report-meta" style="margin-top:16px;">
+        <div class="meta-item"><label>Claim Reference</label><value>KGA-2026-04-7841</value></div>
+        <div class="meta-item"><label>Incident Date</label><value>18 April 2026</value></div>
+        <div class="meta-item"><label>Vehicle</label><value>Toyota Hilux 2019 · AEJ 4421</value></div>
+        <div class="meta-item"><label>Report Generated</label><value>27 April 2026, 09:14</value></div>
+      </div>
+    </div>
+
+    <div class="decision-banner review">
+      <div class="decision-icon review">⚠</div>
+      <div class="decision-text">
+        <h3 class="review">Recommended: Review Before Approval</h3>
+        <p>2 line items are overpriced. Quote contains USD 530 in excess charges above KINGA fair-value estimates. Recommend negotiation or revised quote.</p>
+      </div>
+      <div class="decision-amount">
+        <label>Recommended Payout</label>
+        <value>USD 2,310</value>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <div class="section">
+        <div class="section-title">Fraud Risk Indicator</div>
+        <div class="fraud-band amber">
+          <div class="fraud-dot amber"></div>
+          <div>
+            <div class="fraud-band-text amber">Amber — Elevated Risk: Quote Pricing Anomaly</div>
+            <div class="fraud-band-sub">Quote pricing is above market norms for this damage profile. No behavioural or identity fraud indicators detected. Risk is limited to financial overcharging.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Fraud Signal Summary</div>
+        <div class="fraud-signals">
+          <div class="signal-item clear"><div class="signal-label">Claimant Identity</div><div class="signal-status clear">✓ No anomalies detected</div></div>
+          <div class="signal-item clear"><div class="signal-label">Incident Consistency</div><div class="signal-status clear">✓ Damage consistent with reported incident</div></div>
+          <div class="signal-item flagged"><div class="signal-label">Quote Pricing</div><div class="signal-status flagged">⚠ 2 line items above market rate</div></div>
+          <div class="signal-item clear"><div class="signal-label">Policy Timing</div><div class="signal-status clear">✓ No suspicious policy activity</div></div>
+          <div class="signal-item clear"><div class="signal-label">Prior Claims</div><div class="signal-status clear">✓ No pattern of repeat claims</div></div>
+          <div class="signal-item clear"><div class="signal-label">Document Integrity</div><div class="signal-status clear">✓ All documents verified</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Repair vs Write-Off Recommendation</div>
+        <div class="recommendation-row">
+          <div class="rec-card selected">
+            <div class="rec-card-label">KINGA Recommendation <span class="rec-selected-badge">Selected</span></div>
+            <div class="rec-card-value">Repair</div>
+            <div class="rec-card-reason">Damage is localised to front fascia. No structural involvement. Repair cost (USD 2,310) is 12.5% of market value (USD 18,500).</div>
+          </div>
+          <div class="rec-card">
+            <div class="rec-card-label">Write-Off Threshold</div>
+            <div class="rec-card-value">USD 13,875</div>
+            <div class="rec-card-reason">Write-off threshold: 75% of market value. Current repair cost is well below this threshold.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Line-Item Cost Analysis</div>
+        <table class="line-items">
+          <thead>
+            <tr><th>Component</th><th>Quoted (USD)</th><th>KINGA Fair Value</th><th>Delta</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Bonnet replacement</td><td>USD 680</td><td class="line-kinga">USD 620</td><td class="line-delta-neg">+9.7%</td><td>Within tolerance</td></tr>
+            <tr class="flagged"><td>Front bumper assembly</td><td>USD 920</td><td class="line-kinga">USD 640</td><td class="line-delta-neg">+43.8% <span class="flag-icon">⚠</span></td><td style="color:var(--kinga-amber);font-weight:600;">Overpriced</td></tr>
+            <tr><td>Left headlamp unit</td><td>USD 480</td><td class="line-kinga">USD 450</td><td class="line-delta-neg">+6.7%</td><td>Within tolerance</td></tr>
+            <tr class="flagged"><td>Radiator grille</td><td>USD 310</td><td class="line-kinga">USD 160</td><td class="line-delta-neg">+93.8% <span class="flag-icon">⚠</span></td><td style="color:var(--kinga-amber);font-weight:600;">Overpriced</td></tr>
+            <tr><td>Labour (8 hrs)</td><td>USD 450</td><td class="line-kinga">USD 440</td><td class="line-delta-pos">+2.3%</td><td>Within tolerance</td></tr>
+          </tbody>
+        </table>
+        <div class="table-footer">
+          <div class="table-footer-item"><label>Quoted Total</label><value>USD 2,840</value></div>
+          <div class="table-footer-item"><label>KINGA Estimate</label><value>USD 2,310</value></div>
+          <div class="table-footer-item savings"><label>Identified Savings</label><value>USD 530</value></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Damage Summary</div>
+        <div class="damage-summary">
+          The vehicle sustained moderate front-end damage consistent with a low-speed frontal impact. The bonnet, front bumper assembly, and left headlamp unit are damaged. The radiator grille shows cracking consistent with the impact direction. No structural frame damage was identified. The engine bay is intact. Damage is localised to the front fascia and does not extend to the firewall or chassis rails.
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Evidence Snapshot</div>
+        <div class="photo-grid">
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Front View</div><div class="photo-sub">Uploaded by claimant</div></div>
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Left Front Quarter</div><div class="photo-sub">Uploaded by claimant</div></div>
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Damage Close-up</div><div class="photo-sub">Uploaded by claimant</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Data Quality</div>
+        <div class="quality-bar"><div class="quality-track"><div class="quality-fill high" style="width:82%"></div></div><div class="quality-label" style="color:var(--kinga-green);">82 / 100</div></div>
+      </div>
+    </div>
+
+    <div class="report-footer">
+      <div class="report-footer-left">
+        <strong>KINGA AutoVerify AI</strong> · Tier 2 Protect · Claim KGA-2026-04-7841<br>
+        This report is generated by an AI system and is intended for internal claims processing use. It does not constitute a legal determination.
+      </div>
+      <div class="report-footer-right">Page 1 of 1 · Generated 27 Apr 2026</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TIER 3 — PROVE -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-tier3">
+  <div class="tier-note"><strong>Tier 3 — Prove ($1,500/month + $12/claim):</strong> Full Tier 2 report plus physics-backed damage consistency statement, incident reconstruction summary, and Forensic Intelligence Package availability indicator. The Forensic Intelligence Package itself is a separate document (Layer C).</div>
+  <div class="report">
+    <div class="report-header tier3">
+      <div class="report-header-top">
+        <div class="report-logo">KINGA <span>AutoVerify</span></div>
+        <div class="tier-label tier3">Tier 3 Prove — Operational Claims Report</div>
+      </div>
+      <div class="report-title">Motor Vehicle Claims Assessment Report</div>
+      <div class="report-subtitle">Prepared by KINGA AutoVerify AI · For internal claims processing use only · Forensic Intelligence Package available</div>
+      <div class="report-meta" style="margin-top:16px;">
+        <div class="meta-item"><label>Claim Reference</label><value>KGA-2026-04-7841</value></div>
+        <div class="meta-item"><label>Incident Date</label><value>18 April 2026</value></div>
+        <div class="meta-item"><label>Vehicle</label><value>Toyota Hilux 2019 · AEJ 4421</value></div>
+        <div class="meta-item"><label>Report Generated</label><value>27 April 2026, 09:14</value></div>
+      </div>
+    </div>
+
+    <!-- Forensic availability banner -->
+    <div style="background:#fef3c7;border-left:4px solid #b45309;padding:12px 40px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:18px;">🔬</span>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#92400e;">Forensic Intelligence Package Available</div>
+        <div style="font-size:12px;color:#b45309;">Physics reconstruction and full fraud signal analysis are available for this claim. Access via the Forensic Intelligence Package tab.</div>
+      </div>
+      <div style="margin-left:auto;"><button style="background:#b45309;color:white;border:none;padding:8px 16px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;">View Forensic Package →</button></div>
+    </div>
+
+    <div class="decision-banner review">
+      <div class="decision-icon review">⚠</div>
+      <div class="decision-text">
+        <h3 class="review">Recommended: Review Before Approval</h3>
+        <p>2 line items overpriced (USD 530 excess). Physics reconstruction confirms damage is consistent with reported incident at low speed. Quote pricing is the primary concern.</p>
+      </div>
+      <div class="decision-amount">
+        <label>Recommended Payout</label>
+        <value>USD 2,310</value>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <div class="section">
+        <div class="section-title">Fraud Risk Indicator</div>
+        <div class="fraud-band amber">
+          <div class="fraud-dot amber"></div>
+          <div>
+            <div class="fraud-band-text amber">Amber — Elevated Risk: Quote Pricing Anomaly Only</div>
+            <div class="fraud-band-sub">Physics reconstruction confirms incident is genuine. Risk is limited to financial overcharging in the repair quote. No identity or behavioural fraud indicators.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Physics-Backed Damage Consistency</div>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:16px;">
+          <div style="font-size:13px;font-weight:700;color:#15803d;margin-bottom:8px;">✓ Damage Confirmed Consistent with Reported Incident</div>
+          <div style="font-size:13px;color:var(--kinga-text);line-height:1.7;">
+            Physics reconstruction analysis confirms that the observed damage pattern is consistent with a low-speed frontal impact in the range of <strong>28–36 km/h</strong>. The crush depth and deformation energy measurements are consistent with the reported collision scenario. No evidence of pre-existing damage or staged incident was detected. The Forensic Intelligence Package contains the full reconstruction methodology and confidence intervals.
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Fraud Signal Summary</div>
+        <div class="fraud-signals">
+          <div class="signal-item clear"><div class="signal-label">Claimant Identity</div><div class="signal-status clear">✓ No anomalies detected</div></div>
+          <div class="signal-item clear"><div class="signal-label">Incident Consistency</div><div class="signal-status clear">✓ Physics-confirmed consistent</div></div>
+          <div class="signal-item flagged"><div class="signal-label">Quote Pricing</div><div class="signal-status flagged">⚠ 2 line items above market rate</div></div>
+          <div class="signal-item clear"><div class="signal-label">Policy Timing</div><div class="signal-status clear">✓ No suspicious policy activity</div></div>
+          <div class="signal-item clear"><div class="signal-label">Prior Claims</div><div class="signal-status clear">✓ No pattern of repeat claims</div></div>
+          <div class="signal-item clear"><div class="signal-label">Document Integrity</div><div class="signal-status clear">✓ All documents verified</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Repair vs Write-Off Recommendation</div>
+        <div class="recommendation-row">
+          <div class="rec-card selected">
+            <div class="rec-card-label">KINGA Recommendation <span class="rec-selected-badge">Selected</span></div>
+            <div class="rec-card-value">Repair</div>
+            <div class="rec-card-reason">Damage is localised to front fascia. No structural involvement confirmed by physics analysis. Repair cost (USD 2,310) is 12.5% of market value.</div>
+          </div>
+          <div class="rec-card">
+            <div class="rec-card-label">Write-Off Threshold</div>
+            <div class="rec-card-value">USD 13,875</div>
+            <div class="rec-card-reason">Write-off threshold: 75% of market value. Current repair cost is well below this threshold.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Line-Item Cost Analysis</div>
+        <table class="line-items">
+          <thead>
+            <tr><th>Component</th><th>Quoted (USD)</th><th>KINGA Fair Value</th><th>Delta</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Bonnet replacement</td><td>USD 680</td><td class="line-kinga">USD 620</td><td class="line-delta-neg">+9.7%</td><td>Within tolerance</td></tr>
+            <tr class="flagged"><td>Front bumper assembly</td><td>USD 920</td><td class="line-kinga">USD 640</td><td class="line-delta-neg">+43.8% <span class="flag-icon">⚠</span></td><td style="color:var(--kinga-amber);font-weight:600;">Overpriced</td></tr>
+            <tr><td>Left headlamp unit</td><td>USD 480</td><td class="line-kinga">USD 450</td><td class="line-delta-neg">+6.7%</td><td>Within tolerance</td></tr>
+            <tr class="flagged"><td>Radiator grille</td><td>USD 310</td><td class="line-kinga">USD 160</td><td class="line-delta-neg">+93.8% <span class="flag-icon">⚠</span></td><td style="color:var(--kinga-amber);font-weight:600;">Overpriced</td></tr>
+            <tr><td>Labour (8 hrs)</td><td>USD 450</td><td class="line-kinga">USD 440</td><td class="line-delta-pos">+2.3%</td><td>Within tolerance</td></tr>
+          </tbody>
+        </table>
+        <div class="table-footer">
+          <div class="table-footer-item"><label>Quoted Total</label><value>USD 2,840</value></div>
+          <div class="table-footer-item"><label>KINGA Estimate</label><value>USD 2,310</value></div>
+          <div class="table-footer-item savings"><label>Identified Savings</label><value>USD 530</value></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Damage Summary</div>
+        <div class="damage-summary">
+          The vehicle sustained moderate front-end damage consistent with a low-speed frontal impact. Physics analysis confirms impact velocity of 28–36 km/h. The bonnet, front bumper assembly, and left headlamp unit are damaged. No structural frame damage was identified. Damage is localised to the front fascia and does not extend to the firewall or chassis rails.
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Evidence Snapshot</div>
+        <div class="photo-grid">
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Front View</div><div class="photo-sub">Uploaded by claimant</div></div>
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Left Front Quarter</div><div class="photo-sub">Uploaded by claimant</div></div>
+          <div class="photo-placeholder"><div class="photo-icon">📷</div><div class="photo-label">Damage Close-up</div><div class="photo-sub">Uploaded by claimant</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Data Quality</div>
+        <div class="quality-bar"><div class="quality-track"><div class="quality-fill high" style="width:82%"></div></div><div class="quality-label" style="color:var(--kinga-green);">82 / 100</div></div>
+      </div>
+    </div>
+
+    <div class="report-footer">
+      <div class="report-footer-left">
+        <strong>KINGA AutoVerify AI</strong> · Tier 3 Prove · Claim KGA-2026-04-7841<br>
+        This report is generated by an AI system and is intended for internal claims processing use. It does not constitute a legal determination. The Forensic Intelligence Package is available separately.
+      </div>
+      <div class="report-footer-right">Page 1 of 1 · Generated 27 Apr 2026</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(tier) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tier).classList.add('active');
+  event.target.closest('.nav-tab').classList.add('active');
+}
+</script>
+</body>
+</html>

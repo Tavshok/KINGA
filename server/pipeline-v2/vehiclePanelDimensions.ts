@@ -248,7 +248,6 @@ const PANEL_AREAS: Record<VehicleBodyType, Record<string, number>> = {
     "wing mirror":           0.06,
     "rear bumper":           0.50,
     "rear bumper cover":     0.50,
-    "rear door":             1.80,
     "rear windshield":       0.70,
     "rear window":           0.70,
     "tail lamp":             0.09,

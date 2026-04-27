@@ -779,19 +779,19 @@ export async function runPhysicsStage(
       // Now that the ensemble has run, recompute speedForensics with the
       // ensemble consensus as the best physics estimate (more accurate than
       // Campbell's formula alone) and add the road speed limit if known.
-      if (output.physicsAnalysis?.speedForensics) {
+      if (output.speedForensics) {
         const { computeSpeedForensics } = await import('../accidentPhysics');
         const speedLimitKmh = (claimRecord.accidentDetails as any).speedLimitKmh ?? null;
         const enriched = computeSpeedForensics({
-          claimedSpeedKmh: output.physicsAnalysis.speedForensics.claimedSpeedKmh,
-          physicsSpeedKmh: output.physicsAnalysis.speedForensics.physicsSpeedKmh,
+          claimedSpeedKmh: output.speedForensics.claimedSpeedKmh,
+          physicsSpeedKmh: output.speedForensics.physicsSpeedKmh,
           ensembleSpeedKmh: ensembleResult.consensusSpeedKmh,
           speedLimitKmh,
-          accidentSeverity: output.physicsAnalysis.accidentSeverity ?? 'minor',
-          occupantInjuryRisk: output.physicsAnalysis.occupantInjuryRisk ?? 'low',
+          accidentSeverity: output.accidentSeverity ?? 'minor',
+          occupantInjuryRisk: output.occupantInjuryRisk ?? 'low',
         });
-        output.physicsAnalysis.speedForensics = enriched;
-        ctx.log('Stage 7', `Speed forensics: claimed=${enriched.claimedSpeedKmh ?? 'N/A'} km/h, physics=${enriched.physicsSpeedKmh} km/h, deviation=${enriched.deviationPct ?? 'N/A'}% [${enriched.deviationClass}]${enriched.fraudSignal ? ' ⚠️ FRAUD_SIGNAL' : ''}`);
+        output.speedForensics = enriched;
+        ctx.log('Stage 7', `Speed forensics: claimed=${enriched.claimedSpeedKmh ?? 'N/A'} km/h, physics=${enriched.physicsSpeedKmh} km/h, deviation=${enriched.deviationPct ?? 'N/A'}% [${enriched.deviationClass}]${enriched.requiresVerification ? ' ⚠️ REQUIRES_VERIFICATION' : ''}`);
       }
     } catch (ensembleErr) {
       ctx.log('Stage 7', `Speed ensemble failed (non-fatal): ${String(ensembleErr)}`);

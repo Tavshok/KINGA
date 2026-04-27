@@ -837,6 +837,10 @@ export interface Stage7Output {
   severityConsensus?: import('./severityConsensusEngine').SeverityConsensusOutput | null;
   /** Multi-method speed inference ensemble — populated by Stage 7 for all collision incidents */
   speedInferenceEnsemble?: import('./speedInferenceEnsemble').SpeedInferenceResult | null;
+  /** Dual-speed forensics — claimed vs physics-inferred speed comparison */
+  speedForensics?: import('../accidentPhysics').SpeedForensics | null;
+  /** Occupant injury risk assessment */
+  occupantInjuryRisk?: 'low' | 'medium' | 'high' | 'critical' | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
