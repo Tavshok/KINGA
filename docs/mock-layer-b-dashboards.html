@@ -3,544 +3,553 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KINGA — Layer B: Dashboards (Tier 1 & Tier 2+)</title>
+<title>KINGA AutoVerify AI — Dashboards</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  :root {
-    --navy: #0f1b2d; --blue: #1a3a5c; --accent: #2563eb;
-    --teal: #0d9488; --amber: #d97706; --red: #dc2626;
-    --green: #16a34a; --light: #f8fafc; --border: #e2e8f0;
-    --muted: #64748b; --text: #1e293b;
-    --tier1: #2563eb; --tier2: #0d9488;
-  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #e8edf2; color: var(--text); }
+  body { font-family: Arial, Helvetica, sans-serif; background: #f0f0f0; color: #111; font-size: 13px; }
+  .tab-bar { background: #111; padding: 0 24px; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; }
+  .tab-brand { color: #fff; font-weight: 900; font-size: 15px; letter-spacing: 3px; padding: 14px 24px 14px 0; border-right: 1px solid #333; margin-right: 16px; }
+  .tab-btn { background: transparent; border: none; color: #777; padding: 16px 20px; font-size: 11px; cursor: pointer; letter-spacing: 0.5px; border-bottom: 3px solid transparent; }
+  .tab-btn.active { color: #fff; border-bottom-color: #fff; }
+  .tab-btn:hover:not(.active) { color: #ccc; }
+  .view { display: none; }
+  .view.active { display: block; }
 
-  .nav { background: var(--navy); padding: 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-  .nav-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; }
-  .nav-brand { padding: 14px 24px; color: white; font-weight: 700; font-size: 16px; border-right: 1px solid rgba(255,255,255,0.1); }
-  .nav-brand span { color: #60a5fa; }
-  .nav-tabs { display: flex; }
-  .nav-tab { padding: 14px 22px; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 13px; font-weight: 500; border-bottom: 3px solid transparent; }
-  .nav-tab:hover { color: white; background: rgba(255,255,255,0.05); }
-  .nav-tab.active { color: white; border-bottom-color: #60a5fa; background: rgba(255,255,255,0.08); }
-  .tier-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; margin-left: 6px; }
-  .badge-t1 { background: #2563eb; color: white; }
-  .badge-t2 { background: #0d9488; color: white; }
+  /* ── LAYOUT ── */
+  .layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 48px); }
+  .sidebar { background: #1a1a1a; }
+  .sb-brand { padding: 18px 20px 14px; border-bottom: 1px solid #2a2a2a; }
+  .sb-brand .org { color: #fff; font-weight: 700; font-size: 13px; letter-spacing: 1px; }
+  .sb-brand .role { color: #555; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; }
+  .sb-section { padding: 14px 20px 6px; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #444; }
+  .sb-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; color: #777; font-size: 12px; cursor: pointer; }
+  .sb-item:hover { background: #222; color: #ccc; }
+  .sb-item.active { background: #252525; color: #fff; border-left: 3px solid #fff; padding-left: 17px; }
+  .sb-badge { margin-left: auto; background: #c03030; color: #fff; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; }
+  .sb-lock { margin-left: auto; color: #444; font-size: 10px; }
+  .sb-locked { opacity: 0.4; }
+  .main { background: #f5f5f5; overflow: auto; }
+  .topbar { background: #fff; padding: 14px 28px; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; }
+  .topbar-title { font-size: 15px; font-weight: 700; color: #111; }
+  .topbar-sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .topbar-user { font-size: 11px; color: #555; text-align: right; }
+  .content { padding: 22px 28px; }
 
-  .page { display: none; }
-  .page.active { display: block; }
+  /* ── KPI ROW ── */
+  .kpi-row { display: grid; gap: 12px; margin-bottom: 18px; }
+  .kpi-5 { grid-template-columns: repeat(5, 1fr); }
+  .kpi-6 { grid-template-columns: repeat(6, 1fr); }
+  .kpi { background: #fff; padding: 16px 18px; border-bottom: 3px solid #ccc; }
+  .kpi.ok { border-bottom-color: #1a7a1a; }
+  .kpi.warn { border-bottom-color: #b07000; }
+  .kpi.danger { border-bottom-color: #c03030; }
+  .kpi.info { border-bottom-color: #1a3a8a; }
+  .kpi.black { border-bottom-color: #111; }
+  .kpi-lbl { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #999; margin-bottom: 7px; }
+  .kpi-val { font-size: 26px; font-weight: 900; color: #111; line-height: 1; }
+  .kpi-val.ok { color: #1a7a1a; }
+  .kpi-val.warn { color: #b07000; }
+  .kpi-val.danger { color: #c03030; }
+  .kpi-sub { font-size: 10px; color: #888; margin-top: 5px; }
+  .kpi-delta { font-size: 10px; margin-top: 3px; }
+  .delta-up { color: #1a7a1a; }
+  .delta-dn { color: #c03030; }
 
-  /* ── SHARED DASHBOARD SHELL ── */
-  .dash-shell { display: flex; min-height: calc(100vh - 47px); }
-  .sidebar { width: 220px; background: var(--navy); flex-shrink: 0; padding: 20px 0; }
-  .sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 8px; }
-  .sidebar-logo .org { font-size: 13px; font-weight: 700; color: white; }
-  .sidebar-logo .tier { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: rgba(255,255,255,0.55); font-size: 13px; cursor: pointer; }
-  .nav-item:hover { background: rgba(255,255,255,0.06); color: white; }
-  .nav-item.active { background: rgba(37,99,235,0.25); color: white; border-left: 3px solid #60a5fa; }
-  .nav-item .icon { font-size: 15px; width: 20px; text-align: center; }
-  .nav-section { padding: 16px 20px 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.25); }
-  .locked-nav { opacity: 0.35; }
-  .locked-nav .lock { font-size: 10px; margin-left: auto; }
+  /* ── PANELS ── */
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .g31 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .g13 { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; margin-bottom: 14px; }
+  .panel { background: #fff; }
+  .ph { padding: 13px 18px 11px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
+  .pt { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #999; }
+  .pa { font-size: 10px; color: #555; cursor: pointer; text-decoration: underline; }
+  .pb { padding: 16px 18px; }
+  .ch160 { height: 160px; position: relative; }
+  .ch200 { height: 200px; position: relative; }
+  .ch240 { height: 240px; position: relative; }
+  .ch280 { height: 280px; position: relative; }
+  .ch300 { height: 300px; position: relative; }
 
-  .dash-main { flex: 1; overflow: auto; }
-  .dash-topbar { background: white; padding: 14px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-  .dash-topbar-title { font-size: 18px; font-weight: 700; color: var(--navy); }
-  .dash-topbar-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .dash-topbar-right { display: flex; align-items: center; gap: 12px; }
-  .user-pill { display: flex; align-items: center; gap: 8px; background: var(--light); border: 1px solid var(--border); border-radius: 20px; padding: 6px 12px; font-size: 12px; }
-  .user-avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+  /* ── QUEUE ── */
+  .qi { display: flex; align-items: center; gap: 11px; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+  .qi:last-child { border-bottom: none; }
+  .qp { width: 4px; height: 34px; border-radius: 2px; flex-shrink: 0; }
+  .qp.hi { background: #c03030; }
+  .qp.md { background: #b07000; }
+  .qp.lo { background: #1a7a1a; }
+  .q-ref { font-size: 11px; font-weight: 700; color: #111; }
+  .q-veh { font-size: 11px; color: #555; margin-top: 1px; }
+  .q-amt { font-size: 12px; font-weight: 700; color: #111; margin-left: auto; text-align: right; }
+  .q-age { font-size: 10px; color: #aaa; margin-top: 1px; }
+  .badge { font-size: 9px; font-weight: 700; padding: 2px 6px; letter-spacing: 0.5px; display: inline-block; }
+  .b-review { background: #fff3cd; color: #7a5000; }
+  .b-new { background: #e8eaf6; color: #2a3a8a; }
+  .b-approve { background: #e8f5e8; color: #1a6a1a; }
+  .b-reject { background: #fde8e8; color: #8a2020; }
 
-  .dash-content { padding: 24px 28px; }
+  /* ── FRAUD ALERT ── */
+  .fa { padding: 12px 16px; border-left: 3px solid #c03030; background: #fff8f8; margin-bottom: 10px; }
+  .fa:last-child { margin-bottom: 0; }
+  .fa-ttl { font-size: 11px; font-weight: 700; color: #c03030; margin-bottom: 3px; }
+  .fa-body { font-size: 11px; color: #444; line-height: 1.55; }
+  .fa-meta { font-size: 10px; color: #aaa; margin-top: 4px; }
 
-  /* KPI cards */
-  .kpi-grid { display: grid; gap: 16px; margin-bottom: 24px; }
-  .kpi-grid-4 { grid-template-columns: repeat(4, 1fr); }
-  .kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
-  .kpi-card { background: white; border-radius: 6px; padding: 20px; border: 1px solid var(--border); }
-  .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 8px; }
-  .kpi-value { font-size: 28px; font-weight: 800; color: var(--navy); line-height: 1; margin-bottom: 6px; }
-  .kpi-sub { font-size: 12px; color: var(--muted); }
-  .kpi-trend { font-size: 12px; font-weight: 600; margin-top: 4px; }
-  .trend-up { color: var(--green); }
-  .trend-down { color: var(--red); }
-  .kpi-card.accent-green { border-top: 3px solid var(--green); }
-  .kpi-card.accent-blue { border-top: 3px solid var(--accent); }
-  .kpi-card.accent-amber { border-top: 3px solid var(--amber); }
-  .kpi-card.accent-teal { border-top: 3px solid var(--teal); }
-  .kpi-card.accent-red { border-top: 3px solid var(--red); }
+  /* ── ACTIVITY ── */
+  .act { display: flex; gap: 11px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+  .act:last-child { border-bottom: none; }
+  .act-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .act-text { font-size: 11px; color: #333; line-height: 1.5; }
+  .act-time { font-size: 10px; color: #bbb; margin-top: 2px; }
 
-  /* Section headers */
-  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-  .section-title { font-size: 14px; font-weight: 700; color: var(--navy); }
-  .section-action { font-size: 12px; color: var(--accent); cursor: pointer; }
+  /* ── EXEC HERO ── */
+  .hero { background: #111; padding: 22px 28px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-bottom: 18px; }
+  .hero-item { padding: 0 22px; border-right: 1px solid #2a2a2a; text-align: center; }
+  .hero-item:first-child { padding-left: 0; }
+  .hero-item:last-child { border-right: none; }
+  .hero-lbl { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #666; margin-bottom: 7px; }
+  .hero-val { font-size: 28px; font-weight: 900; color: #fff; }
+  .hero-sub { font-size: 10px; color: #777; margin-top: 4px; }
 
-  /* Claims queue table */
-  .queue-card { background: white; border-radius: 6px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 24px; }
-  .queue-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-  .queue-title { font-size: 14px; font-weight: 700; color: var(--navy); }
-  .queue-count { background: var(--accent); color: white; border-radius: 10px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
-  .queue-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .queue-table th { background: var(--light); padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
-  .queue-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-  .queue-table tr:last-child td { border-bottom: none; }
-  .queue-table tr:hover td { background: #f8fafc; }
-  .status-pill { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-  .status-pending { background: #fef9c3; color: #854d0e; }
-  .status-processing { background: #dbeafe; color: #1d4ed8; }
-  .status-review { background: #fff7ed; color: #9a3412; }
-  .status-complete { background: #dcfce7; color: #166534; }
-  .channel-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
-  .channel-insurer { background: #ede9fe; color: #5b21b6; }
-  .channel-claimant { background: #fce7f3; color: #9d174d; }
-  .fraud-dot-sm { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
-  .dot-green { background: var(--green); }
-  .dot-amber { background: var(--amber); }
-  .dot-red { background: var(--red); }
-  .action-btn { padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; background: white; font-size: 12px; cursor: pointer; color: var(--accent); font-weight: 500; }
+  /* ── INSIGHT ── */
+  .insight { background: #fff; padding: 16px 18px; border-left: 3px solid #111; margin-bottom: 10px; }
+  .insight.warn { border-left-color: #b07000; }
+  .insight.danger { border-left-color: #c03030; }
+  .insight.ok { border-left-color: #1a7a1a; }
+  .insight-ttl { font-size: 11px; font-weight: 700; color: #111; margin-bottom: 4px; }
+  .insight-body { font-size: 11px; color: #555; line-height: 1.6; }
+  .insight-meta { font-size: 10px; color: #bbb; margin-top: 5px; }
 
-  /* Chart placeholders */
-  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-  .chart-card { background: white; border-radius: 6px; border: 1px solid var(--border); padding: 20px; }
-  .chart-title { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
-  .chart-sub { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
-  .chart-area { height: 160px; background: var(--light); border-radius: 4px; display: flex; align-items: flex-end; gap: 6px; padding: 12px; }
-  .bar { flex: 1; border-radius: 3px 3px 0 0; min-height: 8px; }
-  .bar-blue { background: var(--accent); opacity: 0.8; }
-  .bar-teal { background: var(--teal); opacity: 0.8; }
-  .bar-amber { background: var(--amber); opacity: 0.8; }
+  /* ── TABLE ── */
+  .dt { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .dt th { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #999; padding: 8px 12px; text-align: left; background: #f7f7f7; border-bottom: 1px solid #e8e8e8; }
+  .dt td { padding: 9px 12px; border-bottom: 1px solid #f5f5f5; color: #222; }
+  .dt tr:last-child td { border-bottom: none; }
+  .dt .num { text-align: right; font-weight: 600; }
+  .fl { font-size: 9px; font-weight: 700; padding: 2px 7px; display: inline-block; }
+  .fl-ok { background: #e8f5e8; color: #1a6a1a; }
+  .fl-warn { background: #fff3cd; color: #7a5000; }
+  .fl-danger { background: #fde8e8; color: #8a2020; }
+  .fl-info { background: #e8eaf6; color: #2a3a8a; }
 
-  /* Financial intelligence cards (Tier 2+) */
-  .fin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-  .fin-card { background: white; border-radius: 6px; border: 1px solid var(--border); padding: 20px; }
-  .fin-card.highlight { background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: white; }
-  .fin-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 8px; }
-  .fin-card.highlight .fin-label { color: rgba(255,255,255,0.7); }
-  .fin-value { font-size: 32px; font-weight: 800; color: var(--navy); line-height: 1; margin-bottom: 6px; }
-  .fin-card.highlight .fin-value { color: white; }
-  .fin-sub { font-size: 12px; color: var(--muted); }
-  .fin-card.highlight .fin-sub { color: rgba(255,255,255,0.7); }
+  /* ── SECTION LABEL ── */
+  .sec-lbl { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #999; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; }
 
-  /* Fraud heatmap placeholder */
-  .fraud-heatmap { background: white; border-radius: 6px; border: 1px solid var(--border); padding: 20px; margin-bottom: 24px; }
-  .heatmap-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 12px; }
-  .heatmap-cell { aspect-ratio: 1; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: white; }
-  .heat-0 { background: #f1f5f9; color: var(--muted); }
-  .heat-1 { background: #bbf7d0; color: #166534; }
-  .heat-2 { background: #86efac; color: #166534; }
-  .heat-3 { background: #fde68a; color: #854d0e; }
-  .heat-4 { background: #fca5a5; color: #991b1b; }
-  .heat-5 { background: #ef4444; color: white; }
+  /* ── LOCKED PANEL ── */
+  .locked-panel { background: #fff; padding: 32px; text-align: center; border: 1px dashed #ccc; margin-bottom: 14px; }
+  .locked-panel .lp-icon { font-size: 28px; margin-bottom: 10px; color: #ccc; }
+  .locked-panel .lp-ttl { font-size: 13px; font-weight: 700; color: #555; margin-bottom: 6px; }
+  .locked-panel .lp-body { font-size: 11px; color: #999; line-height: 1.6; max-width: 420px; margin: 0 auto 14px; }
+  .locked-panel .lp-btn { display: inline-block; background: #111; color: #fff; font-size: 11px; font-weight: 700; padding: 8px 20px; letter-spacing: 1px; cursor: pointer; }
 
-  /* Locked upgrade panel */
-  .locked-section { background: white; border-radius: 6px; border: 2px dashed #cbd5e1; padding: 32px; text-align: center; margin-bottom: 24px; }
-  .locked-icon { font-size: 32px; margin-bottom: 10px; }
-  .locked-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
-  .locked-desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; max-width: 480px; margin-left: auto; margin-right: auto; line-height: 1.6; }
-  .locked-btn { display: inline-block; padding: 10px 24px; background: var(--teal); color: white; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; }
-
-  /* Savings tracker */
-  .savings-tracker { background: linear-gradient(135deg, #1e3a5f 0%, #0f1b2d 100%); border-radius: 6px; padding: 24px; margin-bottom: 24px; color: white; }
-  .savings-tracker h3 { font-size: 14px; font-weight: 700; margin-bottom: 16px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.6px; }
-  .savings-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-  .savings-item { text-align: center; }
-  .savings-value { font-size: 24px; font-weight: 800; color: #60a5fa; margin-bottom: 4px; }
-  .savings-label { font-size: 11px; color: rgba(255,255,255,0.5); }
-
-  /* Portfolio risk (Tier 2+) */
-  .risk-bands { display: flex; gap: 0; border-radius: 6px; overflow: hidden; height: 32px; margin-top: 12px; }
-  .risk-band { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; }
-  .risk-low { background: var(--green); }
-  .risk-med { background: var(--amber); }
-  .risk-high { background: #f97316; }
-  .risk-crit { background: var(--red); }
+  /* ── EXEC TOPBAR ── */
+  .exec-topbar { background: #111; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+  .exec-brand { color: #fff; font-weight: 900; font-size: 15px; letter-spacing: 3px; }
+  .exec-brand-sub { color: #555; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+  .exec-nav { display: flex; gap: 0; }
+  .exec-nav-item { color: #666; font-size: 11px; padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; letter-spacing: 0.5px; }
+  .exec-nav-item.active { color: #fff; border-bottom-color: #fff; }
+  .exec-meta { color: #555; font-size: 10px; text-align: right; line-height: 1.7; }
 </style>
 </head>
 <body>
 
-<nav class="nav">
-  <div class="nav-inner">
-    <div class="nav-brand">KINGA <span>AutoVerify</span></div>
-    <div class="nav-tabs">
-      <div class="nav-tab active" onclick="showTab('tier1')">Operational Dashboard <span class="tier-badge badge-t1">Tier 1</span></div>
-      <div class="nav-tab" onclick="showTab('tier2')">Executive Intelligence Dashboard <span class="tier-badge badge-t2">Tier 2+</span></div>
-    </div>
-  </div>
-</nav>
-
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TIER 1 — OPERATIONAL DASHBOARD -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="page active" id="page-tier1">
-<div class="dash-shell">
-  <div class="sidebar">
-    <div class="sidebar-logo">
-      <div class="org">Zimnat Insurance</div>
-      <div class="tier">Tier 1 — Process</div>
-    </div>
-    <div class="nav-section">Claims</div>
-    <div class="nav-item active"><span class="icon">📊</span> Operational Dashboard</div>
-    <div class="nav-item"><span class="icon">📋</span> Claims Queue</div>
-    <div class="nav-item"><span class="icon">📤</span> Submit Claim</div>
-    <div class="nav-item"><span class="icon">📁</span> Reports Centre</div>
-    <div class="nav-section">Team</div>
-    <div class="nav-item"><span class="icon">👥</span> Workflow Analytics</div>
-    <div class="nav-item"><span class="icon">⚙️</span> Settings</div>
-    <div class="nav-section">Upgrade to Unlock</div>
-    <div class="nav-item locked-nav"><span class="icon">💰</span> Financial Intelligence <span class="lock">🔒</span></div>
-    <div class="nav-item locked-nav"><span class="icon">🎯</span> Fraud Analytics <span class="lock">🔒</span></div>
-    <div class="nav-item locked-nav"><span class="icon">📈</span> Portfolio Risk <span class="lock">🔒</span></div>
-    <div class="nav-item locked-nav"><span class="icon">🔬</span> Forensic Reports <span class="lock">🔒</span></div>
-  </div>
-
-  <div class="dash-main">
-    <div class="dash-topbar">
-      <div>
-        <div class="dash-topbar-title">Operational Dashboard</div>
-        <div class="dash-topbar-sub">Claims processing overview · Last 30 days · Zimnat Insurance</div>
-      </div>
-      <div class="dash-topbar-right">
-        <div style="font-size:12px;color:var(--muted);">27 April 2026, 09:14</div>
-        <div class="user-pill"><div class="user-avatar">TM</div><span>T. Moyo · Claims Manager</span></div>
-      </div>
-    </div>
-
-    <div class="dash-content">
-      <!-- KPI row -->
-      <div class="kpi-grid kpi-grid-4">
-        <div class="kpi-card accent-blue">
-          <div class="kpi-label">Claims This Month</div>
-          <div class="kpi-value">142</div>
-          <div class="kpi-sub">+18 from last month</div>
-          <div class="kpi-trend trend-up">↑ 14.5%</div>
-        </div>
-        <div class="kpi-card accent-green">
-          <div class="kpi-label">Approved</div>
-          <div class="kpi-value">89</div>
-          <div class="kpi-sub">62.7% of processed claims</div>
-          <div class="kpi-trend trend-up">↑ 3.2% vs last month</div>
-        </div>
-        <div class="kpi-card accent-amber">
-          <div class="kpi-label">Pending Review</div>
-          <div class="kpi-value">31</div>
-          <div class="kpi-sub">Awaiting processor action</div>
-          <div class="kpi-trend" style="color:var(--amber);">⚠ 8 overdue >48hrs</div>
-        </div>
-        <div class="kpi-card accent-teal">
-          <div class="kpi-label">Avg Processing Time</div>
-          <div class="kpi-value">4.2h</div>
-          <div class="kpi-sub">From intake to decision</div>
-          <div class="kpi-trend trend-up">↓ 1.8h vs last month</div>
-        </div>
-      </div>
-
-      <!-- Claims queue -->
-      <div class="section-header">
-        <div class="section-title">Active Claims Queue</div>
-        <div class="section-action">View all 142 claims →</div>
-      </div>
-      <div class="queue-card">
-        <div class="queue-header">
-          <div class="queue-title">Pending Action</div>
-          <div class="queue-count">31 claims</div>
-        </div>
-        <table class="queue-table">
-          <thead>
-            <tr>
-              <th>Claim ID</th>
-              <th>Vehicle</th>
-              <th>Source</th>
-              <th>Status</th>
-              <th>Decision</th>
-              <th>Fraud Risk</th>
-              <th>Quote Delta</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>KGA-7841</strong></td>
-              <td>Toyota Hilux 2019</td>
-              <td><span class="channel-badge channel-claimant">🧑 Claimant</span></td>
-              <td><span class="status-pill status-review">Review</span></td>
-              <td style="font-weight:600;color:var(--amber);">Review</td>
-              <td><span class="fraud-dot-sm dot-amber"></span>Amber</td>
-              <td style="color:var(--red);">+23%</td>
-              <td><button class="action-btn">Open →</button></td>
-            </tr>
-            <tr>
-              <td><strong>KGA-7839</strong></td>
-              <td>Honda Fit 2021</td>
-              <td><span class="channel-badge channel-insurer">🏢 Insurer</span></td>
-              <td><span class="status-pill status-processing">Processing</span></td>
-              <td style="font-weight:600;color:var(--green);">Approve</td>
-              <td><span class="fraud-dot-sm dot-green"></span>Green</td>
-              <td style="color:var(--green);">-2%</td>
-              <td><button class="action-btn">Open →</button></td>
-            </tr>
-            <tr>
-              <td><strong>KGA-7836</strong></td>
-              <td>Ford Ranger 2020</td>
-              <td><span class="channel-badge channel-claimant">🧑 Claimant</span></td>
-              <td><span class="status-pill status-review">Review</span></td>
-              <td style="font-weight:600;color:var(--red);">Reject</td>
-              <td><span class="fraud-dot-sm dot-red"></span>Red</td>
-              <td style="color:var(--red);">+67%</td>
-              <td><button class="action-btn">Open →</button></td>
-            </tr>
-            <tr>
-              <td><strong>KGA-7834</strong></td>
-              <td>Mazda CX-5 2022</td>
-              <td><span class="channel-badge channel-insurer">🏢 Insurer</span></td>
-              <td><span class="status-pill status-pending">Pending</span></td>
-              <td style="color:var(--muted);">Awaiting AI</td>
-              <td><span style="color:var(--muted);font-size:12px;">—</span></td>
-              <td style="color:var(--muted);">—</td>
-              <td><button class="action-btn">Open →</button></td>
-            </tr>
-            <tr>
-              <td><strong>KGA-7831</strong></td>
-              <td>Isuzu D-Max 2018</td>
-              <td><span class="channel-badge channel-insurer">🏢 Insurer</span></td>
-              <td><span class="status-pill status-complete">Complete</span></td>
-              <td style="font-weight:600;color:var(--green);">Approved</td>
-              <td><span class="fraud-dot-sm dot-green"></span>Green</td>
-              <td style="color:var(--green);">+4%</td>
-              <td><button class="action-btn">View →</button></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Processing chart -->
-      <div class="chart-grid">
-        <div class="chart-card">
-          <div class="chart-title">Claims Volume — Last 8 Weeks</div>
-          <div class="chart-sub">Total claims submitted per week</div>
-          <div class="chart-area">
-            <div class="bar bar-blue" style="height:55%"></div>
-            <div class="bar bar-blue" style="height:62%"></div>
-            <div class="bar bar-blue" style="height:48%"></div>
-            <div class="bar bar-blue" style="height:71%"></div>
-            <div class="bar bar-blue" style="height:65%"></div>
-            <div class="bar bar-blue" style="height:78%"></div>
-            <div class="bar bar-blue" style="height:82%"></div>
-            <div class="bar bar-blue" style="height:90%"></div>
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title">Decision Outcomes — This Month</div>
-          <div class="chart-sub">Approved / Review / Rejected breakdown</div>
-          <div class="chart-area">
-            <div class="bar bar-teal" style="height:89%"></div>
-            <div class="bar bar-amber" style="height:31%"></div>
-            <div class="bar bar-blue" style="height:22%"></div>
-          </div>
-          <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--muted);">
-            <span><span style="display:inline-block;width:10px;height:10px;background:var(--teal);border-radius:2px;margin-right:4px;"></span>Approved (89)</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:var(--amber);border-radius:2px;margin-right:4px;"></span>Review (31)</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:var(--accent);border-radius:2px;margin-right:4px;"></span>Rejected (22)</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Locked upgrade section -->
-      <div class="locked-section">
-        <div class="locked-icon">💰</div>
-        <div class="locked-title">Financial Intelligence — Tier 2 Protect</div>
-        <div class="locked-desc">Upgrade to Tier 2 to see portfolio-level financial leakage, fraud hotspots, identified savings per month, and the Executive Intelligence Dashboard. Zimnat Insurance processed USD 284,000 in claims this month — see how much KINGA could recover.</div>
-        <div class="locked-btn">Upgrade to Tier 2 Protect →</div>
-      </div>
-    </div>
-  </div>
-</div>
+<div class="tab-bar">
+  <div class="tab-brand">KINGA</div>
+  <button class="tab-btn active" onclick="showView('ops',this)">Operational Dashboard — Tier 1 (Claims Manager)</button>
+  <button class="tab-btn" onclick="showView('exec',this)">Executive Intelligence Dashboard — Tier 2+</button>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TIER 2+ — EXECUTIVE INTELLIGENCE DASHBOARD -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="page" id="page-tier2">
-<div class="dash-shell">
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- OPERATIONAL DASHBOARD — TIER 1                                          -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="view-ops" class="view active">
+<div class="layout">
   <div class="sidebar">
-    <div class="sidebar-logo">
-      <div class="org">Zimnat Insurance</div>
-      <div class="tier">Tier 2 — Protect</div>
-    </div>
-    <div class="nav-section">Intelligence</div>
-    <div class="nav-item active"><span class="icon">👑</span> Executive Dashboard</div>
-    <div class="nav-item"><span class="icon">💰</span> Financial Intelligence</div>
-    <div class="nav-item"><span class="icon">🎯</span> Fraud Analytics</div>
-    <div class="nav-item"><span class="icon">📈</span> Portfolio Risk</div>
-    <div class="nav-section">Claims</div>
-    <div class="nav-item"><span class="icon">📊</span> Operational Dashboard</div>
-    <div class="nav-item"><span class="icon">📋</span> Claims Queue</div>
-    <div class="nav-item"><span class="icon">📤</span> Submit Claim</div>
-    <div class="nav-item"><span class="icon">📁</span> Reports Centre</div>
-    <div class="nav-section">Advanced</div>
-    <div class="nav-item"><span class="icon">🔗</span> Relationship Intelligence</div>
-    <div class="nav-item"><span class="icon">⚠️</span> Exception Hub</div>
-    <div class="nav-item locked-nav"><span class="icon">🔬</span> Forensic Reports <span class="lock">🔒</span></div>
-    <div class="nav-item locked-nav"><span class="icon">🏛️</span> Litigation Support <span class="lock">🔒</span></div>
+    <div class="sb-brand"><div class="org">Fidelity Life Assurance</div><div class="role">Claims Manager Portal · Tier 1</div></div>
+    <div class="sb-section">Claims</div>
+    <div class="sb-item active">▦ &nbsp;Triage Queue <span class="sb-badge">7</span></div>
+    <div class="sb-item">◎ &nbsp;Active Claims</div>
+    <div class="sb-item">✓ &nbsp;Approved Today</div>
+    <div class="sb-item">⚠ &nbsp;Flagged for Review <span class="sb-badge">3</span></div>
+    <div class="sb-item">✕ &nbsp;Rejected</div>
+    <div class="sb-section">Intelligence</div>
+    <div class="sb-item">🚨 &nbsp;Fraud Alerts <span class="sb-badge">2</span></div>
+    <div class="sb-item">$ &nbsp;Quote Optimisation</div>
+    <div class="sb-item">◈ &nbsp;Damage Analysis</div>
+    <div class="sb-section">Reports</div>
+    <div class="sb-item">↓ &nbsp;Generate Report</div>
+    <div class="sb-item">⊞ &nbsp;Claim History</div>
+    <div class="sb-section">Tier 2 Features</div>
+    <div class="sb-item sb-locked">📊 &nbsp;Portfolio Analytics <span class="sb-lock">🔒</span></div>
+    <div class="sb-item sb-locked">📈 &nbsp;Executive Dashboard <span class="sb-lock">🔒</span></div>
+    <div class="sb-item sb-locked">🔬 &nbsp;Fraud Intelligence <span class="sb-lock">🔒</span></div>
+    <div class="sb-section">Settings</div>
+    <div class="sb-item">⚙ &nbsp;Preferences</div>
+    <div class="sb-item">→ &nbsp;Sign Out</div>
   </div>
 
-  <div class="dash-main">
-    <div class="dash-topbar">
+  <div class="main">
+    <div class="topbar">
       <div>
-        <div class="dash-topbar-title">Executive Intelligence Dashboard</div>
-        <div class="dash-topbar-sub">Portfolio performance & financial intelligence · Last 30 days · Zimnat Insurance</div>
+        <div class="topbar-title">Triage Queue — Monday 27 April 2026</div>
+        <div class="topbar-sub">7 claims awaiting decision &nbsp;·&nbsp; 2 fraud alerts &nbsp;·&nbsp; Last sync: 09:14 CAT</div>
       </div>
-      <div class="dash-topbar-right">
-        <div style="font-size:12px;color:var(--muted);">27 April 2026, 09:14</div>
-        <div class="user-pill"><div class="user-avatar">CN</div><span>C. Ncube · Executive</span></div>
-      </div>
+      <div class="topbar-user">27 Apr 2026 · 09:22 CAT<br><strong>T. Chikwanda</strong> · Claims Manager</div>
     </div>
 
-    <div class="dash-content">
-      <!-- Financial intelligence row -->
-      <div class="savings-tracker">
-        <h3>KINGA Financial Impact — This Month</h3>
-        <div class="savings-row">
-          <div class="savings-item"><div class="savings-value">USD 284K</div><div class="savings-label">Total Claims Value Processed</div></div>
-          <div class="savings-item"><div class="savings-value">USD 38,400</div><div class="savings-label">Identified Overcharging</div></div>
-          <div class="savings-item"><div class="savings-value">USD 22,100</div><div class="savings-label">Negotiated Savings Realised</div></div>
-          <div class="savings-item"><div class="savings-value">7.8%</div><div class="savings-label">Leakage Rate (vs 18% industry avg)</div></div>
-        </div>
-      </div>
+    <div class="content">
 
       <!-- KPI row -->
-      <div class="kpi-grid kpi-grid-4">
-        <div class="kpi-card accent-teal">
-          <div class="kpi-label">Fraud Detection Rate</div>
-          <div class="kpi-value">34</div>
-          <div class="kpi-sub">Fraud-flagged claims this month</div>
-          <div class="kpi-trend trend-up">↑ 8 vs last month</div>
-        </div>
-        <div class="kpi-card accent-red">
-          <div class="kpi-label">High-Risk Claims</div>
-          <div class="kpi-value">12</div>
-          <div class="kpi-sub">FCDI score above 70</div>
-          <div class="kpi-trend" style="color:var(--red);">⚠ 3 pending review</div>
-        </div>
-        <div class="kpi-card accent-green">
-          <div class="kpi-label">AI Auto-Approved</div>
-          <div class="kpi-value">67</div>
-          <div class="kpi-sub">47.2% of total claims</div>
-          <div class="kpi-trend trend-up">↑ 12% vs last month</div>
-        </div>
-        <div class="kpi-card accent-blue">
-          <div class="kpi-label">Avg Settlement</div>
-          <div class="kpi-value">USD 2,000</div>
-          <div class="kpi-sub">Per claim (down from USD 2,380)</div>
-          <div class="kpi-trend trend-up">↓ 16% reduction</div>
-        </div>
+      <div class="kpi-row kpi-5" style="margin-bottom:18px">
+        <div class="kpi ok"><div class="kpi-lbl">Approved Today</div><div class="kpi-val ok">14</div><div class="kpi-sub">$68,420 settled</div><div class="kpi-delta delta-up">↑ 3 vs yesterday</div></div>
+        <div class="kpi warn"><div class="kpi-lbl">Pending Review</div><div class="kpi-val warn">7</div><div class="kpi-sub">3 high priority</div><div class="kpi-delta delta-dn">↑ 2 new this morning</div></div>
+        <div class="kpi danger"><div class="kpi-lbl">Fraud Alerts</div><div class="kpi-val danger">2</div><div class="kpi-sub">$24,880 at risk</div><div class="kpi-delta delta-dn">Action required</div></div>
+        <div class="kpi black"><div class="kpi-lbl">Avg Processing Time</div><div class="kpi-val">4.8 min</div><div class="kpi-sub">vs 3–5 day manual</div><div class="kpi-delta delta-up">↓ 0.4 min this week</div></div>
+        <div class="kpi ok"><div class="kpi-lbl">AI Confidence</div><div class="kpi-val ok">82%</div><div class="kpi-sub">Avg across queue</div><div class="kpi-delta delta-up">↑ 3% vs last week</div></div>
       </div>
 
-      <!-- Financial & fraud charts -->
-      <div class="chart-grid">
-        <div class="chart-card">
-          <div class="chart-title">Monthly Savings Identified vs Realised</div>
-          <div class="chart-sub">USD — Identified overcharging vs negotiated savings (8 months)</div>
-          <div class="chart-area">
-            <div style="display:flex;flex-direction:column;justify-content:flex-end;flex:1;gap:4px;">
-              <div style="display:flex;align-items:flex-end;gap:3px;flex:1;">
-                <div class="bar bar-amber" style="height:45%;flex:1;"></div><div class="bar bar-teal" style="height:32%;flex:1;"></div>
-                <div class="bar bar-amber" style="height:52%;flex:1;"></div><div class="bar bar-teal" style="height:38%;flex:1;"></div>
-                <div class="bar bar-amber" style="height:61%;flex:1;"></div><div class="bar bar-teal" style="height:44%;flex:1;"></div>
-                <div class="bar bar-amber" style="height:58%;flex:1;"></div><div class="bar bar-teal" style="height:48%;flex:1;"></div>
-                <div class="bar bar-amber" style="height:72%;flex:1;"></div><div class="bar bar-teal" style="height:55%;flex:1;"></div>
-                <div class="bar bar-amber" style="height:68%;flex:1;"></div><div class="bar bar-teal" style="height:52%;flex:1;"></div>
-                <div class="bar bar-amber" style="height:80%;flex:1;"></div><div class="bar bar-teal" style="height:61%;flex:1;"></div>
-                <div class="bar bar-amber" style="height:90%;flex:1;"></div><div class="bar bar-teal" style="height:70%;flex:1;"></div>
-              </div>
-            </div>
+      <!-- Fraud alerts -->
+      <div class="panel" style="margin-bottom:14px">
+        <div class="ph"><div class="pt">🚨 Active Fraud Alerts — Immediate Action Required</div><div class="pa">View all alerts</div></div>
+        <div class="pb">
+          <div class="fa">
+            <div class="fa-ttl">CLM-2026-051903 · Mercedes-Benz C200 · ABD 7712 · $18,640 claimed</div>
+            <div class="fa-body">FCDI Score: 61/100. Physics consensus speed (34 km/h) contradicts stated 60 km/h — 43% deviation exceeds 25% threshold. Quote includes $4,200 AMG body kit not visible in damage photos. Two photos predate incident by 39 days (EXIF metadata mismatch). Recommend: Negotiate to $12,400 or reject pending investigation.</div>
+            <div class="fa-meta">Detected: 09:08 CAT &nbsp;·&nbsp; 3 signals triggered &nbsp;·&nbsp; Potential saving: $6,240</div>
           </div>
-          <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--muted);">
-            <span><span style="display:inline-block;width:10px;height:10px;background:var(--amber);border-radius:2px;margin-right:4px;"></span>Identified</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:var(--teal);border-radius:2px;margin-right:4px;"></span>Realised</span>
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title">Fraud Risk Distribution</div>
-          <div class="chart-sub">Claims by risk band — this month (142 total)</div>
-          <div style="margin-top:16px;">
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span style="color:var(--green);font-weight:600;">Green (Low Risk)</span><span>96 claims · 67.6%</span></div>
-            <div style="height:8px;background:var(--light);border-radius:4px;overflow:hidden;margin-bottom:12px;"><div style="height:100%;width:67.6%;background:var(--green);border-radius:4px;"></div></div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span style="color:var(--amber);font-weight:600;">Amber (Elevated)</span><span>34 claims · 23.9%</span></div>
-            <div style="height:8px;background:var(--light);border-radius:4px;overflow:hidden;margin-bottom:12px;"><div style="height:100%;width:23.9%;background:var(--amber);border-radius:4px;"></div></div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span style="color:var(--red);font-weight:600;">Red (High Risk)</span><span>12 claims · 8.5%</span></div>
-            <div style="height:8px;background:var(--light);border-radius:4px;overflow:hidden;"><div style="height:100%;width:8.5%;background:var(--red);border-radius:4px;"></div></div>
+          <div class="fa">
+            <div class="fa-ttl">CLM-2026-051887 · Isuzu D-Max · AEF 3312 · $9,200 claimed</div>
+            <div class="fa-body">FCDI Score: 54/100. Quote from Msasa Repairs is 29% above KINGA benchmark ($7,140 vs $5,532 benchmark mid). Repairer has appeared in 6 claims this quarter — 4 above benchmark. Damage photos show pre-existing rust corrosion on claimed rear bumper and tow bar. Recommend: Request independent physical inspection before settlement.</div>
+            <div class="fa-meta">Detected: 08:44 CAT &nbsp;·&nbsp; 2 signals triggered &nbsp;·&nbsp; Potential saving: $2,668</div>
           </div>
         </div>
       </div>
 
-      <!-- Portfolio risk -->
-      <div class="section-header">
-        <div class="section-title">Portfolio Risk Profile</div>
-        <div class="section-action">View full portfolio →</div>
-      </div>
-      <div class="fraud-heatmap">
-        <div class="chart-title">Fraud Concentration by Vehicle Type & Age</div>
-        <div class="chart-sub">Darker = higher fraud risk concentration · Based on 142 claims this month</div>
-        <div style="display:grid;grid-template-columns:80px repeat(7,1fr);gap:4px;margin-top:12px;font-size:10px;">
-          <div></div>
-          <div style="text-align:center;color:var(--muted);padding:4px;">2016</div>
-          <div style="text-align:center;color:var(--muted);padding:4px;">2017</div>
-          <div style="text-align:center;color:var(--muted);padding:4px;">2018</div>
-          <div style="text-align:center;color:var(--muted);padding:4px;">2019</div>
-          <div style="text-align:center;color:var(--muted);padding:4px;">2020</div>
-          <div style="text-align:center;color:var(--muted);padding:4px;">2021</div>
-          <div style="text-align:center;color:var(--muted);padding:4px;">2022+</div>
-          <div style="color:var(--muted);padding:4px 0;font-weight:600;">Sedan</div>
-          <div class="heatmap-cell heat-1">2</div><div class="heatmap-cell heat-2">4</div><div class="heatmap-cell heat-3">7</div><div class="heatmap-cell heat-2">5</div><div class="heatmap-cell heat-1">3</div><div class="heatmap-cell heat-1">2</div><div class="heatmap-cell heat-0">1</div>
-          <div style="color:var(--muted);padding:4px 0;font-weight:600;">SUV/4x4</div>
-          <div class="heatmap-cell heat-3">6</div><div class="heatmap-cell heat-4">9</div><div class="heatmap-cell heat-5">14</div><div class="heatmap-cell heat-4">11</div><div class="heatmap-cell heat-3">7</div><div class="heatmap-cell heat-2">4</div><div class="heatmap-cell heat-1">2</div>
-          <div style="color:var(--muted);padding:4px 0;font-weight:600;">Pickup</div>
-          <div class="heatmap-cell heat-2">3</div><div class="heatmap-cell heat-3">6</div><div class="heatmap-cell heat-3">8</div><div class="heatmap-cell heat-4">10</div><div class="heatmap-cell heat-2">5</div><div class="heatmap-cell heat-1">2</div><div class="heatmap-cell heat-0">1</div>
+      <!-- Queue + mini charts -->
+      <div class="g31">
+        <div class="panel">
+          <div class="ph"><div class="pt">Triage Queue — 7 Claims Awaiting Decision</div><div class="pa">Sort by priority</div></div>
+          <div class="pb">
+            <div class="qi"><div class="qp hi"></div><div style="flex:1"><div class="q-ref">CLM-2026-051903 &nbsp;<span class="badge b-review">REVIEW</span></div><div class="q-veh">Mercedes-Benz C200 · ABD 7712 · Fraud Alert · FCDI 61</div></div><div style="text-align:right"><div class="q-amt" style="color:#c03030">$18,640</div><div class="q-age">1h 14m ago</div></div></div>
+            <div class="qi"><div class="qp hi"></div><div style="flex:1"><div class="q-ref">CLM-2026-051887 &nbsp;<span class="badge b-review">REVIEW</span></div><div class="q-veh">Isuzu D-Max · AEF 3312 · Quote Inflation · FCDI 54</div></div><div style="text-align:right"><div class="q-amt" style="color:#c03030">$9,200</div><div class="q-age">1h 38m ago</div></div></div>
+            <div class="qi"><div class="qp md"></div><div style="flex:1"><div class="q-ref">CLM-2026-051921 &nbsp;<span class="badge b-new">NEW</span></div><div class="q-veh">Toyota Hilux · ACZ 8801 · Rear impact · FCDI 22</div></div><div style="text-align:right"><div class="q-amt">$3,140</div><div class="q-age">2h 02m ago</div></div></div>
+            <div class="qi"><div class="qp lo"></div><div style="flex:1"><div class="q-ref">CLM-2026-051847 &nbsp;<span class="badge b-approve">APPROVE</span></div><div class="q-veh">Honda Fit · ACZ 2209 · Minor front damage · FCDI 8</div></div><div style="text-align:right"><div class="q-amt" style="color:#1a7a1a">$1,820</div><div class="q-age">3h 15m ago</div></div></div>
+            <div class="qi"><div class="qp lo"></div><div style="flex:1"><div class="q-ref">CLM-2026-051832 &nbsp;<span class="badge b-approve">APPROVE</span></div><div class="q-veh">Mazda CX-5 · AEZ 1104 · Side swipe · FCDI 11</div></div><div style="text-align:right"><div class="q-amt" style="color:#1a7a1a">$2,640</div><div class="q-age">4h 22m ago</div></div></div>
+            <div class="qi"><div class="qp lo"></div><div style="flex:1"><div class="q-ref">CLM-2026-051819 &nbsp;<span class="badge b-new">NEW</span></div><div class="q-veh">Ford Ranger · AEF 7712 · Hail damage · FCDI 14</div></div><div style="text-align:right"><div class="q-amt">$4,100</div><div class="q-age">5h 01m ago</div></div></div>
+            <div class="qi"><div class="qp lo"></div><div style="flex:1"><div class="q-ref">CLM-2026-051801 &nbsp;<span class="badge b-new">NEW</span></div><div class="q-veh">VW Polo Vivo · ABD 4412 · Parking damage · FCDI 6</div></div><div style="text-align:right"><div class="q-amt">$880</div><div class="q-age">5h 44m ago</div></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="panel" style="margin-bottom:12px">
+            <div class="ph"><div class="pt">Today's Decisions</div></div>
+            <div class="pb"><div class="ch160"><canvas id="ops-dec"></canvas></div></div>
+          </div>
+          <div class="panel">
+            <div class="ph"><div class="pt">Fraud Score Distribution</div></div>
+            <div class="pb"><div class="ch160"><canvas id="ops-fraud"></canvas></div></div>
+          </div>
         </div>
       </div>
 
-      <!-- Operational efficiency -->
-      <div class="fin-grid">
-        <div class="fin-card">
-          <div class="fin-label">Processing Efficiency</div>
-          <div class="fin-value">4.2h</div>
-          <div class="fin-sub">Avg claim-to-decision · Down from 6.0h</div>
+      <!-- Weekly trend + Activity -->
+      <div class="g2">
+        <div class="panel">
+          <div class="ph"><div class="pt">Claims Processed — This Week</div></div>
+          <div class="pb"><div class="ch200"><canvas id="ops-weekly"></canvas></div></div>
         </div>
-        <div class="fin-card highlight">
-          <div class="fin-label">Total Savings This Month</div>
-          <div class="fin-value">USD 22,100</div>
-          <div class="fin-sub">Realised from 34 overpriced claims</div>
-        </div>
-        <div class="fin-card">
-          <div class="fin-label">Panel Beater Compliance</div>
-          <div class="fin-value">78%</div>
-          <div class="fin-sub">Quotes within KINGA tolerance · 22% flagged</div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Recent Activity</div><div class="pa">View full log</div></div>
+          <div class="pb">
+            <div class="act"><div class="act-dot" style="background:#1a7a1a"></div><div><div class="act-text">CLM-2026-051847 approved — $1,820 settled. Honda Fit minor front damage. AI confidence: 91%. Within benchmark.</div><div class="act-time">09:08 CAT</div></div></div>
+            <div class="act"><div class="act-dot" style="background:#c03030"></div><div><div class="act-text">Fraud alert raised — CLM-2026-051903. FCDI 61/100. Physics speed mismatch: 34 km/h actual vs 60 km/h claimed. 3 signals.</div><div class="act-time">09:08 CAT</div></div></div>
+            <div class="act"><div class="act-dot" style="background:#1a7a1a"></div><div><div class="act-text">CLM-2026-051832 approved — $2,640 settled. Mazda CX-5 side swipe. Quote within benchmark ±8%.</div><div class="act-time">08:54 CAT</div></div></div>
+            <div class="act"><div class="act-dot" style="background:#b07000"></div><div><div class="act-text">CLM-2026-051887 escalated for review — Quote 29% above benchmark. Repairer pattern flagged (6 claims this quarter).</div><div class="act-time">08:44 CAT</div></div></div>
+            <div class="act"><div class="act-dot" style="background:#1a7a1a"></div><div><div class="act-text">3 claims batch-processed overnight. All within benchmark. Total: $8,240 settled.</div><div class="act-time">02:18 CAT</div></div></div>
+            <div class="act"><div class="act-dot" style="background:#1a3a8a"></div><div><div class="act-text">Daily benchmark update: 23 new settled claims added to Toyota Fortuner learning database. Benchmark revised +6.4%.</div><div class="act-time">00:04 CAT</div></div></div>
+          </div>
         </div>
       </div>
 
-      <!-- Tier 3 locked -->
-      <div class="locked-section">
-        <div class="locked-icon">🔬</div>
-        <div class="locked-title">Forensic Intelligence Package — Tier 3 Prove</div>
-        <div class="locked-desc">Upgrade to Tier 3 to access physics-backed reconstruction for every claim, litigation-ready evidence packages, and IPEC submission support. 12 of your current high-risk claims this month would benefit from forensic reconstruction. On-demand forensic reports are available now at USD 100 per claim.</div>
-        <div style="display:flex;gap:12px;justify-content:center;">
-          <div class="locked-btn" style="background:var(--accent);">Upgrade to Tier 3 →</div>
-          <div class="locked-btn" style="background:white;color:var(--accent);border:1px solid var(--accent);">Buy On-Demand Report (USD 100)</div>
+      <!-- Locked Tier 2 preview -->
+      <div class="sec-lbl" style="margin-top:8px">Tier 2 Features — Upgrade to Unlock</div>
+      <div class="g2">
+        <div class="locked-panel">
+          <div class="lp-icon">📊</div>
+          <div class="lp-ttl">Portfolio Analytics</div>
+          <div class="lp-body">Monthly claims volume trends, fraud detection rates, repairer performance benchmarks, and loss ratio intelligence across your entire portfolio. 3 claims this month have fraud scores above 60 — upgrade to see the full breakdown and projected quarterly leakage.</div>
+          <div class="lp-btn">Upgrade to Tier 2 — Protect</div>
+        </div>
+        <div class="locked-panel">
+          <div class="lp-icon">📈</div>
+          <div class="lp-ttl">Executive Intelligence Dashboard</div>
+          <div class="lp-body">Real-time savings tracker, cumulative leakage prevented, quote optimisation value, ROI vs platform cost, and board-ready financial performance reports. Your estimated savings this month: $41,280. Upgrade to see the full picture.</div>
+          <div class="lp-btn">Upgrade to Tier 2 — Protect</div>
         </div>
       </div>
+
     </div>
   </div>
 </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- EXECUTIVE INTELLIGENCE DASHBOARD — TIER 2+                             -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="view-exec" class="view">
+  <div class="exec-topbar">
+    <div>
+      <div class="exec-brand">KINGA</div>
+      <div class="exec-brand-sub">Executive Intelligence · Fidelity Life Assurance · April 2026 · Tier 2 — Protect</div>
+    </div>
+    <div class="exec-nav">
+      <div class="exec-nav-item active">Portfolio Overview</div>
+      <div class="exec-nav-item">Fraud Intelligence</div>
+      <div class="exec-nav-item">Financial Performance</div>
+      <div class="exec-nav-item">Repairer Analytics</div>
+      <div class="exec-nav-item">Risk Distribution</div>
+    </div>
+    <div class="exec-meta">27 April 2026 · 09:22 CAT<br><strong>M. Chikwanda</strong> · Chief Operations Officer</div>
+  </div>
+
+  <div class="content">
+
+    <!-- Savings hero bar -->
+    <div class="hero">
+      <div class="hero-item"><div class="hero-lbl">Leakage Prevented — April</div><div class="hero-val">$84,620</div><div class="hero-sub">Across 14 fraud-flagged claims</div></div>
+      <div class="hero-item"><div class="hero-lbl">Quote Optimisation — April</div><div class="hero-val">$41,280</div><div class="hero-sub">Avg $2,940 per optimised claim</div></div>
+      <div class="hero-item"><div class="hero-lbl">Assessor Cost Avoided</div><div class="hero-val">$5,320</div><div class="hero-sub">140 claims × $38 avg assessor fee</div></div>
+      <div class="hero-item"><div class="hero-lbl">Total Value Delivered — April</div><div class="hero-val">$131,220</div><div class="hero-sub">vs Platform cost: $900 + $1,680</div></div>
+    </div>
+
+    <!-- Exec KPIs -->
+    <div class="sec-lbl">Portfolio Performance — April 2026</div>
+    <div class="kpi-row kpi-6" style="margin-bottom:18px">
+      <div class="kpi ok"><div class="kpi-lbl">Claims Processed</div><div class="kpi-val ok">140</div><div class="kpi-sub">vs 98 same period 2025</div><div class="kpi-delta delta-up">↑ 43% YoY</div></div>
+      <div class="kpi ok"><div class="kpi-lbl">Approval Rate</div><div class="kpi-val ok">71%</div><div class="kpi-sub">99 approved · 41 reviewed</div><div class="kpi-delta delta-up">↑ 4% vs Q1</div></div>
+      <div class="kpi warn"><div class="kpi-lbl">Fraud Detection Rate</div><div class="kpi-val warn">10%</div><div class="kpi-sub">14 flagged · 11 confirmed</div><div class="kpi-delta delta-up">↑ 2% vs Q1</div></div>
+      <div class="kpi ok"><div class="kpi-lbl">Avg Settlement</div><div class="kpi-val ok">$4,820</div><div class="kpi-sub">vs $6,240 submitted avg</div><div class="kpi-delta delta-dn">↓ 22.8% from submitted</div></div>
+      <div class="kpi black"><div class="kpi-lbl">Avg Processing Time</div><div class="kpi-val">4.8 min</div><div class="kpi-sub">vs 3–5 days manual</div><div class="kpi-delta delta-up">↓ 99.8% reduction</div></div>
+      <div class="kpi ok"><div class="kpi-lbl">Platform ROI</div><div class="kpi-val ok">4,820%</div><div class="kpi-sub">$131,220 value / $2,580 cost</div><div class="kpi-delta delta-up">↑ 340% vs Q1</div></div>
+    </div>
+
+    <!-- Charts row 1 -->
+    <div class="g2">
+      <div class="panel">
+        <div class="ph"><div class="pt">Monthly Claims Volume &amp; Fraud Detection — 6 Months</div></div>
+        <div class="pb"><div class="ch280"><canvas id="exec-vol"></canvas></div></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="pt">Financial Impact — Submitted vs Settled vs Benchmark ($k)</div></div>
+        <div class="pb"><div class="ch280"><canvas id="exec-fin"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- Charts row 2 -->
+    <div class="g3">
+      <div class="panel">
+        <div class="ph"><div class="pt">Decision Distribution — April</div></div>
+        <div class="pb"><div class="ch200"><canvas id="exec-dec"></canvas></div></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="pt">Fraud Signal Categories — April</div></div>
+        <div class="pb"><div class="ch200"><canvas id="exec-fraud-cat"></canvas></div></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="pt">Quote Deviation vs Benchmark — April</div></div>
+        <div class="pb"><div class="ch200"><canvas id="exec-qdev"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- Cumulative savings -->
+    <div class="sec-lbl" style="margin-top:6px">Cumulative Savings Tracker — Year to Date</div>
+    <div class="panel" style="margin-bottom:18px">
+      <div class="ph"><div class="pt">Leakage Prevented + Quote Optimisation + Assessor Cost Avoided — Jan to Apr 2026</div></div>
+      <div class="pb"><div class="ch240"><canvas id="exec-savings"></canvas></div></div>
+    </div>
+
+    <!-- Insights + Top leakage table -->
+    <div class="sec-lbl">Portfolio Intelligence — Key Insights</div>
+    <div class="g2">
+      <div>
+        <div class="insight danger">
+          <div class="insight-ttl">Repairer Pattern Alert — Willowvale Premium Repairs</div>
+          <div class="insight-body">Appeared in 8 claims this quarter. Average quote: 31% above KINGA benchmark. 5 of 8 claims flagged for fraud or quote inflation. Estimated exposure if not actioned: $18,400 additional leakage in Q2. Recommend: Remove from approved repairer panel pending investigation.</div>
+          <div class="insight-meta">Detected by KINGA Fraud Learning Engine · 14 Apr 2026</div>
+        </div>
+        <div class="insight warn">
+          <div class="insight-ttl">Emerging Pattern — Samora Machel Ave Corridor, Harare CBD</div>
+          <div class="insight-body">7 claims in the past 30 days originating from the Samora Machel Ave / CBD corridor. Average FCDI score: 48/100. 3 involve the same third-party vehicle (Honda Fit · ACZ 2209). Possible staged accident ring. Recommend: Flag all future claims from this corridor for enhanced review pending ZICB referral.</div>
+          <div class="insight-meta">Detected by KINGA Relationship Intelligence Engine · 22 Apr 2026</div>
+        </div>
+        <div class="insight ok">
+          <div class="insight-ttl">Benchmark Update — Toyota Fortuner (2019–2022)</div>
+          <div class="insight-body">23 new settled claims added to the Toyota Fortuner learning database this month. Benchmark range updated: $4,200–$5,100 (previously $3,900–$4,800). Parts inflation of 6.4% detected — consistent with USD import cost increases from Beitbridge. Benchmark applied automatically to all future Fortuner claims.</div>
+          <div class="insight-meta">Updated: 27 Apr 2026 · 00:04 CAT</div>
+        </div>
+      </div>
+      <div>
+        <div class="sec-lbl">Top Claims by Potential Leakage — April</div>
+        <div class="panel">
+          <div class="pb" style="padding:0">
+            <table class="dt">
+              <thead><tr><th>Claim Ref</th><th>Vehicle</th><th class="num">Submitted</th><th class="num">Recommended</th><th class="num">Saving</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>CLM-2026-051903</td><td>Mercedes C200</td><td class="num">$18,640</td><td class="num">$12,400</td><td class="num" style="color:#c03030;font-weight:700">$6,240</td><td><span class="fl fl-danger">FRAUD</span></td></tr>
+                <tr><td>CLM-2026-051744</td><td>BMW X5</td><td class="num">$22,100</td><td class="num">$16,800</td><td class="num" style="color:#c03030;font-weight:700">$5,300</td><td><span class="fl fl-danger">REJECTED</span></td></tr>
+                <tr><td>CLM-2026-051687</td><td>Toyota Land Cruiser</td><td class="num">$14,200</td><td class="num">$10,400</td><td class="num" style="color:#b07000;font-weight:700">$3,800</td><td><span class="fl fl-warn">NEGOTIATED</span></td></tr>
+                <tr><td>CLM-2026-051612</td><td>Ford Ranger</td><td class="num">$8,400</td><td class="num">$5,900</td><td class="num" style="color:#b07000;font-weight:700">$2,500</td><td><span class="fl fl-warn">NEGOTIATED</span></td></tr>
+                <tr><td>CLM-2026-051887</td><td>Isuzu D-Max</td><td class="num">$9,200</td><td class="num">$6,532</td><td class="num" style="color:#b07000;font-weight:700">$2,668</td><td><span class="fl fl-warn">REVIEW</span></td></tr>
+                <tr style="background:#f7f7f7"><td colspan="4" style="font-weight:700;text-align:right;font-size:11px">Total Leakage Prevented</td><td class="num" style="font-weight:900;color:#1a7a1a">$20,508</td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Repairer performance -->
+        <div class="sec-lbl" style="margin-top:16px">Repairer Performance — Top 5 by Volume</div>
+        <div class="panel">
+          <div class="pb" style="padding:0">
+            <table class="dt">
+              <thead><tr><th>Repairer</th><th class="num">Claims</th><th class="num">Avg Quote</th><th class="num">vs Benchmark</th><th>Rating</th></tr></thead>
+              <tbody>
+                <tr><td>Msasa Panel Beaters</td><td class="num">18</td><td class="num">$4,820</td><td class="num" style="color:#1a7a1a">+3.2%</td><td><span class="fl fl-ok">APPROVED</span></td></tr>
+                <tr><td>Harare Crash Repairs</td><td class="num">14</td><td class="num">$5,140</td><td class="num" style="color:#b07000">+11.4%</td><td><span class="fl fl-ok">APPROVED</span></td></tr>
+                <tr><td>Avondale Auto Body</td><td class="num">11</td><td class="num">$4,640</td><td class="num" style="color:#1a7a1a">-0.8%</td><td><span class="fl fl-ok">APPROVED</span></td></tr>
+                <tr><td>Msasa Repairs</td><td class="num">9</td><td class="num">$7,140</td><td class="num" style="color:#c03030;font-weight:700">+29.0%</td><td><span class="fl fl-warn">FLAGGED</span></td></tr>
+                <tr><td>Willowvale Premium</td><td class="num">8</td><td class="num">$8,200</td><td class="num" style="color:#c03030;font-weight:700">+31.2%</td><td><span class="fl fl-danger">ALERT</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Locked Tier 3 preview -->
+    <div class="sec-lbl" style="margin-top:8px">Tier 3 Features — Upgrade to Unlock</div>
+    <div class="g2">
+      <div class="locked-panel">
+        <div class="lp-icon">🔬</div>
+        <div class="lp-ttl">Forensic Intelligence Package</div>
+        <div class="lp-body">Full physics reconstruction per claim: speed inference ensemble (5 methods), crush depth measurements, deformation energy calculations, occupant injury risk, and cross-engine consistency validation. Available for disputed claims, litigation support, and IPEC submissions. 2 claims this month have physics anomalies that warrant forensic review.</div>
+        <div class="lp-btn">Upgrade to Tier 3 — Prove</div>
+      </div>
+      <div class="locked-panel">
+        <div class="lp-icon">⚖️</div>
+        <div class="lp-ttl">Dispute Resolution Intelligence</div>
+        <div class="lp-body">Structured evidence packages for IPEC submissions and legal disputes. Includes validated determination workflow, human reviewer sign-off trail, and physics evidence chain. Your insurer retains full ownership of the validated conclusion. 1 claim this month is currently in dispute — upgrade to access the full evidence package.</div>
+        <div class="lp-btn">Upgrade to Tier 3 — Prove</div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <script>
-function showTab(tier) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('page-' + tier).classList.add('active');
-  event.target.closest('.nav-tab').classList.add('active');
+function showView(v, btn) {
+  document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  btn.classList.add('active');
+  setTimeout(() => initCharts(v), 80);
 }
+
+const G = '#1a7a1a', A = '#b07000', R = '#c03030', B = '#1a3a8a', K = '#111', P = '#888', L = '#ccc';
+let charts = {};
+function killCharts() { Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} }); charts = {}; }
+
+function initCharts(view) {
+  killCharts();
+  const base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+
+  if (view === 'ops') {
+    charts.od = new Chart(document.getElementById('ops-dec'), {
+      type: 'doughnut',
+      data: { labels: ['Approved', 'Negotiated', 'Rejected', 'Pending'], datasets: [{ data: [14, 3, 2, 7], backgroundColor: [G, A, R, L], borderWidth: 0 }] },
+      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } } }
+    });
+    charts.of = new Chart(document.getElementById('ops-fraud'), {
+      type: 'bar',
+      data: { labels: ['0–20', '21–40', '41–60', '61–80', '81–100'], datasets: [{ data: [4, 1, 1, 1, 0], backgroundColor: [G, P, A, R, '#6a0000'], borderWidth: 0 }] },
+      options: { ...base, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, title: { display: true, text: 'Claims', font: { size: 10 } } }, x: { title: { display: true, text: 'FCDI Score Range', font: { size: 10 } } } } }
+    });
+    charts.ow = new Chart(document.getElementById('ops-weekly'), {
+      type: 'bar',
+      data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'],
+        datasets: [
+          { label: 'Approved', data: [12, 18, 14, 16, 11, 14], backgroundColor: G, borderWidth: 0 },
+          { label: 'Reviewed/Rejected', data: [3, 4, 5, 3, 2, 7], backgroundColor: R, borderWidth: 0 }
+        ]
+      },
+      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } }, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+    });
+  }
+
+  if (view === 'exec') {
+    charts.ev = new Chart(document.getElementById('exec-vol'), {
+      type: 'bar',
+      data: {
+        labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'],
+        datasets: [
+          { label: 'Total Claims', data: [88, 72, 104, 118, 131, 140], backgroundColor: L, borderWidth: 0, yAxisID: 'y' },
+          { label: 'Fraud Detected', data: [6, 5, 9, 11, 13, 14], backgroundColor: R, borderWidth: 0, yAxisID: 'y' },
+          { type: 'line', label: 'Fraud Rate (%)', data: [6.8, 6.9, 8.7, 9.3, 9.9, 10.0], borderColor: A, backgroundColor: 'transparent', pointRadius: 4, tension: 0.3, yAxisID: 'y1' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Claims', font: { size: 10 } } },
+          y1: { type: 'linear', position: 'right', title: { display: true, text: 'Fraud Rate (%)', font: { size: 10 } }, grid: { drawOnChartArea: false }, max: 20 }
+        }
+      }
+    });
+    charts.ef = new Chart(document.getElementById('exec-fin'), {
+      type: 'bar',
+      data: {
+        labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'],
+        datasets: [
+          { label: 'Submitted ($k)', data: [412, 338, 498, 564, 628, 674], backgroundColor: R, borderWidth: 0 },
+          { label: 'Settled ($k)', data: [318, 261, 382, 428, 481, 522], backgroundColor: G, borderWidth: 0 },
+          { label: 'Benchmark Mid ($k)', data: [304, 248, 364, 408, 462, 498], backgroundColor: L, borderWidth: 0 }
+        ]
+      },
+      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } }, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v + 'k' } } } }
+    });
+    charts.ed = new Chart(document.getElementById('exec-dec'), {
+      type: 'doughnut',
+      data: { labels: ['Approved (71%)', 'Negotiated (14%)', 'Rejected (8%)', 'Pending (7%)'], datasets: [{ data: [99, 20, 11, 10], backgroundColor: [G, A, R, L], borderWidth: 0 }] },
+      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } } }
+    });
+    charts.efc = new Chart(document.getElementById('exec-fraud-cat'), {
+      type: 'bar',
+      data: { labels: ['Quote Inflation', 'Speed Mismatch', 'Photo Fraud', 'Repairer Pattern', 'Doc Forgery'], datasets: [{ data: [8, 5, 3, 6, 2], backgroundColor: [R, A, K, P, L], borderWidth: 0 }] },
+      options: { ...base, scales: { y: { beginAtZero: true, ticks: { stepSize: 2 }, title: { display: true, text: 'Claims', font: { size: 10 } } } } }
+    });
+    charts.eqd = new Chart(document.getElementById('exec-qdev'), {
+      type: 'bar',
+      data: { labels: ['>-15%', '-15–0%', '0–+15%', '+15–+30%', '>+30%'], datasets: [{ data: [4, 38, 72, 18, 8], backgroundColor: [B, G, G, A, R], borderWidth: 0 }] },
+      options: { ...base, scales: { y: { beginAtZero: true, title: { display: true, text: 'Claims', font: { size: 10 } } }, x: { title: { display: true, text: 'Quote vs Benchmark', font: { size: 10 } } } } }
+    });
+    charts.es = new Chart(document.getElementById('exec-savings'), {
+      type: 'bar',
+      data: {
+        labels: ['January', 'February', 'March', 'April'],
+        datasets: [
+          { label: 'Leakage Prevented', data: [42100, 58400, 71200, 84620], backgroundColor: R, borderWidth: 0 },
+          { label: 'Quote Optimisation', data: [18400, 24800, 33600, 41280], backgroundColor: A, borderWidth: 0 },
+          { label: 'Assessor Cost Avoided', data: [2940, 3528, 4312, 5320], backgroundColor: L, borderWidth: 0 }
+        ]
+      },
+      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } }, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } } } }
+    });
+  }
+}
+
+window.addEventListener('load', () => initCharts('ops'));
 </script>
 </body>
 </html>
