@@ -11133,3 +11133,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Make DashboardLayout sidebar role-aware — admin, insurer (per sub-role), assessor, panel_beater, claimant each see their own nav items
 - [ ] Improve InsurerRoleSelection to auto-redirect if insurerRole is already set (skip selection screen)
 - [ ] Add notification dot to sidebar items when there are pending actions
+
+## Portal Layouts — Persistent Sidebars
+
+- [x] Create InsurerPortalLayout (role-aware, always-visible sidebar for all insurer sub-role pages)
+- [x] Create AssessorPortalLayout (persistent sidebar for assessor pages)
+- [x] Create PanelBeaterPortalLayout (persistent sidebar for panel beater pages)
+- [x] Create ClaimantPortalLayout (persistent sidebar for claimant pages)
+- [x] Wire all portal routes in App.tsx with their respective layout components (20 routes updated)
+- [x] TypeScript check passes (zero errors with --skipLibCheck)

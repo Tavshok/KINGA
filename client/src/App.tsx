@@ -72,6 +72,10 @@ const PlatformUserRoleManager = lazy(() => import("./pages/PlatformUserRoleManag
 const ClaimSimulator = lazy(() => import("./pages/platform/ClaimSimulator"));
 const VehicleRegistry = lazy(() => import("./pages/VehicleRegistry"));
 import PlatformLayout from "./components/PlatformLayout";
+import InsurerPortalLayout from "./components/InsurerPortalLayout";
+import AssessorPortalLayout from "./components/AssessorPortalLayout";
+import PanelBeaterPortalLayout from "./components/PanelBeaterPortalLayout";
+import ClaimantPortalLayout from "./components/ClaimantPortalLayout";
 
 // Assessor pages
 const AssessorDashboard = lazy(() => import("@/pages/AssessorDashboard"));
@@ -167,21 +171,21 @@ function Router() {
 
         <Route path="/insurer-portal/exception-intelligence">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <ExceptionIntelligenceHub />
+            <InsurerPortalLayout><ExceptionIntelligenceHub /></InsurerPortalLayout>
           </ProtectedRoute>
         </Route>
 
         {/* Relationship Intelligence — entity web, hotspots, watchlists */}
         <Route path="/insurer-portal/relationship-intelligence">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <RelationshipIntelligence />
+            <InsurerPortalLayout><RelationshipIntelligence /></InsurerPortalLayout>
           </ProtectedRoute>
         </Route>
 
         {/* Reports Centre — report catalogue, job tracker, admin regeneration */}
         <Route path="/insurer-portal/reports-centre">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <ReportsCentre />
+            <InsurerPortalLayout><ReportsCentre /></InsurerPortalLayout>
           </ProtectedRoute>
         </Route>
         
@@ -284,7 +288,7 @@ function Router() {
         <Route path="/insurer-portal/workflow-analytics">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["executive", "risk_manager", "claims_manager"]}>
-              <WorkflowAnalyticsDashboard />
+              <InsurerPortalLayout><WorkflowAnalyticsDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>
@@ -292,7 +296,7 @@ function Router() {
         <Route path="/insurer-portal/executive">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["executive"]}>
-              <ExecutiveDashboard />
+              <InsurerPortalLayout><ExecutiveDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>
@@ -303,7 +307,7 @@ function Router() {
             allowedInsurerRoles={["risk_manager", "claims_manager", "executive", "insurer_admin"]}
           >
             <RoleGuard allowedRoles={["executive", "insurer_admin"]}>
-              <GovernanceDashboard />
+              <InsurerPortalLayout><GovernanceDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>
@@ -311,7 +315,7 @@ function Router() {
         <Route path="/insurer-portal/claims-processor">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["claims_processor"]}>
-              <ClaimsProcessorDashboard />
+              <InsurerPortalLayout><ClaimsProcessorDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>
@@ -319,7 +323,7 @@ function Router() {
         <Route path="/insurer-portal/internal-assessor">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["assessor_internal"]}>
-              <InternalAssessorDashboard />
+              <InsurerPortalLayout><InternalAssessorDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>
@@ -327,7 +331,7 @@ function Router() {
         <Route path="/insurer-portal/risk-manager">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["risk_manager"]}>
-              <RiskManagerDashboard />
+              <InsurerPortalLayout><RiskManagerDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>
@@ -335,7 +339,7 @@ function Router() {
         <Route path="/insurer-portal/claims-manager">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["claims_manager"]}>
-              <ClaimsManagerDashboard />
+              <InsurerPortalLayout><ClaimsManagerDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>
@@ -560,55 +564,55 @@ function Router() {
         {/* Assessor Routes */}
         <Route path="/assessor">
           <ProtectedRoute allowedRoles={["assessor", "admin"]}>
-            <AssessorDashboard />
+            <AssessorPortalLayout><AssessorDashboard /></AssessorPortalLayout>
           </ProtectedRoute>
         </Route>
         
         <Route path="/assessor/dashboard">
           <ProtectedRoute allowedRoles={["assessor", "admin"]}>
-            <AssessorDashboard />
+            <AssessorPortalLayout><AssessorDashboard /></AssessorPortalLayout>
           </ProtectedRoute>
         </Route>
         
         <Route path="/assessor/claims/:id">
           <ProtectedRoute allowedRoles={["assessor", "admin"]}>
-            <AssessorClaimDetails />
+            <AssessorPortalLayout><AssessorClaimDetails /></AssessorPortalLayout>
           </ProtectedRoute>
         </Route>
         
         <Route path="/assessor/performance">
           <ProtectedRoute allowedRoles={["assessor", "admin"]}>
-            <AssessorPerformanceDashboard />
+            <AssessorPortalLayout><AssessorPerformanceDashboard /></AssessorPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/assessor/leaderboard">
           <ProtectedRoute allowedRoles={["assessor", "admin"]}>
-            <AssessorLeaderboard />
+            <AssessorPortalLayout><AssessorLeaderboard /></AssessorPortalLayout>
           </ProtectedRoute>
         </Route>
         
         {/* Panel Beater Routes */}
         <Route path="/panel-beater/dashboard">
           <ProtectedRoute allowedRoles={["panel_beater", "admin"]}>
-            <PanelBeaterDashboard />
+            <PanelBeaterPortalLayout><PanelBeaterDashboard /></PanelBeaterPortalLayout>
           </ProtectedRoute>
         </Route>
         
         <Route path="/panel-beater/claims/:id/quote">
           <ProtectedRoute allowedRoles={["panel_beater", "admin"]}>
-            <PanelBeaterQuoteSubmission />
+            <PanelBeaterPortalLayout><PanelBeaterQuoteSubmission /></PanelBeaterPortalLayout>
           </ProtectedRoute>
         </Route>
         
         {/* Claimant Routes — /portal domain */}
         <Route path="/claimant/dashboard">
           <ProtectedRoute domain="portal">
-            <ClaimantDashboard />
+            <ClaimantPortalLayout><ClaimantDashboard /></ClaimantPortalLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/claimant/submit-claim">
           <ProtectedRoute domain="portal">
-            <SubmitClaim />
+            <ClaimantPortalLayout><SubmitClaim /></ClaimantPortalLayout>
           </ProtectedRoute>
         </Route>
 
