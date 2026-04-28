@@ -29,6 +29,13 @@ import {
   Car,
   Zap,
   Settings,
+  Activity,
+  BookOpen,
+  DollarSign,
+  Scale,
+  Target,
+  CheckSquare,
+  Eye,
 } from "lucide-react";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
@@ -38,158 +45,196 @@ type NavItem = {
   href: string;
   icon: React.ElementType;
   description: string;
-  roles?: string[]; // if set, only shown to these insurerRoles
 };
 
 type NavSection = {
   title: string;
   items: NavItem[];
-  roles?: string[]; // if set, entire section only shown to these insurerRoles
 };
 
-const sections: NavSection[] = [
+// Each role gets its OWN nav — no cross-role links.
+// "Push to processor / assessor / risk manager" are ACTION BUTTONS on claim rows,
+// not sidebar navigation items.
+const navByRole: Record<string, NavSection[]> = {
+  claims_manager: [
+    {
+      title: "Overview",
+      items: [
+        { label: "My Dashboard", description: "Queue, stats & finances", href: "/insurer-portal/claims-manager", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Claims Work",
+      items: [
+        { label: "Intake Queue", description: "New claims awaiting assignment", href: "/insurer-portal/claims-manager", icon: ClipboardList },
+        { label: "Active Claims", description: "Claims in progress", href: "/insurer-portal/claims-manager", icon: Activity },
+        { label: "Review Queue", description: "Ready for final review", href: "/insurer-portal/claims-manager", icon: CheckSquare },
+        { label: "Processed Claims", description: "Closed and settled history", href: "/insurer-portal/claims-manager", icon: BookOpen },
+      ],
+    },
+    {
+      title: "Intelligence",
+      items: [
+        { label: "Fraud Alerts", description: "FCDI flags requiring action", href: "/insurer/fraud-analytics", icon: AlertCircle },
+        { label: "Exception Hub", description: "Anomalies and outliers", href: "/insurer-portal/exception-intelligence", icon: Zap },
+        { label: "Relationship Intelligence", description: "Entity web and hotspots", href: "/insurer-portal/relationship-intelligence", icon: Network },
+      ],
+    },
+    {
+      title: "Analytics & Reports",
+      items: [
+        { label: "Workflow Analytics", description: "Processing times and throughput", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
+        { label: "Reports Centre", description: "Generate and download reports", href: "/insurer-portal/reports-centre", icon: FileBarChart },
+        { label: "Panel Beater Performance", description: "Repairer quality and cost data", href: "/insurer/panel-beater-performance", icon: Car },
+      ],
+    },
+    {
+      title: "Administration",
+      items: [
+        { label: "Workflow Settings", description: "Automation rules and thresholds", href: "/admin/workflows", icon: Settings },
+        { label: "Escalation Queue", description: "Claims escalated for review", href: "/admin/escalation", icon: ShieldAlert },
+        { label: "Assessors", description: "Manage assigned assessors", href: "/assessors", icon: Users },
+      ],
+    },
+  ],
+
+  claims_processor: [
+    {
+      title: "Overview",
+      items: [
+        { label: "My Dashboard", description: "Intake queue and progress", href: "/insurer-portal/claims-processor", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Claims Work",
+      items: [
+        { label: "Intake Queue", description: "New claims to process", href: "/insurer-portal/claims-processor", icon: ClipboardList },
+        { label: "In Progress", description: "Claims being actively worked", href: "/insurer-portal/claims-processor", icon: Activity },
+        { label: "Completed Today", description: "Claims processed today", href: "/insurer-portal/claims-processor", icon: CheckSquare },
+      ],
+    },
+    {
+      title: "Tools",
+      items: [
+        { label: "Claims Triage", description: "Full triage and verification", href: "/insurer/claims/triage", icon: Eye },
+        { label: "Batch Export", description: "Export claims data", href: "/insurer/batch-export", icon: FileText },
+      ],
+    },
+  ],
+
+  risk_manager: [
+    {
+      title: "Overview",
+      items: [
+        { label: "My Dashboard", description: "Approval queue and risk scoring", href: "/insurer-portal/risk-manager", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Decisions",
+      items: [
+        { label: "Approval Queue", description: "Claims awaiting technical approval", href: "/insurer-portal/risk-manager", icon: CheckSquare },
+        { label: "High-Value Claims", description: "Claims above financial threshold", href: "/insurer-portal/risk-manager", icon: DollarSign },
+        { label: "Escalations", description: "Claims escalated from processors", href: "/insurer-portal/risk-manager", icon: AlertCircle },
+      ],
+    },
+    {
+      title: "Intelligence",
+      items: [
+        { label: "Fraud Analytics", description: "Risk patterns and FCDI flags", href: "/insurer/fraud-analytics", icon: ShieldAlert },
+        { label: "Exception Hub", description: "Anomalies requiring review", href: "/insurer-portal/exception-intelligence", icon: Zap },
+        { label: "Workflow Analytics", description: "Decision times and outcomes", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
+      ],
+    },
+  ],
+
+  executive: [
+    {
+      title: "Overview",
+      items: [
+        { label: "Executive Dashboard", description: "Portfolio overview and ROI", href: "/insurer-portal/executive", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Portfolio",
+      items: [
+        { label: "Savings Tracker", description: "Cost savings and financial impact", href: "/insurer-portal/executive", icon: TrendingUp },
+        { label: "Fraud Analytics", description: "Fraud detection performance", href: "/insurer/fraud-analytics", icon: ShieldAlert },
+        { label: "Repairer Intelligence", description: "Panel beater performance data", href: "/insurer/panel-beater-performance", icon: Car },
+      ],
+    },
+    {
+      title: "Analytics",
+      items: [
+        { label: "Workflow Analytics", description: "Processing efficiency metrics", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
+        { label: "Reports Centre", description: "Generate executive reports", href: "/insurer-portal/reports-centre", icon: FileBarChart },
+        { label: "Relationship Intelligence", description: "Entity network analysis", href: "/insurer-portal/relationship-intelligence", icon: Network },
+      ],
+    },
+    {
+      title: "Governance",
+      items: [
+        { label: "Governance Dashboard", description: "Compliance and audit overview", href: "/insurer-portal/governance", icon: Scale },
+        { label: "Automation Policies", description: "AI decision rules and thresholds", href: "/insurer/automation-policies", icon: Target },
+        { label: "Assessors", description: "Assessor network management", href: "/assessors", icon: Users },
+      ],
+    },
+  ],
+
+  assessor_internal: [
+    {
+      title: "Overview",
+      items: [
+        { label: "My Dashboard", description: "Assigned claims and queue", href: "/insurer-portal/internal-assessor", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Assessments",
+      items: [
+        { label: "My Queue", description: "Claims assigned to me", href: "/insurer-portal/internal-assessor", icon: ClipboardList },
+        { label: "In Progress", description: "Assessments being written", href: "/insurer-portal/internal-assessor", icon: Activity },
+        { label: "Completed", description: "Submitted assessments", href: "/insurer-portal/internal-assessor", icon: CheckSquare },
+      ],
+    },
+    {
+      title: "Tools",
+      items: [
+        { label: "Fraud Analytics", description: "Fraud signals and patterns", href: "/insurer/fraud-analytics", icon: ShieldAlert },
+        { label: "Reports Centre", description: "Assessment report archive", href: "/insurer-portal/reports-centre", icon: FileBarChart },
+      ],
+    },
+  ],
+
+  insurer_admin: [
+    {
+      title: "Overview",
+      items: [
+        { label: "Portal Home", description: "Role selection and overview", href: "/insurer-portal", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Administration",
+      items: [
+        { label: "Governance", description: "Compliance and audit", href: "/insurer-portal/governance", icon: Scale },
+        { label: "Workflow Settings", description: "Automation rules", href: "/admin/workflows", icon: Settings },
+        { label: "Assessors", description: "Manage assessor network", href: "/assessors", icon: Users },
+        { label: "Reports Centre", description: "Report catalogue", href: "/insurer-portal/reports-centre", icon: FileBarChart },
+      ],
+    },
+    {
+      title: "Analytics",
+      items: [
+        { label: "Workflow Analytics", description: "Processing metrics", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
+        { label: "Fraud Analytics", description: "Fraud detection overview", href: "/insurer/fraud-analytics", icon: ShieldAlert },
+      ],
+    },
+  ],
+};
+
+const defaultNav: NavSection[] = [
   {
     title: "Home",
     items: [
-      {
-        label: "Portal Home",
-        href: "/insurer-portal",
-        icon: LayoutDashboard,
-        description: "Role selection & overview",
-      },
-    ],
-  },
-  {
-    title: "Claims Operations",
-    roles: ["claims_manager", "claims_processor", "risk_manager", "executive", "insurer_admin"],
-    items: [
-      {
-        label: "Claims Manager",
-        href: "/insurer-portal/claims-manager",
-        icon: ClipboardList,
-        description: "Review & close claims",
-        roles: ["claims_manager"],
-      },
-      {
-        label: "Claims Processor",
-        href: "/insurer-portal/claims-processor",
-        icon: FileText,
-        description: "Process incoming claims",
-        roles: ["claims_processor"],
-      },
-      {
-        label: "Risk Manager",
-        href: "/insurer-portal/risk-manager",
-        icon: ShieldAlert,
-        description: "Technical approvals",
-        roles: ["risk_manager"],
-      },
-      {
-        label: "Internal Assessor",
-        href: "/insurer-portal/internal-assessor",
-        icon: Wrench,
-        description: "Damage assessment",
-        roles: ["assessor_internal"],
-      },
-    ],
-  },
-  {
-    title: "Intelligence",
-    roles: ["claims_manager", "executive", "risk_manager", "insurer_admin"],
-    items: [
-      {
-        label: "Exception Hub",
-        href: "/insurer-portal/exception-intelligence",
-        icon: AlertCircle,
-        description: "Anomaly & exception flags",
-      },
-      {
-        label: "Fraud Analytics",
-        href: "/insurer/fraud-analytics",
-        icon: Search,
-        description: "Fraud pattern detection",
-        roles: ["claims_manager", "executive", "risk_manager"],
-      },
-      {
-        label: "Relationship Intelligence",
-        href: "/insurer-portal/relationship-intelligence",
-        icon: Network,
-        description: "Entity relationship maps",
-      },
-    ],
-  },
-  {
-    title: "Analytics",
-    roles: ["executive", "claims_manager", "risk_manager", "insurer_admin"],
-    items: [
-      {
-        label: "Executive Dashboard",
-        href: "/insurer-portal/executive",
-        icon: TrendingUp,
-        description: "Portfolio & ROI overview",
-        roles: ["executive"],
-      },
-      {
-        label: "Workflow Analytics",
-        href: "/insurer-portal/workflow-analytics",
-        icon: BarChart3,
-        description: "Pipeline performance",
-        roles: ["executive", "claims_manager", "risk_manager"],
-      },
-      {
-        label: "Reports Centre",
-        href: "/insurer-portal/reports-centre",
-        icon: FileBarChart,
-        description: "Downloadable reports",
-      },
-      {
-        label: "Panel Beater Performance",
-        href: "/insurer/panel-beater-performance",
-        icon: Car,
-        description: "Repairer benchmarks",
-        roles: ["executive", "claims_manager"],
-      },
-    ],
-  },
-  {
-    title: "Administration",
-    roles: ["executive", "insurer_admin", "claims_manager"],
-    items: [
-      {
-        label: "Governance",
-        href: "/insurer-portal/governance",
-        icon: UserCog,
-        description: "Policies & compliance",
-        roles: ["executive", "insurer_admin"],
-      },
-      {
-        label: "Workflows",
-        href: "/admin/workflows",
-        icon: GitBranch,
-        description: "Workflow templates",
-        roles: ["executive", "insurer_admin", "claims_manager"],
-      },
-      {
-        label: "Escalation Queue",
-        href: "/admin/escalation",
-        icon: Zap,
-        description: "Escalated claims",
-        roles: ["claims_manager", "executive", "insurer_admin"],
-      },
-      {
-        label: "Automation Policies",
-        href: "/insurer/automation-policies",
-        icon: Settings,
-        description: "Auto-assignment rules",
-        roles: ["executive", "insurer_admin"],
-      },
-      {
-        label: "Assessors",
-        href: "/assessors",
-        icon: Users,
-        description: "Manage assessors",
-        roles: ["executive", "insurer_admin", "claims_manager"],
-      },
+      { label: "Portal Home", description: "Role selection and overview", href: "/insurer-portal", icon: LayoutDashboard },
     ],
   },
 ];
@@ -205,16 +250,8 @@ export default function InsurerPortalLayout({
   const { user, logout } = useAuth();
   const insurerRole = user?.insurerRole ?? null;
 
-  // Filter sections and items based on the current user's insurerRole
-  const visibleSections = sections
-    .filter((s) => !s.roles || !insurerRole || s.roles.includes(insurerRole))
-    .map((s) => ({
-      ...s,
-      items: s.items.filter(
-        (item) => !item.roles || !insurerRole || item.roles.includes(insurerRole)
-      ),
-    }))
-    .filter((s) => s.items.length > 0);
+  // Pick the nav config for this role — fall back to default
+  const visibleSections = (insurerRole && navByRole[insurerRole]) ?? defaultNav;
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-background">
@@ -244,9 +281,10 @@ export default function InsurerPortalLayout({
               </p>
               <div className="space-y-0.5">
                 {section.items.map((item) => {
+                  const hrefBase = item.href.split("#")[0];
                   const active =
-                    location === item.href ||
-                    (item.href !== "/insurer-portal" && location.startsWith(item.href));
+                    location === hrefBase ||
+                    (hrefBase.length > 1 && location.startsWith(hrefBase));
                   return (
                     <Link key={item.href} href={item.href}>
                       <a

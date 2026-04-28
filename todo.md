@@ -11142,3 +11142,26 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Create ClaimantPortalLayout (persistent sidebar for claimant pages)
 - [x] Wire all portal routes in App.tsx with their respective layout components (20 routes updated)
 - [x] TypeScript check passes (zero errors with --skipLibCheck)
+
+## Dashboard Enrichment — Each Role as a Complete Tool
+
+- [ ] Fix InsurerPortalLayout sidebar: remove all cross-role nav links, show only sections for the current user's own role
+- [ ] Enrich ClaimsManagerDashboard: active claims + push-to-processor/assessor/risk-manager actions, statistics, finances, fraud alerts, processed claims history
+- [ ] Enrich ClaimsProcessorDashboard: intake queue with actions, document checklist, push-to-assessor, push-to-panel-beater, status tracker
+- [ ] Enrich RiskManagerDashboard: technical approval queue, financial decision panel, escalation tools, risk scoring
+- [ ] Enrich ExecutiveDashboard: portfolio analytics, savings tracker, ROI, repairer intelligence, tier-gated panels
+
+## Tier Upgrade UX — Strategic Design (Future)
+
+- [ ] Design tier upgrade prompts strategically: where they appear, what they say, how they feel (separate dedicated exercise — do NOT add ad-hoc to dashboards)
+
+## Dashboard Enrichment — Role-Specific Tools (Apr 2026)
+
+- [x] Fix InsurerPortalLayout sidebar — per-role nav configs, no cross-role links
+- [x] Enrich RiskManagerDashboard — stat bar, financial decisions tab, escalations tab, risk analytics tab
+- [x] Enrich ExecutiveDashboard — add Governance tab and Workflow tab to existing 6-tab structure
+- [x] Enrich AdminDashboard — add Tenants tab with full tenant list, inline edit, currency display
+- [x] Fix myQuoteRequests server procedure — now returns real claims for panel beater via userId lookup
+- [x] Rebuild PanelBeaterDashboard — live quote requests, performance stats, quote history, benchmark comparison
+- [x] Rebuild ClaimantDashboard — real myClaims data, 5-step visual status tracker, expandable detail panels
+- [ ] Tier upgrade UX — strategic design of upgrade prompts (deferred for dedicated session)

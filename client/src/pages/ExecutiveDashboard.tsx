@@ -901,13 +901,15 @@ export default function ExecutiveDashboard() {
 
         {/* Tabs Section (Existing Content) */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-white dark:bg-card shadow-sm border border-slate-200 dark:border-border">
+          <TabsList className="grid w-full grid-cols-8 bg-white dark:bg-card shadow-sm border border-slate-200 dark:border-border">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="alerts">Critical Alerts</TabsTrigger>
             <TabsTrigger value="assessors">Assessors</TabsTrigger>
             <TabsTrigger value="panel-beaters">Panel Beaters</TabsTrigger>
             <TabsTrigger value="financials">Financials</TabsTrigger>
+            <TabsTrigger value="governance">Governance</TabsTrigger>
+            <TabsTrigger value="workflow">Workflow</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -1285,6 +1287,122 @@ export default function ExecutiveDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Governance Tab — surfaces the existing GovernanceSummaryCard and override history */}
+          <TabsContent value="governance" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Override Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {governanceMetrics ? `${governanceMetrics.overrideRate ?? 0}%` : "—"}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">AI decisions overridden by staff</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Segregation Violations</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-amber-600">
+                    {governanceMetrics ? (governanceMetrics.segregationViolations ?? 0) : "—"}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Duty-of-care conflicts detected</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Role Changes (30d)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {governanceMetrics ? (governanceMetrics.roleChanges30d ?? 0) : "—"}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">User role modifications this month</p>
+                </CardContent>
+              </Card>
+            </div>
+            <GovernanceSummaryCard />
+          </TabsContent>
+
+          {/* Workflow Tab — bottlenecks and processing efficiency */}
+          <TabsContent value="workflow" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Avg. Processing Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {bottlenecksResponse?.data?.avgProcessingDays != null
+                      ? `${bottlenecksResponse.data.avgProcessingDays}d`
+                      : "—"}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">End-to-end claim resolution</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Bottleneck Stage</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-lg font-bold">
+                    {bottlenecksResponse?.data?.bottleneckStage ?? "—"}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Longest average dwell time</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">SLA Breach Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-600">
+                    {bottlenecksResponse?.data?.slaBreachRate != null
+                      ? `${bottlenecksResponse.data.slaBreachRate}%`
+                      : "—"}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Claims exceeding SLA target</p>
+                </CardContent>
+              </Card>
+            </div>
+            {bottlenecksLoading ? (
+              <p className="text-center text-muted-foreground py-8">Loading workflow data…</p>
+            ) : bottlenecksResponse?.data?.stages ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Stage Dwell Times</CardTitle>
+                  <CardDescription>Average time claims spend at each workflow stage</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {(bottlenecksResponse.data.stages as any[]).map((stage: any) => (
+                      <div key={stage.name} className="flex items-center gap-4">
+                        <div className="w-40 text-sm text-muted-foreground truncate">{stage.name}</div>
+                        <div className="flex-1 bg-muted rounded-full h-2">
+                          <div
+                            className="bg-primary h-2 rounded-full"
+                            style={{ width: `${Math.min(100, (stage.avgDays / 10) * 100)}%` }}
+                          />
+                        </div>
+                        <div className="w-16 text-sm font-medium text-right">{stage.avgDays}d avg</div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  No workflow bottleneck data available yet
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
         </Tabs>
       </div>
 

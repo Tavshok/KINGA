@@ -38,7 +38,17 @@ import { useState, useMemo } from "react";
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
-  const [selectedTab, setSelectedTab] = useState<"panel-beaters" | "analytics" | "intelligence" | "settings">("panel-beaters");
+  const [selectedTab, setSelectedTab] = useState<"panel-beaters" | "analytics" | "intelligence" | "settings" | "tenants">("panel-beaters");
+
+  // Tenant management
+  const { data: tenantList = [], isLoading: tenantsLoading, refetch: refetchTenants } = trpc.tenant.list.useQuery();
+  const updateTenant = trpc.tenant.update.useMutation({
+    onSuccess: () => { toast.success("Tenant updated"); refetchTenants(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
+  const [tenantEditName, setTenantEditName] = useState("");
+  const [tenantEditCurrency, setTenantEditCurrency] = useState("");
 
   // Ground truth form state
   const [gtClaimId, setGtClaimId] = useState("");
@@ -267,6 +277,13 @@ export default function AdminDashboard() {
             Settings
           </Button>
           <Button
+            variant={selectedTab === "tenants" ? "default" : "outline"}
+            onClick={() => setSelectedTab("tenants")}
+          >
+            <GitBranch className="mr-2 h-4 w-4" />
+            Tenants
+          </Button>
+          <Button
             variant="outline"
             onClick={() => setLocation("/admin/market-quotes")}
           >
@@ -274,6 +291,105 @@ export default function AdminDashboard() {
             KINGA Agency
           </Button>
         </div>
+        {/* Tenants Tab */}
+        {selectedTab === "tenants" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Insurer Tenant Management</CardTitle>
+              <CardDescription>View and configure all insurer tenants on the KINGA platform</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {tenantsLoading ? (
+                <div className="flex items-center gap-2 py-8 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading tenants…</div>
+              ) : tenantList.length === 0 ? (
+                <p className="text-muted-foreground py-8 text-center">No tenants found</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tenant ID</TableHead>
+                      <TableHead>Display Name</TableHead>
+                      <TableHead>Currency</TableHead>
+                      <TableHead>Auto-Approve Below</TableHead>
+                      <TableHead>High-Value Threshold</TableHead>
+                      <TableHead>Fraud Flag Threshold</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tenantList.map((t: any) => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-mono text-xs">{t.id}</TableCell>
+                        <TableCell>
+                          {editingTenantId === t.id ? (
+                            <Input
+                              value={tenantEditName}
+                              onChange={(e) => setTenantEditName(e.target.value)}
+                              className="h-7 text-sm"
+                            />
+                          ) : (
+                            t.displayName
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {editingTenantId === t.id ? (
+                            <Input
+                              value={tenantEditCurrency}
+                              onChange={(e) => setTenantEditCurrency(e.target.value)}
+                              className="h-7 w-20 text-sm"
+                              maxLength={3}
+                            />
+                          ) : (
+                            <Badge variant="outline">{t.primaryCurrency ?? "USD"}</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{t.autoApproveBelow ?? "—"}</TableCell>
+                        <TableCell>{t.highValueThreshold ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={Number(t.fraudFlagThreshold) >= 0.8 ? "destructive" : "secondary"}>
+                            {t.fraudFlagThreshold ?? "—"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {t.createdAt ? new Date(t.createdAt).toLocaleDateString() : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {editingTenantId === t.id ? (
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  updateTenant.mutate({ tenantId: t.id, name: tenantEditName });
+                                  setEditingTenantId(null);
+                                }}
+                              >
+                                Save
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingTenantId(null)}>Cancel</Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingTenantId(t.id);
+                                setTenantEditName(t.displayName);
+                                setTenantEditCurrency(t.primaryCurrency ?? "USD");
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Panel Beater Approvals Tab */}
         {selectedTab === "panel-beaters" && (
