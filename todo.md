@@ -11123,3 +11123,13 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Section 2.7: Redesign speed forensics with claimed vs inferred visual comparison and verdict badge
 - [ ] Section 3: Add financial delta narrative — quote vs agreed breakdown, panel scope analysis
 - [ ] Section 5: Enhance fraud indicators with physics-backed speed deviation and visual risk meter
+
+## Dashboard Remodel — Alive Tool Phase
+- [x] Fix server: claims.myQuoteRequests now returns real claims via getClaimsForPanelBeater (userId lookup)
+- [x] Add claims.myQuoteHistory procedure — returns panel beater's submitted quotes
+- [x] Add claims.myPanelBeaterProfile procedure — returns panel beater profile for logged-in user
+- [x] Rebuild PanelBeaterDashboard — real data, performance banner, quality/cost/fraud KPIs, quote queue, quote history table
+- [x] Rebuild ClaimantDashboard — real myClaims data, visual status tracker (5-step progress bar), per-claim expandable detail, quick actions
+- [x] Make DashboardLayout sidebar role-aware — admin, insurer (per sub-role), assessor, panel_beater, claimant each see their own nav items
+- [ ] Improve InsurerRoleSelection to auto-redirect if insurerRole is already set (skip selection screen)
+- [ ] Add notification dot to sidebar items when there are pending actions

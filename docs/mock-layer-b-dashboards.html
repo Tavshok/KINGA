@@ -3,206 +3,493 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KINGA AutoVerify AI — Dashboards</title>
+<title>KINGA AutoVerify AI — Dashboard Mocks</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; background: #f0f0f0; color: #111; font-size: 13px; }
-  .tab-bar { background: #111; padding: 0 24px; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; }
-  .tab-brand { color: #fff; font-weight: 900; font-size: 15px; letter-spacing: 3px; padding: 14px 24px 14px 0; border-right: 1px solid #333; margin-right: 16px; }
-  .tab-btn { background: transparent; border: none; color: #777; padding: 16px 20px; font-size: 11px; cursor: pointer; letter-spacing: 0.5px; border-bottom: 3px solid transparent; }
-  .tab-btn.active { color: #fff; border-bottom-color: #fff; }
-  .tab-btn:hover:not(.active) { color: #ccc; }
-  .view { display: none; }
-  .view.active { display: block; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Arial',sans-serif;background:#e8e8e8;color:#111;font-size:13px;line-height:1.5}
 
-  /* ── LAYOUT ── */
-  .layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 48px); }
-  .sidebar { background: #1a1a1a; }
-  .sb-brand { padding: 18px 20px 14px; border-bottom: 1px solid #2a2a2a; }
-  .sb-brand .org { color: #fff; font-weight: 700; font-size: 13px; letter-spacing: 1px; }
-  .sb-brand .role { color: #555; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; }
-  .sb-section { padding: 14px 20px 6px; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #444; }
-  .sb-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; color: #777; font-size: 12px; cursor: pointer; }
-  .sb-item:hover { background: #222; color: #ccc; }
-  .sb-item.active { background: #252525; color: #fff; border-left: 3px solid #fff; padding-left: 17px; }
-  .sb-badge { margin-left: auto; background: #c03030; color: #fff; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; }
-  .sb-lock { margin-left: auto; color: #444; font-size: 10px; }
-  .sb-locked { opacity: 0.4; }
-  .main { background: #f5f5f5; overflow: auto; }
-  .topbar { background: #fff; padding: 14px 28px; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; }
-  .topbar-title { font-size: 15px; font-weight: 700; color: #111; }
-  .topbar-sub { font-size: 11px; color: #888; margin-top: 2px; }
-  .topbar-user { font-size: 11px; color: #555; text-align: right; }
-  .content { padding: 22px 28px; }
+/* ── TOP PORTAL SWITCHER ── */
+.portal-bar{background:#000;display:flex;align-items:center;padding:0 0 0 20px;position:sticky;top:0;z-index:300;gap:0;border-bottom:1px solid #222}
+.portal-brand{color:#fff;font-weight:900;font-size:14px;letter-spacing:.25em;padding:13px 20px 13px 0;border-right:1px solid #2a2a2a;margin-right:4px;flex-shrink:0}
+.portal-brand-sub{font-size:8px;letter-spacing:.15em;color:#555;display:block;margin-top:1px}
+.portal-btn{color:#555;padding:14px 16px;cursor:pointer;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border-bottom:3px solid transparent;background:none;border-top:none;border-left:none;border-right:none;white-space:nowrap}
+.portal-btn:hover{color:#aaa}
+.portal-btn.active{color:#fff;border-bottom-color:#fff}
+.portal-content{display:none}
+.portal-content.active{display:flex;min-height:calc(100vh - 48px)}
 
-  /* ── KPI ROW ── */
-  .kpi-row { display: grid; gap: 12px; margin-bottom: 18px; }
-  .kpi-5 { grid-template-columns: repeat(5, 1fr); }
-  .kpi-6 { grid-template-columns: repeat(6, 1fr); }
-  .kpi { background: #fff; padding: 16px 18px; border-bottom: 3px solid #ccc; }
-  .kpi.ok { border-bottom-color: #1a7a1a; }
-  .kpi.warn { border-bottom-color: #b07000; }
-  .kpi.danger { border-bottom-color: #c03030; }
-  .kpi.info { border-bottom-color: #1a3a8a; }
-  .kpi.black { border-bottom-color: #111; }
-  .kpi-lbl { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #999; margin-bottom: 7px; }
-  .kpi-val { font-size: 26px; font-weight: 900; color: #111; line-height: 1; }
-  .kpi-val.ok { color: #1a7a1a; }
-  .kpi-val.warn { color: #b07000; }
-  .kpi-val.danger { color: #c03030; }
-  .kpi-sub { font-size: 10px; color: #888; margin-top: 5px; }
-  .kpi-delta { font-size: 10px; margin-top: 3px; }
-  .delta-up { color: #1a7a1a; }
-  .delta-dn { color: #c03030; }
+/* ── SIDEBAR ── */
+.sidebar{background:#1a1a1a;width:230px;flex-shrink:0;display:flex;flex-direction:column}
+.sb-header{padding:16px 18px 12px;border-bottom:1px solid #252525}
+.sb-org{color:#fff;font-weight:700;font-size:12px;letter-spacing:.05em}
+.sb-role{color:#555;font-size:9px;letter-spacing:.15em;text-transform:uppercase;margin-top:3px}
+.sb-tier{display:inline-block;font-size:8px;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;margin-top:6px;font-weight:700}
+.sb-tier.process{background:#333;color:#aaa}
+.sb-tier.protect{background:#1a3a1a;color:#5a9a5a}
+.sb-tier.prove{background:#1a1a3a;color:#5a5aaa}
+.sb-section{padding:12px 18px 4px;font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#3a3a3a}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 18px;color:#666;font-size:11px;cursor:pointer;border-left:3px solid transparent;transition:all .1s}
+.sb-item:hover{background:#222;color:#ccc}
+.sb-item.active{background:#242424;color:#fff;border-left-color:#fff}
+.sb-badge{margin-left:auto;background:#c03030;color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;flex-shrink:0}
+.sb-badge.amber{background:#b07000}
+.sb-badge.blue{background:#1a3a8a}
+.sb-lock{margin-left:auto;color:#333;font-size:10px}
+.sb-locked{opacity:.35;pointer-events:none}
+.sb-footer{margin-top:auto;padding:12px 18px;border-top:1px solid #252525;font-size:10px;color:#444}
 
-  /* ── PANELS ── */
-  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-  .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-  .g31 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; }
-  .g13 { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; margin-bottom: 14px; }
-  .panel { background: #fff; }
-  .ph { padding: 13px 18px 11px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
-  .pt { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #999; }
-  .pa { font-size: 10px; color: #555; cursor: pointer; text-decoration: underline; }
-  .pb { padding: 16px 18px; }
-  .ch160 { height: 160px; position: relative; }
-  .ch200 { height: 200px; position: relative; }
-  .ch240 { height: 240px; position: relative; }
-  .ch280 { height: 280px; position: relative; }
-  .ch300 { height: 300px; position: relative; }
+/* ── MAIN AREA ── */
+.main{flex:1;background:#f0f0f0;overflow:auto;display:flex;flex-direction:column}
+.topbar{background:#fff;padding:12px 24px;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar-left{}
+.topbar-title{font-size:14px;font-weight:700;color:#111}
+.topbar-sub{font-size:10px;color:#888;margin-top:2px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-user{font-size:10px;color:#555;text-align:right;line-height:1.6}
+.btn{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:7px 14px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:#111;color:#fff}
+.btn-secondary{background:#fff;color:#111;border:1px solid #ccc}
+.btn-danger{background:#c03030;color:#fff}
+.btn-success{background:#1a7a1a;color:#fff}
+.btn-sm{padding:5px 10px;font-size:9px}
+.content{padding:20px 24px;flex:1}
 
-  /* ── QUEUE ── */
-  .qi { display: flex; align-items: center; gap: 11px; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
-  .qi:last-child { border-bottom: none; }
-  .qp { width: 4px; height: 34px; border-radius: 2px; flex-shrink: 0; }
-  .qp.hi { background: #c03030; }
-  .qp.md { background: #b07000; }
-  .qp.lo { background: #1a7a1a; }
-  .q-ref { font-size: 11px; font-weight: 700; color: #111; }
-  .q-veh { font-size: 11px; color: #555; margin-top: 1px; }
-  .q-amt { font-size: 12px; font-weight: 700; color: #111; margin-left: auto; text-align: right; }
-  .q-age { font-size: 10px; color: #aaa; margin-top: 1px; }
-  .badge { font-size: 9px; font-weight: 700; padding: 2px 6px; letter-spacing: 0.5px; display: inline-block; }
-  .b-review { background: #fff3cd; color: #7a5000; }
-  .b-new { background: #e8eaf6; color: #2a3a8a; }
-  .b-approve { background: #e8f5e8; color: #1a6a1a; }
-  .b-reject { background: #fde8e8; color: #8a2020; }
+/* ── KPI ROW ── */
+.kpi-row{display:grid;gap:10px;margin-bottom:16px}
+.kpi-4{grid-template-columns:repeat(4,1fr)}
+.kpi-5{grid-template-columns:repeat(5,1fr)}
+.kpi-6{grid-template-columns:repeat(6,1fr)}
+.kpi{background:#fff;padding:14px 16px;border-bottom:3px solid #ddd}
+.kpi.ok{border-bottom-color:#1a7a1a}
+.kpi.warn{border-bottom-color:#b07000}
+.kpi.danger{border-bottom-color:#c03030}
+.kpi.info{border-bottom-color:#1a3a8a}
+.kpi.black{border-bottom-color:#111}
+.kpi-lbl{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:#aaa;margin-bottom:6px}
+.kpi-val{font-size:24px;font-weight:900;color:#111;line-height:1}
+.kpi-val.ok{color:#1a7a1a}
+.kpi-val.warn{color:#b07000}
+.kpi-val.danger{color:#c03030}
+.kpi-sub{font-size:10px;color:#888;margin-top:4px}
+.kpi-delta{font-size:9px;margin-top:3px}
+.delta-up{color:#1a7a1a}
+.delta-dn{color:#c03030}
 
-  /* ── FRAUD ALERT ── */
-  .fa { padding: 12px 16px; border-left: 3px solid #c03030; background: #fff8f8; margin-bottom: 10px; }
-  .fa:last-child { margin-bottom: 0; }
-  .fa-ttl { font-size: 11px; font-weight: 700; color: #c03030; margin-bottom: 3px; }
-  .fa-body { font-size: 11px; color: #444; line-height: 1.55; }
-  .fa-meta { font-size: 10px; color: #aaa; margin-top: 4px; }
+/* ── PANELS ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.g31{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px}
+.g13{display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:12px}
+.panel{background:#fff}
+.ph{padding:11px 16px 9px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
+.pt{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:#aaa}
+.pa{font-size:10px;color:#555;cursor:pointer;text-decoration:underline}
+.pb{padding:14px 16px}
+.ch140{height:140px;position:relative}
+.ch160{height:160px;position:relative}
+.ch200{height:200px;position:relative}
+.ch240{height:240px;position:relative}
+.ch280{height:280px;position:relative}
 
-  /* ── ACTIVITY ── */
-  .act { display: flex; gap: 11px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
-  .act:last-child { border-bottom: none; }
-  .act-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
-  .act-text { font-size: 11px; color: #333; line-height: 1.5; }
-  .act-time { font-size: 10px; color: #bbb; margin-top: 2px; }
+/* ── FLAGS ── */
+.fl{font-size:8px;font-weight:700;padding:2px 6px;display:inline-block;letter-spacing:.05em}
+.fl-ok{background:#e8f5e8;color:#1a5a1a}
+.fl-warn{background:#fff3cd;color:#7a4a00}
+.fl-danger{background:#fde8e8;color:#8a1a1a}
+.fl-info{background:#e8eaf6;color:#1a2a8a}
+.fl-grey{background:#f0f0f0;color:#555}
+.fl-black{background:#111;color:#fff}
 
-  /* ── EXEC HERO ── */
-  .hero { background: #111; padding: 22px 28px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-bottom: 18px; }
-  .hero-item { padding: 0 22px; border-right: 1px solid #2a2a2a; text-align: center; }
-  .hero-item:first-child { padding-left: 0; }
-  .hero-item:last-child { border-right: none; }
-  .hero-lbl { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #666; margin-bottom: 7px; }
-  .hero-val { font-size: 28px; font-weight: 900; color: #fff; }
-  .hero-sub { font-size: 10px; color: #777; margin-top: 4px; }
+/* ── QUEUE ITEMS ── */
+.qi{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f5f5f5}
+.qi:last-child{border-bottom:none}
+.qp{width:3px;height:32px;flex-shrink:0}
+.qp.hi{background:#c03030}
+.qp.md{background:#b07000}
+.qp.lo{background:#1a7a1a}
+.q-ref{font-size:10px;font-weight:700;color:#111}
+.q-veh{font-size:10px;color:#666;margin-top:1px}
+.q-amt{font-size:11px;font-weight:700;color:#111;text-align:right}
+.q-age{font-size:9px;color:#bbb;margin-top:1px;text-align:right}
+.q-actions{display:flex;gap:5px;margin-left:8px;flex-shrink:0}
 
-  /* ── INSIGHT ── */
-  .insight { background: #fff; padding: 16px 18px; border-left: 3px solid #111; margin-bottom: 10px; }
-  .insight.warn { border-left-color: #b07000; }
-  .insight.danger { border-left-color: #c03030; }
-  .insight.ok { border-left-color: #1a7a1a; }
-  .insight-ttl { font-size: 11px; font-weight: 700; color: #111; margin-bottom: 4px; }
-  .insight-body { font-size: 11px; color: #555; line-height: 1.6; }
-  .insight-meta { font-size: 10px; color: #bbb; margin-top: 5px; }
+/* ── FRAUD ALERTS ── */
+.fa{padding:10px 14px;border-left:3px solid #c03030;background:#fff8f8;margin-bottom:8px}
+.fa:last-child{margin-bottom:0}
+.fa-ttl{font-size:11px;font-weight:700;color:#c03030;margin-bottom:3px}
+.fa-body{font-size:11px;color:#444;line-height:1.55}
+.fa-meta{font-size:9px;color:#aaa;margin-top:4px;display:flex;gap:12px;align-items:center}
+.fa-actions{display:flex;gap:6px;margin-top:8px}
 
-  /* ── TABLE ── */
-  .dt { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .dt th { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #999; padding: 8px 12px; text-align: left; background: #f7f7f7; border-bottom: 1px solid #e8e8e8; }
-  .dt td { padding: 9px 12px; border-bottom: 1px solid #f5f5f5; color: #222; }
-  .dt tr:last-child td { border-bottom: none; }
-  .dt .num { text-align: right; font-weight: 600; }
-  .fl { font-size: 9px; font-weight: 700; padding: 2px 7px; display: inline-block; }
-  .fl-ok { background: #e8f5e8; color: #1a6a1a; }
-  .fl-warn { background: #fff3cd; color: #7a5000; }
-  .fl-danger { background: #fde8e8; color: #8a2020; }
-  .fl-info { background: #e8eaf6; color: #2a3a8a; }
+/* ── ACTIVITY ── */
+.act{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #f5f5f5}
+.act:last-child{border-bottom:none}
+.act-dot{width:7px;height:7px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.act-text{font-size:11px;color:#333;line-height:1.5;flex:1}
+.act-time{font-size:9px;color:#bbb;margin-top:2px}
 
-  /* ── SECTION LABEL ── */
-  .sec-lbl { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #999; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; }
+/* ── TABLE ── */
+.dt{width:100%;border-collapse:collapse;font-size:11px}
+.dt th{font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:#aaa;padding:7px 10px;text-align:left;background:#f7f7f7;border-bottom:1px solid #e8e8e8}
+.dt td{padding:8px 10px;border-bottom:1px solid #f5f5f5;color:#222;vertical-align:middle}
+.dt tr:last-child td{border-bottom:none}
+.dt .num{text-align:right;font-weight:600}
+.dt tr:hover td{background:#fafafa}
 
-  /* ── LOCKED PANEL ── */
-  .locked-panel { background: #fff; padding: 32px; text-align: center; border: 1px dashed #ccc; margin-bottom: 14px; }
-  .locked-panel .lp-icon { font-size: 28px; margin-bottom: 10px; color: #ccc; }
-  .locked-panel .lp-ttl { font-size: 13px; font-weight: 700; color: #555; margin-bottom: 6px; }
-  .locked-panel .lp-body { font-size: 11px; color: #999; line-height: 1.6; max-width: 420px; margin: 0 auto 14px; }
-  .locked-panel .lp-btn { display: inline-block; background: #111; color: #fff; font-size: 11px; font-weight: 700; padding: 8px 20px; letter-spacing: 1px; cursor: pointer; }
+/* ── LOCKED PANEL ── */
+.locked-panel{background:#fff;padding:28px;text-align:center;border:1px dashed #ddd;margin-bottom:12px}
+.lp-icon{font-size:24px;margin-bottom:8px;color:#ccc}
+.lp-ttl{font-size:12px;font-weight:700;color:#555;margin-bottom:5px}
+.lp-body{font-size:10px;color:#aaa;line-height:1.6;max-width:380px;margin:0 auto 12px}
+.lp-btn{display:inline-block;background:#111;color:#fff;font-size:9px;font-weight:700;padding:7px 18px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:none}
 
-  /* ── EXEC TOPBAR ── */
-  .exec-topbar { background: #111; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
-  .exec-brand { color: #fff; font-weight: 900; font-size: 15px; letter-spacing: 3px; }
-  .exec-brand-sub { color: #555; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
-  .exec-nav { display: flex; gap: 0; }
-  .exec-nav-item { color: #666; font-size: 11px; padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; letter-spacing: 0.5px; }
-  .exec-nav-item.active { color: #fff; border-bottom-color: #fff; }
-  .exec-meta { color: #555; font-size: 10px; text-align: right; line-height: 1.7; }
+/* ── INSIGHT ── */
+.insight{background:#fff;padding:14px 16px;border-left:3px solid #111;margin-bottom:10px}
+.insight.warn{border-left-color:#b07000}
+.insight.danger{border-left-color:#c03030}
+.insight.ok{border-left-color:#1a7a1a}
+.insight-ttl{font-size:11px;font-weight:700;color:#111;margin-bottom:3px}
+.insight-body{font-size:11px;color:#555;line-height:1.6}
+.insight-meta{font-size:9px;color:#bbb;margin-top:4px}
+
+/* ── HERO BAR ── */
+.hero{background:#111;padding:18px 24px;display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:16px}
+.hero-item{padding:0 18px;border-right:1px solid #2a2a2a;text-align:center}
+.hero-item:first-child{padding-left:0;text-align:left}
+.hero-item:last-child{border-right:none;text-align:right}
+.hero-lbl{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:#555;margin-bottom:5px}
+.hero-val{font-size:26px;font-weight:900;color:#fff}
+.hero-sub{font-size:9px;color:#666;margin-top:3px}
+
+/* ── SECTION LABEL ── */
+.sec-lbl{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:12px;padding-bottom:7px;border-bottom:1px solid #e0e0e0}
+
+/* ── TOOL CARD (Assessor tools) ── */
+.tool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.tool-card{background:#fff;padding:16px;border-top:3px solid #111;cursor:pointer}
+.tool-card:hover{background:#f7f7f7}
+.tool-card.locked{border-top-color:#ddd;opacity:.6;cursor:default}
+.tc-icon{font-size:20px;margin-bottom:8px}
+.tc-title{font-size:11px;font-weight:700;color:#111;margin-bottom:4px}
+.tc-desc{font-size:10px;color:#777;line-height:1.5}
+.tc-tier{font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-top:8px;color:#aaa}
+.tc-tier.available{color:#1a7a1a}
+.tc-tier.locked{color:#c03030}
+
+/* ── ASSESSMENT FORM ── */
+.form-section{background:#fff;padding:16px;margin-bottom:12px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:10px}
+.form-field{}
+.form-lbl{font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:#aaa;margin-bottom:5px;display:block}
+.form-input{width:100%;border:1px solid #ddd;padding:7px 10px;font-size:11px;color:#111;font-family:'Arial',sans-serif;background:#fff}
+.form-input:focus{outline:none;border-color:#111}
+.form-textarea{width:100%;border:1px solid #ddd;padding:7px 10px;font-size:11px;color:#111;font-family:'Arial',sans-serif;background:#fff;resize:vertical;min-height:80px}
+.form-select{width:100%;border:1px solid #ddd;padding:7px 10px;font-size:11px;color:#111;font-family:'Arial',sans-serif;background:#fff;appearance:none}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid #f0f0f0}
+
+/* ── EARNINGS PANEL ── */
+.earn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.earn-cell{background:#f7f7f7;padding:14px;text-align:center;border:1px solid #eee}
+.earn-lbl{font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:#aaa;margin-bottom:5px}
+.earn-val{font-size:22px;font-weight:900;color:#111}
+.earn-sub{font-size:9px;color:#888;margin-top:3px}
+
+/* ── TIER SELECTOR (Assessor) ── */
+.tier-sel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+.tier-sel{background:#fff;border:2px solid #eee;padding:18px;cursor:pointer}
+.tier-sel.current{border-color:#111}
+.tier-sel.locked{opacity:.5;cursor:default}
+.ts-name{font-size:13px;font-weight:900;color:#111;margin-bottom:4px}
+.ts-price{font-size:20px;font-weight:900;color:#111;margin-bottom:8px}
+.ts-price-sub{font-size:9px;color:#888;font-weight:400}
+.ts-features{font-size:10px;color:#555;line-height:1.8}
+.ts-current{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#1a7a1a;font-weight:700;margin-top:8px}
+.ts-upgrade{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#c03030;font-weight:700;margin-top:8px}
+
+/* ── PANEL BEATER ── */
+.quote-status{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f5}
+.quote-status:last-child{border-bottom:none}
+.qs-ref{font-size:10px;font-weight:700;color:#111}
+.qs-veh{font-size:10px;color:#666;margin-top:1px}
+.qs-submitted{font-size:11px;font-weight:700;color:#111;text-align:right}
+.qs-benchmark{font-size:10px;text-align:right;margin-top:1px}
+
+/* ── ADMIN TENANT TABLE ── */
+.tenant-row{display:flex;align-items:center;gap:0;padding:10px 0;border-bottom:1px solid #f5f5f5;font-size:11px}
+.tenant-row:last-child{border-bottom:none}
+.tenant-name{flex:1;font-weight:700;color:#111}
+.tenant-sub{font-size:9px;color:#888;margin-top:1px}
+.tenant-tier{width:100px;flex-shrink:0}
+.tenant-claims{width:80px;text-align:right;color:#555;flex-shrink:0}
+.tenant-revenue{width:90px;text-align:right;font-weight:700;color:#111;flex-shrink:0}
+.tenant-status{width:80px;text-align:right;flex-shrink:0}
+.tenant-actions{width:100px;text-align:right;flex-shrink:0}
+
+/* ── FEATURE TOGGLE ── */
+.feature-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f5f5f5;font-size:11px}
+.feature-row:last-child{border-bottom:none}
+.feature-name{color:#333;flex:1}
+.feature-tier{font-size:8px;color:#aaa;margin-left:8px}
+.toggle{width:36px;height:20px;background:#ddd;border-radius:10px;position:relative;cursor:pointer;flex-shrink:0}
+.toggle.on{background:#1a7a1a}
+.toggle::after{content:'';position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:2px;left:2px;transition:left .15s}
+.toggle.on::after{left:18px}
+
+/* ── MISC ── */
+.divider{height:1px;background:#eee;margin:14px 0}
+.text-danger{color:#c03030}
+.text-ok{color:#1a7a1a}
+.text-warn{color:#b07000}
+.text-muted{color:#aaa}
+.fw7{font-weight:700}
+.placeholder-note{background:#fff8e8;border:1px solid #e0c060;padding:8px 12px;font-size:10px;color:#7a5000;margin-bottom:12px}
+.report-link{color:#111;font-weight:700;text-decoration:underline;cursor:pointer;font-size:10px}
 </style>
 </head>
 <body>
 
-<div class="tab-bar">
-  <div class="tab-brand">KINGA</div>
-  <button class="tab-btn active" onclick="showView('ops',this)">Operational Dashboard — Tier 1 (Claims Manager)</button>
-  <button class="tab-btn" onclick="showView('exec',this)">Executive Intelligence Dashboard — Tier 2+</button>
+<div class="portal-bar">
+  <div class="portal-brand">KINGA<span class="portal-brand-sub">AutoVerify AI</span></div>
+  <button class="portal-btn active" onclick="showPortal('admin',this)">Platform Admin</button>
+  <button class="portal-btn" onclick="showPortal('claims-manager',this)">Claims Manager</button>
+  <button class="portal-btn" onclick="showPortal('executive',this)">Executive</button>
+  <button class="portal-btn" onclick="showPortal('assessor',this)">Assessor Portal</button>
+  <button class="portal-btn" onclick="showPortal('panel-beater',this)">Panel Beater Portal</button>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════════ -->
-<!-- OPERATIONAL DASHBOARD — TIER 1                                          -->
-<!-- ══════════════════════════════════════════════════════════════════════ -->
-<div id="view-ops" class="view active">
-<div class="layout">
+<!-- ══════════════════════════════════════════════════════════════════
+     PORTAL 1 — PLATFORM ADMIN
+     KINGA staff. Manages all tenants, assigns tiers, controls features.
+     ══════════════════════════════════════════════════════════════════ -->
+<div id="portal-admin" class="portal-content active">
   <div class="sidebar">
-    <div class="sb-brand"><div class="org">Fidelity Life Assurance</div><div class="role">Claims Manager Portal · Tier 1</div></div>
-    <div class="sb-section">Claims</div>
+    <div class="sb-header"><div class="sb-org">KINGA Platform</div><div class="sb-role">Platform Administrator</div></div>
+    <div class="sb-section">Tenants</div>
+    <div class="sb-item active">⊞ &nbsp;All Tenants <span class="sb-badge blue">12</span></div>
+    <div class="sb-item">＋ &nbsp;Register Tenant</div>
+    <div class="sb-item">◎ &nbsp;Tier Management</div>
+    <div class="sb-item">⚙ &nbsp;Feature Toggles</div>
+    <div class="sb-section">Platform</div>
+    <div class="sb-item">📊 &nbsp;Platform Analytics</div>
+    <div class="sb-item">🔬 &nbsp;Pipeline Health</div>
+    <div class="sb-item">⚠ &nbsp;Escalation Queue <span class="sb-badge">3</span></div>
+    <div class="sb-item">🔁 &nbsp;Replay Dashboard</div>
+    <div class="sb-section">System</div>
+    <div class="sb-item">👤 &nbsp;User Role Manager</div>
+    <div class="sb-item">📋 &nbsp;Audit Log</div>
+    <div class="sb-item">⚙ &nbsp;System Settings</div>
+    <div class="sb-footer">Platform v2.4.1 · 27 Apr 2026</div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title">Tenant Management</div>
+        <div class="topbar-sub">12 active tenants · 3 pending onboarding · Last sync: 09:22 CAT</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-secondary btn-sm">↓ Export</button>
+        <button class="btn btn-primary btn-sm">＋ Register Tenant</button>
+        <div class="topbar-user">27 Apr 2026 · 09:22 CAT<br><strong>K. Sibanda</strong> · Platform Admin</div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="placeholder-note">⚠ Mock — illustrative data only. All tenant names, figures, and tier assignments are fictional.</div>
+
+      <!-- Platform KPIs -->
+      <div class="kpi-row kpi-5" style="margin-bottom:16px">
+        <div class="kpi black"><div class="kpi-lbl">Active Tenants</div><div class="kpi-val">12</div><div class="kpi-sub">3 pending onboarding</div></div>
+        <div class="kpi ok"><div class="kpi-lbl">Claims Processed — April</div><div class="kpi-val ok">1,842</div><div class="kpi-sub">↑ 18% vs March</div></div>
+        <div class="kpi ok"><div class="kpi-lbl">Platform Revenue — April</div><div class="kpi-val ok">$18,420</div><div class="kpi-sub">Subscriptions + per-claim</div></div>
+        <div class="kpi warn"><div class="kpi-lbl">Escalations Open</div><div class="kpi-val warn">3</div><div class="kpi-sub">Require platform review</div></div>
+        <div class="kpi info"><div class="kpi-lbl">Avg AI Confidence</div><div class="kpi-val">84%</div><div class="kpi-sub">Across all tenants</div></div>
+      </div>
+
+      <!-- Tenant list -->
+      <div class="sec-lbl">Active Tenants — Tier &amp; Feature Control</div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="ph">
+          <div class="pt">All Tenants — Click a tenant to manage tier and features</div>
+          <div class="pa">View full tenant list</div>
+        </div>
+        <div class="pb" style="padding:0">
+          <table class="dt">
+            <thead>
+              <tr>
+                <th>Tenant</th>
+                <th>Tier</th>
+                <th class="num">Claims (Apr)</th>
+                <th class="num">Revenue (Apr)</th>
+                <th>Users</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="fw7">Fidelity Life Assurance</div><div style="font-size:9px;color:#888">fidelity.kinga.ai · Harare</div></td>
+                <td><span class="fl fl-black">PROTECT</span></td>
+                <td class="num">140</td>
+                <td class="num text-ok fw7">$1,400</td>
+                <td>8 users · 3 roles</td>
+                <td><span class="fl fl-ok">ACTIVE</span></td>
+                <td><button class="btn btn-secondary btn-sm" onclick="showTenantConfig()">Manage</button></td>
+              </tr>
+              <tr>
+                <td><div class="fw7">Heritage Insurance Zimbabwe</div><div style="font-size:9px;color:#888">heritage.kinga.ai · Harare</div></td>
+                <td><span class="fl fl-grey">PROCESS</span></td>
+                <td class="num">88</td>
+                <td class="num text-ok fw7">$880</td>
+                <td>5 users · 2 roles</td>
+                <td><span class="fl fl-ok">ACTIVE</span></td>
+                <td><button class="btn btn-secondary btn-sm">Manage</button></td>
+              </tr>
+              <tr>
+                <td><div class="fw7">Old Mutual Zimbabwe</div><div style="font-size:9px;color:#888">oldmutual.kinga.ai · Harare</div></td>
+                <td><span class="fl fl-info">PROVE</span></td>
+                <td class="num">312</td>
+                <td class="num text-ok fw7">$3,120</td>
+                <td>18 users · 5 roles</td>
+                <td><span class="fl fl-ok">ACTIVE</span></td>
+                <td><button class="btn btn-secondary btn-sm">Manage</button></td>
+              </tr>
+              <tr>
+                <td><div class="fw7">Zimnat Insurance</div><div style="font-size:9px;color:#888">zimnat.kinga.ai · Harare</div></td>
+                <td><span class="fl fl-grey">PROCESS</span></td>
+                <td class="num">64</td>
+                <td class="num text-ok fw7">$640</td>
+                <td>4 users · 2 roles</td>
+                <td><span class="fl fl-ok">ACTIVE</span></td>
+                <td><button class="btn btn-secondary btn-sm">Manage</button></td>
+              </tr>
+              <tr>
+                <td><div class="fw7">NICOZ Diamond Insurance</div><div style="font-size:9px;color:#888">nicoz.kinga.ai · Harare</div></td>
+                <td><span class="fl fl-black">PROTECT</span></td>
+                <td class="num">98</td>
+                <td class="num text-ok fw7">$980</td>
+                <td>6 users · 3 roles</td>
+                <td><span class="fl fl-ok">ACTIVE</span></td>
+                <td><button class="btn btn-secondary btn-sm">Manage</button></td>
+              </tr>
+              <tr style="background:#fffbf0">
+                <td><div class="fw7">Cell Insurance Company</div><div style="font-size:9px;color:#888">cell.kinga.ai · Harare</div></td>
+                <td><span class="fl fl-grey">—</span></td>
+                <td class="num text-muted">—</td>
+                <td class="num text-muted">—</td>
+                <td>Pending setup</td>
+                <td><span class="fl fl-warn">ONBOARDING</span></td>
+                <td><button class="btn btn-primary btn-sm">Complete Setup</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tenant config panel (Fidelity) -->
+      <div id="tenant-config" style="display:none">
+        <div class="sec-lbl">Tenant Configuration — Fidelity Life Assurance</div>
+        <div class="g2">
+          <div class="panel">
+            <div class="ph"><div class="pt">Tier Assignment</div></div>
+            <div class="pb">
+              <div style="font-size:11px;color:#555;margin-bottom:12px">Current tier determines which features are available to ALL users within this tenant. Changing tier takes effect immediately.</div>
+              <div style="display:flex;gap:8px;margin-bottom:14px">
+                <button class="btn btn-secondary btn-sm">Process — $500/mo</button>
+                <button class="btn btn-primary btn-sm">Protect — $900/mo ✓ Current</button>
+                <button class="btn btn-secondary btn-sm">Prove — $1,800/mo</button>
+              </div>
+              <div style="font-size:10px;color:#888;line-height:1.7">
+                <strong>Process:</strong> Operational dashboard, basic fraud score, quote comparison.<br>
+                <strong>Protect:</strong> + Portfolio analytics, fraud signal breakdown, repairer intelligence, executive dashboard.<br>
+                <strong>Prove:</strong> + Physics reconstruction, forensic intelligence package, IPEC-ready reports, dispute resolution.
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="ph"><div class="pt">Feature Toggles — Fidelity Life Assurance</div></div>
+            <div class="pb">
+              <div class="feature-row"><span class="feature-name">AI Fraud Detection</span><span class="feature-tier">All tiers</span><div class="toggle on"></div></div>
+              <div class="feature-row"><span class="feature-name">Quote Benchmark Analysis</span><span class="feature-tier">All tiers</span><div class="toggle on"></div></div>
+              <div class="feature-row"><span class="feature-name">Repairer Intelligence</span><span class="feature-tier">Protect+</span><div class="toggle on"></div></div>
+              <div class="feature-row"><span class="feature-name">Portfolio Analytics</span><span class="feature-tier">Protect+</span><div class="toggle on"></div></div>
+              <div class="feature-row"><span class="feature-name">Executive Dashboard</span><span class="feature-tier">Protect+</span><div class="toggle on"></div></div>
+              <div class="feature-row"><span class="feature-name">Physics Reconstruction</span><span class="feature-tier">Prove only</span><div class="toggle"></div></div>
+              <div class="feature-row"><span class="feature-name">Forensic Intelligence Package</span><span class="feature-tier">Prove only</span><div class="toggle"></div></div>
+              <div class="feature-row"><span class="feature-name">IPEC Submission Package</span><span class="feature-tier">Prove only</span><div class="toggle"></div></div>
+              <div class="form-actions"><button class="btn btn-primary btn-sm">Save Changes</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Platform charts -->
+      <div class="g2">
+        <div class="panel">
+          <div class="ph"><div class="pt">Claims Volume by Tenant — April 2026</div></div>
+          <div class="pb"><div class="ch200"><canvas id="admin-vol"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Revenue by Tier — April 2026</div></div>
+          <div class="pb"><div class="ch200"><canvas id="admin-rev"></canvas></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     PORTAL 2 — CLAIMS MANAGER
+     Supervisory operational role. Full queue + intelligence + supervision.
+     Tenant: Fidelity Life Assurance · Tier: Protect
+     ══════════════════════════════════════════════════════════════════ -->
+<div id="portal-claims-manager" class="portal-content">
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-org">Fidelity Life Assurance</div>
+      <div class="sb-role">Claims Manager</div>
+      <span class="sb-tier protect">Protect</span>
+    </div>
+    <div class="sb-section">Operational</div>
     <div class="sb-item active">▦ &nbsp;Triage Queue <span class="sb-badge">7</span></div>
     <div class="sb-item">◎ &nbsp;Active Claims</div>
     <div class="sb-item">✓ &nbsp;Approved Today</div>
-    <div class="sb-item">⚠ &nbsp;Flagged for Review <span class="sb-badge">3</span></div>
-    <div class="sb-item">✕ &nbsp;Rejected</div>
+    <div class="sb-item">⚠ &nbsp;Flagged for Review <span class="sb-badge amber">3</span></div>
     <div class="sb-section">Intelligence</div>
     <div class="sb-item">🚨 &nbsp;Fraud Alerts <span class="sb-badge">2</span></div>
     <div class="sb-item">$ &nbsp;Quote Optimisation</div>
+    <div class="sb-item">🔧 &nbsp;Repairer Watch <span class="sb-badge amber">2</span></div>
     <div class="sb-item">◈ &nbsp;Damage Analysis</div>
-    <div class="sb-section">Reports</div>
-    <div class="sb-item">↓ &nbsp;Generate Report</div>
-    <div class="sb-item">⊞ &nbsp;Claim History</div>
-    <div class="sb-section">Tier 2 Features</div>
-    <div class="sb-item sb-locked">📊 &nbsp;Portfolio Analytics <span class="sb-lock">🔒</span></div>
-    <div class="sb-item sb-locked">📈 &nbsp;Executive Dashboard <span class="sb-lock">🔒</span></div>
-    <div class="sb-item sb-locked">🔬 &nbsp;Fraud Intelligence <span class="sb-lock">🔒</span></div>
+    <div class="sb-section">Supervision</div>
+    <div class="sb-item">👥 &nbsp;Processor Activity</div>
+    <div class="sb-item">📋 &nbsp;Assessor Queue</div>
+    <div class="sb-item">↑ &nbsp;Escalation Log</div>
+    <div class="sb-section">Tier 3 Features</div>
+    <div class="sb-item sb-locked">🔬 &nbsp;Forensic Intelligence <span class="sb-lock">🔒</span></div>
+    <div class="sb-item sb-locked">⚖️ &nbsp;Dispute Resolution <span class="sb-lock">🔒</span></div>
     <div class="sb-section">Settings</div>
     <div class="sb-item">⚙ &nbsp;Preferences</div>
     <div class="sb-item">→ &nbsp;Sign Out</div>
+    <div class="sb-footer">T. Chikwanda · Claims Manager<br>Last login: 27 Apr 2026 · 08:42</div>
   </div>
-
   <div class="main">
     <div class="topbar">
-      <div>
+      <div class="topbar-left">
         <div class="topbar-title">Triage Queue — Monday 27 April 2026</div>
-        <div class="topbar-sub">7 claims awaiting decision &nbsp;·&nbsp; 2 fraud alerts &nbsp;·&nbsp; Last sync: 09:14 CAT</div>
+        <div class="topbar-sub">7 claims awaiting decision · 2 fraud alerts · Last sync: 09:14 CAT</div>
       </div>
-      <div class="topbar-user">27 Apr 2026 · 09:22 CAT<br><strong>T. Chikwanda</strong> · Claims Manager</div>
+      <div class="topbar-right">
+        <button class="btn btn-secondary btn-sm">↓ Export Queue</button>
+        <button class="btn btn-primary btn-sm">＋ New Claim</button>
+        <div class="topbar-user">27 Apr 2026 · 09:22 CAT<br><strong>T. Chikwanda</strong> · Claims Manager</div>
+      </div>
     </div>
-
     <div class="content">
+      <div class="placeholder-note">⚠ Mock — illustrative data only. Report links open placeholder mock files.</div>
 
-      <!-- KPI row -->
-      <div class="kpi-row kpi-5" style="margin-bottom:18px">
+      <!-- KPIs -->
+      <div class="kpi-row kpi-5">
         <div class="kpi ok"><div class="kpi-lbl">Approved Today</div><div class="kpi-val ok">14</div><div class="kpi-sub">$68,420 settled</div><div class="kpi-delta delta-up">↑ 3 vs yesterday</div></div>
         <div class="kpi warn"><div class="kpi-lbl">Pending Review</div><div class="kpi-val warn">7</div><div class="kpi-sub">3 high priority</div><div class="kpi-delta delta-dn">↑ 2 new this morning</div></div>
         <div class="kpi danger"><div class="kpi-lbl">Fraud Alerts</div><div class="kpi-val danger">2</div><div class="kpi-sub">$24,880 at risk</div><div class="kpi-delta delta-dn">Action required</div></div>
@@ -211,18 +498,35 @@
       </div>
 
       <!-- Fraud alerts -->
-      <div class="panel" style="margin-bottom:14px">
+      <div class="panel" style="margin-bottom:12px">
         <div class="ph"><div class="pt">🚨 Active Fraud Alerts — Immediate Action Required</div><div class="pa">View all alerts</div></div>
         <div class="pb">
           <div class="fa">
             <div class="fa-ttl">CLM-2026-051903 · Mercedes-Benz C200 · ABD 7712 · $18,640 claimed</div>
-            <div class="fa-body">FCDI Score: 61/100. Physics consensus speed (34 km/h) contradicts stated 60 km/h — 43% deviation exceeds 25% threshold. Quote includes $4,200 AMG body kit not visible in damage photos. Two photos predate incident by 39 days (EXIF metadata mismatch). Recommend: Negotiate to $12,400 or reject pending investigation.</div>
-            <div class="fa-meta">Detected: 09:08 CAT &nbsp;·&nbsp; 3 signals triggered &nbsp;·&nbsp; Potential saving: $6,240</div>
+            <div class="fa-body">FCDI Score: 61/100. Physics consensus speed (34 km/h) contradicts stated 60 km/h — 43% deviation. Quote includes $4,200 AMG body kit not visible in damage photos. Two photos predate incident by 39 days (EXIF mismatch).</div>
+            <div class="fa-meta">
+              <span>Detected: 09:08 CAT</span>
+              <span>3 signals triggered</span>
+              <span>Potential saving: $6,240</span>
+              <div class="fa-actions">
+                <button class="btn btn-danger btn-sm">Reject</button>
+                <button class="btn btn-secondary btn-sm">Negotiate</button>
+                <a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">View Report →</a>
+              </div>
+            </div>
           </div>
           <div class="fa">
             <div class="fa-ttl">CLM-2026-051887 · Isuzu D-Max · AEF 3312 · $9,200 claimed</div>
-            <div class="fa-body">FCDI Score: 54/100. Quote from Msasa Repairs is 29% above KINGA benchmark ($7,140 vs $5,532 benchmark mid). Repairer has appeared in 6 claims this quarter — 4 above benchmark. Damage photos show pre-existing rust corrosion on claimed rear bumper and tow bar. Recommend: Request independent physical inspection before settlement.</div>
-            <div class="fa-meta">Detected: 08:44 CAT &nbsp;·&nbsp; 2 signals triggered &nbsp;·&nbsp; Potential saving: $2,668</div>
+            <div class="fa-body">FCDI Score: 54/100. Quote 29% above benchmark. Repairer (Msasa Repairs) flagged — 6 claims this quarter, 4 above benchmark. Pre-existing rust on claimed rear bumper.</div>
+            <div class="fa-meta">
+              <span>Detected: 08:44 CAT</span>
+              <span>2 signals triggered</span>
+              <span>Potential saving: $2,668</span>
+              <div class="fa-actions">
+                <button class="btn btn-secondary btn-sm">Request Inspection</button>
+                <a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">View Report →</a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -232,262 +536,731 @@
         <div class="panel">
           <div class="ph"><div class="pt">Triage Queue — 7 Claims Awaiting Decision</div><div class="pa">Sort by priority</div></div>
           <div class="pb">
-            <div class="qi"><div class="qp hi"></div><div style="flex:1"><div class="q-ref">CLM-2026-051903 &nbsp;<span class="badge b-review">REVIEW</span></div><div class="q-veh">Mercedes-Benz C200 · ABD 7712 · Fraud Alert · FCDI 61</div></div><div style="text-align:right"><div class="q-amt" style="color:#c03030">$18,640</div><div class="q-age">1h 14m ago</div></div></div>
-            <div class="qi"><div class="qp hi"></div><div style="flex:1"><div class="q-ref">CLM-2026-051887 &nbsp;<span class="badge b-review">REVIEW</span></div><div class="q-veh">Isuzu D-Max · AEF 3312 · Quote Inflation · FCDI 54</div></div><div style="text-align:right"><div class="q-amt" style="color:#c03030">$9,200</div><div class="q-age">1h 38m ago</div></div></div>
-            <div class="qi"><div class="qp md"></div><div style="flex:1"><div class="q-ref">CLM-2026-051921 &nbsp;<span class="badge b-new">NEW</span></div><div class="q-veh">Toyota Hilux · ACZ 8801 · Rear impact · FCDI 22</div></div><div style="text-align:right"><div class="q-amt">$3,140</div><div class="q-age">2h 02m ago</div></div></div>
-            <div class="qi"><div class="qp lo"></div><div style="flex:1"><div class="q-ref">CLM-2026-051847 &nbsp;<span class="badge b-approve">APPROVE</span></div><div class="q-veh">Honda Fit · ACZ 2209 · Minor front damage · FCDI 8</div></div><div style="text-align:right"><div class="q-amt" style="color:#1a7a1a">$1,820</div><div class="q-age">3h 15m ago</div></div></div>
-            <div class="qi"><div class="qp lo"></div><div style="flex:1"><div class="q-ref">CLM-2026-051832 &nbsp;<span class="badge b-approve">APPROVE</span></div><div class="q-veh">Mazda CX-5 · AEZ 1104 · Side swipe · FCDI 11</div></div><div style="text-align:right"><div class="q-amt" style="color:#1a7a1a">$2,640</div><div class="q-age">4h 22m ago</div></div></div>
-            <div class="qi"><div class="qp lo"></div><div style="flex:1"><div class="q-ref">CLM-2026-051819 &nbsp;<span class="badge b-new">NEW</span></div><div class="q-veh">Ford Ranger · AEF 7712 · Hail damage · FCDI 14</div></div><div style="text-align:right"><div class="q-amt">$4,100</div><div class="q-age">5h 01m ago</div></div></div>
-            <div class="qi"><div class="qp lo"></div><div style="flex:1"><div class="q-ref">CLM-2026-051801 &nbsp;<span class="badge b-new">NEW</span></div><div class="q-veh">VW Polo Vivo · ABD 4412 · Parking damage · FCDI 6</div></div><div style="text-align:right"><div class="q-amt">$880</div><div class="q-age">5h 44m ago</div></div></div>
+            <div class="qi">
+              <div class="qp hi"></div>
+              <div style="flex:1"><div class="q-ref">CLM-2026-051903 &nbsp;<span class="fl fl-danger">FRAUD</span></div><div class="q-veh">Mercedes-Benz C200 · ABD 7712 · FCDI 61</div></div>
+              <div style="text-align:right"><div class="q-amt text-danger">$18,640</div><div class="q-age">1h 14m ago</div></div>
+              <div class="q-actions"><button class="btn btn-secondary btn-sm">Review</button><a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">Report</a></div>
+            </div>
+            <div class="qi">
+              <div class="qp hi"></div>
+              <div style="flex:1"><div class="q-ref">CLM-2026-051887 &nbsp;<span class="fl fl-warn">REVIEW</span></div><div class="q-veh">Isuzu D-Max · AEF 3312 · Quote Inflation · FCDI 54</div></div>
+              <div style="text-align:right"><div class="q-amt text-danger">$9,200</div><div class="q-age">1h 38m ago</div></div>
+              <div class="q-actions"><button class="btn btn-secondary btn-sm">Review</button><a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">Report</a></div>
+            </div>
+            <div class="qi">
+              <div class="qp md"></div>
+              <div style="flex:1"><div class="q-ref">CLM-2026-051921 &nbsp;<span class="fl fl-info">NEW</span></div><div class="q-veh">Toyota Hilux · ACZ 8801 · Rear impact · FCDI 22</div></div>
+              <div style="text-align:right"><div class="q-amt">$3,140</div><div class="q-age">2h 02m ago</div></div>
+              <div class="q-actions"><button class="btn btn-secondary btn-sm">Review</button><a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">Report</a></div>
+            </div>
+            <div class="qi">
+              <div class="qp lo"></div>
+              <div style="flex:1"><div class="q-ref">CLM-2026-051847 &nbsp;<span class="fl fl-ok">APPROVE</span></div><div class="q-veh">Honda Fit · ACZ 2209 · Minor front damage · FCDI 8</div></div>
+              <div style="text-align:right"><div class="q-amt text-ok">$1,820</div><div class="q-age">3h 15m ago</div></div>
+              <div class="q-actions"><button class="btn btn-success btn-sm">Approve</button><a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">Report</a></div>
+            </div>
+            <div class="qi">
+              <div class="qp lo"></div>
+              <div style="flex:1"><div class="q-ref">CLM-2026-051832 &nbsp;<span class="fl fl-ok">APPROVE</span></div><div class="q-veh">Mazda CX-5 · AEZ 1104 · Side swipe · FCDI 11</div></div>
+              <div style="text-align:right"><div class="q-amt text-ok">$2,640</div><div class="q-age">4h 22m ago</div></div>
+              <div class="q-actions"><button class="btn btn-success btn-sm">Approve</button><a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">Report</a></div>
+            </div>
+            <div class="qi">
+              <div class="qp lo"></div>
+              <div style="flex:1"><div class="q-ref">CLM-2026-051819 &nbsp;<span class="fl fl-info">NEW</span></div><div class="q-veh">Ford Ranger · AEF 7712 · Hail damage · FCDI 14</div></div>
+              <div style="text-align:right"><div class="q-amt">$4,100</div><div class="q-age">5h 01m ago</div></div>
+              <div class="q-actions"><button class="btn btn-secondary btn-sm">Review</button><a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">Report</a></div>
+            </div>
+            <div class="qi">
+              <div class="qp lo"></div>
+              <div style="flex:1"><div class="q-ref">CLM-2026-051801 &nbsp;<span class="fl fl-info">NEW</span></div><div class="q-veh">VW Polo Vivo · ABD 4412 · Parking damage · FCDI 6</div></div>
+              <div style="text-align:right"><div class="q-amt">$880</div><div class="q-age">5h 44m ago</div></div>
+              <div class="q-actions"><button class="btn btn-success btn-sm">Approve</button><a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">Report</a></div>
+            </div>
           </div>
         </div>
         <div>
-          <div class="panel" style="margin-bottom:12px">
+          <div class="panel" style="margin-bottom:10px">
             <div class="ph"><div class="pt">Today's Decisions</div></div>
-            <div class="pb"><div class="ch160"><canvas id="ops-dec"></canvas></div></div>
+            <div class="pb"><div class="ch140"><canvas id="cm-dec"></canvas></div></div>
           </div>
           <div class="panel">
             <div class="ph"><div class="pt">Fraud Score Distribution</div></div>
-            <div class="pb"><div class="ch160"><canvas id="ops-fraud"></canvas></div></div>
+            <div class="pb"><div class="ch140"><canvas id="cm-fraud"></canvas></div></div>
           </div>
         </div>
       </div>
 
-      <!-- Weekly trend + Activity -->
-      <div class="g2">
+      <!-- Supervision row -->
+      <div class="sec-lbl">Supervision — Team Activity Today</div>
+      <div class="g3">
         <div class="panel">
-          <div class="ph"><div class="pt">Claims Processed — This Week</div></div>
-          <div class="pb"><div class="ch200"><canvas id="ops-weekly"></canvas></div></div>
-        </div>
-        <div class="panel">
-          <div class="ph"><div class="pt">Recent Activity</div><div class="pa">View full log</div></div>
+          <div class="ph"><div class="pt">Processor Activity</div></div>
           <div class="pb">
-            <div class="act"><div class="act-dot" style="background:#1a7a1a"></div><div><div class="act-text">CLM-2026-051847 approved — $1,820 settled. Honda Fit minor front damage. AI confidence: 91%. Within benchmark.</div><div class="act-time">09:08 CAT</div></div></div>
-            <div class="act"><div class="act-dot" style="background:#c03030"></div><div><div class="act-text">Fraud alert raised — CLM-2026-051903. FCDI 61/100. Physics speed mismatch: 34 km/h actual vs 60 km/h claimed. 3 signals.</div><div class="act-time">09:08 CAT</div></div></div>
-            <div class="act"><div class="act-dot" style="background:#1a7a1a"></div><div><div class="act-text">CLM-2026-051832 approved — $2,640 settled. Mazda CX-5 side swipe. Quote within benchmark ±8%.</div><div class="act-time">08:54 CAT</div></div></div>
-            <div class="act"><div class="act-dot" style="background:#b07000"></div><div><div class="act-text">CLM-2026-051887 escalated for review — Quote 29% above benchmark. Repairer pattern flagged (6 claims this quarter).</div><div class="act-time">08:44 CAT</div></div></div>
-            <div class="act"><div class="act-dot" style="background:#1a7a1a"></div><div><div class="act-text">3 claims batch-processed overnight. All within benchmark. Total: $8,240 settled.</div><div class="act-time">02:18 CAT</div></div></div>
-            <div class="act"><div class="act-dot" style="background:#1a3a8a"></div><div><div class="act-text">Daily benchmark update: 23 new settled claims added to Toyota Fortuner learning database. Benchmark revised +6.4%.</div><div class="act-time">00:04 CAT</div></div></div>
+            <table class="dt">
+              <thead><tr><th>Processor</th><th class="num">Handled</th><th class="num">Approved</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>R. Mutasa</td><td class="num">8</td><td class="num text-ok">7</td><td><span class="fl fl-ok">ACTIVE</span></td></tr>
+                <tr><td>P. Dube</td><td class="num">6</td><td class="num text-ok">5</td><td><span class="fl fl-ok">ACTIVE</span></td></tr>
+                <tr><td>S. Moyo</td><td class="num">4</td><td class="num text-ok">4</td><td><span class="fl fl-ok">ACTIVE</span></td></tr>
+                <tr><td>L. Ncube</td><td class="num">3</td><td class="num text-ok">2</td><td><span class="fl fl-warn">BREAK</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Assessor Queue</div></div>
+          <div class="pb">
+            <table class="dt">
+              <thead><tr><th>Assessor</th><th>Claim</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>T. Moyo (Ext)</td><td>CLM-051903</td><td><span class="fl fl-warn">IN PROGRESS</span></td></tr>
+                <tr><td>B. Sithole (Int)</td><td>CLM-051887</td><td><span class="fl fl-info">ASSIGNED</span></td></tr>
+                <tr><td>T. Moyo (Ext)</td><td>CLM-051921</td><td><span class="fl fl-grey">PENDING</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Recent Activity</div></div>
+          <div class="pb">
+            <div class="act"><div class="act-dot" style="background:#1a7a1a"></div><div><div class="act-text">CLM-051847 approved — $1,820. Honda Fit. AI conf: 91%.</div><div class="act-time">09:08 CAT</div></div></div>
+            <div class="act"><div class="act-dot" style="background:#c03030"></div><div><div class="act-text">Fraud alert raised — CLM-051903. FCDI 61. Speed mismatch.</div><div class="act-time">09:08 CAT</div></div></div>
+            <div class="act"><div class="act-dot" style="background:#1a7a1a"></div><div><div class="act-text">CLM-051832 approved — $2,640. Mazda CX-5. Within benchmark.</div><div class="act-time">08:54 CAT</div></div></div>
+            <div class="act"><div class="act-dot" style="background:#b07000"></div><div><div class="act-text">CLM-051887 escalated — Quote 29% above benchmark.</div><div class="act-time">08:44 CAT</div></div></div>
           </div>
         </div>
       </div>
 
-      <!-- Locked Tier 2 preview -->
-      <div class="sec-lbl" style="margin-top:8px">Tier 2 Features — Upgrade to Unlock</div>
+      <!-- Locked Tier 3 -->
+      <div class="sec-lbl">Tier 3 Features — Upgrade to Prove</div>
       <div class="g2">
         <div class="locked-panel">
-          <div class="lp-icon">📊</div>
-          <div class="lp-ttl">Portfolio Analytics</div>
-          <div class="lp-body">Monthly claims volume trends, fraud detection rates, repairer performance benchmarks, and loss ratio intelligence across your entire portfolio. 3 claims this month have fraud scores above 60 — upgrade to see the full breakdown and projected quarterly leakage.</div>
-          <div class="lp-btn">Upgrade to Tier 2 — Protect</div>
+          <div class="lp-icon">🔬</div>
+          <div class="lp-ttl">Forensic Intelligence Package</div>
+          <div class="lp-body">Full physics reconstruction per claim: 5-method speed inference ensemble, crush depth measurements, deformation energy, and Defensibility Score. For disputed claims and IPEC submissions. 2 claims this month have physics anomalies warranting forensic review.</div>
+          <button class="lp-btn">Upgrade to Prove</button>
         </div>
         <div class="locked-panel">
-          <div class="lp-icon">📈</div>
-          <div class="lp-ttl">Executive Intelligence Dashboard</div>
-          <div class="lp-body">Real-time savings tracker, cumulative leakage prevented, quote optimisation value, ROI vs platform cost, and board-ready financial performance reports. Your estimated savings this month: $41,280. Upgrade to see the full picture.</div>
-          <div class="lp-btn">Upgrade to Tier 2 — Protect</div>
+          <div class="lp-icon">⚖️</div>
+          <div class="lp-ttl">Dispute Resolution Intelligence</div>
+          <div class="lp-body">Structured evidence packages for IPEC submissions. Challenge simulation, evidence chain integrity, and validated determination workflow. 1 claim currently in dispute — upgrade to access the full evidence package.</div>
+          <button class="lp-btn">Upgrade to Prove</button>
         </div>
       </div>
-
     </div>
   </div>
 </div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     PORTAL 3 — EXECUTIVE
+     COO / CFO. Portfolio analytics, savings, ROI. Tier: Protect.
+     ══════════════════════════════════════════════════════════════════ -->
+<div id="portal-executive" class="portal-content">
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-org">Fidelity Life Assurance</div>
+      <div class="sb-role">Executive — COO</div>
+      <span class="sb-tier protect">Protect</span>
+    </div>
+    <div class="sb-section">Portfolio</div>
+    <div class="sb-item active">📊 &nbsp;Portfolio Overview</div>
+    <div class="sb-item">💰 &nbsp;Financial Performance</div>
+    <div class="sb-item">📈 &nbsp;Savings Tracker</div>
+    <div class="sb-section">Intelligence</div>
+    <div class="sb-item">🚨 &nbsp;Fraud Intelligence</div>
+    <div class="sb-item">🔧 &nbsp;Repairer Analytics</div>
+    <div class="sb-item">🗺 &nbsp;Risk Distribution</div>
+    <div class="sb-section">Tier 3 Features</div>
+    <div class="sb-item sb-locked">🔬 &nbsp;Forensic Analytics <span class="sb-lock">🔒</span></div>
+    <div class="sb-item sb-locked">📋 &nbsp;Board Reports <span class="sb-lock">🔒</span></div>
+    <div class="sb-section">Settings</div>
+    <div class="sb-item">⚙ &nbsp;Preferences</div>
+    <div class="sb-item">→ &nbsp;Sign Out</div>
+    <div class="sb-footer">M. Chikwanda · COO<br>Last login: 27 Apr 2026 · 08:10</div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title">Portfolio Overview — April 2026</div>
+        <div class="topbar-sub">140 claims processed · $131,220 total value delivered · Last updated: 09:22 CAT</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-secondary btn-sm">↓ Board Report</button>
+        <div class="topbar-user">27 Apr 2026 · 09:22 CAT<br><strong>M. Chikwanda</strong> · COO</div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="placeholder-note">⚠ Mock — illustrative data only.</div>
+
+      <!-- Hero bar -->
+      <div class="hero">
+        <div class="hero-item"><div class="hero-lbl">Leakage Prevented — April</div><div class="hero-val">$84,620</div><div class="hero-sub">14 fraud-flagged claims</div></div>
+        <div class="hero-item"><div class="hero-lbl">Quote Optimisation — April</div><div class="hero-val">$41,280</div><div class="hero-sub">Avg $2,940 per optimised claim</div></div>
+        <div class="hero-item"><div class="hero-lbl">Assessor Cost Avoided</div><div class="hero-val">$5,320</div><div class="hero-sub">140 claims × $38 avg assessor fee</div></div>
+        <div class="hero-item"><div class="hero-lbl">Total Value — April</div><div class="hero-val">$131,220</div><div class="hero-sub">vs Platform cost: $900</div></div>
+      </div>
+
+      <!-- Exec KPIs -->
+      <div class="kpi-row kpi-6">
+        <div class="kpi ok"><div class="kpi-lbl">Claims Processed</div><div class="kpi-val ok">140</div><div class="kpi-sub">↑ 7% vs March</div></div>
+        <div class="kpi warn"><div class="kpi-lbl">Fraud Detection Rate</div><div class="kpi-val warn">10%</div><div class="kpi-sub">14 flagged · 11 confirmed</div></div>
+        <div class="kpi ok"><div class="kpi-lbl">Avg Settlement</div><div class="kpi-val ok">$4,820</div><div class="kpi-sub">vs $6,240 submitted avg</div></div>
+        <div class="kpi black"><div class="kpi-lbl">Avg Processing Time</div><div class="kpi-val">4.8 min</div><div class="kpi-sub">vs 3–5 days manual</div></div>
+        <div class="kpi ok"><div class="kpi-lbl">Platform ROI</div><div class="kpi-val ok">4,820%</div><div class="kpi-sub">$131,220 / $900 cost</div></div>
+        <div class="kpi info"><div class="kpi-lbl">AI Confidence</div><div class="kpi-val">84%</div><div class="kpi-sub">Avg across all claims</div></div>
+      </div>
+
+      <!-- Charts -->
+      <div class="g2">
+        <div class="panel">
+          <div class="ph"><div class="pt">Monthly Claims Volume &amp; Fraud Detection — 6 Months</div></div>
+          <div class="pb"><div class="ch240"><canvas id="exec-vol"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Financial Impact — Submitted vs Settled vs Benchmark ($k)</div></div>
+          <div class="pb"><div class="ch240"><canvas id="exec-fin"></canvas></div></div>
+        </div>
+      </div>
+      <div class="g3">
+        <div class="panel">
+          <div class="ph"><div class="pt">Decision Distribution — April</div></div>
+          <div class="pb"><div class="ch160"><canvas id="exec-dec"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Fraud Signal Categories</div></div>
+          <div class="pb"><div class="ch160"><canvas id="exec-fraud-cat"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Quote Deviation vs Benchmark</div></div>
+          <div class="pb"><div class="ch160"><canvas id="exec-qdev"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- Insights + Repairer table -->
+      <div class="g2">
+        <div>
+          <div class="sec-lbl">Portfolio Intelligence</div>
+          <div class="insight danger">
+            <div class="insight-ttl">Repairer Pattern Alert — Willowvale Premium Repairs</div>
+            <div class="insight-body">8 claims this quarter. Avg quote 31% above benchmark. 5 of 8 flagged for fraud or inflation. Estimated Q2 exposure: $18,400. Recommend: Remove from approved panel pending investigation.</div>
+            <div class="insight-meta">KINGA Fraud Learning Engine · 14 Apr 2026</div>
+          </div>
+          <div class="insight warn">
+            <div class="insight-ttl">Emerging Pattern — Samora Machel Ave Corridor</div>
+            <div class="insight-body">7 claims in 30 days from this corridor. Avg FCDI: 48/100. 3 involve the same third-party vehicle. Possible staged accident ring. Recommend: Flag all future claims for enhanced review pending ZICB referral.</div>
+            <div class="insight-meta">KINGA Relationship Intelligence Engine · 22 Apr 2026</div>
+          </div>
+          <div class="insight ok">
+            <div class="insight-ttl">Benchmark Update — Toyota Fortuner (2019–2022)</div>
+            <div class="insight-body">23 new settled claims added to Fortuner database. Benchmark updated: $4,200–$5,100 (was $3,900–$4,800). Parts inflation +6.4% detected. Applied automatically to all future Fortuner claims.</div>
+            <div class="insight-meta">Updated: 27 Apr 2026 · 00:04 CAT</div>
+          </div>
+        </div>
+        <div>
+          <div class="sec-lbl">Top Claims by Potential Leakage — April</div>
+          <div class="panel" style="margin-bottom:12px">
+            <div class="pb" style="padding:0">
+              <table class="dt">
+                <thead><tr><th>Claim Ref</th><th>Vehicle</th><th class="num">Submitted</th><th class="num">Recommended</th><th class="num">Saving</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td>CLM-051903</td><td>Mercedes C200</td><td class="num">$18,640</td><td class="num">$12,400</td><td class="num text-danger fw7">$6,240</td><td><span class="fl fl-danger">FRAUD</span></td></tr>
+                  <tr><td>CLM-051744</td><td>BMW X5</td><td class="num">$22,100</td><td class="num">$16,800</td><td class="num text-danger fw7">$5,300</td><td><span class="fl fl-danger">REJECTED</span></td></tr>
+                  <tr><td>CLM-051687</td><td>Land Cruiser</td><td class="num">$14,200</td><td class="num">$10,400</td><td class="num text-warn fw7">$3,800</td><td><span class="fl fl-warn">NEGOTIATED</span></td></tr>
+                  <tr><td>CLM-051887</td><td>Isuzu D-Max</td><td class="num">$9,200</td><td class="num">$6,532</td><td class="num text-warn fw7">$2,668</td><td><span class="fl fl-warn">REVIEW</span></td></tr>
+                  <tr style="background:#f7f7f7"><td colspan="4" style="font-weight:700;text-align:right;font-size:10px">Total Leakage Prevented</td><td class="num text-ok fw7">$18,008</td><td></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sec-lbl">Repairer Performance — Top 5 by Volume</div>
+          <div class="panel">
+            <div class="pb" style="padding:0">
+              <table class="dt">
+                <thead><tr><th>Repairer</th><th class="num">Claims</th><th class="num">Avg Quote</th><th class="num">vs Benchmark</th><th>Rating</th></tr></thead>
+                <tbody>
+                  <tr><td>Msasa Panel Beaters</td><td class="num">18</td><td class="num">$4,820</td><td class="num text-ok">+3.2%</td><td><span class="fl fl-ok">APPROVED</span></td></tr>
+                  <tr><td>Harare Crash Repairs</td><td class="num">14</td><td class="num">$5,140</td><td class="num text-warn">+11.4%</td><td><span class="fl fl-ok">APPROVED</span></td></tr>
+                  <tr><td>Avondale Auto Body</td><td class="num">11</td><td class="num">$4,640</td><td class="num text-ok">−0.8%</td><td><span class="fl fl-ok">APPROVED</span></td></tr>
+                  <tr><td>Msasa Repairs</td><td class="num">9</td><td class="num">$7,140</td><td class="num text-danger fw7">+29.0%</td><td><span class="fl fl-warn">FLAGGED</span></td></tr>
+                  <tr><td>Willowvale Premium</td><td class="num">8</td><td class="num">$8,200</td><td class="num text-danger fw7">+31.2%</td><td><span class="fl fl-danger">ALERT</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Locked Tier 3 -->
+      <div class="sec-lbl">Tier 3 Features — Upgrade to Prove</div>
+      <div class="g2">
+        <div class="locked-panel">
+          <div class="lp-icon">🔬</div>
+          <div class="lp-ttl">Forensic Analytics</div>
+          <div class="lp-body">Physics reconstruction analytics across your portfolio. Speed mismatch distribution, deformation energy trends, and Defensibility Score averages. 2 claims this month have physics anomalies warranting forensic review.</div>
+          <button class="lp-btn">Upgrade to Prove</button>
+        </div>
+        <div class="locked-panel">
+          <div class="lp-icon">📋</div>
+          <div class="lp-ttl">Board-Ready Reports</div>
+          <div class="lp-body">Automated quarterly board reports with loss ratio analysis, fraud prevention ROI, and benchmarked industry comparison. One-click PDF generation for board submissions.</div>
+          <button class="lp-btn">Upgrade to Prove</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════════ -->
-<!-- EXECUTIVE INTELLIGENCE DASHBOARD — TIER 2+                             -->
-<!-- ══════════════════════════════════════════════════════════════════════ -->
-<div id="view-exec" class="view">
-  <div class="exec-topbar">
-    <div>
-      <div class="exec-brand">KINGA</div>
-      <div class="exec-brand-sub">Executive Intelligence · Fidelity Life Assurance · April 2026 · Tier 2 — Protect</div>
+<!-- ══════════════════════════════════════════════════════════════════
+     PORTAL 4 — ASSESSOR PORTAL
+     Independent assessor. Tools, work queue, earnings, tier selection.
+     ══════════════════════════════════════════════════════════════════ -->
+<div id="portal-assessor" class="portal-content">
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-org">T. Moyo — Assessor</div>
+      <div class="sb-role">Independent Assessor</div>
+      <span class="sb-tier protect">Assess Pro</span>
     </div>
-    <div class="exec-nav">
-      <div class="exec-nav-item active">Portfolio Overview</div>
-      <div class="exec-nav-item">Fraud Intelligence</div>
-      <div class="exec-nav-item">Financial Performance</div>
-      <div class="exec-nav-item">Repairer Analytics</div>
-      <div class="exec-nav-item">Risk Distribution</div>
-    </div>
-    <div class="exec-meta">27 April 2026 · 09:22 CAT<br><strong>M. Chikwanda</strong> · Chief Operations Officer</div>
+    <div class="sb-section">My Work</div>
+    <div class="sb-item active">📋 &nbsp;My Queue <span class="sb-badge">4</span></div>
+    <div class="sb-item">✓ &nbsp;Completed Assessments</div>
+    <div class="sb-item">⏱ &nbsp;In Progress</div>
+    <div class="sb-section">Tools</div>
+    <div class="sb-item">✍ &nbsp;Write Assessment</div>
+    <div class="sb-item">📷 &nbsp;Run AI Analysis</div>
+    <div class="sb-item">$ &nbsp;Benchmark Lookup</div>
+    <div class="sb-item">📊 &nbsp;Market Data</div>
+    <div class="sb-item sb-locked">🔬 &nbsp;Physics Engine <span class="sb-lock">🔒</span></div>
+    <div class="sb-item sb-locked">⚖️ &nbsp;IPEC Package Builder <span class="sb-lock">🔒</span></div>
+    <div class="sb-section">Earnings</div>
+    <div class="sb-item">💰 &nbsp;Earnings &amp; Invoices</div>
+    <div class="sb-item">🤝 &nbsp;Referral Commissions</div>
+    <div class="sb-section">Account</div>
+    <div class="sb-item">⬆ &nbsp;Upgrade Tier</div>
+    <div class="sb-item">⚙ &nbsp;Profile &amp; Settings</div>
+    <div class="sb-item">→ &nbsp;Sign Out</div>
+    <div class="sb-footer">T. Moyo · ZIM-ASS-2019-0441<br>Assess Pro · $12/claim</div>
   </div>
-
-  <div class="content">
-
-    <!-- Savings hero bar -->
-    <div class="hero">
-      <div class="hero-item"><div class="hero-lbl">Leakage Prevented — April</div><div class="hero-val">$84,620</div><div class="hero-sub">Across 14 fraud-flagged claims</div></div>
-      <div class="hero-item"><div class="hero-lbl">Quote Optimisation — April</div><div class="hero-val">$41,280</div><div class="hero-sub">Avg $2,940 per optimised claim</div></div>
-      <div class="hero-item"><div class="hero-lbl">Assessor Cost Avoided</div><div class="hero-val">$5,320</div><div class="hero-sub">140 claims × $38 avg assessor fee</div></div>
-      <div class="hero-item"><div class="hero-lbl">Total Value Delivered — April</div><div class="hero-val">$131,220</div><div class="hero-sub">vs Platform cost: $900 + $1,680</div></div>
-    </div>
-
-    <!-- Exec KPIs -->
-    <div class="sec-lbl">Portfolio Performance — April 2026</div>
-    <div class="kpi-row kpi-6" style="margin-bottom:18px">
-      <div class="kpi ok"><div class="kpi-lbl">Claims Processed</div><div class="kpi-val ok">140</div><div class="kpi-sub">vs 98 same period 2025</div><div class="kpi-delta delta-up">↑ 43% YoY</div></div>
-      <div class="kpi ok"><div class="kpi-lbl">Approval Rate</div><div class="kpi-val ok">71%</div><div class="kpi-sub">99 approved · 41 reviewed</div><div class="kpi-delta delta-up">↑ 4% vs Q1</div></div>
-      <div class="kpi warn"><div class="kpi-lbl">Fraud Detection Rate</div><div class="kpi-val warn">10%</div><div class="kpi-sub">14 flagged · 11 confirmed</div><div class="kpi-delta delta-up">↑ 2% vs Q1</div></div>
-      <div class="kpi ok"><div class="kpi-lbl">Avg Settlement</div><div class="kpi-val ok">$4,820</div><div class="kpi-sub">vs $6,240 submitted avg</div><div class="kpi-delta delta-dn">↓ 22.8% from submitted</div></div>
-      <div class="kpi black"><div class="kpi-lbl">Avg Processing Time</div><div class="kpi-val">4.8 min</div><div class="kpi-sub">vs 3–5 days manual</div><div class="kpi-delta delta-up">↓ 99.8% reduction</div></div>
-      <div class="kpi ok"><div class="kpi-lbl">Platform ROI</div><div class="kpi-val ok">4,820%</div><div class="kpi-sub">$131,220 value / $2,580 cost</div><div class="kpi-delta delta-up">↑ 340% vs Q1</div></div>
-    </div>
-
-    <!-- Charts row 1 -->
-    <div class="g2">
-      <div class="panel">
-        <div class="ph"><div class="pt">Monthly Claims Volume &amp; Fraud Detection — 6 Months</div></div>
-        <div class="pb"><div class="ch280"><canvas id="exec-vol"></canvas></div></div>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title">My Assessment Queue</div>
+        <div class="topbar-sub">4 assessments assigned · 2 in progress · Last sync: 09:14 CAT</div>
       </div>
-      <div class="panel">
-        <div class="ph"><div class="pt">Financial Impact — Submitted vs Settled vs Benchmark ($k)</div></div>
-        <div class="pb"><div class="ch280"><canvas id="exec-fin"></canvas></div></div>
+      <div class="topbar-right">
+        <button class="btn btn-secondary btn-sm">↓ Download All Reports</button>
+        <button class="btn btn-primary btn-sm">✍ Write Assessment</button>
+        <div class="topbar-user">27 Apr 2026 · 09:22 CAT<br><strong>T. Moyo</strong> · Assessor</div>
       </div>
     </div>
+    <div class="content">
+      <div class="placeholder-note">⚠ Mock — illustrative data only. Report links open placeholder mock files.</div>
 
-    <!-- Charts row 2 -->
-    <div class="g3">
-      <div class="panel">
-        <div class="ph"><div class="pt">Decision Distribution — April</div></div>
-        <div class="pb"><div class="ch200"><canvas id="exec-dec"></canvas></div></div>
+      <!-- Earnings KPIs -->
+      <div class="kpi-row kpi-4">
+        <div class="kpi ok"><div class="kpi-lbl">Assessments — April</div><div class="kpi-val ok">22</div><div class="kpi-sub">$264 earned (Assess Pro)</div></div>
+        <div class="kpi black"><div class="kpi-lbl">Avg Turnaround</div><div class="kpi-val">4.2 min</div><div class="kpi-sub">AI-assisted</div></div>
+        <div class="kpi info"><div class="kpi-lbl">Referral Commissions</div><div class="kpi-val">$500</div><div class="kpi-sub">Due 14 May 2026</div></div>
+        <div class="kpi warn"><div class="kpi-lbl">Pending in Queue</div><div class="kpi-val warn">4</div><div class="kpi-sub">2 high priority</div></div>
       </div>
-      <div class="panel">
-        <div class="ph"><div class="pt">Fraud Signal Categories — April</div></div>
-        <div class="pb"><div class="ch200"><canvas id="exec-fraud-cat"></canvas></div></div>
-      </div>
-      <div class="panel">
-        <div class="ph"><div class="pt">Quote Deviation vs Benchmark — April</div></div>
-        <div class="pb"><div class="ch200"><canvas id="exec-qdev"></canvas></div></div>
-      </div>
-    </div>
 
-    <!-- Cumulative savings -->
-    <div class="sec-lbl" style="margin-top:6px">Cumulative Savings Tracker — Year to Date</div>
-    <div class="panel" style="margin-bottom:18px">
-      <div class="ph"><div class="pt">Leakage Prevented + Quote Optimisation + Assessor Cost Avoided — Jan to Apr 2026</div></div>
-      <div class="pb"><div class="ch240"><canvas id="exec-savings"></canvas></div></div>
-    </div>
-
-    <!-- Insights + Top leakage table -->
-    <div class="sec-lbl">Portfolio Intelligence — Key Insights</div>
-    <div class="g2">
-      <div>
-        <div class="insight danger">
-          <div class="insight-ttl">Repairer Pattern Alert — Willowvale Premium Repairs</div>
-          <div class="insight-body">Appeared in 8 claims this quarter. Average quote: 31% above KINGA benchmark. 5 of 8 claims flagged for fraud or quote inflation. Estimated exposure if not actioned: $18,400 additional leakage in Q2. Recommend: Remove from approved repairer panel pending investigation.</div>
-          <div class="insight-meta">Detected by KINGA Fraud Learning Engine · 14 Apr 2026</div>
+      <!-- Tools grid -->
+      <div class="sec-lbl">Assessment Tools</div>
+      <div class="tool-grid">
+        <div class="tool-card" onclick="showAssessmentForm()">
+          <div class="tc-icon">✍</div>
+          <div class="tc-title">Write Assessment</div>
+          <div class="tc-desc">Open a new assessment form. AI pre-fills vehicle data, damage summary, and cost benchmarks. You review, adjust, and sign.</div>
+          <div class="tc-tier available">✓ Available — Assess Pro</div>
         </div>
-        <div class="insight warn">
-          <div class="insight-ttl">Emerging Pattern — Samora Machel Ave Corridor, Harare CBD</div>
-          <div class="insight-body">7 claims in the past 30 days originating from the Samora Machel Ave / CBD corridor. Average FCDI score: 48/100. 3 involve the same third-party vehicle (Honda Fit · ACZ 2209). Possible staged accident ring. Recommend: Flag all future claims from this corridor for enhanced review pending ZICB referral.</div>
-          <div class="insight-meta">Detected by KINGA Relationship Intelligence Engine · 22 Apr 2026</div>
+        <div class="tool-card">
+          <div class="tc-icon">📷</div>
+          <div class="tc-title">Run AI Photo Analysis</div>
+          <div class="tc-desc">Upload damage photos and run the KINGA vision engine. Returns damage zones, severity, crush depth, and component flags in under 5 minutes.</div>
+          <div class="tc-tier available">✓ Available — Assess Pro</div>
         </div>
-        <div class="insight ok">
-          <div class="insight-ttl">Benchmark Update — Toyota Fortuner (2019–2022)</div>
-          <div class="insight-body">23 new settled claims added to the Toyota Fortuner learning database this month. Benchmark range updated: $4,200–$5,100 (previously $3,900–$4,800). Parts inflation of 6.4% detected — consistent with USD import cost increases from Beitbridge. Benchmark applied automatically to all future Fortuner claims.</div>
-          <div class="insight-meta">Updated: 27 Apr 2026 · 00:04 CAT</div>
+        <div class="tool-card">
+          <div class="tc-icon">$</div>
+          <div class="tc-title">Benchmark Lookup</div>
+          <div class="tc-desc">Look up KINGA benchmark prices for any component and vehicle combination. Updated weekly from 5 local suppliers.</div>
+          <div class="tc-tier available">✓ Available — Assess Pro</div>
+        </div>
+        <div class="tool-card">
+          <div class="tc-icon">📊</div>
+          <div class="tc-title">Market Data</div>
+          <div class="tc-desc">Current market values for vehicle makes/models. Repair cost trends. Write-off threshold calculator.</div>
+          <div class="tc-tier available">✓ Available — Assess Pro</div>
+        </div>
+        <div class="tool-card locked">
+          <div class="tc-icon">🔬</div>
+          <div class="tc-title">Physics Engine</div>
+          <div class="tc-desc">5-method speed inference ensemble, M5 dual-path cross-validation, deformation energy, and Defensibility Score. For disputed claims and IPEC submissions.</div>
+          <div class="tc-tier locked">🔒 Forensic Partner only — $25/claim</div>
+        </div>
+        <div class="tool-card locked">
+          <div class="tc-icon">⚖️</div>
+          <div class="tc-title">IPEC Package Builder</div>
+          <div class="tc-desc">Structured evidence package for IPEC submissions. Challenge simulation, evidence chain, and signed forensic determination. Enables expert witness fee uplift.</div>
+          <div class="tc-tier locked">🔒 Forensic Partner only — $25/claim</div>
         </div>
       </div>
-      <div>
-        <div class="sec-lbl">Top Claims by Potential Leakage — April</div>
-        <div class="panel">
-          <div class="pb" style="padding:0">
-            <table class="dt">
-              <thead><tr><th>Claim Ref</th><th>Vehicle</th><th class="num">Submitted</th><th class="num">Recommended</th><th class="num">Saving</th><th>Status</th></tr></thead>
-              <tbody>
-                <tr><td>CLM-2026-051903</td><td>Mercedes C200</td><td class="num">$18,640</td><td class="num">$12,400</td><td class="num" style="color:#c03030;font-weight:700">$6,240</td><td><span class="fl fl-danger">FRAUD</span></td></tr>
-                <tr><td>CLM-2026-051744</td><td>BMW X5</td><td class="num">$22,100</td><td class="num">$16,800</td><td class="num" style="color:#c03030;font-weight:700">$5,300</td><td><span class="fl fl-danger">REJECTED</span></td></tr>
-                <tr><td>CLM-2026-051687</td><td>Toyota Land Cruiser</td><td class="num">$14,200</td><td class="num">$10,400</td><td class="num" style="color:#b07000;font-weight:700">$3,800</td><td><span class="fl fl-warn">NEGOTIATED</span></td></tr>
-                <tr><td>CLM-2026-051612</td><td>Ford Ranger</td><td class="num">$8,400</td><td class="num">$5,900</td><td class="num" style="color:#b07000;font-weight:700">$2,500</td><td><span class="fl fl-warn">NEGOTIATED</span></td></tr>
-                <tr><td>CLM-2026-051887</td><td>Isuzu D-Max</td><td class="num">$9,200</td><td class="num">$6,532</td><td class="num" style="color:#b07000;font-weight:700">$2,668</td><td><span class="fl fl-warn">REVIEW</span></td></tr>
-                <tr style="background:#f7f7f7"><td colspan="4" style="font-weight:700;text-align:right;font-size:11px">Total Leakage Prevented</td><td class="num" style="font-weight:900;color:#1a7a1a">$20,508</td><td></td></tr>
-              </tbody>
-            </table>
+
+      <!-- Assessment form (hidden by default) -->
+      <div id="assessment-form" style="display:none">
+        <div class="sec-lbl">New Assessment — CLM-2026-051921 · Toyota Hilux · ACZ 8801</div>
+        <div class="form-section">
+          <div class="sec-lbl" style="margin-bottom:10px">Vehicle &amp; Incident Details</div>
+          <div class="form-row">
+            <div class="form-field"><label class="form-lbl">Claim Reference</label><input class="form-input" value="CLM-2026-051921" readonly></div>
+            <div class="form-field"><label class="form-lbl">Insurer</label><input class="form-input" value="Fidelity Life Assurance" readonly></div>
+          </div>
+          <div class="form-row-3">
+            <div class="form-field"><label class="form-lbl">Vehicle Make / Model</label><input class="form-input" value="Toyota Hilux 2.4 GD-6"></div>
+            <div class="form-field"><label class="form-lbl">Year</label><input class="form-input" value="2020"></div>
+            <div class="form-field"><label class="form-lbl">Registration</label><input class="form-input" value="ACZ 8801"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-field"><label class="form-lbl">Incident Date</label><input class="form-input" value="14 April 2026"></div>
+            <div class="form-field"><label class="form-lbl">Incident Location</label><input class="form-input" value="Borrowdale Rd, Harare"></div>
           </div>
         </div>
+        <div class="form-section">
+          <div class="sec-lbl" style="margin-bottom:10px">Damage Assessment — AI Pre-filled · Review &amp; Adjust</div>
+          <div class="form-row-3">
+            <div class="form-field"><label class="form-lbl">Recommendation</label><select class="form-select"><option>REPAIR</option><option>WRITE-OFF</option><option>FURTHER INSPECTION</option></select></div>
+            <div class="form-field"><label class="form-lbl">AI Confidence</label><input class="form-input" value="79%" readonly></div>
+            <div class="form-field"><label class="form-lbl">Submitted Quote</label><input class="form-input" value="$3,140"></div>
+          </div>
+          <div class="form-field" style="margin-bottom:10px"><label class="form-lbl">Damage Summary (AI Draft — Edit as required)</label><textarea class="form-textarea">Rear impact damage consistent with low-speed collision. Rear bumper assembly crushed to 6.8cm. Tailgate deformed. No structural chassis damage detected. Damage pattern is consistent with the stated incident.</textarea></div>
+          <div class="form-field" style="margin-bottom:10px"><label class="form-lbl">Assessor Notes (Your professional observations)</label><textarea class="form-textarea" placeholder="Add your professional observations here..."></textarea></div>
+        </div>
+        <div class="form-section">
+          <div class="sec-lbl" style="margin-bottom:10px">Cost Analysis — AI Benchmark vs Submitted</div>
+          <table class="dt" style="margin-bottom:12px">
+            <thead><tr><th>Component</th><th class="num">Submitted ($)</th><th class="num">KINGA Benchmark ($)</th><th class="num">Delta</th><th>Your Decision</th></tr></thead>
+            <tbody>
+              <tr><td>Rear Bumper Assembly</td><td class="num">$420</td><td class="num">$390</td><td class="num text-warn">+$30 (+8%)</td><td><select class="form-select" style="width:120px;padding:3px 6px;font-size:10px"><option>Negotiate</option><option>Approve</option><option>Challenge</option></select></td></tr>
+              <tr><td>Tailgate Replacement</td><td class="num">$1,840</td><td class="num">$1,620</td><td class="num text-warn">+$220 (+14%)</td><td><select class="form-select" style="width:120px;padding:3px 6px;font-size:10px"><option>Negotiate</option><option>Approve</option><option>Challenge</option></select></td></tr>
+              <tr><td>Panel Beating — Rear</td><td class="num">$480</td><td class="num">$420</td><td class="num text-warn">+$60 (+14%)</td><td><select class="form-select" style="width:120px;padding:3px 6px;font-size:10px"><option>Negotiate</option><option>Approve</option><option>Challenge</option></select></td></tr>
+              <tr><td>Towing &amp; Storage</td><td class="num">$400</td><td class="num">$410</td><td class="num text-ok">−$10 (−2%)</td><td><select class="form-select" style="width:120px;padding:3px 6px;font-size:10px"><option>Approve</option><option>Negotiate</option><option>Challenge</option></select></td></tr>
+            </tbody>
+          </table>
+          <div class="form-row">
+            <div class="form-field"><label class="form-lbl">Recommended Settlement</label><input class="form-input" value="$2,840"></div>
+            <div class="form-field"><label class="form-lbl">Saving vs Submitted</label><input class="form-input" value="$300 (9.6%)" readonly></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="sec-lbl" style="margin-bottom:10px">Assessor Signature &amp; Submission</div>
+          <div class="form-row">
+            <div class="form-field"><label class="form-lbl">Assessor Name</label><input class="form-input" value="T. Moyo"></div>
+            <div class="form-field"><label class="form-lbl">Registration No.</label><input class="form-input" value="ZIM-ASS-2019-0441"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-field"><label class="form-lbl">Date</label><input class="form-input" value="27 April 2026"></div>
+            <div class="form-field"><label class="form-lbl">Report Tier</label><select class="form-select"><option>Assess Pro ($12)</option><option>Draft ($5)</option></select></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-secondary">Save Draft</button>
+            <button class="btn btn-secondary">Preview Report</button>
+            <button class="btn btn-primary">Sign &amp; Submit Assessment →</button>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:8px"><a class="report-link" href="mock-layer-c-forensic-assessor.html" target="_blank">View sample Assess Pro report →</a></div>
+      </div>
 
-        <!-- Repairer performance -->
-        <div class="sec-lbl" style="margin-top:16px">Repairer Performance — Top 5 by Volume</div>
+      <!-- Queue -->
+      <div class="sec-lbl">My Assessment Queue</div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="pb" style="padding:0">
+          <table class="dt">
+            <thead><tr><th>Claim Ref</th><th>Vehicle</th><th>Insurer</th><th class="num">Quote</th><th>Assigned</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="fw7">CLM-2026-051903</td>
+                <td>Mercedes-Benz C200 · ABD 7712</td>
+                <td>Fidelity Life</td>
+                <td class="num">$18,640</td>
+                <td>09:08 today</td>
+                <td><span class="fl fl-warn">IN PROGRESS</span></td>
+                <td><button class="btn btn-primary btn-sm" onclick="showAssessmentForm()">Continue</button> <a class="report-link" href="mock-layer-c-forensic-assessor.html" target="_blank">Sample</a></td>
+              </tr>
+              <tr>
+                <td class="fw7">CLM-2026-051921</td>
+                <td>Toyota Hilux · ACZ 8801</td>
+                <td>Fidelity Life</td>
+                <td class="num">$3,140</td>
+                <td>08:44 today</td>
+                <td><span class="fl fl-info">ASSIGNED</span></td>
+                <td><button class="btn btn-secondary btn-sm" onclick="showAssessmentForm()">Start</button></td>
+              </tr>
+              <tr>
+                <td class="fw7">CLM-2026-051887</td>
+                <td>Isuzu D-Max · AEF 3312</td>
+                <td>Heritage Insurance</td>
+                <td class="num">$9,200</td>
+                <td>Yesterday</td>
+                <td><span class="fl fl-grey">PENDING</span></td>
+                <td><button class="btn btn-secondary btn-sm">Start</button></td>
+              </tr>
+              <tr>
+                <td class="fw7">CLM-2026-051819</td>
+                <td>Ford Ranger · AEF 7712</td>
+                <td>NICOZ Diamond</td>
+                <td class="num">$4,100</td>
+                <td>Yesterday</td>
+                <td><span class="fl fl-grey">PENDING</span></td>
+                <td><button class="btn btn-secondary btn-sm">Start</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tier upgrade -->
+      <div class="sec-lbl">Your Assessor Tier — Upgrade for More Tools</div>
+      <div class="tier-sel-grid">
+        <div class="tier-sel">
+          <div class="ts-name">Draft</div>
+          <div class="ts-price">$5<span class="ts-price-sub">/claim</span></div>
+          <div class="ts-features">✓ AI damage summary<br>✓ Repair vs write-off<br>✓ Cost range estimate<br>✗ Component analysis<br>✗ Cost benchmarks<br>✗ Assessor signature</div>
+          <div class="ts-upgrade">Not your current tier</div>
+        </div>
+        <div class="tier-sel current">
+          <div class="ts-name">Assess Pro</div>
+          <div class="ts-price">$12<span class="ts-price-sub">/claim</span></div>
+          <div class="ts-features">✓ All Draft features<br>✓ Per-component analysis<br>✓ Line-item benchmarks<br>✓ Damage consistency<br>✓ Assessor-signed report<br>✗ Physics reconstruction</div>
+          <div class="ts-current">✓ Your current tier</div>
+        </div>
+        <div class="tier-sel">
+          <div class="ts-name">Forensic Partner</div>
+          <div class="ts-price">$25<span class="ts-price-sub">/claim or $200/mo</span></div>
+          <div class="ts-features">✓ All Assess Pro features<br>✓ Physics reconstruction<br>✓ Defensibility Score<br>✓ Challenge Simulation<br>✓ IPEC Package Builder<br>✓ Expert witness uplift</div>
+          <div class="ts-upgrade"><button class="lp-btn" style="margin-top:8px">Upgrade to Forensic Partner</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     PORTAL 5 — PANEL BEATER PORTAL
+     Repairer. Quote submission, benchmark comparison, performance.
+     ══════════════════════════════════════════════════════════════════ -->
+<div id="portal-panel-beater" class="portal-content">
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-org">Msasa Panel Beaters</div>
+      <div class="sb-role">Panel Beater / Repairer</div>
+    </div>
+    <div class="sb-section">Quotes</div>
+    <div class="sb-item active">📋 &nbsp;My Quotes <span class="sb-badge blue">5</span></div>
+    <div class="sb-item">＋ &nbsp;Submit New Quote</div>
+    <div class="sb-item">✓ &nbsp;Approved Quotes</div>
+    <div class="sb-item">⚠ &nbsp;Queried Quotes <span class="sb-badge amber">2</span></div>
+    <div class="sb-section">Performance</div>
+    <div class="sb-item">📊 &nbsp;My Performance</div>
+    <div class="sb-item">$ &nbsp;Benchmark Comparison</div>
+    <div class="sb-item">⭐ &nbsp;My Rating</div>
+    <div class="sb-section">Account</div>
+    <div class="sb-item">💰 &nbsp;Payments</div>
+    <div class="sb-item">⚙ &nbsp;Profile</div>
+    <div class="sb-item">→ &nbsp;Sign Out</div>
+    <div class="sb-footer">Msasa Panel Beaters · Harare<br>Rating: APPROVED · 3.2% above benchmark</div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title">My Quotes — April 2026</div>
+        <div class="topbar-sub">5 active quotes · 2 queried · 18 approved this month</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary btn-sm">＋ Submit New Quote</button>
+        <div class="topbar-user">27 Apr 2026 · 09:22 CAT<br><strong>J. Mupfumi</strong> · Manager</div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="placeholder-note">⚠ Mock — illustrative data only. Assessment links open placeholder mock files.</div>
+
+      <!-- KPIs -->
+      <div class="kpi-row kpi-4">
+        <div class="kpi ok"><div class="kpi-lbl">Approved — April</div><div class="kpi-val ok">18</div><div class="kpi-sub">$86,760 in repairs</div></div>
+        <div class="kpi warn"><div class="kpi-lbl">Queried</div><div class="kpi-val warn">2</div><div class="kpi-sub">Awaiting response</div></div>
+        <div class="kpi ok"><div class="kpi-lbl">Avg vs Benchmark</div><div class="kpi-val ok">+3.2%</div><div class="kpi-sub">Within approved range</div></div>
+        <div class="kpi info"><div class="kpi-lbl">Panel Rating</div><div class="kpi-val">APPROVED</div><div class="kpi-sub">Top 3 by volume</div></div>
+      </div>
+
+      <!-- Active quotes -->
+      <div class="sec-lbl">Active Quotes — Status &amp; KINGA Benchmark Comparison</div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="pb" style="padding:0">
+          <table class="dt">
+            <thead><tr><th>Claim Ref</th><th>Vehicle</th><th>Insurer</th><th class="num">Your Quote</th><th class="num">KINGA Benchmark</th><th class="num">Delta</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="fw7">CLM-2026-051847</td>
+                <td>Honda Fit · ACZ 2209</td>
+                <td>Fidelity Life</td>
+                <td class="num">$1,820</td>
+                <td class="num">$1,780</td>
+                <td class="num text-ok">+$40 (+2.2%)</td>
+                <td><span class="fl fl-ok">APPROVED</span></td>
+                <td><a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">View Assessment →</a></td>
+              </tr>
+              <tr>
+                <td class="fw7">CLM-2026-051832</td>
+                <td>Mazda CX-5 · AEZ 1104</td>
+                <td>Fidelity Life</td>
+                <td class="num">$2,640</td>
+                <td class="num">$2,580</td>
+                <td class="num text-ok">+$60 (+2.3%)</td>
+                <td><span class="fl fl-ok">APPROVED</span></td>
+                <td><a class="report-link" href="mock-layer-a-claims-report.html" target="_blank">View Assessment →</a></td>
+              </tr>
+              <tr style="background:#fffbf0">
+                <td class="fw7">CLM-2026-051819</td>
+                <td>Ford Ranger · AEF 7712</td>
+                <td>NICOZ Diamond</td>
+                <td class="num">$4,100</td>
+                <td class="num">$3,620</td>
+                <td class="num text-warn fw7">+$480 (+13.3%)</td>
+                <td><span class="fl fl-warn">QUERIED</span></td>
+                <td><button class="btn btn-secondary btn-sm">Respond to Query</button></td>
+              </tr>
+              <tr style="background:#fff5f5">
+                <td class="fw7">CLM-2026-051801</td>
+                <td>VW Polo Vivo · ABD 4412</td>
+                <td>Heritage Insurance</td>
+                <td class="num">$880</td>
+                <td class="num">$820</td>
+                <td class="num text-warn">+$60 (+7.3%)</td>
+                <td><span class="fl fl-warn">QUERIED</span></td>
+                <td><button class="btn btn-secondary btn-sm">Respond to Query</button></td>
+              </tr>
+              <tr>
+                <td class="fw7">CLM-2026-051921</td>
+                <td>Toyota Hilux · ACZ 8801</td>
+                <td>Fidelity Life</td>
+                <td class="num">$3,140</td>
+                <td class="num">—</td>
+                <td class="num text-muted">Pending</td>
+                <td><span class="fl fl-info">SUBMITTED</span></td>
+                <td><span class="text-muted" style="font-size:10px">Awaiting assessment</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Query response form -->
+      <div class="sec-lbl">Respond to Query — CLM-2026-051819 · Ford Ranger</div>
+      <div class="form-section" style="margin-bottom:14px">
+        <div style="background:#fff8e8;border:1px solid #e0c060;padding:10px 14px;font-size:11px;color:#7a5000;margin-bottom:12px">
+          <strong>KINGA Query:</strong> Your quote of $4,100 is $480 (13.3%) above the KINGA benchmark of $3,620. The following line items are above benchmark: Panel Beating — Rear ($680 submitted vs $520 benchmark, +$160). Please provide justification or revise your quote.
+        </div>
+        <div class="form-field" style="margin-bottom:10px">
+          <label class="form-lbl">Your Response / Justification</label>
+          <textarea class="form-textarea" placeholder="Explain the cost difference or revise your quote...">The panel beating rate reflects the additional complexity of the rear quarter panel damage which extends beyond the bumper area. Our rate of $68/hr reflects current market rates for specialist panel beating in Harare. We are willing to revise to $3,900 as a compromise.</textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label class="form-lbl">Revised Quote (if applicable)</label><input class="form-input" value="$3,900"></div>
+          <div class="form-field"><label class="form-lbl">Supporting Document</label><input class="form-input" placeholder="Upload revised quote PDF..."></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary">Save Draft</button>
+          <button class="btn btn-primary">Submit Response →</button>
+        </div>
+      </div>
+
+      <!-- Performance -->
+      <div class="sec-lbl">My Performance — April 2026</div>
+      <div class="g2">
         <div class="panel">
-          <div class="pb" style="padding:0">
-            <table class="dt">
-              <thead><tr><th>Repairer</th><th class="num">Claims</th><th class="num">Avg Quote</th><th class="num">vs Benchmark</th><th>Rating</th></tr></thead>
-              <tbody>
-                <tr><td>Msasa Panel Beaters</td><td class="num">18</td><td class="num">$4,820</td><td class="num" style="color:#1a7a1a">+3.2%</td><td><span class="fl fl-ok">APPROVED</span></td></tr>
-                <tr><td>Harare Crash Repairs</td><td class="num">14</td><td class="num">$5,140</td><td class="num" style="color:#b07000">+11.4%</td><td><span class="fl fl-ok">APPROVED</span></td></tr>
-                <tr><td>Avondale Auto Body</td><td class="num">11</td><td class="num">$4,640</td><td class="num" style="color:#1a7a1a">-0.8%</td><td><span class="fl fl-ok">APPROVED</span></td></tr>
-                <tr><td>Msasa Repairs</td><td class="num">9</td><td class="num">$7,140</td><td class="num" style="color:#c03030;font-weight:700">+29.0%</td><td><span class="fl fl-warn">FLAGGED</span></td></tr>
-                <tr><td>Willowvale Premium</td><td class="num">8</td><td class="num">$8,200</td><td class="num" style="color:#c03030;font-weight:700">+31.2%</td><td><span class="fl fl-danger">ALERT</span></td></tr>
-              </tbody>
-            </table>
+          <div class="ph"><div class="pt">Quote vs Benchmark — Last 6 Months</div></div>
+          <div class="pb"><div class="ch200"><canvas id="pb-perf"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Approval Rate &amp; Query Rate</div></div>
+          <div class="pb">
+            <div class="earn-grid">
+              <div class="earn-cell"><div class="earn-lbl">Approval Rate</div><div class="earn-val text-ok">82%</div><div class="earn-sub">18 of 22 approved</div></div>
+              <div class="earn-cell"><div class="earn-lbl">Query Rate</div><div class="earn-val text-warn">9%</div><div class="earn-sub">2 of 22 queried</div></div>
+              <div class="earn-cell"><div class="earn-lbl">Panel Rating</div><div class="earn-val">APPROVED</div><div class="earn-sub">Top 3 by volume</div></div>
+            </div>
+            <div class="insight ok" style="margin-top:8px">
+              <div class="insight-ttl">Performance Note</div>
+              <div class="insight-body">Your average quote is 3.2% above benchmark — within the approved range. Maintaining this will keep your APPROVED rating. Quotes consistently above 15% risk a FLAGGED rating and reduced referrals from insurers.</div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Locked Tier 3 preview -->
-    <div class="sec-lbl" style="margin-top:8px">Tier 3 Features — Upgrade to Unlock</div>
-    <div class="g2">
-      <div class="locked-panel">
-        <div class="lp-icon">🔬</div>
-        <div class="lp-ttl">Forensic Intelligence Package</div>
-        <div class="lp-body">Full physics reconstruction per claim: speed inference ensemble (5 methods), crush depth measurements, deformation energy calculations, occupant injury risk, and cross-engine consistency validation. Available for disputed claims, litigation support, and IPEC submissions. 2 claims this month have physics anomalies that warrant forensic review.</div>
-        <div class="lp-btn">Upgrade to Tier 3 — Prove</div>
-      </div>
-      <div class="locked-panel">
-        <div class="lp-icon">⚖️</div>
-        <div class="lp-ttl">Dispute Resolution Intelligence</div>
-        <div class="lp-body">Structured evidence packages for IPEC submissions and legal disputes. Includes validated determination workflow, human reviewer sign-off trail, and physics evidence chain. Your insurer retains full ownership of the validated conclusion. 1 claim this month is currently in dispute — upgrade to access the full evidence package.</div>
-        <div class="lp-btn">Upgrade to Tier 3 — Prove</div>
-      </div>
-    </div>
-
   </div>
 </div>
 
 <script>
-function showView(v, btn) {
-  document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('view-' + v).classList.add('active');
+function showPortal(id, btn) {
+  document.querySelectorAll('.portal-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.portal-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('portal-' + id).classList.add('active');
   btn.classList.add('active');
-  setTimeout(() => initCharts(v), 80);
+  setTimeout(() => initCharts(id), 80);
+}
+
+function showTenantConfig() {
+  const el = document.getElementById('tenant-config');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function showAssessmentForm() {
+  const el = document.getElementById('assessment-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  if (el.style.display === 'block') el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 const G = '#1a7a1a', A = '#b07000', R = '#c03030', B = '#1a3a8a', K = '#111', P = '#888', L = '#ccc';
 let charts = {};
 function killCharts() { Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} }); charts = {}; }
 
-function initCharts(view) {
+function initCharts(portal) {
   killCharts();
   const base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
 
-  if (view === 'ops') {
-    charts.od = new Chart(document.getElementById('ops-dec'), {
-      type: 'doughnut',
-      data: { labels: ['Approved', 'Negotiated', 'Rejected', 'Pending'], datasets: [{ data: [14, 3, 2, 7], backgroundColor: [G, A, R, L], borderWidth: 0 }] },
-      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } } }
-    });
-    charts.of = new Chart(document.getElementById('ops-fraud'), {
-      type: 'bar',
-      data: { labels: ['0–20', '21–40', '41–60', '61–80', '81–100'], datasets: [{ data: [4, 1, 1, 1, 0], backgroundColor: [G, P, A, R, '#6a0000'], borderWidth: 0 }] },
-      options: { ...base, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, title: { display: true, text: 'Claims', font: { size: 10 } } }, x: { title: { display: true, text: 'FCDI Score Range', font: { size: 10 } } } } }
-    });
-    charts.ow = new Chart(document.getElementById('ops-weekly'), {
+  if (portal === 'admin') {
+    charts.av = new Chart(document.getElementById('admin-vol'), {
       type: 'bar',
       data: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'],
-        datasets: [
-          { label: 'Approved', data: [12, 18, 14, 16, 11, 14], backgroundColor: G, borderWidth: 0 },
-          { label: 'Reviewed/Rejected', data: [3, 4, 5, 3, 2, 7], backgroundColor: R, borderWidth: 0 }
-        ]
+        labels: ['Old Mutual', 'Fidelity', 'NICOZ', 'Heritage', 'Zimnat', 'Others'],
+        datasets: [{ data: [312, 140, 98, 88, 64, 140], backgroundColor: [K, K, P, P, L, L], borderWidth: 0 }]
       },
-      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } }, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+      options: { ...base, scales: { y: { beginAtZero: true, title: { display: true, text: 'Claims', font: { size: 10 } } } } }
+    });
+    charts.ar = new Chart(document.getElementById('admin-rev'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Process ($500/mo)', 'Protect ($900/mo)', 'Prove ($1,800/mo)'],
+        datasets: [{ data: [3, 5, 4], backgroundColor: [L, K, B], borderWidth: 0 }]
+      },
+      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } } }
     });
   }
 
-  if (view === 'exec') {
+  if (portal === 'claims-manager') {
+    charts.cd = new Chart(document.getElementById('cm-dec'), {
+      type: 'doughnut',
+      data: { labels: ['Approved', 'Negotiated', 'Rejected', 'Pending'], datasets: [{ data: [14, 3, 2, 7], backgroundColor: [G, A, R, L], borderWidth: 0 }] },
+      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } } } }
+    });
+    charts.cf = new Chart(document.getElementById('cm-fraud'), {
+      type: 'bar',
+      data: { labels: ['0–20', '21–40', '41–60', '61–80', '81+'], datasets: [{ data: [4, 1, 1, 1, 0], backgroundColor: [G, P, A, R, '#6a0000'], borderWidth: 0 }] },
+      options: { ...base, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { title: { display: true, text: 'FCDI Score', font: { size: 9 } } } } }
+    });
+  }
+
+  if (portal === 'executive') {
     charts.ev = new Chart(document.getElementById('exec-vol'), {
       type: 'bar',
       data: {
@@ -495,7 +1268,7 @@ function initCharts(view) {
         datasets: [
           { label: 'Total Claims', data: [88, 72, 104, 118, 131, 140], backgroundColor: L, borderWidth: 0, yAxisID: 'y' },
           { label: 'Fraud Detected', data: [6, 5, 9, 11, 13, 14], backgroundColor: R, borderWidth: 0, yAxisID: 'y' },
-          { type: 'line', label: 'Fraud Rate (%)', data: [6.8, 6.9, 8.7, 9.3, 9.9, 10.0], borderColor: A, backgroundColor: 'transparent', pointRadius: 4, tension: 0.3, yAxisID: 'y1' }
+          { type: 'line', label: 'Fraud Rate (%)', data: [6.8, 6.9, 8.7, 9.3, 9.9, 10.0], borderColor: A, backgroundColor: 'transparent', pointRadius: 3, tension: 0.3, yAxisID: 'y1' }
         ]
       },
       options: {
@@ -514,42 +1287,44 @@ function initCharts(view) {
         datasets: [
           { label: 'Submitted ($k)', data: [412, 338, 498, 564, 628, 674], backgroundColor: R, borderWidth: 0 },
           { label: 'Settled ($k)', data: [318, 261, 382, 428, 481, 522], backgroundColor: G, borderWidth: 0 },
-          { label: 'Benchmark Mid ($k)', data: [304, 248, 364, 408, 462, 498], backgroundColor: L, borderWidth: 0 }
+          { label: 'Benchmark ($k)', data: [304, 248, 364, 408, 462, 498], backgroundColor: L, borderWidth: 0 }
         ]
       },
-      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } }, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v + 'k' } } } }
+      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } }, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } } } }
     });
     charts.ed = new Chart(document.getElementById('exec-dec'), {
       type: 'doughnut',
       data: { labels: ['Approved (71%)', 'Negotiated (14%)', 'Rejected (8%)', 'Pending (7%)'], datasets: [{ data: [99, 20, 11, 10], backgroundColor: [G, A, R, L], borderWidth: 0 }] },
-      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } } }
+      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } } } }
     });
     charts.efc = new Chart(document.getElementById('exec-fraud-cat'), {
       type: 'bar',
       data: { labels: ['Quote Inflation', 'Speed Mismatch', 'Photo Fraud', 'Repairer Pattern', 'Doc Forgery'], datasets: [{ data: [8, 5, 3, 6, 2], backgroundColor: [R, A, K, P, L], borderWidth: 0 }] },
-      options: { ...base, scales: { y: { beginAtZero: true, ticks: { stepSize: 2 }, title: { display: true, text: 'Claims', font: { size: 10 } } } } }
+      options: { ...base, scales: { y: { beginAtZero: true, ticks: { stepSize: 2 } } } }
     });
     charts.eqd = new Chart(document.getElementById('exec-qdev'), {
       type: 'bar',
       data: { labels: ['>-15%', '-15–0%', '0–+15%', '+15–+30%', '>+30%'], datasets: [{ data: [4, 38, 72, 18, 8], backgroundColor: [B, G, G, A, R], borderWidth: 0 }] },
-      options: { ...base, scales: { y: { beginAtZero: true, title: { display: true, text: 'Claims', font: { size: 10 } } }, x: { title: { display: true, text: 'Quote vs Benchmark', font: { size: 10 } } } } }
+      options: { ...base, scales: { y: { beginAtZero: true }, x: { title: { display: true, text: 'Quote vs Benchmark', font: { size: 9 } } } } }
     });
-    charts.es = new Chart(document.getElementById('exec-savings'), {
-      type: 'bar',
+  }
+
+  if (portal === 'panel-beater') {
+    charts.pb = new Chart(document.getElementById('pb-perf'), {
+      type: 'line',
       data: {
-        labels: ['January', 'February', 'March', 'April'],
+        labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'],
         datasets: [
-          { label: 'Leakage Prevented', data: [42100, 58400, 71200, 84620], backgroundColor: R, borderWidth: 0 },
-          { label: 'Quote Optimisation', data: [18400, 24800, 33600, 41280], backgroundColor: A, borderWidth: 0 },
-          { label: 'Assessor Cost Avoided', data: [2940, 3528, 4312, 5320], backgroundColor: L, borderWidth: 0 }
+          { label: 'My avg vs benchmark (%)', data: [2.1, 4.8, 3.2, 1.8, 5.4, 3.2], borderColor: K, backgroundColor: 'transparent', pointRadius: 4, tension: 0.3 },
+          { label: 'Flagged threshold (15%)', data: [15, 15, 15, 15, 15, 15], borderColor: R, backgroundColor: 'transparent', borderDash: [4, 4], pointRadius: 0 }
         ]
       },
-      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } }, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } } } }
+      options: { ...base, plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } }, scales: { y: { title: { display: true, text: '% above benchmark', font: { size: 10 } } } } }
     });
   }
 }
 
-window.addEventListener('load', () => initCharts('ops'));
+window.addEventListener('load', () => initCharts('admin'));
 </script>
 </body>
 </html>

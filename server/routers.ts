@@ -1278,12 +1278,40 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return await getClaimsByAssessor(input.assessorId, tenantId);
       }),
 
-    // Get claims for panel beater
+    // Get claims for panel beater (claims where this panel beater was selected)
     myQuoteRequests: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      // Need to get panel beater ID from user
-      // For now, return empty array
-      return [];
+      const db = await getDb();
+      if (!db) return [];
+      // Look up the panel beater record linked to this user account
+      const { panelBeaters: pbTable } = await import('../drizzle/schema');
+      const { eq: _pbEq } = await import('drizzle-orm');
+      const [pb] = await db.select().from(pbTable).where(_pbEq(pbTable.userId, ctx.user.id)).limit(1);
+      if (!pb) return [];
+      const tenantId = ctx.user.tenantId || undefined;
+      return await getClaimsForPanelBeater(pb.id, tenantId);
+    }),
+    // Get quote history for the logged-in panel beater
+    myQuoteHistory: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new Error("Not authenticated");
+      const db = await getDb();
+      if (!db) return [];
+      const { panelBeaters: pbTable } = await import('../drizzle/schema');
+      const { eq: _pbEq } = await import('drizzle-orm');
+      const [pb] = await db.select().from(pbTable).where(_pbEq(pbTable.userId, ctx.user.id)).limit(1);
+      if (!pb) return [];
+      const tenantId = ctx.user.tenantId || undefined;
+      return await getQuotesByPanelBeater(pb.id, tenantId);
+    }),
+    // Get the panel beater profile for the logged-in user
+    myPanelBeaterProfile: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new Error("Not authenticated");
+      const db = await getDb();
+      if (!db) return null;
+      const { panelBeaters: pbTable } = await import('../drizzle/schema');
+      const { eq: _pbEq } = await import('drizzle-orm');
+      const [pb] = await db.select().from(pbTable).where(_pbEq(pbTable.userId, ctx.user.id)).limit(1);
+      return pb || null;
     }),
 
     // Get claims by status (for dashboards)
