@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { currencySymbol } from "@/lib/currency";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -68,7 +68,12 @@ function StatCard({ label, value, sub, icon: Icon, accent }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function RiskManagerDashboard() {
-  const [activeTab, setActiveTab] = useState("approval");
+  const searchStr = useSearch();
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(searchStr).get("tab") ?? "approval");
+  useEffect(() => {
+    const tab = new URLSearchParams(searchStr).get("tab") ?? "approval";
+    setActiveTab(tab);
+  }, [searchStr]);
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
   const [dialogMode, setDialogMode] = useState<"approve" | "reject" | "request_info">("approve");
   const [showDialog, setShowDialog] = useState(false);

@@ -66,10 +66,10 @@ const navByRole: Record<string, NavSection[]> = {
     {
       title: "Claims Work",
       items: [
-        { label: "Intake Queue", description: "New claims awaiting assignment", href: "/insurer-portal/claims-manager", icon: ClipboardList },
-        { label: "Active Claims", description: "Claims in progress", href: "/insurer-portal/claims-manager", icon: Activity },
-        { label: "Review Queue", description: "Ready for final review", href: "/insurer-portal/claims-manager", icon: CheckSquare },
-        { label: "Processed Claims", description: "Closed and settled history", href: "/insurer-portal/claims-manager", icon: BookOpen },
+        { label: "Intake Queue", description: "New claims awaiting assignment", href: "/insurer-portal/claims-manager?tab=intake", icon: ClipboardList },
+        { label: "Active Claims", description: "Claims in progress", href: "/insurer-portal/claims-manager?tab=active", icon: Activity },
+        { label: "Review Queue", description: "Ready for final review", href: "/insurer-portal/claims-manager?tab=review", icon: CheckSquare },
+        { label: "Processed Claims", description: "Closed and settled history", href: "/insurer-portal/claims-manager?tab=processed", icon: BookOpen },
       ],
     },
     {
@@ -108,9 +108,10 @@ const navByRole: Record<string, NavSection[]> = {
     {
       title: "Claims Work",
       items: [
-        { label: "Intake Queue", description: "New claims to process", href: "/insurer-portal/claims-processor", icon: ClipboardList },
-        { label: "In Progress", description: "Claims being actively worked", href: "/insurer-portal/claims-processor", icon: Activity },
-        { label: "Completed Today", description: "Claims processed today", href: "/insurer-portal/claims-processor", icon: CheckSquare },
+        { label: "Intake Queue", description: "New claims to process", href: "/insurer-portal/claims-processor#intake-queue", icon: ClipboardList },
+        { label: "In Progress", description: "Claims being actively worked", href: "/insurer-portal/claims-processor#in-progress", icon: Activity },
+        { label: "AI Assessment Complete", description: "Ready for review", href: "/insurer-portal/claims-processor#ai-flagged", icon: Eye },
+        { label: "Completed", description: "Closed claims", href: "/insurer-portal/claims-processor#completed", icon: CheckSquare },
       ],
     },
     {
@@ -132,9 +133,9 @@ const navByRole: Record<string, NavSection[]> = {
     {
       title: "Decisions",
       items: [
-        { label: "Approval Queue", description: "Claims awaiting technical approval", href: "/insurer-portal/risk-manager", icon: CheckSquare },
-        { label: "High-Value Claims", description: "Claims above financial threshold", href: "/insurer-portal/risk-manager", icon: DollarSign },
-        { label: "Escalations", description: "Claims escalated from processors", href: "/insurer-portal/risk-manager", icon: AlertCircle },
+        { label: "Approval Queue", description: "Claims awaiting technical approval", href: "/insurer-portal/risk-manager?tab=approval", icon: CheckSquare },
+        { label: "High-Value Claims", description: "Claims above financial threshold", href: "/insurer-portal/risk-manager?tab=financial", icon: DollarSign },
+        { label: "Escalations", description: "Claims escalated from processors", href: "/insurer-portal/risk-manager?tab=escalations", icon: AlertCircle },
       ],
     },
     {
@@ -157,7 +158,7 @@ const navByRole: Record<string, NavSection[]> = {
     {
       title: "Portfolio",
       items: [
-        { label: "Savings Tracker", description: "Cost savings and financial impact", href: "/insurer-portal/executive", icon: TrendingUp },
+        { label: "Savings Tracker", description: "Cost savings and financial impact", href: "/insurer-portal/executive?tab=financials", icon: TrendingUp },
         { label: "Fraud Analytics", description: "Fraud detection performance", href: "/insurer/fraud-analytics", icon: ShieldAlert },
         { label: "Repairer Intelligence", description: "Panel beater performance data", href: "/insurer/panel-beater-performance", icon: Car },
       ],
@@ -190,9 +191,9 @@ const navByRole: Record<string, NavSection[]> = {
     {
       title: "Assessments",
       items: [
-        { label: "My Queue", description: "Claims assigned to me", href: "/insurer-portal/internal-assessor", icon: ClipboardList },
-        { label: "In Progress", description: "Assessments being written", href: "/insurer-portal/internal-assessor", icon: Activity },
-        { label: "Completed", description: "Submitted assessments", href: "/insurer-portal/internal-assessor", icon: CheckSquare },
+        { label: "My Queue", description: "Claims assigned to me", href: "/insurer-portal/internal-assessor?tab=queue", icon: ClipboardList },
+        { label: "In Progress", description: "Assessments being written", href: "/insurer-portal/internal-assessor?tab=in-progress", icon: Activity },
+        { label: "Completed", description: "Submitted assessments", href: "/insurer-portal/internal-assessor?tab=completed", icon: CheckSquare },
       ],
     },
     {
@@ -239,6 +240,29 @@ const defaultNav: NavSection[] = [
   },
 ];
 
+// Map URL path prefixes to role keys
+const pathToRole: Array<{ prefix: string; role: string; label: string }> = [
+  { prefix: "/insurer-portal/executive",         role: "executive",         label: "Executive" },
+  { prefix: "/insurer-portal/claims-manager",    role: "claims_manager",    label: "Claims Manager" },
+  { prefix: "/insurer-portal/claims-processor",  role: "claims_processor",  label: "Claims Processor" },
+  { prefix: "/insurer-portal/risk-manager",      role: "risk_manager",      label: "Risk Manager" },
+  { prefix: "/insurer-portal/internal-assessor", role: "assessor_internal", label: "Internal Assessor" },
+  { prefix: "/insurer-portal/governance",        role: "insurer_admin",     label: "Governance" },
+  { prefix: "/insurer-portal/workflow-analytics",role: "claims_manager",    label: "Workflow Analytics" },
+  { prefix: "/insurer-portal/exception-intelligence", role: "claims_manager", label: "Exception Intelligence" },
+  { prefix: "/insurer-portal/relationship-intelligence", role: "claims_manager", label: "Relationship Intelligence" },
+  { prefix: "/insurer-portal/reports-centre",    role: "claims_manager",    label: "Reports Centre" },
+];
+
+function getRoleFromPath(path: string): { role: string; label: string } {
+  for (const entry of pathToRole) {
+    if (path === entry.prefix || path.startsWith(entry.prefix + "/")) {
+      return { role: entry.role, label: entry.label };
+    }
+  }
+  return { role: "", label: "Insurer Portal" };
+}
+
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export default function InsurerPortalLayout({
@@ -248,10 +272,12 @@ export default function InsurerPortalLayout({
 }) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
-  const insurerRole = user?.insurerRole ?? null;
 
-  // Pick the nav config for this role — fall back to default
-  const visibleSections = (insurerRole && navByRole[insurerRole]) ?? defaultNav;
+  // Derive role from current URL — never from user.insurerRole
+  // This ensures each dashboard always shows the correct nav regardless of
+  // which account is logged in.
+  const { role: derivedRole, label: roleLabel } = getRoleFromPath(location);
+  const visibleSections: NavSection[] = (derivedRole ? navByRole[derivedRole] : undefined) ?? defaultNav;
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-background">
@@ -267,7 +293,7 @@ export default function InsurerPortalLayout({
           <div>
             <div className="text-xs font-semibold leading-none text-foreground">KINGA</div>
             <div className="text-[10px] text-muted-foreground leading-none mt-0.5 capitalize">
-              {insurerRole ? insurerRole.replace(/_/g, " ") : "Insurer Portal"}
+              {roleLabel}
             </div>
           </div>
         </div>
@@ -281,7 +307,7 @@ export default function InsurerPortalLayout({
               </p>
               <div className="space-y-0.5">
                 {section.items.map((item) => {
-                  const hrefBase = item.href.split("#")[0];
+                  const hrefBase = item.href.split("?")[0].split("#")[0];
                   const active =
                     location === hrefBase ||
                     (hrefBase.length > 1 && location.startsWith(hrefBase));

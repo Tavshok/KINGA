@@ -16,7 +16,7 @@ import {
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { ClaimReviewDialog } from "@/components/ClaimReviewDialog";
 import { exportClaimsToExcel, type ClaimExportData } from "@/lib/export-excel";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IntakeQueueTab } from "@/components/IntakeQueueTab";
 import { AutoAssignmentBadge } from "@/components/AutoAssignmentBadge";
@@ -35,8 +35,13 @@ export default function ClaimsManagerDashboard() {
   const [comparisonData, setComparisonData] = useState<any>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   
-  // Tab state
-  const [activeTab, setActiveTab] = useState("intake");
+  // Tab state — synced with ?tab= query param from sidebar navigation
+  const searchStr = useSearch();
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(searchStr).get("tab") ?? "intake");
+  useEffect(() => {
+    const tab = new URLSearchParams(searchStr).get("tab") ?? "intake";
+    setActiveTab(tab);
+  }, [searchStr]);
   
   // Pagination and filters
   const [currentPage, setCurrentPage] = useState(1);
@@ -321,9 +326,12 @@ export default function ClaimsManagerDashboard() {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="intake">Intake Queue</TabsTrigger>
             <TabsTrigger value="review">Review Queue</TabsTrigger>
+            <TabsTrigger value="active">Active Claims</TabsTrigger>
+            <TabsTrigger value="fraud">Fraud Alerts</TabsTrigger>
+            <TabsTrigger value="processed">Processed</TabsTrigger>
           </TabsList>
 
           {/* Intake Queue Tab */}
@@ -825,6 +833,163 @@ export default function ClaimsManagerDashboard() {
           open={showReviewDialog}
           onOpenChange={setShowReviewDialog}
         />
+          </TabsContent>
+
+          {/* ── Active Claims Tab ── */}
+          <TabsContent value="active" className="space-y-4">
+            <Card className="shadow-sm border-0">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4 text-teal-600" />
+                  All Active Claims
+                </CardTitle>
+                <CardDescription>All claims currently in-flight across all workflow states</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {uniqueReviewable.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-muted-foreground text-xs">
+                          <th className="text-left py-2 px-3">Claim #</th>
+                          <th className="text-left py-2 px-3">Vehicle</th>
+                          <th className="text-left py-2 px-3">Status</th>
+                          <th className="text-left py-2 px-3">Risk</th>
+                          <th className="text-left py-2 px-3">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {uniqueReviewable.map((claim: any) => (
+                          <tr key={claim.id} className="border-b hover:bg-muted/30 transition-colors">
+                            <td className="py-2 px-3 font-mono text-xs">{claim.claimNumber ?? `#${claim.id}`}</td>
+                            <td className="py-2 px-3">{claim.vehicleMake} {claim.vehicleModel}</td>
+                            <td className="py-2 px-3">
+                              <Badge variant="outline" className="text-xs capitalize">{(claim.status ?? "").replace(/_/g, " ")}</Badge>
+                            </td>
+                            <td className="py-2 px-3">
+                              <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
+                            </td>
+                            <td className="py-2 px-3">
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleViewDetails(claim)}>
+                                  <Eye className="h-3 w-3 mr-1" />View
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-amber-600 border-amber-200" onClick={() => handleSendBack(claim)}>
+                                  <ArrowRight className="h-3 w-3 mr-1" />Route
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <ClipboardList className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">No active claims</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── Fraud Alerts Tab ── */}
+          <TabsContent value="fraud" className="space-y-4">
+            <Card className="shadow-sm border-0">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  Fraud Alerts
+                </CardTitle>
+                <CardDescription>Claims with high fraud risk scores requiring immediate attention</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const fraudClaims = uniqueReviewable.filter((c: any) => (c.fraudRiskScore ?? 0) >= 60);
+                  return fraudClaims.length > 0 ? (
+                    <div className="space-y-3">
+                      {fraudClaims.map((claim: any) => (
+                        <div key={claim.id} className="flex items-center justify-between p-3 rounded-lg border border-red-100 bg-red-50/50">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                              <Shield className="h-4 w-4 text-red-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{claim.claimNumber ?? `Claim #${claim.id}`}</p>
+                              <p className="text-xs text-muted-foreground">{claim.vehicleMake} {claim.vehicleModel} · Risk score: <span className="text-red-600 font-semibold">{claim.fraudRiskScore ?? "N/A"}/100</span></p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleViewDetails(claim)}>
+                              <Eye className="h-3 w-3 mr-1" />Review
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-amber-600 border-amber-200" onClick={() => handleSendBack(claim)}>
+                              Escalate
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-10 text-muted-foreground">
+                      <Shield className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">No fraud alerts — all claims within acceptable risk thresholds</p>
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── Processed Claims Tab ── */}
+          <TabsContent value="processed" className="space-y-4">
+            <Card className="shadow-sm border-0">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  Processed Claims
+                </CardTitle>
+                <CardDescription>Closed and settled claims history</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {completedClaims && completedClaims.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-muted-foreground text-xs">
+                          <th className="text-left py-2 px-3">Claim #</th>
+                          <th className="text-left py-2 px-3">Vehicle</th>
+                          <th className="text-left py-2 px-3">Approved Amount</th>
+                          <th className="text-left py-2 px-3">Closed</th>
+                          <th className="text-left py-2 px-3">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {completedClaims.map((claim: any) => (
+                          <tr key={claim.id} className="border-b hover:bg-muted/30 transition-colors">
+                            <td className="py-2 px-3 font-mono text-xs">{claim.claimNumber ?? `#${claim.id}`}</td>
+                            <td className="py-2 px-3">{claim.vehicleMake} {claim.vehicleModel}</td>
+                            <td className="py-2 px-3 font-medium">{claim.approvedAmount ? fmt(claim.approvedAmount) : "—"}</td>
+                            <td className="py-2 px-3 text-muted-foreground text-xs">{claim.updatedAt ? new Date(claim.updatedAt).toLocaleDateString() : "—"}</td>
+                            <td className="py-2 px-3">
+                              <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleViewDetails(claim)}>
+                                <Eye className="h-3 w-3 mr-1" />View
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">No processed claims yet</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

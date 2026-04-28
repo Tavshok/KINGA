@@ -724,9 +724,10 @@ export default function ClaimsProcessorDashboard() {
     headerBg: string
   ) => {
     const Icon = icon;
+    const sectionId = section === "pending" ? "intake-queue" : section === "in_review" ? "in-progress" : section === "ai_flagged" ? "ai-flagged" : "completed";
 
     return (
-      <Card className={`shadow-lg border-t-4 ${borderColor}`}>
+      <Card id={sectionId} className={`shadow-lg border-t-4 ${borderColor} scroll-mt-20`}>
         <CardHeader className={`${headerBg} rounded-t-lg`}>
           <CardTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
