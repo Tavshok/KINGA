@@ -25,7 +25,7 @@ import { z } from "zod";
 import { getDb } from "./db";
 import { parsePhysicsAnalysis } from "./types/physics-validation";
 import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments } from "../drizzle/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, notInArray, gt, or, sql, count, avg, isNotNull } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
   createClaim,
@@ -1393,6 +1393,226 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           ...r,
           _qualityGrade: qualityMap.get(r.id) ?? null,
         }));
+      }),
+
+    // ─── Claims Manager: Active Claims ─────────────────────────────────────────
+    // Returns all non-terminal claims for the tenant (everything except completed/rejected/closed)
+    getActiveClaims: insurerDomainProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const terminalStatuses = ['completed', 'rejected', 'closed'] as const;
+        const rows = await db
+          .select({
+            id: claims.id,
+            claimNumber: claims.claimNumber,
+            status: claims.status,
+            workflowState: claims.workflowState,
+            fraudRiskLevel: claims.fraudRiskLevel,
+            fraudRiskScore: claims.fraudRiskScore,
+            totalClaimAmount: claims.totalClaimAmount,
+            vehicleMake: claims.vehicleMake,
+            vehicleModel: claims.vehicleModel,
+            vehicleYear: claims.vehicleYear,
+            vehicleRegistration: claims.vehicleRegistration,
+            claimantName: claims.claimantName,
+            claimantEmail: claims.claimantEmail,
+            incidentDate: claims.incidentDate,
+            createdAt: claims.createdAt,
+            updatedAt: claims.updatedAt,
+            assignedAssessorId: claims.assignedAssessorId,
+            currencyCode: claims.currencyCode,
+          })
+          .from(claims)
+          .where(and(
+            eq(claims.tenantId, ctx.insurerTenantId),
+            notInArray(claims.status, terminalStatuses as unknown as string[])
+          ))
+          .orderBy(desc(claims.createdAt))
+          .limit(300);
+        return rows;
+      }),
+
+    // ─── Claims Manager: Fraud Alerts ───────────────────────────────────────────
+    // Returns claims with high/critical/elevated fraud risk or score > 70
+    getFraudAlerts: insurerDomainProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const rows = await db
+          .select({
+            id: claims.id,
+            claimNumber: claims.claimNumber,
+            status: claims.status,
+            workflowState: claims.workflowState,
+            fraudRiskLevel: claims.fraudRiskLevel,
+            fraudRiskScore: claims.fraudRiskScore,
+            totalClaimAmount: claims.totalClaimAmount,
+            vehicleMake: claims.vehicleMake,
+            vehicleModel: claims.vehicleModel,
+            vehicleYear: claims.vehicleYear,
+            vehicleRegistration: claims.vehicleRegistration,
+            claimantName: claims.claimantName,
+            claimantEmail: claims.claimantEmail,
+            incidentDate: claims.incidentDate,
+            createdAt: claims.createdAt,
+            updatedAt: claims.updatedAt,
+            currencyCode: claims.currencyCode,
+          })
+          .from(claims)
+          .where(and(
+            eq(claims.tenantId, ctx.insurerTenantId),
+            or(
+              inArray(claims.fraudRiskLevel, ['high', 'critical', 'elevated'] as any[]),
+              gt(claims.fraudRiskScore, 70)
+            )
+          ))
+          .orderBy(desc(claims.fraudRiskScore))
+          .limit(200);
+        return rows;
+      }),
+
+    // ─── Claims Manager: Dashboard Statistics ───────────────────────────────────
+    // Aggregate counts by status, fraud risk breakdown, total claim value, avg processing time
+    getDashboardStats: insurerDomainProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // All claims for tenant (limited to last 1000 for performance)
+        const allClaims = await db
+          .select({
+            id: claims.id,
+            status: claims.status,
+            workflowState: claims.workflowState,
+            fraudRiskLevel: claims.fraudRiskLevel,
+            fraudRiskScore: claims.fraudRiskScore,
+            totalClaimAmount: claims.totalClaimAmount,
+            createdAt: claims.createdAt,
+            updatedAt: claims.updatedAt,
+          })
+          .from(claims)
+          .where(eq(claims.tenantId, ctx.insurerTenantId))
+          .orderBy(desc(claims.createdAt))
+          .limit(1000);
+
+        // Count by status
+        const statusCounts: Record<string, number> = {};
+        let totalAmount = 0;
+        let fraudHighCount = 0;
+        let closedWithTime: { ms: number }[] = [];
+
+        for (const c of allClaims) {
+          const s = c.status ?? 'unknown';
+          statusCounts[s] = (statusCounts[s] ?? 0) + 1;
+          totalAmount += c.totalClaimAmount ?? 0;
+          if (c.fraudRiskLevel === 'high' || c.fraudRiskLevel === 'critical' || c.fraudRiskLevel === 'elevated') {
+            fraudHighCount++;
+          }
+          if ((c.status === 'completed' || c.status === 'closed') && c.createdAt && c.updatedAt) {
+            const ms = new Date(c.updatedAt).getTime() - new Date(c.createdAt).getTime();
+            if (ms > 0) closedWithTime.push({ ms });
+          }
+        }
+
+        const avgProcessingDays = closedWithTime.length > 0
+          ? Math.round(closedWithTime.reduce((sum, x) => sum + x.ms, 0) / closedWithTime.length / 86400000)
+          : null;
+
+        const total = allClaims.length;
+        const fraudRate = total > 0 ? Math.round((fraudHighCount / total) * 100) : 0;
+
+        // Active = not in terminal state
+        const terminalStatuses = new Set(['completed', 'rejected', 'closed']);
+        const activeCount = allClaims.filter(c => !terminalStatuses.has(c.status ?? '')).length;
+        const completedCount = allClaims.filter(c => c.status === 'completed').length;
+        const rejectedCount = allClaims.filter(c => c.status === 'rejected').length;
+
+        return {
+          total,
+          activeCount,
+          completedCount,
+          rejectedCount,
+          fraudHighCount,
+          fraudRate,
+          totalAmount,
+          avgProcessingDays,
+          statusCounts,
+        };
+      }),
+
+    // ─── Risk Manager: Escalations ──────────────────────────────────────────────
+    // Claims in disputed/manual_review workflow states or with high/critical fraud risk
+    getEscalations: insurerDomainProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const rows = await db
+          .select({
+            id: claims.id,
+            claimNumber: claims.claimNumber,
+            status: claims.status,
+            workflowState: claims.workflowState,
+            fraudRiskLevel: claims.fraudRiskLevel,
+            fraudRiskScore: claims.fraudRiskScore,
+            totalClaimAmount: claims.totalClaimAmount,
+            vehicleMake: claims.vehicleMake,
+            vehicleModel: claims.vehicleModel,
+            vehicleYear: claims.vehicleYear,
+            vehicleRegistration: claims.vehicleRegistration,
+            claimantName: claims.claimantName,
+            claimantEmail: claims.claimantEmail,
+            incidentDate: claims.incidentDate,
+            createdAt: claims.createdAt,
+            updatedAt: claims.updatedAt,
+            currencyCode: claims.currencyCode,
+          })
+          .from(claims)
+          .where(and(
+            eq(claims.tenantId, ctx.insurerTenantId),
+            or(
+              inArray(claims.workflowState, ['disputed', 'manual_review'] as any[]),
+              inArray(claims.fraudRiskLevel, ['high', 'critical'] as any[])
+            )
+          ))
+          .orderBy(desc(claims.updatedAt))
+          .limit(200);
+        return rows;
+      }),
+
+    // ─── Risk Manager: Financial Decision Queue ──────────────────────────────────
+    // Claims awaiting financial approval, ordered by amount descending
+    getFinancialDecisionQueue: insurerDomainProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const rows = await db
+          .select({
+            id: claims.id,
+            claimNumber: claims.claimNumber,
+            status: claims.status,
+            workflowState: claims.workflowState,
+            fraudRiskLevel: claims.fraudRiskLevel,
+            fraudRiskScore: claims.fraudRiskScore,
+            totalClaimAmount: claims.totalClaimAmount,
+            vehicleMake: claims.vehicleMake,
+            vehicleModel: claims.vehicleModel,
+            vehicleYear: claims.vehicleYear,
+            vehicleRegistration: claims.vehicleRegistration,
+            claimantName: claims.claimantName,
+            claimantEmail: claims.claimantEmail,
+            incidentDate: claims.incidentDate,
+            createdAt: claims.createdAt,
+            updatedAt: claims.updatedAt,
+            currencyCode: claims.currencyCode,
+          })
+          .from(claims)
+          .where(and(
+            eq(claims.tenantId, ctx.insurerTenantId),
+            eq(claims.workflowState, 'financial_decision' as any)
+          ))
+          .orderBy(desc(claims.totalClaimAmount))
+          .limit(200);
+        return rows;
       }),
 
     // Get single claim by ID

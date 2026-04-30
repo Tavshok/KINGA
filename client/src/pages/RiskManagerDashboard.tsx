@@ -85,8 +85,12 @@ export default function RiskManagerDashboard() {
   const { data: approvalQueue = [], isLoading: queueLoading, refetch: refetchQueue } =
     trpc.claims.byStatus.useQuery({ status: "technical_approval" });
 
+  // ── Real backend procedures (replaces byStatus + allForTenant derivation) ──
   const { data: financialQueue = [], isLoading: finLoading } =
-    trpc.claims.byStatus.useQuery({ status: "financial_decision" });
+    trpc.claims.getFinancialDecisionQueue.useQuery();
+
+  const { data: escalationsData = [], isLoading: escalationsLoading } =
+    trpc.claims.getEscalations.useQuery();
 
   const { data: allClaims = [], isLoading: allLoading } =
     trpc.claims.allForTenant.useQuery();
@@ -105,9 +109,12 @@ export default function RiskManagerDashboard() {
     [allClaims]
   );
 
+  // escalatedClaims: prefer real getEscalations result; fall back to client-side filter if empty
   const escalatedClaims = useMemo(
-    () => allClaims.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70 || c.fraudRiskLevel === "high"),
-    [allClaims]
+    () => escalationsData.length > 0
+      ? escalationsData
+      : allClaims.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70 || c.fraudRiskLevel === "high" || c.workflowState === "disputed" || c.workflowState === "manual_review"),
+    [escalationsData, allClaims]
   );
 
   const avgRisk = useMemo(() => {
@@ -301,8 +308,25 @@ export default function RiskManagerDashboard() {
 
           {/* ── Financial Decisions ── */}
           <TabsContent value="financial" className="mt-4 space-y-3">
+            {/* Summary banner */}
+            {financialQueue.length > 0 && (
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-3">
+                <DollarSign className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>{financialQueue.length}</strong> claim{financialQueue.length !== 1 ? "s" : ""} awaiting financial sign-off
+                  {financialQueue.length > 0 && (
+                    <> — Total exposure: <strong>
+                      {(() => {
+                        const total = financialQueue.reduce((s: number, c: any) => s + (c.totalClaimAmount ?? 0), 0);
+                        return total > 0 ? `${currencySymbol((financialQueue[0] as any)?.currencyCode)} ${total.toLocaleString()}` : "—";
+                      })()}
+                    </strong></>
+                  )}
+                </p>
+              </div>
+            )}
             <p className="text-sm text-muted-foreground">
-              Claims that have passed technical approval and require financial sign-off.
+              Claims in <code className="text-xs bg-muted px-1 rounded">financial_decision</code> workflow state — ordered by claim amount descending.
             </p>
             {finLoading ? (
               <p className="text-center text-muted-foreground py-12">Loading financial queue…</p>
@@ -311,7 +335,7 @@ export default function RiskManagerDashboard() {
                 {financialQueue.map((claim: any) => (
                   <ClaimRow
                     key={claim.id}
-                    claim={claim}
+                    claim={{ ...claim, approvedAmount: claim.totalClaimAmount }}
                     actions={
                       <>
                         <Button size="sm">
@@ -332,7 +356,7 @@ export default function RiskManagerDashboard() {
               <div className="text-center py-16 border border-dashed border-border rounded-lg">
                 <DollarSign className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                 <p className="font-medium text-foreground">No claims awaiting financial decision</p>
-                <p className="text-sm text-muted-foreground mt-1">Claims appear here after technical approval</p>
+                <p className="text-sm text-muted-foreground mt-1">Claims appear here after technical approval and move to <code className="text-xs bg-muted px-1 rounded">financial_decision</code> workflow state</p>
               </div>
             )}
           </TabsContent>
@@ -340,9 +364,9 @@ export default function RiskManagerDashboard() {
           {/* ── Escalations ── */}
           <TabsContent value="escalations" className="mt-4 space-y-3">
             <p className="text-sm text-muted-foreground">
-              Claims with a fraud risk score ≥ 70 or flagged as high-risk — requiring direct risk manager attention.
+              Claims in disputed/manual_review workflow states or with high/critical fraud risk — requiring direct risk manager attention.
             </p>
-            {allLoading ? (
+            {escalationsLoading ? (
               <p className="text-center text-muted-foreground py-12">Loading…</p>
             ) : escalatedClaims.length > 0 ? (
               <div className="space-y-3">

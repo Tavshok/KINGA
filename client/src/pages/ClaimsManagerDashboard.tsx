@@ -92,16 +92,40 @@ export default function ClaimsManagerDashboard() {
   // Fetch claims ready for manager review (after Risk Manager approval)
   // These are claims in financial_decision state OR completed assessments
   const { data: reviewQueueData, isLoading: queueLoading, refetch: refetchQueue } = 
-    trpc.claims.byStatus.useQuery({ status: "financial_decision" });;
+    trpc.claims.byStatus.useQuery({ status: "financial_decision" });
   const reviewQueue = reviewQueueData || [];
 
   // Also fetch claims with completed status (comparison stage - assessed and ready for review)
   const { data: assessedClaims, isLoading: assessedLoading, refetch: refetchAssessed } = 
     trpc.claims.byStatus.useQuery({ status: "comparison" });
 
-  // Also fetch completed/closed claims for the recent activity section
+  // ── Real backend procedures ──────────────────────────────────────────────
+  // Active Claims: all non-terminal claims for the tenant
+  const { data: activeClaimsData, isLoading: activeClaimsLoading } =
+    trpc.claims.getActiveClaims.useQuery();
+  const activeClaims = activeClaimsData || [];
+
+  // Fraud Alerts: claims with high/critical/elevated fraud risk or score > 70
+  const { data: fraudAlertsData, isLoading: fraudAlertsLoading } =
+    trpc.claims.getFraudAlerts.useQuery();
+  const fraudAlerts = fraudAlertsData || [];
+
+  // Dashboard Stats: aggregate counts, fraud rate, avg processing time
+  const { data: dashboardStats } =
+    trpc.claims.getDashboardStats.useQuery();
+
+  // Processed Claims: completed + closed + rejected
   const { data: completedClaims, isLoading: completedLoading } = 
     trpc.claims.byStatus.useQuery({ status: "completed" });
+  const { data: closedClaims } = 
+    trpc.claims.byStatus.useQuery({ status: "closed" });
+  const { data: rejectedClaims } = 
+    trpc.claims.byStatus.useQuery({ status: "rejected" });
+  const processedClaims = [
+    ...(completedClaims || []),
+    ...(closedClaims || []),
+    ...(rejectedClaims || []),
+  ].sort((a: any, b: any) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime());
 
   const allReviewableClaims = [
     ...(reviewQueue || []),
@@ -251,8 +275,8 @@ export default function ClaimsManagerDashboard() {
   };
 
   const totalReviewable = filteredClaims.length;
-  const highRiskCount = filteredClaims.filter((c: any) => c.fraudRiskScore && (c.fraudRiskScore ?? 0) >= 70).length;
-  const recentlyClosed = completedClaims?.length || 0;
+  const highRiskCount = dashboardStats?.fraudHighCount ?? filteredClaims.filter((c: any) => c.fraudRiskScore && (c.fraudRiskScore ?? 0) >= 70).length;
+  const recentlyClosed = dashboardStats?.completedCount ?? (completedClaims?.length || 0);
 
   // Export handler
   const handleExportToExcel = () => {
@@ -837,38 +861,81 @@ export default function ClaimsManagerDashboard() {
 
           {/* ── Active Claims Tab ── */}
           <TabsContent value="active" className="space-y-4">
+            {/* Stats bar from real getDashboardStats */}
+            {dashboardStats && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card className="shadow-sm border-0">
+                  <CardContent className="p-4">
+                    <p className="text-2xl font-bold">{dashboardStats.total}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Total Claims</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-sm border-0">
+                  <CardContent className="p-4">
+                    <p className="text-2xl font-bold text-amber-600">{dashboardStats.activeCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">In-Flight</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-sm border-0">
+                  <CardContent className="p-4">
+                    <p className="text-2xl font-bold text-red-600">{dashboardStats.fraudRate}%</p>
+                    <p className="text-xs text-muted-foreground mt-1">Fraud Rate</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-sm border-0">
+                  <CardContent className="p-4">
+                    <p className="text-2xl font-bold text-green-600">{dashboardStats.avgProcessingDays ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Avg Days to Close</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
             <Card className="shadow-sm border-0">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <ClipboardList className="h-4 w-4 text-teal-600" />
                   All Active Claims
+                  <Badge variant="secondary" className="ml-auto text-xs">{activeClaims.length}</Badge>
                 </CardTitle>
-                <CardDescription>All claims currently in-flight across all workflow states</CardDescription>
+                <CardDescription>All claims currently in-flight across all workflow states — live from database</CardDescription>
               </CardHeader>
               <CardContent>
-                {uniqueReviewable.length > 0 ? (
+                {activeClaimsLoading ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <Clock className="h-8 w-8 mx-auto mb-2 opacity-40 animate-spin" />
+                    <p className="text-sm">Loading active claims...</p>
+                  </div>
+                ) : activeClaims.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b text-muted-foreground text-xs">
                           <th className="text-left py-2 px-3">Claim #</th>
+                          <th className="text-left py-2 px-3">Claimant</th>
                           <th className="text-left py-2 px-3">Vehicle</th>
                           <th className="text-left py-2 px-3">Status</th>
+                          <th className="text-left py-2 px-3">Workflow</th>
                           <th className="text-left py-2 px-3">Risk</th>
+                          <th className="text-left py-2 px-3">Amount</th>
                           <th className="text-left py-2 px-3">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {uniqueReviewable.map((claim: any) => (
+                        {activeClaims.map((claim: any) => (
                           <tr key={claim.id} className="border-b hover:bg-muted/30 transition-colors">
                             <td className="py-2 px-3 font-mono text-xs">{claim.claimNumber ?? `#${claim.id}`}</td>
-                            <td className="py-2 px-3">{claim.vehicleMake} {claim.vehicleModel}</td>
+                            <td className="py-2 px-3 text-xs">{claim.claimantName ?? "—"}</td>
+                            <td className="py-2 px-3 text-xs">{claim.vehicleMake} {claim.vehicleModel} {claim.vehicleYear ? `(${claim.vehicleYear})` : ""}</td>
                             <td className="py-2 px-3">
                               <Badge variant="outline" className="text-xs capitalize">{(claim.status ?? "").replace(/_/g, " ")}</Badge>
                             </td>
                             <td className="py-2 px-3">
+                              <Badge variant="secondary" className="text-xs capitalize">{(claim.workflowState ?? "").replace(/_/g, " ")}</Badge>
+                            </td>
+                            <td className="py-2 px-3">
                               <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
                             </td>
+                            <td className="py-2 px-3 text-xs font-medium">{claim.totalClaimAmount ? fmt(claim.totalClaimAmount) : "—"}</td>
                             <td className="py-2 px-3">
                               <div className="flex gap-1">
                                 <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleViewDetails(claim)}>
@@ -896,81 +963,146 @@ export default function ClaimsManagerDashboard() {
 
           {/* ── Fraud Alerts Tab ── */}
           <TabsContent value="fraud" className="space-y-4">
+            {/* Summary banner */}
+            {dashboardStats && (
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-4">
+                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-800 dark:text-red-200">
+                    {dashboardStats.fraudHighCount} high-risk claim{dashboardStats.fraudHighCount !== 1 ? "s" : ""} detected
+                    {dashboardStats.fraudRate > 0 && ` — ${dashboardStats.fraudRate}% fraud rate across portfolio`}
+                  </p>
+                  <p className="text-xs text-red-600 mt-0.5">Claims with fraudRiskLevel = high/critical/elevated or fraudRiskScore &gt; 70</p>
+                </div>
+              </div>
+            )}
             <Card className="shadow-sm border-0">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-red-600" />
                   Fraud Alerts
+                  <Badge variant="destructive" className="ml-auto text-xs">{fraudAlerts.length}</Badge>
                 </CardTitle>
-                <CardDescription>Claims with high fraud risk scores requiring immediate attention</CardDescription>
+                <CardDescription>Claims with high/critical/elevated fraud risk or score &gt; 70 — live from database</CardDescription>
               </CardHeader>
               <CardContent>
-                {(() => {
-                  const fraudClaims = uniqueReviewable.filter((c: any) => (c.fraudRiskScore ?? 0) >= 60);
-                  return fraudClaims.length > 0 ? (
-                    <div className="space-y-3">
-                      {fraudClaims.map((claim: any) => (
-                        <div key={claim.id} className="flex items-center justify-between p-3 rounded-lg border border-red-100 bg-red-50/50">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                              <Shield className="h-4 w-4 text-red-600" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{claim.claimNumber ?? `Claim #${claim.id}`}</p>
-                              <p className="text-xs text-muted-foreground">{claim.vehicleMake} {claim.vehicleModel} · Risk score: <span className="text-red-600 font-semibold">{claim.fraudRiskScore ?? "N/A"}/100</span></p>
-                            </div>
+                {fraudAlertsLoading ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <Clock className="h-8 w-8 mx-auto mb-2 opacity-40 animate-spin" />
+                    <p className="text-sm">Loading fraud alerts...</p>
+                  </div>
+                ) : fraudAlerts.length > 0 ? (
+                  <div className="space-y-3">
+                    {fraudAlerts.map((claim: any) => (
+                      <div key={claim.id} className="flex items-center justify-between p-3 rounded-lg border border-red-100 bg-red-50/50 dark:bg-red-950/20 dark:border-red-800">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <Shield className="h-4 w-4 text-red-600" />
                           </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleViewDetails(claim)}>
-                              <Eye className="h-3 w-3 mr-1" />Review
-                            </Button>
-                            <Button size="sm" variant="outline" className="h-7 text-xs text-amber-600 border-amber-200" onClick={() => handleSendBack(claim)}>
-                              Escalate
-                            </Button>
+                          <div>
+                            <p className="text-sm font-medium">{claim.claimNumber ?? `Claim #${claim.id}`}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {claim.claimantName ?? "Unknown"} · {claim.vehicleMake} {claim.vehicleModel}
+                              {claim.vehicleRegistration ? ` (${claim.vehicleRegistration})` : ""}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Risk score: <span className="text-red-600 font-semibold">{claim.fraudRiskScore ?? "N/A"}/100</span>
+                              {claim.fraudRiskLevel && <> · Level: <span className="capitalize font-medium">{claim.fraudRiskLevel}</span></>}
+                              {claim.totalClaimAmount ? <> · {fmt(claim.totalClaimAmount)}</> : ""}
+                            </p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-10 text-muted-foreground">
-                      <Shield className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                      <p className="text-sm">No fraud alerts — all claims within acceptable risk thresholds</p>
-                    </div>
-                  );
-                })()}
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleViewDetails(claim)}>
+                            <Eye className="h-3 w-3 mr-1" />Review
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-amber-600 border-amber-200" onClick={() => handleSendBack(claim)}>
+                            Escalate
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <Shield className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">No fraud alerts — all claims within acceptable risk thresholds</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* ── Processed Claims Tab ── */}
           <TabsContent value="processed" className="space-y-4">
+            {dashboardStats && (
+              <div className="grid grid-cols-3 gap-3">
+                <Card className="shadow-sm border-0">
+                  <CardContent className="p-4">
+                    <p className="text-2xl font-bold text-green-600">{dashboardStats.completedCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Completed</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-sm border-0">
+                  <CardContent className="p-4">
+                    <p className="text-2xl font-bold text-red-600">{dashboardStats.rejectedCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Rejected</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-sm border-0">
+                  <CardContent className="p-4">
+                    <p className="text-2xl font-bold">{dashboardStats.avgProcessingDays ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Avg Days to Close</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
             <Card className="shadow-sm border-0">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   Processed Claims
+                  <Badge variant="secondary" className="ml-auto text-xs">{processedClaims.length}</Badge>
                 </CardTitle>
-                <CardDescription>Closed and settled claims history</CardDescription>
+                <CardDescription>Completed, closed, and rejected claims — live from database</CardDescription>
               </CardHeader>
               <CardContent>
-                {completedClaims && completedClaims.length > 0 ? (
+                {completedLoading ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <Clock className="h-8 w-8 mx-auto mb-2 opacity-40 animate-spin" />
+                    <p className="text-sm">Loading processed claims...</p>
+                  </div>
+                ) : processedClaims.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b text-muted-foreground text-xs">
                           <th className="text-left py-2 px-3">Claim #</th>
+                          <th className="text-left py-2 px-3">Claimant</th>
                           <th className="text-left py-2 px-3">Vehicle</th>
-                          <th className="text-left py-2 px-3">Approved Amount</th>
+                          <th className="text-left py-2 px-3">Outcome</th>
+                          <th className="text-left py-2 px-3">Amount</th>
                           <th className="text-left py-2 px-3">Closed</th>
                           <th className="text-left py-2 px-3">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {completedClaims.map((claim: any) => (
+                        {processedClaims.map((claim: any) => (
                           <tr key={claim.id} className="border-b hover:bg-muted/30 transition-colors">
                             <td className="py-2 px-3 font-mono text-xs">{claim.claimNumber ?? `#${claim.id}`}</td>
-                            <td className="py-2 px-3">{claim.vehicleMake} {claim.vehicleModel}</td>
-                            <td className="py-2 px-3 font-medium">{claim.approvedAmount ? fmt(claim.approvedAmount) : "—"}</td>
+                            <td className="py-2 px-3 text-xs">{claim.claimantName ?? "—"}</td>
+                            <td className="py-2 px-3 text-xs">{claim.vehicleMake} {claim.vehicleModel}</td>
+                            <td className="py-2 px-3">
+                              <Badge
+                                variant={claim.status === "completed" ? "default" : claim.status === "rejected" ? "destructive" : "secondary"}
+                                className="text-xs capitalize"
+                              >
+                                {(claim.status ?? "").replace(/_/g, " ")}
+                              </Badge>
+                            </td>
+                            <td className="py-2 px-3 text-xs font-medium">
+                              {claim.approvedAmount ? fmt(claim.approvedAmount) : claim.totalClaimAmount ? fmt(claim.totalClaimAmount) : "—"}
+                            </td>
                             <td className="py-2 px-3 text-muted-foreground text-xs">{claim.updatedAt ? new Date(claim.updatedAt).toLocaleDateString() : "—"}</td>
                             <td className="py-2 px-3">
                               <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleViewDetails(claim)}>

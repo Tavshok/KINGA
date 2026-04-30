@@ -11165,3 +11165,19 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Rebuild PanelBeaterDashboard — live quote requests, performance stats, quote history, benchmark comparison
 - [x] Rebuild ClaimantDashboard — real myClaims data, 5-step visual status tracker, expandable detail panels
 - [ ] Tier upgrade UX — strategic design of upgrade prompts (deferred for dedicated session)
+
+## Backend Procedures & Dashboard Wiring (Session: Apr 2026)
+- [x] Add claims.getActiveClaims procedure — all non-terminal claims for tenant, with claimant name, vehicle, amount, fraudRiskLevel, workflowState
+- [x] Add claims.getFraudAlerts procedure — claims where fraudRiskLevel IN (high/critical/elevated) OR fraudRiskScore > 70, ordered by score DESC
+- [x] Add claims.getDashboardStats procedure — aggregate: count by status, fraudHighCount, fraudRate, totalAmount, avgProcessingDays
+- [x] Add claims.getEscalations procedure — claims in disputed/manual_review workflowState or with high/critical fraudRiskLevel
+- [x] Add claims.getFinancialDecisionQueue procedure — claims in financial_decision workflowState, ordered by totalClaimAmount DESC
+- [x] Wire ClaimsManagerDashboard Active Claims tab to getActiveClaims (real data, 8-column table with claimant, workflow, amount)
+- [x] Wire ClaimsManagerDashboard Fraud Alerts tab to getFraudAlerts (real data, summary banner, claimant + risk level detail)
+- [x] Wire ClaimsManagerDashboard Processed tab to byStatus(completed+closed+rejected) with getDashboardStats summary bar
+- [x] Wire ClaimsManagerDashboard stat bar to getDashboardStats (total, in-flight, fraud rate, avg days to close)
+- [x] Wire RiskManagerDashboard Financial Decisions tab to getFinancialDecisionQueue (real data, total exposure banner)
+- [x] Wire RiskManagerDashboard Escalations tab to getEscalations (real data, fallback to client-side filter)
+- [x] Add notInArray, gt, or, sql, count, avg, isNotNull to drizzle-orm imports in routers.ts
+- [x] TypeScript clean (zero errors with --skipLibCheck)
+- [x] 12 vitest tests passing
