@@ -11181,3 +11181,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add notInArray, gt, or, sql, count, avg, isNotNull to drizzle-orm imports in routers.ts
 - [x] TypeScript clean (zero errors with --skipLibCheck)
 - [x] 12 vitest tests passing
+
+## Internal Assessor Dashboard (2026-05-01)
+- [x] Rewrite InternalAssessorDashboard with 5 tabs: Queue, My Claims, Appointments, Completed, Analytics
+- [x] Tab 1 (Queue): wired to claims.byStatus(assessment_pending) + claims.myAssignments (under_assessment/assigned)
+- [x] Tab 2 (My Claims): searchable table wired to claims.myAssignments, responsive columns
+- [x] Tab 3 (Appointments): wired to appointments.myAppointments, upcoming/past split, location + notes
+- [x] Tab 4 (Completed): filters myAssignments by post-assessment workflowState, links to report
+- [x] Tab 5 (Analytics): wired to assessors.getPerformanceDashboard, KPI grid + recent evaluations table
+- [x] AssessmentDialog: full form with cost fields, fraud risk, damage assessment textarea, AI disagreement, validation
+- [x] Responsive layout: grid adapts from 1-col mobile to 4-col desktop, table columns hidden on small screens
+- [x] TypeScript: zero errors
+- [x] Vitest: all tests passing
