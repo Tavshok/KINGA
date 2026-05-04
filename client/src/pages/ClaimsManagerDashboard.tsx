@@ -709,6 +709,14 @@ export default function ClaimsManagerDashboard() {
                           <Eye className="h-4 w-4 mr-2" />
                           Review Details
                         </Button>
+                        {/* Per-claim AI Assessment Report — scoped to this specific claim */}
+                        <KingaReportButton
+                          reportKey="claim.assessment"
+                          params={{ claimId: claim.id }}
+                          label={`Report: ${claim.claimNumber ?? `#${claim.id}`}`}
+                          size="sm"
+                          variant="outline"
+                        />
                       </div>
                     </div>
                   </div>

@@ -3,7 +3,7 @@
  * Used across all insurer dashboards to show fraud risk indicators
  * and trigger AI assessments on claims.
  */
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -17,7 +17,10 @@ import {
   Brain,
   Loader2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CheckCircle2,
+  XCircle,
+  Clock
 } from "lucide-react";
 
 /**
@@ -131,6 +134,28 @@ export function RiskBadge({
   );
 }
 
+// ─── Pipeline status constants ────────────────────────────────────────────────
+const IN_PROGRESS_STATUSES = new Set([
+  "assessment_in_progress",
+  "analysing",
+  "analysis_in_progress",
+]);
+
+const SUCCESS_STATUSES = new Set([
+  "assessment_complete",
+  "approved",
+  "rejected",
+  "settled",
+  "closed",
+]);
+
+const FAILED_STATUSES = new Set([
+  "assessment_failed",
+  "failed",
+]);
+
+type PollState = "idle" | "triggered" | "polling" | "done" | "failed";
+
 interface AiAssessButtonProps {
   claimId: number;
   claimNumber?: string;
@@ -141,8 +166,16 @@ interface AiAssessButtonProps {
 }
 
 /**
- * KINGA Assessment trigger button with loading state and result dialog.
- * Can be placed on any dashboard to trigger AI analysis of a claim.
+ * KINGA Assessment trigger button with real-time polling.
+ *
+ * Flow:
+ *   1. User clicks → mutation fires (returns immediately, pipeline runs async)
+ *   2. Button shows "Analysing…" and polls claims.getById every 3 s
+ *   3. When status leaves IN_PROGRESS_STATUSES the poll stops
+ *   4. Shows "Complete" or "Failed" badge; calls onSuccess on completion
+ *
+ * This replaces the old false-positive "Assessment completed" toast that fired
+ * as soon as the HTTP round-trip returned (before the pipeline had run).
  */
 export function AiAssessButton({ 
   claimId, 
@@ -152,21 +185,64 @@ export function AiAssessButton({
   size = "sm",
   variant = "outline"
 }: AiAssessButtonProps) {
-  const [showResults, setShowResults] = useState(false);
-  
-  const triggerAiAssessment = trpc.claims.triggerAiAssessment.useMutation({
-    onSuccess: () => {
-      toast.success("KINGA Assessment completed successfully");
+  const [pollState, setPollState] = useState<PollState>("idle");
+  const [showDialog, setShowDialog] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Determine if the claim is already in-progress when the component mounts
+  useEffect(() => {
+    if (currentStatus && IN_PROGRESS_STATUSES.has(currentStatus)) {
+      setPollState("polling");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Poll claim status until it leaves the in-progress set
+  const { data: pollData } = trpc.claims.getById.useQuery(
+    { id: claimId },
+    {
+      enabled: pollState === "polling",
+      refetchInterval: 3_000,
+      refetchIntervalInBackground: true,
+    }
+  );
+
+  useEffect(() => {
+    if (pollState !== "polling" || !pollData) return;
+    const status: string = (pollData as { status?: string }).status ?? "";
+    if (SUCCESS_STATUSES.has(status)) {
+      setPollState("done");
+      toast.success(`KINGA analysis complete for ${claimNumber ?? `claim #${claimId}`}`);
       onSuccess?.();
-      setShowResults(true);
+    } else if (FAILED_STATUSES.has(status)) {
+      setPollState("failed");
+      toast.error(`KINGA analysis failed for ${claimNumber ?? `claim #${claimId}`}. Please retry.`);
+    }
+    // If still in-progress, keep polling
+  }, [pollData, pollState, claimId, claimNumber, onSuccess]);
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  const triggerMutation = trpc.claims.triggerAiAssessment.useMutation({
+    onSuccess: () => {
+      // The pipeline is now running in the background — start polling
+      setPollState("polling");
+      toast.info(`KINGA analysis started for ${claimNumber ?? `claim #${claimId}`} — results will appear automatically`);
     },
     onError: (error) => {
-      toast.error(`KINGA Assessment failed: ${error.message}`);
+      setPollState("idle");
+      toast.error(`Failed to start KINGA analysis: ${error.message}`);
     },
   });
 
   const handleTrigger = () => {
-    triggerAiAssessment.mutate({ claimId });
+    if (pollState === "polling" || triggerMutation.isPending) return;
+    setPollState("triggered");
+    triggerMutation.mutate({ claimId });
   };
 
   const sizeClasses = {
@@ -175,18 +251,38 @@ export function AiAssessButton({
     lg: "text-base px-4 py-2 h-10"
   };
 
+  const isRunning = pollState === "triggered" || pollState === "polling";
+
   return (
     <>
       <Button
-        variant={variant}
-        className={`${sizeClasses[size]} gap-1 border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:bg-teal-950/30 hover:text-teal-800 dark:text-teal-200`}
-        onClick={handleTrigger}
-        disabled={triggerAiAssessment.isPending}
+        variant={pollState === "done" ? "default" : variant}
+        className={[
+          sizeClasses[size],
+          "gap-1",
+          pollState === "done"
+            ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+            : pollState === "failed"
+              ? "border-red-400 text-red-600 dark:text-red-400"
+              : "border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:bg-teal-950/30 hover:text-teal-800 dark:text-teal-200"
+        ].join(" ")}
+        onClick={pollState === "done" ? () => setShowDialog(true) : handleTrigger}
+        disabled={isRunning || triggerMutation.isPending}
       >
-        {triggerAiAssessment.isPending ? (
+        {isRunning ? (
           <>
             <Loader2 className="h-3 w-3 animate-spin" />
-            Assessing...
+            Analysing…
+          </>
+        ) : pollState === "done" ? (
+          <>
+            <CheckCircle2 className="h-3 w-3" />
+            Complete
+          </>
+        ) : pollState === "failed" ? (
+          <>
+            <XCircle className="h-3 w-3" />
+            Retry
           </>
         ) : (
           <>
@@ -196,35 +292,52 @@ export function AiAssessButton({
         )}
       </Button>
 
-      {/* Results Dialog */}
-      <Dialog open={showResults} onOpenChange={setShowResults}>
+      {/* Results Dialog — shown after analysis completes */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-teal-600" />
-              KINGA Assessment Complete
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              KINGA Analysis Complete
             </DialogTitle>
             <DialogDescription>
-              {claimNumber ? `Claim ${claimNumber}` : `Claim #${claimId}`} has been assessed.
+              {claimNumber ? `Claim ${claimNumber}` : `Claim #${claimId}`} has been fully analysed by the pipeline.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <p className="text-sm text-muted-foreground">
-              The AI has analyzed the claim photos, damage patterns, and physics data. 
-              Results are now available in the claim's comparison view.
+              The AI has analysed the claim documents, damage photographs, physics reconstruction,
+              and fraud indicators. The full assessment is now available.
             </p>
-            <Button 
-              className="w-full bg-gradient-to-r from-teal-600 to-teal-700 text-white"
-              onClick={() => {
-                window.location.href = `/insurer/claims/${claimId}/comparison`;
-                setShowResults(false);
-              }}
-            >
-              View Full Assessment
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                className="flex-1 bg-gradient-to-r from-teal-600 to-teal-700 text-white"
+                onClick={() => {
+                  window.location.href = `/insurer/claims/${claimId}/comparison`;
+                  setShowDialog(false);
+                }}
+              >
+                View Full Assessment
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowDialog(false)}
+              >
+                Close
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Inline progress indicator shown while polling */}
+      {isRunning && (
+        <span className="inline-flex items-center gap-1 text-xs text-teal-600 dark:text-teal-400 ml-1">
+          <Clock className="h-3 w-3" />
+          Pipeline running…
+        </span>
+      )}
     </>
   );
 }

@@ -15,8 +15,8 @@ export default function FraudAnalyticsDashboard() {
   const { currencySymbol } = useTenantCurrency();
   const [, setLocation] = useLocation();
 
-  // Get all claims for fraud analysis (get submitted claims as proxy for all)
-  const { data: claims = [], isLoading } = trpc.claims.byStatus.useQuery({ status: "submitted" });
+  // Get all claims for fraud analysis — includes assessed claims with real fraudRiskScore
+  const { data: claims = [], isLoading } = trpc.claims.allForTenant.useQuery();
   
   // Calculate fraud statistics
   const fraudStats = calculateFraudStatistics(claims);

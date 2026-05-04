@@ -328,6 +328,7 @@ Return ONLY a JSON array of constraints.`;
         { role: "user", content: constraintUserPrompt },
       ],
       response_format: constraintSchema,
+      timeoutMs: 55_000,
     });
     const rawContent = response.choices?.[0]?.message?.content;
     const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "[]");
@@ -535,6 +536,7 @@ Write a clear forensic explanation of whether the cause is valid or invalid, and
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
+      timeoutMs: 45_000,
     });
     const rawContent = response.choices?.[0]?.message?.content;
     const text = typeof rawContent === "string" ? rawContent.trim() : null;
@@ -748,6 +750,7 @@ RETURN:
         { role: "user", content: contentParts },
       ],
       response_format: jsonSchema,
+      timeoutMs: 55_000, // 55s per main causal-chain LLM call
     });
 
     const rawContent = response.choices?.[0]?.message?.content;

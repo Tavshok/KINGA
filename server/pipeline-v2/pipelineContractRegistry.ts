@@ -82,7 +82,8 @@ export interface ContractCheckResult {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TIMEOUT_LLM_MS = 60_000;        // 60 s for LLM stages (default)
-export const TIMEOUT_LLM_EXTRACTION_MS = 180_000; // 180 s for Stage 2 — large PDF extraction with up to 3 retries
+export const TIMEOUT_LLM_EXTRACTION_MS = 180_000; // 180 s for Stage 2/3 — large PDF extraction with up to 3 retries
+export const TIMEOUT_MULTI_LLM_MS = 180_000;  // 180 s for stages with 3+ sequential LLM calls (Stage 7 unified)
 export const TIMEOUT_VISION_MS = 200_000;     // 200 s for Stage 6 — vision processes up to PER_RUN_VISION_BUDGET photos sequentially (~8s each, budget=20)
 export const TIMEOUT_DETERMINISTIC_MS = 10_000; // 10 s for deterministic stages
 
@@ -144,7 +145,7 @@ export const STAGE_CONTRACTS: Record<string, StageContract> = {
     id: "3_structured_extraction",
     label: "Stage 3 — Structured Field Extraction",
     type: "llm",
-    timeoutMs: TIMEOUT_LLM_MS,
+    timeoutMs: TIMEOUT_LLM_EXTRACTION_MS, // 180s — sends full PDF + up to 10 page images, same payload size as Stage 2
     required: ["stage1Data", "stage2Data"],
     optional: ["documentVerificationResult"],
     outputGuarantees: ["stage3Data"],
@@ -192,7 +193,7 @@ export const STAGE_CONTRACTS: Record<string, StageContract> = {
     id: "7_unified",
     label: "Stage 7 — Physics & Unified Analysis",
     type: "llm",
-    timeoutMs: TIMEOUT_LLM_MS,
+    timeoutMs: TIMEOUT_MULTI_LLM_MS, // 180s — makes 3 sequential LLM calls (physics + causal reasoning + narrative)
     required: ["claimRecord", "stage6Data"],
     optional: ["evidenceRegistryData"],
     outputGuarantees: ["stage7Data"],

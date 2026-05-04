@@ -283,6 +283,7 @@ Return JSON only.`,
       },
     ],
     response_format: EXTRACTION_SCHEMA,
+    timeoutMs: 90_000, // 90s per attempt — large PDF + up to 10 page images; stage budget is 180s
   });
   const content = response.choices?.[0]?.message?.content || "{}";
   const parsed = JSON.parse(content);
@@ -322,6 +323,7 @@ RULES:
       },
     ],
     response_format: EXTRACTION_SCHEMA,
+    timeoutMs: 90_000, // 90s per attempt — photos-only extraction path
   });
 
   const content = response.choices?.[0]?.message?.content || "{}";

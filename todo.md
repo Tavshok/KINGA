@@ -11193,3 +11193,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Responsive layout: grid adapts from 1-col mobile to 4-col desktop, table columns hidden on small screens
 - [x] TypeScript: zero errors
 - [x] Vitest: all tests passing
+
+## Current Sprint — UI & Pipeline Fixes (May 2026)
+
+- [ ] Audit all dashboards for dead clicks and empty states
+- [ ] Fix dead clicks: wire every orphaned button/link to real route, modal, or meaningful toast
+- [ ] Fix Claims Manager export — scope KingaReportButton to selected/active claim (per-claim, not bulk portfolio)
+- [ ] Fix pipeline never-completing — trace exact hang in orchestrator post-pipeline DB write
+- [ ] Add live pipeline status poller to claim detail page (real-time stage progress)

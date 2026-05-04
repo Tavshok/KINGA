@@ -131,15 +131,8 @@ export default function AdminDashboard() {
       }, 0) / allClaims.length)
     : 0;
 
-  const handleApprove = (id: number) => {
-    toast.info("Panel beater approval feature — would update database");
-    console.log("Approve panel beater:", id);
-  };
-
-  const handleReject = (id: number) => {
-    toast.info("Panel beater rejection feature — would update database");
-    console.log("Reject panel beater:", id);
-  };
+  const handleApprove = (_id: number) => setLocation("/admin/dashboard");
+  const handleReject = (_id: number) => setLocation("/admin/dashboard");
 
   const handleSubmitGroundTruth = async () => {
     if (!gtClaimId || !gtDecision || !gtFinalCost) {
@@ -961,7 +954,7 @@ export default function AdminDashboard() {
                       <Badge>40/100</Badge>
                     </div>
                   </div>
-                  <Button className="mt-4" variant="outline" size="sm" onClick={() => toast.info("Threshold configuration coming soon")}>
+                  <Button className="mt-4" variant="outline" size="sm" onClick={() => setLocation("/admin/workflow-settings")}>
                     <Settings className="mr-2 h-4 w-4" />
                     Configure Thresholds
                   </Button>
