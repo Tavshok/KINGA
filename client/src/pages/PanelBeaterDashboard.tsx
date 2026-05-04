@@ -117,88 +117,113 @@ export default function PanelBeaterDashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Performance Profile Banner */}
-        {profile && (
-          <Card className="border-0 bg-gradient-to-r from-slate-800 to-slate-900 text-white">
-            <CardContent className="pt-5 pb-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-white/10 flex items-center justify-center">
-                    <Hammer className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold">{profile.businessName}</h2>
-                    <div className="flex items-center gap-2 mt-1">
-                      <PerformanceTierBadge tier={profile.performanceTier} />
-                    </div>
-                  </div>
+
+
+        {/* ── KPI STAT BAR ── */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Quote Requests</p>
+                  <p className="text-2xl font-bold mt-1 text-foreground">{pendingRequests.length}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Awaiting your quote</p>
                 </div>
-                <div className="grid grid-cols-3 gap-6 text-center">
-                  <div>
-                    <p className="text-2xl font-bold">{profile.totalRepairs || 0}</p>
-                    <p className="text-xs text-white/60">Total Repairs</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">
-                      {avgQualityScore !== null ? avgQualityScore.toFixed(1) : "—"}
-                    </p>
-                    <p className="text-xs text-white/60">Avg Quality</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">
-                      {avgCostRatio !== null ? `${(avgCostRatio * 100).toFixed(0)}%` : "—"}
-                    </p>
-                    <p className="text-xs text-white/60">Cost Ratio</p>
-                  </div>
-                </div>
+                <div className="p-2 rounded-lg bg-muted/50"><FileText className="h-5 w-5 text-muted-foreground" /></div>
               </div>
             </CardContent>
           </Card>
-        )}
-
-        {/* KPI Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Quote Requests</CardTitle>
-              <FileText className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{pendingRequests.length}</div>
-              <p className="text-xs text-gray-500 mt-1">Awaiting your quote</p>
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Acceptance Rate</p>
+                  <p className={`text-2xl font-bold mt-1 ${(myAnalytics?.stats?.acceptanceRate ?? 0) >= 70 ? 'text-emerald-600' : (myAnalytics?.stats?.acceptanceRate ?? 0) >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                    {myAnalytics?.stats?.acceptanceRate != null ? `${myAnalytics.stats.acceptanceRate}%` : '—'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{approvedQuotes} of {submittedQuotes} submitted</p>
+                </div>
+                <div className="p-2 rounded-lg bg-muted/50"><CheckCircle className="h-5 w-5 text-muted-foreground" /></div>
+              </div>
             </CardContent>
           </Card>
-
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Quotes Submitted</CardTitle>
-              <Clock className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{submittedQuotes}</div>
-              <p className="text-xs text-gray-500 mt-1">Pending insurer review</p>
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Avg Variance from AI Est.</p>
+                  <p className={`text-2xl font-bold mt-1 ${Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) > 15 ? 'text-red-600' : Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) > 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                    {myAnalytics?.stats?.avgVariancePct != null ? `${myAnalytics.stats.avgVariancePct > 0 ? '+' : ''}${myAnalytics.stats.avgVariancePct}%` : '—'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">vs KINGA estimate</p>
+                </div>
+                <div className="p-2 rounded-lg bg-muted/50"><TrendingUp className="h-5 w-5 text-muted-foreground" /></div>
+              </div>
             </CardContent>
           </Card>
-
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Approved</CardTitle>
-              <CheckCircle className="h-4 w-4 text-emerald-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-600">{approvedQuotes}</div>
-              <p className="text-xs text-gray-500 mt-1">Quotes accepted</p>
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Approved Revenue</p>
+                  <p className="text-2xl font-bold mt-1 text-foreground">{fmt(totalRevenue)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">From approved quotes</p>
+                </div>
+                <div className="p-2 rounded-lg bg-muted/50"><DollarSign className="h-5 w-5 text-muted-foreground" /></div>
+              </div>
             </CardContent>
           </Card>
+        </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-gray-400" />
+        {/* ── SIGNATURE CHARTS (always visible) ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-blue-500" />
+                Quote Competitiveness
+              </CardTitle>
+              <CardDescription className="text-xs">Your quote (Y) vs KINGA AI estimate (X). Dots above the line = over-quoted. Green = accepted.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{fmt(totalRevenue)}</div>
-              <p className="text-xs text-gray-500 mt-1">From approved quotes</p>
+            <CardContent className="px-4 pb-4">
+              <div style={{ height: 240 }}>
+                {myAnalytics?.quotes && myAnalytics.quotes.filter((q: any) => q.estimatedClaimValue && q.quotedAmount).length > 0 ? (
+                  <Scatter
+                    data={{
+                      datasets: [
+                        {
+                          label: 'Your Quotes',
+                          data: myAnalytics.quotes.filter((q: any) => q.estimatedClaimValue && q.quotedAmount).map((q: any) => ({ x: q.estimatedClaimValue, y: q.quotedAmount })),
+                          backgroundColor: myAnalytics.quotes.filter((q: any) => q.estimatedClaimValue && q.quotedAmount).map((q: any) => q.status === 'accepted' ? 'rgba(34,197,94,0.7)' : 'rgba(59,130,246,0.6)'),
+                          pointRadius: 5,
+                        },
+                        {
+                          label: 'Perfect Match',
+                          data: (() => { const vals = myAnalytics.quotes.map((q: any) => q.estimatedClaimValue).filter(Boolean); if (!vals.length) return []; const min = Math.min(...vals); const max = Math.max(...vals); return [{ x: min, y: min }, { x: max, y: max }]; })(),
+                          type: 'line' as any, borderColor: '#22c55e', borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0,
+                        },
+                      ],
+                    }}
+                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, scales: { x: { title: { display: true, text: 'KINGA AI Estimate', font: { size: 10 } } }, y: { title: { display: true, text: 'Your Quote', font: { size: 10 } } } } }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No quote data with AI estimates yet</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+                Quote Outcomes
+              </CardTitle>
+              <CardDescription className="text-xs">Approved vs pending vs rejected across your quotes</CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div style={{ height: 240 }}>
+                {quoteHistory.length > 0 ? (() => { const approved = quoteHistory.filter((q: any) => q.status === 'approved').length; const pending = quoteHistory.filter((q: any) => ['submitted','pending','comparison'].includes(q.status)).length; const rejected = quoteHistory.filter((q: any) => q.status === 'rejected').length; return (<Bar data={{ labels: ['Approved', 'Pending Review', 'Rejected'], datasets: [{ label: 'Quotes', data: [approved, pending, rejected], backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'], borderRadius: 6 }] }} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }} />); })() : (<div className="flex items-center justify-center h-full text-muted-foreground text-sm">No quote history yet</div>)}
+              </div>
             </CardContent>
           </Card>
         </div>

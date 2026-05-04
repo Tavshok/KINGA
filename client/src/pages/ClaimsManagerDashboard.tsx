@@ -122,7 +122,6 @@ export default function ClaimsManagerDashboard() {
     const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0];
   });
   const [analyticsTo, setAnalyticsTo] = useState<string>(() => new Date().toISOString().split('T')[0]);
-  const [showAnalytics, setShowAnalytics] = useState(true);
 
   // ── Real backend procedures ──────────────────────────────────────────────
   // Manager Overview: KPI cards + chart data
@@ -386,22 +385,16 @@ export default function ClaimsManagerDashboard() {
 
         {/* ── Analytics Section ── */}
         <div className="space-y-4">
-          {/* Date Range + Toggle */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Analytics Period:</span>
-              <Input type="date" value={analyticsFrom} onChange={e => setAnalyticsFrom(e.target.value)} className="w-36 h-8 text-xs" />
-              <span className="text-xs text-muted-foreground">to</span>
-              <Input type="date" value={analyticsTo} onChange={e => setAnalyticsTo(e.target.value)} className="w-36 h-8 text-xs" />
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setShowAnalytics(v => !v)} className="text-xs">
-              {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
-            </Button>
+          {/* Date Range */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Analytics Period:</span>
+            <Input type="date" value={analyticsFrom} onChange={e => setAnalyticsFrom(e.target.value)} className="w-36 h-8 text-xs" />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input type="date" value={analyticsTo} onChange={e => setAnalyticsTo(e.target.value)} className="w-36 h-8 text-xs" />
           </div>
 
-          {showAnalytics && (
-            <>
+          <>
               {/* KPI Cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
@@ -495,19 +488,17 @@ export default function ClaimsManagerDashboard() {
                   </CardContent>
                 </Card>
               </div>
-            </>
-          )}
+          </>
         </div>
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="intake">Intake Queue</TabsTrigger>
             <TabsTrigger value="review">Review Queue</TabsTrigger>
             <TabsTrigger value="active">Active Claims</TabsTrigger>
             <TabsTrigger value="fraud">Fraud Alerts</TabsTrigger>
             <TabsTrigger value="processed">Processed</TabsTrigger>
-            <TabsTrigger value="analytics">Leakage Analysis</TabsTrigger>
           </TabsList>
 
           {/* Intake Queue Tab */}
@@ -1284,92 +1275,6 @@ export default function ClaimsManagerDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Leakage Analysis Tab */}
-          <TabsContent value="analytics" className="space-y-4">
-            <Card className="border-0 shadow-sm">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-green-600" />
-                      Leakage Analysis
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Claims where the final approved amount differs significantly from the AI estimate. Positive variance = KINGA saved money. Negative variance = potential overpayment.
-                    </p>
-                  </div>
-                  <Button size="sm" variant="outline" className="text-xs" onClick={() => {
-                    const rows = (activeClaims as any[]).filter(c => c.estimatedClaimValue && c.finalApprovedAmount);
-                    const csv = ['Claim #,Claimant,AI Estimate,Approved,Variance,Variance %', ...rows.map(c => {
-                      const variance = (c.estimatedClaimValue ?? 0) - (c.finalApprovedAmount ?? 0);
-                      const pct = c.estimatedClaimValue ? ((variance / c.estimatedClaimValue) * 100).toFixed(1) : '0';
-                      return `${c.claimNumber},${c.claimantName ?? ''},${((c.estimatedClaimValue ?? 0)/100).toFixed(2)},${((c.finalApprovedAmount ?? 0)/100).toFixed(2)},${(variance/100).toFixed(2)},${pct}%`;
-                    })].join('\n');
-                    const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = `leakage-analysis-${analyticsFrom}-${analyticsTo}.csv`; a.click();
-                  }}>
-                    <Download className="h-3 w-3 mr-1" />Export CSV
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {activeClaimsLoading ? (
-                  <div className="text-center py-8 text-sm text-muted-foreground">Loading...</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/30">
-                          <th className="text-left py-2 px-4 text-xs font-semibold text-muted-foreground">Claim #</th>
-                          <th className="text-left py-2 px-4 text-xs font-semibold text-muted-foreground">Claimant</th>
-                          <th className="text-left py-2 px-4 text-xs font-semibold text-muted-foreground">Incident</th>
-                          <th className="text-right py-2 px-4 text-xs font-semibold text-muted-foreground">AI Estimate</th>
-                          <th className="text-right py-2 px-4 text-xs font-semibold text-muted-foreground">Approved</th>
-                          <th className="text-right py-2 px-4 text-xs font-semibold text-muted-foreground">Variance</th>
-                          <th className="text-right py-2 px-4 text-xs font-semibold text-muted-foreground">Var %</th>
-                          <th className="text-left py-2 px-4 text-xs font-semibold text-muted-foreground">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(activeClaims as any[])
-                          .filter(c => c.estimatedClaimValue && c.finalApprovedAmount)
-                          .sort((a, b) => {
-                            const va = (a.estimatedClaimValue ?? 0) - (a.finalApprovedAmount ?? 0);
-                            const vb = (b.estimatedClaimValue ?? 0) - (b.finalApprovedAmount ?? 0);
-                            return vb - va;
-                          })
-                          .map((claim: any) => {
-                            const variance = (claim.estimatedClaimValue ?? 0) - (claim.finalApprovedAmount ?? 0);
-                            const pct = claim.estimatedClaimValue ? ((variance / claim.estimatedClaimValue) * 100) : 0;
-                            const isPositive = variance >= 0;
-                            return (
-                              <tr key={claim.id} className="border-b hover:bg-muted/20 cursor-pointer" onClick={() => handleViewDetails(claim)}>
-                                <td className="py-2 px-4 text-xs font-mono">{claim.claimNumber}</td>
-                                <td className="py-2 px-4 text-xs">{claim.claimantName ?? '—'}</td>
-                                <td className="py-2 px-4 text-xs capitalize">{(claim.incidentType ?? '—').replace(/_/g,' ')}</td>
-                                <td className="py-2 px-4 text-xs text-right">{fmt(claim.estimatedClaimValue ?? 0)}</td>
-                                <td className="py-2 px-4 text-xs text-right">{fmt(claim.finalApprovedAmount ?? 0)}</td>
-                                <td className={`py-2 px-4 text-xs text-right font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                                  {isPositive ? '+' : ''}{fmt(variance)}
-                                </td>
-                                <td className={`py-2 px-4 text-xs text-right font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                                  {isPositive ? '+' : ''}{pct.toFixed(1)}%
-                                </td>
-                                <td className="py-2 px-4">
-                                  <Badge variant="outline" className="text-xs capitalize">{claim.status}</Badge>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        {(activeClaims as any[]).filter(c => c.estimatedClaimValue && c.finalApprovedAmount).length === 0 && (
-                          <tr><td colSpan={8} className="text-center py-8 text-sm text-muted-foreground">No claims with both AI estimate and approved amount in this period</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
     </div>

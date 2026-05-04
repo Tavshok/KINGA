@@ -22,11 +22,11 @@ import { KingaReportButton } from "@/components/KingaReportButton";
 import { Link, useSearch } from "wouter";
 import { currencySymbol } from "@/lib/currency";
 import {
-  Chart as ChartJS, ArcElement, Tooltip, Legend,
+  Chart as ChartJS, Tooltip, Legend,
   CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler,
 } from "chart.js";
-import { Doughnut, Bar } from "react-chartjs-2";
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
+import { Bar } from "react-chartjs-2";
+ChartJS.register(Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,8 +93,6 @@ export default function RiskManagerDashboard() {
     const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0];
   });
   const [analyticsTo, setAnalyticsTo] = useState<string>(() => new Date().toISOString().split('T')[0]);
-  const [showAnalytics, setShowAnalytics] = useState(true);
-
   // ── Data ─────────────────────────────────────────────────────────────────────────────
   const { data: approvalQueue = [], isLoading: queueLoading, refetch: refetchQueue } =
     trpc.claims.byStatus.useQuery({ status: "technical_approval" });
@@ -255,84 +253,181 @@ export default function RiskManagerDashboard() {
           </div>
         </div>
 
-        {/* ── Analytics Section ── */}
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Analytics Period:</span>
-              <input type="date" value={analyticsFrom} onChange={e => setAnalyticsFrom(e.target.value)} className="border rounded px-2 py-1 text-xs h-8 bg-background" />
-              <span className="text-xs text-muted-foreground">to</span>
-              <input type="date" value={analyticsTo} onChange={e => setAnalyticsTo(e.target.value)} className="border rounded px-2 py-1 text-xs h-8 bg-background" />
-            </div>
-            <button onClick={() => setShowAnalytics(v => !v)} className="text-xs text-muted-foreground hover:text-foreground">
-              {showAnalytics ? 'Hide Analytics ▲' : 'Show Analytics ▼'}
-            </button>
-          </div>
-
-          {showAnalytics && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Risk Distribution Donut */}
-              <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-sm font-semibold">Risk Level Distribution</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  {riskAnalytics?.riskDistribution ? (
-                    <Doughnut
-                      data={{
-                        labels: ['Low (<40)', 'Medium (40-69)', 'High (70+)'],
-                        datasets: [{ data: [riskAnalytics.riskDistribution.low ?? 0, riskAnalytics.riskDistribution.medium ?? 0, riskAnalytics.riskDistribution.high ?? 0], backgroundColor: ['#22c55e','#f59e0b','#ef4444'], borderWidth: 0 }],
-                      }}
-                      options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, cutout: '65%' }}
-                    />
-                  ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">{riskAnalyticsLoading ? 'Loading…' : 'No data for period'}</div>}
-                </CardContent>
-              </Card>
-
-              {/* Fraud by Incident Type Bar */}
-              <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-sm font-semibold">Fraud Alerts by Incident Type</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  {riskAnalytics?.fraudByIncidentType && Object.keys(riskAnalytics.fraudByIncidentType).length > 0 ? (
-                    <Bar
-                      data={{
-                        labels: Object.keys(riskAnalytics.fraudByIncidentType).map(k => k.replace(/_/g,' ')),
-                        datasets: [{ label: 'Fraud Alerts', data: Object.values(riskAnalytics.fraudByIncidentType), backgroundColor: '#ef4444', borderRadius: 4 }],
-                      }}
-                      options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { font: { size: 9 } } } } }}
-                    />
-                  ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">{riskAnalyticsLoading ? 'Loading…' : 'No data for period'}</div>}
-                </CardContent>
-              </Card>
-
-              {/* Portfolio KPIs */}
-              <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-sm font-semibold">Portfolio Overview</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-4 space-y-3">
-                  {[
-                    { label: 'Total Claims', value: riskAnalytics?.totalClaims ?? allClaims.length, color: 'text-foreground' },
-                    { label: 'High Risk Claims', value: riskAnalytics?.highRiskCount ?? escalationsData.length, color: 'text-red-600' },
-                    { label: 'Fraud Rate', value: `${(riskAnalytics?.fraudRate ?? 0).toFixed(1)}%`, color: 'text-orange-600' },
-                    { label: 'Avg Risk Score', value: `${riskAnalytics?.avgRiskScore ?? avgRisk}%`, color: avgRisk >= 60 ? 'text-red-600' : avgRisk >= 35 ? 'text-amber-600' : 'text-green-600' },
-                    { label: 'Total Exposure', value: (() => { const sym = currencySymbol(undefined); const total = financialQueue.reduce((s: number, c: any) => s + (c.totalClaimAmount ?? 0), 0); return total > 0 ? `${sym} ${(total/100).toLocaleString()}` : '—'; })(), color: 'text-blue-600' },
-                  ].map((item, i) => (
-                    <div key={i} className="flex justify-between items-center py-1 border-b border-border/50 last:border-0">
-                      <span className="text-xs text-muted-foreground">{item.label}</span>
-                      <span className={`text-sm font-semibold ${item.color}`}>{riskAnalyticsLoading ? '…' : item.value}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          )}
+        {/* ── Analytics Period Selector ── */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Period:</span>
+          <input type="date" value={analyticsFrom} onChange={e => setAnalyticsFrom(e.target.value)} className="border rounded px-2 py-1 text-xs h-8 bg-background" />
+          <span className="text-xs text-muted-foreground">to</span>
+          <input type="date" value={analyticsTo} onChange={e => setAnalyticsTo(e.target.value)} className="border rounded px-2 py-1 text-xs h-8 bg-background" />
         </div>
 
-        {/* Stat Bar */}
+        {/* ── FRAUD INTELLIGENCE KPI BAR (5 metrics, always visible) ── */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <StatCard
+            label="Fraud Rate"
+            value={riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.fraudRate ?? 0}%`}
+            sub="High-risk / total claims"
+            icon={AlertCircle}
+            accent={(riskAnalytics?.kpis?.fraudRate ?? 0) >= 15 ? 'text-red-600' : (riskAnalytics?.kpis?.fraudRate ?? 0) >= 8 ? 'text-amber-600' : 'text-green-600'}
+          />
+          <StatCard
+            label="Fraud Exposure"
+            value={riskAnalyticsLoading ? '…' : (() => { const sym = currencySymbol(undefined); const v = riskAnalytics?.kpis?.fraudExposure ?? 0; return v > 0 ? `${sym} ${(v/100).toLocaleString()}` : '—'; })()}
+            sub="Value at risk"
+            icon={DollarSign}
+            accent="text-orange-600"
+          />
+          <StatCard
+            label="High-Risk Claims"
+            value={riskAnalyticsLoading ? '…' : (riskAnalytics?.kpis?.fraudCount ?? escalationsData.length)}
+            sub="Flagged for review"
+            icon={Shield}
+            accent="text-red-600"
+          />
+          <StatCard
+            label="Avg Fraud Score"
+            value={riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.avgFraudScore ?? avgRisk}%`}
+            sub="Portfolio average"
+            icon={BarChart3}
+            accent={avgRisk >= 60 ? 'text-red-600' : avgRisk >= 35 ? 'text-amber-600' : 'text-green-600'}
+          />
+          <StatCard
+            label="Total Claims"
+            value={riskAnalyticsLoading ? '…' : (riskAnalytics?.kpis?.totalClaims ?? allClaims.length)}
+            sub="In period"
+            icon={Activity}
+            accent="text-foreground"
+          />
+        </div>
+
+        {/* ── 3 SIGNATURE CHARTS (always visible, strategy-mandated) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Chart 1: Fraud Rate Trend */}
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-orange-500" />
+                Fraud Rate Trend
+              </CardTitle>
+              <CardDescription className="text-xs">Weekly fraud rate % over the period</CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              {riskAnalyticsLoading ? (
+                <div className="h-48 flex items-center justify-center"><Activity className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : riskAnalytics?.fraudRateTrend && riskAnalytics.fraudRateTrend.length > 0 ? (
+                <Bar
+                  data={{
+                    labels: riskAnalytics.fraudRateTrend.map((d: any) => d.week),
+                    datasets: [{
+                      label: 'Fraud Rate %',
+                      data: riskAnalytics.fraudRateTrend.map((d: any) => d.fraudRate),
+                      backgroundColor: riskAnalytics.fraudRateTrend.map((d: any) =>
+                        d.fraudRate >= 15 ? '#ef4444' : d.fraudRate >= 8 ? '#f59e0b' : '#22c55e'
+                      ),
+                      borderRadius: 4,
+                    }],
+                  }}
+                  options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, ticks: { callback: (v: any) => `${v}%` } }, x: { ticks: { font: { size: 9 }, maxRotation: 45 } } } }}
+                />
+              ) : (
+                <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No trend data for period</div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Chart 2: Incident Type × Risk Level Heatmap */}
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Shield className="h-4 w-4 text-red-500" />
+                Risk Heatmap
+              </CardTitle>
+              <CardDescription className="text-xs">Incident type × risk level — high counts = hot</CardDescription>
+            </CardHeader>
+            <CardContent className="px-3 pb-4">
+              {riskAnalyticsLoading ? (
+                <div className="h-48 flex items-center justify-center"><Activity className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : riskAnalytics?.heatmap ? (() => {
+                const incidentTypes = Object.keys(riskAnalytics.heatmap);
+                const riskLevels = ['low','medium','high','critical','elevated'];
+                const riskColors: Record<string,string> = { low:'#22c55e', medium:'#f59e0b', high:'#f97316', critical:'#ef4444', elevated:'#dc2626' };
+                const maxVal = Math.max(1, ...incidentTypes.flatMap(it => riskLevels.map(rl => riskAnalytics.heatmap[it]?.[rl] ?? 0)));
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr>
+                          <th className="text-left py-1 pr-2 text-muted-foreground font-medium">Type</th>
+                          {riskLevels.map(rl => <th key={rl} className="text-center py-1 px-1 text-muted-foreground font-medium capitalize" style={{ fontSize: '9px' }}>{rl}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {incidentTypes.map(it => (
+                          <tr key={it}>
+                            <td className="py-1 pr-2 text-muted-foreground capitalize" style={{ fontSize: '9px' }}>{it}</td>
+                            {riskLevels.map(rl => {
+                              const v = riskAnalytics.heatmap[it]?.[rl] ?? 0;
+                              const intensity = maxVal > 0 ? v / maxVal : 0;
+                              const alpha = Math.round(intensity * 220 + 35).toString(16).padStart(2,'0');
+                              const bg = v === 0 ? 'transparent' : `${riskColors[rl]}${alpha}`;
+                              return (
+                                <td key={rl} className="text-center py-1 px-1 rounded font-semibold" style={{ background: bg, color: intensity > 0.4 ? 'white' : 'inherit', fontSize: '10px', minWidth: '28px' }}>
+                                  {v > 0 ? v : ''}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })() : (
+                <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No heatmap data for period</div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Chart 3: Frequency vs Severity */}
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-blue-500" />
+                Frequency vs Severity
+              </CardTitle>
+              <CardDescription className="text-xs">Claim count vs avg value per incident type</CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              {riskAnalyticsLoading ? (
+                <div className="h-48 flex items-center justify-center"><Activity className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : riskAnalytics?.scatter && riskAnalytics.scatter.length > 0 ? (
+                <Bar
+                  data={{
+                    labels: riskAnalytics.scatter.map((d: any) => d.incidentType.replace(/_/g,' ')),
+                    datasets: [
+                      { label: 'Frequency', data: riskAnalytics.scatter.map((d: any) => d.frequency), backgroundColor: '#3b82f6', borderRadius: 4, yAxisID: 'y' },
+                      { label: 'Avg Value (÷100)', data: riskAnalytics.scatter.map((d: any) => Math.round(d.avgSeverity / 100)), backgroundColor: '#f97316', borderRadius: 4, yAxisID: 'y1' },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } },
+                    scales: {
+                      y: { beginAtZero: true, position: 'left', title: { display: true, text: 'Count', font: { size: 9 } } },
+                      y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Avg Value', font: { size: 9 } } },
+                      x: { ticks: { font: { size: 9 }, maxRotation: 35 } },
+                    },
+                  }}
+                />
+              ) : (
+                <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No scatter data for period</div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ── QUEUE STAT BAR (operational, below charts) ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             label="Pending Approval"
@@ -355,11 +450,11 @@ export default function RiskManagerDashboard() {
             icon={TrendingUp}
           />
           <StatCard
-            label="Portfolio Risk Score"
-            value={`${avgRisk}%`}
-            sub={`${escalatedClaims.length} high-risk claims`}
-            icon={BarChart3}
-            accent={avgRisk >= 60 ? "text-red-600" : avgRisk >= 35 ? "text-amber-600" : "text-green-600"}
+            label="Escalations"
+            value={escalatedClaims.length}
+            sub="Disputed / manual review"
+            icon={AlertCircle}
+            accent={escalatedClaims.length > 0 ? "text-red-600" : undefined}
           />
         </div>
 

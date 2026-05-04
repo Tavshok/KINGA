@@ -22,30 +22,19 @@ import { toast } from "sonner";
 import { 
   Search, TrendingUp, DollarSign, AlertTriangle, CheckCircle, 
   Clock, Users, Wrench, BarChart3, FileText, Activity,
-  ArrowUpRight, ArrowDownRight, Shield, ShieldCheck, TrendingDown, Download,
-  MessageSquare, Eye, AlertCircle, Gauge, Target, Zap
+  Shield, ShieldCheck, TrendingDown, Download,
+  AlertCircle, Gauge, Target, Zap
 } from "lucide-react";
 import { Link } from "wouter";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import ExecutiveAnalyticsCharts from "@/components/ExecutiveAnalyticsCharts";
-import { GovernanceSummaryCard } from "@/components/GovernanceSummaryCard";
 import { AnalyticsExportButton } from "@/components/AnalyticsExportButton";
-import { RiskRadarWidget } from "@/components/RiskRadarWidget";
 import { ClaimDrillDownModal } from "@/components/ClaimDrillDownModal";
-import { IntelligenceSection } from "@/components/IntelligenceSection";
 import { KingaReportButton } from "@/components/KingaReportButton";
 import ThemeToggle from "@/components/ThemeToggle";
-import {
-  calculateOperationalInsight,
-  calculateFinancialInsight,
-  calculateFraudInsight,
-  calculateGovernanceInsight,
-  calculateAIInsight,
-  calculateWorkflowInsight,
-} from "@/lib/insight-utils";
+
 import {
   exportKPIsToPDF,
-  exportAlertsToPDF,
   exportAssessorPerformanceToExcel,
   exportPanelBeaterAnalyticsToExcel,
   exportCostSavingsTrendsToExcel,
@@ -215,7 +204,7 @@ export default function ExecutiveDashboard() {
 
   // Fetch data (reusing existing endpoints - NO NEW QUERIES)
   const { data: kpisResponse, isLoading: kpisLoading, isError: kpisError } = trpc.analytics.getKPIs.useQuery({}, { retry: 0 });
-  const { data: alertsResponse, isLoading: alertsLoading } = trpc.analytics.getCriticalAlerts.useQuery(undefined, { retry: 0 });
+
   const { data: assessorPerfResponse, isLoading: assessorLoading } = trpc.analytics.getAssessorPerformance.useQuery(undefined, { retry: 0 });
   const { data: panelBeaterAnalyticsResponse, isLoading: panelBeaterLoading } = trpc.analytics.getPanelBeaterAnalytics.useQuery(undefined, { retry: 0 });
   const { data: savingsTrendsResponse, isLoading: savingsLoading } = trpc.analytics.getCostSavingsTrends.useQuery(undefined, { retry: 0 });
@@ -245,7 +234,7 @@ export default function ExecutiveDashboard() {
 
   // Adapt new standardized response format to legacy dashboard format
   const kpis = kpisResponse?.data?.summaryMetrics;
-  const alerts = alertsResponse?.data?.riskIndicators;
+
   const assessorPerf = assessorPerfResponse?.data?.assessors;
   const panelBeaterAnalytics = panelBeaterAnalyticsResponse?.data?.panelBeaters;
   const savingsTrends = savingsTrendsResponse?.data?.trends?.monthlySavings;
@@ -286,14 +275,6 @@ export default function ExecutiveDashboard() {
       percentage: parseFloat(percentage as string),
     };
   }, [kpis]);
-
-  // Calculate insights for each intelligence section
-  const operationalInsight = useMemo(() => calculateOperationalInsight(kpis), [kpis]);
-  const financialInsight = useMemo(() => calculateFinancialInsight(kpis, financials), [kpis, financials]);
-  const fraudInsight = useMemo(() => calculateFraudInsight(kpis), [kpis]);
-  const governanceInsight = useMemo(() => calculateGovernanceInsight(kpis), [kpis]);
-  const aiInsight = useMemo(() => calculateAIInsight(kpis), [kpis]);
-  const workflowInsight = useMemo(() => calculateWorkflowInsight(kpis, bottlenecks), [kpis, bottlenecks]);
 
   // Add comment mutation
   const addComment = { 
@@ -369,7 +350,8 @@ export default function ExecutiveDashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--background)' }}>
-      {/* BI Hero Header */}
+
+      {/* ── Page Header ── */}
       <div style={{ background: 'var(--background)', borderBottom: '1px solid var(--border)' }}>
         <div className="max-w-[1600px] mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
@@ -420,9 +402,9 @@ export default function ExecutiveDashboard() {
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto px-8 py-8 space-y-8">
-        {/* ── KINGA Executive Summary Hero Numbers ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ── HERO NUMBERS: Three Large Numbers, Full Width, Always Visible ── */}
+      <div className="max-w-[1600px] mx-auto px-8 pt-8 pb-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
           {[
             {
               label: 'Total Claims (30d)',
@@ -453,538 +435,159 @@ export default function ExecutiveDashboard() {
               icon: Clock,
             },
           ].map(({ label, value, sub, color, icon: Icon }, i) => (
-            <div key={i} className="rounded-xl p-4" style={{ background: 'var(--background)', border: '1px solid var(--border)' }}>
+            <div
+              key={i}
+              className="rounded-xl p-5"
+              style={{ background: 'var(--background)', border: '1px solid var(--border)', boxShadow: `0 0 24px ${color}20` }}
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-                  <p className="text-2xl font-bold mt-1" style={{ color }}>{value}</p>
+                  <p className="text-3xl font-bold mt-1" style={{ color }}>{value}</p>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
                 </div>
-                <div className="p-2 rounded-lg" style={{ background: `${color}20` }}>
+                <div className="p-2.5 rounded-lg" style={{ background: `${color}20` }}>
                   <Icon className="h-5 w-5" style={{ color }} />
                 </div>
               </div>
             </div>
           ))}
         </div>
+      </div>
 
-        {/* Operational Performance Intelligence Section */}
-        <IntelligenceSection
-          title="Operational Performance"
-          icon={Activity}
-          insight={operationalInsight}
-        >
-          <div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div onClick={() => {
-              setDrillDownFilter("all");
-              setDrillDownTitle("All Claims - Last 30 Days");
-              setDrillDownOpen(true);
-            }} className="cursor-pointer hover:opacity-90 transition-opacity">
-            <LargeKPICard
-              title="Total Claims Processed"
-              value={kpis?.totalClaims?.toLocaleString() || "0"}
-              subtitle="Last 30 days"
-              icon={FileText}
-              trend={{ value: 12.5, label: "vs last month" }}
-              color="blue"
-            />
-            </div>
-            <LargeKPICard
-              title="Fast-Tracked Claims"
-              value={`${kpis?.fastTrackPercentage || 0}%`}
-              subtitle={`${kpis?.fastTrackedCount || 0} claims auto-processed`}
-              icon={Zap}
-              trend={{ value: 8.3, label: "vs last month" }}
-              color="green"
-            />
-            <LargeKPICard
-              title="Avg Processing Time"
-              value={`${kpis?.avgProcessingHours || 0}h`}
-              subtitle="All complexity levels"
-              icon={Clock}
-              trend={{ value: -15.2, label: "improvement" }}
-              color="purple"
-            />
-            <div onClick={() => {
-              setDrillDownFilter("high_fraud");
-              setDrillDownTitle("High Fraud Risk Claims");
-              setDrillDownOpen(true);
-            }} className="cursor-pointer hover:opacity-90 transition-opacity">
-            <LargeKPICard
-              title="Fraud Risk Exposure"
-              value={fmt((kpis?.fraudRiskAmount || 0) * 100)}
-              subtitle={`${kpis?.highRiskClaimsCount || 0} high-risk claims`}
-              icon={AlertTriangle}
-              trend={{ value: -22.1, label: "reduction" }}
-              color="red"
-            />
-            </div>
-            <div onClick={() => {
-              setDrillDownFilter("overridden");
-              setDrillDownTitle("Executive Override History");
-              setDrillDownOpen(true);
-            }} className="cursor-pointer hover:opacity-90 transition-opacity">
-            <LargeKPICard
-              title="Executive Overrides"
-              value={overrideMetrics.count}
-              subtitle={`${overrideMetrics.percentage}% of auto-approvals`}
-              icon={Shield}
-              color="amber"
-            />
-            </div>
-            <LargeKPICard
-              title="Segregation Violations"
-              value={kpis?.segregationViolations || 0}
-              subtitle="Blocked attempts (30 days)"
-              icon={AlertCircle}
-              color="slate"
-            />
-          </div>
-          </div>
-        </IntelligenceSection>
-
-        {/* Risk Radar Widget */}
-        <RiskRadarWidget kpis={kpis} />
-
-        {/* AI Performance Intelligence Section */}
-        <IntelligenceSection
-          title="AI Performance"
-          icon={Gauge}
-          insight={aiInsight}
-        >
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gauge className="h-5 w-5 text-primary" />
-                System Confidence Score
-              </CardTitle>
-              <CardDescription>
-                Overall fraud detection confidence (0-100 scale)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ConfidenceGauge score={kpis?.avgConfidenceScore || 35} />
-              <div className="mt-6 p-4 bg-slate-50 dark:bg-muted/50 rounded-lg">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">
-                      {kpis?.lowRiskCount || 0}
-                    </p>
-                    <p className="text-xs text-slate-600 dark:text-muted-foreground mt-1">Low Risk</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-amber-600">
-                      {kpis?.mediumRiskCount || 0}
-                    </p>
-                    <p className="text-xs text-slate-600 dark:text-muted-foreground mt-1">Medium Risk</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-red-600">
-                      {kpis?.highRiskCount || 0}
-                    </p>
-                    <p className="text-xs text-slate-600 dark:text-muted-foreground mt-1">High Risk</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </IntelligenceSection>
-
-        {/* Governance Intelligence Section - ENHANCED */}
-        <IntelligenceSection
-          title="Governance & Overrides"
-          icon={Shield}
-          insight={governanceInsight}
-        >
-          <div className="space-y-8">
-            {/* Governance Summary Cards */}
+      {/* ── Secondary KPI strip ── */}
+      <div className="max-w-[1600px] mx-auto px-8 pb-6 pt-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div
+            className="rounded-lg px-4 py-3 flex items-center gap-3 cursor-pointer"
+            style={{ background: 'var(--fp-critical-bg)', border: '1px solid color-mix(in srgb, var(--chart-4) 30%, transparent)' }}
+            onClick={() => { setDrillDownFilter("high_fraud"); setDrillDownTitle("High Fraud Risk Claims"); setDrillDownOpen(true); }}
+          >
+            <AlertTriangle className="h-5 w-5 shrink-0" style={{ color: 'var(--chart-4)' }} />
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-foreground mb-4">Governance Summary (30 Days)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <GovernanceSummaryCard
-                  title="Total Overrides"
-                  value={governanceMetrics?.totalOverrides?.value || 0}
-                  subtitle="Executive interventions"
-                  icon={Shield}
-                  trend={governanceMetrics?.totalOverrides?.trend || "stable"}
-                  previousValue={governanceMetrics?.totalOverrides?.previousValue}
-                  color="amber"
-                  onViewDetails={() => {
-                    setDrillDownFilter("overridden");
-                    setDrillDownTitle("Executive Override History");
-                    setDrillDownOpen(true);
-                  }}
-                />
-                <GovernanceSummaryCard
-                  title="Override Rate"
-                  value={`${governanceMetrics?.overrideRate?.value || 0}%`}
-                  subtitle="Of total claims"
-                  icon={Activity}
-                  trend={governanceMetrics?.overrideRate?.trend || "stable"}
-                  previousValue={governanceMetrics?.overrideRate?.previousValue}
-                  color="blue"
-                  onViewDetails={() => {
-                    setDrillDownFilter("overridden");
-                    setDrillDownTitle("Override Rate Analysis");
-                    setDrillDownOpen(true);
-                  }}
-                />
-                <GovernanceSummaryCard
-                  title="Segregation Violations"
-                  value={governanceMetrics?.segregationViolations?.value || 0}
-                  subtitle="Blocked attempts"
-                  icon={AlertCircle}
-                  trend={governanceMetrics?.segregationViolations?.trend || "stable"}
-                  previousValue={governanceMetrics?.segregationViolations?.previousValue}
-                  color="red"
-                  onViewDetails={() => {
-                    toast.info("Segregation Violation Details", {
-                      description: "Detailed violation log available in Audit Trail",
-                    });
-                  }}
-                />
-                <GovernanceSummaryCard
-                  title="Role Assignment Changes"
-                  value={governanceMetrics?.roleChanges?.value || 0}
-                  subtitle="Permission updates"
-                  icon={Users}
-                  trend={governanceMetrics?.roleChanges?.trend || "stable"}
-                  previousValue={governanceMetrics?.roleChanges?.previousValue}
-                  color="purple"
-                  onViewDetails={() => {
-                    toast.info("Role Change History", {
-                      description: "Role assignment log available in User Management",
-                    });
-                  }}
-                />
-                <GovernanceSummaryCard
-                  title="Involvement Conflicts"
-                  value={governanceMetrics?.involvementConflicts?.value || 0}
-                  subtitle="Detected conflicts"
-                  icon={AlertTriangle}
-                  trend={governanceMetrics?.involvementConflicts?.trend || "stable"}
-                  previousValue={governanceMetrics?.involvementConflicts?.previousValue}
-                  color="orange"
-                  onViewDetails={() => {
-                    toast.info("Involvement Conflict Details", {
-                      description: "Conflict resolution log available in Audit Trail",
-                    });
-                  }}
-                />
-              </div>
+              <p className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>Fraud Exposure</p>
+              <p className="text-lg font-bold" style={{ color: 'var(--chart-4)' }}>{fmt((kpis?.fraudRiskAmount || 0) * 100)}</p>
             </div>
-
-            {/* Governance Intelligence Charts */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  Governance Intelligence
-                </CardTitle>
-                <CardDescription>
-                  Detailed governance metrics and trends
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="overrides" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="overrides">Override Trend</TabsTrigger>
-                    <TabsTrigger value="segregation">Segregation Heatmap</TabsTrigger>
-                    <TabsTrigger value="roles">Role Changes</TabsTrigger>
-                    <TabsTrigger value="conflicts">Conflicts</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="overrides" className="space-y-4">
-                    <div className="h-80">
-                      {Array.isArray(overrideTrend) && overrideTrend.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={300}>
-                          <LineChart data={overrideTrend}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis 
-                              dataKey="date" 
-                              stroke="#64748b"
-                              tick={{ fontSize: 12 }}
-                            />
-                            <YAxis stroke="#64748b" tick={{ fontSize: 12 }} />
-                            <Tooltip 
-                              contentStyle={{ 
-                                backgroundColor: "white", 
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "8px"
-                              }}
-                            />
-                            <Line 
-                              type="monotone" 
-                              dataKey="count" 
-                              stroke="#f59e0b" 
-                              strokeWidth={2}
-                              dot={{ fill: "#f59e0b", r: 4 }}
-                              name="Overrides"
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
-                          No override data available
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="segregation" className="space-y-4">
-                    <div className="h-80">
-                      {Array.isArray(segregationHeatmap) && segregationHeatmap.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={300}>
-                          <BarChart data={segregationHeatmap}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis 
-                              dataKey="role" 
-                              stroke="#64748b"
-                              tick={{ fontSize: 12 }}
-                              angle={-45}
-                              textAnchor="end"
-                              height={100}
-                            />
-                            <YAxis stroke="#64748b" tick={{ fontSize: 12 }} />
-                            <Tooltip 
-                              contentStyle={{ 
-                                backgroundColor: "white", 
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "8px"
-                              }}
-                            />
-                            <Bar dataKey="count" fill="#ef4444" name="Violations" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
-                          No segregation violation data available
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="roles" className="space-y-4">
-                    <div className="h-80">
-                      {Array.isArray(roleChangeTrend) && roleChangeTrend.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={300}>
-                          <LineChart data={roleChangeTrend}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis 
-                              dataKey="date" 
-                              stroke="#64748b"
-                              tick={{ fontSize: 12 }}
-                            />
-                            <YAxis stroke="#64748b" tick={{ fontSize: 12 }} />
-                            <Tooltip 
-                              contentStyle={{ 
-                                backgroundColor: "white", 
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "8px"
-                              }}
-                            />
-                            <Line 
-                              type="monotone" 
-                              dataKey="count" 
-                              stroke="#8b5cf6" 
-                              strokeWidth={2}
-                              dot={{ fill: "#8b5cf6", r: 4 }}
-                              name="Role Changes"
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
-                          No role change data available
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="conflicts" className="space-y-4">
-                    <div className="h-80">
-                      {Array.isArray(conflictDistribution) && conflictDistribution.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={300}>
-                          <PieChart>
-                            <Pie
-                              data={conflictDistribution}
-                              dataKey="count"
-                              nameKey="type"
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={100}
-                              label={(entry) => `${entry.type}: ${entry.count}`}
-                            >
-                              {Array.isArray(conflictDistribution) && conflictDistribution.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={["#f97316", "#ef4444", "#dc2626"][index % 3]} />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
-                          No involvement conflict data available
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-
-            {/* Override History Table */}
-            {overrideHistory && overrideHistory.length > 0 && (
-              <Card className="border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-amber-600" />
-                    Recent Override History
-                  </CardTitle>
-                  <CardDescription>
-                    Last 10 executive interventions with justifications
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {Array.isArray(overrideHistory) && overrideHistory.map((override: any) => (
-                      <div key={override.id} className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg border border-slate-200 dark:border-border">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="bg-white dark:bg-card">
-                                Claim #{override.claimId}
-                              </Badge>
-                              <span className="text-sm text-slate-600 dark:text-muted-foreground">
-                                {new Date(override.timestamp).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <p className="text-sm font-medium text-slate-900 dark:text-foreground">
-                              {override.actor} overrode routing decision
-                            </p>
-                            <p className="text-sm text-slate-600 dark:text-muted-foreground">
-                              <span className="font-medium">From:</span> {override.oldValue} → 
-                              <span className="font-medium"> To:</span> {override.newValue}
-                            </p>
-                            {override.justification && (
-                              <p className="text-sm text-slate-700 dark:text-foreground/80 italic mt-2">
-                                "{override.justification}"
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
-        </IntelligenceSection>
+          <div className="rounded-lg px-4 py-3 flex items-center gap-3" style={{ background: 'var(--fp-warning-bg)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }}>
+            <Shield className="h-5 w-5 shrink-0" style={{ color: 'var(--warning)' }} />
+            <div>
+              <p className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>High-Risk Claims</p>
+              <p className="text-lg font-bold" style={{ color: 'var(--warning)' }}>{kpis?.highRiskClaimsCount || 0}</p>
+            </div>
+          </div>
+          <div className="rounded-lg px-4 py-3 flex items-center gap-3" style={{ background: 'var(--fp-success-bg)', border: '1px solid color-mix(in srgb, var(--success) 30%, transparent)' }}>
+            <Zap className="h-5 w-5 shrink-0" style={{ color: 'var(--success)' }} />
+            <div>
+              <p className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>Fast-Track Rate</p>
+              <p className="text-lg font-bold" style={{ color: 'var(--success)' }}>{kpis?.fastTrackPercentage || 0}%</p>
+            </div>
+          </div>
+          <div
+            className="rounded-lg px-4 py-3 flex items-center gap-3 cursor-pointer"
+            style={{ background: 'var(--fp-info-bg)', border: '1px solid color-mix(in srgb, var(--info) 30%, transparent)' }}
+            onClick={() => { setDrillDownFilter("overridden"); setDrillDownTitle("Executive Override History"); setDrillDownOpen(true); }}
+          >
+            <AlertCircle className="h-5 w-5 shrink-0" style={{ color: 'var(--info)' }} />
+            <div>
+              <p className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>Executive Overrides</p>
+              <p className="text-lg font-bold" style={{ color: 'var(--info)' }}>{overrideMetrics.count}</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* Workflow Intelligence Section */}
-        <IntelligenceSection
-          title="Workflow Bottlenecks"
-          icon={BarChart3}
-          insight={workflowInsight}
-        >
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-purple-600" />
-              Workflow Bottleneck Analysis
-            </CardTitle>
-            <CardDescription>
-              Average time spent in each workflow state (hours)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {bottlenecksLoading ? (
-              <div className="h-80 flex items-center justify-center">
-                <Activity className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : bottleneckChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={bottleneckChartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis 
-                    dataKey="state" 
-                    angle={-45} 
-                    textAnchor="end" 
-                    height={100}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis 
-                    label={{ value: 'Hours', angle: -90, position: 'insideLeft' }}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip 
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-white dark:bg-card p-4 rounded-lg shadow-lg border border-slate-200 dark:border-border">
-                            <p className="font-semibold text-slate-900 dark:text-foreground">{payload[0].payload.state}</p>
-                            <p className="text-sm text-slate-600 dark:text-muted-foreground mt-1">
-                              Avg Time: <span className="font-bold">{payload[0].value}h</span>
-                            </p>
-                            <p className="text-sm text-slate-600 dark:text-muted-foreground">
-                              Claims: <span className="font-bold">{payload[0].payload.count}</span>
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar dataKey="avgHours" radius={[8, 8, 0, 0]}>
-                    {Array.isArray(bottleneckChartData) && bottleneckChartData.map((entry: any, index: number) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={
-                          entry.avgHours > 48 ? "#ef4444" : 
-                          entry.avgHours > 24 ? "#f59e0b" : 
-                          "#22c55e"
-                        } 
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-80 flex items-center justify-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
-                No bottleneck data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        </IntelligenceSection>
-
-        {/* Tabs Section (Existing Content) */}
+      {/* ── 3-TAB SECTION ── */}
+      <div className="max-w-[1600px] mx-auto px-8 pb-12">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8 bg-white dark:bg-card shadow-sm border border-slate-200 dark:border-border">
+          <TabsList className="grid w-full grid-cols-3" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="alerts">Critical Alerts</TabsTrigger>
-            <TabsTrigger value="assessors">Assessors</TabsTrigger>
-            <TabsTrigger value="panel-beaters">Panel Beaters</TabsTrigger>
-            <TabsTrigger value="financials">Financials</TabsTrigger>
-            <TabsTrigger value="governance">Governance</TabsTrigger>
-            <TabsTrigger value="workflow">Workflow</TabsTrigger>
+            <TabsTrigger value="operational-health">Operational Health</TabsTrigger>
+            <TabsTrigger value="roi-breakdown">ROI Breakdown</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
+          {/* ── Tab 1: Overview ── */}
           <TabsContent value="overview" className="space-y-6">
-            {/* Search */}
-            <Card className="border-0 shadow-lg">
+            {/* Chart row: Savings Trend + Fast-Track Analytics */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card style={{ border: '1px solid var(--border)' }}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <DollarSign className="h-5 w-5" style={{ color: 'var(--success)' }} />
+                        Cost Savings Trend
+                      </CardTitle>
+                      <CardDescription>Month-over-month KINGA savings</CardDescription>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => savingsTrends && exportCostSavingsTrendsToExcel(savingsTrends)}
+                      disabled={!savingsTrends || savingsTrends.length === 0}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {savingsLoading ? (
+                    <div className="h-64 flex items-center justify-center">
+                      <Activity className="h-8 w-8 animate-spin" style={{ color: 'var(--success)' }} />
+                    </div>
+                  ) : savingsTrends && savingsTrends.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={280}>
+                      <LineChart data={savingsTrends}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="savings" stroke="var(--success)" strokeWidth={3} dot={{ fill: 'var(--success)', r: 5 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-center py-12" style={{ color: 'var(--muted-foreground)' }}>No savings data available yet</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card style={{ border: '1px solid var(--border)' }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gauge className="h-5 w-5" style={{ color: 'var(--info)' }} />
+                    AI Confidence Distribution
+                  </CardTitle>
+                  <CardDescription>Risk classification across all assessed claims</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-center mb-4">
+                    <div className="rounded-xl p-4" style={{ background: 'var(--fp-success-bg)' }}>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--success)' }}>{kpis?.lowRiskCount || 0}</p>
+                      <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>Low Risk</p>
+                    </div>
+                    <div className="rounded-xl p-4" style={{ background: 'var(--fp-warning-bg)' }}>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--warning)' }}>{kpis?.mediumRiskCount || 0}</p>
+                      <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>Medium Risk</p>
+                    </div>
+                    <div className="rounded-xl p-4" style={{ background: 'var(--fp-critical-bg)' }}>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--chart-4)' }}>{kpis?.highRiskCount || 0}</p>
+                      <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>High Risk</p>
+                    </div>
+                  </div>
+                  <ConfidenceGauge score={kpis?.avgConfidenceScore || 35} />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Global Search */}
+            <Card style={{ border: '1px solid var(--border)' }}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Search className="h-5 w-5" />
                   Global Search
                 </CardTitle>
-                <CardDescription>
-                  Search across claims, assessors, and panel beaters
-                </CardDescription>
+                <CardDescription>Search across claims, assessors, and panel beaters</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex gap-2">
@@ -996,14 +599,9 @@ export default function ExecutiveDashboard() {
                     className="flex-1"
                   />
                   <Button onClick={handleSearch} disabled={searchLoading}>
-                    {searchLoading ? (
-                      <Activity className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
+                    {searchLoading ? <Activity className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   </Button>
                 </div>
-
                 {searchResults && (
                   <div className="mt-4 space-y-2">
                     {searchResults.claims?.length > 0 && (
@@ -1012,7 +610,7 @@ export default function ExecutiveDashboard() {
                         <div className="space-y-2">
                           {searchResults.claims.map((claim: any) => (
                             <Link key={claim.id} href={`/claims/${claim.id}`}>
-                              <div className="p-3 bg-slate-50 dark:bg-muted/50 rounded-lg hover:bg-slate-100 dark:bg-muted transition-colors cursor-pointer">
+                              <div className="p-3 rounded-lg hover:opacity-80 transition-opacity cursor-pointer" style={{ background: 'var(--muted)' }}>
                                 <div className="flex items-center justify-between">
                                   <span className="font-medium">Claim #{claim.id}</span>
                                   <Badge>{claim.status}</Badge>
@@ -1028,442 +626,234 @@ export default function ExecutiveDashboard() {
               </CardContent>
             </Card>
 
-            {/* Cost Savings Trends */}
-            <Card className="border-0 shadow-lg">
+            {/* Fast-Track Analytics */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>Fast-Track Analytics</h2>
+                <AnalyticsExportButton tenantId="default-tenant" variant="outline" size="sm" />
+              </div>
+              <ExecutiveAnalyticsCharts />
+            </div>
+          </TabsContent>
+
+          {/* ── Tab 2: Operational Health ── */}
+          <TabsContent value="operational-health" className="space-y-6">
+            {/* Governance Summary */}
+            <Card style={{ border: '1px solid var(--border)' }}>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-green-600" />
-                      Cost Savings Trends
-                    </CardTitle>
-                    <CardDescription>Month-over-month savings analysis</CardDescription>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => savingsTrends && exportCostSavingsTrendsToExcel(savingsTrends)}
-                    disabled={!savingsTrends || savingsTrends.length === 0}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
-                  </Button>
-                </div>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" style={{ color: 'var(--warning)' }} />
+                  Governance Health
+                </CardTitle>
+                <CardDescription>Override rates, segregation violations, and role changes (30 days)</CardDescription>
               </CardHeader>
               <CardContent>
-                {savingsLoading ? (
-                  <div className="h-64 flex items-center justify-center">
-                    <Activity className="h-8 w-8 animate-spin text-primary" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="rounded-xl p-4 text-center" style={{ background: 'var(--fp-warning-bg)', border: '1px solid color-mix(in srgb, var(--warning) 20%, transparent)' }}>
+                    <p className="text-3xl font-bold" style={{ color: 'var(--warning)' }}>
+                      {governanceMetrics ? `${governanceMetrics.overrideRate ?? 0}%` : '—'}
+                    </p>
+                    <p className="text-sm font-medium mt-1" style={{ color: 'var(--foreground)' }}>Override Rate</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>AI decisions overridden by staff</p>
                   </div>
-                ) : savingsTrends && savingsTrends.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={savingsTrends}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
+                  <div className="rounded-xl p-4 text-center" style={{ background: 'var(--fp-critical-bg)', border: '1px solid color-mix(in srgb, var(--chart-4) 20%, transparent)' }}>
+                    <p className="text-3xl font-bold" style={{ color: 'var(--chart-4)' }}>
+                      {governanceMetrics ? (governanceMetrics.segregationViolations ?? 0) : '—'}
+                    </p>
+                    <p className="text-sm font-medium mt-1" style={{ color: 'var(--foreground)' }}>Segregation Violations</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Duty-of-care conflicts detected</p>
+                  </div>
+                  <div className="rounded-xl p-4 text-center" style={{ background: 'var(--fp-info-bg)', border: '1px solid color-mix(in srgb, var(--info) 20%, transparent)' }}>
+                    <p className="text-3xl font-bold" style={{ color: 'var(--info)' }}>
+                      {governanceMetrics ? (governanceMetrics.roleChanges30d ?? 0) : '—'}
+                    </p>
+                    <p className="text-sm font-medium mt-1" style={{ color: 'var(--foreground)' }}>Role Changes (30d)</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>User role modifications this month</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Workflow Bottleneck */}
+            <Card style={{ border: '1px solid var(--border)' }}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" style={{ color: 'var(--chart-5)' }} />
+                  Workflow Bottleneck Analysis
+                </CardTitle>
+                <CardDescription>Average time spent in each workflow state (hours)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {bottlenecksLoading ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <Activity className="h-8 w-8 animate-spin" style={{ color: 'var(--chart-5)' }} />
+                  </div>
+                ) : bottleneckChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={320}>
+                    <BarChart data={bottleneckChartData} margin={{ top: 10, right: 20, left: 10, bottom: 80 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="state" angle={-40} textAnchor="end" height={90} tick={{ fontSize: 11 }} />
+                      <YAxis label={{ value: 'Hours', angle: -90, position: 'insideLeft' }} tick={{ fontSize: 11 }} />
                       <Tooltip />
-                      <Line 
-                        type="monotone" 
-                        dataKey="savings" 
-                        stroke="#22c55e" 
-                        strokeWidth={3}
-                        dot={{ fill: "#22c55e", r: 5 }}
-                      />
-                    </LineChart>
+                      <Bar dataKey="avgHours" radius={[6, 6, 0, 0]}>
+                        {bottleneckChartData.map((entry: any, index: number) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.avgHours > 48 ? 'var(--chart-4)' : entry.avgHours > 24 ? 'var(--warning)' : 'var(--success)'}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-12">No savings data available</p>
+                  <div className="h-64 flex items-center justify-center" style={{ color: 'var(--muted-foreground)' }}>
+                    No bottleneck data available yet
+                  </div>
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-foreground">Fast-Track Analytics</h2>
-              <AnalyticsExportButton 
-                tenantId="default-tenant" 
-                variant="outline" 
-                size="sm"
-              />
-            </div>
-            <ExecutiveAnalyticsCharts />
-          </TabsContent>
-
-          {/* Critical Alerts Tab */}
-          <TabsContent value="alerts" className="space-y-4">
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
+            {/* Assessor + Panel Beater compact tables */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card style={{ border: '1px solid var(--border)' }}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-red-600" />
-                      Critical Alerts
+                      <Users className="h-5 w-5" style={{ color: 'var(--info)' }} />
+                      Top Assessors
                     </CardTitle>
-                    <CardDescription>High-priority items requiring attention</CardDescription>
+                    <Button size="sm" variant="outline" onClick={() => assessorPerf && exportAssessorPerformanceToExcel(assessorPerf)} disabled={!assessorPerf}>
+                      <Download className="h-4 w-4 mr-2" />Export
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => alerts && exportAlertsToPDF(alerts)}
-                    disabled={!alerts}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {alertsLoading ? (
-                  <div className="h-64 flex items-center justify-center">
-                    <Activity className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : alerts && alerts.length > 0 ? (
-                  <div className="space-y-3">
-                    {alerts.map((alert: any) => (
-                      <div
-                        key={alert.id}
-                        className="p-4 border-l-4 border-red-500 bg-red-50 dark:bg-red-950/30 rounded-lg hover:bg-red-100 dark:bg-red-900/30 transition-colors"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="destructive">{alert.severity}</Badge>
-                              <span className="text-sm text-slate-600 dark:text-muted-foreground">{alert.timestamp}</span>
-                            </div>
-                            <p className="font-semibold text-slate-900 dark:text-foreground">{alert.title}</p>
-                            <p className="text-sm text-slate-600 dark:text-muted-foreground mt-1">{alert.description}</p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleAddComment(alert)}
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleRequestReview(alert)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Review
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-12">No critical alerts</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Assessors Tab */}
-          <TabsContent value="assessors" className="space-y-4">
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-blue-600" />
-                      Assessor Performance
-                    </CardTitle>
-                    <CardDescription>Top performers and efficiency metrics</CardDescription>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => assessorPerf && exportAssessorPerformanceToExcel(assessorPerf)}
-                    disabled={!assessorPerf || assessorPerf.length === 0}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {assessorLoading ? (
-                  <div className="h-64 flex items-center justify-center">
-                    <Activity className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : assessorPerf && assessorPerf.length > 0 ? (
-                  <div className="space-y-2">
-                    {assessorPerf.map((assessor: any, index: number) => (
-                      <div
-                        key={assessor.id}
-                        className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg hover:bg-slate-100 dark:bg-muted transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="text-2xl font-bold text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">#{index + 1}</div>
+                </CardHeader>
+                <CardContent>
+                  {assessorLoading ? (
+                    <div className="h-40 flex items-center justify-center"><Activity className="h-6 w-6 animate-spin" /></div>
+                  ) : assessorPerf && assessorPerf.length > 0 ? (
+                    <div className="space-y-2">
+                      {assessorPerf.slice(0, 5).map((assessor: any, index: number) => (
+                        <div key={assessor.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--muted)' }}>
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg font-bold w-6 text-center" style={{ color: 'var(--muted-foreground)' }}>#{index + 1}</span>
                             <div>
-                              <p className="font-semibold text-slate-900 dark:text-foreground">{assessor.name}</p>
-                              <p className="text-sm text-slate-600 dark:text-muted-foreground">
-                                {assessor.claimsProcessed} claims • {assessor.avgTime} avg time
-                              </p>
+                              <p className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>{assessor.name}</p>
+                              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{assessor.claimsProcessed} claims · {assessor.avgTime} avg</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="text-sm text-slate-600 dark:text-muted-foreground">Accuracy</p>
-                              <p className="text-lg font-bold text-green-600">{assessor.accuracy}%</p>
-                            </div>
-                            <Button size="sm" variant="outline">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          <span className="text-sm font-bold" style={{ color: 'var(--success)' }}>{assessor.accuracy}%</span>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-12">No assessor data available</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center py-8" style={{ color: 'var(--muted-foreground)' }}>No assessor data available</p>
+                  )}
+                </CardContent>
+              </Card>
 
-          {/* Panel Beaters Tab */}
-          <TabsContent value="panel-beaters" className="space-y-4">
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
+              <Card style={{ border: '1px solid var(--border)' }}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
-                      <Wrench className="h-5 w-5 text-green-600" />
-                      Panel Beater Analytics
+                      <Wrench className="h-5 w-5" style={{ color: 'var(--success)' }} />
+                      Panel Beater Performance
                     </CardTitle>
-                    <CardDescription>Quote accuracy and performance metrics</CardDescription>
+                    <Button size="sm" variant="outline" onClick={() => panelBeaterAnalytics && exportPanelBeaterAnalyticsToExcel(panelBeaterAnalytics)} disabled={!panelBeaterAnalytics}>
+                      <Download className="h-4 w-4 mr-2" />Export
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => panelBeaterAnalytics && exportPanelBeaterAnalyticsToExcel(panelBeaterAnalytics)}
-                    disabled={!panelBeaterAnalytics || panelBeaterAnalytics.length === 0}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {panelBeaterLoading ? (
-                  <div className="h-64 flex items-center justify-center">
-                    <Activity className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : panelBeaterAnalytics && panelBeaterAnalytics.length > 0 ? (
-                  <div className="space-y-2">
-                    {panelBeaterAnalytics.map((beater: any) => (
-                      <div
-                        key={beater.id}
-                        className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg hover:bg-slate-100 dark:bg-muted transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
+                </CardHeader>
+                <CardContent>
+                  {panelBeaterLoading ? (
+                    <div className="h-40 flex items-center justify-center"><Activity className="h-6 w-6 animate-spin" /></div>
+                  ) : panelBeaterAnalytics && panelBeaterAnalytics.length > 0 ? (
+                    <div className="space-y-2">
+                      {panelBeaterAnalytics.slice(0, 5).map((beater: any) => (
+                        <div key={beater.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--muted)' }}>
                           <div>
-                            <p className="font-semibold text-slate-900 dark:text-foreground">{beater.name}</p>
-                            <p className="text-sm text-slate-600 dark:text-muted-foreground">
-                              {beater.quotesSubmitted} quotes • {beater.avgAccuracy}% accuracy
-                            </p>
+                            <p className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>{beater.name}</p>
+                            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{beater.quotesSubmitted} quotes</p>
                           </div>
-                          <Badge variant={beater.avgAccuracy >= 90 ? "default" : "secondary"}>
-                            {beater.avgAccuracy >= 90 ? "Excellent" : "Good"}
-                          </Badge>
+                          <Badge variant={beater.avgAccuracy >= 90 ? "default" : "secondary"}>{beater.avgAccuracy}% accuracy</Badge>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-12">No panel beater data available</p>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center py-8" style={{ color: 'var(--muted-foreground)' }}>No panel beater data available</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
-          {/* Financials Tab */}
-          <TabsContent value="financials" className="space-y-4">
-            <Card className="border-0 shadow-lg">
+          {/* ── Tab 3: ROI Breakdown ── */}
+          <TabsContent value="roi-breakdown" className="space-y-6">
+            {/* Financial Overview: 4 big numbers */}
+            <Card style={{ border: '1px solid var(--border)' }}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-green-600" />
+                      <DollarSign className="h-5 w-5" style={{ color: 'var(--success)' }} />
                       Financial Overview
                     </CardTitle>
                     <CardDescription>Claims payouts, reserves, and fraud prevention metrics</CardDescription>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => financials && exportFinancialOverviewToPDF(financials)}
-                    disabled={!financials}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
+                  <Button size="sm" variant="outline" onClick={() => financials && exportFinancialOverviewToPDF(financials)} disabled={!financials}>
+                    <Download className="h-4 w-4 mr-2" />Export PDF
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
                 {financialsLoading ? (
-                  <div className="h-64 flex items-center justify-center">
-                    <Activity className="h-8 w-8 animate-spin text-primary" />
+                  <div className="h-48 flex items-center justify-center">
+                    <Activity className="h-8 w-8 animate-spin" style={{ color: 'var(--success)' }} />
                   </div>
                 ) : financials ? (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="text-center p-6 bg-blue-50 dark:bg-blue-950/30 rounded-xl">
-                      <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Total Payouts</p>
-                      <p className="text-4xl font-bold text-blue-600">
-                        ${(financials.totalPayouts || 0).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">Approved claims paid</p>
-                    </div>
-                    <div className="text-center p-6 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
-                      <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Total Reserves</p>
-                      <p className="text-4xl font-bold text-amber-600">
-                        ${(financials.totalReserves || 0).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">Pending claims estimated</p>
-                    </div>
-                    <div className="text-center p-6 bg-green-50 dark:bg-green-950/30 rounded-xl">
-                      <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Fraud Prevented</p>
-                      <p className="text-4xl font-bold text-green-600">
-                        ${(financials.fraudPrevented || 0).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">High-risk claims rejected</p>
-                    </div>
-                    <div className="text-center p-6 bg-purple-50 dark:bg-purple-950/30 rounded-xl">
-                      <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Net Exposure</p>
-                      <p className="text-4xl font-bold text-purple-600">
-                        ${(financials.netExposure || 0).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">Total financial exposure</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-12">No financial data available</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Governance Tab — surfaces the existing GovernanceSummaryCard and override history */}
-          <TabsContent value="governance" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Override Rate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {governanceMetrics ? `${governanceMetrics.overrideRate ?? 0}%` : "—"}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">AI decisions overridden by staff</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Segregation Violations</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-amber-600">
-                    {governanceMetrics ? (governanceMetrics.segregationViolations ?? 0) : "—"}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Duty-of-care conflicts detected</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Role Changes (30d)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {governanceMetrics ? (governanceMetrics.roleChanges30d ?? 0) : "—"}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">User role modifications this month</p>
-                </CardContent>
-              </Card>
-            </div>
-            <GovernanceSummaryCard />
-          </TabsContent>
-
-          {/* Workflow Tab — bottlenecks and processing efficiency */}
-          <TabsContent value="workflow" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Avg. Processing Time</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {bottlenecksResponse?.data?.avgProcessingDays != null
-                      ? `${bottlenecksResponse.data.avgProcessingDays}d`
-                      : "—"}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">End-to-end claim resolution</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Bottleneck Stage</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-lg font-bold">
-                    {bottlenecksResponse?.data?.bottleneckStage ?? "—"}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Longest average dwell time</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">SLA Breach Rate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
-                    {bottlenecksResponse?.data?.slaBreachRate != null
-                      ? `${bottlenecksResponse.data.slaBreachRate}%`
-                      : "—"}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Claims exceeding SLA target</p>
-                </CardContent>
-              </Card>
-            </div>
-            {bottlenecksLoading ? (
-              <p className="text-center text-muted-foreground py-8">Loading workflow data…</p>
-            ) : bottlenecksResponse?.data?.stages ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Stage Dwell Times</CardTitle>
-                  <CardDescription>Average time claims spend at each workflow stage</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {(bottlenecksResponse.data.stages as any[]).map((stage: any) => (
-                      <div key={stage.name} className="flex items-center gap-4">
-                        <div className="w-40 text-sm text-muted-foreground truncate">{stage.name}</div>
-                        <div className="flex-1 bg-muted rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full"
-                            style={{ width: `${Math.min(100, (stage.avgDays / 10) * 100)}%` }}
-                          />
-                        </div>
-                        <div className="w-16 text-sm font-medium text-right">{stage.avgDays}d avg</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                    {[
+                      { label: 'Total Payouts', value: `$${(financials.totalPayouts || 0).toLocaleString()}`, sub: 'Approved claims paid', color: 'var(--info)' },
+                      { label: 'Total Reserves', value: `$${(financials.totalReserves || 0).toLocaleString()}`, sub: 'Pending claims estimated', color: 'var(--warning)' },
+                      { label: 'Fraud Prevented', value: `$${(financials.fraudPrevented || 0).toLocaleString()}`, sub: 'High-risk claims rejected', color: 'var(--success)' },
+                      { label: 'Net Exposure', value: `$${(financials.netExposure || 0).toLocaleString()}`, sub: 'Total financial exposure', color: 'var(--chart-5)' },
+                    ].map(({ label, value, sub, color }) => (
+                      <div key={label} className="rounded-xl p-5 text-center" style={{ background: `color-mix(in srgb, ${color} 10%, var(--background))`, border: `1px solid color-mix(in srgb, ${color} 25%, transparent)` }}>
+                        <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                        <p className="text-3xl font-bold mt-2" style={{ color }}>{value}</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  No workflow bottleneck data available yet
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
+                ) : (
+                  <p className="text-center py-12" style={{ color: 'var(--muted-foreground)' }}>No financial data available yet</p>
+                )}
+              </CardContent>
+            </Card>
 
+            {/* KPI Export */}
+            <Card style={{ border: '1px solid var(--border)' }}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Download className="h-5 w-5" style={{ color: 'var(--info)' }} />
+                  Export Reports
+                </CardTitle>
+                <CardDescription>Download executive reports in PDF or Excel format</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Button variant="outline" className="justify-start gap-2" onClick={() => kpis && exportKPIsToPDF(kpis)} disabled={!kpis}>
+                    <FileText className="h-4 w-4" />Executive Summary (PDF)
+                  </Button>
+                  <Button variant="outline" className="justify-start gap-2" onClick={() => savingsTrends && exportCostSavingsTrendsToExcel(savingsTrends)} disabled={!savingsTrends}>
+                    <TrendingUp className="h-4 w-4" />ROI & Cost Savings (Excel)
+                  </Button>
+                  <Button variant="outline" className="justify-start gap-2" onClick={() => financials && exportFinancialOverviewToPDF(financials)} disabled={!financials}>
+                    <DollarSign className="h-4 w-4" />Financial Overview (PDF)
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -1472,17 +862,13 @@ export default function ExecutiveDashboard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Comment</DialogTitle>
-            <DialogDescription>
-              Add a comment to Claim #{selectedClaim?.id}
-            </DialogDescription>
+            <DialogDescription>Add a comment to Claim #{selectedClaim?.id}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="commentType">Comment Type</Label>
               <Select value={commentType} onValueChange={setCommentType}>
-                <SelectTrigger id="commentType">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger id="commentType"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="general">General</SelectItem>
                   <SelectItem value="flag">Flag for Review</SelectItem>
@@ -1492,19 +878,11 @@ export default function ExecutiveDashboard() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="comment">Comment</Label>
-              <Textarea
-                id="comment"
-                value={commentContent}
-                onChange={(e) => setCommentContent(e.target.value)}
-                placeholder="Enter your comment..."
-                rows={4}
-              />
+              <Textarea id="comment" value={commentContent} onChange={(e) => setCommentContent(e.target.value)} placeholder="Enter your comment..." rows={4} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCommentDialog(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setShowCommentDialog(false)}>Cancel</Button>
             <Button onClick={handleSubmitComment}>Submit Comment</Button>
           </DialogFooter>
         </DialogContent>
@@ -1515,17 +893,13 @@ export default function ExecutiveDashboard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request Review</DialogTitle>
-            <DialogDescription>
-              Request a specialist review for Claim #{selectedClaim?.id}
-            </DialogDescription>
+            <DialogDescription>Request a specialist review for Claim #{selectedClaim?.id}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="reviewRole">Reviewer Role</Label>
               <Select value={reviewRole} onValueChange={setReviewRole}>
-                <SelectTrigger id="reviewRole">
-                  <SelectValue placeholder="Select role..." />
-                </SelectTrigger>
+                <SelectTrigger id="reviewRole"><SelectValue placeholder="Select role..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="fraud-specialist">Fraud Specialist</SelectItem>
                   <SelectItem value="senior-assessor">Senior Assessor</SelectItem>
@@ -1535,19 +909,11 @@ export default function ExecutiveDashboard() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="reviewNotes">Review Notes</Label>
-              <Textarea
-                id="reviewNotes"
-                value={reviewNotes}
-                onChange={(e) => setReviewNotes(e.target.value)}
-                placeholder="Explain why this claim needs review..."
-                rows={4}
-              />
+              <Textarea id="reviewNotes" value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} placeholder="Explain why this claim needs review..." rows={4} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReviewDialog(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setShowReviewDialog(false)}>Cancel</Button>
             <Button onClick={handleSubmitReviewRequest}>Request Review</Button>
           </DialogFooter>
         </DialogContent>

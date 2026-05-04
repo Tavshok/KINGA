@@ -11201,3 +11201,48 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Fix Claims Manager export — scope KingaReportButton to selected/active claim (per-claim, not bulk portfolio)
 - [ ] Fix pipeline never-completing — trace exact hang in orchestrator post-pipeline DB write
 - [ ] Add live pipeline status poller to claim detail page (real-time stage progress)
+
+## Dashboard Strategy Alignment (Phased Implementation)
+
+### P1 — Executive Dashboard
+- [ ] Hero numbers as first visible element, full width
+- [ ] Reduce tabs from 8 to 3: Overview · Operational Health · ROI Breakdown
+- [ ] Move chart row above tabs
+- [ ] Remove embedded Governance Intelligence component
+- [ ] Remove operational tabs: Assessors, Panel Beaters, Critical Alerts, Workflow, Financials, Analytics
+
+### P1 — Risk Manager Dashboard
+- [ ] Replace 4 KPI cards with 5 fraud intelligence KPIs
+- [ ] Remove analytics toggle — always show chart row
+- [ ] Add 12-month Fraud Rate Trend line chart
+- [ ] Add Incident Type x Risk Level Heatmap
+- [ ] Add Claim Frequency vs Severity Scatter chart
+- [ ] Add 5th tab (Repeat Claimants)
+
+### P1 — Panel Beater Dashboard
+- [ ] Replace Revenue KPI with Avg Variance from AI Estimate
+- [ ] Remove performance banner
+- [ ] Add Quote Competitiveness Scatter chart
+- [ ] Add Approval Rate Trend bar chart
+- [ ] Rename tabs: Active Jobs · Quote History · Analytics
+
+### P2 — Claims Manager Dashboard
+- [ ] Remove Show/Hide Analytics toggle
+- [ ] Remove Leakage Analysis tab
+
+### P2 — Claims Processor Dashboard
+- [ ] Add Tabs component with 4 tabs
+- [ ] Move stat bar above charts
+- [ ] Add KingaReportButton to header
+
+### P2 — Internal Assessor Dashboard
+- [ ] Remove Analytics tab — embed chart above tabs
+- [ ] Add KingaReportButton to header
+
+## Dashboard Strategy Alignment — Phase 1 Complete
+- [x] P1: Executive Dashboard restructured (3 tabs, hero numbers first, no embedded Governance)
+- [x] P1: Risk Manager Dashboard (5 fraud KPIs, 3 signature charts always visible, no toggle)
+- [x] P1: Panel Beater Dashboard (banner removed, Avg Variance KPI, Scatter + Outcomes charts)
+- [x] P2: Claims Manager Dashboard (analytics always visible, 5 tabs)
+- [x] P2: Claims Processor Dashboard (Quick Stats first, charts visible, 4-tab Tabs component)
+- [x] P2: Internal Assessor Dashboard (Analytics tab removed, perf summary above tabs)

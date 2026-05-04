@@ -572,6 +572,79 @@ export default function InternalAssessorDashboard() {
         />
       </div>
 
+      {/* ── PERFORMANCE SUMMARY (always visible) ── */}
+      {perfData && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-foreground">Your Performance</p>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs capitalize">
+                    <Shield className="h-3 w-3 mr-1" />
+                    {perfData.tier ?? "free"}
+                  </Badge>
+                  {perfData.performanceScore != null && (
+                    <Badge variant={perfData.performanceScore >= 80 ? "default" : "secondary"} className="text-xs">
+                      {perfData.performanceScore}%
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center p-2 rounded-lg bg-muted/40">
+                  <p className="text-xl font-bold text-foreground">{perfData.totalAssessmentsCompleted ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Total Completed</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-muted/40">
+                  <p className={`text-xl font-bold ${Math.abs(perfData.averageVarianceFromFinal ?? 0) > 15 ? 'text-red-600' : Math.abs(perfData.averageVarianceFromFinal ?? 0) > 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                    {perfData.averageVarianceFromFinal != null ? `${perfData.averageVarianceFromFinal > 0 ? '+' : ''}${perfData.averageVarianceFromFinal}%` : '—'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Avg Variance</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          {perfData.recentAssessments && perfData.recentAssessments.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-purple-500" /> Recent Evaluations
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 pb-2">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground">Claim</th>
+                        <th className="text-right py-1.5 px-3 font-semibold text-muted-foreground hidden sm:table-cell">Est. Cost</th>
+                        <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground">Risk</th>
+                        <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground hidden md:table-cell">Submitted</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {perfData.recentAssessments.slice(0, 5).map((ev: any) => (
+                        <tr key={ev.id} className="border-b hover:bg-muted/20">
+                          <td className="py-1.5 px-3 font-mono">#{ev.claimId}</td>
+                          <td className="py-1.5 px-3 text-right hidden sm:table-cell">
+                            {ev.estimatedRepairCost ? `${(ev.estimatedRepairCost / 100).toLocaleString()}` : '—'}
+                          </td>
+                          <td className="py-1.5 px-3">
+                            <span className={`font-medium capitalize ${riskColor(ev.fraudRiskLevel)}`}>{ev.fraudRiskLevel ?? '—'}</span>
+                          </td>
+                          <td className="py-1.5 px-3 text-muted-foreground hidden md:table-cell">{fmtDate(ev.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap h-auto gap-1 w-full sm:w-auto">
@@ -593,7 +666,6 @@ export default function InternalAssessorDashboard() {
             )}
           </TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
         {/* ── Tab 1: Assessment Queue ── */}
@@ -868,212 +940,6 @@ export default function InternalAssessorDashboard() {
           )}
         </TabsContent>
 
-        {/* ── Tab 5: Analytics ── */}
-        <TabsContent value="analytics" className="mt-4 space-y-5">
-          {perfLoading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" /> Loading analytics…
-            </div>
-          ) : perfData ? (
-            <>
-              {/* Tier badge */}
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge variant="outline" className="text-sm px-3 py-1 capitalize">
-                  <Shield className="h-3.5 w-3.5 mr-1.5" />
-                  Tier: {perfData.tier ?? "free"}
-                </Badge>
-                {perfData.performanceScore != null && (
-                  <Badge
-                    variant={perfData.performanceScore >= 80 ? "default" : "secondary"}
-                    className="text-sm px-3 py-1"
-                  >
-                    <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
-                    Performance: {perfData.performanceScore}%
-                  </Badge>
-                )}
-              </div>
-
-              {/* KPI grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatCard
-                  label="Total Assessments"
-                  value={perfData.totalAssessmentsCompleted ?? 0}
-                  icon={ClipboardList}
-                />
-                <StatCard
-                  label="Avg Variance"
-                  value={perfData.averageVarianceFromFinal != null ? `${perfData.averageVarianceFromFinal}%` : "—"}
-                  sub="From final approved amount"
-                  icon={Target}
-                />
-                <StatCard
-                  label="Assigned Claims"
-                  value={perfData.assignedClaims?.length ?? 0}
-                  sub="Currently assigned"
-                  icon={FileSearch}
-                />
-                <StatCard
-                  label="Recent Evaluations"
-                  value={perfData.recentAssessments?.length ?? 0}
-                  sub="Last 10 submissions"
-                  icon={CheckCheck}
-                  accent="text-green-600"
-                />
-              </div>
-
-              {/* Charts Row */}
-              {perfData.recentAssessments && perfData.recentAssessments.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Variance Bar Chart */}
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-semibold">My Estimate vs Approved Amount</CardTitle>
-                      <CardDescription className="text-xs">Last {Math.min(perfData.recentAssessments.length, 8)} assessments</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div style={{ height: 240 }}>
-                        <Bar
-                          data={{
-                            labels: perfData.recentAssessments.slice(0, 8).map((_: any, i: number) => `#${i + 1}`),
-                            datasets: [
-                              {
-                                label: 'My Estimate',
-                                data: perfData.recentAssessments.slice(0, 8).map((ev: any) => ev.estimatedRepairCost ? ev.estimatedRepairCost / 100 : 0),
-                                backgroundColor: 'rgba(99,102,241,0.7)',
-                                borderRadius: 3,
-                              },
-                            ],
-                          }}
-                          options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
-                            scales: { y: { beginAtZero: true, ticks: { callback: (v: any) => `${v.toLocaleString()}` } } },
-                          }}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Risk Level Donut */}
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-semibold">Risk Level Distribution</CardTitle>
-                      <CardDescription className="text-xs">Across your recent assessments</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div style={{ height: 240 }}>
-                        <Doughnut
-                          data={{
-                            labels: ['Low', 'Medium', 'High', 'Critical'],
-                            datasets: [{
-                              data: [
-                                perfData.recentAssessments.filter((ev: any) => ev.fraudRiskLevel === 'low').length,
-                                perfData.recentAssessments.filter((ev: any) => ev.fraudRiskLevel === 'medium').length,
-                                perfData.recentAssessments.filter((ev: any) => ev.fraudRiskLevel === 'high').length,
-                                perfData.recentAssessments.filter((ev: any) => ev.fraudRiskLevel === 'critical').length,
-                              ],
-                              backgroundColor: ['#22c55e', '#f59e0b', '#f97316', '#ef4444'],
-                              borderWidth: 0,
-                            }],
-                          }}
-                          options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Recent assessments table */}
-              {perfData.recentAssessments && perfData.recentAssessments.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Brain className="h-4 w-4 text-purple-500" /> Recent Evaluations
-                    </CardTitle>
-                    <CardDescription>Your last {perfData.recentAssessments.length} submitted assessments</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Claim ID</TableHead>
-                          <TableHead className="hidden sm:table-cell">Repair Cost</TableHead>
-                          <TableHead className="hidden md:table-cell">Duration</TableHead>
-                          <TableHead>Risk</TableHead>
-                          <TableHead className="hidden sm:table-cell">Submitted</TableHead>
-                          <TableHead></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {perfData.recentAssessments.map((ev: any) => (
-                          <TableRow key={ev.id}>
-                            <TableCell className="font-medium">#{ev.claimId}</TableCell>
-                            <TableCell className="hidden sm:table-cell text-sm">
-                              {ev.estimatedRepairCost
-                                ? `${currencySymbol(undefined)} ${(ev.estimatedRepairCost / 100).toLocaleString()}`
-                                : "—"}
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                              {ev.estimatedDuration ? `${ev.estimatedDuration} days` : "—"}
-                            </TableCell>
-                            <TableCell>
-                              <span className={`text-sm font-medium capitalize ${riskColor(ev.fraudRiskLevel)}`}>
-                                {ev.fraudRiskLevel ?? "—"}
-                              </span>
-                            </TableCell>
-                            <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                              {fmtDate(ev.createdAt)}
-                            </TableCell>
-                            <TableCell>
-                              <Link href={`/insurer/comparison/${ev.claimId}`}>
-                                <Button size="sm" variant="ghost">
-                                  <ArrowRight className="h-3.5 w-3.5" />
-                                </Button>
-                              </Link>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Tier info */}
-              {(perfData.tierActivatedAt || perfData.tierExpiresAt) && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                      Subscription
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                    {perfData.tierActivatedAt && (
-                      <div>
-                        <p className="text-muted-foreground">Activated</p>
-                        <p className="font-medium">{fmtDate(perfData.tierActivatedAt)}</p>
-                      </div>
-                    )}
-                    {perfData.tierExpiresAt && (
-                      <div>
-                        <p className="text-muted-foreground">Expires</p>
-                        <p className="font-medium">{fmtDate(perfData.tierExpiresAt)}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-16 border border-dashed border-border rounded-lg">
-              <BarChart3 className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="font-medium text-foreground">No analytics data yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Analytics will populate as you complete assessments</p>
-            </div>
-          )}
-        </TabsContent>
       </Tabs>
 
       {/* Assessment dialog */}
