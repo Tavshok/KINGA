@@ -20,6 +20,7 @@ import { useLocation } from "wouter";
 import KingaLogo from "@/components/KingaLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
+import { KingaReportButton } from "@/components/KingaReportButton";
 
 function PerformanceTierBadge({ tier }: { tier: string | null | undefined }) {
   const config: Record<string, { label: string; className: string }> = {
@@ -96,6 +97,12 @@ export default function PanelBeaterDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <KingaReportButton
+              reportKey="portfolio.panel_beater_performance"
+              label="Export Performance Report"
+              variant="outline"
+              size="sm"
+            />
             <RoleSwitcher />
             <NotificationBell />
             <div className="text-right hidden sm:block">

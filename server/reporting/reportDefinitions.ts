@@ -1,9 +1,34 @@
 /**
  * KINGA Report Definition Registry
- * 
+ *
  * All report types, their metadata, access roles, and HTML generation functions.
  * Palette: black / white / grey only. Colour permitted in charts only.
  * Logo: top-right corner via base template.
+ *
+ * COLUMN MAPPING (verified against live DB 2026-05-04):
+ *   c.psm_status            → c.status
+ *   a.overall_fraud_score   → a.fraud_score
+ *   a.final_recommendation  → a.recommendation
+ *   a.total_claimed_amount  → a.estimated_cost  (AI estimate, not a claimed field)
+ *   a.ai_recommended_settlement → a.estimated_cost
+ *   a.true_cost_estimate    → a.estimated_cost
+ *   a.claim_quality_score   → c.confidence_score
+ *   a.narrative_analysis    → a.narrative_analysis_json
+ *   a.decision_authority    → a.decision_authority_json
+ *   a.pipeline_version      → a.model_version
+ *   a.fraud_analysis        → a.fraud_score_breakdown_json
+ *   a.forensic_audit_validation → a.forensic_audit_validation_json
+ *   a.input_fidelity_result → a.ife_result_json
+ *   a.cost_intelligence     → a.cost_intelligence_json
+ *   a.repair_intelligence   → a.repair_intelligence_json
+ *   a.vehicle_valuation     → c.vehicle_market_value
+ *   a.repair_vs_replace_recommendation → derived from a.total_loss_indicated + a.repair_to_value_ratio
+ *   c.vehicle_description   → CONCAT(c.vehicle_make,' ',c.vehicle_model,' ',c.vehicle_year)
+ *   c.date_of_loss          → c.incident_date
+ *   c.policyholder_name     → c.lodger_name
+ *   c.policyholder_id       → c.claimant_id
+ *   c.claim_type            → c.incident_type
+ *   a.triggered_by_admin    → a.triggered_role
  */
 
 import mysql from "mysql2/promise";
@@ -70,17 +95,19 @@ async function generateClaimAssessmentReport(
   const claimId = params.claimId as number;
   const conn = await getConn();
   try {
+    // All column names verified against live DB 2026-05-04
     const [claims] = await conn.execute(
-      `SELECT c.*, a.overall_fraud_score, a.fraud_risk_level, a.final_recommendation,
-              a.total_claimed_amount, a.ai_recommended_settlement, a.true_cost_estimate,
-              a.damage_description, a.repair_vs_replace_recommendation,
-              a.pipeline_version, a.created_at as assessment_date,
-              a.claim_quality_score, a.data_completeness_score,
-              a.narrative_analysis, a.decision_authority
+      `SELECT c.*,
+              CONCAT(c.vehicle_make, ' ', c.vehicle_model, ' ', c.vehicle_year) AS vehicle_description,
+              a.fraud_score, a.fraud_risk_level, a.recommendation,
+              a.estimated_cost, a.parts_cost, a.labor_cost,
+              a.damage_description, a.total_loss_indicated, a.repair_to_value_ratio,
+              a.model_version, a.created_at AS assessment_date,
+              a.narrative_analysis_json, a.decision_authority_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
-       WHERE c.id = ? ORDER BY a.created_at DESC LIMIT 1`,
-      [claimId]
+       WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""} ORDER BY a.created_at DESC LIMIT 1`,
+      tenantId ? [claimId, tenantId] : [claimId]
     ) as [Record<string, unknown>[], unknown];
 
     const claim = claims[0];
@@ -93,6 +120,13 @@ async function generateClaimAssessmentReport(
       [claimId]
     ) as [Record<string, unknown>[], unknown];
 
+    const parseJson = (val: unknown) => {
+      if (!val) return null;
+      try { return typeof val === "string" ? JSON.parse(val) : val; } catch { return null; }
+    };
+
+    const decisionAuth = parseJson(claim.decision_authority_json);
+
     const meta: ReportMeta = {
       title: "AI Assessment Report",
       subtitle: `Claim Reference: ${claim.claim_reference ?? claim.id}`,
@@ -103,8 +137,12 @@ async function generateClaimAssessmentReport(
       classification: "CONFIDENTIAL",
     };
 
-    const fraudScore = Number(claim.overall_fraud_score ?? 0);
-    const qualityScore = Number(claim.claim_quality_score ?? 0);
+    const fraudScore = Number(claim.fraud_score ?? 0);
+    const confidenceScore = Number(claim.confidence_score ?? 0);
+    const estimatedCost = Number(claim.estimated_cost ?? 0);
+    const repairDecision = claim.total_loss_indicated
+      ? "TOTAL LOSS — Replace Vehicle"
+      : `REPAIR — Repair-to-Value Ratio: ${fmtPct(claim.repair_to_value_ratio as number)}`;
 
     const body = `
       <!-- Claim Overview -->
@@ -112,14 +150,14 @@ async function generateClaimAssessmentReport(
         <div class="section-title">1. Claim Overview</div>
         <div class="kv-grid cols-3">
           <div class="kv-item"><div class="kv-label">Claim Reference</div><div class="kv-value mono">${escHtml(String(claim.claim_reference ?? claim.id))}</div></div>
-          <div class="kv-item"><div class="kv-label">Claim Type</div><div class="kv-value">${escHtml(String(claim.claim_type ?? "Motor Vehicle"))}</div></div>
-          <div class="kv-item"><div class="kv-label">Date of Loss</div><div class="kv-value">${fmtDate(claim.date_of_loss as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Policyholder</div><div class="kv-value">${escHtml(String(claim.policyholder_name ?? "—"))}</div></div>
+          <div class="kv-item"><div class="kv-label">Incident Type</div><div class="kv-value">${escHtml(String(claim.incident_type ?? "Motor Vehicle"))}</div></div>
+          <div class="kv-item"><div class="kv-label">Date of Incident</div><div class="kv-value">${fmtDate(claim.incident_date as number)}</div></div>
+          <div class="kv-item"><div class="kv-label">Lodged By</div><div class="kv-value">${escHtml(String(claim.lodger_name ?? "—"))}</div></div>
           <div class="kv-item"><div class="kv-label">Policy Number</div><div class="kv-value mono">${escHtml(String(claim.policy_number ?? "—"))}</div></div>
           <div class="kv-item"><div class="kv-label">Vehicle</div><div class="kv-value">${escHtml(String(claim.vehicle_description ?? "—"))}</div></div>
           <div class="kv-item"><div class="kv-label">Submitted</div><div class="kv-value">${fmtDate(claim.created_at as number)}</div></div>
           <div class="kv-item"><div class="kv-label">Assessment Date</div><div class="kv-value">${fmtDateTime(claim.assessment_date as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Pipeline Version</div><div class="kv-value mono">${escHtml(String(claim.pipeline_version ?? "v2"))}</div></div>
+          <div class="kv-item"><div class="kv-label">Pipeline Version</div><div class="kv-value mono">${escHtml(String(claim.model_version ?? "v2"))}</div></div>
         </div>
       </div>
 
@@ -129,13 +167,13 @@ async function generateClaimAssessmentReport(
         <div class="kv-grid cols-4">
           <div class="kv-item"><div class="kv-label">Fraud Risk</div><div class="kv-value">${riskBadge(String(claim.fraud_risk_level ?? "low"))}</div></div>
           <div class="kv-item"><div class="kv-label">Fraud Score</div><div class="kv-value">${scoreBar(fraudScore)}</div></div>
-          <div class="kv-item"><div class="kv-label">Claim Quality</div><div class="kv-value">${scoreBar(qualityScore)}</div></div>
-          <div class="kv-item"><div class="kv-label">Recommendation</div><div class="kv-value bold">${escHtml(String(claim.final_recommendation ?? "—")).toUpperCase()}</div></div>
+          <div class="kv-item"><div class="kv-label">Confidence Score</div><div class="kv-value">${scoreBar(confidenceScore)}</div></div>
+          <div class="kv-item"><div class="kv-label">Recommendation</div><div class="kv-value bold">${escHtml(String(claim.recommendation ?? "—")).toUpperCase()}</div></div>
         </div>
         <div class="kv-grid cols-3">
-          <div class="kv-item"><div class="kv-label">Amount Claimed</div><div class="kv-value">${fmtCurrency(claim.total_claimed_amount as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">AI True Cost Estimate</div><div class="kv-value">${fmtCurrency(claim.true_cost_estimate as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Recommended Settlement</div><div class="kv-value bold">${fmtCurrency(claim.ai_recommended_settlement as number)}</div></div>
+          <div class="kv-item"><div class="kv-label">AI Estimated Cost</div><div class="kv-value bold">${fmtCurrency(estimatedCost)}</div></div>
+          <div class="kv-item"><div class="kv-label">Parts Cost</div><div class="kv-value">${fmtCurrency(claim.parts_cost as number)}</div></div>
+          <div class="kv-item"><div class="kv-label">Labour Cost</div><div class="kv-value">${fmtCurrency(claim.labor_cost as number)}</div></div>
         </div>
       </div>
 
@@ -169,7 +207,7 @@ async function generateClaimAssessmentReport(
       <div class="section">
         <div class="section-title">4. Repair vs Replace Recommendation</div>
         <div class="finding-box">
-          <strong>Decision:</strong> ${escHtml(String(claim.repair_vs_replace_recommendation ?? "—"))}
+          <strong>Decision:</strong> ${escHtml(repairDecision)}
         </div>
       </div>
 
@@ -177,7 +215,11 @@ async function generateClaimAssessmentReport(
       <div class="section">
         <div class="section-title">5. Decision Authority &amp; Next Steps</div>
         <div class="finding-box info">
-          ${escHtml(String(claim.decision_authority ?? "Refer to Claims Manager for final approval."))}
+          ${escHtml(String(
+            typeof decisionAuth === "object" && decisionAuth !== null
+              ? (decisionAuth as Record<string, unknown>).summary ?? JSON.stringify(decisionAuth)
+              : decisionAuth ?? "Refer to Claims Manager for final approval."
+          ))}
         </div>
       </div>
 
@@ -201,17 +243,21 @@ async function generateForensicReport(
   const claimId = params.claimId as number;
   const conn = await getConn();
   try {
+    // All column names verified against live DB 2026-05-04
     const [claims] = await conn.execute(
-      `SELECT c.*, a.overall_fraud_score, a.fraud_risk_level, a.final_recommendation,
-              a.total_claimed_amount, a.true_cost_estimate, a.ai_recommended_settlement,
-              a.physics_analysis, a.fraud_analysis, a.forensic_audit_validation,
-              a.narrative_analysis, a.damage_description, a.pipeline_version,
-              a.created_at as assessment_date, a.claim_quality_score,
-              a.input_fidelity_result, a.decision_authority
+      `SELECT c.*,
+              CONCAT(c.vehicle_make, ' ', c.vehicle_model, ' ', c.vehicle_year) AS vehicle_description,
+              a.fraud_score, a.fraud_risk_level, a.recommendation,
+              a.estimated_cost, a.total_loss_indicated, a.repair_to_value_ratio,
+              a.physics_analysis, a.fraud_score_breakdown_json,
+              a.forensic_audit_validation_json, a.narrative_analysis_json,
+              a.damage_description, a.model_version,
+              a.created_at AS assessment_date, a.ife_result_json,
+              a.decision_authority_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
-       WHERE c.id = ? ORDER BY a.created_at DESC LIMIT 1`,
-      [claimId]
+       WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""} ORDER BY a.created_at DESC LIMIT 1`,
+      tenantId ? [claimId, tenantId] : [claimId]
     ) as [Record<string, unknown>[], unknown];
 
     const claim = claims[0];
@@ -223,10 +269,10 @@ async function generateForensicReport(
     };
 
     const physics = parseJson(claim.physics_analysis);
-    const fraud = parseJson(claim.fraud_analysis);
-    const forensic = parseJson(claim.forensic_audit_validation);
-    const narrative = parseJson(claim.narrative_analysis);
-    const ife = parseJson(claim.input_fidelity_result);
+    const fraud = parseJson(claim.fraud_score_breakdown_json);
+    const forensic = parseJson(claim.forensic_audit_validation_json);
+    const narrative = parseJson(claim.narrative_analysis_json);
+    const ife = parseJson(claim.ife_result_json);
 
     const meta: ReportMeta = {
       title: "Forensic Analysis Report",
@@ -238,7 +284,7 @@ async function generateForensicReport(
       classification: "CONFIDENTIAL",
     };
 
-    const fraudScore = Number(claim.overall_fraud_score ?? 0);
+    const fraudScore = Number(claim.fraud_score ?? 0);
 
     const body = `
       <!-- Claim Identity -->
@@ -246,11 +292,11 @@ async function generateForensicReport(
         <div class="section-title">1. Claim Identity</div>
         <div class="kv-grid cols-3">
           <div class="kv-item"><div class="kv-label">Claim Reference</div><div class="kv-value mono">${escHtml(String(claim.claim_reference ?? claim.id))}</div></div>
-          <div class="kv-item"><div class="kv-label">Date of Loss</div><div class="kv-value">${fmtDate(claim.date_of_loss as number)}</div></div>
+          <div class="kv-item"><div class="kv-label">Date of Incident</div><div class="kv-value">${fmtDate(claim.incident_date as number)}</div></div>
           <div class="kv-item"><div class="kv-label">Assessment Date</div><div class="kv-value">${fmtDateTime(claim.assessment_date as number)}</div></div>
           <div class="kv-item"><div class="kv-label">Vehicle</div><div class="kv-value">${escHtml(String(claim.vehicle_description ?? "—"))}</div></div>
           <div class="kv-item"><div class="kv-label">Incident Location</div><div class="kv-value">${escHtml(String(claim.incident_location ?? "—"))}</div></div>
-          <div class="kv-item"><div class="kv-label">Pipeline Version</div><div class="kv-value mono">${escHtml(String(claim.pipeline_version ?? "v2"))}</div></div>
+          <div class="kv-item"><div class="kv-label">Pipeline Version</div><div class="kv-value mono">${escHtml(String(claim.model_version ?? "v2"))}</div></div>
         </div>
       </div>
 
@@ -260,8 +306,8 @@ async function generateForensicReport(
         <div class="kv-grid cols-4">
           <div class="kv-item"><div class="kv-label">Overall Risk Level</div><div class="kv-value">${riskBadge(String(claim.fraud_risk_level ?? "low"))}</div></div>
           <div class="kv-item"><div class="kv-label">Fraud Score</div><div class="kv-value">${scoreBar(fraudScore)}</div></div>
-          <div class="kv-item"><div class="kv-label">Claim Quality</div><div class="kv-value">${scoreBar(Number(claim.claim_quality_score ?? 0))}</div></div>
-          <div class="kv-item"><div class="kv-label">Final Recommendation</div><div class="kv-value bold">${escHtml(String(claim.final_recommendation ?? "—")).toUpperCase()}</div></div>
+          <div class="kv-item"><div class="kv-label">Confidence Score</div><div class="kv-value">${scoreBar(Number(claim.confidence_score ?? 0))}</div></div>
+          <div class="kv-item"><div class="kv-label">Recommendation</div><div class="kv-value bold">${escHtml(String(claim.recommendation ?? "—")).toUpperCase()}</div></div>
         </div>
         ${fraud?.indicators?.length ? `
         <div class="subsection-title">Triggered Fraud Indicators</div>
@@ -346,13 +392,9 @@ async function generateForensicReport(
       <!-- Decision Authority -->
       <div class="section">
         <div class="section-title">7. Decision Authority &amp; Recommended Action</div>
-        <div class="kv-grid cols-3">
-          <div class="kv-item"><div class="kv-label">Amount Claimed</div><div class="kv-value">${fmtCurrency(claim.total_claimed_amount as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">AI True Cost</div><div class="kv-value">${fmtCurrency(claim.true_cost_estimate as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Recommended Settlement</div><div class="kv-value bold">${fmtCurrency(claim.ai_recommended_settlement as number)}</div></div>
-        </div>
-        <div class="finding-box">
-          <strong>Decision Authority:</strong> ${escHtml(String(claim.decision_authority ?? "Refer to Claims Manager."))}
+        <div class="kv-grid cols-2">
+          <div class="kv-item"><div class="kv-label">AI Estimated Cost</div><div class="kv-value">${fmtCurrency(claim.estimated_cost as number)}</div></div>
+          <div class="kv-item"><div class="kv-label">Total Loss Indicated</div><div class="kv-value bold">${claim.total_loss_indicated ? "YES" : "No"}</div></div>
         </div>
       </div>
 
@@ -376,9 +418,10 @@ async function generateAuditTrailReport(
   const claimId = params.claimId as number;
   const conn = await getConn();
   try {
+    // c.psm_status → c.status (verified 2026-05-04)
     const [claims] = await conn.execute(
-      `SELECT c.claim_reference, c.id, c.psm_status, c.created_at, c.updated_at,
-              c.insurer_name, c.policyholder_name
+      `SELECT c.claim_reference, c.id, c.status, c.workflow_state, c.created_at, c.updated_at,
+              c.insurer_name, c.lodger_name
        FROM claims c WHERE c.id=? LIMIT 1`,
       [claimId]
     ) as [Record<string, unknown>[], unknown];
@@ -392,9 +435,10 @@ async function generateAuditTrailReport(
       [claimId]
     ) as [Record<string, unknown>[], unknown];
 
+    // a.triggered_by_admin → a.triggered_role (verified 2026-05-04)
     const [assessments] = await conn.execute(
-      `SELECT id, pipeline_version, overall_fraud_score, fraud_risk_level,
-              final_recommendation, created_at, triggered_by_admin
+      `SELECT id, model_version, fraud_score, fraud_risk_level,
+              recommendation, created_at, triggered_role
        FROM ai_assessments WHERE claim_id=? ORDER BY created_at ASC`,
       [claimId]
     ) as [Record<string, unknown>[], unknown];
@@ -414,11 +458,11 @@ async function generateAuditTrailReport(
         <div class="section-title">1. Claim Identity</div>
         <div class="kv-grid cols-3">
           <div class="kv-item"><div class="kv-label">Claim Reference</div><div class="kv-value mono">${escHtml(String(claim.claim_reference ?? claim.id))}</div></div>
-          <div class="kv-item"><div class="kv-label">Policyholder</div><div class="kv-value">${escHtml(String(claim.policyholder_name ?? "—"))}</div></div>
-          <div class="kv-item"><div class="kv-label">Current Status</div><div class="kv-value">${escHtml(String(claim.psm_status ?? "—"))}</div></div>
+          <div class="kv-item"><div class="kv-label">Lodged By</div><div class="kv-value">${escHtml(String(claim.lodger_name ?? "—"))}</div></div>
+          <div class="kv-item"><div class="kv-label">Current Status</div><div class="kv-value">${escHtml(String(claim.status ?? "—"))}</div></div>
+          <div class="kv-item"><div class="kv-label">Workflow State</div><div class="kv-value">${escHtml(String(claim.workflow_state ?? "—"))}</div></div>
           <div class="kv-item"><div class="kv-label">Submitted</div><div class="kv-value">${fmtDateTime(claim.created_at as number)}</div></div>
           <div class="kv-item"><div class="kv-label">Last Updated</div><div class="kv-value">${fmtDateTime(claim.updated_at as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Insurer</div><div class="kv-value">${escHtml(String(claim.insurer_name ?? "—"))}</div></div>
         </div>
       </div>
 
@@ -446,17 +490,17 @@ async function generateAuditTrailReport(
         <div class="section-title">3. AI Assessment History</div>
         ${(assessments as Record<string, unknown>[]).length > 0 ? `
         <table>
-          <thead><tr><th>Assessment ID</th><th>Date</th><th>Pipeline</th><th>Fraud Score</th><th>Risk Level</th><th>Recommendation</th><th>Admin Triggered</th></tr></thead>
+          <thead><tr><th>Assessment ID</th><th>Date</th><th>Pipeline</th><th>Fraud Score</th><th>Risk Level</th><th>Recommendation</th><th>Triggered By</th></tr></thead>
           <tbody>
             ${(assessments as Record<string, unknown>[]).map((a) => `
               <tr>
                 <td class="mono small">${a.id}</td>
                 <td class="small">${fmtDateTime(a.created_at as number)}</td>
-                <td class="mono small">${escHtml(String(a.pipeline_version ?? "v2"))}</td>
-                <td>${scoreBar(Number(a.overall_fraud_score ?? 0))}</td>
+                <td class="mono small">${escHtml(String(a.model_version ?? "v2"))}</td>
+                <td>${scoreBar(Number(a.fraud_score ?? 0))}</td>
                 <td>${riskBadge(String(a.fraud_risk_level ?? "low"))}</td>
-                <td class="bold">${escHtml(String(a.final_recommendation ?? "—")).toUpperCase()}</td>
-                <td>${a.triggered_by_admin ? "YES" : "No"}</td>
+                <td class="bold">${escHtml(String(a.recommendation ?? "—")).toUpperCase()}</td>
+                <td>${escHtml(String(a.triggered_role ?? "system"))}</td>
               </tr>`).join("")}
           </tbody>
         </table>` : `<div class="finding-box info">No AI assessments recorded.</div>`}
@@ -481,10 +525,12 @@ async function generateCostComparisonReport(
   const claimId = params.claimId as number;
   const conn = await getConn();
   try {
+    // All column names verified 2026-05-04
     const [claims] = await conn.execute(
-      `SELECT c.claim_reference, c.id, c.insurer_name, c.vehicle_description,
-              a.total_claimed_amount, a.true_cost_estimate, a.ai_recommended_settlement,
-              a.cost_intelligence, a.created_at as assessment_date
+      `SELECT c.claim_reference, c.id, c.insurer_name,
+              CONCAT(c.vehicle_make, ' ', c.vehicle_model, ' ', c.vehicle_year) AS vehicle_description,
+              a.estimated_cost, a.parts_cost, a.labor_cost,
+              a.cost_intelligence_json, a.created_at AS assessment_date
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id=c.id
        WHERE c.id=? ORDER BY a.created_at DESC LIMIT 1`,
@@ -504,12 +550,11 @@ async function generateCostComparisonReport(
       if (!val) return null;
       try { return typeof val === "string" ? JSON.parse(val) : val; } catch { return null; }
     };
-    const costIntel = parseJson(claim.cost_intelligence);
+    const costIntel = parseJson(claim.cost_intelligence_json);
 
-    const claimed = Number(claim.total_claimed_amount ?? 0);
-    const trueCost = Number(claim.true_cost_estimate ?? 0);
-    const recommended = Number(claim.ai_recommended_settlement ?? 0);
-    const variance = claimed > 0 ? ((claimed - trueCost) / trueCost) * 100 : 0;
+    const estimatedCost = Number(claim.estimated_cost ?? 0);
+    const partsCost = Number(claim.parts_cost ?? 0);
+    const laborCost = Number(claim.labor_cost ?? 0);
 
     const meta: ReportMeta = {
       title: "Cost Comparison Report",
@@ -524,18 +569,11 @@ async function generateCostComparisonReport(
     const body = `
       <div class="section">
         <div class="section-title">1. Cost Summary</div>
-        <div class="kv-grid cols-4">
-          <div class="kv-item"><div class="kv-label">Amount Claimed</div><div class="kv-value bold">${fmtCurrency(claimed)}</div></div>
-          <div class="kv-item"><div class="kv-label">AI True Cost Estimate</div><div class="kv-value bold">${fmtCurrency(trueCost)}</div></div>
-          <div class="kv-item"><div class="kv-label">Variance</div><div class="kv-value bold">${variance >= 0 ? "+" : ""}${variance.toFixed(1)}%</div></div>
-          <div class="kv-item"><div class="kv-label">Recommended Settlement</div><div class="kv-value bold">${fmtCurrency(recommended)}</div></div>
+        <div class="kv-grid cols-3">
+          <div class="kv-item"><div class="kv-label">AI Estimated Total Cost</div><div class="kv-value bold">${fmtCurrency(estimatedCost)}</div></div>
+          <div class="kv-item"><div class="kv-label">Parts Cost</div><div class="kv-value">${fmtCurrency(partsCost)}</div></div>
+          <div class="kv-item"><div class="kv-label">Labour Cost</div><div class="kv-value">${fmtCurrency(laborCost)}</div></div>
         </div>
-        ${Math.abs(variance) > 20 ? `
-        <div class="finding-box ${variance > 20 ? "" : "info"}">
-          <strong>${variance > 20 ? "Overpayment Risk:" : "Underpayment Risk:"}</strong>
-          The claimed amount is ${Math.abs(variance).toFixed(1)}% ${variance > 20 ? "above" : "below"} the AI true cost estimate.
-          ${variance > 20 ? "This may indicate inflated components, duplicate line items, or unrelated damage inclusion." : "This may indicate missing components or under-scoped damage."}
-        </div>` : ""}
       </div>
 
       ${(components as Record<string, unknown>[]).length > 0 ? `
@@ -593,10 +631,14 @@ async function generateRepairDecisionReport(
   const claimId = params.claimId as number;
   const conn = await getConn();
   try {
+    // All column names verified 2026-05-04
     const [claims] = await conn.execute(
-      `SELECT c.claim_reference, c.id, c.insurer_name, c.vehicle_description,
-              a.repair_vs_replace_recommendation, a.repair_intelligence,
-              a.true_cost_estimate, a.vehicle_valuation, a.created_at as assessment_date
+      `SELECT c.claim_reference, c.id, c.insurer_name,
+              CONCAT(c.vehicle_make, ' ', c.vehicle_model, ' ', c.vehicle_year) AS vehicle_description,
+              c.vehicle_market_value,
+              a.total_loss_indicated, a.repair_to_value_ratio,
+              a.repair_intelligence_json, a.estimated_cost,
+              a.created_at AS assessment_date
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id=c.id
        WHERE c.id=? ORDER BY a.created_at DESC LIMIT 1`,
@@ -609,8 +651,7 @@ async function generateRepairDecisionReport(
       if (!val) return null;
       try { return typeof val === "string" ? JSON.parse(val) : val; } catch { return null; }
     };
-    const repairIntel = parseJson(claim.repair_intelligence);
-    const valuation = parseJson(claim.vehicle_valuation);
+    const repairIntel = parseJson(claim.repair_intelligence_json);
 
     const meta: ReportMeta = {
       title: "Repair vs Replace Decision Report",
@@ -622,40 +663,40 @@ async function generateRepairDecisionReport(
       classification: "INTERNAL",
     };
 
+    const repairDecision = claim.total_loss_indicated
+      ? "TOTAL LOSS — Replace Vehicle"
+      : `REPAIR — Repair-to-Value Ratio: ${fmtPct(claim.repair_to_value_ratio as number)}`;
+
     const body = `
       <div class="section">
         <div class="section-title">1. Vehicle &amp; Damage Overview</div>
         <div class="kv-grid cols-3">
           <div class="kv-item"><div class="kv-label">Vehicle</div><div class="kv-value">${escHtml(String(claim.vehicle_description ?? "—"))}</div></div>
-          <div class="kv-item"><div class="kv-label">Repair Cost Estimate</div><div class="kv-value">${fmtCurrency(claim.true_cost_estimate as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Vehicle Market Value</div><div class="kv-value">${valuation?.marketValue ? fmtCurrency(valuation.marketValue) : "—"}</div></div>
+          <div class="kv-item"><div class="kv-label">Repair Cost Estimate</div><div class="kv-value">${fmtCurrency(claim.estimated_cost as number)}</div></div>
+          <div class="kv-item"><div class="kv-label">Vehicle Market Value</div><div class="kv-value">${claim.vehicle_market_value ? fmtCurrency(claim.vehicle_market_value as number) : "—"}</div></div>
         </div>
       </div>
 
       <div class="section">
         <div class="section-title">2. Repair vs Replace Recommendation</div>
         <div class="finding-box">
-          <strong>AI Decision:</strong> ${escHtml(String(claim.repair_vs_replace_recommendation ?? "—"))}
+          <strong>AI Decision:</strong> ${escHtml(repairDecision)}
         </div>
         ${repairIntel ? `
         <div class="kv-grid cols-3">
           ${repairIntel.repairScore != null ? `<div class="kv-item"><div class="kv-label">Repair Score</div><div class="kv-value">${scoreBar(repairIntel.repairScore)}</div></div>` : ""}
           ${repairIntel.totalLossThreshold != null ? `<div class="kv-item"><div class="kv-label">Total Loss Threshold</div><div class="kv-value">${fmtPct(repairIntel.totalLossThreshold)}</div></div>` : ""}
-          ${repairIntel.repairToValueRatio != null ? `<div class="kv-item"><div class="kv-label">Repair-to-Value Ratio</div><div class="kv-value bold">${fmtPct(repairIntel.repairToValueRatio)}</div></div>` : ""}
+          ${claim.repair_to_value_ratio != null ? `<div class="kv-item"><div class="kv-label">Repair-to-Value Ratio</div><div class="kv-value bold">${fmtPct(claim.repair_to_value_ratio as number)}</div></div>` : ""}
         </div>
         ${repairIntel.reasoning ? `<div class="finding-box info"><strong>Reasoning:</strong> ${escHtml(repairIntel.reasoning)}</div>` : ""}` : ""}
       </div>
 
-      ${valuation ? `
+      ${claim.vehicle_market_value ? `
       <div class="section">
-        <div class="section-title">3. Vehicle Valuation</div>
-        <div class="kv-grid cols-3">
-          ${valuation.marketValue != null ? `<div class="kv-item"><div class="kv-label">Market Value</div><div class="kv-value">${fmtCurrency(valuation.marketValue)}</div></div>` : ""}
-          ${valuation.retailValue != null ? `<div class="kv-item"><div class="kv-label">Retail Value</div><div class="kv-value">${fmtCurrency(valuation.retailValue)}</div></div>` : ""}
-          ${valuation.tradeValue != null ? `<div class="kv-item"><div class="kv-label">Trade Value</div><div class="kv-value">${fmtCurrency(valuation.tradeValue)}</div></div>` : ""}
-          ${valuation.salvageValue != null ? `<div class="kv-item"><div class="kv-label">Salvage Value</div><div class="kv-value">${fmtCurrency(valuation.salvageValue)}</div></div>` : ""}
-          ${valuation.year != null ? `<div class="kv-item"><div class="kv-label">Year</div><div class="kv-value">${valuation.year}</div></div>` : ""}
-          ${valuation.mileage != null ? `<div class="kv-item"><div class="kv-label">Mileage</div><div class="kv-value">${Number(valuation.mileage).toLocaleString()} km</div></div>` : ""}
+        <div class="section-title">3. Vehicle Market Value</div>
+        <div class="kv-grid cols-2">
+          <div class="kv-item"><div class="kv-label">Market Value</div><div class="kv-value">${fmtCurrency(claim.vehicle_market_value as number)}</div></div>
+          <div class="kv-item"><div class="kv-label">Vehicle</div><div class="kv-value">${escHtml(String(claim.vehicle_description ?? "—"))}</div></div>
         </div>
       </div>` : ""}
 
@@ -688,18 +729,18 @@ async function generateClaimsSummaryReport(
       : `WHERE c.created_at BETWEEN ? AND ?`;
     const whereParams = tid ? [tid, fromTs, toTs] : [fromTs, toTs];
 
+    // c.psm_status → c.status; a.overall_fraud_score → a.fraud_score; a.total_claimed_amount → a.estimated_cost
     const [summary] = await conn.execute(
       `SELECT
         COUNT(*) as total_claims,
-        SUM(CASE WHEN c.psm_status='approved' THEN 1 ELSE 0 END) as approved,
-        SUM(CASE WHEN c.psm_status='rejected' THEN 1 ELSE 0 END) as rejected,
-        SUM(CASE WHEN c.psm_status IN ('in_review','assessment_in_progress') THEN 1 ELSE 0 END) as in_progress,
-        SUM(CASE WHEN c.psm_status='settled' THEN 1 ELSE 0 END) as settled,
-        AVG(a.overall_fraud_score) as avg_fraud_score,
+        SUM(CASE WHEN c.status='approved' THEN 1 ELSE 0 END) as approved,
+        SUM(CASE WHEN c.status='rejected' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN c.status IN ('in_review','assessment_in_progress','submitted') THEN 1 ELSE 0 END) as in_progress,
+        SUM(CASE WHEN c.status='settled' THEN 1 ELSE 0 END) as settled,
+        AVG(a.fraud_score) as avg_fraud_score,
         SUM(CASE WHEN a.fraud_risk_level='high' OR a.fraud_risk_level='critical' THEN 1 ELSE 0 END) as high_risk_count,
-        SUM(a.total_claimed_amount) as total_claimed,
-        SUM(a.ai_recommended_settlement) as total_recommended,
-        AVG(a.claim_quality_score) as avg_quality_score
+        SUM(a.estimated_cost) as total_estimated,
+        AVG(c.confidence_score) as avg_quality_score
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id=c.id
        ${whereClause}`,
@@ -708,10 +749,11 @@ async function generateClaimsSummaryReport(
 
     const stats = (summary as Record<string, unknown>[])[0] ?? {};
 
+    // c.claim_type → c.incident_type
     const [byType] = await conn.execute(
-      `SELECT c.claim_type, COUNT(*) as cnt, SUM(a.total_claimed_amount) as total_value
+      `SELECT c.incident_type, COUNT(*) as cnt, SUM(a.estimated_cost) as total_value
        FROM claims c LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       ${whereClause} GROUP BY c.claim_type ORDER BY cnt DESC`,
+       ${whereClause} GROUP BY c.incident_type ORDER BY cnt DESC`,
       whereParams
     ) as [Record<string, unknown>[], unknown];
 
@@ -729,7 +771,6 @@ async function generateClaimsSummaryReport(
     const approved = Number(stats.approved ?? 0);
     const rejected = Number(stats.rejected ?? 0);
     const approvalRate = total > 0 ? (approved / total) * 100 : 0;
-    const savings = Number(stats.total_claimed ?? 0) - Number(stats.total_recommended ?? 0);
 
     const body = `
       <div class="section">
@@ -739,26 +780,22 @@ async function generateClaimsSummaryReport(
           <div class="kv-item"><div class="kv-label">Approved</div><div class="kv-value">${approved.toLocaleString()} (${approvalRate.toFixed(1)}%)</div></div>
           <div class="kv-item"><div class="kv-label">Rejected</div><div class="kv-value">${rejected.toLocaleString()}</div></div>
           <div class="kv-item"><div class="kv-label">In Progress</div><div class="kv-value">${Number(stats.in_progress ?? 0).toLocaleString()}</div></div>
-          <div class="kv-item"><div class="kv-label">Total Claimed Value</div><div class="kv-value bold">${fmtCurrency(stats.total_claimed as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">AI Recommended Settlement</div><div class="kv-value bold">${fmtCurrency(stats.total_recommended as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Potential Savings</div><div class="kv-value bold">${fmtCurrency(savings)}</div></div>
+          <div class="kv-item"><div class="kv-label">Total AI Estimated Value</div><div class="kv-value bold">${fmtCurrency(stats.total_estimated as number)}</div></div>
           <div class="kv-item"><div class="kv-label">High Risk Claims</div><div class="kv-value">${Number(stats.high_risk_count ?? 0).toLocaleString()}</div></div>
-        </div>
-        <div class="kv-grid cols-2">
           <div class="kv-item"><div class="kv-label">Avg Fraud Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_fraud_score ?? 0)))}</div></div>
-          <div class="kv-item"><div class="kv-label">Avg Claim Quality Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_quality_score ?? 0)))}</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Confidence Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_quality_score ?? 0)))}</div></div>
         </div>
       </div>
 
       ${(byType as Record<string, unknown>[]).length > 0 ? `
       <div class="section">
-        <div class="section-title">2. Claims by Type</div>
+        <div class="section-title">2. Claims by Incident Type</div>
         <table>
-          <thead><tr><th>Claim Type</th><th class="text-right">Count</th><th class="text-right">Total Value</th></tr></thead>
+          <thead><tr><th>Incident Type</th><th class="text-right">Count</th><th class="text-right">Total AI Estimated Value</th></tr></thead>
           <tbody>
             ${(byType as Record<string, unknown>[]).map((r) => `
               <tr>
-                <td>${escHtml(String(r.claim_type ?? "Unknown"))}</td>
+                <td>${escHtml(String(r.incident_type ?? "Unknown"))}</td>
                 <td class="text-right">${Number(r.cnt).toLocaleString()}</td>
                 <td class="text-right">${fmtCurrency(r.total_value as number)}</td>
               </tr>`).join("")}
@@ -791,8 +828,9 @@ async function generateFraudSummaryReport(
     const whereClause = tid ? `WHERE c.tenant_id=? AND c.created_at BETWEEN ? AND ?` : `WHERE c.created_at BETWEEN ? AND ?`;
     const whereParams = tid ? [tid, fromTs, toTs] : [fromTs, toTs];
 
+    // a.overall_fraud_score → a.fraud_score (verified 2026-05-04)
     const [riskDist] = await conn.execute(
-      `SELECT a.fraud_risk_level, COUNT(*) as cnt, AVG(a.overall_fraud_score) as avg_score
+      `SELECT a.fraud_risk_level, COUNT(*) as cnt, AVG(a.fraud_score) as avg_score
        FROM claims c LEFT JOIN ai_assessments a ON a.claim_id=c.id
        ${whereClause} GROUP BY a.fraud_risk_level ORDER BY avg_score DESC`,
       whereParams
@@ -982,13 +1020,14 @@ async function generateDwellTimeReport(
     const whereClause = tid ? `WHERE c.tenant_id=? AND c.created_at BETWEEN ? AND ?` : `WHERE c.created_at BETWEEN ? AND ?`;
     const whereParams = tid ? [tid, fromTs, toTs] : [fromTs, toTs];
 
+    // c.psm_status → c.status (verified 2026-05-04)
     const [rows] = await conn.execute(
-      `SELECT c.psm_status,
+      `SELECT c.status,
               COUNT(*) as cnt,
               AVG((c.updated_at - c.created_at) / 3600000) as avg_hours_in_state,
               MAX((c.updated_at - c.created_at) / 3600000) as max_hours_in_state
        FROM claims c ${whereClause}
-       GROUP BY c.psm_status ORDER BY avg_hours_in_state DESC`,
+       GROUP BY c.status ORDER BY avg_hours_in_state DESC`,
       whereParams
     ) as [Record<string, unknown>[], unknown];
 
@@ -1004,18 +1043,18 @@ async function generateDwellTimeReport(
 
     const body = `
       <div class="section">
-        <div class="section-title">1. Average Dwell Time by Workflow Stage</div>
+        <div class="section-title">1. Average Dwell Time by Workflow Status</div>
         <table>
           <thead><tr>
-            <th>Workflow Stage</th>
+            <th>Status</th>
             <th class="text-right">Claim Count</th>
-            <th class="text-right">Avg Hours in Stage</th>
-            <th class="text-right">Max Hours in Stage</th>
+            <th class="text-right">Avg Hours in State</th>
+            <th class="text-right">Max Hours in State</th>
           </tr></thead>
           <tbody>
             ${(rows as Record<string, unknown>[]).map((r) => `
               <tr>
-                <td>${escHtml(String(r.psm_status ?? "—"))}</td>
+                <td>${escHtml(String(r.status ?? "—"))}</td>
                 <td class="text-right">${Number(r.cnt).toLocaleString()}</td>
                 <td class="text-right ${Number(r.avg_hours_in_state ?? 0) > 48 ? "bold" : ""}">${Number(r.avg_hours_in_state ?? 0).toFixed(1)}h</td>
                 <td class="text-right">${Number(r.max_hours_in_state ?? 0).toFixed(1)}h</td>
@@ -1038,19 +1077,18 @@ async function generatePlatformDashboardReport(
 ): Promise<string> {
   const conn = await getConn();
   try {
+    // a.total_claimed_amount → a.estimated_cost; a.overall_fraud_score → a.fraud_score (verified 2026-05-04)
     const [totals] = await conn.execute(
       `SELECT COUNT(*) as total_claims,
               COUNT(DISTINCT c.tenant_id) as active_insurers,
-              SUM(a.total_claimed_amount) as total_claimed,
-              SUM(a.ai_recommended_settlement) as total_recommended,
-              AVG(a.overall_fraud_score) as avg_fraud_score,
+              SUM(a.estimated_cost) as total_estimated,
+              AVG(a.fraud_score) as avg_fraud_score,
               SUM(CASE WHEN a.fraud_risk_level IN ('high','critical') THEN 1 ELSE 0 END) as high_risk
        FROM claims c LEFT JOIN ai_assessments a ON a.claim_id=c.id`,
       []
     ) as [Record<string, unknown>[], unknown];
 
     const stats = (totals as Record<string, unknown>[])[0] ?? {};
-    const savings = Number(stats.total_claimed ?? 0) - Number(stats.total_recommended ?? 0);
 
     const meta: ReportMeta = {
       title: "Platform Executive Dashboard",
@@ -1067,10 +1105,9 @@ async function generatePlatformDashboardReport(
         <div class="kv-grid cols-4">
           <div class="kv-item"><div class="kv-label">Total Claims Processed</div><div class="kv-value bold">${Number(stats.total_claims ?? 0).toLocaleString()}</div></div>
           <div class="kv-item"><div class="kv-label">Active Insurers</div><div class="kv-value bold">${Number(stats.active_insurers ?? 0)}</div></div>
-          <div class="kv-item"><div class="kv-label">Total Claimed Value</div><div class="kv-value bold">${fmtCurrency(stats.total_claimed as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Total Potential Savings</div><div class="kv-value bold">${fmtCurrency(savings)}</div></div>
-          <div class="kv-item"><div class="kv-label">Avg Platform Fraud Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_fraud_score ?? 0)))}</div></div>
+          <div class="kv-item"><div class="kv-label">Total AI Estimated Value</div><div class="kv-value bold">${fmtCurrency(stats.total_estimated as number)}</div></div>
           <div class="kv-item"><div class="kv-label">High Risk Claims</div><div class="kv-value bold">${Number(stats.high_risk ?? 0).toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Platform Fraud Score</div><div class="kv-value">${scoreBar(Math.round(Number(stats.avg_fraud_score ?? 0)))}</div></div>
         </div>
       </div>
       <div class="section">
@@ -1093,16 +1130,16 @@ async function generateSARReport(
   const subjectType = params.subjectType as string ?? "claimant";
   const conn = await getConn();
   try {
-    // Get all claims associated with this subject
+    // c.psm_status → c.status; c.claim_type → c.incident_type; c.policyholder_id → c.claimant_id (verified 2026-05-04)
     const [claims] = await conn.execute(
-      `SELECT c.id, c.claim_reference, c.psm_status, c.claim_type,
-              c.date_of_loss, c.created_at, c.updated_at,
-              a.overall_fraud_score, a.fraud_risk_level, a.final_recommendation
+      `SELECT c.id, c.claim_reference, c.status, c.workflow_state, c.incident_type,
+              c.incident_date, c.created_at, c.updated_at,
+              a.fraud_score, a.fraud_risk_level, a.recommendation
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id=c.id
-       WHERE c.claimant_id=? OR c.policyholder_id=?
+       WHERE c.claimant_id=?
        ORDER BY c.created_at DESC`,
-      [subjectId, subjectId]
+      [subjectId]
     ) as [Record<string, unknown>[], unknown];
 
     const meta: ReportMeta = {
@@ -1127,16 +1164,16 @@ async function generateSARReport(
         ${(claims as Record<string, unknown>[]).length > 0 ? `
         <table>
           <thead><tr>
-            <th>Claim Reference</th><th>Type</th><th>Date of Loss</th>
+            <th>Claim Reference</th><th>Incident Type</th><th>Date of Incident</th>
             <th>Status</th><th>Submitted</th>
           </tr></thead>
           <tbody>
             ${(claims as Record<string, unknown>[]).map((c) => `
               <tr>
                 <td class="mono">${escHtml(String(c.claim_reference ?? c.id))}</td>
-                <td>${escHtml(String(c.claim_type ?? "—"))}</td>
-                <td>${fmtDate(c.date_of_loss as number)}</td>
-                <td>${escHtml(String(c.psm_status ?? "—"))}</td>
+                <td>${escHtml(String(c.incident_type ?? "—"))}</td>
+                <td>${fmtDate(c.incident_date as number)}</td>
+                <td>${escHtml(String(c.status ?? "—"))}</td>
                 <td>${fmtDate(c.created_at as number)}</td>
               </tr>`).join("")}
           </tbody>
@@ -1168,10 +1205,11 @@ async function generateRegulatoryComplianceReport(
     const whereClause = tid ? `WHERE c.tenant_id=? AND c.created_at BETWEEN ? AND ?` : `WHERE c.created_at BETWEEN ? AND ?`;
     const whereParams = tid ? [tid, fromTs, toTs] : [fromTs, toTs];
 
+    // c.psm_status → c.status; a.overall_fraud_score → a.fraud_score (verified 2026-05-04)
     const [totals] = await conn.execute(
       `SELECT COUNT(*) as total,
-              SUM(CASE WHEN a.overall_fraud_score IS NOT NULL THEN 1 ELSE 0 END) as ai_assessed,
-              SUM(CASE WHEN c.psm_status IN ('approved','rejected','settled') THEN 1 ELSE 0 END) as decided,
+              SUM(CASE WHEN a.fraud_score IS NOT NULL THEN 1 ELSE 0 END) as ai_assessed,
+              SUM(CASE WHEN c.status IN ('approved','rejected','settled') THEN 1 ELSE 0 END) as decided,
               AVG((c.updated_at - c.created_at) / 86400000) as avg_processing_days
        FROM claims c LEFT JOIN ai_assessments a ON a.claim_id=c.id ${whereClause}`,
       whereParams

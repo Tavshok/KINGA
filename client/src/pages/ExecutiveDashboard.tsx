@@ -33,6 +33,7 @@ import { AnalyticsExportButton } from "@/components/AnalyticsExportButton";
 import { RiskRadarWidget } from "@/components/RiskRadarWidget";
 import { ClaimDrillDownModal } from "@/components/ClaimDrillDownModal";
 import { IntelligenceSection } from "@/components/IntelligenceSection";
+import { KingaReportButton } from "@/components/KingaReportButton";
 import ThemeToggle from "@/components/ThemeToggle";
 import {
   calculateOperationalInsight,
@@ -408,6 +409,12 @@ export default function ExecutiveDashboard() {
                   Switch Portal
                 </Button>
               </Link>
+              <KingaReportButton
+                reportKey="executive.platform_dashboard"
+                label="Export Executive Report"
+                variant="outline"
+                size="sm"
+              />
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { KingaReportButton } from "@/components/KingaReportButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -98,6 +99,12 @@ export default function AssessorPerformanceDashboard() {
         </div>
         <div className="flex items-center gap-3">
           {getTierBadge()}
+          <KingaReportButton
+            reportKey="portfolio.assessor_performance"
+            label="Export Performance Report"
+            variant="outline"
+            size="sm"
+          />
           {isFree && (
             <Button className="bg-primary hover:bg-primary/90">
               <Crown className="h-4 w-4 mr-2" />

@@ -18,6 +18,7 @@ import {
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { ClaimReviewDialog } from "@/components/ClaimReviewDialog";
 import { exportClaimsToExcel, type ClaimExportData } from "@/lib/export-excel";
+import { KingaReportButton } from "@/components/KingaReportButton";
 import { exportToPDF } from "@/lib/exportUtils";
 import { Link, useSearch } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -347,6 +348,13 @@ export default function ClaimsManagerDashboard() {
               <p className="text-teal-100 mt-1">Review assessed claims and close for onward processing</p>
             </div>
             <div className="flex items-center gap-3">
+              <KingaReportButton
+                reportKey="portfolio.claims_summary"
+                label="Export Claims Report"
+                variant="outline"
+                size="sm"
+                className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+              />
               <div className="bg-white/15 dark:bg-card/15 backdrop-blur rounded-lg px-4 py-2 text-center">
                 <p className="text-2xl font-bold">{totalReviewable}</p>
                 <p className="text-xs text-teal-100">Pending Review</p>

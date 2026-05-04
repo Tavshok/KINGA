@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, TrendingUp, AlertTriangle, DollarSign, Users, MapPin } from "lucide-react";
+import { KingaReportButton } from "@/components/KingaReportButton";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -56,11 +57,19 @@ export default function FraudAnalyticsDashboard() {
         </Button>
 
         {/* Page Header */}
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Fraud Analytics</h2>
-          <p className="text-muted-foreground mt-2">
-            Comprehensive fraud detection analytics powered by AI and physics-based analysis
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Fraud Analytics</h2>
+            <p className="text-muted-foreground mt-2">
+              Comprehensive fraud detection analytics powered by AI and physics-based analysis
+            </p>
+          </div>
+          <KingaReportButton
+            reportKey="portfolio.fraud_summary"
+            label="Export Fraud Report"
+            variant="outline"
+            size="sm"
+          />
         </div>
 
         {/* Key Metrics */}

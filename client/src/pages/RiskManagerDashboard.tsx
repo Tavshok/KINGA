@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
+import { KingaReportButton } from "@/components/KingaReportButton";
 import { Link, useSearch } from "wouter";
 import { currencySymbol } from "@/lib/currency";
 import {
@@ -241,6 +242,12 @@ export default function RiskManagerDashboard() {
             <p className="text-sm text-muted-foreground mt-0.5">Technical approvals, financial decisions, and risk oversight</p>
           </div>
           <div className="flex items-center gap-3">
+            <KingaReportButton
+              reportKey="risk_manager_portfolio"
+              label="Export Risk Report"
+              variant="outline"
+              size="sm"
+            />
             <Button variant="outline" size="sm" onClick={() => refetchQueue()}>
               <RefreshCw className="h-4 w-4 mr-1.5" /> Refresh
             </Button>

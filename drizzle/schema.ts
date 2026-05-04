@@ -836,7 +836,7 @@ export const claims = mysqlTable("claims", {
 	driverRegistryId: int("driver_registry_id"),
 	// FK → drivers.id — set after pipeline upserts the third-party driver record
 	thirdPartyDriverRegistryId: int("third_party_driver_registry_id"),
-	// ── Incident type override ────────────────────────────────────────────────
+	// Incident type override ------------------------------------------------
 	// Preserves the original AI-detected incident type when an adjuster overrides it.
 	aiDetectedIncidentType: mysqlEnum("ai_detected_incident_type", ['collision','theft','hail','fire','vandalism','flood','hijacking','other']),
 	// Set to 1 when an adjuster has manually overridden the AI-detected incident type.
@@ -849,7 +849,7 @@ export const claims = mysqlTable("claims", {
 	incidentTypeOverriddenAt: timestamp("incident_type_overridden_at", { mode: 'string' }),
 	// JSON blob: result of re-running impact direction + damage consistency checks after override.
 	incidentTypeRevalidationJson: text("incident_type_revalidation_json"),
-	// ── Product / Policy Type (data semantics hardening) ─────────────────────────
+	// Product / Policy Type (data semantics hardening) -------------------------
 	// The insurance product type extracted from the claim document (e.g. 'EXCESS', 'COMPREHENSIVE', 'THIRD_PARTY').
 	// Distinct from policyNumber — this is the product class, not the policy identifier.
 	productType: varchar("product_type", { length: 100 }),
@@ -2166,7 +2166,7 @@ export const panelBeaters = mysqlTable("panel_beaters", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),
-  // ── Repair performance aggregates (updated after each repair) ─────────────
+  // Repair performance aggregates (updated after each repair) -------------
   totalRepairs: int("total_repairs").default(0).notNull(),
   avgQualityScore: decimal("avg_quality_score", { precision: 5, scale: 2 }),
   avgCostRatio: decimal("avg_cost_ratio", { precision: 6, scale: 3 }),
@@ -3507,7 +3507,7 @@ export const insurerMarketplaceRelationships = mysqlTable("insurer_marketplace_r
 export type InsurerMarketplaceRelationship = typeof insurerMarketplaceRelationships.$inferSelect;
 export type InsertInsurerMarketplaceRelationship = typeof insurerMarketplaceRelationships.$inferInsert;
 
-// ─── Quote Optimisation Results ───────────────────────────────────────────────
+// Quote Optimisation Results -----------------------------------------------
 // Stores AI cost-optimisation output for the 3-quote comparison workflow.
 // AI assists; insurer makes the final decision.
 
@@ -3554,7 +3554,7 @@ export const quoteOptimisationResults = mysqlTable("quote_optimisation_results",
 export type QuoteOptimisationResult = typeof quoteOptimisationResults.$inferSelect;
 export type InsertQuoteOptimisationResult = typeof quoteOptimisationResults.$inferInsert;
 
-// ─── Assessor Subscription (Free / Pro Tier) ─────────────────────────────────
+// Assessor Subscription (Free / Pro Tier) ---------------------------------
 // One row per assessor. Defaults to 'free' with a 10-claim/month cap.
 // Pro tier sets max_claims_per_month = 9999 (effectively unlimited).
 // Linked to marketplace_profile_id (UUID) AND user_id for fast lookups.
@@ -3584,7 +3584,7 @@ export const ASSESSOR_TIER_CAPS = {
   pro:  { maxClaimsPerMonth: 9999, label: "Pro" },
 } as const;
 
-// ─── Tenant Isolation Violation Log ──────────────────────────────────────────
+// Tenant Isolation Violation Log ------------------------------------------
 // Records every FORBIDDEN event thrown by insurerDomainProcedure middleware.
 // Written asynchronously (fire-and-forget) so logging failure never blocks the
 // exception propagation to the caller.
@@ -3618,7 +3618,7 @@ export const tenantIsolationViolations = mysqlTable("tenant_isolation_violations
 export type TenantIsolationViolation = typeof tenantIsolationViolations.$inferSelect;
 export type InsertTenantIsolationViolation = typeof tenantIsolationViolations.$inferInsert;
 
-// ─── Email Notification Events (idempotency + audit) ─────────────────────────
+// Email Notification Events (idempotency + audit) -------------------------
 /**
  * Tracks every outbound email notification attempt.
  * The unique idempotency_key prevents duplicate sends across restarts.
@@ -3654,7 +3654,7 @@ export const notificationEvents = mysqlTable("notification_events", {
 export type NotificationEvent = typeof notificationEvents.$inferSelect;
 export type InsertNotificationEvent = typeof notificationEvents.$inferInsert;
 
-// ─── System Error Log ─────────────────────────────────────────────────────────
+// System Error Log ---------------------------------------------------------
 /**
  * Captures unhandled errors from tRPC procedures for ops visibility.
  * Populated by the global error logger middleware in _core/trpc.ts.
@@ -3686,7 +3686,7 @@ export const systemErrors = mysqlTable("system_errors", {
 export type SystemError = typeof systemErrors.$inferSelect;
 export type InsertSystemError = typeof systemErrors.$inferInsert;
 
-// ─── Country Repair Index ─────────────────────────────────────────────────────
+// Country Repair Index -----------------------------------------------------
 // Repair cost context per country: VAT, import duty, labour rates.
 // Used by the Repair Quote Intelligence layer for cost normalisation.
 // Append-only: new rows supersede old ones (ordered by effective_from DESC).
@@ -3708,7 +3708,7 @@ export const countryRepairIndex = mysqlTable("country_repair_index", {
 export type CountryRepairIndex = typeof countryRepairIndex.$inferSelect;
 export type InsertCountryRepairIndex = typeof countryRepairIndex.$inferInsert;
 
-// ─── Repair Cost Intelligence ─────────────────────────────────────────────────
+// Repair Cost Intelligence -------------------------------------------------
 // Populated ONLY from completed claims via the data learning loop.
 // Never seeded with artificial data.
 // intelligence_confidence = "low" when claim_count < 10.
@@ -3744,7 +3744,7 @@ export type InsertRepairCostIntelligence = typeof repairCostIntelligence.$inferI
 // ============================================================================
 export const vehicleRegistry = mysqlTable("vehicle_registry", {
   id: int().autoincrement().notNull(),
-  // ── Identity ──────────────────────────────────────────────────────────────
+  // Identity --------------------------------------------------------------
   // VIN stored uppercase, spaces stripped. Unique but nullable (pre-2000 vehicles).
   vin: varchar({ length: 17 }).unique(),
   // Normalised registration: uppercase, spaces removed (e.g. "ABC1234" not "ABC 1234").
@@ -3754,7 +3754,7 @@ export const vehicleRegistry = mysqlTable("vehicle_registry", {
   year: int(),
   color: varchar({ length: 50 }),
   engineNumber: varchar("engine_number", { length: 100 }),
-  // ── Technical attributes ──────────────────────────────────────────────────
+  // Technical attributes --------------------------------------------------
   vehicleType: mysqlEnum("vehicle_type", ['sedan','suv','pickup','van','hatchback','coupe','bus','truck','motorcycle','other']),
   engineCapacity: varchar("engine_capacity", { length: 20 }),
   fuelType: mysqlEnum("fuel_type", ['petrol','diesel','electric','hybrid','lpg','other']),
@@ -3764,29 +3764,29 @@ export const vehicleRegistry = mysqlTable("vehicle_registry", {
   vehicleMassKg: int("vehicle_mass_kg"),
   // Source of mass: explicit (from document) > inferred_model > inferred_class > not_available
   vehicleMassSource: mysqlEnum("vehicle_mass_source", ['explicit','inferred_model','inferred_class','not_available']).default('not_available'),
-  // ── Ownership ─────────────────────────────────────────────────────────────
+  // Ownership -------------------------------------------------------------
   currentOwnerName: varchar("current_owner_name", { length: 255 }),
   firstRegistrationDate: varchar("first_registration_date", { length: 20 }),
   licenceExpiryDate: varchar("licence_expiry_date", { length: 20 }),
-  // ── Claim history aggregates ──────────────────────────────────────────────
+  // Claim history aggregates ----------------------------------------------
   totalClaimsCount: int("total_claims_count").default(0).notNull(),
   totalRepairCostCents: int("total_repair_cost_cents").default(0).notNull(),
   lastClaimDate: timestamp("last_claim_date", { mode: 'string' }),
   // JSON array of claim IDs for fast history lookup: [1, 5, 12, ...]
   claimIdsJson: text("claim_ids_json"),
-  // ── Damage pattern tracking ───────────────────────────────────────────────
+  // Damage pattern tracking -----------------------------------------------
   // JSON: { "front": 2, "rear": 1, "left": 0, "right": 1, "roof": 0 }
   damageZoneCountsJson: text("damage_zone_counts_json"),
   // Flags set when the same zone is claimed 2+ times (strong fraud signal)
   hasSuspiciousDamagePattern: tinyint("has_suspicious_damage_pattern").default(0).notNull(),
-  // ── Risk flags ────────────────────────────────────────────────────────────
+  // Risk flags ------------------------------------------------------------
   isRepeatClaimer: tinyint("is_repeat_claimer").default(0).notNull(),   // ≥3 claims
   isSalvageTitle: tinyint("is_salvage_title").default(0).notNull(),
   isStolen: tinyint("is_stolen").default(0).notNull(),
   isWrittenOff: tinyint("is_written_off").default(0).notNull(),
   // Composite risk score 0–100 computed from claim frequency, damage patterns, flags
   vehicleRiskScore: int("vehicle_risk_score").default(0).notNull(),
-  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // Lifecycle -------------------------------------------------------------
   tenantId: varchar("tenant_id", { length: 255 }),
   firstSeenAt: timestamp("first_seen_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   lastSeenAt: timestamp("last_seen_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
@@ -3813,13 +3813,13 @@ export type InsertVehicleRegistry = typeof vehicleRegistry.$inferInsert;
 export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
   id: int().autoincrement().notNull(),
 
-  // ── Foreign keys ──────────────────────────────────────────────────────────
+  // Foreign keys ----------------------------------------------------------
   // Links to vehicle_registry.id — the persistent vehicle record.
   vehicleId: int("vehicle_id").notNull(),
   // Links to claims.id — the claim that generated this damage record.
   claimId: int("claim_id").notNull(),
 
-  // ── Damage classification ─────────────────────────────────────────────────
+  // Damage classification -------------------------------------------------
   // Primary standardised damage zone for this incident.
   damageZone: mysqlEnum("damage_zone", ['front','rear','left','right','roof','undercarriage','multiple','unknown']).default('unknown').notNull(),
   // Full list of damaged components as extracted by the AI vision engine.
@@ -3828,7 +3828,7 @@ export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
   // All zones affected (may be more than one). JSON array: ["front","left"]
   affectedZonesJson: text("affected_zones_json"),
 
-  // ── Physics engine data ───────────────────────────────────────────────────
+  // Physics engine data ---------------------------------------------------
   // Direction of impact as reported by the physics engine (e.g. "frontal", "rear", "side_driver").
   impactDirection: varchar("impact_direction", { length: 50 }),
   // Impact force in kilonewtons from the physics engine. Null if physics was skipped.
@@ -3842,13 +3842,13 @@ export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
   // Airbag deployment flag.
   airbagsDeployed: tinyint("airbags_deployed").default(0).notNull(),
 
-  // ── Cost data ─────────────────────────────────────────────────────────────
+  // Cost data -------------------------------------------------------------
   // AI-estimated repair cost in cents (USD).
   repairCostEstimateCents: int("repair_cost_estimate_cents").default(0).notNull(),
   // Actual repair cost from accepted panel beater quote (cents). Null until quote accepted.
   actualRepairCostCents: int("actual_repair_cost_cents"),
 
-  // ── Repairer data (backfilled when panel beater is selected) ──────────────
+  // Repairer data (backfilled when panel beater is selected) --------------
   // panel_beaters.id — populated when a quote is accepted.
   repairerId: int("repairer_id"),
   // Human-readable repairer name for quick display without a join.
@@ -3856,13 +3856,13 @@ export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
   // Date repair was completed (ISO date string). Null until repair is done.
   repairDate: varchar("repair_date", { length: 20 }),
 
-  // ── Fraud signals ─────────────────────────────────────────────────────────
+  // Fraud signals ---------------------------------------------------------
   // Fraud risk score for this specific incident (0–100).
   fraudRiskScore: int("fraud_risk_score").default(0).notNull(),
   // Whether this damage zone was previously claimed on this vehicle.
   isRepeatZone: tinyint("is_repeat_zone").default(0).notNull(),
 
-  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // Lifecycle -------------------------------------------------------------
   tenantId: varchar("tenant_id", { length: 255 }),
   createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
@@ -3894,7 +3894,7 @@ export type InsertVehicleDamageHistory = typeof vehicleDamageHistory.$inferInser
 export const drivers = mysqlTable("drivers", {
   id: int().autoincrement().notNull(),
 
-  // ── Identity ──────────────────────────────────────────────────────────────
+  // Identity --------------------------------------------------------------
   fullName: varchar("full_name", { length: 255 }).notNull(),
   // Normalised: uppercase, spaces and hyphens stripped. Unique but nullable.
   licenseNumber: varchar("license_number", { length: 50 }),
@@ -3911,7 +3911,7 @@ export const drivers = mysqlTable("drivers", {
   // Country that issued the licence (ISO 3166-1 alpha-2, e.g. "ZW", "ZA").
   licenseCountry: varchar("license_country", { length: 5 }),
 
-  // ── Risk signals (future capability) ─────────────────────────────────────
+  // Risk signals (future capability) -------------------------------------
   // Total number of claims this driver has been linked to.
   totalClaimsCount: int("total_claims_count").default(0).notNull(),
   // Total claims where this driver was the at-fault party.
@@ -3927,13 +3927,13 @@ export const drivers = mysqlTable("drivers", {
   // Last fraud risk score seen across all linked claims.
   lastFraudRiskScore: int("last_fraud_risk_score").default(0).notNull(),
 
-  // ── Data provenance ───────────────────────────────────────────────────────
+  // Data provenance -------------------------------------------------------
   // How this record was first created: 'ocr' (AI extracted), 'manual' (form entry), 'import'.
   dataSource: mysqlEnum("data_source", ['ocr','manual','import','unknown']).default('unknown').notNull(),
   // OCR confidence score (0–100) for the license number extraction.
   ocrConfidenceScore: int("ocr_confidence_score"),
 
-  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // Lifecycle -------------------------------------------------------------
   tenantId: varchar("tenant_id", { length: 255 }),
   firstSeenAt: timestamp("first_seen_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   lastSeenAt: timestamp("last_seen_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
@@ -3992,14 +3992,14 @@ export type InsertDriverClaim = typeof driverClaims.$inferInsert;
 // ============================================================================
 export const repairHistory = mysqlTable("repair_history", {
   id: int().autoincrement().notNull(),
-  // ── Foreign keys ──────────────────────────────────────────────────────────
+  // Foreign keys ----------------------------------------------------------
   // panel_beaters.id — the repairer who performed the work.
   repairerId: int("repairer_id").notNull(),
   // vehicle_registry.id — the vehicle that was repaired. Null if no registry record.
   vehicleId: int("vehicle_id"),
   // claims.id — the claim this repair belongs to.
   claimId: int("claim_id").notNull(),
-  // ── Repair scope ─────────────────────────────────────────────────────────
+  // Repair scope ---------------------------------------------------------
   // JSON array of repaired components: [{ name, zone, partType, laborHours, partCost, laborCost }]
   componentsRepairedJson: text("components_repaired_json"),
   // Number of components repaired (denormalised for quick aggregation).
@@ -4007,7 +4007,7 @@ export const repairHistory = mysqlTable("repair_history", {
   // How many of the originally quoted components were actually repaired (0–100).
   // 100 = all quoted components repaired; <100 = scope reduction; >100 = scope creep.
   componentMatchScore: int("component_match_score").default(100).notNull(),
-  // ── Cost data ─────────────────────────────────────────────────────────────
+  // Cost data -------------------------------------------------------------
   // Total repair cost in cents (labour + parts + paint + sundries).
   repairCostCents: int("repair_cost_cents").default(0).notNull(),
   // Labour cost component in cents.
@@ -4019,14 +4019,14 @@ export const repairHistory = mysqlTable("repair_history", {
   // % deviation from AI estimate: ((actual - estimate) / estimate) * 100.
   // Positive = over-estimate; negative = under-estimate.
   costDeviationPct: decimal("cost_deviation_pct", { precision: 7, scale: 2 }),
-  // ── Timing ────────────────────────────────────────────────────────────────
+  // Timing ----------------------------------------------------------------
   // Date the claim was approved (ISO date string).
   approvalDate: varchar("approval_date", { length: 20 }),
   // Date the repair was completed (ISO date string). Null until repair is done.
   repairDate: varchar("repair_date", { length: 20 }),
   // Number of calendar days from approval to repair completion. Null until complete.
   repairDurationDays: int("repair_duration_days"),
-  // ── Derived analytics ─────────────────────────────────────────────────────
+  // Derived analytics -----------------------------------------------------
   // Whether the same component was damaged again within 12 months of this repair.
   // Set to 1 when a subsequent claim is filed for the same component on the same vehicle.
   repeatDamageWithin12Months: tinyint("repeat_damage_within_12_months").default(0).notNull(),
@@ -4039,7 +4039,7 @@ export const repairHistory = mysqlTable("repair_history", {
   //   - Repair duration (20%)
   //   - Repeat damage within 12 months (10%)
   repairQualityScore: int("repair_quality_score").default(0).notNull(),
-  // ── Warranty & fraud signals ──────────────────────────────────────────────
+  // Warranty & fraud signals ----------------------------------------------
   // Whether this is a warranty re-repair: same component, same repairer, within 90 days.
   isWarrantyRepair: tinyint("is_warranty_repair").default(0).notNull(),
   // The repair_history.id of the original repair this is a warranty re-repair of.
@@ -4048,12 +4048,12 @@ export const repairHistory = mysqlTable("repair_history", {
   isFraudFlagged: tinyint("is_fraud_flagged").default(0).notNull(),
   // JSON array of fraud signal strings for this repair.
   fraudSignalsJson: text("fraud_signals_json"),
-  // ── Damage history linkage ────────────────────────────────────────────────
+  // Damage history linkage ------------------------------------------------
   // JSON array of vehicle_damage_history.id rows that this repair addresses.
   damageHistoryIdsJson: text("damage_history_ids_json"),
   // How many vehicle_damage_history rows were linked (audit trail).
   damageHistoryLinkCount: int("damage_history_link_count").default(0).notNull(),
-  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // Lifecycle -------------------------------------------------------------
   tenantId: varchar("tenant_id", { length: 255 }),
   createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
@@ -4080,10 +4080,10 @@ export type InsertRepairHistory = typeof repairHistory.$inferInsert;
 // ============================================================================
 export const crossClaimSignals = mysqlTable("cross_claim_signals", {
   id: int().autoincrement().notNull(),
-  // ── Foreign keys ──────────────────────────────────────────────────────────
+  // Foreign keys ----------------------------------------------------------
   // The claim this signal was detected on.
   claimId: int("claim_id").notNull(),
-  // ── Signal identity ───────────────────────────────────────────────────────
+  // Signal identity -------------------------------------------------------
   // Machine-readable signal type (snake_case enum).
   signalType: mysqlEnum("signal_type", [
     'repeat_damage_signal',
@@ -4098,16 +4098,16 @@ export const crossClaimSignals = mysqlTable("cross_claim_signals", {
   ]).notNull(),
   // Human-readable description of the signal for the assessor.
   signalLabel: text("signal_label").notNull(),
-  // ── Evidence ─────────────────────────────────────────────────────────────
+  // Evidence -------------------------------------------------------------
   // JSON object with the evidence that triggered this signal.
   // e.g. { "claimIds": [12, 34], "driverId": 5, "occurrences": 3 }
   evidenceJson: text("evidence_json"),
-  // ── Scoring ───────────────────────────────────────────────────────────────
+  // Scoring ---------------------------------------------------------------
   // Confidence level of this signal.
   confidence: mysqlEnum("confidence", ['low', 'medium', 'high']).default('medium').notNull(),
   // Score contribution of this signal to the overall fraud risk score (0–30).
   scoreContribution: int("score_contribution").default(0).notNull(),
-  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // Lifecycle -------------------------------------------------------------
   // Whether this signal has been reviewed and dismissed by an assessor.
   isDismissed: tinyint("is_dismissed").default(0).notNull(),
   dismissedBy: int("dismissed_by"),
@@ -4199,7 +4199,7 @@ export const decisionSnapshots = mysqlTable("decision_snapshots", {
 export type DecisionSnapshot = typeof decisionSnapshots.$inferSelect;
 export type InsertDecisionSnapshot = typeof decisionSnapshots.$inferInsert;
 
-// ─── Claim Decision Lifecycle ─────────────────────────────────────────────────
+// Claim Decision Lifecycle -------------------------------------------------
 // One row per claim — tracks the current lifecycle state of the decision.
 // Separate from the claims table so it can be updated independently.
 
@@ -4241,7 +4241,7 @@ export const claimDecisionLifecycle = mysqlTable("claim_decision_lifecycle", {
 export type ClaimDecisionLifecycle = typeof claimDecisionLifecycle.$inferSelect;
 export type InsertClaimDecisionLifecycle = typeof claimDecisionLifecycle.$inferInsert;
 
-// ─── Replay Logs ──────────────────────────────────────────────────────────────
+// Replay Logs --------------------------------------------------------------
 // Stores every replay result separately — never overwrites the original snapshot.
 
 export const replayLogs = mysqlTable("replay_logs", {
@@ -4278,10 +4278,10 @@ export const replayLogs = mysqlTable("replay_logs", {
 export type ReplayLog = typeof replayLogs.$inferSelect;
 export type InsertReplayLog = typeof replayLogs.$inferInsert;
 
-// ─────────────────────────────────────────────────────────────────────────────
+//
 // GOVERNANCE AUDIT LOG
 // Every lifecycle action (REVIEWED, FINALISED, LOCKED, override) appends one row.
-// ─────────────────────────────────────────────────────────────────────────────
+//
 export const governanceAuditLog = mysqlTable("governance_audit_log", {
   id: int("id").autoincrement().primaryKey(),
   claimId: varchar("claim_id", { length: 50 }).notNull(),
@@ -4311,7 +4311,7 @@ export const governanceAuditLog = mysqlTable("governance_audit_log", {
 export type GovernanceAuditEntry = typeof governanceAuditLog.$inferSelect;
 export type InsertGovernanceAuditEntry = typeof governanceAuditLog.$inferInsert;
 
-// ─── Shadow Override Monitor ───────────────────────────────────────────────────
+// Shadow Override Monitor ---------------------------------------------------
 // Passive observation table — NEVER used to block actions or trigger escalations.
 // Tracks per-user override frequency for baseline building only.
 export const shadowOverrideMonitor = mysqlTable("shadow_override_monitor", {
@@ -4352,7 +4352,7 @@ export const shadowOverrideMonitor = mysqlTable("shadow_override_monitor", {
 export type ShadowOverrideMonitor = typeof shadowOverrideMonitor.$inferSelect;
 export type InsertShadowOverrideMonitor = typeof shadowOverrideMonitor.$inferInsert;
 
-// ─── Mismatch Annotation Tracking ────────────────────────────────────────────
+// Mismatch Annotation Tracking --------------------------------------------
 // Records adjuster confirm/dismiss actions on individual damage mismatches.
 // Used to compute per-type confirmation rates and adaptively calibrate
 // consistency scoring weights over time.
@@ -4381,7 +4381,7 @@ export const mismatchAnnotations = mysqlTable("mismatch_annotations", {
 export type MismatchAnnotation = typeof mismatchAnnotations.$inferSelect;
 export type InsertMismatchAnnotation = typeof mismatchAnnotations.$inferInsert;
 
-// ─── Mismatch Narrative Versions ─────────────────────────────────────────────
+// Mismatch Narrative Versions ---------------------------------------------
 // Stores versioned narratives for each mismatch in a consistency check.
 // Each row is an immutable version; active_version pointer is stored in
 // the parent consistencyCheckJson. LLM enrichment appends new versions
@@ -4415,7 +4415,7 @@ export const narrativeVersions = mysqlTable("narrative_versions", {
 export type NarrativeVersion = typeof narrativeVersions.$inferSelect;
 export type InsertNarrativeVersion = typeof narrativeVersions.$inferInsert;
 
-// ─── Weight Adjustment Log ────────────────────────────────────────────────────
+// Weight Adjustment Log ----------------------------------------------------
 // Immutable audit trail of every adaptive weight calibration event.
 // Written by getAdaptiveWeights() whenever a non-neutral, sample-sufficient
 // adjustment fires. Never updated or deleted — append-only.
@@ -4448,9 +4448,9 @@ export const weightAdjustmentLog = mysqlTable("weight_adjustment_log", {
 export type WeightAdjustmentLogRow = typeof weightAdjustmentLog.$inferSelect;
 export type InsertWeightAdjustmentLog = typeof weightAdjustmentLog.$inferInsert;
 
-// ─────────────────────────────────────────────────────────────────────────────
+//
 // Stage 41 — Benchmark Deviation Engine: persisted deviation results
-// ─────────────────────────────────────────────────────────────────────────────
+//
 export const benchmarkDeviations = mysqlTable("benchmark_deviations", {
   id: int().autoincrement().notNull(),
   claimId: int("claim_id").notNull(),
@@ -4500,11 +4500,11 @@ export const benchmarkDeviations = mysqlTable("benchmark_deviations", {
 export type BenchmarkDeviationRow = typeof benchmarkDeviations.$inferSelect;
 export type InsertBenchmarkDeviation = typeof benchmarkDeviations.$inferInsert;
 
-// ─────────────────────────────────────────────────────────────────────────────
+//
 // COST INTELLIGENCE LEARNING RECORDS
 // Stores generalised cost patterns extracted from processed claims for
 // longitudinal cost model calibration. One record per processed claim.
-// ─────────────────────────────────────────────────────────────────────────────
+//
 export const costLearningRecords = mysqlTable("cost_learning_records", {
   id: int().autoincrement().notNull(),
   claimId: int("claim_id").notNull(),
@@ -4551,7 +4551,7 @@ export const costLearningRecords = mysqlTable("cost_learning_records", {
 export type CostLearningRecordRow = typeof costLearningRecords.$inferSelect;
 export type InsertCostLearningRecord = typeof costLearningRecords.$inferInsert;
 
-// ─── Phase 5: Calibration Overrides ─────────────────────────────────────────
+// Phase 5: Calibration Overrides -----------------------------------------
 // Stores insurer/jurisdiction-specific calibration adjustments proposed by the
 // Calibration Feedback Controller and approved by a claims_manager.
 export const calibrationOverrides = mysqlTable("calibration_overrides", {
@@ -4587,7 +4587,7 @@ export const calibrationOverrides = mysqlTable("calibration_overrides", {
 export type CalibrationOverrideRow = typeof calibrationOverrides.$inferSelect;
 export type InsertCalibrationOverride = typeof calibrationOverrides.$inferInsert;
 
-// ─── Phase 5: Workflow Templates ─────────────────────────────────────────────
+// Phase 5: Workflow Templates ---------------------------------------------
 // Insurer-configurable approval chain templates. Each insurer may have multiple
 // templates (e.g. "Standard Claim", "High-Value Claim", "External Assessor Claim").
 export const workflowTemplates = mysqlTable("workflow_templates", {
@@ -4614,7 +4614,7 @@ export const workflowTemplates = mysqlTable("workflow_templates", {
 export type WorkflowTemplateRow = typeof workflowTemplates.$inferSelect;
 export type InsertWorkflowTemplate = typeof workflowTemplates.$inferInsert;
 
-// ─── Phase 5: Claim Approvals ─────────────────────────────────────────────────
+// Phase 5: Claim Approvals -------------------------------------------------
 // Per-claim, per-stage audit trail of every approval decision made in the
 // multi-layer workflow. Immutable once written — no updates, only inserts.
 export const claimApprovals = mysqlTable("claim_approvals", {
@@ -4644,7 +4644,7 @@ export const claimApprovals = mysqlTable("claim_approvals", {
 export type ClaimApprovalRow = typeof claimApprovals.$inferSelect;
 export type InsertClaimApproval = typeof claimApprovals.$inferInsert;
 
-// ─── Adjuster Sign-Off ────────────────────────────────────────────────────────
+// Adjuster Sign-Off --------------------------------------------------------
 // Records an authorised adjuster's decision override on an AI-generated report.
 // One row per claim per adjuster — upsert on re-sign.
 export const adjusterSignOffs = mysqlTable("adjuster_sign_offs", {
@@ -4664,7 +4664,7 @@ export const adjusterSignOffs = mysqlTable("adjuster_sign_offs", {
 export type AdjusterSignOffRow = typeof adjusterSignOffs.$inferSelect;
 export type InsertAdjusterSignOff = typeof adjusterSignOffs.$inferInsert;
 
-// ─── Photo Re-Extraction Jobs ─────────────────────────────────────────────────
+// Photo Re-Extraction Jobs -------------------------------------------------
 // Tracks high-DPI photo re-extraction jobs triggered from the forensic report
 // when a scanned PDF has low sharpness (blurScore < 60).
 export const photoReextractionJobs = mysqlTable("photo_reextraction_jobs", {
@@ -4724,3 +4724,40 @@ export const componentRepairOutcomes = mysqlTable("component_repair_outcomes", {
 ]);
 export type ComponentRepairOutcomeRow = typeof componentRepairOutcomes.$inferSelect;
 export type InsertComponentRepairOutcome = typeof componentRepairOutcomes.$inferInsert;
+
+// ---- GENERATED REPORTS ----
+// Stores metadata for all PDF reports generated by the KINGA report engine.
+// Actual PDF bytes are stored in S3; this table holds the reference and audit trail.
+export const generatedReports = mysqlTable("generated_reports", {
+  id: int().autoincrement().notNull().primaryKey(),
+  tenantId: int("tenant_id").notNull(),
+  claimId: int("claim_id"),
+  reportType: mysqlEnum("report_type", [
+    "claims_assessment",
+    "portfolio_summary",
+    "fraud_intelligence",
+    "executive_summary",
+    "risk_portfolio",
+    "processor_performance",
+    "assessor_performance",
+    "panel_beater_performance",
+  ]).notNull(),
+  tier: mysqlEnum("tier", ["process", "protect", "prove"]).notNull().default("process"),
+  s3Key: varchar("s3_key", { length: 500 }).notNull(),
+  url: varchar("url", { length: 1000 }).notNull(),
+  generatedByUserId: int("generated_by_user_id").notNull(),
+  generatedAt: varchar("generated_at", { length: 50 }).notNull(),
+  fileSizeBytes: int("file_size_bytes"),
+  pageCount: int("page_count"),
+  status: mysqlEnum("status", ["generating", "ready", "failed"]).notNull().default("ready"),
+  errorMessage: text("error_message"),
+  createdAt: varchar("created_at", { length: 50 }).notNull(),
+}, (table) => [
+  index("idx_gr_tenant_id").on(table.tenantId),
+  index("idx_gr_claim_id").on(table.claimId),
+  index("idx_gr_report_type").on(table.reportType),
+  index("idx_gr_generated_by").on(table.generatedByUserId),
+  index("idx_gr_created_at").on(table.createdAt),
+]);
+export type GeneratedReportRow = typeof generatedReports.$inferSelect;
+export type InsertGeneratedReport = typeof generatedReports.$inferInsert;

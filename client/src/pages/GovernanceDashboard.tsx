@@ -28,7 +28,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from "recharts";
 import { toast } from "sonner";
-
+import { KingaReportButton } from "@/components/KingaReportButton";
 export default function GovernanceDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState<"7d" | "30d" | "90d">("30d");
   const [shadowScanning, setShadowScanning] = useState(false);
@@ -216,6 +216,13 @@ export default function GovernanceDashboard() {
               </p>
             </div>
             <div className="flex gap-3">
+              <KingaReportButton
+                reportKey="governance.regulatory_compliance"
+                label="Compliance Report"
+                variant="outline"
+                size="sm"
+                className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+              />
               <Button
                 variant="outline"
                 className="bg-white/10 dark:bg-card/10 border-white/30 text-white hover:bg-white/20 dark:bg-card/20"
