@@ -176,14 +176,16 @@ export async function runWorkflowSimulation(tenantId: number, userId: number): P
     const [assessment] = await db.insert(aiAssessments).values({
       claimId: claim.id,
       tenantId,
-      assessmentType: "triage",
       confidenceScore,
-      fraudRiskScore: fraudScore,
-      fraudFlags: fraudFlags.join(","),
-      damageEstimate: estimatedCost.toString(),
-      processingTimeMs: 1500,
+      fraudScore: Math.round(fraudScore),
+      fraudRiskLevel: fraudScore > 70 ? 'high' : fraudScore > 40 ? 'medium' : 'low',
+      fraudIndicators: JSON.stringify(fraudFlags),
+      estimatedCost: Math.round(estimatedCost),
+      processingTime: 1500,
       modelVersion: "v1.0-simulation",
-      assessmentData: JSON.stringify({
+      pipelineRunSummary: JSON.stringify({
+        stages: {},
+        source: 'simulation',
         fraudScore,
         damageScore,
         confidenceScore,

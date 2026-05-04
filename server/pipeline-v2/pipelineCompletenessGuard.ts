@@ -72,6 +72,12 @@ export interface CompletenessGuardInput {
     replayLimitation?: string | null;
     stages: Array<{ promptHash: string | null }>;
   } | null | undefined;
+  /**
+   * Whether the claim has repair quotes submitted.
+   * When false, DOE is not required and DOE_ABSENT is treated as non-blocking.
+   * Defaults to true (DOE is required) to preserve the strict test contract.
+   */
+  claimHasQuotes?: boolean;
   /** Whether this is a re-analysis run (slightly relaxed rules for legacy re-runs) */
   isReanalysis?: boolean;
 }
@@ -105,20 +111,22 @@ export function runCompletenessGuard(input: CompletenessGuardInput): Completenes
     });
   }
 
-  // ── Check 2: DOE result (non-blocking when no quotes were submitted) ────────
-  // DOE only runs when selected_quotes exist in the claim document. Claims without
-  // a repair quote (e.g. theft, total loss, or early-stage assessments) will never
-  // have a doeResult — this is expected behaviour, not a pipeline failure.
-  // Making this non-blocking prevents the infinite loop where claims without quotes
-  // are reset to intake_pending and re-triggered every 20 minutes.
+  // ── Check 2: DOE result ──────────────────────────────────────────────────────
+  // DOE is required when the claim has repair quotes (claimHasQuotes defaults to true).
+  // Claims without quotes (theft, total loss, early-stage) pass claimHasQuotes=false
+  // so DOE_ABSENT is non-blocking for them.
   if (!input.doeResult) {
+    const claimHasQuotes = input.claimHasQuotes !== false; // default true
     failures.push({
       reason: "DOE_ABSENT",
-      detail:
-        "The Decision Optimisation Engine did not produce a result. This is expected when no " +
-        "repair quotes are present in the claim document. The report is written without DOE " +
-        "panel-beater scoring and is flagged as DOE_ABSENT for adjuster awareness.",
-      blocking: false,
+      detail: claimHasQuotes
+        ? "The Decision Optimisation Engine did not produce a result. DOE is required when " +
+          "repair quotes are present. The pipeline cannot produce a defensible panel-beater " +
+          "recommendation without DOE output."
+        : "The Decision Optimisation Engine did not produce a result. This is expected when no " +
+          "repair quotes are present in the claim document. The report is written without DOE " +
+          "panel-beater scoring and is flagged as DOE_ABSENT for adjuster awareness.",
+      blocking: claimHasQuotes,
     });
   }
 

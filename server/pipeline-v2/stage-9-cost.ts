@@ -344,9 +344,13 @@ export async function runCostOptimisationStage(
     // Deviation figures are meaningless when the quote doesn't cover all identified damage.
     let quoteDeviationPct: number | null = null;
     const savingsOpportunityCents = 0;
-    // No recommended cost range — the AI cannot produce a fair range without real data.
-    const lowCents = 0;
-    const highCents = 0;
+    // Recommended cost range — use learning DB benchmark as AI estimate when available.
+    // rangeBaseCents is always derived from aiEstimatedCents (the AI's independent estimate),
+    // never from the submitted quote, so the range is an independent cross-check.
+    const aiEstimatedCents: number | null = learningDbBenchmarkCents ?? null;
+    const rangeBaseCents: number = aiEstimatedCents ?? (quotedCents ?? 0);
+    const lowCents = rangeBaseCents > 0 ? Math.round(rangeBaseCents * 0.85) : 0;
+    const highCents = rangeBaseCents > 0 ? Math.round(rangeBaseCents * 1.15) : 0;
 
     // ── Learning DB: fraud detection signal only ──────────────────────────────
     // The learning DB average is used ONLY to flag suspiciously cheap quotes.

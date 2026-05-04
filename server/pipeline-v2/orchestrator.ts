@@ -1824,6 +1824,9 @@ export async function runPipelineV2(
     ifeResult: stage9Data?.ifeResult ?? null,
     doeResult: stage9Data?.doeResult ?? null,
     felVersionSnapshot: forensicAnalysisResult?.felVersionSnapshot ?? null,
+    // DOE is only required when the claim has repair quotes submitted.
+    // Claims without quotes (theft, total loss, early-stage) skip DOE entirely.
+    claimHasQuotes: (stage9Data?.quoteCount ?? 0) > 0,
   });
   if (_guardResult.failureState === "REPLAY_INCOMPLETE") {
     ctx.log("Stage13", `REPLAY_INCOMPLETE: ${_guardResult.exceptionReason}`);

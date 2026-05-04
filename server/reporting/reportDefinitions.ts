@@ -54,6 +54,8 @@ export const REPORT_ACCESS: Record<string, string[]> = {
   "portfolio.assessor_performance": ["admin", "insurer_admin", "claims_manager", "fraud_manager"],
   "portfolio.panel_beater_performance": ["admin", "insurer_admin", "claims_manager", "fraud_manager"],
   "portfolio.dwell_time":        ["admin", "insurer_admin", "claims_manager"],
+  // Alias — Risk Manager dashboard export (maps to fraud/risk portfolio report)
+  "risk_manager_portfolio":       ["admin", "insurer_admin", "risk_manager"],
   // Phase 2d — Executive / Governance
   "executive.platform_dashboard": ["admin"],
   "executive.cross_insurer_fraud": ["admin"],
@@ -79,6 +81,7 @@ export async function generateReportHtml(
     case "portfolio.assessor_performance": return generateAssessorPerformanceReport(params, tenantId);
     case "portfolio.panel_beater_performance": return generatePanelBeaterPerformanceReport(params, tenantId);
     case "portfolio.dwell_time":  return generateDwellTimeReport(params, tenantId);
+    case "risk_manager_portfolio": return generateFraudSummaryReport(params, tenantId); // alias → fraud/risk portfolio
     case "executive.platform_dashboard": return generatePlatformDashboardReport(params);
     case "governance.sar":        return generateSARReport(params, tenantId);
     case "governance.regulatory_compliance": return generateRegulatoryComplianceReport(params, tenantId);

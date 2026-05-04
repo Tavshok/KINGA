@@ -212,14 +212,18 @@ export function buildFELVersionSnapshot(
   const missingCount = llmStagesTotal - llmStagesWithHashes.length;
   const replaySupported = missingCount === 0;
 
+  // replayLimitation is always populated — even when replaySupported=true, we note
+  // that full deterministic replay requires pinning the current model version.
+  const replayLimitation = replaySupported
+    ? `Prompt hashes recorded for all ${llmStagesWithHashes.length} LLM stage(s). Note: full deterministic replay requires pinning the current model version used at assessment time.`
+    : `${missingCount} LLM stage(s) are missing prompt hash records — full audit replay is not available for this assessment. Note: full deterministic replay also requires pinning the current model version.`;
+
   return {
     pipelineRunId,
     platformVersion: KINGA_PLATFORM_VERSION,
     stages: stageVersions,
     replaySupported,
-    replayLimitation: replaySupported
-      ? null
-      : `${missingCount} LLM stage(s) are missing prompt hash records — full audit replay is not available for this assessment.`,
+    replayLimitation,
     snapshotAt: new Date().toISOString(),
   };
 }

@@ -356,22 +356,24 @@ async function generateAIAssessment(db: any, claimId: number, tenantId: string) 
     routingRecommendation = "fraud_investigation";
   }
 
+  const rawFraudScore = claim.earlyFraudSuspicion ? 0.7 + Math.random() * 0.3 : Math.random() * 0.3;
+  const fraudScoreInt = Math.round(rawFraudScore * 100);
   await db.insert(aiAssessments).values({
     claimId,
     tenantId,
-    confidenceScore,
-    routingRecommendation,
-    damageSeverity: confidenceScore > 0.7 ? "minor" : confidenceScore > 0.5 ? "moderate" : "severe",
-    estimatedRepairCost: claim.estimatedClaimValue,
-    fraudRiskScore: claim.earlyFraudSuspicion ? 0.7 + Math.random() * 0.3 : Math.random() * 0.3,
-    assessmentMetadata: JSON.stringify({
-      model_version: "v2.1.0",
-      processing_time_ms: 1200 + Math.floor(Math.random() * 800),
-      confidence_factors: {
-        policy_verification: confidenceScore + 0.05,
-        incident_consistency: confidenceScore - 0.02,
-        claim_history: confidenceScore + 0.03,
-      },
+    confidenceScore: Math.round(confidenceScore * 100),
+    fraudScore: fraudScoreInt,
+    fraudRiskLevel: fraudScoreInt > 70 ? 'high' : fraudScoreInt > 40 ? 'medium' : 'low',
+    structuralDamageSeverity: confidenceScore > 0.7 ? 'minor' : confidenceScore > 0.5 ? 'moderate' : 'severe',
+    estimatedCost: claim.estimatedClaimValue ? Math.round(Number(claim.estimatedClaimValue)) : null,
+    modelVersion: 'v2.1.0-seed',
+    processingTime: 1200 + Math.floor(Math.random() * 800),
+    pipelineRunSummary: JSON.stringify({
+      stages: {},
+      source: 'seed_data',
+      routingRecommendation,
+      confidenceScore,
+      fraudScore: rawFraudScore,
     }),
     isReanalysis: 0,
     versionNumber: 1,
