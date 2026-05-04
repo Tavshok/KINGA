@@ -11275,3 +11275,18 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Backend: sendClaimantStatusUpdate procedure (resolves claimant contact from claim record)
 - [ ] Frontend: ClaimantStatusUpdate compose button in Claims Processor queue rows
 - [ ] Email: mandatory notification to claimant on status update
+
+
+## Phase: ClaimCommentThread Integration & Claims Processor Phase 2 (May 2026)
+- [x] Wire ClaimCommentThread into ClaimReviewDialog (Claims Manager) as Communications tab
+- [x] Wire ClaimCommentThread into InternalAssessorDashboard AssessmentDialog
+- [x] Wire ClaimCommentThread into ExternalAssessorDashboard expanded claim row
+- [x] Wire ClaimCommentThread into PanelBeaterDashboard claim cards
+- [x] Wire ClaimCommentThread into ClaimsProcessorDashboard ClaimCardInline
+- [x] Add 7-day throughput bar chart to Claims Processor analytics section (3-column grid)
+- [x] Enhance ClaimReviewDialog Timeline tab with live workflowAudit.getClaimHistory data
+- [x] Merge static milestones + live audit events into unified chronological timeline with vertical connector
+- [x] Verify NotificationsTabBadge (unreadCount polling) is wired in all dashboards
+- [x] Fix KingaReportButton trpc namespace (reportingEngine)
+- [x] Fix AdminTierManagement tierFeatureFlags type error
+- [x] Fix ClaimCommentThread user.id type cast
