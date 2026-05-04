@@ -11315,3 +11315,71 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] ExternalAssessorDashboard: add assessor_external nav section to InsurerPortalLayout for insurer users who have assessor_external insurerRole
 - [ ] ExecutiveDashboard: remove governance/override/segregation queries; replace with executive-summary-only KPI data
 - [ ] InsurerPortalLayout claims_manager nav: add Fraud Analytics link
+
+## Dashboard & Reports Audit (2026-05-04)
+
+### Phase A: Audit findings (complete)
+- [x] Identified placeholder tabs with no real data across all dashboards
+- [x] Identified missing report generator functions (9 of 22 report keys unimplemented)
+- [x] Identified role leakage: wrong-role tabs visible in multiple dashboards
+- [x] Fixed REPORT_ACCESS map with strict per-role arrays (39 tests pass)
+- [x] Fixed DB insurer_role enum (added insurer_admin, assessor_external, governance_officer; renamed internal_assessor → assessor_internal)
+
+### Phase B: ClaimsProcessorDashboard
+- [ ] Remove "Assessor Performance" tab (wrong role — belongs to Claims Manager)
+- [ ] Remove "Workflow Analysis" tab (portal-level, not dashboard)
+- [ ] Wire "Upload Documents" tab to real document upload endpoint
+
+### Phase C: ClaimsManagerDashboard
+- [ ] Remove "ML Model Performance" tab (platform admin only)
+- [ ] Remove "Risk Portfolio" tab (Risk Manager only)
+- [ ] Wire "Assessor Performance" tab to real trpc.assessors.getPerformanceDashboard
+- [ ] Wire "Fraud Intelligence" tab to real fraud data
+
+### Phase D: RiskManagerDashboard
+- [ ] Remove "Claims Queue" tab (Claims Processor / Manager only)
+- [ ] Wire "Fraud Intelligence" to real fraud data
+- [ ] Wire "Portfolio" to real portfolio data
+
+### Phase E: ExecutiveDashboard
+- [ ] Remove "Operational Detail" / "Claims Queue" tabs (wrong role)
+- [ ] Wire KPI cards to real trpc data
+
+### Phase F: GovernanceDashboard
+- [ ] Remove "Claims" tab (wrong role)
+- [ ] Wire "Override Oversight" to real audit_logs data
+- [ ] Wire "Segregation Monitoring" to real data
+- [ ] Wire "Role Change Oversight" to real data
+
+### Phase G: AssessorDashboards
+- [ ] InternalAssessor: Remove "Portfolio" and "Risk Summary" tabs (wrong role)
+- [ ] ExternalAssessor: Restrict to Queue, My Claims, Appointments, Completed only
+
+### Phase H: Missing report generators
+- [ ] executive.insurer_summary
+- [ ] executive.claims_trend
+- [ ] executive.financial_exposure
+- [ ] executive.cross_insurer_fraud (admin only)
+- [ ] executive.ml_performance (admin only)
+- [ ] governance.data_retention
+- [ ] assessor.my_assignments
+- [ ] assessor.performance_summary
+- [ ] panel_beater.quote_history
+- [ ] panel_beater.job_completion
+- [ ] Update switch statement to wire all new generators
+
+### Phase I: Reports badge + final fixes
+- [ ] Fix dev server syntax error in reporting.ts
+- [ ] Add ReportsBadgeWidget to all portal dashboards
+- [ ] Run all tests
+- [ ] Save checkpoint
+
+## Governance Officer Role Removal (2026-05-04)
+- [ ] Remove governance_officer from REPORT_ACCESS — reassign all governance reports to claims_manager
+- [ ] Remove governance_officer from DB enum (alter insurer_role column)
+- [ ] Remove governance_officer from schema.ts enum
+- [ ] Remove GovernanceDashboard route from App.tsx (or redirect to ClaimsManagerDashboard)
+- [ ] Remove governance_officer from roleRouting.ts
+- [ ] Fix analyticsRoleProcedure to allow claims_manager, risk_manager, executive, insurer_admin
+- [ ] Fix governanceDashboardProcedure to allow claims_manager, insurer_admin, admin
+- [ ] Run tests and save checkpoint

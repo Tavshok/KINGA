@@ -31,73 +31,36 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
-// Role-aware nav items — each persona sees only their relevant sections
-function getMenuItems(role: string | undefined, insurerRole: string | null | undefined) {
+/**
+ * Build nav items from the server-derived user object.
+ * The user.dashboardRoute and user.permissions fields come from auth.me
+ * (server/routers.ts) — no role strings are hardcoded here.
+ */
+function getMenuItems(
+  role: string | undefined,
+  insurerRole: string | null | undefined,
+  dashboardRoute?: string | null,
+  permissions?: Record<string, unknown> | null,
+) {
   // Platform admin
-  if (role === "admin" || role === "platform_super_admin") {
+  if (role === "admin") {
     return [
-      { icon: LayoutDashboard, label: "Admin Dashboard", path: "/admin/dashboard" },
-      { icon: Users, label: "Tenant Management", path: "/admin/tenants" },
-      { icon: Gavel, label: "Tier Management", path: "/admin/tier-management" },
-      { icon: Activity, label: "Pipeline Health", path: "/admin/pipeline-health" },
-      { icon: ShieldAlert, label: "Escalation Queue", path: "/admin/escalation" },
-      { icon: BarChart3, label: "Integrity Metrics", path: "/admin/integrity-metrics" },
-      { icon: GitBranch, label: "Workflows", path: "/admin/workflows" },
+      { icon: LayoutDashboard, label: "Admin Dashboard",    path: "/admin/dashboard" },
+      { icon: Users,           label: "Tenant Management",  path: "/admin/tenants" },
+      { icon: Gavel,           label: "Tier Management",    path: "/admin/tier-management" },
+      { icon: Activity,        label: "Pipeline Health",    path: "/admin/pipeline-health" },
+      { icon: ShieldAlert,     label: "Escalation Queue",   path: "/admin/escalation" },
+      { icon: BarChart3,       label: "Integrity Metrics",  path: "/admin/integrity-metrics" },
+      { icon: GitBranch,       label: "Workflows",          path: "/admin/workflows" },
     ];
   }
-  // Insurer — sub-role aware
-  if (role === "insurer") {
-    const base = [
-      { icon: LayoutDashboard, label: "Portal Home", path: "/insurer-portal" },
-      { icon: AlertCircle, label: "Exception Hub", path: "/insurer-portal/exception-intelligence" },
-      { icon: Network, label: "Relationship Intelligence", path: "/insurer-portal/relationship-intelligence" },
-      { icon: FileBarChart, label: "Reports Centre", path: "/insurer-portal/reports-centre" },
-    ];
-    if (insurerRole === "executive") {
-      return [
-        ...base,
-        { icon: TrendingUp, label: "Executive Dashboard", path: "/insurer-portal/executive" },
-        { icon: BarChart3, label: "Workflow Analytics", path: "/insurer-portal/workflow-analytics" },
-        { icon: UserCog, label: "Governance", path: "/insurer-portal/governance" },
-      ];
-    }
-    if (insurerRole === "claims_manager") {
-      return [
-        ...base,
-        { icon: ClipboardList, label: "Claims Manager", path: "/insurer-portal/claims-manager" },
-        { icon: BarChart3, label: "Workflow Analytics", path: "/insurer-portal/workflow-analytics" },
-        { icon: ShieldAlert, label: "Escalation Queue", path: "/admin/escalation" },
-        { icon: GitBranch, label: "Workflows", path: "/admin/workflows" },
-      ];
-    }
-    if (insurerRole === "claims_processor") {
-      return [
-        ...base,
-        { icon: FileText, label: "Claims Processor", path: "/insurer-portal/claims-processor" },
-      ];
-    }
-    if (insurerRole === "risk_manager") {
-      return [
-        ...base,
-        { icon: ShieldAlert, label: "Risk Manager", path: "/insurer-portal/risk-manager" },
-        { icon: BarChart3, label: "Workflow Analytics", path: "/insurer-portal/workflow-analytics" },
-      ];
-    }
-    if (insurerRole === "assessor_internal") {
-      return [
-        ...base,
-        { icon: Wrench, label: "Assessor Dashboard", path: "/insurer-portal/internal-assessor" },
-      ];
-    }
-    return base;
-  }
-  // External assessor
+  // External assessor (top-level role = assessor)
   if (role === "assessor") {
     return [
-      { icon: LayoutDashboard, label: "Dashboard", path: "/assessor/dashboard" },
-      { icon: ClipboardList, label: "My Claims", path: "/assessor" },
-      { icon: TrendingUp, label: "Performance", path: "/assessor/performance" },
-      { icon: Users, label: "Leaderboard", path: "/assessor/leaderboard" },
+      { icon: LayoutDashboard, label: "Dashboard",   path: "/assessor/dashboard" },
+      { icon: ClipboardList,   label: "My Claims",   path: "/assessor" },
+      { icon: TrendingUp,      label: "Performance", path: "/assessor/performance" },
+      { icon: Users,           label: "Leaderboard", path: "/assessor/leaderboard" },
     ];
   }
   // Panel beater
@@ -109,16 +72,56 @@ function getMenuItems(role: string | undefined, insurerRole: string | null | und
   // Claimant
   if (role === "claimant") {
     return [
-      { icon: LayoutDashboard, label: "My Claims", path: "/claimant/dashboard" },
-      { icon: FileText, label: "Submit Claim", path: "/claimant/submit-claim" },
+      { icon: LayoutDashboard, label: "My Claims",    path: "/claimant/dashboard" },
+      { icon: FileText,        label: "Submit Claim", path: "/claimant/submit-claim" },
     ];
   }
+
+  // Insurer — build nav from server-derived dashboardRoute and permissions.
+  // dashboardRoute is the primary dashboard for this sub-role.
+  if (role === "insurer" && dashboardRoute) {
+    const base = [
+      { icon: LayoutDashboard, label: "Portal Home",                path: "/insurer-portal" },
+      { icon: AlertCircle,     label: "Exception Hub",              path: "/insurer-portal/exception-intelligence" },
+      { icon: Network,         label: "Relationship Intelligence",  path: "/insurer-portal/relationship-intelligence" },
+      { icon: FileBarChart,    label: "Reports Centre",             path: "/insurer-portal/reports-centre" },
+    ];
+    // Add the role-specific primary dashboard link (avoid duplicating Portal Home)
+    const dashLabel = (() => {
+      if (dashboardRoute.includes("claims-manager"))   return "Claims Manager";
+      if (dashboardRoute.includes("claims-processor")) return "Claims Processor";
+      if (dashboardRoute.includes("risk-manager"))     return "Risk Manager";
+      if (dashboardRoute.includes("executive"))        return "Executive Dashboard";
+      if (dashboardRoute.includes("internal-assessor"))return "Assessor Dashboard";
+      if (dashboardRoute.includes("external-assessor"))return "Assessor Dashboard";
+      if (dashboardRoute.includes("insurer-admin"))    return "Admin Dashboard";
+      return null;
+    })();
+    const dashIcon = (() => {
+      if (dashboardRoute.includes("claims-manager"))   return ClipboardList;
+      if (dashboardRoute.includes("claims-processor")) return FileText;
+      if (dashboardRoute.includes("risk-manager"))     return ShieldAlert;
+      if (dashboardRoute.includes("executive"))        return TrendingUp;
+      if (dashboardRoute.includes("internal-assessor"))return Wrench;
+      if (dashboardRoute.includes("external-assessor"))return Wrench;
+      if (dashboardRoute.includes("insurer-admin"))    return Settings;
+      return LayoutDashboard;
+    })();
+    const items = dashLabel ? [...base, { icon: dashIcon, label: dashLabel, path: dashboardRoute }] : base;
+    // Add analytics/governance links based on server-derived permissions
+    if (permissions?.canAccessAnalytics)  items.push({ icon: BarChart3, label: "Workflow Analytics", path: "/insurer-portal/workflow-analytics" });
+    if (permissions?.canViewAnalytics)    items.push({ icon: BarChart3, label: "Fraud Analytics",    path: "/insurer/fraud-analytics" });
+    if (permissions?.canManageWorkflowSettings) {
+      items.push({ icon: ShieldAlert, label: "Escalation Queue", path: "/admin/escalation" });
+      items.push({ icon: GitBranch,   label: "Workflows",        path: "/admin/workflows" });
+    }
+    return items;
+  }
+
   // Fallback
   return [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-    { icon: AlertCircle, label: "Exception Hub", path: "/insurer-portal/exception-intelligence" },
-    { icon: Network, label: "Relationship Intelligence", path: "/insurer-portal/relationship-intelligence" },
-    { icon: FileBarChart, label: "Reports Centre", path: "/insurer-portal/reports-centre" },
+    { icon: LayoutDashboard, label: "Dashboard",    path: "/" },
+    { icon: FileBarChart,    label: "Reports Centre", path: "/insurer-portal/reports-centre" },
   ];
 }
 
@@ -207,7 +210,12 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const menuItems = getMenuItems(user?.role, user?.insurerRole);
+  const menuItems = getMenuItems(
+    user?.role,
+    user?.insurerRole,
+    (user as any)?.dashboardRoute,
+    (user as any)?.permissions,
+  );
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
 

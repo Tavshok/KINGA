@@ -109,13 +109,8 @@ describe("REPORT_ACCESS — role-based access control", () => {
       expect(reports).not.toContain("executive.ml_performance");
     });
 
-    it("cannot access governance reports", () => {
-      expect(reports).not.toContain("governance.sar");
-      expect(reports).not.toContain("governance.data_retention");
-    });
   });
-
-  // ── Risk Manager ──────────────────────────────────────────────────────────
+  // ── Risk Managerr ──────────────────────────────────────────────────────────
   describe("risk_manager", () => {
     const reports = reportsFor("insurer", "risk_manager");
 
@@ -186,34 +181,26 @@ describe("REPORT_ACCESS — role-based access control", () => {
     });
   });
 
-  // ── Governance Officer ────────────────────────────────────────────────────
-  describe("governance_officer", () => {
+  // ── Governance Officer (REMOVED — reports reassigned to claims_manager) ──────
+  describe("governance_officer (deprecated role — no access)", () => {
     const reports = reportsFor("insurer", "governance_officer");
-
-    it("can access governance reports", () => {
+    it("returns empty list (role removed from REPORT_ACCESS)", () => {
+      expect(reports).toHaveLength(0);
+    });
+  });
+  // ── Claims Manager gets governance reports ────────────────────────────────────────────
+  describe("claims_manager — governance report access", () => {
+    const reports = reportsFor("insurer", "claims_manager");
+    it("can access governance SAR, compliance, and data retention", () => {
       expect(reports).toContain("governance.sar");
       expect(reports).toContain("governance.regulatory_compliance");
       expect(reports).toContain("governance.data_retention");
     });
-
     it("can access audit trail", () => {
       expect(reports).toContain("claim.audit_trail");
     });
-
-    it("cannot access claim working documents", () => {
-      expect(reports).not.toContain("claim.assessment");
-      expect(reports).not.toContain("claim.forensic");
-      expect(reports).not.toContain("claim.cost_comparison");
-    });
-
-    it("cannot access portfolio or executive reports", () => {
-      expect(reports).not.toContain("portfolio.fraud_summary");
-      expect(reports).not.toContain("executive.insurer_summary");
-      expect(reports).not.toContain("executive.platform_dashboard");
-    });
   });
-
-  // ── Insurer Admin ─────────────────────────────────────────────────────────
+    // ── Insurer Admin ─────────────────────────────────────────────────────────
   describe("insurer_admin", () => {
     const reports = reportsFor("insurer", "insurer_admin");
 

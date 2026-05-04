@@ -39,6 +39,7 @@ import {
   Filler,
 } from "chart.js";
 import { Doughnut, Bar, Line } from "react-chartjs-2";
+import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 export default function ClaimsManagerDashboard() {
@@ -396,6 +397,7 @@ export default function ClaimsManagerDashboard() {
           </div>
 
           <>
+          <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
               {/* KPI Cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[

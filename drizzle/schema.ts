@@ -3100,7 +3100,7 @@ export const users = mysqlTable("users", {
 	passwordHash: varchar("password_hash", { length: 255 }),
 	loginMethod: varchar({ length: 64 }),
 	role: mysqlEnum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver']).default('user').notNull(),
-	insurerRole: mysqlEnum("insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','governance_officer']),
+	insurerRole: mysqlEnum("insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin']),
 	organizationId: int("organization_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),
 	emailVerified: tinyint("email_verified").default(0).notNull(),

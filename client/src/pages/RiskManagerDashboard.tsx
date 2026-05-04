@@ -27,6 +27,7 @@ import {
   CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
+import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 ChartJS.register(Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -190,6 +191,7 @@ export default function RiskManagerDashboard() {
             {Number(claim.approvedAmount ?? claim.estimatedCost ?? 0) >= HIGH_VALUE_THRESHOLD && (
               <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-200">High Value</Badge>
             )}
+          <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
             <span><strong className="text-foreground">Vehicle:</strong> {claim.vehicleRegistration ?? "—"}</span>

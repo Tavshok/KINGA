@@ -34,6 +34,7 @@ import {
   RotateCcw
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 
 /**
  * Claims Processor Dashboard
@@ -523,6 +524,7 @@ export default function ClaimsProcessorDashboard() {
                 </div>
               )}
 
+          <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
               {/* Claim Details Grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
                 <div>

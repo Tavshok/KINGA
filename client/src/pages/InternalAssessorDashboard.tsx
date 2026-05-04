@@ -46,6 +46,7 @@ import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { Link } from "wouter";
 import { currencySymbol, fmtCurrency } from "@/lib/currency";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
+import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -151,6 +152,7 @@ function ClaimRow({ claim, actions, showWorkflow = true }: {
               </Badge>
             )}
             <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
+          <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">

@@ -18,6 +18,7 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
+import { GOVERNANCE_ALLOWED_ROLES } from "../../shared/role-permissions";
 import { 
   claims, 
   workflowAuditTrail, 
@@ -43,16 +44,15 @@ const governanceDashboardProcedure = protectedProcedure.use(({ ctx, next }) => {
     });
   }
 
-  // Check if user has executive or insurer_admin role
-  const hasAccess = 
-    ctx.user.role === "admin" || 
-    ctx.user.role === "executive" ||
-    ctx.user.insurerRole === "insurer_admin";
+  // Allow platform admin + all roles in GOVERNANCE_ALLOWED_ROLES (shared/role-permissions.ts)
+  const hasAccess =
+    ctx.user.role === "admin" ||
+    (ctx.user.insurerRole != null && GOVERNANCE_ALLOWED_ROLES.includes(ctx.user.insurerRole as any));
 
   if (!hasAccess) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Access restricted to executives and insurer admins",
+      message: `Governance access requires one of: ${GOVERNANCE_ALLOWED_ROLES.join(", ")}`,
     });
   }
 

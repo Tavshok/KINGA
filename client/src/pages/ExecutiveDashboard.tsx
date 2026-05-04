@@ -35,6 +35,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 
 import {
+import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
   exportKPIsToPDF,
   exportAssessorPerformanceToExcel,
   exportPanelBeaterAnalyticsToExcel,
@@ -396,6 +397,7 @@ export default function ExecutiveDashboard() {
       </div>
 
       {/* ── HERO NUMBERS: Three Large Numbers, Full Width, Always Visible ── */}
+          <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
       <div className="max-w-[1600px] mx-auto px-8 pt-8 pb-2">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
           {[

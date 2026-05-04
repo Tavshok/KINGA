@@ -51,7 +51,6 @@ const InsurerRoleSelection = lazy(() => import("./pages/InsurerRoleSelection"));
 
 // Insurer sub-role dashboards
 const ExecutiveDashboard = lazy(() => import("./pages/ExecutiveDashboard"));
-const GovernanceDashboard = lazy(() => import("./pages/GovernanceDashboard"));
 const WorkflowAnalyticsDashboard = lazy(() => import("./pages/WorkflowAnalyticsDashboard"));
 const ClaimsProcessorDashboard = lazy(() => import("./pages/ClaimsProcessorDashboard"));
 const InternalAssessorDashboard = lazy(() => import("./pages/InternalAssessorDashboard"));
@@ -297,17 +296,6 @@ function Router() {
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["executive"]}>
               <InsurerPortalLayout><ExecutiveDashboard /></InsurerPortalLayout>
-            </RoleGuard>
-          </ProtectedRoute>
-        </Route>
-        
-        <Route path="/insurer-portal/governance">
-          <ProtectedRoute 
-            allowedRoles={["insurer", "admin"]}
-            allowedInsurerRoles={["risk_manager", "claims_manager", "executive", "insurer_admin"]}
-          >
-            <RoleGuard allowedRoles={["executive", "insurer_admin"]}>
-              <InsurerPortalLayout><GovernanceDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>

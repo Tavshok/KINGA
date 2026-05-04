@@ -50,6 +50,7 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
+import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 
 ChartJS.register(
   CategoryScale,
@@ -344,6 +345,7 @@ export default function ExternalAssessorDashboard() {
           </div>
         </div>
 
+          <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
         {/* KPI Stat Bar */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="border-0 shadow-sm bg-card">

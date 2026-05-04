@@ -1,354 +1,334 @@
 /**
- * Role Permissions Matrix
- * 
- * Defines what actions each insurer role can perform.
- * Used for both frontend UI rendering and backend validation.
+ * KINGA Role Permissions — Single Source of Truth
+ * ================================================
+ * All role-based access decisions flow from this file.
+ * Backend procedures import ROLE_PERMISSIONS to guard access.
+ * The auth.me endpoint exposes a derived RoleProfile to the frontend.
+ * The frontend MUST NOT hardcode role strings — it reads from auth.me.
+ *
+ * Canonical insurerRole values (stored in users.insurer_role DB column):
+ *   claims_processor   — front-line claim handler
+ *   assessor_internal  — in-house damage assessor
+ *   assessor_external  — third-party assessor
+ *   risk_manager       — fraud & risk oversight
+ *   claims_manager     — head of claims dept
+ *   executive          — C-suite / board
+ *   insurer_admin      — insurer-level administrator
+ *
+ * Top-level role values (users.role):
+ *   admin        — platform super-admin (cross-insurer)
+ *   insurer      — insurer account (uses insurerRole for sub-role)
+ *   assessor     — external assessor account
+ *   panel_beater — repair shop account
  */
 
-export type InsurerRole = 
-  | "claims_processor" 
-  | "assessor_internal" 
-  | "risk_manager" 
-  | "claims_manager" 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type InsurerRole =
+  | "claims_processor"
+  | "assessor_internal"
+  | "assessor_external"
+  | "risk_manager"
+  | "claims_manager"
   | "executive"
   | "insurer_admin";
 
+export type TopLevelRole = "admin" | "insurer" | "assessor" | "panel_beater";
+
 export interface RolePermissions {
-  // Claim Operations
+  // ── Claim Operations ──────────────────────────────────────────────────────
   canUploadClaim: boolean;
   canViewClaim: boolean;
   canEditClaim: boolean;
   canDeleteClaim: boolean;
-  
-  // Intake Gate Operations
+
+  // ── Intake Gate ───────────────────────────────────────────────────────────
   canViewIntakeQueue: boolean;
   canAssignProcessor: boolean;
-  
-  // Assessment Operations
+
+  // ── Assessment ────────────────────────────────────────────────────────────
   canTriggerAIAssessment: boolean;
   canViewAIAssessment: boolean;
   canOverrideAIAssessment: boolean;
   canPerformManualAssessment: boolean;
-  
-  // Assignment Operations
+
+  // ── Assignment ────────────────────────────────────────────────────────────
   canAssignAssessor: boolean;
   canAssignToSelf: boolean;
   canReassignClaim: boolean;
-  
-  // Financial Operations
+
+  // ── Financial ─────────────────────────────────────────────────────────────
   canApprovePayment: boolean;
-  canApproveLowValue: boolean;   // < $5,000
-  canApproveModerateValue: boolean; // $5,000 - $50,000
-  canApproveHighValue: boolean;  // > $50,000
+  canApproveLowValue: boolean;      // < R5,000
+  canApproveModerateValue: boolean; // R5,000 – R50,000
+  canApproveHighValue: boolean;     // > R50,000
   canOverrideAutomation: boolean;
-  
-  // Workflow Operations
+
+  // ── Workflow ──────────────────────────────────────────────────────────────
   canChangeWorkflowState: boolean;
   canEscalateClaim: boolean;
   canCloseClaim: boolean;
   canReopenClaim: boolean;
-  
-  // Risk & Fraud Operations
+
+  // ── Risk & Fraud ──────────────────────────────────────────────────────────
   canFlagFraud: boolean;
   canInvestigateFraud: boolean;
   canApproveFraudCase: boolean;
-  
-  // Analytics & Reporting
+
+  // ── Analytics & Reporting ─────────────────────────────────────────────────
   canViewAnalytics: boolean;
   canViewExecutiveDashboard: boolean;
   canViewGovernanceDashboard: boolean;
   canExportReports: boolean;
-  
-  // Configuration
+
+  // ── Configuration ─────────────────────────────────────────────────────────
   canManageUsers: boolean;
   canManageWorkflowSettings: boolean;
   canManageAutomationPolicies: boolean;
-  
-  // Queue Access
+
+  // ── Queue Access ──────────────────────────────────────────────────────────
   accessibleQueues: string[];
+
+  // ── Routing (consumed by auth.me → frontend) ──────────────────────────────
+  /** The primary dashboard route for this role */
+  dashboardRoute: string;
+  /** Human-readable label shown in the sidebar header */
+  roleLabel: string;
 }
 
-/**
- * Role Permissions Matrix
- */
+// ─── Permissions Matrix ───────────────────────────────────────────────────────
+
 export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
+
   claims_processor: {
-    // Claim Operations
     canUploadClaim: true,
     canViewClaim: true,
     canEditClaim: true,
     canDeleteClaim: false,
-    
-    // Intake Gate Operations - RESTRICTED
     canViewIntakeQueue: false,
     canAssignProcessor: false,
-    
-    // Assessment Operations
     canTriggerAIAssessment: true,
     canViewAIAssessment: true,
     canOverrideAIAssessment: false,
     canPerformManualAssessment: false,
-    
-    // Assignment Operations
     canAssignAssessor: true,
     canAssignToSelf: false,
     canReassignClaim: false,
-    
-    // Financial Operations - RESTRICTED
     canApprovePayment: false,
     canApproveLowValue: false,
     canApproveModerateValue: false,
     canApproveHighValue: false,
     canOverrideAutomation: false,
-    
-    // Workflow Operations
     canChangeWorkflowState: true,
     canEscalateClaim: true,
     canCloseClaim: false,
     canReopenClaim: false,
-    
-    // Risk & Fraud Operations
     canFlagFraud: true,
     canInvestigateFraud: false,
     canApproveFraudCase: false,
-    
-    // Analytics & Reporting
     canViewAnalytics: false,
     canViewExecutiveDashboard: false,
     canViewGovernanceDashboard: false,
-    canExportReports: false,
-    
-    // Configuration
+    canExportReports: true,
     canManageUsers: false,
     canManageWorkflowSettings: false,
     canManageAutomationPolicies: false,
-    
-    // Queue Access - CANNOT VIEW INTAKE_QUEUE
-    accessibleQueues: ["assigned", "disputed", "closed"], // Only assigned claims (assigned by claims_manager)
+    accessibleQueues: ["assigned", "disputed", "closed"],
+    dashboardRoute: "/insurer-portal/claims-processor",
+    roleLabel: "Claims Processor",
   },
-  
+
   assessor_internal: {
-    // Claim Operations
     canUploadClaim: false,
     canViewClaim: true,
     canEditClaim: false,
     canDeleteClaim: false,
-    
-    // Intake Gate Operations - RESTRICTED
     canViewIntakeQueue: false,
     canAssignProcessor: false,
-    
-    // Assessment Operations - RESTRICTED AI TRIGGER
-    canTriggerAIAssessment: false, // Cannot trigger AI unless re-analysis explicitly allowed
+    canTriggerAIAssessment: false,
     canViewAIAssessment: true,
     canOverrideAIAssessment: false,
     canPerformManualAssessment: true,
-    
-    // Assignment Operations
     canAssignAssessor: false,
     canAssignToSelf: true,
     canReassignClaim: false,
-    
-    // Financial Operations
     canApprovePayment: false,
     canApproveLowValue: false,
     canApproveModerateValue: false,
     canApproveHighValue: false,
     canOverrideAutomation: false,
-    
-    // Workflow Operations
     canChangeWorkflowState: true,
     canEscalateClaim: true,
     canCloseClaim: false,
     canReopenClaim: false,
-    
-    // Risk & Fraud Operations
     canFlagFraud: true,
     canInvestigateFraud: false,
     canApproveFraudCase: false,
-    
-    // Analytics & Reporting
     canViewAnalytics: false,
     canViewExecutiveDashboard: false,
     canViewGovernanceDashboard: false,
     canExportReports: false,
-    
-    // Configuration
     canManageUsers: false,
     canManageWorkflowSettings: false,
     canManageAutomationPolicies: false,
-    
-    // Queue Access
-    accessibleQueues: ["assigned"], // Only assigned claims
+    accessibleQueues: ["assigned"],
+    dashboardRoute: "/insurer-portal/internal-assessor",
+    roleLabel: "Internal Assessor",
   },
-  
-  risk_manager: {
-    // Claim Operations
+
+  assessor_external: {
     canUploadClaim: false,
     canViewClaim: true,
     canEditClaim: false,
     canDeleteClaim: false,
-    
-    // Intake Gate Operations - RESTRICTED
     canViewIntakeQueue: false,
     canAssignProcessor: false,
-    
-    // Assessment Operations
+    canTriggerAIAssessment: false,
+    canViewAIAssessment: true,
+    canOverrideAIAssessment: false,
+    canPerformManualAssessment: true,
+    canAssignAssessor: false,
+    canAssignToSelf: true,
+    canReassignClaim: false,
+    canApprovePayment: false,
+    canApproveLowValue: false,
+    canApproveModerateValue: false,
+    canApproveHighValue: false,
+    canOverrideAutomation: false,
+    canChangeWorkflowState: true,
+    canEscalateClaim: true,
+    canCloseClaim: false,
+    canReopenClaim: false,
+    canFlagFraud: true,
+    canInvestigateFraud: false,
+    canApproveFraudCase: false,
+    canViewAnalytics: false,
+    canViewExecutiveDashboard: false,
+    canViewGovernanceDashboard: false,
+    canExportReports: false,
+    canManageUsers: false,
+    canManageWorkflowSettings: false,
+    canManageAutomationPolicies: false,
+    accessibleQueues: ["assigned"],
+    dashboardRoute: "/insurer-portal/external-assessor",
+    roleLabel: "External Assessor",
+  },
+
+  risk_manager: {
+    canUploadClaim: false,
+    canViewClaim: true,
+    canEditClaim: false,
+    canDeleteClaim: false,
+    canViewIntakeQueue: false,
+    canAssignProcessor: false,
     canTriggerAIAssessment: false,
     canViewAIAssessment: true,
     canOverrideAIAssessment: false,
     canPerformManualAssessment: false,
-    
-    // Assignment Operations
     canAssignAssessor: true,
     canAssignToSelf: false,
     canReassignClaim: true,
-    
-    // Financial Operations
     canApprovePayment: false,
     canApproveLowValue: false,
     canApproveModerateValue: false,
     canApproveHighValue: false,
     canOverrideAutomation: false,
-    
-    // Workflow Operations
     canChangeWorkflowState: true,
     canEscalateClaim: true,
     canCloseClaim: false,
     canReopenClaim: true,
-    
-    // Risk & Fraud Operations
     canFlagFraud: true,
     canInvestigateFraud: true,
     canApproveFraudCase: false,
-    
-    // Analytics & Reporting
     canViewAnalytics: true,
     canViewExecutiveDashboard: false,
-    canViewGovernanceDashboard: false,
+    canViewGovernanceDashboard: true,
     canExportReports: true,
-    
-    // Configuration
     canManageUsers: false,
     canManageWorkflowSettings: false,
     canManageAutomationPolicies: false,
-    
-    // Queue Access - RESTRICTED TO HIGH-RISK ONLY
-    accessibleQueues: ["disputed", "fraud_flagged"], // Only high-risk queue
+    accessibleQueues: ["disputed", "fraud_flagged"],
+    dashboardRoute: "/insurer-portal/risk-manager",
+    roleLabel: "Risk Manager",
   },
-  
+
   claims_manager: {
-    // Claim Operations
     canUploadClaim: true,
     canViewClaim: true,
     canEditClaim: true,
     canDeleteClaim: true,
-    
-    // Intake Gate Operations - FULL ACCESS
     canViewIntakeQueue: true,
     canAssignProcessor: true,
-    
-    // Assessment Operations
     canTriggerAIAssessment: true,
     canViewAIAssessment: true,
     canOverrideAIAssessment: true,
     canPerformManualAssessment: true,
-    
-    // Assignment Operations
     canAssignAssessor: true,
     canAssignToSelf: false,
     canReassignClaim: true,
-    
-    // Financial Operations - MODERATE VALUE ONLY
     canApprovePayment: true,
     canApproveLowValue: true,
     canApproveModerateValue: true,
-    canApproveHighValue: false, // Cannot approve high-value (requires executive)
+    canApproveHighValue: false,
     canOverrideAutomation: true,
-    
-    // Workflow Operations - FULL OVERSIGHT
     canChangeWorkflowState: true,
     canEscalateClaim: true,
     canCloseClaim: true,
     canReopenClaim: true,
-    
-    // Risk & Fraud Operations
     canFlagFraud: true,
     canInvestigateFraud: true,
     canApproveFraudCase: true,
-    
-    // Analytics & Reporting
     canViewAnalytics: true,
     canViewExecutiveDashboard: false,
-    canViewGovernanceDashboard: false,
+    canViewGovernanceDashboard: true,
     canExportReports: true,
-    
-    // Configuration
     canManageUsers: false,
     canManageWorkflowSettings: true,
     canManageAutomationPolicies: true,
-    
-    // Queue Access - FULL OVERSIGHT INCLUDING INTAKE
     accessibleQueues: ["intake_queue", "created", "assigned", "disputed", "closed", "fraud_flagged"],
+    dashboardRoute: "/insurer-portal/claims-manager",
+    roleLabel: "Claims Manager",
   },
-  
+
   executive: {
-    // Claim Operations
     canUploadClaim: false,
     canViewClaim: true,
     canEditClaim: false,
     canDeleteClaim: false,
-    
-    // Intake Gate Operations - VIEW ONLY
     canViewIntakeQueue: true,
     canAssignProcessor: false,
-    
-    // Assessment Operations
     canTriggerAIAssessment: false,
     canViewAIAssessment: true,
     canOverrideAIAssessment: true,
     canPerformManualAssessment: false,
-    
-    // Assignment Operations
     canAssignAssessor: false,
     canAssignToSelf: false,
     canReassignClaim: false,
-    
-    // Financial Operations - HIGH VALUE ONLY
     canApprovePayment: true,
     canApproveLowValue: true,
     canApproveModerateValue: true,
     canApproveHighValue: true,
     canOverrideAutomation: true,
-    
-    // Workflow Operations - NO OPERATIONAL MUTATIONS
     canChangeWorkflowState: false,
     canEscalateClaim: false,
     canCloseClaim: false,
     canReopenClaim: false,
-    
-    // Risk & Fraud Operations
     canFlagFraud: false,
     canInvestigateFraud: false,
     canApproveFraudCase: true,
-    
-    // Analytics & Reporting - ANALYTICS ONLY
     canViewAnalytics: true,
     canViewExecutiveDashboard: true,
     canViewGovernanceDashboard: true,
     canExportReports: true,
-    
-    // Configuration
     canManageUsers: false,
     canManageWorkflowSettings: false,
     canManageAutomationPolicies: false,
-    
-    // Queue Access - READ-ONLY ALL INCLUDING INTAKE
     accessibleQueues: ["intake_queue", "created", "assigned", "disputed", "closed", "fraud_flagged"],
+    dashboardRoute: "/insurer-portal/executive",
+    roleLabel: "Executive",
   },
-  
+
   insurer_admin: {
-    // Full permissions
     canUploadClaim: true,
     canViewClaim: true,
     canEditClaim: true,
@@ -382,95 +362,99 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canManageWorkflowSettings: true,
     canManageAutomationPolicies: true,
     accessibleQueues: ["intake_queue", "created", "assigned", "disputed", "closed", "fraud_flagged"],
+    dashboardRoute: "/insurer-portal/insurer-admin",
+    roleLabel: "Insurer Admin",
   },
 };
 
+// ─── Roles that can access analytics procedures ───────────────────────────────
+export const ANALYTICS_ALLOWED_ROLES: InsurerRole[] = [
+  "insurer_admin", "executive", "risk_manager", "claims_manager",
+];
+
+// ─── Roles that can access governance dashboard procedures ────────────────────
+export const GOVERNANCE_ALLOWED_ROLES: InsurerRole[] = [
+  "insurer_admin", "executive", "risk_manager", "claims_manager",
+];
+
+// ─── Roles that can schedule reports ─────────────────────────────────────────
+export const REPORT_SCHEDULE_ALLOWED_ROLES: InsurerRole[] = [
+  "insurer_admin", "executive", "risk_manager", "claims_manager",
+];
+
+// ─── Helper Functions ─────────────────────────────────────────────────────────
+
 /**
- * Get permissions for a specific role
+ * Get permissions for a specific insurerRole.
+ * Returns a zero-permission object for null/undefined roles.
  */
 export function getRolePermissions(role: InsurerRole | null | undefined): RolePermissions {
-  if (!role) {
-    // Return empty permissions for no role
+  if (!role || !(role in ROLE_PERMISSIONS)) {
     return {
-      canUploadClaim: false,
-      canViewClaim: false,
-      canEditClaim: false,
-      canDeleteClaim: false,
-      canViewIntakeQueue: false,
-      canAssignProcessor: false,
-      canTriggerAIAssessment: false,
-      canViewAIAssessment: false,
-      canOverrideAIAssessment: false,
-      canPerformManualAssessment: false,
-      canAssignAssessor: false,
-      canAssignToSelf: false,
-      canReassignClaim: false,
-      canApprovePayment: false,
-      canApproveLowValue: false,
-      canApproveModerateValue: false,
-      canApproveHighValue: false,
-      canOverrideAutomation: false,
-      canChangeWorkflowState: false,
-      canEscalateClaim: false,
-      canCloseClaim: false,
-      canReopenClaim: false,
-      canFlagFraud: false,
-      canInvestigateFraud: false,
-      canApproveFraudCase: false,
-      canViewAnalytics: false,
-      canViewExecutiveDashboard: false,
-      canViewGovernanceDashboard: false,
-      canExportReports: false,
-      canManageUsers: false,
-      canManageWorkflowSettings: false,
-      canManageAutomationPolicies: false,
-      accessibleQueues: [],
+      canUploadClaim: false, canViewClaim: false, canEditClaim: false, canDeleteClaim: false,
+      canViewIntakeQueue: false, canAssignProcessor: false,
+      canTriggerAIAssessment: false, canViewAIAssessment: false,
+      canOverrideAIAssessment: false, canPerformManualAssessment: false,
+      canAssignAssessor: false, canAssignToSelf: false, canReassignClaim: false,
+      canApprovePayment: false, canApproveLowValue: false,
+      canApproveModerateValue: false, canApproveHighValue: false,
+      canOverrideAutomation: false, canChangeWorkflowState: false,
+      canEscalateClaim: false, canCloseClaim: false, canReopenClaim: false,
+      canFlagFraud: false, canInvestigateFraud: false, canApproveFraudCase: false,
+      canViewAnalytics: false, canViewExecutiveDashboard: false,
+      canViewGovernanceDashboard: false, canExportReports: false,
+      canManageUsers: false, canManageWorkflowSettings: false,
+      canManageAutomationPolicies: false, accessibleQueues: [],
+      dashboardRoute: "/insurer-portal",
+      roleLabel: "Insurer",
     };
   }
-  
   return ROLE_PERMISSIONS[role];
 }
 
 /**
- * Check if a role has a specific permission
+ * Check if an insurerRole has a specific boolean permission.
  */
 export function hasPermission(
   role: InsurerRole | null | undefined,
-  permission: keyof RolePermissions
+  permission: keyof Omit<RolePermissions, "accessibleQueues" | "dashboardRoute" | "roleLabel">,
 ): boolean {
-  const permissions = getRolePermissions(role);
-  const value = permissions[permission];
-  
-  // Handle array permissions (accessibleQueues)
-  if (Array.isArray(value)) {
-    return value.length > 0;
-  }
-  
-  return Boolean(value);
+  return Boolean(getRolePermissions(role)[permission]);
 }
 
 /**
- * Check if a role can approve a payment based on claim value
+ * Check if an insurerRole can approve a payment of a given value (in ZAR).
  */
 export function canApprovePaymentByValue(
   role: InsurerRole | null | undefined,
-  claimValue: number
+  claimValueZAR: number,
 ): boolean {
-  const permissions = getRolePermissions(role);
-  
-  if (claimValue < 5000) {
-    return permissions.canApproveLowValue;
-  } else if (claimValue <= 50000) {
-    return permissions.canApproveModerateValue;
-  } else {
-    return permissions.canApproveHighValue;
-  }
+  const p = getRolePermissions(role);
+  if (claimValueZAR < 5000)  return p.canApproveLowValue;
+  if (claimValueZAR <= 50000) return p.canApproveModerateValue;
+  return p.canApproveHighValue;
 }
 
 /**
- * Get accessible workflow states for a role
+ * Get the list of accessible workflow queues for a role.
  */
 export function getAccessibleQueues(role: InsurerRole | null | undefined): string[] {
-  const permissions = getRolePermissions(role);
-  return permissions.accessibleQueues;
+  return getRolePermissions(role).accessibleQueues;
+}
+
+/**
+ * Resolve the primary dashboard route for a user.
+ * Falls back gracefully for top-level roles (admin, assessor, panel_beater).
+ */
+export function resolveDashboardRoute(
+  topLevelRole: TopLevelRole | string | null | undefined,
+  insurerRole: InsurerRole | null | undefined,
+): string {
+  if (topLevelRole === "admin")        return "/admin/dashboard";
+  if (topLevelRole === "assessor")     return "/assessor/dashboard";
+  if (topLevelRole === "panel_beater") return "/panel-beater/dashboard";
+  if (insurerRole && insurerRole in ROLE_PERMISSIONS) {
+    return ROLE_PERMISSIONS[insurerRole].dashboardRoute;
+  }
+  return "/insurer-portal";
 }

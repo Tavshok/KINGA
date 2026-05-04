@@ -10,6 +10,9 @@
  */
 
 import { COOKIE_NAME } from "@shared/const";
+import { resolveDashboardRoute, getRolePermissions, ANALYTICS_ALLOWED_ROLES, GOVERNANCE_ALLOWED_ROLES, REPORT_SCHEDULE_ALLOWED_ROLES } from "@shared/role-permissions";
+import { REPORT_ACCESS } from "./reporting/reportDefinitions";
+import { canAccessReport } from "./routers/reporting";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router, insurerDomainProcedure } from "./_core/trpc";
@@ -643,7 +646,71 @@ export const appRouter = router({
       }),
   }),
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(({ ctx }) => {
+      const user = ctx.user;
+      if (!user) return null;
+
+      // Derive server-side role profile — frontend reads this, never hardcodes role strings
+      const insurerRole = user.insurerRole as import("@shared/role-permissions").InsurerRole | null;
+      const permissions = getRolePermissions(insurerRole);
+      const dashboardRoute = resolveDashboardRoute(user.role, insurerRole);
+
+      // Count reports this user can access
+      const allowedReportCount = Object.keys(REPORT_ACCESS).filter((key) =>
+        canAccessReport(key, user.role, insurerRole)
+      ).length;
+
+      // Feature flags derived from role
+      const canAccessAnalytics = user.role === "admin" || (insurerRole != null && ANALYTICS_ALLOWED_ROLES.includes(insurerRole));
+      const canAccessGovernance = user.role === "admin" || (insurerRole != null && GOVERNANCE_ALLOWED_ROLES.includes(insurerRole));
+      const canScheduleReports  = user.role === "admin" || (insurerRole != null && REPORT_SCHEDULE_ALLOWED_ROLES.includes(insurerRole));
+
+      return {
+        ...user,
+        // Server-derived profile — single source of truth for the frontend
+        dashboardRoute,
+        roleLabel: permissions.roleLabel,
+        permissions: {
+          canUploadClaim:             permissions.canUploadClaim,
+          canViewClaim:               permissions.canViewClaim,
+          canEditClaim:               permissions.canEditClaim,
+          canDeleteClaim:             permissions.canDeleteClaim,
+          canViewIntakeQueue:         permissions.canViewIntakeQueue,
+          canAssignProcessor:         permissions.canAssignProcessor,
+          canTriggerAIAssessment:     permissions.canTriggerAIAssessment,
+          canViewAIAssessment:        permissions.canViewAIAssessment,
+          canOverrideAIAssessment:    permissions.canOverrideAIAssessment,
+          canPerformManualAssessment: permissions.canPerformManualAssessment,
+          canAssignAssessor:          permissions.canAssignAssessor,
+          canAssignToSelf:            permissions.canAssignToSelf,
+          canReassignClaim:           permissions.canReassignClaim,
+          canApprovePayment:          permissions.canApprovePayment,
+          canApproveLowValue:         permissions.canApproveLowValue,
+          canApproveModerateValue:    permissions.canApproveModerateValue,
+          canApproveHighValue:        permissions.canApproveHighValue,
+          canOverrideAutomation:      permissions.canOverrideAutomation,
+          canChangeWorkflowState:     permissions.canChangeWorkflowState,
+          canEscalateClaim:           permissions.canEscalateClaim,
+          canCloseClaim:              permissions.canCloseClaim,
+          canReopenClaim:             permissions.canReopenClaim,
+          canFlagFraud:               permissions.canFlagFraud,
+          canInvestigateFraud:        permissions.canInvestigateFraud,
+          canApproveFraudCase:        permissions.canApproveFraudCase,
+          canViewAnalytics:           permissions.canViewAnalytics,
+          canViewExecutiveDashboard:  permissions.canViewExecutiveDashboard,
+          canViewGovernanceDashboard: permissions.canViewGovernanceDashboard,
+          canExportReports:           permissions.canExportReports,
+          canManageUsers:             permissions.canManageUsers,
+          canManageWorkflowSettings:  permissions.canManageWorkflowSettings,
+          canManageAutomationPolicies:permissions.canManageAutomationPolicies,
+          accessibleQueues:           permissions.accessibleQueues,
+          canAccessAnalytics,
+          canAccessGovernance,
+          canScheduleReports,
+        },
+        allowedReportCount,
+      };
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

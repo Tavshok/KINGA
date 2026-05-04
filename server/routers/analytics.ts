@@ -17,6 +17,7 @@
  */
 
 import { router, protectedProcedure, executiveOnlyProcedure } from "../_core/trpc";
+import { ANALYTICS_ALLOWED_ROLES } from "../../shared/role-permissions";
 import { getDb } from "../db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -48,14 +49,14 @@ const analyticsRoleProcedure = protectedProcedure.use(async ({ ctx, next }) => {
     });
   }
 
-  // Allow admin, executive, risk_manager, claims_manager
-  const allowedRoles = ['admin', 'executive', 'risk_manager', 'claims_manager'];
-  const userRole = ctx.user.insurerRole || ctx.user.role;
-  
-  if (!allowedRoles.includes(userRole)) {
+  // Allow platform admin + all roles listed in ANALYTICS_ALLOWED_ROLES (shared/role-permissions.ts)
+  const isAdmin = ctx.user.role === 'admin';
+  const hasInsurerRole = ctx.user.insurerRole != null && ANALYTICS_ALLOWED_ROLES.includes(ctx.user.insurerRole as any);
+
+  if (!isAdmin && !hasInsurerRole) {
     throw new TRPCError({ 
       code: "FORBIDDEN", 
-      message: `Analytics access requires one of: ${allowedRoles.join(', ')}` 
+      message: `Analytics access requires one of: ${ANALYTICS_ALLOWED_ROLES.join(', ')}` 
     });
   }
 

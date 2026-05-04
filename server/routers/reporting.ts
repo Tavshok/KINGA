@@ -15,12 +15,12 @@ import mysql from "mysql2/promise";
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
 
-// ───// ─── Permission Check ───────────────────────────────────────────────────
+// ─── Permission Check ───────────────────────────────────────────────────────
 // For insurer users, access is determined by insurerRole (sub-role).
 // For admin / platform users, access is determined by the top-level role.
 // NOTE: admin users are NOT given blanket access — they only see Platform Admin
 // reports. Use insurerRole='insurer_admin' for insurer-level admin access.
-function canAccessReport(reportKey: string, userRole: string, insurerRole?: string | null): boolean {
+export function canAccessReport(reportKey: string, userRole: string, insurerRole?: string | null): boolean {
   const allowed = REPORT_ACCESS[reportKey];
   if (!allowed) return false;
   // Platform admins see only platform-admin-scoped reports
