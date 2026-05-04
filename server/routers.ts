@@ -3720,6 +3720,68 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           summary: { totalAssessments: filtered.length, overallAvgVariancePct: overallVariance },
         };
       }),
+
+    // Get per-insurer relationship data for the logged-in assessor (external assessors)
+    getMyInsurerRelationships: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+      const {
+        assessors: assessorsTable,
+        assessorInsurerRelationships: airTable,
+        insurerTenants,
+      } = await import('../drizzle/schema');
+      const { eq: _eq, and: _and, desc: _desc } = await import('drizzle-orm');
+
+      const [assessor] = await db
+        .select()
+        .from(assessorsTable)
+        .where(_eq(assessorsTable.userId, ctx.user.id))
+        .limit(1);
+      if (!assessor) return { relationships: [], assessor: null };
+
+      const relationships = await db
+        .select({
+          id: airTable.id,
+          tenantId: airTable.tenantId,
+          insurerName: insurerTenants.displayName,
+          relationshipType: airTable.relationshipType,
+          relationshipStatus: airTable.relationshipStatus,
+          contractStartDate: airTable.contractStartDate,
+          contractedRatePerAssessment: airTable.contractedRatePerAssessment,
+          performanceRating: airTable.performanceRating,
+          totalAssignmentsCompleted: airTable.totalAssignmentsCompleted,
+          totalAssignmentsRejected: airTable.totalAssignmentsRejected,
+          averageCompletionTimeHours: airTable.averageCompletionTimeHours,
+          isPreferredVendor: airTable.isPreferredVendor,
+        })
+        .from(airTable)
+        .leftJoin(insurerTenants, _eq(airTable.tenantId, insurerTenants.id))
+        .where(_and(
+          _eq(airTable.assessorId, assessor.id),
+          _eq(airTable.relationshipStatus, 'active'),
+        ))
+        .orderBy(_desc(airTable.totalAssignmentsCompleted));
+
+      return {
+        assessor: {
+          id: assessor.id,
+          assessorType: assessor.assessorType,
+          certificationLevel: assessor.certificationLevel,
+          performanceScore: assessor.performanceScore,
+          totalAssessmentsCompleted: assessor.totalAssessmentsCompleted,
+          averageAccuracyScore: assessor.averageAccuracyScore,
+          averageTurnaroundHours: assessor.averageTurnaroundHours,
+          averageRating: assessor.averageRating,
+          totalMarketplaceEarnings: assessor.totalMarketplaceEarnings,
+          pendingPayout: assessor.pendingPayout,
+          marketplaceEnabled: assessor.marketplaceEnabled,
+          marketplaceStatus: assessor.marketplaceStatus,
+          specializations: assessor.specializations,
+        },
+        relationships,
+      };
+    }),
   }),
 
   // Assessor Evaluations

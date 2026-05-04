@@ -75,6 +75,20 @@ export default function InsurerRoleSelection() {
       ]
     },
     {
+      id: "external_assessor",
+      title: "External Assessor",
+      description: "Marketplace assessor — manage assignments across multiple insurers, submit reports, and track per-insurer performance",
+      icon: Search,
+      path: "/insurer-portal/external-assessor",
+      color: "from-teal-500 to-cyan-500",
+      responsibilities: [
+        "Manage assignment queue",
+        "Submit assessment reports",
+        "Track per-insurer performance",
+        "Receive insurer communications"
+      ]
+    },
+    {
       id: "risk_manager",
       title: "Risk Manager",
       description: "Fraud investigation, technical approval, and risk register management",
