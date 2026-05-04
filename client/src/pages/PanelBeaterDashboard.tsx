@@ -305,7 +305,7 @@ export default function PanelBeaterDashboard() {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-flex">
+          <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex">
             <TabsTrigger value="queue" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Quote Queue

@@ -85,15 +85,6 @@ const navByRole: Record<string, NavSection[]> = {
       items: [
         { label: "Workflow Analytics", description: "Processing times and throughput", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
         { label: "Reports Centre", description: "Generate and download reports", href: "/insurer-portal/reports-centre", icon: FileBarChart },
-        { label: "Panel Beater Performance", description: "Repairer quality and cost data", href: "/insurer/panel-beater-performance", icon: Car },
-      ],
-    },
-    {
-      title: "Administration",
-      items: [
-        { label: "Workflow Settings", description: "Automation rules and thresholds", href: "/admin/workflows", icon: Settings },
-        { label: "Escalation Queue", description: "Claims escalated for review", href: "/admin/escalation", icon: ShieldAlert },
-        { label: "Assessors", description: "Manage assigned assessors", href: "/assessors", icon: Users },
       ],
     },
   ],
@@ -112,13 +103,6 @@ const navByRole: Record<string, NavSection[]> = {
         { label: "In Progress", description: "Claims being actively worked", href: "/insurer-portal/claims-processor#in-progress", icon: Activity },
         { label: "AI Assessment Complete", description: "Ready for review", href: "/insurer-portal/claims-processor#ai-flagged", icon: Eye },
         { label: "Completed", description: "Closed claims", href: "/insurer-portal/claims-processor#completed", icon: CheckSquare },
-      ],
-    },
-    {
-      title: "Tools",
-      items: [
-        { label: "Claims Triage", description: "Full triage and verification", href: "/insurer/claims/triage", icon: Eye },
-        { label: "Batch Export", description: "Export claims data", href: "/insurer/batch-export", icon: FileText },
       ],
     },
   ],
@@ -175,8 +159,6 @@ const navByRole: Record<string, NavSection[]> = {
       title: "Governance",
       items: [
         { label: "Governance Dashboard", description: "Compliance and audit overview", href: "/insurer-portal/governance", icon: Scale },
-        { label: "Automation Policies", description: "AI decision rules and thresholds", href: "/insurer/automation-policies", icon: Target },
-        { label: "Assessors", description: "Assessor network management", href: "/assessors", icon: Users },
       ],
     },
   ],
@@ -199,7 +181,6 @@ const navByRole: Record<string, NavSection[]> = {
     {
       title: "Tools",
       items: [
-        { label: "Fraud Analytics", description: "Fraud signals and patterns", href: "/insurer/fraud-analytics", icon: ShieldAlert },
         { label: "Reports Centre", description: "Assessment report archive", href: "/insurer-portal/reports-centre", icon: FileBarChart },
       ],
     },
@@ -247,12 +228,12 @@ const pathToRole: Array<{ prefix: string; role: string; label: string }> = [
   { prefix: "/insurer-portal/claims-processor",  role: "claims_processor",  label: "Claims Processor" },
   { prefix: "/insurer-portal/risk-manager",      role: "risk_manager",      label: "Risk Manager" },
   { prefix: "/insurer-portal/internal-assessor",  role: "assessor_internal",  label: "Internal Assessor" },
-  { prefix: "/insurer-portal/governance",        role: "insurer_admin",     label: "Governance" },
-  { prefix: "/insurer/fraud-analytics",           role: "",                   label: "Fraud Analytics" }, // shared page — nav derived from user.insurerRole
-  { prefix: "/insurer-portal/workflow-analytics",role: "claims_manager",    label: "Workflow Analytics" },
-  { prefix: "/insurer-portal/exception-intelligence", role: "claims_manager", label: "Exception Intelligence" },
-  { prefix: "/insurer-portal/relationship-intelligence", role: "claims_manager", label: "Relationship Intelligence" },
-  { prefix: "/insurer-portal/reports-centre",    role: "",                  label: "Reports Centre" }, // shared page — nav derived from user.insurerRole
+  { prefix: "/insurer-portal/governance",        role: "",                  label: "Governance" },           // shared — nav from user.insurerRole
+  { prefix: "/insurer/fraud-analytics",           role: "",                   label: "Fraud Analytics" },      // shared — nav from user.insurerRole
+  { prefix: "/insurer-portal/workflow-analytics", role: "",                  label: "Workflow Analytics" },   // shared — nav from user.insurerRole
+  { prefix: "/insurer-portal/exception-intelligence", role: "",             label: "Exception Intelligence" }, // shared
+  { prefix: "/insurer-portal/relationship-intelligence", role: "",          label: "Relationship Intelligence" }, // shared
+  { prefix: "/insurer-portal/reports-centre",    role: "",                  label: "Reports Centre" },       // shared — nav from user.insurerRole
 ];
 
 function getRoleFromPath(path: string): { role: string; label: string } {

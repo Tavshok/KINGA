@@ -367,7 +367,7 @@ export default function GovernanceDashboard() {
 
         {/* Main Dashboard Tabs */}
         <Tabs defaultValue="overrides" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-14">
+          <TabsList className="grid w-full grid-cols-5 h-14">
             <TabsTrigger value="overrides" className="text-base">
               <Shield className="h-5 w-5 mr-2" />
               Override Oversight

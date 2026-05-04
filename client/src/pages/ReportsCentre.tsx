@@ -534,7 +534,9 @@ export default function ReportsCentre() {
   }, [polledJob]);
 
   const isAdmin = user?.role === "admin";
-  const canSchedule = ["admin", "insurer_admin", "claims_manager"].includes(user?.role ?? "");
+  // Scheduling is available to managers and above (not processors or assessors)
+  const effectiveRole = (user as any)?.insurerRole ?? user?.role ?? "";
+  const canSchedule = ["admin", "insurer_admin", "claims_manager", "risk_manager", "executive"].includes(effectiveRole);
   const categories = [...new Set(catalogue.map((r) => r.category))];
 
   const filtered = catalogue.filter(

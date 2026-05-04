@@ -494,7 +494,7 @@ export default function ClaimsManagerDashboard() {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="intake">Intake Queue</TabsTrigger>
             <TabsTrigger value="review">Review Queue</TabsTrigger>
             <TabsTrigger value="active">Active Claims</TabsTrigger>

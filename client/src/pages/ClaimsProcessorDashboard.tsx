@@ -943,7 +943,7 @@ export default function ClaimsProcessorDashboard() {
 
         {/* ── WORKFLOW TABS ── */}
         <Tabs defaultValue="pending" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="pending" className="flex items-center gap-1.5">
               Pending
               {pendingClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold bg-amber-500 text-white">{pendingClaims.length}</span>}

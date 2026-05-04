@@ -493,7 +493,7 @@ export default function ExecutiveDashboard() {
       {/* ── 3-TAB SECTION ── */}
       <div className="max-w-[1600px] mx-auto px-8 pb-12">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <TabsList className="grid w-full grid-cols-4" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="operational-health">Operational Health</TabsTrigger>
             <TabsTrigger value="roi-breakdown">ROI Breakdown</TabsTrigger>

@@ -461,7 +461,7 @@ export default function RiskManagerDashboard() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-5 w-full max-w-3xl">
             <TabsTrigger value="approval" className="relative">
               Technical Approval
               {approvalQueue.length > 0 && (
