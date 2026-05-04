@@ -11297,3 +11297,21 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] ExternalAssessorDashboard: Fix 2x broken window.location.href = /claims/:id -> /insurer/claims/:id
 - [x] ExecutiveDashboard: Fix broken Link href="/claims/:id" -> /insurer/claims/:id
 - [x] Verified all other dashboards have no orphan tabs or broken navigation links
+
+## Phase: Role Isolation Audit & Fixes (May 2026)
+### Confirmed Violations Found
+- [ ] FraudAnalyticsDashboard: no RoleGuard — accessible to ALL insurer users; must restrict to risk_manager + executive + claims_manager only
+- [ ] FraudAnalyticsDashboard: not wrapped in InsurerPortalLayout — no sidebar nav shown
+- [ ] ExternalAssessorDashboard: placed inside InsurerPortalLayout at /insurer-portal/external-assessor — wrong domain (external assessors are independent, not insurer employees)
+- [ ] ExternalAssessorDashboard: no nav section in InsurerPortalLayout navByRole — gets defaultNav (blank) when accessed
+- [ ] ExecutiveDashboard: fetches governance, override history, segregation heatmap data — these belong to Governance/Risk Manager, not Executive
+- [ ] InsurerPortalLayout: claims_manager nav has no Fraud Analytics link (user confirmed claims_manager should see fraud analytics)
+- [ ] InsurerPortalLayout: /insurer-portal/external-assessor has no pathToRole mapping — shows blank defaultNav
+### Fixes To Apply
+- [ ] FraudAnalyticsDashboard: add RoleGuard (risk_manager, executive, claims_manager) + wrap in InsurerPortalLayout in App.tsx
+- [ ] FraudAnalyticsDashboard: add fraud-analytics pathToRole entry per role in InsurerPortalLayout
+- [ ] ExternalAssessorDashboard: create standalone /assessor-portal/external route with AssessorPortalLayout (no InsurerPortalLayout)
+- [ ] ExternalAssessorDashboard: remove from /insurer-portal/external-assessor (or redirect to new route)
+- [ ] ExternalAssessorDashboard: add assessor_external nav section to InsurerPortalLayout for insurer users who have assessor_external insurerRole
+- [ ] ExecutiveDashboard: remove governance/override/segregation queries; replace with executive-summary-only KPI data
+- [ ] InsurerPortalLayout claims_manager nav: add Fraud Analytics link

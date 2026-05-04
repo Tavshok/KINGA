@@ -422,7 +422,9 @@ function Router() {
         
         <Route path="/insurer/fraud-analytics">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <FraudAnalyticsDashboard />
+            <RoleGuard allowedRoles={["risk_manager", "claims_manager", "executive", "insurer_admin"]}>
+              <InsurerPortalLayout><FraudAnalyticsDashboard /></InsurerPortalLayout>
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         

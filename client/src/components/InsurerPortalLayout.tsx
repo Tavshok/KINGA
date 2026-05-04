@@ -205,6 +205,29 @@ const navByRole: Record<string, NavSection[]> = {
     },
   ],
 
+  assessor_external: [
+    {
+      title: "Overview",
+      items: [
+        { label: "My Dashboard", description: "Assigned claims and queue", href: "/insurer-portal/external-assessor", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Assessments",
+      items: [
+        { label: "My Queue", description: "Claims assigned to me", href: "/insurer-portal/external-assessor?tab=queue", icon: ClipboardList },
+        { label: "In Progress", description: "Assessments being written", href: "/insurer-portal/external-assessor?tab=in-progress", icon: Activity },
+        { label: "Completed", description: "Submitted assessments", href: "/insurer-portal/external-assessor?tab=completed", icon: CheckSquare },
+      ],
+    },
+    {
+      title: "Tools",
+      items: [
+        { label: "Reports Centre", description: "Assessment report archive", href: "/insurer-portal/reports-centre", icon: FileBarChart },
+      ],
+    },
+  ],
+
   insurer_admin: [
     {
       title: "Overview",
@@ -246,12 +269,14 @@ const pathToRole: Array<{ prefix: string; role: string; label: string }> = [
   { prefix: "/insurer-portal/claims-manager",    role: "claims_manager",    label: "Claims Manager" },
   { prefix: "/insurer-portal/claims-processor",  role: "claims_processor",  label: "Claims Processor" },
   { prefix: "/insurer-portal/risk-manager",      role: "risk_manager",      label: "Risk Manager" },
-  { prefix: "/insurer-portal/internal-assessor", role: "assessor_internal", label: "Internal Assessor" },
+  { prefix: "/insurer-portal/internal-assessor",  role: "assessor_internal",  label: "Internal Assessor" },
+  { prefix: "/insurer-portal/external-assessor",  role: "assessor_external",  label: "External Assessor" },
   { prefix: "/insurer-portal/governance",        role: "insurer_admin",     label: "Governance" },
+  { prefix: "/insurer/fraud-analytics",           role: "",                   label: "Fraud Analytics" }, // shared page — nav derived from user.insurerRole
   { prefix: "/insurer-portal/workflow-analytics",role: "claims_manager",    label: "Workflow Analytics" },
   { prefix: "/insurer-portal/exception-intelligence", role: "claims_manager", label: "Exception Intelligence" },
   { prefix: "/insurer-portal/relationship-intelligence", role: "claims_manager", label: "Relationship Intelligence" },
-  { prefix: "/insurer-portal/reports-centre",    role: "claims_manager",    label: "Reports Centre" },
+  { prefix: "/insurer-portal/reports-centre",    role: "",                  label: "Reports Centre" }, // shared page — nav derived from user.insurerRole
 ];
 
 function getRoleFromPath(path: string): { role: string; label: string } {
@@ -273,10 +298,11 @@ export default function InsurerPortalLayout({
   const [location] = useLocation();
   const { user, logout } = useAuth();
 
-  // Derive role from current URL — never from user.insurerRole
-  // This ensures each dashboard always shows the correct nav regardless of
-  // which account is logged in.
-  const { role: derivedRole, label: roleLabel } = getRoleFromPath(location);
+  // Derive role from current URL for role-specific pages.
+  // For shared pages (fraud-analytics, reports-centre) fall back to user.insurerRole
+  // so each role sees their own nav rather than a hardcoded role's nav.
+  const { role: pathRole, label: roleLabel } = getRoleFromPath(location);
+  const derivedRole = pathRole || (user?.insurerRole ?? "");
   const visibleSections: NavSection[] = (derivedRole ? navByRole[derivedRole] : undefined) ?? defaultNav;
 
   return (

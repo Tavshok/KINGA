@@ -31,7 +31,7 @@ export const ROLE_PORTAL_MAP: Record<string, string> = {
 export const INSURER_ROLE_PORTAL_MAP: Record<string, string> = {
   claims_processor: "/insurer-portal/claims-processor",
   assessor_internal: "/insurer-portal/internal-assessor",
-  assessor_external: "/insurer-portal/internal-assessor",
+  assessor_external: "/insurer-portal/external-assessor",
   risk_manager: "/insurer-portal/risk-manager",
   claims_manager: "/insurer-portal/claims-manager",
   executive: "/insurer-portal/executive",

@@ -15,11 +15,16 @@ import mysql from "mysql2/promise";
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
 
-// ─── Permission Check ─────────────────────────────────────────────────────────
-function canAccessReport(reportKey: string, userRole: string): boolean {
+// ───// ─── Permission Check ───────────────────────────────────────────────────
+// For insurer users, access is determined by insurerRole (sub-role).
+// For admin / platform users, access is determined by the top-level role.
+function canAccessReport(reportKey: string, userRole: string, insurerRole?: string | null): boolean {
   const allowed = REPORT_ACCESS[reportKey];
   if (!allowed) return false;
-  return allowed.includes(userRole) || allowed.includes("admin");
+  if (userRole === "admin") return true;
+  // Insurer users: check their sub-role first, then fall back to top-level role
+  const effectiveRole = insurerRole ?? userRole;
+  return allowed.includes(effectiveRole);
 }
 
 // ─── Admin-only guard ─────────────────────────────────────────────────────────
@@ -32,22 +37,38 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 
 // ─── Report catalogue definition ─────────────────────────────────────────────
 const REPORT_CATALOGUE = [
-  // Phase 2a — Individual Claim
-  { key: "claim.assessment",      name: "AI Assessment Report",          category: "Individual Claim", description: "Full AI assessment output including fraud score, cost analysis, and recommendation.", requiresClaimId: true },
-  { key: "claim.forensic",        name: "Forensic Analysis Report",      category: "Individual Claim", description: "Physics analysis, fraud indicators, narrative consistency, and forensic audit validation.", requiresClaimId: true },
-  { key: "claim.audit_trail",     name: "Claim Decision Audit Trail",    category: "Individual Claim", description: "Immutable log of all workflow events and AI assessment history for a claim.", requiresClaimId: true },
-  { key: "claim.cost_comparison", name: "Cost Comparison Report",        category: "Individual Claim", description: "Component-level cost analysis comparing submitted quote against AI benchmark.", requiresClaimId: true },
-  { key: "claim.repair_decision", name: "Repair vs Replace Decision",    category: "Individual Claim", description: "Repair vs replace recommendation with vehicle valuation and scoring rationale.", requiresClaimId: true },
-  // Phase 2b — Portfolio
-  { key: "portfolio.claims_summary",          name: "Claims Portfolio Summary",         category: "Portfolio", description: "Aggregate claims statistics, approval rates, and value summary for a period.", requiresClaimId: false },
-  { key: "portfolio.fraud_summary",           name: "Fraud Detection Summary",          category: "Portfolio", description: "Fraud risk distribution, high-risk claim breakdown, and savings analysis.", requiresClaimId: false },
-  { key: "portfolio.assessor_performance",    name: "Assessor Performance Report",      category: "Portfolio", description: "Assessor routing patterns, cost reduction rates, and anomaly scores.", requiresClaimId: false },
-  { key: "portfolio.panel_beater_performance",name: "Panel Beater Performance Report",  category: "Portfolio", description: "Panel beater quote accuracy, structural gap rates, and anomaly scores.", requiresClaimId: false },
-  { key: "portfolio.dwell_time",              name: "Processing Dwell Time Report",     category: "Portfolio", description: "Average and maximum time claims spend in each workflow stage.", requiresClaimId: false },
-  // Phase 2d — Executive / Governance
-  { key: "executive.platform_dashboard",      name: "Platform Executive Dashboard",     category: "Executive", description: "Platform-wide summary across all insurers. Super-admin only.", requiresClaimId: false },
-  { key: "governance.sar",                    name: "Subject Access Request Report",    category: "Governance", description: "All personal data held for a data subject. Required under POPIA/CDPA.", requiresClaimId: false },
-  { key: "governance.regulatory_compliance",  name: "Regulatory Compliance Report",     category: "Governance", description: "Processing compliance summary and data protection obligation status.", requiresClaimId: false },
+  // ── Claims Processor ───────────────────────────────────────────────────────────────
+  { key: "claim.assessment",      name: "AI Assessment Report",       category: "Claim Reports",  description: "Full AI assessment output including fraud score, cost analysis, and recommendation.",                   requiresClaimId: true  },
+  { key: "claim.cost_comparison", name: "Cost Comparison Report",     category: "Claim Reports",  description: "Component-level cost analysis comparing the submitted quote against the AI benchmark estimate.",       requiresClaimId: true  },
+  { key: "claim.repair_decision", name: "Repair vs Replace Decision", category: "Claim Reports",  description: "Repair vs replace recommendation with vehicle valuation, repair-to-value ratio, and scoring rationale.", requiresClaimId: true  },
+  // ── Claims Manager ────────────────────────────────────────────────────────────────
+  { key: "claim.forensic",                    name: "Forensic Analysis Report",         category: "Claim Reports",  description: "Physics analysis, fraud indicators, narrative consistency, and forensic audit validation.",        requiresClaimId: true  },
+  { key: "claim.audit_trail",                 name: "Claim Decision Audit Trail",       category: "Claim Reports",  description: "Immutable log of all workflow events and AI assessment history for a single claim.",              requiresClaimId: true  },
+  { key: "portfolio.claims_summary",          name: "Claims Portfolio Summary",         category: "Portfolio",      description: "Aggregate claims statistics, approval rates, and total value summary for a selected period.",     requiresClaimId: false },
+  { key: "portfolio.dwell_time",              name: "Processing Dwell Time Report",     category: "Portfolio",      description: "Average and maximum time claims spend in each workflow stage, highlighting bottlenecks.",        requiresClaimId: false },
+  { key: "portfolio.panel_beater_performance",name: "Panel Beater Performance Report",  category: "Portfolio",      description: "Panel beater quote accuracy, structural gap rates, and anomaly scores across the network.",       requiresClaimId: false },
+  // ── Risk Manager ──────────────────────────────────────────────────────────────────
+  { key: "portfolio.fraud_summary",           name: "Fraud Detection Summary",          category: "Risk & Fraud",   description: "Fraud risk distribution, high-risk claim breakdown, physics-based violation counts, and savings.", requiresClaimId: false },
+  { key: "portfolio.assessor_performance",    name: "Assessor Performance Report",      category: "Risk & Fraud",   description: "Assessor routing patterns, cost reduction rates, variance scores, and anomaly flags.",            requiresClaimId: false },
+  { key: "risk_manager_portfolio",            name: "Risk Portfolio Overview",          category: "Risk & Fraud",   description: "Combined fraud and risk exposure summary for the insurer portfolio.",                             requiresClaimId: false },
+  // ── Executive ────────────────────────────────────────────────────────────────────────
+  { key: "executive.insurer_summary",         name: "Insurer Executive Summary",        category: "Executive",      description: "High-level KPI dashboard: claims volume, approval rate, fraud savings, and SLA compliance.",       requiresClaimId: false },
+  { key: "executive.claims_trend",            name: "Claims Trend Report",              category: "Executive",      description: "Month-on-month claims volume and value trends with year-over-year comparison.",                  requiresClaimId: false },
+  { key: "executive.financial_exposure",      name: "Financial Exposure Report",        category: "Executive",      description: "Outstanding claims exposure, reserve adequacy, and projected settlement costs.",                 requiresClaimId: false },
+  // Platform super-admin only
+  { key: "executive.platform_dashboard",      name: "Platform Executive Dashboard",     category: "Platform Admin", description: "Platform-wide summary across all insurers. Restricted to platform super-admins.",                requiresClaimId: false },
+  { key: "executive.cross_insurer_fraud",     name: "Cross-Insurer Fraud Intelligence", category: "Platform Admin", description: "Fraud pattern analysis across all insurer tenants on the platform.",                             requiresClaimId: false },
+  { key: "executive.ml_performance",          name: "ML Model Performance Report",      category: "Platform Admin", description: "AI pipeline accuracy, model drift, and assessment quality metrics across the platform.",          requiresClaimId: false },
+  // ── Governance / Compliance ──────────────────────────────────────────────────────────
+  { key: "governance.sar",                    name: "Subject Access Request Report",    category: "Governance",     description: "All personal data held for a data subject. Required under POPIA / CDPA.",                         requiresClaimId: false },
+  { key: "governance.regulatory_compliance",  name: "Regulatory Compliance Report",     category: "Governance",     description: "Processing compliance summary and data protection obligation status.",                           requiresClaimId: false },
+  { key: "governance.data_retention",         name: "Data Retention Audit Report",      category: "Governance",     description: "Records subject to retention or deletion obligations under applicable data protection law.",      requiresClaimId: false },
+  // ── Assessor ───────────────────────────────────────────────────────────────────────────
+  { key: "assessor.my_assignments",           name: "My Assessment Assignments",        category: "Assessor",       description: "List of all claims assigned to this assessor with status, findings, and completion dates.",       requiresClaimId: false },
+  { key: "assessor.performance_summary",      name: "Assessor Performance Summary",     category: "Assessor",       description: "Personal performance metrics: assessments completed, average variance, and quality scores.",       requiresClaimId: false },
+  // ── Panel Beater ──────────────────────────────────────────────────────────────────────
+  { key: "panel_beater.quote_history",        name: "Quote History Report",             category: "Panel Beater",   description: "All quotes submitted by this panel beater, with acceptance rates and AI benchmark comparison.",    requiresClaimId: false },
+  { key: "panel_beater.job_completion",       name: "Job Completion Report",            category: "Panel Beater",   description: "Completed repair jobs with timelines, final costs, and customer satisfaction scores.",             requiresClaimId: false },
 ];
 
 // ─── Allowed regeneration states ─────────────────────────────────────────────
@@ -60,7 +81,8 @@ export const reportingRouter = router({
   // ── Get report catalogue (filtered by user role) ──────────────────────────
   getCatalogue: protectedProcedure.query(({ ctx }) => {
     const role = ctx.user.role ?? "claims_processor";
-    return REPORT_CATALOGUE.filter((r) => canAccessReport(r.key, role));
+    const insurerRole = (ctx.user as any).insurerRole ?? null;
+    return REPORT_CATALOGUE.filter((r) => canAccessReport(r.key, role, insurerRole));
   }),
 
   // ── Enqueue a report generation job ──────────────────────────────────────
@@ -77,7 +99,8 @@ export const reportingRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const role = ctx.user.role ?? "claims_processor";
-      if (!canAccessReport(input.reportKey, role)) {
+      const insurerRole = (ctx.user as any).insurerRole ?? null;
+      if (!canAccessReport(input.reportKey, role, insurerRole)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this report type." });
       }
 
@@ -181,10 +204,12 @@ export const reportingRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const role = ctx.user.role ?? "claims_processor";
-      if (!canAccessReport(input.reportKey, role)) {
+      const insurerRole = (ctx.user as any).insurerRole ?? null;
+      const effectiveRole = insurerRole ?? role;
+      if (!canAccessReport(input.reportKey, role, insurerRole)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this report type." });
       }
-      if (!["admin", "insurer_admin", "claims_manager"].includes(role)) {
+      if (!((["admin", "insurer_admin", "claims_manager", "executive"] as string[]).includes(effectiveRole))) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only managers and admins can schedule reports." });
       }
       const conn = await getConn();

@@ -41,27 +41,47 @@ const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
 
 // ─── Report Role Access Map ───────────────────────────────────────────────────
+// Role values are matched against ctx.user.insurerRole (for insurer users) or
+// ctx.user.role (for admin / platform users). Use insurerRole enum values:
+//   insurer_admin | executive | claims_manager | claims_processor |
+//   risk_manager  | assessor_internal | assessor_external | panel_beater_admin
 export const REPORT_ACCESS: Record<string, string[]> = {
-  // Phase 2a — Individual Claim
-  "claim.assessment":   ["admin", "insurer_admin", "claims_manager", "fraud_manager", "claims_processor"],
-  "claim.forensic":     ["admin", "insurer_admin", "claims_manager", "fraud_manager"],
-  "claim.audit_trail":  ["admin", "insurer_admin", "claims_manager", "fraud_manager"],
-  "claim.cost_comparison": ["admin", "insurer_admin", "claims_manager", "fraud_manager", "claims_processor"],
-  "claim.repair_decision": ["admin", "insurer_admin", "claims_manager", "claims_processor"],
-  // Phase 2b — Portfolio
-  "portfolio.claims_summary":    ["admin", "insurer_admin", "claims_manager"],
-  "portfolio.fraud_summary":     ["admin", "insurer_admin", "fraud_manager"],
-  "portfolio.assessor_performance": ["admin", "insurer_admin", "claims_manager", "fraud_manager"],
-  "portfolio.panel_beater_performance": ["admin", "insurer_admin", "claims_manager", "fraud_manager"],
-  "portfolio.dwell_time":        ["admin", "insurer_admin", "claims_manager"],
-  // Alias — Risk Manager dashboard export (maps to fraud/risk portfolio report)
-  "risk_manager_portfolio":       ["admin", "insurer_admin", "risk_manager"],
-  // Phase 2d — Executive / Governance
-  "executive.platform_dashboard": ["admin"],
-  "executive.cross_insurer_fraud": ["admin"],
-  "executive.ml_performance":     ["admin"],
-  "governance.sar":               ["admin", "insurer_admin"],
-  "governance.regulatory_compliance": ["admin", "insurer_admin"],
+  // ── Claims Processor reports ──────────────────────────────────────────────
+  // Processors see their working-level claim reports only
+  "claim.assessment":           ["admin", "insurer_admin", "claims_processor", "claims_manager", "executive", "risk_manager"],
+  "claim.cost_comparison":      ["admin", "insurer_admin", "claims_processor", "claims_manager"],
+  "claim.repair_decision":      ["admin", "insurer_admin", "claims_processor", "claims_manager"],
+  // ── Claims Manager reports ────────────────────────────────────────────────
+  // Managers get deeper forensic + audit + portfolio oversight
+  "claim.forensic":             ["admin", "insurer_admin", "claims_manager", "risk_manager"],
+  "claim.audit_trail":          ["admin", "insurer_admin", "claims_manager", "risk_manager", "executive"],
+  "portfolio.claims_summary":   ["admin", "insurer_admin", "claims_manager", "executive"],
+  "portfolio.dwell_time":       ["admin", "insurer_admin", "claims_manager"],
+  "portfolio.panel_beater_performance": ["admin", "insurer_admin", "claims_manager"],
+  // ── Risk Manager reports ──────────────────────────────────────────────────
+  // Risk managers own fraud analytics and assessor performance
+  "portfolio.fraud_summary":        ["admin", "insurer_admin", "risk_manager", "claims_manager"],
+  "portfolio.assessor_performance": ["admin", "insurer_admin", "risk_manager", "claims_manager"],
+  "risk_manager_portfolio":         ["admin", "insurer_admin", "risk_manager"],
+  // ── Executive reports ─────────────────────────────────────────────────────
+  // Executives see high-level insurer KPI summaries only
+  "executive.insurer_summary":      ["admin", "insurer_admin", "executive"],
+  "executive.claims_trend":         ["admin", "insurer_admin", "executive"],
+  "executive.financial_exposure":   ["admin", "insurer_admin", "executive"],
+  // Platform super-admin only — cross-insurer intelligence
+  "executive.platform_dashboard":   ["admin"],
+  "executive.cross_insurer_fraud":  ["admin"],
+  "executive.ml_performance":       ["admin"],
+  // ── Governance / Compliance reports ──────────────────────────────────────
+  "governance.sar":                 ["admin", "insurer_admin"],
+  "governance.regulatory_compliance": ["admin", "insurer_admin", "executive"],
+  "governance.data_retention":      ["admin", "insurer_admin"],
+  // ── Assessor reports ──────────────────────────────────────────────────────
+  "assessor.my_assignments":        ["admin", "insurer_admin", "assessor_internal", "assessor_external"],
+  "assessor.performance_summary":   ["admin", "insurer_admin", "assessor_internal"],
+  // ── Panel Beater reports ──────────────────────────────────────────────────
+  "panel_beater.quote_history":     ["admin", "insurer_admin", "panel_beater_admin"],
+  "panel_beater.job_completion":    ["admin", "insurer_admin", "panel_beater_admin"],
 };
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────

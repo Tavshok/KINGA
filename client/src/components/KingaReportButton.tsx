@@ -82,7 +82,7 @@ export function KingaReportButton({
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Mutations & Queries ────────────────────────────────────────────────────
-  const generateMutation = trpc.reporting.generate.useMutation({
+  const generateMutation = trpc.reportingEngine.generate.useMutation({
     onSuccess: (data) => {
       setJobId(data.jobId);
       setJobStatus("queued");
@@ -94,7 +94,7 @@ export function KingaReportButton({
     },
   });
 
-  const recordDownloadMutation = trpc.reporting.recordDownload.useMutation();
+  const recordDownloadMutation = trpc.reportingEngine.recordDownload.useMutation();
 
   // ── Polling ────────────────────────────────────────────────────────────────
   const utils = trpc.useUtils();
@@ -106,7 +106,7 @@ export function KingaReportButton({
 
     pollRef.current = setInterval(async () => {
       try {
-        const job = await utils.client.reporting.getJobStatus.query({ jobId });
+        const job = await utils.client.reportingEngine.getJobStatus.query({ jobId });
         if (!job) return;
 
         const status = job.status as string;

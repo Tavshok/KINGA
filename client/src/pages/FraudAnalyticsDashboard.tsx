@@ -1,17 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, AlertTriangle, DollarSign, Users, MapPin } from "lucide-react";
+import { TrendingUp, AlertTriangle, DollarSign, Users, MapPin } from "lucide-react";
 import { KingaReportButton } from "@/components/KingaReportButton";
-import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { LineChart, Line, PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 
 export default function FraudAnalyticsDashboard() {
-  const { user, logout } = useAuth();
   const { currencySymbol } = useTenantCurrency();
   const [, setLocation] = useLocation();
 
@@ -22,40 +19,7 @@ export default function FraudAnalyticsDashboard() {
   const fraudStats = calculateFraudStatistics(claims);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-white/80 dark:bg-card/80 backdrop-blur-sm">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-6">
-            <KingaLogo className="h-8" />
-            <div>
-              <h1 className="text-xl font-bold text-primary">KINGA</h1>
-              <p className="text-xs text-muted-foreground">Fraud Analytics Dashboard</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={logout}>
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container py-8 space-y-8">
-        {/* Back Button */}
-        <Button
-          variant="ghost"
-          onClick={() => setLocation("/insurer-portal")}
-          className="mb-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
-        </Button>
-
+    <div className="space-y-8 p-6">
         {/* Page Header */}
         <div className="flex items-start justify-between">
           <div>
@@ -480,7 +444,6 @@ export default function FraudAnalyticsDashboard() {
             </div>
           </CardContent>
         </Card>
-      </main>
     </div>
   );
 }

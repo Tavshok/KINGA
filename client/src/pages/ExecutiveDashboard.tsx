@@ -214,18 +214,10 @@ export default function ExecutiveDashboard() {
   
   // Governance metrics
   const { data: governanceResponse, isLoading: governanceLoading } = trpc.governance.getGovernanceSummary.useQuery(undefined, { retry: 0 });
-  const { data: overrideTrendResponse } = trpc.governance.getOverrideFrequencyTrend.useQuery(undefined, { retry: 0 });
-  const { data: segregationHeatmapResponse } = trpc.governance.getSegregationViolationHeatmap.useQuery(undefined, { retry: 0 });
-  const { data: roleChangeTrendResponse } = trpc.governance.getRoleChangeTrend.useQuery(undefined, { retry: 0 });
-  const { data: conflictDistributionResponse } = trpc.governance.getInvolvementConflictDistribution.useQuery(undefined, { retry: 0 });
-  const { data: overrideHistoryResponse } = trpc.governance.getOverrideHistory.useQuery({ limit: 10, offset: 0 });
+  // Governance detail queries removed — full governance data lives in GovernanceDashboard (risk_manager / insurer_admin only).
   
   const governanceMetrics = governanceResponse?.data;
-  const overrideTrend = Array.isArray(overrideTrendResponse?.data) ? overrideTrendResponse.data : [];
-  const segregationHeatmap = Array.isArray(segregationHeatmapResponse?.data) ? segregationHeatmapResponse.data : [];
-  const roleChangeTrend = Array.isArray(roleChangeTrendResponse?.data) ? roleChangeTrendResponse.data : [];
-  const conflictDistribution = Array.isArray(conflictDistributionResponse?.data) ? conflictDistributionResponse.data : [];
-  const overrideHistory = Array.isArray(overrideHistoryResponse?.data) ? overrideHistoryResponse.data : [];
+  // Governance detail arrays removed — executive sees snapshot KPIs only.
 
   // Search query - only execute when searchQuery has value
   const { data: searchResultsResponse, isLoading: searchLoading, refetch: executeSearch } = trpc.analytics.globalSearch.useQuery(
@@ -640,14 +632,19 @@ export default function ExecutiveDashboard() {
 
           {/* ── Tab 2: Operational Health ── */}
           <TabsContent value="operational-health" className="space-y-6">
-            {/* Governance Summary */}
+            {/* Governance Summary — executive-level KPI snapshot only; full detail in GovernanceDashboard */}
             <Card style={{ border: '1px solid var(--border)' }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" style={{ color: 'var(--warning)' }} />
-                  Governance Health
-                </CardTitle>
-                <CardDescription>Override rates, segregation violations, and role changes (30 days)</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" style={{ color: 'var(--warning)' }} />
+                    Governance Health Snapshot
+                  </CardTitle>
+                  <CardDescription>High-level compliance indicators (30 days) — see Governance Dashboard for full detail</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setLocation("/insurer-portal/governance")}>
+                  Full Governance Report
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -655,7 +652,7 @@ export default function ExecutiveDashboard() {
                     <p className="text-3xl font-bold" style={{ color: 'var(--warning)' }}>
                       {governanceMetrics ? `${governanceMetrics.overrideRate ?? 0}%` : '—'}
                     </p>
-                    <p className="text-sm font-medium mt-1" style={{ color: 'var(--foreground)' }}>Override Rate</p>
+                    <p className="text-sm font-medium mt-1" style={{ color: 'var(--foreground)' }}>AI Override Rate</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>AI decisions overridden by staff</p>
                   </div>
                   <div className="rounded-xl p-4 text-center" style={{ background: 'var(--fp-critical-bg)', border: '1px solid color-mix(in srgb, var(--chart-4) 20%, transparent)' }}>
