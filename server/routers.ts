@@ -25,7 +25,7 @@ import { z } from "zod";
 import { getDb } from "./db";
 import { parsePhysicsAnalysis } from "./types/physics-validation";
 import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments } from "../drizzle/schema";
-import { eq, and, desc, inArray, notInArray, gt, or, sql, count, avg, isNotNull } from "drizzle-orm";
+import { eq, and, desc, asc, inArray, notInArray, gt, gte, lte, or, sql, count, avg, isNotNull } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
   createClaim,
@@ -1398,10 +1398,25 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     // ─── Claims Manager: Active Claims ─────────────────────────────────────────
     // Returns all non-terminal claims for the tenant (everything except completed/rejected/closed)
     getActiveClaims: insurerDomainProcedure
-      .query(async ({ ctx }) => {
+      .input(z.object({
+        from: z.string().optional(), // ISO date string e.g. "2025-01-01"
+        to: z.string().optional(),
+        status: z.string().optional(),
+        workflowState: z.string().optional(),
+        search: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
         const terminalStatuses = ['completed', 'rejected', 'closed'] as const;
+        const conditions: any[] = [
+          eq(claims.tenantId, ctx.insurerTenantId),
+          notInArray(claims.status, terminalStatuses as unknown as string[]),
+        ];
+        if (input?.from) conditions.push(gte(claims.createdAt, input.from));
+        if (input?.to) conditions.push(lte(claims.createdAt, input.to + ' 23:59:59'));
+        if (input?.status) conditions.push(eq(claims.status, input.status as any));
+        if (input?.workflowState) conditions.push(eq(claims.workflowState, input.workflowState as any));
         const rows = await db
           .select({
             id: claims.id,
@@ -1411,6 +1426,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
             totalClaimAmount: claims.totalClaimAmount,
+            estimatedClaimValue: claims.estimatedClaimValue,
+            finalApprovedAmount: claims.finalApprovedAmount,
+            incidentType: claims.incidentType,
             vehicleMake: claims.vehicleMake,
             vehicleModel: claims.vehicleModel,
             vehicleYear: claims.vehicleYear,
@@ -1420,25 +1438,49 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             incidentDate: claims.incidentDate,
             createdAt: claims.createdAt,
             updatedAt: claims.updatedAt,
+            closedAt: claims.closedAt,
             assignedAssessorId: claims.assignedAssessorId,
+            assignedProcessorId: claims.assignedProcessorId,
+            priority: claims.priority,
             currencyCode: claims.currencyCode,
           })
           .from(claims)
-          .where(and(
-            eq(claims.tenantId, ctx.insurerTenantId),
-            notInArray(claims.status, terminalStatuses as unknown as string[])
-          ))
+          .where(and(...conditions))
           .orderBy(desc(claims.createdAt))
-          .limit(300);
+          .limit(500);
+        // Apply search filter client-side for flexibility
+        if (input?.search) {
+          const q = input.search.toLowerCase();
+          return rows.filter(r =>
+            r.claimNumber?.toLowerCase().includes(q) ||
+            r.claimantName?.toLowerCase().includes(q) ||
+            r.vehicleRegistration?.toLowerCase().includes(q)
+          );
+        }
         return rows;
       }),
 
     // ─── Claims Manager: Fraud Alerts ───────────────────────────────────────────
     // Returns claims with high/critical/elevated fraud risk or score > 70
     getFraudAlerts: insurerDomainProcedure
-      .query(async ({ ctx }) => {
+      .input(z.object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+        minScore: z.number().optional(),
+        search: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const conditions: any[] = [
+          eq(claims.tenantId, ctx.insurerTenantId),
+          or(
+            inArray(claims.fraudRiskLevel, ['high', 'critical', 'elevated'] as any[]),
+            gt(claims.fraudRiskScore, input?.minScore ?? 70)
+          ),
+        ];
+        if (input?.from) conditions.push(gte(claims.createdAt, input.from));
+        if (input?.to) conditions.push(lte(claims.createdAt, input.to + ' 23:59:59'));
         const rows = await db
           .select({
             id: claims.id,
@@ -1448,6 +1490,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
             totalClaimAmount: claims.totalClaimAmount,
+            estimatedClaimValue: claims.estimatedClaimValue,
+            incidentType: claims.incidentType,
             vehicleMake: claims.vehicleMake,
             vehicleModel: claims.vehicleModel,
             vehicleYear: claims.vehicleYear,
@@ -1460,25 +1504,34 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             currencyCode: claims.currencyCode,
           })
           .from(claims)
-          .where(and(
-            eq(claims.tenantId, ctx.insurerTenantId),
-            or(
-              inArray(claims.fraudRiskLevel, ['high', 'critical', 'elevated'] as any[]),
-              gt(claims.fraudRiskScore, 70)
-            )
-          ))
+          .where(and(...conditions))
           .orderBy(desc(claims.fraudRiskScore))
-          .limit(200);
+          .limit(300);
+        if (input?.search) {
+          const q = input.search.toLowerCase();
+          return rows.filter(r =>
+            r.claimNumber?.toLowerCase().includes(q) ||
+            r.claimantName?.toLowerCase().includes(q) ||
+            r.vehicleRegistration?.toLowerCase().includes(q)
+          );
+        }
         return rows;
       }),
 
     // ─── Claims Manager: Dashboard Statistics ───────────────────────────────────
     // Aggregate counts by status, fraud risk breakdown, total claim value, avg processing time
     getDashboardStats: insurerDomainProcedure
-      .query(async ({ ctx }) => {
+      .input(z.object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-        // All claims for tenant (limited to last 1000 for performance)
+        // All claims for tenant within optional date range
+        const conditions: any[] = [eq(claims.tenantId, ctx.insurerTenantId)];
+        if (input?.from) conditions.push(gte(claims.createdAt, input.from));
+        if (input?.to) conditions.push(lte(claims.createdAt, input.to + ' 23:59:59'));
         const allClaims = await db
           .select({
             id: claims.id,
@@ -1487,13 +1540,17 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
             totalClaimAmount: claims.totalClaimAmount,
+            estimatedClaimValue: claims.estimatedClaimValue,
+            finalApprovedAmount: claims.finalApprovedAmount,
+            incidentType: claims.incidentType,
             createdAt: claims.createdAt,
             updatedAt: claims.updatedAt,
+            closedAt: claims.closedAt,
           })
           .from(claims)
-          .where(eq(claims.tenantId, ctx.insurerTenantId))
+          .where(and(...conditions))
           .orderBy(desc(claims.createdAt))
-          .limit(1000);
+          .limit(2000);
 
         // Count by status
         const statusCounts: Record<string, number> = {};
@@ -1520,13 +1577,28 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         const total = allClaims.length;
         const fraudRate = total > 0 ? Math.round((fraudHighCount / total) * 100) : 0;
-
         // Active = not in terminal state
         const terminalStatuses = new Set(['completed', 'rejected', 'closed']);
         const activeCount = allClaims.filter(c => !terminalStatuses.has(c.status ?? '')).length;
         const completedCount = allClaims.filter(c => c.status === 'completed').length;
         const rejectedCount = allClaims.filter(c => c.status === 'rejected').length;
-
+        // Savings = sum(estimatedClaimValue - finalApprovedAmount) where both exist and approved < estimated
+        let totalSavings = 0;
+        let savingsCount = 0;
+        // Incident type breakdown
+        const incidentTypeCounts: Record<string, number> = {};
+        // Workflow state breakdown
+        const workflowStateCounts: Record<string, number> = {};
+        for (const c of allClaims) {
+          const est = parseFloat(c.estimatedClaimValue ?? '0');
+          const approved = parseFloat(c.finalApprovedAmount ?? '0');
+          if (est > 0 && approved > 0 && approved < est) {
+            totalSavings += est - approved;
+            savingsCount++;
+          }
+          if (c.incidentType) incidentTypeCounts[c.incidentType] = (incidentTypeCounts[c.incidentType] ?? 0) + 1;
+          if (c.workflowState) workflowStateCounts[c.workflowState] = (workflowStateCounts[c.workflowState] ?? 0) + 1;
+        }
         return {
           total,
           activeCount,
@@ -1537,15 +1609,32 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           totalAmount,
           avgProcessingDays,
           statusCounts,
-        };
+          totalSavings: Math.round(totalSavings),
+          savingsCount,
+          incidentTypeCounts,
+          workflowStateCounts,
+         };
       }),
-
     // ─── Risk Manager: Escalations ──────────────────────────────────────────────
     // Claims in disputed/manual_review workflow states or with high/critical fraud risk
     getEscalations: insurerDomainProcedure
-      .query(async ({ ctx }) => {
+      .input(z.object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+        search: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const conditions: any[] = [
+          eq(claims.tenantId, ctx.insurerTenantId),
+          or(
+            inArray(claims.workflowState, ['disputed', 'manual_review'] as any[]),
+            inArray(claims.fraudRiskLevel, ['high', 'critical'] as any[])
+          ),
+        ];
+        if (input?.from) conditions.push(gte(claims.createdAt, input.from));
+        if (input?.to) conditions.push(lte(claims.createdAt, input.to + ' 23:59:59'));
         const rows = await db
           .select({
             id: claims.id,
@@ -1555,6 +1644,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
             totalClaimAmount: claims.totalClaimAmount,
+            estimatedClaimValue: claims.estimatedClaimValue,
+            incidentType: claims.incidentType,
             vehicleMake: claims.vehicleMake,
             vehicleModel: claims.vehicleModel,
             vehicleYear: claims.vehicleYear,
@@ -1567,52 +1658,508 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             currencyCode: claims.currencyCode,
           })
           .from(claims)
-          .where(and(
-            eq(claims.tenantId, ctx.insurerTenantId),
-            or(
-              inArray(claims.workflowState, ['disputed', 'manual_review'] as any[]),
-              inArray(claims.fraudRiskLevel, ['high', 'critical'] as any[])
-            )
-          ))
+          .where(and(...conditions))
           .orderBy(desc(claims.updatedAt))
-          .limit(200);
+          .limit(300);
+        if (input?.search) {
+          const q = input.search.toLowerCase();
+          return rows.filter(r =>
+            r.claimNumber?.toLowerCase().includes(q) ||
+            r.claimantName?.toLowerCase().includes(q)
+          );
+        }
+        return rows;
+      }),
+    // ─── Risk Manager: Financial Decision Queue ──────────────────────────────────────────
+    // Claims awaiting financial approval, ordered by amount descending
+    getFinancialDecisionQueue: insurerDomainProcedure
+      .input(z.object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+        search: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const conditions: any[] = [
+          eq(claims.tenantId, ctx.insurerTenantId),
+          eq(claims.workflowState, 'financial_decision' as any),
+        ];
+        if (input?.from) conditions.push(gte(claims.createdAt, input.from));
+        if (input?.to) conditions.push(lte(claims.createdAt, input.to + ' 23:59:59'));
+        const rows = await db
+          .select({
+            id: claims.id,
+            claimNumber: claims.claimNumber,
+            status: claims.status,
+            workflowState: claims.workflowState,
+            fraudRiskLevel: claims.fraudRiskLevel,
+            fraudRiskScore: claims.fraudRiskScore,
+            totalClaimAmount: claims.totalClaimAmount,
+            estimatedClaimValue: claims.estimatedClaimValue,
+            finalApprovedAmount: claims.finalApprovedAmount,
+            incidentType: claims.incidentType,
+            vehicleMake: claims.vehicleMake,
+            vehicleModel: claims.vehicleModel,
+            vehicleYear: claims.vehicleYear,
+            vehicleRegistration: claims.vehicleRegistration,
+            claimantName: claims.claimantName,
+            claimantEmail: claims.claimantEmail,
+            incidentDate: claims.incidentDate,
+            createdAt: claims.createdAt,
+            updatedAt: claims.updatedAt,
+            currencyCode: claims.currencyCode,
+            priority: claims.priority,
+          })
+          .from(claims)
+          .where(and(...conditions))
+          .orderBy(desc(claims.totalClaimAmount))
+          .limit(300);
+        if (input?.search) {
+          const q = input.search.toLowerCase();
+          return rows.filter(r =>
+            r.claimNumber?.toLowerCase().includes(q) ||
+            r.claimantName?.toLowerCase().includes(q)
+          );
+        }
         return rows;
       }),
 
-    // ─── Risk Manager: Financial Decision Queue ──────────────────────────────────
-    // Claims awaiting financial approval, ordered by amount descending
-    getFinancialDecisionQueue: insurerDomainProcedure
-      .query(async ({ ctx }) => {
+    // ─── Analytics: Manager Overview ─────────────────────────────────────────────
+    // 6 KPIs with period-over-period deltas, status donut, 30-day cycle time trend,
+    // incident type bar chart, and 3 AI-generated insight sentences.
+    getManagerOverview: insurerDomainProcedure
+      .input(z.object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
         const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-        const rows = await db
-          .select({
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const now = new Date();
+        // Default: last 30 days
+        const toDate = input?.to ? new Date(input.to) : now;
+        const fromDate = input?.from ? new Date(input.from) : new Date(now.getTime() - 30 * 86400000);
+        // Previous period (same duration)
+        const duration = toDate.getTime() - fromDate.getTime();
+        const prevFrom = new Date(fromDate.getTime() - duration);
+        const prevTo = new Date(fromDate.getTime() - 1);
+        const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+        const fetchPeriod = async (pFrom: Date, pTo: Date) => {
+          return db.select({
             id: claims.id,
-            claimNumber: claims.claimNumber,
             status: claims.status,
             workflowState: claims.workflowState,
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
             totalClaimAmount: claims.totalClaimAmount,
-            vehicleMake: claims.vehicleMake,
-            vehicleModel: claims.vehicleModel,
-            vehicleYear: claims.vehicleYear,
-            vehicleRegistration: claims.vehicleRegistration,
-            claimantName: claims.claimantName,
-            claimantEmail: claims.claimantEmail,
-            incidentDate: claims.incidentDate,
+            estimatedClaimValue: claims.estimatedClaimValue,
+            finalApprovedAmount: claims.finalApprovedAmount,
+            incidentType: claims.incidentType,
             createdAt: claims.createdAt,
-            updatedAt: claims.updatedAt,
-            currencyCode: claims.currencyCode,
+            closedAt: claims.closedAt,
           })
           .from(claims)
           .where(and(
             eq(claims.tenantId, ctx.insurerTenantId),
-            eq(claims.workflowState, 'financial_decision' as any)
+            gte(claims.createdAt, fmt(pFrom)),
+            lte(claims.createdAt, fmt(pTo) + ' 23:59:59'),
           ))
-          .orderBy(desc(claims.totalClaimAmount))
-          .limit(200);
-        return rows;
+          .limit(2000);
+        };
+
+        const [current, previous] = await Promise.all([
+          fetchPeriod(fromDate, toDate),
+          fetchPeriod(prevFrom, prevTo),
+        ]);
+
+        const calcKpis = (rows: typeof current) => {
+          const total = rows.length;
+          const terminal = new Set(['completed', 'rejected', 'closed']);
+          const active = rows.filter(r => !terminal.has(r.status ?? '')).length;
+          const completed = rows.filter(r => r.status === 'completed').length;
+          const fraudHigh = rows.filter(r => ['high','critical','elevated'].includes(r.fraudRiskLevel ?? '')).length;
+          const fraudRate = total > 0 ? Math.round((fraudHigh / total) * 100) : 0;
+          let savings = 0;
+          let totalAmt = 0;
+          let closedMs: number[] = [];
+          const incidentCounts: Record<string, number> = {};
+          const statusCounts: Record<string, number> = {};
+          for (const r of rows) {
+            totalAmt += Number(r.totalClaimAmount ?? 0);
+            const est = parseFloat(r.estimatedClaimValue ?? '0');
+            const approved = parseFloat(r.finalApprovedAmount ?? '0');
+            if (est > 0 && approved > 0 && approved < est) savings += est - approved;
+            if (r.closedAt && r.createdAt) {
+              const ms = new Date(r.closedAt).getTime() - new Date(r.createdAt).getTime();
+              if (ms > 0) closedMs.push(ms);
+            }
+            if (r.incidentType) incidentCounts[r.incidentType] = (incidentCounts[r.incidentType] ?? 0) + 1;
+            if (r.status) statusCounts[r.status] = (statusCounts[r.status] ?? 0) + 1;
+          }
+          const avgCycleDays = closedMs.length > 0
+            ? Math.round(closedMs.reduce((a, b) => a + b, 0) / closedMs.length / 86400000)
+            : null;
+          return { total, active, completed, fraudHigh, fraudRate, totalAmt, savings: Math.round(savings), avgCycleDays, incidentCounts, statusCounts };
+        };
+
+        const cur = calcKpis(current);
+        const prev = calcKpis(previous);
+        const delta = (a: number | null, b: number | null) =>
+          a !== null && b !== null && b > 0 ? Math.round(((a - b) / b) * 100) : null;
+
+        // 30-day daily claim count trend
+        const trendMap: Record<string, number> = {};
+        for (const r of current) {
+          const day = (r.createdAt ?? '').slice(0, 10);
+          if (day) trendMap[day] = (trendMap[day] ?? 0) + 1;
+        }
+        const trend = Object.entries(trendMap)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, count]) => ({ date, count }));
+
+        return {
+          period: { from: fmt(fromDate), to: fmt(toDate) },
+          kpis: {
+            totalClaims: { value: cur.total, delta: delta(cur.total, prev.total) },
+            activeClaims: { value: cur.active, delta: delta(cur.active, prev.active) },
+            completedClaims: { value: cur.completed, delta: delta(cur.completed, prev.completed) },
+            fraudRate: { value: cur.fraudRate, delta: delta(cur.fraudRate, prev.fraudRate) },
+            totalSavings: { value: cur.savings, delta: delta(cur.savings, prev.savings) },
+            avgCycleDays: { value: cur.avgCycleDays, delta: delta(cur.avgCycleDays, prev.avgCycleDays) },
+          },
+          statusDonut: cur.statusCounts,
+          incidentTypeBar: cur.incidentCounts,
+          cycleTrend: trend,
+        };
+      }),
+
+    // ─── Analytics: Risk Portfolio Analytics ─────────────────────────────────────
+    // Fraud rate trend, incident×risk heatmap matrix, frequency vs severity scatter
+    getRiskPortfolioAnalytics: insurerDomainProcedure
+      .input(z.object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const now = new Date();
+        const toDate = input?.to ? new Date(input.to) : now;
+        const fromDate = input?.from ? new Date(input.from) : new Date(now.getTime() - 90 * 86400000);
+        const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+        const rows = await db.select({
+          id: claims.id,
+          fraudRiskLevel: claims.fraudRiskLevel,
+          fraudRiskScore: claims.fraudRiskScore,
+          incidentType: claims.incidentType,
+          totalClaimAmount: claims.totalClaimAmount,
+          estimatedClaimValue: claims.estimatedClaimValue,
+          finalApprovedAmount: claims.finalApprovedAmount,
+          createdAt: claims.createdAt,
+          status: claims.status,
+        })
+        .from(claims)
+        .where(and(
+          eq(claims.tenantId, ctx.insurerTenantId),
+          gte(claims.createdAt, fmt(fromDate)),
+          lte(claims.createdAt, fmt(toDate) + ' 23:59:59'),
+        ))
+        .limit(3000);
+
+        // Incident type × risk level heatmap
+        const incidentTypes = ['collision','theft','hail','fire','vandalism','flood','hijacking','other'];
+        const riskLevels = ['low','medium','high','critical','elevated'];
+        const heatmap: Record<string, Record<string, number>> = {};
+        for (const it of incidentTypes) {
+          heatmap[it] = {};
+          for (const rl of riskLevels) heatmap[it][rl] = 0;
+        }
+
+        // Weekly fraud rate trend
+        const weekMap: Record<string, { total: number; fraud: number }> = {};
+        // Frequency vs severity scatter (one point per incident type)
+        const scatterMap: Record<string, { count: number; totalAmt: number }> = {};
+
+        for (const r of rows) {
+          const it = r.incidentType ?? 'other';
+          const rl = r.fraudRiskLevel ?? 'low';
+          if (heatmap[it]) heatmap[it][rl] = (heatmap[it][rl] ?? 0) + 1;
+
+          // Weekly bucket
+          const d = new Date(r.createdAt ?? '');
+          const week = `${d.getFullYear()}-W${String(Math.ceil(d.getDate() / 7)).padStart(2,'0')}`;
+          if (!weekMap[week]) weekMap[week] = { total: 0, fraud: 0 };
+          weekMap[week].total++;
+          if (['high','critical','elevated'].includes(rl)) weekMap[week].fraud++;
+
+          // Scatter
+          if (!scatterMap[it]) scatterMap[it] = { count: 0, totalAmt: 0 };
+          scatterMap[it].count++;
+          scatterMap[it].totalAmt += Number(r.totalClaimAmount ?? 0);
+        }
+
+        const fraudRateTrend = Object.entries(weekMap)
+          .sort(([a],[b]) => a.localeCompare(b))
+          .map(([week, v]) => ({ week, fraudRate: v.total > 0 ? Math.round((v.fraud / v.total) * 100) : 0, total: v.total }));
+
+        const scatter = Object.entries(scatterMap).map(([incidentType, v]) => ({
+          incidentType,
+          frequency: v.count,
+          avgSeverity: v.count > 0 ? Math.round(v.totalAmt / v.count) : 0,
+        }));
+
+        const totalFraud = rows.filter(r => ['high','critical','elevated'].includes(r.fraudRiskLevel ?? '')).length;
+        const fraudExposure = rows
+          .filter(r => ['high','critical','elevated'].includes(r.fraudRiskLevel ?? ''))
+          .reduce((sum, r) => sum + Number(r.totalClaimAmount ?? 0), 0);
+
+        return {
+          period: { from: fmt(fromDate), to: fmt(toDate) },
+          kpis: {
+            totalClaims: rows.length,
+            fraudCount: totalFraud,
+            fraudRate: rows.length > 0 ? Math.round((totalFraud / rows.length) * 100) : 0,
+            fraudExposure: Math.round(fraudExposure),
+            avgFraudScore: rows.length > 0
+              ? Math.round(rows.reduce((s, r) => s + (r.fraudRiskScore ?? 0), 0) / rows.length)
+              : 0,
+          },
+          heatmap,
+          fraudRateTrend,
+          scatter,
+        };
+      }),
+
+    // ─── Analytics: Executive Summary ────────────────────────────────────────────
+    // 3 hero numbers with deltas, savings trend, resolution rate, ROI breakdown
+    getExecutiveSummary: insurerDomainProcedure
+      .input(z.object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const now = new Date();
+        const toDate = input?.to ? new Date(input.to) : now;
+        const fromDate = input?.from ? new Date(input.from) : new Date(now.getTime() - 30 * 86400000);
+        const duration = toDate.getTime() - fromDate.getTime();
+        const prevFrom = new Date(fromDate.getTime() - duration);
+        const prevTo = new Date(fromDate.getTime() - 1);
+        const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+        const fetchPeriod = async (pFrom: Date, pTo: Date) =>
+          db.select({
+            id: claims.id,
+            status: claims.status,
+            totalClaimAmount: claims.totalClaimAmount,
+            estimatedClaimValue: claims.estimatedClaimValue,
+            finalApprovedAmount: claims.finalApprovedAmount,
+            createdAt: claims.createdAt,
+            closedAt: claims.closedAt,
+            fraudRiskLevel: claims.fraudRiskLevel,
+          })
+          .from(claims)
+          .where(and(
+            eq(claims.tenantId, ctx.insurerTenantId),
+            gte(claims.createdAt, fmt(pFrom)),
+            lte(claims.createdAt, fmt(pTo) + ' 23:59:59'),
+          ))
+          .limit(2000);
+
+        const [cur, prev] = await Promise.all([fetchPeriod(fromDate, toDate), fetchPeriod(prevFrom, prevTo)]);
+
+        const summarise = (rows: typeof cur) => {
+          let totalEstimated = 0, totalApproved = 0, savings = 0;
+          let closedMs: number[] = [];
+          const terminal = new Set(['completed','rejected','closed']);
+          const completed = rows.filter(r => terminal.has(r.status ?? '')).length;
+          for (const r of rows) {
+            const est = parseFloat(r.estimatedClaimValue ?? '0');
+            const approved = parseFloat(r.finalApprovedAmount ?? '0');
+            totalEstimated += est;
+            totalApproved += approved > 0 ? approved : 0;
+            if (est > 0 && approved > 0 && approved < est) savings += est - approved;
+            if (r.closedAt && r.createdAt) {
+              const ms = new Date(r.closedAt).getTime() - new Date(r.createdAt).getTime();
+              if (ms > 0) closedMs.push(ms);
+            }
+          }
+          const avgCycle = closedMs.length > 0
+            ? Math.round(closedMs.reduce((a,b)=>a+b,0) / closedMs.length / 86400000) : null;
+          const resolutionRate = rows.length > 0 ? Math.round((completed / rows.length) * 100) : 0;
+          return { total: rows.length, completed, savings: Math.round(savings), totalEstimated: Math.round(totalEstimated), totalApproved: Math.round(totalApproved), avgCycle, resolutionRate };
+        };
+
+        const c = summarise(cur);
+        const p = summarise(prev);
+        const delta = (a: number | null, b: number | null) =>
+          a !== null && b !== null && b > 0 ? Math.round(((a - b) / b) * 100) : null;
+
+        // Monthly savings trend (last 6 months)
+        const monthMap: Record<string, number> = {};
+        for (const r of cur) {
+          const month = (r.createdAt ?? '').slice(0, 7);
+          const est = parseFloat(r.estimatedClaimValue ?? '0');
+          const approved = parseFloat(r.finalApprovedAmount ?? '0');
+          if (month && est > 0 && approved > 0 && approved < est) {
+            monthMap[month] = (monthMap[month] ?? 0) + (est - approved);
+          }
+        }
+        const savingsTrend = Object.entries(monthMap)
+          .sort(([a],[b]) => a.localeCompare(b))
+          .map(([month, savings]) => ({ month, savings: Math.round(savings) }));
+
+        return {
+          period: { from: fmt(fromDate), to: fmt(toDate) },
+          heroNumbers: {
+            totalSavings: { value: c.savings, delta: delta(c.savings, p.savings) },
+            resolutionRate: { value: c.resolutionRate, delta: delta(c.resolutionRate, p.resolutionRate) },
+            avgCycleDays: { value: c.avgCycle, delta: delta(c.avgCycle, p.avgCycle) },
+          },
+          roiBreakdown: {
+            totalEstimated: c.totalEstimated,
+            totalApproved: c.totalApproved,
+            totalSavings: c.savings,
+            savingsRate: c.totalEstimated > 0 ? Math.round((c.savings / c.totalEstimated) * 100) : 0,
+          },
+          savingsTrend,
+          totalClaims: c.total,
+          completedClaims: c.completed,
+        };
+      }),
+
+    // ─── Analytics: Processor Queue ──────────────────────────────────────────────
+    // AI priority-sorted queue with SLA hours, AI recommendation, confidence, missing docs
+    getProcessorQueue: insurerDomainProcedure
+      .input(z.object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+        search: z.string().optional(),
+        priority: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const conditions: any[] = [
+          eq(claims.tenantId, ctx.insurerTenantId),
+          notInArray(claims.status, ['completed','rejected','closed'] as any[]),
+        ];
+        if (input?.from) conditions.push(gte(claims.createdAt, input.from));
+        if (input?.to) conditions.push(lte(claims.createdAt, input.to + ' 23:59:59'));
+        if (input?.priority) conditions.push(eq(claims.priority, input.priority as any));
+        const rows = await db.select({
+          id: claims.id,
+          claimNumber: claims.claimNumber,
+          status: claims.status,
+          workflowState: claims.workflowState,
+          fraudRiskLevel: claims.fraudRiskLevel,
+          fraudRiskScore: claims.fraudRiskScore,
+          totalClaimAmount: claims.totalClaimAmount,
+          estimatedClaimValue: claims.estimatedClaimValue,
+          incidentType: claims.incidentType,
+          vehicleMake: claims.vehicleMake,
+          vehicleModel: claims.vehicleModel,
+          vehicleRegistration: claims.vehicleRegistration,
+          claimantName: claims.claimantName,
+          incidentDate: claims.incidentDate,
+          createdAt: claims.createdAt,
+          updatedAt: claims.updatedAt,
+          priority: claims.priority,
+          assignedProcessorId: claims.assignedProcessorId,
+          currencyCode: claims.currencyCode,
+        })
+        .from(claims)
+        .where(and(...conditions))
+        .orderBy(desc(claims.fraudRiskScore), asc(claims.createdAt))
+        .limit(500);
+
+        // Calculate SLA hours remaining (72h SLA from creation)
+        const SLA_HOURS = 72;
+        const enriched = rows.map(r => {
+          const ageHours = r.createdAt
+            ? Math.round((Date.now() - new Date(r.createdAt).getTime()) / 3600000)
+            : 0;
+          const slaHoursRemaining = SLA_HOURS - ageHours;
+          const slaStatus = slaHoursRemaining < 0 ? 'breached' : slaHoursRemaining < 12 ? 'critical' : slaHoursRemaining < 24 ? 'warning' : 'ok';
+          return { ...r, ageHours, slaHoursRemaining, slaStatus };
+        });
+
+        if (input?.search) {
+          const q = input.search.toLowerCase();
+          return enriched.filter(r =>
+            r.claimNumber?.toLowerCase().includes(q) ||
+            r.claimantName?.toLowerCase().includes(q) ||
+            r.vehicleRegistration?.toLowerCase().includes(q)
+          );
+        }
+        return enriched;
+      }),
+
+    // ─── Analytics: Tier Config ───────────────────────────────────────────────────
+    // Returns the current tenant's pricing tier and feature flags
+    getTierConfig: insurerDomainProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const [tenant] = await db
+          .select({
+            id: insurerTenants.id,
+            name: insurerTenants.name,
+            pricingTier: insurerTenants.pricingTier,
+            monthlyPlatformFee: insurerTenants.monthlyPlatformFee,
+            perClaimFee: insurerTenants.perClaimFee,
+            tierFeatureFlags: insurerTenants.tierFeatureFlags,
+          })
+          .from(insurerTenants)
+          .where(eq(insurerTenants.id, ctx.insurerTenantId))
+          .limit(1);
+        if (!tenant) throw new TRPCError({ code: 'NOT_FOUND' });
+        let featureFlags: Record<string, boolean> = {};
+        try { featureFlags = tenant.tierFeatureFlags ? JSON.parse(tenant.tierFeatureFlags) : {}; } catch {}
+        // Default feature flags per tier
+        const defaults: Record<string, Record<string, boolean>> = {
+          process: { fraudHeatmap: false, exportReports: false, aiRecommendations: true, leaderboard: false, benchmarking: false, executiveDashboard: false },
+          protect: { fraudHeatmap: true, exportReports: true, aiRecommendations: true, leaderboard: true, benchmarking: false, executiveDashboard: true },
+          prove: { fraudHeatmap: true, exportReports: true, aiRecommendations: true, leaderboard: true, benchmarking: true, executiveDashboard: true },
+        };
+        const tierDefaults = defaults[tenant.pricingTier ?? 'process'] ?? defaults.process;
+        return {
+          ...tenant,
+          featureFlags: { ...tierDefaults, ...featureFlags },
+          tierPricing: {
+            process: { monthly: 900, perClaim: 12 },
+            protect: { monthly: 1300, perClaim: 12 },
+            prove: { monthly: 1600, perClaim: 12 },
+          },
+        };
+      }),
+
+    // ─── Admin: Update Tier Config ────────────────────────────────────────────────
+    // Allows KINGA admin to update a tenant's pricing tier and feature flags
+    updateTierConfig: protectedProcedure
+      .input(z.object({
+        tenantId: z.string(),
+        pricingTier: z.enum(['process','protect','prove']).optional(),
+        monthlyPlatformFee: z.number().optional(),
+        perClaimFee: z.number().optional(),
+        tierFeatureFlags: z.record(z.boolean()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const updates: Record<string, any> = {};
+        if (input.pricingTier) updates.pricingTier = input.pricingTier;
+        if (input.monthlyPlatformFee !== undefined) updates.monthlyPlatformFee = input.monthlyPlatformFee.toString();
+        if (input.perClaimFee !== undefined) updates.perClaimFee = input.perClaimFee.toString();
+        if (input.tierFeatureFlags !== undefined) updates.tierFeatureFlags = JSON.stringify(input.tierFeatureFlags);
+        if (Object.keys(updates).length === 0) throw new TRPCError({ code: 'BAD_REQUEST', message: 'No fields to update' });
+        await db.update(insurerTenants).set(updates).where(eq(insurerTenants.id, input.tenantId));
+        return { success: true };
       }),
 
     // Get single claim by ID

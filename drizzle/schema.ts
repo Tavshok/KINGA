@@ -1877,6 +1877,12 @@ export const insurerTenants = mysqlTable("insurer_tenants", {
 	secondaryCurrency: varchar("secondary_currency", { length: 3 }),
 	secondaryCurrencySymbol: varchar("secondary_currency_symbol", { length: 10 }),
 	exchangeRate: decimal("exchange_rate", { precision: 10, scale: 4 }),
+	// KINGA pricing tier: process ($900/mo), protect ($1300/mo), prove ($1600/mo) — all at $12/claim
+	pricingTier: mysqlEnum("pricing_tier", ['process','protect','prove']).default('process').notNull(),
+	monthlyPlatformFee: decimal("monthly_platform_fee", { precision: 10, scale: 2 }).default('900.00').notNull(),
+	perClaimFee: decimal("per_claim_fee", { precision: 8, scale: 2 }).default('12.00').notNull(),
+	// JSON object: feature flags per tier (e.g. { fraudHeatmap: true, exportReports: true, aiRecommendations: true })
+	tierFeatureFlags: text("tier_feature_flags"),
 });
 
 export const isoAuditLogs = mysqlTable("iso_audit_logs", {
