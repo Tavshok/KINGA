@@ -205,29 +205,6 @@ const navByRole: Record<string, NavSection[]> = {
     },
   ],
 
-  assessor_external: [
-    {
-      title: "Overview",
-      items: [
-        { label: "My Dashboard", description: "Assigned claims and queue", href: "/insurer-portal/external-assessor", icon: LayoutDashboard },
-      ],
-    },
-    {
-      title: "Assessments",
-      items: [
-        { label: "My Queue", description: "Claims assigned to me", href: "/insurer-portal/external-assessor?tab=queue", icon: ClipboardList },
-        { label: "In Progress", description: "Assessments being written", href: "/insurer-portal/external-assessor?tab=in-progress", icon: Activity },
-        { label: "Completed", description: "Submitted assessments", href: "/insurer-portal/external-assessor?tab=completed", icon: CheckSquare },
-      ],
-    },
-    {
-      title: "Tools",
-      items: [
-        { label: "Reports Centre", description: "Assessment report archive", href: "/insurer-portal/reports-centre", icon: FileBarChart },
-      ],
-    },
-  ],
-
   insurer_admin: [
     {
       title: "Overview",
@@ -270,7 +247,6 @@ const pathToRole: Array<{ prefix: string; role: string; label: string }> = [
   { prefix: "/insurer-portal/claims-processor",  role: "claims_processor",  label: "Claims Processor" },
   { prefix: "/insurer-portal/risk-manager",      role: "risk_manager",      label: "Risk Manager" },
   { prefix: "/insurer-portal/internal-assessor",  role: "assessor_internal",  label: "Internal Assessor" },
-  { prefix: "/insurer-portal/external-assessor",  role: "assessor_external",  label: "External Assessor" },
   { prefix: "/insurer-portal/governance",        role: "insurer_admin",     label: "Governance" },
   { prefix: "/insurer/fraud-analytics",           role: "",                   label: "Fraud Analytics" }, // shared page — nav derived from user.insurerRole
   { prefix: "/insurer-portal/workflow-analytics",role: "claims_manager",    label: "Workflow Analytics" },
