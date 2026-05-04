@@ -11246,3 +11246,32 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] P2: Claims Manager Dashboard (analytics always visible, 5 tabs)
 - [x] P2: Claims Processor Dashboard (Quick Stats first, charts visible, 4-tab Tabs component)
 - [x] P2: Internal Assessor Dashboard (Analytics tab removed, perf summary above tabs)
+
+## Cross-Role Claim Communication System
+
+- [ ] Schema: add claimComments table
+- [ ] DB migration: pnpm db:push after schema update
+- [ ] Backend db.ts: getClaimComments, createClaimComment, resolveCommentThread helpers
+- [ ] Backend routers.ts: claimComments.list, claimComments.send, claimComments.reply, claimComments.resolve
+- [ ] Backend: mandatory email notification on every comment (matched users + toEmails fallback)
+- [ ] Frontend: ClaimCommentThread component (role badge, reply, resolve, requires-response countdown)
+- [ ] Frontend: integrate into all 7 role dashboards
+- [ ] Frontend: unread comment badge on claim rows across all dashboards
+
+## Cross-Role Notifications Tab (per dashboard)
+
+- [ ] Add Notifications tab to ClaimsManagerDashboard with unread badge
+- [ ] Add Notifications tab to ClaimsProcessorDashboard with unread badge
+- [ ] Add Notifications tab to InternalAssessorDashboard with unread badge
+- [ ] Add Notifications tab to RiskManagerDashboard with unread badge
+- [ ] Add Notifications tab to PanelBeaterDashboard with unread badge
+- [ ] Add Notifications tab to ExecutiveDashboard (receive-only, on-demand)
+- [ ] Add Notifications tab to ExternalAssessorDashboard with unread badge
+- [ ] Backend: claimComments.getUnreadCount procedure for badge counts
+- [ ] Backend: claimComments.markRead procedure
+
+## Claimant Status Update (via Claims Processor)
+- [ ] Add notifyClaimant flag + claimantEmail/Phone fields to claim_comments schema
+- [ ] Backend: sendClaimantStatusUpdate procedure (resolves claimant contact from claim record)
+- [ ] Frontend: ClaimantStatusUpdate compose button in Claims Processor queue rows
+- [ ] Email: mandatory notification to claimant on status update

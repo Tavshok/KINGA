@@ -32,6 +32,7 @@ import { AnalyticsExportButton } from "@/components/AnalyticsExportButton";
 import { ClaimDrillDownModal } from "@/components/ClaimDrillDownModal";
 import { KingaReportButton } from "@/components/KingaReportButton";
 import ThemeToggle from "@/components/ThemeToggle";
+import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 
 import {
   exportKPIsToPDF,
@@ -504,6 +505,7 @@ export default function ExecutiveDashboard() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="operational-health">Operational Health</TabsTrigger>
             <TabsTrigger value="roi-breakdown">ROI Breakdown</TabsTrigger>
+            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
           </TabsList>
 
           {/* ── Tab 1: Overview ── */}
@@ -854,7 +856,12 @@ export default function ExecutiveDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+        
+          {/* ── Notifications Tab ─────────────────────────────────────── */}
+          <TabsContent value="notifications" className="mt-6">
+            <NotificationsInbox />
+          </TabsContent>
+</Tabs>
       </div>
 
       {/* Comment Dialog */}

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 import { toast } from "sonner";
 import {
   FileText,
@@ -956,6 +957,7 @@ export default function ClaimsProcessorDashboard() {
               {aiFlaggedClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold bg-teal-500 text-white">{aiFlaggedClaims.length}</span>}
             </TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
           </TabsList>
           <TabsContent value="pending">
         {renderSection(
@@ -994,15 +996,22 @@ export default function ClaimsProcessorDashboard() {
 
           </TabsContent>
           <TabsContent value="completed">
-        {renderSection(
-          "Completed",
-          FileText,
-          completedClaims,
-          "completed",
-          "No completed claims",
-          "border-t-green-500",
-          "bg-green-50/50 dark:bg-green-950/50"
-        )}
+            {renderSection(
+              "Completed",
+              FileText,
+              completedClaims,
+              "completed",
+              "No completed claims",
+              "border-t-green-500",
+              "bg-green-50/50 dark:bg-green-950/50"
+            )}
+          </TabsContent>
+
+          {/* ── Notifications Tab ─────────────────────────────────────── */}
+          <TabsContent value="notifications" className="mt-6">
+            <NotificationsInbox />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Upload Evidence Dialog */}

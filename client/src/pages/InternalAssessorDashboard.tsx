@@ -11,7 +11,7 @@
  */
 import { useState, useMemo } from "react";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
-import { Bar, Doughnut } from 'react-chartjs-2';
+import { Bar, Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -40,10 +40,12 @@ import {
   Calendar, BarChart3, Clock, Search, Eye, ArrowRight,
   TrendingUp, Shield, DollarSign, Target, CheckCheck,
   MapPin, User, Phone, Car, AlertCircle, Loader2,
+  ChevronDown, ChevronUp, Zap, Activity, TrendingDown,
 } from "lucide-react";
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { Link } from "wouter";
 import { currencySymbol, fmtCurrency } from "@/lib/currency";
+import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -178,6 +180,157 @@ function ClaimRow({ claim, actions, showWorkflow = true }: {
         {actions && (
           <div className="flex flex-row sm:flex-col gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
             {actions}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ── AI Context Panel ──────────────────────────────────────────────────────────
+/**
+ * Expandable AI context panel for a claim row.
+ * Fetches aiAssessments.byClaim lazily (only when expanded).
+ * Shows: fraud score breakdown, cost intelligence, damage summary, panel beater quotes.
+ */
+function AiContextPanel({ claimId }: { claimId: number }) {
+  const { data: ai, isLoading } = trpc.aiAssessments.byClaim.useQuery({ claimId });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-3 px-4 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading AI intelligence…
+      </div>
+    );
+  }
+
+  if (!ai) {
+    return (
+      <div className="py-3 px-4 text-sm text-muted-foreground italic">
+        No AI assessment available for this claim yet. Run the AI pipeline to generate intelligence.
+      </div>
+    );
+  }
+
+  // Parse nested JSON fields safely
+  let costIntel: any = null;
+  let fraudBreakdown: any = null;
+  let damageItems: any[] = [];
+  try { costIntel = ai.costIntelligenceJson ? (typeof ai.costIntelligenceJson === 'string' ? JSON.parse(ai.costIntelligenceJson) : ai.costIntelligenceJson) : null; } catch { /* ignore */ }
+  try { fraudBreakdown = ai.fraudScoreBreakdownJson ? (typeof ai.fraudScoreBreakdownJson === 'string' ? JSON.parse(ai.fraudScoreBreakdownJson) : ai.fraudScoreBreakdownJson) : null; } catch { /* ignore */ }
+  try {
+    const raw = ai.damageLineItemsJson ?? ai.costLineItemsJson;
+    const parsed = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
+    damageItems = Array.isArray(parsed) ? parsed.slice(0, 6) : (parsed?.items ?? parsed?.lineItems ?? []).slice(0, 6);
+  } catch { /* ignore */ }
+
+  const fraudScore = ai.fraudScore ?? ai.overallFraudScore ?? null;
+  const fraudLevel = fraudScore == null ? null : fraudScore >= 70 ? 'high' : fraudScore >= 40 ? 'medium' : 'low';
+  const fraudColor = fraudLevel === 'high' ? 'text-red-600' : fraudLevel === 'medium' ? 'text-amber-600' : 'text-emerald-600';
+  const totalEstimate = costIntel?.totalEstimatedCost ?? ai.estimatedRepairCost ?? null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+      {/* Column 1: Fraud Intelligence */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+          <Shield className="h-3.5 w-3.5" /> Fraud Intelligence
+        </p>
+        {fraudScore != null ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className={`text-2xl font-bold ${fraudColor}`}>{fraudScore}</span>
+              <span className="text-xs text-muted-foreground">/ 100</span>
+              <Badge variant={fraudLevel === 'high' ? 'destructive' : fraudLevel === 'medium' ? 'secondary' : 'outline'} className="text-xs capitalize">
+                {fraudLevel}
+              </Badge>
+            </div>
+            {fraudBreakdown?.factors && Array.isArray(fraudBreakdown.factors) && (
+              <ul className="space-y-1">
+                {fraudBreakdown.factors.slice(0, 4).map((f: any, i: number) => (
+                  <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5 text-amber-500" />
+                    <span>{f.description ?? f.factor ?? String(f)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {ai.fraudFlags && (
+              <p className="text-xs text-muted-foreground line-clamp-2">{
+                typeof ai.fraudFlags === 'string' ? ai.fraudFlags : JSON.stringify(ai.fraudFlags)
+              }</p>
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">Fraud score not yet computed</p>
+        )}
+      </div>
+
+      {/* Column 2: Cost Intelligence */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+          <DollarSign className="h-3.5 w-3.5" /> Cost Intelligence
+        </p>
+        {totalEstimate != null ? (
+          <>
+            <div>
+              <p className="text-2xl font-bold text-foreground">
+                {typeof totalEstimate === 'number' ? `${(totalEstimate / 100).toLocaleString()}` : totalEstimate}
+              </p>
+              <p className="text-xs text-muted-foreground">AI estimated repair cost</p>
+            </div>
+            {damageItems.length > 0 && (
+              <div className="space-y-1">
+                {damageItems.map((item: any, i: number) => (
+                  <div key={i} className="flex justify-between text-xs">
+                    <span className="text-muted-foreground truncate max-w-[120px]">{item.description ?? item.part ?? item.item ?? `Item ${i+1}`}</span>
+                    <span className="font-medium text-foreground shrink-0 ml-2">
+                      {item.cost != null ? `${Number(item.cost).toLocaleString()}` : item.amount != null ? `${Number(item.amount).toLocaleString()}` : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">Cost estimate not available</p>
+        )}
+      </div>
+
+      {/* Column 3: AI Verdict & Recommendation */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+          <Brain className="h-3.5 w-3.5" /> AI Verdict
+        </p>
+        {ai.recommendedAction ? (
+          <div className="p-2 rounded-md bg-muted/40 border border-border">
+            <p className="text-xs font-semibold text-foreground capitalize mb-1">{ai.recommendedAction?.replace(/_/g, ' ')}</p>
+            {ai.verdictRationale && (
+              <p className="text-xs text-muted-foreground line-clamp-3">{ai.verdictRationale}</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">Verdict pending pipeline completion</p>
+        )}
+        {ai.consistencyScore != null && (
+          <div className="flex items-center gap-2 mt-1">
+            <Activity className="h-3.5 w-3.5 text-blue-500" />
+            <span className="text-xs text-muted-foreground">Consistency: </span>
+            <span className={`text-xs font-semibold ${ai.consistencyScore >= 70 ? 'text-emerald-600' : ai.consistencyScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+              {ai.consistencyScore}%
+            </span>
+          </div>
+        )}
+        {ai.physicsValidation && (
+          <div className="flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-purple-500" />
+            <span className="text-xs text-muted-foreground">Physics: </span>
+            <span className={`text-xs font-semibold capitalize ${
+              (typeof ai.physicsValidation === 'string' ? ai.physicsValidation : ai.physicsValidation?.verdict ?? '') === 'pass' ? 'text-emerald-600' : 'text-amber-600'
+            }`}>
+              {typeof ai.physicsValidation === 'string' ? ai.physicsValidation : (ai.physicsValidation?.verdict ?? '—')}
+            </span>
           </div>
         )}
       </div>
@@ -422,9 +575,12 @@ function AssessmentDialog({
 export default function InternalAssessorDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("queue");
+  const [perfPeriod, setPerfPeriod] = useState<'weekly' | 'monthly'>('monthly');
+  const [selectedInsurerId, setSelectedInsurerId] = useState<string | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [search, setSearch] = useState("");
+  const [expandedClaimId, setExpandedClaimId] = useState<number | null>(null);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -444,6 +600,11 @@ export default function InternalAssessorDashboard() {
   const { data: perfData, isLoading: perfLoading } =
     trpc.assessors.getPerformanceDashboard.useQuery();
 
+  // Per-insurer performance trend
+  const { data: perfTrend } = trpc.assessors.getMyPerformanceTrend.useQuery({
+    period: perfPeriod,
+    tenantId: selectedInsurerId,
+  });
   // ── Derived data ───────────────────────────────────────────────────────────
 
   // Queue: also include under_assessment workflowState claims from myAssignments
@@ -605,6 +766,47 @@ export default function InternalAssessorDashboard() {
               </div>
             </CardContent>
           </Card>
+          {/* Variance trend mini-chart */}
+          {perfData.recentAssessments && perfData.recentAssessments.length >= 3 && (() => {
+            const sorted = [...perfData.recentAssessments].reverse().slice(-10);
+            const labels = sorted.map((_: any, i: number) => `#${i + 1}`);
+            const variances = sorted.map((ev: any) => ev.averageVarianceFromFinal ?? ev.varianceFromFinal ?? 0);
+            return (
+              <Card>
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-blue-500" /> Variance Trend (Last {sorted.length} Assessments)
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">Your estimate vs final approved amount — closer to 0% is better</p>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  <div style={{ height: '140px' }}>
+                    <Bar
+                      data={{
+                        labels,
+                        datasets: [{
+                          label: 'Variance %',
+                          data: variances,
+                          backgroundColor: variances.map((v: number) =>
+                            Math.abs(v) > 15 ? 'rgba(239,68,68,0.7)' : Math.abs(v) > 5 ? 'rgba(245,158,11,0.7)' : 'rgba(16,185,129,0.7)'
+                          ),
+                          borderRadius: 4,
+                        }]
+                      }}
+                      options={{
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw > 0 ? '+' : ''}${ctx.raw}%` } } },
+                        scales: {
+                          y: { grid: { color: 'rgba(128,128,128,0.1)' }, ticks: { callback: (v: any) => `${v}%`, font: { size: 10 } } },
+                          x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                        }
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
           {perfData.recentAssessments && perfData.recentAssessments.length > 0 && (
             <Card>
               <CardHeader className="pb-2 pt-4 px-4">
@@ -666,6 +868,10 @@ export default function InternalAssessorDashboard() {
             )}
           </TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsTrigger value="performance" className="flex items-center gap-1.5">
+            <span>Performance</span>
+          </TabsTrigger>
+          <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
         </TabsList>
 
         {/* ── Tab 1: Assessment Queue ── */}
@@ -680,29 +886,83 @@ export default function InternalAssessorDashboard() {
           ) : assessmentQueue.length > 0 ? (
             <div className="space-y-3">
               {assessmentQueue.map((claim: any) => (
-                <ClaimRow
-                  key={claim.id}
-                  claim={claim}
-                  actions={
-                    <>
-                      <Button size="sm" onClick={() => openAssessment(claim)}>
-                        <CheckCircle2 className="h-4 w-4 mr-1.5" /> Assess
-                      </Button>
-                      <AiAssessButton
-                        claimId={claim.id}
-                        claimNumber={claim.claimNumber}
-                        currentStatus={claim.status}
-                        onSuccess={() => { refetchQueue(); refetchAssignments(); }}
-                        size="sm"
-                      />
-                      <Link href={`/insurer/comparison/${claim.id}`}>
-                        <Button size="sm" variant="outline" className="w-full">
-                          <Eye className="h-4 w-4 mr-1.5" /> View
+                <div key={claim.id} className="rounded-lg border border-border bg-card hover:border-foreground/20 transition-colors overflow-hidden">
+                  <div className="p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                      {/* Left: claim info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="font-semibold text-foreground">{claim.claimNumber}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {wfLabel(claim.workflowState ?? claim.status)}
+                          </Badge>
+                          <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
+                          {claim.aiAssessmentCompleted === 1 && (
+                            <Badge variant="secondary" className="text-xs gap-1">
+                              <Brain className="h-3 w-3" /> AI Ready
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Car className="h-3 w-3 shrink-0" />
+                            {[claim.vehicleRegistration, claim.vehicleMake, claim.vehicleModel].filter(Boolean).join(" · ") || "—"}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3 shrink-0" />
+                            {claim.claimantName ?? claim.claimantEmail ?? "—"}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <DollarSign className="h-3 w-3 shrink-0" />
+                            {claimAmount(claim)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 shrink-0" />
+                            {fmtDate(claim.createdAt)}
+                          </span>
+                        </div>
+                        {claim.incidentDescription && (
+                          <p className="text-xs text-muted-foreground mt-1.5 line-clamp-1">
+                            <strong className="text-foreground">Incident:</strong> {claim.incidentDescription}
+                          </p>
+                        )}
+                      </div>
+                      {/* Right: actions */}
+                      <div className="flex flex-row sm:flex-col gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
+                        <Button size="sm" onClick={() => openAssessment(claim)}>
+                          <CheckCircle2 className="h-4 w-4 mr-1.5" /> Assess
                         </Button>
-                      </Link>
-                    </>
-                  }
-                />
+                        <AiAssessButton
+                          claimId={claim.id}
+                          claimNumber={claim.claimNumber}
+                          currentStatus={claim.status}
+                          onSuccess={() => { refetchQueue(); refetchAssignments(); }}
+                          size="sm"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setExpandedClaimId(expandedClaimId === claim.id ? null : claim.id)}
+                          className="gap-1"
+                        >
+                          {expandedClaimId === claim.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          AI
+                        </Button>
+                        <Link href={`/insurer/comparison/${claim.id}`}>
+                          <Button size="sm" variant="ghost" className="w-full">
+                            <Eye className="h-4 w-4 mr-1.5" /> View
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Expandable AI context panel */}
+                  {expandedClaimId === claim.id && (
+                    <div className="px-4 pb-4 bg-muted/20 border-t border-border">
+                      <AiContextPanel claimId={claim.id} />
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           ) : (
@@ -940,7 +1200,12 @@ export default function InternalAssessorDashboard() {
           )}
         </TabsContent>
 
-      </Tabs>
+      
+          {/* ── Notifications Tab ─────────────────────────────────────── */}
+          <TabsContent value="notifications" className="mt-6">
+            <NotificationsInbox />
+          </TabsContent>
+</Tabs>
 
       {/* Assessment dialog */}
       {selectedClaim && (

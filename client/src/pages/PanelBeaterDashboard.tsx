@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, ScatterController } from 'chart.js';
-import { Bar, Scatter, Doughnut } from 'react-chartjs-2';
+import { Bar, Scatter, Doughnut, Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, ScatterController);
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -21,6 +21,7 @@ import KingaLogo from "@/components/KingaLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
 import { KingaReportButton } from "@/components/KingaReportButton";
+import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 
 function PerformanceTierBadge({ tier }: { tier: string | null | undefined }) {
   const config: Record<string, { label: string; className: string }> = {
@@ -59,6 +60,8 @@ export default function PanelBeaterDashboard() {
   const { fmt } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("queue");
+  const [perfPeriod, setPerfPeriod] = useState<'weekly' | 'monthly'>('monthly');
+  const [selectedInsurerId, setSelectedInsurerId] = useState<string | null>(null);
 
   // Real data from server
   const { data: profile } = trpc.claims.myPanelBeaterProfile.useQuery();
@@ -68,6 +71,11 @@ export default function PanelBeaterDashboard() {
   const { data: quoteHistory = [], isLoading: historyLoading } =
     trpc.claims.myQuoteHistory.useQuery();
 
+  // Performance trend query
+  const { data: perfTrend } = trpc.claims.getMyPerformanceTrend.useQuery({
+    period: perfPeriod,
+    tenantId: selectedInsurerId,
+  });
   // Derived stats
   const pendingRequests = quoteRequests.filter((c: any) =>
     !["completed", "rejected", "cancelled"].includes(c.status)
@@ -313,8 +321,9 @@ export default function PanelBeaterDashboard() {
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Analytics
+              Performance
             </TabsTrigger>
+            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
           </TabsList>
 
           {/* Quote Queue Tab */}
@@ -491,167 +500,231 @@ export default function PanelBeaterDashboard() {
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="mt-4">
             <div className="space-y-6">
-              {/* Summary KPIs */}
-              {myAnalytics && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-bold text-slate-800 dark:text-foreground">{myAnalytics.totalQuotes}</p>
-                      <p className="text-xs text-gray-500">Total Quotes</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-bold text-emerald-600">{myAnalytics.approvalRate?.toFixed(1)}%</p>
-                      <p className="text-xs text-gray-500">Approval Rate</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <p className={`text-2xl font-bold ${(myAnalytics.avgVariancePct || 0) > 15 ? 'text-red-600' : (myAnalytics.avgVariancePct || 0) > 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                        {myAnalytics.avgVariancePct !== null ? `${myAnalytics.avgVariancePct > 0 ? '+' : ''}${myAnalytics.avgVariancePct?.toFixed(1)}%` : '—'}
-                      </p>
-                      <p className="text-xs text-gray-500">Avg vs AI Estimate</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-bold text-slate-800 dark:text-foreground">{fmt(myAnalytics.totalApprovedRevenue || 0)}</p>
-                      <p className="text-xs text-gray-500">Approved Revenue</p>
-                    </CardContent>
-                  </Card>
+              {/* Period + Insurer Selectors */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                  <button
+                    onClick={() => setPerfPeriod('monthly')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${perfPeriod === 'monthly' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  >Monthly</button>
+                  <button
+                    onClick={() => setPerfPeriod('weekly')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${perfPeriod === 'weekly' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  >Weekly</button>
+                </div>
+                {/* Insurer filter pills */}
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => setSelectedInsurerId(null)}
+                    className={`px-3 py-1 text-xs rounded-full border transition-colors ${selectedInsurerId === null ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-foreground'}`}
+                  >All Insurers</button>
+                  {perfTrend?.insurers?.map((ins: any) => (
+                    <button
+                      key={ins.tenantId}
+                      onClick={() => setSelectedInsurerId(ins.tenantId)}
+                      className={`px-3 py-1 text-xs rounded-full border transition-colors ${selectedInsurerId === ins.tenantId ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-foreground'}`}
+                    >{ins.displayName}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary KPI bar for selected filter */}
+              {perfTrend?.summary && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Total Quotes', value: perfTrend.summary.totalQuotes, icon: '📋', color: 'text-foreground' },
+                    { label: 'Accepted', value: perfTrend.summary.acceptedQuotes, icon: '✅', color: 'text-emerald-600' },
+                    { label: 'Acceptance Rate', value: perfTrend.summary.overallAcceptanceRate != null ? `${perfTrend.summary.overallAcceptanceRate}%` : '—', icon: '📈', color: perfTrend.summary.overallAcceptanceRate != null && perfTrend.summary.overallAcceptanceRate >= 70 ? 'text-emerald-600' : 'text-amber-600' },
+                    { label: 'Avg Congruency', value: perfTrend.summary.overallCongruencyScore != null ? `${perfTrend.summary.overallCongruencyScore}%` : '—', icon: '🎯', color: 'text-blue-600' },
+                  ].map((kpi, i) => (
+                    <div key={i} className="p-3 rounded-lg border border-border bg-card">
+                      <p className="text-xs text-muted-foreground">{kpi.label}</p>
+                      <p className={`text-xl font-bold mt-0.5 ${kpi.color}`}>{kpi.value ?? '—'}</p>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Charts Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Quote vs AI Estimate Scatter */}
+              {/* Per-Insurer Breakdown Table */}
+              {perfTrend?.byInsurer && perfTrend.byInsurer.length > 0 && (
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold">Your Quote vs KINGA Estimate</CardTitle>
-                    <p className="text-xs text-gray-500">Each dot is one quote. Dots above the line = over-quoted.</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div style={{ height: 260 }}>
-                      {myAnalytics?.quoteVarianceData && myAnalytics.quoteVarianceData.length > 0 ? (
-                        <Scatter
-                          data={{
-                            datasets: [
-                              {
-                                label: 'Your Quotes',
-                                data: myAnalytics.quoteVarianceData.map((d: any) => ({ x: d.aiEstimate, y: d.quotedAmount })),
-                                backgroundColor: 'rgba(59,130,246,0.6)',
-                                pointRadius: 5,
-                              },
-                              {
-                                label: 'Perfect Match',
-                                data: (() => {
-                                  const vals = myAnalytics.quoteVarianceData.map((d: any) => d.aiEstimate).filter(Boolean);
-                                  const min = Math.min(...vals);
-                                  const max = Math.max(...vals);
-                                  return [{ x: min, y: min }, { x: max, y: max }];
-                                })(),
-                                type: 'line' as any,
-                                borderColor: '#22c55e',
-                                borderDash: [5, 5],
-                                borderWidth: 1.5,
-                                pointRadius: 0,
-                              },
-                            ],
-                          }}
-                          options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
-                            scales: {
-                              x: { title: { display: true, text: 'KINGA Estimate', font: { size: 11 } } },
-                              y: { title: { display: true, text: 'Your Quote', font: { size: 11 } } },
-                            },
-                          }}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                          No quote data with AI estimates yet
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Approval Rate Donut */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold">Quote Outcomes</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div style={{ height: 260 }}>
-                      <Doughnut
-                        data={{
-                          labels: ['Approved', 'Pending', 'Rejected'],
-                          datasets: [{
-                            data: [
-                              quoteHistory.filter((q: any) => q.status === 'approved').length,
-                              quoteHistory.filter((q: any) => ['submitted', 'pending', 'comparison'].includes(q.status)).length,
-                              quoteHistory.filter((q: any) => q.status === 'rejected').length,
-                            ],
-                            backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
-                            borderWidth: 0,
-                          }],
-                        }}
-                        options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Per-Quote Variance Table */}
-              {myAnalytics?.quoteVarianceData && myAnalytics.quoteVarianceData.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold">Quote Variance Detail</CardTitle>
-                    <p className="text-xs text-gray-500">How each quote compared to KINGA's AI estimate</p>
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-blue-500" /> Performance by Insurer
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">Your acceptance rate and congruency score for each insurer you work with</p>
                   </CardHeader>
                   <CardContent>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-gray-200">
-                            <th className="text-left py-2 px-2 font-medium text-gray-600">Claim</th>
-                            <th className="text-right py-2 px-2 font-medium text-gray-600">Your Quote</th>
-                            <th className="text-right py-2 px-2 font-medium text-gray-600">AI Estimate</th>
-                            <th className="text-right py-2 px-2 font-medium text-gray-600">Variance</th>
-                            <th className="text-center py-2 px-2 font-medium text-gray-600">Status</th>
+                          <tr className="border-b border-border">
+                            <th className="text-left py-2 px-3 font-medium text-muted-foreground">Insurer</th>
+                            <th className="text-right py-2 px-3 font-medium text-muted-foreground">Quotes</th>
+                            <th className="text-right py-2 px-3 font-medium text-muted-foreground">Accepted</th>
+                            <th className="text-right py-2 px-3 font-medium text-muted-foreground">Acceptance Rate</th>
+                            <th className="text-right py-2 px-3 font-medium text-muted-foreground">Avg Congruency</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {myAnalytics.quoteVarianceData.slice(0, 10).map((d: any, i: number) => {
-                            const variance = d.aiEstimate ? ((d.quotedAmount - d.aiEstimate) / d.aiEstimate * 100) : null;
-                            return (
-                              <tr key={i} className="hover:bg-gray-50">
-                                <td className="py-2 px-2 font-mono text-xs text-gray-700">#{d.claimId}</td>
-                                <td className="py-2 px-2 text-right">{fmt(d.quotedAmount)}</td>
-                                <td className="py-2 px-2 text-right text-gray-500">{d.aiEstimate ? fmt(d.aiEstimate) : '—'}</td>
-                                <td className="py-2 px-2 text-right">
-                                  {variance !== null ? (
-                                    <span className={variance > 15 ? 'text-red-600 font-semibold' : variance > 5 ? 'text-amber-600' : 'text-emerald-600'}>
-                                      {variance > 0 ? '+' : ''}{variance.toFixed(1)}%
-                                    </span>
-                                  ) : '—'}
-                                </td>
-                                <td className="py-2 px-2 text-center"><StatusBadge status={d.status || 'submitted'} /></td>
-                              </tr>
-                            );
-                          })}
+                        <tbody className="divide-y divide-border">
+                          {perfTrend.byInsurer.map((ins: any) => (
+                            <tr
+                              key={ins.tenantId}
+                              className={`hover:bg-muted/30 cursor-pointer transition-colors ${selectedInsurerId === ins.tenantId ? 'bg-primary/5' : ''}`}
+                              onClick={() => setSelectedInsurerId(selectedInsurerId === ins.tenantId ? null : ins.tenantId)}
+                            >
+                              <td className="py-2.5 px-3 font-medium text-foreground">{ins.displayName}</td>
+                              <td className="py-2.5 px-3 text-right text-muted-foreground">{ins.totalQuotes}</td>
+                              <td className="py-2.5 px-3 text-right text-emerald-600">{ins.acceptedQuotes}</td>
+                              <td className="py-2.5 px-3 text-right">
+                                {ins.acceptanceRate != null ? (
+                                  <span className={`font-semibold ${ins.acceptanceRate >= 70 ? 'text-emerald-600' : ins.acceptanceRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                                    {ins.acceptanceRate}%
+                                  </span>
+                                ) : '—'}
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                {ins.avgCongruencyScore != null ? (
+                                  <span className={`font-semibold ${ins.avgCongruencyScore >= 70 ? 'text-emerald-600' : ins.avgCongruencyScore >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                                    {ins.avgCongruencyScore}%
+                                  </span>
+                                ) : '—'}
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-2">Click a row to filter the trend charts below to that insurer</p>
                   </CardContent>
                 </Card>
               )}
+
+              {/* Trend Charts */}
+              {perfTrend?.trend && perfTrend.trend.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Acceptance Rate Trend */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold">Acceptance Rate Trend</CardTitle>
+                      <p className="text-xs text-muted-foreground">{selectedInsurerId ? perfTrend.insurers?.find((i: any) => i.tenantId === selectedInsurerId)?.displayName : 'All Insurers'} · {perfPeriod === 'monthly' ? 'Monthly' : 'Weekly'}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div style={{ height: 200 }}>
+                        <Line
+                          data={{
+                            labels: perfTrend.trend.map((b: any) => b.label),
+                            datasets: [{
+                              label: 'Acceptance Rate %',
+                              data: perfTrend.trend.map((b: any) => b.acceptanceRate),
+                              borderColor: '#22c55e',
+                              backgroundColor: 'rgba(34,197,94,0.1)',
+                              fill: true,
+                              tension: 0.4,
+                              pointRadius: 4,
+                            }]
+                          }}
+                          options={{
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                              y: { min: 0, max: 100, ticks: { callback: (v: any) => `${v}%`, font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.1)' } },
+                              x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+                            }
+                          }}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {/* Quote Volume Trend */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold">Quote Volume</CardTitle>
+                      <p className="text-xs text-muted-foreground">Total submitted per {perfPeriod === 'monthly' ? 'month' : 'week'}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div style={{ height: 200 }}>
+                        <Bar
+                          data={{
+                            labels: perfTrend.trend.map((b: any) => b.label),
+                            datasets: [
+                              {
+                                label: 'Accepted',
+                                data: perfTrend.trend.map((b: any) => b.acceptedQuotes),
+                                backgroundColor: 'rgba(34,197,94,0.8)',
+                                borderRadius: 4,
+                              },
+                              {
+                                label: 'Total',
+                                data: perfTrend.trend.map((b: any) => b.totalQuotes - b.acceptedQuotes),
+                                backgroundColor: 'rgba(148,163,184,0.5)',
+                                borderRadius: 4,
+                              }
+                            ]
+                          }}
+                          options={{
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } },
+                            scales: {
+                              x: { stacked: true, ticks: { font: { size: 10 } }, grid: { display: false } },
+                              y: { stacked: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.1)' } }
+                            }
+                          }}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {/* Congruency Score Trend */}
+                  <Card className="md:col-span-2">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold">Quote Congruency Score Trend</CardTitle>
+                      <p className="text-xs text-muted-foreground">How closely your quotes align with the AI cost estimate — higher is better</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div style={{ height: 180 }}>
+                        <Bar
+                          data={{
+                            labels: perfTrend.trend.map((b: any) => b.label),
+                            datasets: [{
+                              label: 'Avg Congruency %',
+                              data: perfTrend.trend.map((b: any) => b.avgCongruencyScore),
+                              backgroundColor: perfTrend.trend.map((b: any) =>
+                                b.avgCongruencyScore == null ? 'rgba(148,163,184,0.3)' :
+                                b.avgCongruencyScore >= 70 ? 'rgba(34,197,94,0.75)' :
+                                b.avgCongruencyScore >= 50 ? 'rgba(245,158,11,0.75)' :
+                                'rgba(239,68,68,0.75)'
+                              ),
+                              borderRadius: 4,
+                            }]
+                          }}
+                          options={{
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                              y: { min: 0, max: 100, ticks: { callback: (v: any) => `${v}%`, font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.1)' } },
+                              x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+                            }
+                          }}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <TrendingUp className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">No performance data yet</p>
+                  <p className="text-sm mt-1">Submit quotes to start building your performance history</p>
+                </div>
+              )}
             </div>
           </TabsContent>
-        </Tabs>
+        
+          {/* ── Notifications Tab ─────────────────────────────────────── */}
+          <TabsContent value="notifications" className="mt-6">
+            <NotificationsInbox />
+          </TabsContent>
+</Tabs>
 
         {/* Workshop Details */}
         {profile && (

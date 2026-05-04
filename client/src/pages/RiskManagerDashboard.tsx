@@ -21,6 +21,7 @@ import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { KingaReportButton } from "@/components/KingaReportButton";
 import { Link, useSearch } from "wouter";
 import { currencySymbol } from "@/lib/currency";
+import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 import {
   Chart as ChartJS, Tooltip, Legend,
   CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler,
@@ -486,6 +487,7 @@ export default function RiskManagerDashboard() {
               )}
             </TabsTrigger>
             <TabsTrigger value="oversight">Portfolio Oversight</TabsTrigger>
+            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
           </TabsList>
 
           {/* ── Technical Approval Queue ── */}
@@ -674,7 +676,12 @@ export default function RiskManagerDashboard() {
               </Card>
             )}
           </TabsContent>
-        </Tabs>
+        
+          {/* ── Notifications Tab ─────────────────────────────────────── */}
+          <TabsContent value="notifications" className="mt-6">
+            <NotificationsInbox />
+          </TabsContent>
+</Tabs>
 
         {/* ── Action Dialog ── */}
         <Dialog open={showDialog} onOpenChange={setShowDialog}>

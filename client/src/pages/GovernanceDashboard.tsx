@@ -29,6 +29,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { KingaReportButton } from "@/components/KingaReportButton";
+import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 export default function GovernanceDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState<"7d" | "30d" | "90d">("30d");
   const [shadowScanning, setShadowScanning] = useState(false);
@@ -383,6 +384,7 @@ export default function GovernanceDashboard() {
               <Radio className="h-5 w-5 mr-2" />
               Shadow Monitor
             </TabsTrigger>
+            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
           </TabsList>
 
           {/* 1️⃣ OVERRIDE OVERSIGHT TAB */}
@@ -1059,7 +1061,12 @@ export default function GovernanceDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+        
+          {/* ── Notifications Tab ─────────────────────────────────────── */}
+          <TabsContent value="notifications" className="mt-6">
+            <NotificationsInbox />
+          </TabsContent>
+</Tabs>
       </div>
     </div>
   );

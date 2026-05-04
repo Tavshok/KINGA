@@ -90,6 +90,7 @@ import { crossClaimIntelligenceRouter } from "./routers/cross-claim-intelligence
 import { driverRegistryRouter } from "./routers/driver-registry";
 import { workflowRouter } from "./routers/workflow";
 import { commentsRouter } from "./routers/comments";
+import { claimCommentsRouter } from "./routers/claimComments";
 import { workflowQueriesRouter } from "./routers/workflow-queries";
 import { marketplaceRouter } from "./routers/marketplace";
 import { platformMarketplaceRouter } from "./routers/platform-marketplace";
@@ -307,6 +308,7 @@ export const appRouter = router({
   workflow: workflowRouter,
   workflowQueries: workflowQueriesRouter,
   comments: commentsRouter,
+  claimComms: claimCommentsRouter,
   reviewQueue: reviewQueueRouter,
   assessorOnboarding: assessorOnboardingRouter,
   documentIngestion: documentIngestionRouter,
@@ -1397,7 +1399,117 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         };
       }),
 
-    // Get claims by status (for dashboards)
+    /**
+     * Get the panel beater's own performance trend over time, broken down by insurer.
+     * Returns:
+     *   - insurers: list of { tenantId, displayName } the panel beater has worked with
+     *   - byInsurer: per-insurer summary (total quotes, acceptance rate, avg congruency)
+     *   - trend: time-bucketed data (weekly/monthly) for the selected insurer (or all)
+     * period: 'weekly' (last 12 weeks) | 'monthly' (last 12 months)
+     * tenantId: filter to a specific insurer, or null for all
+     */
+    getMyPerformanceTrend: protectedProcedure
+      .input(z.object({
+        period: z.enum(['weekly', 'monthly']).default('monthly'),
+        tenantId: z.string().nullable().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { panelBeaters: pbTable, panelBeaterQuotes: pbqTable, claims: claimsTable, insurerTenants: tenantsTable } = await import('../drizzle/schema');
+        const { eq: _eq, desc: _desc, and: _and } = await import('drizzle-orm');
+        // Resolve the panel beater record for this user
+        const [myPb] = await db.select({ id: pbTable.id }).from(pbTable).where(_eq(pbTable.userId, ctx.user.id)).limit(1);
+        if (!myPb) return { insurers: [], byInsurer: [], trend: [], summary: null };
+        // Fetch all submitted quotes joined with claim tenantId and insurer display name
+        const periodDays = input.period === 'weekly' ? 7 : 30;
+        const lookbackDays = 12 * periodDays;
+        const since = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
+        const rawQuotes = await db
+          .select({
+            id: pbqTable.id,
+            quotedAmount: pbqTable.quotedAmount,
+            status: pbqTable.status,
+            quoteCongruencyScore: pbqTable.quoteCongruencyScore,
+            createdAt: pbqTable.createdAt,
+            claimTenantId: claimsTable.tenantId,
+            insurerDisplayName: tenantsTable.displayName,
+          })
+          .from(pbqTable)
+          .leftJoin(claimsTable, _eq(pbqTable.claimId, claimsTable.id))
+          .leftJoin(tenantsTable, _eq(claimsTable.tenantId, tenantsTable.id))
+          .where(_eq(pbqTable.panelBeaterId, myPb.id))
+          .orderBy(_desc(pbqTable.createdAt));
+        // Filter to lookback window and non-draft
+        const allQuotes = rawQuotes.filter(q => q.createdAt && new Date(q.createdAt) >= since && q.status !== 'draft');
+        // Build insurer list
+        const insurerMap = new Map<string, string>();
+        for (const q of allQuotes) {
+          if (q.claimTenantId && q.insurerDisplayName) {
+            insurerMap.set(q.claimTenantId, q.insurerDisplayName);
+          }
+        }
+        const insurers = Array.from(insurerMap.entries()).map(([tenantId, displayName]) => ({ tenantId, displayName }));
+        // Per-insurer summary
+        const byInsurer = insurers.map(({ tenantId, displayName }) => {
+          const iQuotes = allQuotes.filter(q => q.claimTenantId === tenantId);
+          const accepted = iQuotes.filter(q => q.status === 'accepted').length;
+          const total = iQuotes.length;
+          const acceptanceRate = total > 0 ? Math.round((accepted / total) * 100) : null;
+          const withCongruency = iQuotes.filter(q => q.quoteCongruencyScore != null);
+          const avgCongruency = withCongruency.length > 0
+            ? Math.round(withCongruency.reduce((s, q) => s + Number(q.quoteCongruencyScore), 0) / withCongruency.length)
+            : null;
+          return { tenantId, displayName, totalQuotes: total, acceptedQuotes: accepted, acceptanceRate, avgCongruencyScore: avgCongruency };
+        });
+        // Filter quotes for trend (by selected insurer or all)
+        const filtered = input.tenantId ? allQuotes.filter(q => q.claimTenantId === input.tenantId) : allQuotes;
+        // Bucket by period
+        const bucketMap: Record<string, { label: string; quotes: typeof filtered }> = {};
+        for (const q of filtered) {
+          const d = new Date(q.createdAt!);
+          let key: string;
+          if (input.period === 'weekly') {
+            const startOfYear = new Date(d.getFullYear(), 0, 1);
+            const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+            key = d.getFullYear() + '-W' + String(weekNum).padStart(2, '0');
+          } else {
+            key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+          }
+          if (!bucketMap[key]) bucketMap[key] = { label: key, quotes: [] };
+          bucketMap[key].quotes.push(q);
+        }
+        const trend = Object.entries(bucketMap)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([, { label, quotes: bq }]) => {
+            const accepted = bq.filter(q => q.status === 'accepted').length;
+            const total = bq.length;
+            const acceptanceRate = total > 0 ? Math.round((accepted / total) * 100) : null;
+            const withCongruency = bq.filter(q => q.quoteCongruencyScore != null);
+            const avgCongruency = withCongruency.length > 0
+              ? Math.round(withCongruency.reduce((s, q) => s + Number(q.quoteCongruencyScore), 0) / withCongruency.length)
+              : null;
+            return { label, totalQuotes: total, acceptedQuotes: accepted, acceptanceRate, avgCongruencyScore: avgCongruency };
+          });
+        // Overall summary for selected filter
+        const allAccepted = filtered.filter(q => q.status === 'accepted').length;
+        const withCongruency = filtered.filter(q => q.quoteCongruencyScore != null);
+        return {
+          insurers,
+          byInsurer,
+          trend,
+          summary: {
+            totalQuotes: filtered.length,
+            acceptedQuotes: allAccepted,
+            overallAcceptanceRate: filtered.length > 0 ? Math.round((allAccepted / filtered.length) * 100) : null,
+            overallCongruencyScore: withCongruency.length > 0
+              ? Math.round(withCongruency.reduce((s, q) => s + Number(q.quoteCongruencyScore), 0) / withCongruency.length)
+              : null,
+          },
+        };
+      }),
+        // Get claims by status (for dashboards)
     // Uses insurerDomainProcedure: ctx.insurerTenantId is always non-null, preventing cross-tenant leakage
     byStatus: insurerDomainProcedure
       .input(z.object({ status: z.string() }))
@@ -3504,6 +3616,109 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           .orderBy(desc(users.performanceScore));
 
         return assessors;
+      }),
+    /**
+     * Get the assessor's own performance trend over time, broken down by insurer.
+     * Uses assessorInsurerRelationships for per-insurer summary and
+     * assessorEvaluations joined through claims for time-bucketed trend data.
+     */
+    getMyPerformanceTrend: protectedProcedure
+      .input(z.object({
+        period: z.enum(['weekly', 'monthly']).default('monthly'),
+        tenantId: z.string().nullable().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const {
+          users: usersTable,
+          assessorEvaluations: evalsTable,
+          assessorInsurerRelationships: relTable,
+          claims: claimsTable,
+          insurerTenants: tenantsTable,
+        } = await import('../drizzle/schema');
+        const { eq: _eq, desc: _desc } = await import('drizzle-orm');
+        // Per-insurer summary from assessorInsurerRelationships
+        const relationships = await db
+          .select({
+            tenantId: relTable.tenantId,
+            insurerDisplayName: tenantsTable.displayName,
+            performanceRating: relTable.performanceRating,
+            totalAssignmentsCompleted: relTable.totalAssignmentsCompleted,
+            averageCompletionTimeHours: relTable.averageCompletionTimeHours,
+            relationshipStatus: relTable.relationshipStatus,
+          })
+          .from(relTable)
+          .leftJoin(tenantsTable, _eq(relTable.tenantId, tenantsTable.id))
+          .where(_eq(relTable.assessorId, ctx.user.id));
+        const insurers = relationships
+          .filter(r => r.insurerDisplayName)
+          .map(r => ({ tenantId: r.tenantId, displayName: r.insurerDisplayName! }));
+        const byInsurer = relationships.map(r => ({
+          tenantId: r.tenantId,
+          displayName: r.insurerDisplayName || r.tenantId,
+          totalAssignments: r.totalAssignmentsCompleted || 0,
+          performanceRating: r.performanceRating ? Number(r.performanceRating) : null,
+          avgCompletionTimeHours: r.averageCompletionTimeHours ? Number(r.averageCompletionTimeHours) : null,
+          relationshipStatus: r.relationshipStatus,
+        }));
+        // Time-bucketed trend from evaluations
+        const periodDays = input.period === 'weekly' ? 7 : 30;
+        const lookbackDays = 12 * periodDays;
+        const since = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
+        const rawEvals = await db
+          .select({
+            id: evalsTable.id,
+            estimatedRepairCost: evalsTable.estimatedRepairCost,
+            status: evalsTable.status,
+            createdAt: evalsTable.createdAt,
+            claimTenantId: claimsTable.tenantId,
+            finalApprovedAmount: claimsTable.finalApprovedAmount,
+            insurerDisplayName: tenantsTable.displayName,
+          })
+          .from(evalsTable)
+          .leftJoin(claimsTable, _eq(evalsTable.claimId, claimsTable.id))
+          .leftJoin(tenantsTable, _eq(claimsTable.tenantId, tenantsTable.id))
+          .where(_eq(evalsTable.assessorId, ctx.user.id))
+          .orderBy(_desc(evalsTable.createdAt));
+        const allEvals = rawEvals.filter(e => e.createdAt && new Date(e.createdAt) >= since && e.status === 'submitted');
+        const filtered = input.tenantId ? allEvals.filter(e => e.claimTenantId === input.tenantId) : allEvals;
+        // Bucket by period
+        const bucketMap: Record<string, { label: string; evals: typeof filtered }> = {};
+        for (const e of filtered) {
+          const d = new Date(e.createdAt!);
+          let key: string;
+          if (input.period === 'weekly') {
+            const startOfYear = new Date(d.getFullYear(), 0, 1);
+            const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+            key = d.getFullYear() + '-W' + String(weekNum).padStart(2, '0');
+          } else {
+            key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+          }
+          if (!bucketMap[key]) bucketMap[key] = { label: key, evals: [] };
+          bucketMap[key].evals.push(e);
+        }
+        const trend = Object.entries(bucketMap)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([, { label, evals: be }]) => {
+            const total = be.length;
+            const withVariance = be.filter(e => e.estimatedRepairCost && e.finalApprovedAmount && e.finalApprovedAmount > 0);
+            const avgVariancePct = withVariance.length > 0
+              ? Math.round(withVariance.reduce((s, e) => s + Math.abs(((e.estimatedRepairCost! - e.finalApprovedAmount!) / e.finalApprovedAmount!) * 100), 0) / withVariance.length)
+              : null;
+            return { label, totalAssessments: total, avgVariancePct };
+          });
+        const withVariance = filtered.filter(e => e.estimatedRepairCost && e.finalApprovedAmount && e.finalApprovedAmount > 0);
+        const overallVariance = withVariance.length > 0
+          ? Math.round(withVariance.reduce((s, e) => s + Math.abs(((e.estimatedRepairCost! - e.finalApprovedAmount!) / e.finalApprovedAmount!) * 100), 0) / withVariance.length)
+          : null;
+        return {
+          insurers,
+          byInsurer,
+          trend,
+          summary: { totalAssessments: filtered.length, overallAvgVariancePct: overallVariance },
+        };
       }),
   }),
 

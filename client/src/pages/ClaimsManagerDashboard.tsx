@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IntakeQueueTab } from "@/components/IntakeQueueTab";
 import { AutoAssignmentBadge } from "@/components/AutoAssignmentBadge";
 import { ClaimCurrencySelector } from "@/components/ClaimCurrencySelector";
+import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 import {
   Chart as ChartJS,
   ArcElement,
@@ -499,6 +500,7 @@ export default function ClaimsManagerDashboard() {
             <TabsTrigger value="active">Active Claims</TabsTrigger>
             <TabsTrigger value="fraud">Fraud Alerts</TabsTrigger>
             <TabsTrigger value="processed">Processed</TabsTrigger>
+            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
           </TabsList>
 
           {/* Intake Queue Tab */}
@@ -1275,7 +1277,12 @@ export default function ClaimsManagerDashboard() {
             </Card>
           </TabsContent>
 
-        </Tabs>
+        
+          {/* ── Notifications Tab ─────────────────────────────────────── */}
+          <TabsContent value="notifications" className="mt-6">
+            <NotificationsInbox />
+          </TabsContent>
+</Tabs>
       </div>
     </div>
   );
