@@ -221,7 +221,7 @@ function ExpandableClaimRow({ claim }: { claim: any }) {
                     variant="default"
                     onClick={(e) => {
                       e.stopPropagation();
-                      window.location.href = `/claims/${claim.id}`;
+                      window.location.href = `/insurer/claims/${claim.id}`;
                     }}
                   >
                     <FileText className="w-3 h-3 mr-1" /> Open Claim
@@ -534,7 +534,7 @@ export default function ExternalAssessorDashboard() {
                               size="sm"
                               variant="ghost"
                               onClick={() =>
-                                (window.location.href = `/claims/${claim.id}`)
+                                (window.location.href = `/insurer/claims/${claim.id}`)
                               }
                             >
                               View

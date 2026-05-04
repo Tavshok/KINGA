@@ -611,7 +611,7 @@ export default function ExecutiveDashboard() {
                         <h4 className="font-semibold mb-2">Claims ({searchResults.claims.length})</h4>
                         <div className="space-y-2">
                           {searchResults.claims.map((claim: any) => (
-                            <Link key={claim.id} href={`/claims/${claim.id}`}>
+                            <Link key={claim.id} href={`/insurer/claims/${claim.id}`}>
                               <div className="p-3 rounded-lg hover:opacity-80 transition-opacity cursor-pointer" style={{ background: 'var(--muted)' }}>
                                 <div className="flex items-center justify-between">
                                   <span className="font-medium">Claim #{claim.id}</span>

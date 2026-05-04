@@ -11290,3 +11290,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix KingaReportButton trpc namespace (reportingEngine)
 - [x] Fix AdminTierManagement tierFeatureFlags type error
 - [x] Fix ClaimCommentThread user.id type cast
+
+## Phase: Orphan Tab & Broken Navigation Fixes (May 2026)
+- [x] Audit all dashboard tabs (triggers vs content) across every dashboard
+- [x] InternalAssessorDashboard: Add missing Performance TabsContent (KPI cards, variance trend chart, per-insurer table, recent evaluations)
+- [x] ExternalAssessorDashboard: Fix 2x broken window.location.href = /claims/:id -> /insurer/claims/:id
+- [x] ExecutiveDashboard: Fix broken Link href="/claims/:id" -> /insurer/claims/:id
+- [x] Verified all other dashboards have no orphan tabs or broken navigation links

@@ -1200,7 +1200,213 @@ export default function InternalAssessorDashboard() {
           )}
         </TabsContent>
 
-      
+          {/* ── Performance Tab ─────────────────────────────────────── */}
+          <TabsContent value="performance" className="mt-4 space-y-4">
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-3">
+              <Select value={perfPeriod} onValueChange={(v) => setPerfPeriod(v as 'weekly' | 'monthly')}>
+                <SelectTrigger className="w-36 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                </SelectContent>
+              </Select>
+              {perfTrend?.insurers && perfTrend.insurers.length > 0 && (
+                <Select value={selectedInsurerId ?? "all"} onValueChange={(v) => setSelectedInsurerId(v === "all" ? null : v)}>
+                  <SelectTrigger className="w-48 h-8 text-xs">
+                    <SelectValue placeholder="All Insurers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Insurers</SelectItem>
+                    {perfTrend.insurers.map((ins: any) => (
+                      <SelectItem key={ins.tenantId} value={ins.tenantId}>{ins.displayName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {perfLoading && (
+              <div className="flex items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+              </div>
+            )}
+
+            {perfData && (
+              <div className="space-y-4">
+                {/* KPI Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Card>
+                    <CardContent className="pt-4 pb-3 text-center">
+                      <p className="text-2xl font-bold text-foreground">{perfData.performanceScore ?? 0}%</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Performance Score</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-3 text-center">
+                      <p className="text-2xl font-bold text-foreground">{perfData.totalAssessmentsCompleted ?? 0}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Assessments Done</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-3 text-center">
+                      <p className={`text-2xl font-bold ${
+                        Math.abs(perfData.averageVarianceFromFinal ?? 0) > 15 ? 'text-red-600'
+                        : Math.abs(perfData.averageVarianceFromFinal ?? 0) > 5 ? 'text-amber-600'
+                        : 'text-emerald-600'
+                      }`}>
+                        {perfData.averageVarianceFromFinal != null
+                          ? `${perfData.averageVarianceFromFinal > 0 ? '+' : ''}${perfData.averageVarianceFromFinal}%`
+                          : '—'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Avg Variance</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-3 text-center">
+                      <Badge variant={perfData.tier === 'premium' ? 'default' : 'secondary'} className="text-xs capitalize">
+                        {perfData.tier ?? 'free'}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1.5">Tier</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Variance trend chart */}
+                {perfData.recentAssessments && perfData.recentAssessments.length >= 3 && (() => {
+                  const sorted = [...perfData.recentAssessments].reverse().slice(-12);
+                  const labels = sorted.map((_: any, i: number) => `#${i + 1}`);
+                  const variances = sorted.map((ev: any) => ev.averageVarianceFromFinal ?? ev.varianceFromFinal ?? 0);
+                  return (
+                    <Card>
+                      <CardHeader className="pb-2 pt-4 px-4">
+                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-blue-500" /> Variance Trend (Last {sorted.length} Assessments)
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground">Your estimate vs final approved — closer to 0% is better</p>
+                      </CardHeader>
+                      <CardContent className="pb-4">
+                        <div style={{ height: '160px' }}>
+                          <Bar
+                            data={{
+                              labels,
+                              datasets: [{
+                                label: 'Variance %',
+                                data: variances,
+                                backgroundColor: variances.map((v: number) =>
+                                  Math.abs(v) > 15 ? 'rgba(239,68,68,0.7)' : Math.abs(v) > 5 ? 'rgba(245,158,11,0.7)' : 'rgba(16,185,129,0.7)'
+                                ),
+                                borderRadius: 4,
+                              }]
+                            }}
+                            options={{
+                              responsive: true, maintainAspectRatio: false,
+                              plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw > 0 ? '+' : ''}${ctx.raw}%` } } },
+                              scales: {
+                                y: { grid: { color: 'rgba(128,128,128,0.1)' }, ticks: { callback: (v: any) => `${v}%`, font: { size: 10 } } },
+                                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                              }
+                            }}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+
+                {/* Per-insurer breakdown */}
+                {perfTrend?.byInsurer && perfTrend.byInsurer.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2 pt-4 px-4">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-emerald-500" /> Per-Insurer Breakdown
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 pb-2">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b bg-muted/30">
+                              <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground">Insurer</th>
+                              <th className="text-right py-1.5 px-3 font-semibold text-muted-foreground">Assignments</th>
+                              <th className="text-right py-1.5 px-3 font-semibold text-muted-foreground">Rating</th>
+                              <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {perfTrend.byInsurer.map((ins: any) => (
+                              <tr key={ins.tenantId} className="border-b hover:bg-muted/20">
+                                <td className="py-1.5 px-3 font-medium">{ins.displayName}</td>
+                                <td className="py-1.5 px-3 text-right">{ins.totalAssignments}</td>
+                                <td className="py-1.5 px-3 text-right">
+                                  {ins.performanceRating != null ? `${ins.performanceRating}%` : '—'}
+                                </td>
+                                <td className="py-1.5 px-3">
+                                  <Badge variant={ins.relationshipStatus === 'active' ? 'default' : 'secondary'} className="text-[10px] capitalize">
+                                    {ins.relationshipStatus ?? 'unknown'}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Recent evaluations */}
+                {perfData.recentAssessments && perfData.recentAssessments.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2 pt-4 px-4">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <Brain className="h-4 w-4 text-purple-500" /> Recent Evaluations
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 pb-2">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b bg-muted/30">
+                              <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground">Claim</th>
+                              <th className="text-right py-1.5 px-3 font-semibold text-muted-foreground hidden sm:table-cell">Est. Cost</th>
+                              <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground">Risk</th>
+                              <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground hidden md:table-cell">Submitted</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {perfData.recentAssessments.slice(0, 8).map((ev: any) => (
+                              <tr key={ev.id} className="border-b hover:bg-muted/20">
+                                <td className="py-1.5 px-3 font-mono">#{ev.claimId}</td>
+                                <td className="py-1.5 px-3 text-right hidden sm:table-cell">
+                                  {ev.estimatedRepairCost ? `R${(ev.estimatedRepairCost / 100).toLocaleString()}` : '—'}
+                                </td>
+                                <td className="py-1.5 px-3">
+                                  <span className={`font-medium capitalize ${riskColor(ev.fraudRiskLevel)}`}>{ev.fraudRiskLevel ?? '—'}</span>
+                                </td>
+                                <td className="py-1.5 px-3 text-muted-foreground hidden md:table-cell">{fmtDate(ev.createdAt)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {!perfData.recentAssessments?.length && (
+                  <div className="text-center py-16 border border-dashed border-border rounded-lg">
+                    <BarChart3 className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <p className="font-medium text-foreground">No performance data yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">Complete assessments to see your performance metrics</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+
           {/* ── Notifications Tab ─────────────────────────────────────── */}
           <TabsContent value="notifications" className="mt-6">
             <NotificationsInbox />
