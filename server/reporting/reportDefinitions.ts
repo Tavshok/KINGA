@@ -41,47 +41,73 @@ const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
 
 // ─── Report Role Access Map ───────────────────────────────────────────────────
-// Role values are matched against ctx.user.insurerRole (for insurer users) or
-// ctx.user.role (for admin / platform users). Use insurerRole enum values:
-//   insurer_admin | executive | claims_manager | claims_processor |
-//   risk_manager  | assessor_internal | assessor_external | panel_beater_admin
+// Each report key maps to the EXACT set of roles that may access it.
+// insurerRole values (stored in users.insurer_role DB column):
+//   claims_processor   — front-line claim handler
+//   assessor_internal  — in-house damage assessor
+//   assessor_external  — third-party assessor
+//   risk_manager       — fraud & risk oversight
+//   claims_manager     — head of claims dept (same depth as risk_manager)
+//   executive          — C-suite / board KPI consumer
+//   insurer_admin      — insurer-level administrator (broadest insurer access)
+//   governance_officer — data protection / compliance officer
+// Top-level role values (users.role):
+//   admin              — platform super-admin (cross-insurer only)
+//   assessor           — external assessor account
+//   panel_beater       — repair shop account
+// NOTE: "admin" (platform) is NOT in insurer report lists — handled separately
+//       in canAccessReport() in reporting.ts.
 export const REPORT_ACCESS: Record<string, string[]> = {
-  // ── Claims Processor reports ──────────────────────────────────────────────
-  // Processors see their working-level claim reports only
-  "claim.assessment":           ["admin", "insurer_admin", "claims_processor", "claims_manager", "executive", "risk_manager"],
-  "claim.cost_comparison":      ["admin", "insurer_admin", "claims_processor", "claims_manager"],
-  "claim.repair_decision":      ["admin", "insurer_admin", "claims_processor", "claims_manager"],
-  // ── Claims Manager reports ────────────────────────────────────────────────
-  // Managers get deeper forensic + audit + portfolio oversight
-  "claim.forensic":             ["admin", "insurer_admin", "claims_manager", "risk_manager"],
-  "claim.audit_trail":          ["admin", "insurer_admin", "claims_manager", "risk_manager", "executive"],
-  "portfolio.claims_summary":   ["admin", "insurer_admin", "claims_manager", "executive"],
-  "portfolio.dwell_time":       ["admin", "insurer_admin", "claims_manager"],
-  "portfolio.panel_beater_performance": ["admin", "insurer_admin", "claims_manager"],
-  // ── Risk Manager reports ──────────────────────────────────────────────────
-  // Risk managers own fraud analytics and assessor performance
-  "portfolio.fraud_summary":        ["admin", "insurer_admin", "risk_manager", "claims_manager"],
-  "portfolio.assessor_performance": ["admin", "insurer_admin", "risk_manager", "claims_manager"],
-  "risk_manager_portfolio":         ["admin", "insurer_admin", "risk_manager"],
-  // ── Executive reports ─────────────────────────────────────────────────────
-  // Executives see high-level insurer KPI summaries only
-  "executive.insurer_summary":      ["admin", "insurer_admin", "executive"],
-  "executive.claims_trend":         ["admin", "insurer_admin", "executive"],
-  "executive.financial_exposure":   ["admin", "insurer_admin", "executive"],
-  // Platform super-admin only — cross-insurer intelligence
-  "executive.platform_dashboard":   ["admin"],
-  "executive.cross_insurer_fraud":  ["admin"],
-  "executive.ml_performance":       ["admin"],
-  // ── Governance / Compliance reports ──────────────────────────────────────
-  "governance.sar":                 ["admin", "insurer_admin"],
-  "governance.regulatory_compliance": ["admin", "insurer_admin", "executive"],
-  "governance.data_retention":      ["admin", "insurer_admin"],
-  // ── Assessor reports ──────────────────────────────────────────────────────
-  "assessor.my_assignments":        ["admin", "insurer_admin", "assessor_internal", "assessor_external"],
-  "assessor.performance_summary":   ["admin", "insurer_admin", "assessor_internal"],
-  // ── Panel Beater reports ──────────────────────────────────────────────────
-  "panel_beater.quote_history":     ["admin", "insurer_admin", "panel_beater_admin"],
-  "panel_beater.job_completion":    ["admin", "insurer_admin", "panel_beater_admin"],
+
+  // ── Individual Claim Reports ──────────────────────────────────────────────
+  // Claims Processor: core working documents for every claim they handle
+  // Assessors: need the assessment report to see their own work
+  // Claims Manager: full individual-claim visibility
+  "claim.assessment":           ["insurer_admin", "claims_processor", "assessor_internal", "assessor_external", "claims_manager"],
+  "claim.cost_comparison":      ["insurer_admin", "claims_processor", "claims_manager"],
+  "claim.repair_decision":      ["insurer_admin", "claims_processor", "claims_manager"],
+  // Forensic: processor needs it for investigation; manager & risk for oversight
+  "claim.forensic":             ["insurer_admin", "claims_processor", "claims_manager", "risk_manager"],
+  // Audit trail: processor accountability + manager/risk/governance oversight
+  "claim.audit_trail":          ["insurer_admin", "claims_processor", "claims_manager", "risk_manager", "governance_officer"],
+
+  // ── Portfolio / Statistical Reports ──────────────────────────────────────
+  // Claims Manager & Risk Manager share portfolio-level depth
+  "portfolio.claims_summary":          ["insurer_admin", "claims_manager", "risk_manager", "executive"],
+  "portfolio.dwell_time":              ["insurer_admin", "claims_manager", "risk_manager"],
+  "portfolio.panel_beater_performance":["insurer_admin", "claims_manager", "risk_manager"],
+
+  // ── Risk & Fraud Reports ──────────────────────────────────────────────────
+  "portfolio.fraud_summary":           ["insurer_admin", "claims_manager", "risk_manager"],
+  // Assessor performance: processor can export/view; managers own it
+  "portfolio.assessor_performance":    ["insurer_admin", "claims_processor", "claims_manager", "risk_manager"],
+  "risk_manager_portfolio":            ["insurer_admin", "claims_manager", "risk_manager"],
+
+  // ── Executive Reports ─────────────────────────────────────────────────────
+  // Executives see high-level KPI summaries; managers also get trend data
+  "executive.insurer_summary":         ["insurer_admin", "executive"],
+  "executive.claims_trend":            ["insurer_admin", "claims_manager", "risk_manager", "executive"],
+  "executive.financial_exposure":      ["insurer_admin", "claims_manager", "risk_manager", "executive"],
+
+  // Platform super-admin only — cross-insurer intelligence (no insurer role)
+  "executive.platform_dashboard":      ["admin"],
+  "executive.cross_insurer_fraud":     ["admin"],
+  "executive.ml_performance":          ["admin"],
+
+  // ── Governance / Compliance Reports ──────────────────────────────────────
+  // Governance officer owns data-subject and retention reports
+  "governance.sar":                    ["insurer_admin", "governance_officer"],
+  "governance.regulatory_compliance":  ["insurer_admin", "executive", "governance_officer"],
+  "governance.data_retention":         ["insurer_admin", "governance_officer"],
+
+  // ── Assessor Reports ──────────────────────────────────────────────────────
+  // Assessors see only their own assignment list and personal performance
+  "assessor.my_assignments":           ["insurer_admin", "assessor_internal", "assessor_external", "assessor"],
+  "assessor.performance_summary":      ["insurer_admin", "assessor_internal", "assessor"],
+
+  // ── Panel Beater Reports ──────────────────────────────────────────────────
+  "panel_beater.quote_history":        ["insurer_admin", "panel_beater"],
+  "panel_beater.job_completion":       ["insurer_admin", "panel_beater"],
 };
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────

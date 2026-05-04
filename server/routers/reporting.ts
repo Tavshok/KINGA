@@ -18,13 +18,17 @@ async function getConn() { return mysql.createConnection(DB_URL); }
 // ───// ─── Permission Check ───────────────────────────────────────────────────
 // For insurer users, access is determined by insurerRole (sub-role).
 // For admin / platform users, access is determined by the top-level role.
+// NOTE: admin users are NOT given blanket access — they only see Platform Admin
+// reports. Use insurerRole='insurer_admin' for insurer-level admin access.
 function canAccessReport(reportKey: string, userRole: string, insurerRole?: string | null): boolean {
   const allowed = REPORT_ACCESS[reportKey];
   if (!allowed) return false;
-  if (userRole === "admin") return true;
-  // Insurer users: check their sub-role first, then fall back to top-level role
-  const effectiveRole = insurerRole ?? userRole;
-  return allowed.includes(effectiveRole);
+  // Platform admins see only platform-admin-scoped reports
+  if (userRole === "admin") return allowed.includes("admin");
+  // Insurer users: check their sub-role (insurerRole takes precedence)
+  if (insurerRole) return allowed.includes(insurerRole);
+  // Non-insurer roles (assessor, panel_beater) use top-level role
+  return allowed.includes(userRole);
 }
 
 // ─── Admin-only guard ─────────────────────────────────────────────────────────
@@ -169,11 +173,13 @@ export const reportingRouter = router({
         await conn.end();
       }
     }),
-
-  // ── Admin: get scheduled reports ──────────────────────────────────────────
+  // ── Get scheduled reports ─────────────────────────────────────────────────────
   getScheduledReports: protectedProcedure.query(async ({ ctx }) => {
-    const role = ctx.user.role ?? "claims_processor";
-    if (!["admin", "insurer_admin", "claims_manager"].includes(role)) {
+    const topRole = ctx.user.role ?? "user";
+    const insurerRole = (ctx.user as any).insurerRole ?? null;
+    const effectiveRole = insurerRole ?? topRole;
+    const canSchedule = ["admin", "insurer_admin", "claims_manager", "risk_manager", "executive"].includes(effectiveRole);
+    if (!canSchedule) {
       throw new TRPCError({ code: "FORBIDDEN" });
     }
     const conn = await getConn();
@@ -185,7 +191,7 @@ export const reportingRouter = router({
          FROM report_schedules
          WHERE tenant_id=? OR (tenant_id IS NULL AND ? = 'admin')
          ORDER BY created_at DESC`,
-        [ctx.user.tenantId ?? null, role]
+        [ctx.user.tenantId ?? null, topRole]
       );
       return rows as Record<string, unknown>[];
     } finally {
@@ -238,8 +244,10 @@ export const reportingRouter = router({
   deleteSchedule: protectedProcedure
     .input(z.object({ scheduleId: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const role = ctx.user.role ?? "claims_processor";
-      if (!(["admin", "insurer_admin", "claims_manager"] as string[]).includes(role)) {
+      const topRole = ctx.user.role ?? "user";
+      const insurerRole = (ctx.user as any).insurerRole ?? null;
+      const effectiveRole = insurerRole ?? topRole;
+      if (!(["admin", "insurer_admin", "claims_manager", "risk_manager", "executive"] as string[]).includes(effectiveRole)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only managers and admins can delete schedules." });
       }
       const conn = await getConn();
@@ -251,7 +259,7 @@ export const reportingRouter = router({
         const sched = rows[0];
         if (!sched) throw new TRPCError({ code: "NOT_FOUND", message: "Schedule not found." });
         // Non-admins can only delete their own tenant's schedules
-        if (role !== "admin" && sched.tenant_id !== ctx.user.tenantId) {
+        if (topRole !== "admin" && sched.tenant_id !== ctx.user.tenantId) {
           throw new TRPCError({ code: "FORBIDDEN", message: "You can only delete schedules for your own tenant." });
         }
         await conn.execute(`DELETE FROM report_schedules WHERE id=?`, [input.scheduleId]);
@@ -264,8 +272,10 @@ export const reportingRouter = router({
   toggleSchedule: protectedProcedure
     .input(z.object({ scheduleId: z.number(), isActive: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const role = ctx.user.role ?? "claims_processor";
-      if (!(["admin", "insurer_admin", "claims_manager"] as string[]).includes(role)) {
+      const topRole = ctx.user.role ?? "user";
+      const insurerRole = (ctx.user as any).insurerRole ?? null;
+      const effectiveRole = insurerRole ?? topRole;
+      if (!(["admin", "insurer_admin", "claims_manager", "risk_manager", "executive"] as string[]).includes(effectiveRole)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Only managers and admins can modify schedules." });
       }
       const conn = await getConn();
@@ -276,7 +286,7 @@ export const reportingRouter = router({
         ) as [Record<string, unknown>[], unknown];
         const sched = rows[0];
         if (!sched) throw new TRPCError({ code: "NOT_FOUND", message: "Schedule not found." });
-        if (role !== "admin" && sched.tenant_id !== ctx.user.tenantId) {
+        if (topRole !== "admin" && sched.tenant_id !== ctx.user.tenantId) {
           throw new TRPCError({ code: "FORBIDDEN", message: "You can only modify schedules for your own tenant." });
         }
         await conn.execute(
