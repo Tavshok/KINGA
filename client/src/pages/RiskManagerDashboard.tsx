@@ -14,12 +14,18 @@ import {
   Shield, CheckCircle, XCircle, AlertCircle, Eye,
   DollarSign, TrendingUp, Clock, BarChart3,
   MessageSquare, RefreshCw, Filter, Search,
-  ArrowUpRight, ArrowDownRight, Minus,
+  ArrowUpRight, ArrowDownRight, Minus, Calendar, Activity,
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { Link, useSearch } from "wouter";
 import { currencySymbol } from "@/lib/currency";
+import {
+  Chart as ChartJS, ArcElement, Tooltip, Legend,
+  CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler,
+} from "chart.js";
+import { Doughnut, Bar } from "react-chartjs-2";
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -81,19 +87,31 @@ export default function RiskManagerDashboard() {
   const [infoRequest, setInfoRequest] = useState("");
   const [search, setSearch] = useState("");
 
-  // ── Data ──────────────────────────────────────────────────────────────────
+  // ── Analytics date range ─────────────────────────────────────────────────────────────────────────────
+  const [analyticsFrom, setAnalyticsFrom] = useState<string>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0];
+  });
+  const [analyticsTo, setAnalyticsTo] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [showAnalytics, setShowAnalytics] = useState(true);
+
+  // ── Data ─────────────────────────────────────────────────────────────────────────────
   const { data: approvalQueue = [], isLoading: queueLoading, refetch: refetchQueue } =
     trpc.claims.byStatus.useQuery({ status: "technical_approval" });
 
-  // ── Real backend procedures (replaces byStatus + allForTenant derivation) ──
-  const { data: financialQueue = [], isLoading: finLoading } =
-    trpc.claims.getFinancialDecisionQueue.useQuery();
+  // ── Real backend procedures ─────────────────────────────────────────────────────────────────────────────
+  const { data: financialQueue = [], isLoading: finLoading, refetch: refetchFinancial } =
+    trpc.claims.getFinancialDecisionQueue.useQuery({ from: analyticsFrom, to: analyticsTo });
 
   const { data: escalationsData = [], isLoading: escalationsLoading } =
-    trpc.claims.getEscalations.useQuery();
+    trpc.claims.getEscalations.useQuery({ from: analyticsFrom, to: analyticsTo });
 
+  // Replace allForTenant with getActiveClaims for Portfolio Oversight (filtered, not all claims)
   const { data: allClaims = [], isLoading: allLoading } =
-    trpc.claims.allForTenant.useQuery();
+    trpc.claims.getActiveClaims.useQuery({ from: analyticsFrom, to: analyticsTo });
+
+  // Risk Portfolio Analytics: fraud heatmap, risk distribution
+  const { data: riskAnalytics, isLoading: riskAnalyticsLoading } =
+    trpc.claims.getRiskPortfolioAnalytics.useQuery({ from: analyticsFrom, to: analyticsTo });
 
   const approveTechnical = trpc.claims.approveClaim.useMutation({
     onSuccess: () => {
@@ -101,6 +119,15 @@ export default function RiskManagerDashboard() {
       setShowDialog(false); setSelectedClaim(null); setNotes(""); refetchQueue();
     },
     onError: (e: any) => toast.error("Error", { description: e.message }),
+  });
+
+  // Wire Authorise Payment to financialApproval mutation
+  const authorisePayment = trpc.claims.financialApproval.useMutation({
+    onSuccess: () => {
+      toast.success("Payment Authorised", { description: "Claim approved for payment settlement." });
+      refetchFinancial();
+    },
+    onError: (e: any) => toast.error("Authorisation Failed", { description: e.message }),
   });
 
   // ── Derived stats ─────────────────────────────────────────────────────────
@@ -221,6 +248,83 @@ export default function RiskManagerDashboard() {
           </div>
         </div>
 
+        {/* ── Analytics Section ── */}
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Analytics Period:</span>
+              <input type="date" value={analyticsFrom} onChange={e => setAnalyticsFrom(e.target.value)} className="border rounded px-2 py-1 text-xs h-8 bg-background" />
+              <span className="text-xs text-muted-foreground">to</span>
+              <input type="date" value={analyticsTo} onChange={e => setAnalyticsTo(e.target.value)} className="border rounded px-2 py-1 text-xs h-8 bg-background" />
+            </div>
+            <button onClick={() => setShowAnalytics(v => !v)} className="text-xs text-muted-foreground hover:text-foreground">
+              {showAnalytics ? 'Hide Analytics ▲' : 'Show Analytics ▼'}
+            </button>
+          </div>
+
+          {showAnalytics && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Risk Distribution Donut */}
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-semibold">Risk Level Distribution</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  {riskAnalytics?.riskDistribution ? (
+                    <Doughnut
+                      data={{
+                        labels: ['Low (<40)', 'Medium (40-69)', 'High (70+)'],
+                        datasets: [{ data: [riskAnalytics.riskDistribution.low ?? 0, riskAnalytics.riskDistribution.medium ?? 0, riskAnalytics.riskDistribution.high ?? 0], backgroundColor: ['#22c55e','#f59e0b','#ef4444'], borderWidth: 0 }],
+                      }}
+                      options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, cutout: '65%' }}
+                    />
+                  ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">{riskAnalyticsLoading ? 'Loading…' : 'No data for period'}</div>}
+                </CardContent>
+              </Card>
+
+              {/* Fraud by Incident Type Bar */}
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-semibold">Fraud Alerts by Incident Type</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  {riskAnalytics?.fraudByIncidentType && Object.keys(riskAnalytics.fraudByIncidentType).length > 0 ? (
+                    <Bar
+                      data={{
+                        labels: Object.keys(riskAnalytics.fraudByIncidentType).map(k => k.replace(/_/g,' ')),
+                        datasets: [{ label: 'Fraud Alerts', data: Object.values(riskAnalytics.fraudByIncidentType), backgroundColor: '#ef4444', borderRadius: 4 }],
+                      }}
+                      options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { font: { size: 9 } } } } }}
+                    />
+                  ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">{riskAnalyticsLoading ? 'Loading…' : 'No data for period'}</div>}
+                </CardContent>
+              </Card>
+
+              {/* Portfolio KPIs */}
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-semibold">Portfolio Overview</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 space-y-3">
+                  {[
+                    { label: 'Total Claims', value: riskAnalytics?.totalClaims ?? allClaims.length, color: 'text-foreground' },
+                    { label: 'High Risk Claims', value: riskAnalytics?.highRiskCount ?? escalationsData.length, color: 'text-red-600' },
+                    { label: 'Fraud Rate', value: `${(riskAnalytics?.fraudRate ?? 0).toFixed(1)}%`, color: 'text-orange-600' },
+                    { label: 'Avg Risk Score', value: `${riskAnalytics?.avgRiskScore ?? avgRisk}%`, color: avgRisk >= 60 ? 'text-red-600' : avgRisk >= 35 ? 'text-amber-600' : 'text-green-600' },
+                    { label: 'Total Exposure', value: (() => { const sym = currencySymbol(undefined); const total = financialQueue.reduce((s: number, c: any) => s + (c.totalClaimAmount ?? 0), 0); return total > 0 ? `${sym} ${(total/100).toLocaleString()}` : '—'; })(), color: 'text-blue-600' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex justify-between items-center py-1 border-b border-border/50 last:border-0">
+                      <span className="text-xs text-muted-foreground">{item.label}</span>
+                      <span className={`text-sm font-semibold ${item.color}`}>{riskAnalyticsLoading ? '…' : item.value}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+
         {/* Stat Bar */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
@@ -338,8 +442,8 @@ export default function RiskManagerDashboard() {
                     claim={{ ...claim, approvedAmount: claim.totalClaimAmount }}
                     actions={
                       <>
-                        <Button size="sm">
-                          <CheckCircle className="h-4 w-4 mr-1.5" /> Authorise Payment
+                        <Button size="sm" onClick={() => authorisePayment.mutate({ claimId: claim.id, approved: true, notes: '' })} disabled={authorisePayment.isPending}>
+                          <CheckCircle className="h-4 w-4 mr-1.5" /> {authorisePayment.isPending ? 'Authorising…' : 'Authorise Payment'}
                         </Button>
                         <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => openDialog(claim, "reject")}>
                           <XCircle className="h-4 w-4 mr-1.5" /> Dispute

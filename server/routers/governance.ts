@@ -289,4 +289,136 @@ export const governanceRouter = router({
         .having(sql`count(distinct ${claimInvolvementTracking.workflowStage}) > 1`)
         .limit(input?.limit ?? 20);
     }),
+
+  /** Override frequency trend — daily override counts for the last 30 days */
+  getOverrideFrequencyTrend: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.user?.tenantId) return [];
+    const db = await getDb();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const rows = await db
+      .select({
+        date: sql<string>`DATE(${workflowAuditTrail.createdAt})`,
+        overrides: sql<number>`COUNT(*)`,
+      })
+      .from(workflowAuditTrail)
+      .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
+      .where(
+        and(
+          eq(claims.tenantId, ctx.user.tenantId),
+          eq(workflowAuditTrail.executiveOverride, 1),
+          gte(workflowAuditTrail.createdAt, thirtyDaysAgo)
+        )
+      )
+      .groupBy(sql`DATE(${workflowAuditTrail.createdAt})`)
+      .orderBy(sql`DATE(${workflowAuditTrail.createdAt})`);
+    return rows.map(r => ({ date: r.date, overrides: Number(r.overrides) }));
+  }),
+
+  /** Segregation violation heatmap — violations by workflow stage */
+  getSegregationViolationHeatmap: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.user?.tenantId) return [];
+    const db = await getDb();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const rows = await db
+      .select({
+        stage: claimInvolvementTracking.workflowStage,
+        violations: sql<number>`COUNT(DISTINCT ${claimInvolvementTracking.claimId})`,
+      })
+      .from(claimInvolvementTracking)
+      .innerJoin(claims, eq(claimInvolvementTracking.claimId, claims.id))
+      .where(
+        and(
+          eq(claims.tenantId, ctx.user.tenantId),
+          gte(claimInvolvementTracking.createdAt, thirtyDaysAgo)
+        )
+      )
+      .groupBy(claimInvolvementTracking.workflowStage)
+      .orderBy(sql`COUNT(DISTINCT ${claimInvolvementTracking.claimId}) DESC`);
+    return rows.map(r => ({ stage: r.stage ?? 'unknown', violations: Number(r.violations) }));
+  }),
+
+  /** Role change trend — daily role assignment changes for the last 60 days */
+  getRoleChangeTrend: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.user?.tenantId) return [];
+    const db = await getDb();
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    const rows = await db
+      .select({
+        date: sql<string>`DATE(${roleAssignmentAudit.timestamp})`,
+        changes: sql<number>`COUNT(*)`,
+      })
+      .from(roleAssignmentAudit)
+      .where(
+        and(
+          eq(roleAssignmentAudit.tenantId, ctx.user.tenantId),
+          gte(roleAssignmentAudit.timestamp, sixtyDaysAgo)
+        )
+      )
+      .groupBy(sql`DATE(${roleAssignmentAudit.timestamp})`)
+      .orderBy(sql`DATE(${roleAssignmentAudit.timestamp})`);
+    return rows.map(r => ({ date: r.date, changes: Number(r.changes) }));
+  }),
+
+  /** Involvement conflict distribution — users by number of stages involved in */
+  getInvolvementConflictDistribution: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.user?.tenantId) return [];
+    const db = await getDb();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const rows = await db
+      .select({
+        stageCount: sql<number>`COUNT(DISTINCT ${claimInvolvementTracking.workflowStage})`,
+        userId: claimInvolvementTracking.userId,
+      })
+      .from(claimInvolvementTracking)
+      .innerJoin(claims, eq(claimInvolvementTracking.claimId, claims.id))
+      .where(
+        and(
+          eq(claims.tenantId, ctx.user.tenantId),
+          gte(claimInvolvementTracking.createdAt, thirtyDaysAgo)
+        )
+      )
+      .groupBy(claimInvolvementTracking.userId);
+    const buckets: Record<string, number> = { '1 stage': 0, '2 stages': 0, '3+ stages': 0 };
+    for (const r of rows) {
+      const n = Number(r.stageCount);
+      if (n === 1) buckets['1 stage']++;
+      else if (n === 2) buckets['2 stages']++;
+      else buckets['3+ stages']++;
+    }
+    return Object.entries(buckets).map(([name, value]) => ({ name, value }));
+  }),
+
+  /** Override history — paginated list of executive overrides with claim context */
+  getOverrideHistory: protectedProcedure
+    .input(z.object({ limit: z.number().default(10), offset: z.number().default(0) }))
+    .query(async ({ ctx, input }) => {
+      if (!ctx.user?.tenantId) return [];
+      const db = await getDb();
+      return await db
+        .select({
+          id: workflowAuditTrail.id,
+          claimId: workflowAuditTrail.claimId,
+          action: workflowAuditTrail.action,
+          fromState: workflowAuditTrail.fromState,
+          toState: workflowAuditTrail.toState,
+          performedBy: workflowAuditTrail.performedBy,
+          overrideReason: workflowAuditTrail.overrideReason,
+          createdAt: workflowAuditTrail.createdAt,
+        })
+        .from(workflowAuditTrail)
+        .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
+        .where(
+          and(
+            eq(claims.tenantId, ctx.user.tenantId),
+            eq(workflowAuditTrail.executiveOverride, 1)
+          )
+        )
+        .orderBy(sql`${workflowAuditTrail.createdAt} DESC`)
+        .limit(input.limit)
+        .offset(input.offset);
+    }),
 });

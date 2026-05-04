@@ -205,6 +205,13 @@ export default function ExecutiveDashboard() {
   const [reviewRole, setReviewRole] = useState("");
   const [reviewNotes, setReviewNotes] = useState("");
 
+  // ── Executive Summary Hero Numbers (Phase 1 analytics procedure) ──
+  const [execFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0]; });
+  const [execTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const { data: execSummary, isLoading: execSummaryLoading } = trpc.claims.getExecutiveSummary.useQuery(
+    { from: execFrom, to: execTo }, { retry: 0 }
+  );
+
   // Fetch data (reusing existing endpoints - NO NEW QUERIES)
   const { data: kpisResponse, isLoading: kpisLoading, isError: kpisError } = trpc.analytics.getKPIs.useQuery({}, { retry: 0 });
   const { data: alertsResponse, isLoading: alertsLoading } = trpc.analytics.getCriticalAlerts.useQuery(undefined, { retry: 0 });
@@ -407,6 +414,53 @@ export default function ExecutiveDashboard() {
       </div>
 
       <div className="max-w-[1600px] mx-auto px-8 py-8 space-y-8">
+        {/* ── KINGA Executive Summary Hero Numbers ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            {
+              label: 'Total Claims (30d)',
+              value: execSummaryLoading ? '…' : (execSummary?.totalClaims ?? kpis?.totalClaims ?? 0).toLocaleString(),
+              sub: 'Submitted in period',
+              color: 'var(--info)',
+              icon: FileText,
+            },
+            {
+              label: 'KINGA Savings',
+              value: execSummaryLoading ? '…' : (() => { const s = execSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100).toLocaleString()}` : '—'; })(),
+              sub: 'Est. value − approved',
+              color: 'var(--success)',
+              icon: TrendingUp,
+            },
+            {
+              label: 'Resolution Rate',
+              value: execSummaryLoading ? '…' : `${(execSummary?.resolutionRate ?? 0).toFixed(1)}%`,
+              sub: 'Closed / total claims',
+              color: 'var(--chart-5)',
+              icon: CheckCircle,
+            },
+            {
+              label: 'Avg Cycle Days',
+              value: execSummaryLoading ? '…' : `${(execSummary?.avgCycleDays ?? 0).toFixed(1)}d`,
+              sub: 'Submission to closure',
+              color: execSummary?.avgCycleDays && execSummary.avgCycleDays > 14 ? 'var(--warning)' : 'var(--success)',
+              icon: Clock,
+            },
+          ].map(({ label, value, sub, color, icon: Icon }, i) => (
+            <div key={i} className="rounded-xl p-4" style={{ background: 'var(--background)', border: '1px solid var(--border)' }}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                  <p className="text-2xl font-bold mt-1" style={{ color }}>{value}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
+                </div>
+                <div className="p-2 rounded-lg" style={{ background: `${color}20` }}>
+                  <Icon className="h-5 w-5" style={{ color }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Operational Performance Intelligence Section */}
         <IntelligenceSection
           title="Operational Performance"

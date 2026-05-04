@@ -7,20 +7,37 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { 
   FileCheck, CheckCircle, XCircle, Eye, MessageSquare, AlertCircle, 
-  Brain, ClipboardList, ArrowRight, BarChart3, Clock, Shield, ChevronLeft, ChevronRight, Filter, Download, FileSpreadsheet 
+  Brain, ClipboardList, ArrowRight, BarChart3, Clock, Shield, ChevronLeft, ChevronRight, Filter, Download, FileSpreadsheet,
+  TrendingUp, TrendingDown, Minus, Calendar, RefreshCw, AlertTriangle, DollarSign, Activity
 } from "lucide-react";
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { ClaimReviewDialog } from "@/components/ClaimReviewDialog";
 import { exportClaimsToExcel, type ClaimExportData } from "@/lib/export-excel";
+import { exportToPDF } from "@/lib/exportUtils";
 import { Link, useSearch } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IntakeQueueTab } from "@/components/IntakeQueueTab";
 import { AutoAssignmentBadge } from "@/components/AutoAssignmentBadge";
 import { ClaimCurrencySelector } from "@/components/ClaimCurrencySelector";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Filler,
+} from "chart.js";
+import { Doughnut, Bar, Line } from "react-chartjs-2";
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 export default function ClaimsManagerDashboard() {
   const { fmt } = useTenantCurrency();
@@ -99,20 +116,31 @@ export default function ClaimsManagerDashboard() {
   const { data: assessedClaims, isLoading: assessedLoading, refetch: refetchAssessed } = 
     trpc.claims.byStatus.useQuery({ status: "comparison" });
 
+  // ── Analytics date range ────────────────────────────────────────────────
+  const [analyticsFrom, setAnalyticsFrom] = useState<string>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0];
+  });
+  const [analyticsTo, setAnalyticsTo] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [showAnalytics, setShowAnalytics] = useState(true);
+
   // ── Real backend procedures ──────────────────────────────────────────────
+  // Manager Overview: KPI cards + chart data
+  const { data: managerOverview, isLoading: overviewLoading } =
+    trpc.claims.getManagerOverview.useQuery({ from: analyticsFrom, to: analyticsTo });
+
   // Active Claims: all non-terminal claims for the tenant
   const { data: activeClaimsData, isLoading: activeClaimsLoading } =
-    trpc.claims.getActiveClaims.useQuery();
+    trpc.claims.getActiveClaims.useQuery({ from: analyticsFrom, to: analyticsTo });
   const activeClaims = activeClaimsData || [];
 
   // Fraud Alerts: claims with high/critical/elevated fraud risk or score > 70
   const { data: fraudAlertsData, isLoading: fraudAlertsLoading } =
-    trpc.claims.getFraudAlerts.useQuery();
+    trpc.claims.getFraudAlerts.useQuery({ from: analyticsFrom, to: analyticsTo });
   const fraudAlerts = fraudAlertsData || [];
 
   // Dashboard Stats: aggregate counts, fraud rate, avg processing time
   const { data: dashboardStats } =
-    trpc.claims.getDashboardStats.useQuery();
+    trpc.claims.getDashboardStats.useQuery({ from: analyticsFrom, to: analyticsTo });
 
   // Processed Claims: completed + closed + rejected
   const { data: completedClaims, isLoading: completedLoading } = 
@@ -348,14 +376,130 @@ export default function ClaimsManagerDashboard() {
           </div>
         </div>
 
+        {/* ── Analytics Section ── */}
+        <div className="space-y-4">
+          {/* Date Range + Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Analytics Period:</span>
+              <Input type="date" value={analyticsFrom} onChange={e => setAnalyticsFrom(e.target.value)} className="w-36 h-8 text-xs" />
+              <span className="text-xs text-muted-foreground">to</span>
+              <Input type="date" value={analyticsTo} onChange={e => setAnalyticsTo(e.target.value)} className="w-36 h-8 text-xs" />
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setShowAnalytics(v => !v)} className="text-xs">
+              {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+            </Button>
+          </div>
+
+          {showAnalytics && (
+            <>
+              {/* KPI Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {[
+                  { label: 'Total Claims', value: managerOverview?.totalClaims ?? dashboardStats?.total ?? 0, icon: <ClipboardList className="h-4 w-4" />, color: 'text-blue-600' },
+                  { label: 'Active', value: managerOverview?.activeClaims ?? dashboardStats?.activeCount ?? 0, icon: <Activity className="h-4 w-4" />, color: 'text-teal-600' },
+                  { label: 'Completed', value: managerOverview?.completedClaims ?? dashboardStats?.completedCount ?? 0, icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-600' },
+                  { label: 'Fraud Alerts', value: managerOverview?.fraudAlerts ?? dashboardStats?.fraudHighCount ?? 0, icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-600' },
+                  { label: 'Fraud Rate', value: `${(managerOverview?.fraudRate ?? dashboardStats?.fraudRate ?? 0).toFixed(1)}%`, icon: <Shield className="h-4 w-4" />, color: 'text-orange-600' },
+                  { label: 'Avg Days', value: `${(managerOverview?.avgProcessingDays ?? dashboardStats?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-4 w-4" />, color: 'text-purple-600' },
+                ].map((kpi, i) => (
+                  <Card key={i} className="border-0 shadow-sm">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`${kpi.color}`}>{kpi.icon}</span>
+                      </div>
+                      <p className="text-xl font-bold">{overviewLoading ? '…' : kpi.value}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{kpi.label}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Charts Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Status Donut */}
+                <Card className="border-0 shadow-sm">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-semibold">Claim Status Distribution</CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    {managerOverview?.statusBreakdown ? (
+                      <Doughnut
+                        data={{
+                          labels: Object.keys(managerOverview.statusBreakdown),
+                          datasets: [{ data: Object.values(managerOverview.statusBreakdown), backgroundColor: ['#0d9488','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#6b7280'], borderWidth: 0 }],
+                        }}
+                        options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, cutout: '65%' }}
+                      />
+                    ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">No data for period</div>}
+                  </CardContent>
+                </Card>
+
+                {/* Incident Type Bar */}
+                <Card className="border-0 shadow-sm">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-semibold">Claims by Incident Type</CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    {managerOverview?.incidentTypeBreakdown && Object.keys(managerOverview.incidentTypeBreakdown).length > 0 ? (
+                      <Bar
+                        data={{
+                          labels: Object.keys(managerOverview.incidentTypeBreakdown).map(k => k.replace(/_/g, ' ')),
+                          datasets: [{ label: 'Claims', data: Object.values(managerOverview.incidentTypeBreakdown), backgroundColor: '#0d9488', borderRadius: 4 }],
+                        }}
+                        options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { font: { size: 9 } } } } }}
+                      />
+                    ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">No data for period</div>}
+                  </CardContent>
+                </Card>
+
+                {/* Leakage / Savings Bar */}
+                <Card className="border-0 shadow-sm">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-semibold">KINGA Savings Identified</CardTitle>
+                    <p className="text-xs text-muted-foreground">AI estimate vs final approved</p>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    {managerOverview?.totalSavings !== undefined ? (
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-end">
+                          <div>
+                            <p className="text-2xl font-bold text-green-600">{fmt(managerOverview.totalSavings ?? 0)}</p>
+                            <p className="text-xs text-muted-foreground">Total savings in period</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold">{managerOverview.savingsCount ?? 0}</p>
+                            <p className="text-xs text-muted-foreground">claims with savings</p>
+                          </div>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-green-500 rounded-full"
+                            style={{ width: `${Math.min(100, ((managerOverview.savingsCount ?? 0) / Math.max(1, managerOverview.totalClaims ?? 1)) * 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {(((managerOverview.savingsCount ?? 0) / Math.max(1, managerOverview.totalClaims ?? 1)) * 100).toFixed(0)}% of claims had AI-identified savings
+                        </p>
+                      </div>
+                    ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">No data for period</div>}
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
+        </div>
+
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="intake">Intake Queue</TabsTrigger>
             <TabsTrigger value="review">Review Queue</TabsTrigger>
             <TabsTrigger value="active">Active Claims</TabsTrigger>
             <TabsTrigger value="fraud">Fraud Alerts</TabsTrigger>
             <TabsTrigger value="processed">Processed</TabsTrigger>
+            <TabsTrigger value="analytics">Leakage Analysis</TabsTrigger>
           </TabsList>
 
           {/* Intake Queue Tab */}
@@ -1118,6 +1262,93 @@ export default function ClaimsManagerDashboard() {
                   <div className="text-center py-10 text-muted-foreground">
                     <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-40" />
                     <p className="text-sm">No processed claims yet</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Leakage Analysis Tab */}
+          <TabsContent value="analytics" className="space-y-4">
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-green-600" />
+                      Leakage Analysis
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Claims where the final approved amount differs significantly from the AI estimate. Positive variance = KINGA saved money. Negative variance = potential overpayment.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" className="text-xs" onClick={() => {
+                    const rows = (activeClaims as any[]).filter(c => c.estimatedClaimValue && c.finalApprovedAmount);
+                    const csv = ['Claim #,Claimant,AI Estimate,Approved,Variance,Variance %', ...rows.map(c => {
+                      const variance = (c.estimatedClaimValue ?? 0) - (c.finalApprovedAmount ?? 0);
+                      const pct = c.estimatedClaimValue ? ((variance / c.estimatedClaimValue) * 100).toFixed(1) : '0';
+                      return `${c.claimNumber},${c.claimantName ?? ''},${((c.estimatedClaimValue ?? 0)/100).toFixed(2)},${((c.finalApprovedAmount ?? 0)/100).toFixed(2)},${(variance/100).toFixed(2)},${pct}%`;
+                    })].join('\n');
+                    const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = `leakage-analysis-${analyticsFrom}-${analyticsTo}.csv`; a.click();
+                  }}>
+                    <Download className="h-3 w-3 mr-1" />Export CSV
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {activeClaimsLoading ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">Loading...</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/30">
+                          <th className="text-left py-2 px-4 text-xs font-semibold text-muted-foreground">Claim #</th>
+                          <th className="text-left py-2 px-4 text-xs font-semibold text-muted-foreground">Claimant</th>
+                          <th className="text-left py-2 px-4 text-xs font-semibold text-muted-foreground">Incident</th>
+                          <th className="text-right py-2 px-4 text-xs font-semibold text-muted-foreground">AI Estimate</th>
+                          <th className="text-right py-2 px-4 text-xs font-semibold text-muted-foreground">Approved</th>
+                          <th className="text-right py-2 px-4 text-xs font-semibold text-muted-foreground">Variance</th>
+                          <th className="text-right py-2 px-4 text-xs font-semibold text-muted-foreground">Var %</th>
+                          <th className="text-left py-2 px-4 text-xs font-semibold text-muted-foreground">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(activeClaims as any[])
+                          .filter(c => c.estimatedClaimValue && c.finalApprovedAmount)
+                          .sort((a, b) => {
+                            const va = (a.estimatedClaimValue ?? 0) - (a.finalApprovedAmount ?? 0);
+                            const vb = (b.estimatedClaimValue ?? 0) - (b.finalApprovedAmount ?? 0);
+                            return vb - va;
+                          })
+                          .map((claim: any) => {
+                            const variance = (claim.estimatedClaimValue ?? 0) - (claim.finalApprovedAmount ?? 0);
+                            const pct = claim.estimatedClaimValue ? ((variance / claim.estimatedClaimValue) * 100) : 0;
+                            const isPositive = variance >= 0;
+                            return (
+                              <tr key={claim.id} className="border-b hover:bg-muted/20 cursor-pointer" onClick={() => handleViewDetails(claim)}>
+                                <td className="py-2 px-4 text-xs font-mono">{claim.claimNumber}</td>
+                                <td className="py-2 px-4 text-xs">{claim.claimantName ?? '—'}</td>
+                                <td className="py-2 px-4 text-xs capitalize">{(claim.incidentType ?? '—').replace(/_/g,' ')}</td>
+                                <td className="py-2 px-4 text-xs text-right">{fmt(claim.estimatedClaimValue ?? 0)}</td>
+                                <td className="py-2 px-4 text-xs text-right">{fmt(claim.finalApprovedAmount ?? 0)}</td>
+                                <td className={`py-2 px-4 text-xs text-right font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                                  {isPositive ? '+' : ''}{fmt(variance)}
+                                </td>
+                                <td className={`py-2 px-4 text-xs text-right font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                                  {isPositive ? '+' : ''}{pct.toFixed(1)}%
+                                </td>
+                                <td className="py-2 px-4">
+                                  <Badge variant="outline" className="text-xs capitalize">{claim.status}</Badge>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        {(activeClaims as any[]).filter(c => c.estimatedClaimValue && c.finalApprovedAmount).length === 0 && (
+                          <tr><td colSpan={8} className="text-center py-8 text-sm text-muted-foreground">No claims with both AI estimate and approved amount in this period</td></tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </CardContent>

@@ -600,4 +600,109 @@ export const analyticsRouter = router({
         filename: `fast-track-report-${input.startDate}-${input.endDate}.csv`,
       };
     }),
+
+  /** Cost savings trends — monthly AI estimate vs approved amount over 6 months */
+  getCostSavingsTrends: analyticsRoleProcedure.query(async ({ ctx }) => {
+    try {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      const tenantId = ctx.user.tenantId;
+      const tenantFilter = tenantId ? eq(claims.tenantId, tenantId) : undefined;
+      const whereClause = tenantFilter
+        ? and(tenantFilter, sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.createdAt} >= DATE_SUB(NOW(), INTERVAL 6 MONTH)`)
+        : and(sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.createdAt} >= DATE_SUB(NOW(), INTERVAL 6 MONTH)`);
+      const trends = await db
+        .select({
+          month: sql<string>`DATE_FORMAT(${claims.createdAt}, '%Y-%m')`,
+          totalAiEstimate: sql<number>`SUM(${aiAssessments.estimatedCost})`,
+          totalApproved: sql<number>`SUM(${claims.approvedAmount})`,
+          claimCount: sql<number>`COUNT(${claims.id})`,
+        })
+        .from(claims)
+        .leftJoin(aiAssessments, eq(claims.id, aiAssessments.claimId))
+        .where(whereClause)
+        .groupBy(sql`DATE_FORMAT(${claims.createdAt}, '%Y-%m')`)
+        .orderBy(sql`DATE_FORMAT(${claims.createdAt}, '%Y-%m')`);
+      const mappedTrends = trends.map(t => {
+        const est = safeNumber(t.totalAiEstimate, 0);
+        const appr = safeNumber(t.totalApproved, 0);
+        const cnt = safeNumber(t.claimCount, 0);
+        const savings = est - appr;
+        return { month: safeString(t.month, 'Unknown'), savings: Math.round(savings / 100), claimCount: cnt, avgSavingsPerClaim: cnt > 0 ? Math.round(savings / cnt / 100) : 0 };
+      });
+      return createAnalyticsResponse(
+        { summaryMetrics: {}, trends: { monthlySavings: safeArray(mappedTrends) }, riskIndicators: {}, fraudSignals: {} },
+        { generatedAt: new Date(), role: ctx.user.insurerRole || ctx.user.role, dataScope: tenantId ? 'tenant' : 'global', tenantId }
+      );
+    } catch (error) {
+      console.error('[Analytics] getCostSavingsTrends error:', error);
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch cost savings trends' });
+    }
+  }),
+
+  /** Workflow bottlenecks — workflow states where claims spend the most time */
+  getWorkflowBottlenecks: analyticsRoleProcedure.query(async ({ ctx }) => {
+    try {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      const tenantId = ctx.user.tenantId;
+      const bottlenecksQuery = tenantId
+        ? sql`WITH latest_states AS (SELECT w.claim_id, w.new_state, TIMESTAMPDIFF(HOUR, w.created_at, NOW()) as hours_in_state FROM workflow_audit_trail w INNER JOIN claims c ON w.claim_id = c.id INNER JOIN (SELECT claim_id, MAX(created_at) as max_time FROM workflow_audit_trail GROUP BY claim_id) latest ON w.claim_id = latest.claim_id AND w.created_at = latest.max_time WHERE w.new_state NOT IN ('closed','rejected') AND c.tenant_id = ${tenantId}) SELECT new_state as state, COUNT(*) as count, AVG(hours_in_state) as avg_hours, MAX(hours_in_state) as max_hours FROM latest_states GROUP BY new_state ORDER BY AVG(hours_in_state) DESC`
+        : sql`WITH latest_states AS (SELECT w.claim_id, w.new_state, TIMESTAMPDIFF(HOUR, w.created_at, NOW()) as hours_in_state FROM workflow_audit_trail w INNER JOIN (SELECT claim_id, MAX(created_at) as max_time FROM workflow_audit_trail GROUP BY claim_id) latest ON w.claim_id = latest.claim_id AND w.created_at = latest.max_time WHERE w.new_state NOT IN ('closed','rejected')) SELECT new_state as state, COUNT(*) as count, AVG(hours_in_state) as avg_hours, MAX(hours_in_state) as max_hours FROM latest_states GROUP BY new_state ORDER BY AVG(hours_in_state) DESC`;
+      const bottlenecks = await db.execute(bottlenecksQuery);
+      const mapped = (bottlenecks.rows as any[]).map(b => ({
+        state: safeString(b.state, 'unknown'),
+        count: safeNumber(b.count, 0),
+        avgDaysInState: safeNumber(Math.round(safeNumber(b.avg_hours, 0) / 24 * 10) / 10, 0),
+        maxDaysInState: safeNumber(Math.round(safeNumber(b.max_hours, 0) / 24 * 10) / 10, 0),
+      }));
+      return createAnalyticsResponse(
+        { summaryMetrics: {}, trends: {}, riskIndicators: { bottlenecks: safeArray(mapped) }, fraudSignals: {} },
+        { generatedAt: new Date(), role: ctx.user.insurerRole || ctx.user.role, dataScope: tenantId ? 'tenant' : 'global', tenantId }
+      );
+    } catch (error) {
+      console.error('[Analytics] getWorkflowBottlenecks error:', error);
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch workflow bottlenecks' });
+    }
+  }),
+
+  /** Financial overview — total payouts, reserves, fraud prevented */
+  getFinancialOverview: analyticsRoleProcedure.query(async ({ ctx }) => {
+    try {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      const tenantId = ctx.user.tenantId;
+      const tenantFilter = tenantId ? eq(claims.tenantId, tenantId) : undefined;
+      const payoutsFilter = tenantFilter
+        ? and(tenantFilter, sql`${claims.approvedAmount} IS NOT NULL`)
+        : sql`${claims.approvedAmount} IS NOT NULL`;
+      const [payoutsResult] = await db.select({ total: sql<number>`SUM(${claims.approvedAmount})` }).from(claims).where(payoutsFilter);
+      const totalPayouts = Math.round(safeNumber(payoutsResult?.total, 0) / 100);
+      const reservesFilter = tenantFilter
+        ? and(tenantFilter, sql`${claims.status} NOT IN ('completed','rejected')`, sql`${aiAssessments.estimatedCost} IS NOT NULL`)
+        : and(sql`${claims.status} NOT IN ('completed','rejected')`, sql`${aiAssessments.estimatedCost} IS NOT NULL`);
+      const [reservesResult] = await db
+        .select({ total: sql<number>`SUM(${aiAssessments.estimatedCost})` })
+        .from(claims)
+        .leftJoin(aiAssessments, eq(claims.id, aiAssessments.claimId))
+        .where(reservesFilter);
+      const totalReserves = Math.round(safeNumber(reservesResult?.total, 0) / 100);
+      const fraudFilter = tenantFilter
+        ? and(tenantFilter, eq(claims.status, 'rejected'), eq(aiAssessments.fraudRiskLevel, 'high'))
+        : and(eq(claims.status, 'rejected'), eq(aiAssessments.fraudRiskLevel, 'high'));
+      const [fraudResult] = await db
+        .select({ total: sql<number>`SUM(${aiAssessments.estimatedCost})` })
+        .from(claims)
+        .leftJoin(aiAssessments, eq(claims.id, aiAssessments.claimId))
+        .where(fraudFilter);
+      const fraudPrevented = Math.round(safeNumber(fraudResult?.total, 0) / 100);
+      return createAnalyticsResponse(
+        { summaryMetrics: { totalPayouts, totalReserves, fraudPrevented, netExposure: totalPayouts + totalReserves }, trends: {}, riskIndicators: {}, fraudSignals: { preventedAmount: fraudPrevented } },
+        { generatedAt: new Date(), role: ctx.user.insurerRole || ctx.user.role, dataScope: tenantId ? 'tenant' : 'global', tenantId }
+      );
+    } catch (error) {
+      console.error('[Analytics] getFinancialOverview error:', error);
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch financial overview' });
+    }
+  }),
 });
