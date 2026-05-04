@@ -1310,9 +1310,92 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       if (!db) return null;
       const { panelBeaters: pbTable } = await import('../drizzle/schema');
       const { eq: _pbEq } = await import('drizzle-orm');
-      const [pb] = await db.select().from(pbTable).where(_pbEq(pbTable.userId, ctx.user.id)).limit(1);
+       const [pb] = await db.select().from(pbTable).where(_pbEq(pbTable.userId, ctx.user.id)).limit(1);
       return pb || null;
     }),
+
+    // Panel beater self-analytics: variance between quoted amount and AI estimated cost
+    getMyAnalytics: protectedProcedure
+      .input(z.object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { panelBeaters: pbTable2, panelBeaterQuotes: pbqTable, claims: claimsTable } = await import('../drizzle/schema');
+        const { eq: _eq3, and: _and3, gte: _gte3, lte: _lte3, desc: _desc3 } = await import('drizzle-orm');
+        const [pb] = await db.select().from(pbTable2).where(_eq3(pbTable2.userId, ctx.user.id)).limit(1);
+        if (!pb) return { quotes: [], stats: null, profile: null };
+        const conditions: any[] = [_eq3(pbqTable.panelBeaterId, pb.id)];
+        if (input?.from) conditions.push(_gte3(pbqTable.createdAt, input.from));
+        if (input?.to) conditions.push(_lte3(pbqTable.createdAt, input.to + ' 23:59:59'));
+        const quotes = await db
+          .select({
+            id: pbqTable.id,
+            claimId: pbqTable.claimId,
+            claimNumber: claimsTable.claimNumber,
+            quotedAmount: pbqTable.quotedAmount,
+            laborCost: pbqTable.laborCost,
+            partsCost: pbqTable.partsCost,
+            status: pbqTable.status,
+            partsQuality: pbqTable.partsQuality,
+            warrantyMonths: pbqTable.warrantyMonths,
+            quoteCongruencyScore: pbqTable.quoteCongruencyScore,
+            estimatedClaimValue: claimsTable.estimatedClaimValue,
+            finalApprovedAmount: claimsTable.finalApprovedAmount,
+            incidentType: claimsTable.incidentType,
+            vehicleMake: claimsTable.vehicleMake,
+            vehicleModel: claimsTable.vehicleModel,
+            createdAt: pbqTable.createdAt,
+            currencyCode: pbqTable.currencyCode,
+          })
+          .from(pbqTable)
+          .leftJoin(claimsTable, _eq3(pbqTable.claimId, claimsTable.id))
+          .where(_and3(...conditions))
+          .orderBy(_desc3(pbqTable.createdAt))
+          .limit(200);
+        const withVariance = quotes.map(q => {
+          const quoted = q.quotedAmount || 0;
+          const aiEstimate = q.estimatedClaimValue || 0;
+          const approved = q.finalApprovedAmount || 0;
+          const variancePct = aiEstimate > 0 ? Math.round(((quoted - aiEstimate) / aiEstimate) * 100) : null;
+          const approvalVariancePct = approved > 0 ? Math.round(((quoted - approved) / approved) * 100) : null;
+          return { ...q, variancePct, approvalVariancePct };
+        });
+        const accepted = withVariance.filter(q => q.status === 'accepted');
+        const submitted = withVariance.filter(q => q.status !== 'draft');
+        const avgVariance = submitted.length > 0
+          ? Math.round(submitted.reduce((s, q) => s + (q.variancePct ?? 0), 0) / submitted.length)
+          : null;
+        const acceptanceRate = submitted.length > 0 ? Math.round((accepted.length / submitted.length) * 100) : null;
+        const avgCongruency = submitted.length > 0
+          ? Math.round(submitted.reduce((s, q) => s + Number(q.quoteCongruencyScore ?? 0), 0) / submitted.length)
+          : null;
+        return {
+          quotes: withVariance,
+          stats: {
+            totalQuotes: submitted.length,
+            acceptedQuotes: accepted.length,
+            acceptanceRate,
+            avgVariancePct: avgVariance,
+            avgCongruencyScore: avgCongruency,
+            avgQualityScore: pb.avgQualityScore ? Number(pb.avgQualityScore) : null,
+            avgCostRatio: pb.avgCostRatio ? Number(pb.avgCostRatio) : null,
+            totalRepairs: pb.totalRepairs,
+            performanceTier: pb.performanceTier,
+            fraudFlagCount: pb.fraudFlagCount,
+          },
+          profile: {
+            id: pb.id,
+            businessName: pb.businessName,
+            city: pb.city,
+            performanceTier: pb.performanceTier,
+            avgQualityScore: pb.avgQualityScore ? Number(pb.avgQualityScore) : null,
+          },
+        };
+      }),
 
     // Get claims by status (for dashboards)
     // Uses insurerDomainProcedure: ctx.insurerTenantId is always non-null, preventing cross-tenant leakage

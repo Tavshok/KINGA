@@ -1,4 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar, Doughnut } from 'react-chartjs-2';
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 import { trpc } from "@/lib/trpc";
 import { parseUtcTimestamp } from "@/lib/parseUtcTimestamp";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +58,20 @@ export default function ClaimsProcessorDashboard() {
   // during transient pipeline state transitions (e.g. intake_pending briefly before pipeline starts).
   const failureDebounceRef = useRef<Map<number, number>>(new Map());
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  // SLA helper: returns status based on claim age in hours
+  const getSlaStatus = useCallback((createdAt: any) => {
+    if (!createdAt) return null;
+    const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3600000;
+    if (ageHours > 72) return { label: `${Math.floor(ageHours / 24)}d BREACHED`, color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', urgent: true };
+    if (ageHours > 48) return { label: `${Math.floor(ageHours)}h Critical`, color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300', urgent: true };
+    if (ageHours > 24) return { label: `${Math.floor(ageHours)}h Warning`, color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300', urgent: false };
+    return { label: `${Math.floor(ageHours)}h On Track`, color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', urgent: false };
+  }, []);
+
+  // Processor queue from dedicated procedure (enriched with priority scoring)
+  const { data: processorQueueData } = trpc.claims.getProcessorQueue.useQuery(undefined, { refetchInterval: 60000 }); // eslint-disable-line react-hooks/rules-of-hooks
 
   // Role validation — allow admin users to bypass for testing
   if (user?.role !== "admin" && user?.insurerRole !== "claims_processor") {
@@ -470,6 +487,17 @@ export default function ClaimsProcessorDashboard() {
                     {claim.fraudRiskScore >= 70 ? "High Risk" : claim.fraudRiskScore >= 40 ? "Medium Risk" : "Low Risk"} ({claim.fraudRiskScore}%)
                   </Badge>
                 )}
+                {/* SLA Badge */}
+                {(() => {
+                  const sla = getSlaStatus(claim.createdAt);
+                  if (!sla) return null;
+                  return (
+                    <Badge className={`text-xs ${sla.color} border-0 flex items-center gap-1`}>
+                      <Clock className="h-3 w-3" />
+                      {sla.label}
+                    </Badge>
+                  );
+                })()}
               </div>
 
               {/* Data Source Badge */}
@@ -818,8 +846,74 @@ export default function ClaimsProcessorDashboard() {
           />
         </div>
 
+        {/* Analytics Toggle */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowAnalytics(v => !v)}
+            className="flex items-center gap-2 text-sm font-medium text-teal-700 dark:text-teal-300 hover:underline"
+          >
+            <TrendingUp className="h-4 w-4" />
+            {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+          </button>
+          <span className="text-xs text-slate-500 dark:text-muted-foreground">
+            {processorQueueData?.length ?? allClaims.length} claims in queue
+          </span>
+        </div>
+
+        {/* Analytics Section */}
+        {showAnalytics && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-muted-foreground">SLA Compliance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div style={{ height: 220 }}>
+                  <Doughnut
+                    data={{
+                      labels: ['On Track', 'Warning (24-48h)', 'Critical (48-72h)', 'Breached (72h+)'],
+                      datasets: [{
+                        data: [
+                          allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 <= 24).length,
+                          allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 24 && h <= 48; }).length,
+                          allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length,
+                          allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length,
+                        ],
+                        backgroundColor: ['#22c55e', '#eab308', '#f97316', '#ef4444'],
+                        borderWidth: 0,
+                      }],
+                    }}
+                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-muted-foreground">Queue by Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div style={{ height: 220 }}>
+                  <Bar
+                    data={{
+                      labels: ['Pending', 'In Review', 'AI Complete', 'Completed'],
+                      datasets: [{
+                        label: 'Claims',
+                        data: [pendingClaims.length, inReviewClaims.length, aiFlaggedClaims.length, completedClaims.length],
+                        backgroundColor: ['#f59e0b', '#3b82f6', '#14b8a6', '#22c55e'],
+                        borderRadius: 4,
+                      }],
+                    }}
+                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Quick Stats */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{pendingClaims.length}</p>
@@ -842,6 +936,22 @@ export default function ClaimsProcessorDashboard() {
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-green-700 dark:text-green-300">{completedClaims.length}</p>
               <p className="text-xs text-green-600 font-medium">Completed</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-red-700 dark:text-red-300">
+                {allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length}
+              </p>
+              <p className="text-xs text-red-600 font-medium">SLA Breached</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                {allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length}
+              </p>
+              <p className="text-xs text-orange-600 font-medium">SLA Critical</p>
             </CardContent>
           </Card>
         </div>

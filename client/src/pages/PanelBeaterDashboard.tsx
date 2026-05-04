@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, ScatterController } from 'chart.js';
+import { Bar, Scatter, Doughnut } from 'react-chartjs-2';
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, ScatterController);
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
@@ -58,6 +61,7 @@ export default function PanelBeaterDashboard() {
 
   // Real data from server
   const { data: profile } = trpc.claims.myPanelBeaterProfile.useQuery();
+  const { data: myAnalytics } = trpc.claims.getMyAnalytics.useQuery();
   const { data: quoteRequests = [], isLoading: requestsLoading, refetch: refetchRequests } =
     trpc.claims.myQuoteRequests.useQuery();
   const { data: quoteHistory = [], isLoading: historyLoading } =
@@ -261,7 +265,7 @@ export default function PanelBeaterDashboard() {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-flex">
+          <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-flex">
             <TabsTrigger value="queue" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Quote Queue
@@ -274,6 +278,10 @@ export default function PanelBeaterDashboard() {
             <TabsTrigger value="history" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Quote History
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Analytics
             </TabsTrigger>
           </TabsList>
 
@@ -447,6 +455,169 @@ export default function PanelBeaterDashboard() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="mt-4">
+            <div className="space-y-6">
+              {/* Summary KPIs */}
+              {myAnalytics && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold text-slate-800 dark:text-foreground">{myAnalytics.totalQuotes}</p>
+                      <p className="text-xs text-gray-500">Total Quotes</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold text-emerald-600">{myAnalytics.approvalRate?.toFixed(1)}%</p>
+                      <p className="text-xs text-gray-500">Approval Rate</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <p className={`text-2xl font-bold ${(myAnalytics.avgVariancePct || 0) > 15 ? 'text-red-600' : (myAnalytics.avgVariancePct || 0) > 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                        {myAnalytics.avgVariancePct !== null ? `${myAnalytics.avgVariancePct > 0 ? '+' : ''}${myAnalytics.avgVariancePct?.toFixed(1)}%` : '—'}
+                      </p>
+                      <p className="text-xs text-gray-500">Avg vs AI Estimate</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold text-slate-800 dark:text-foreground">{fmt(myAnalytics.totalApprovedRevenue || 0)}</p>
+                      <p className="text-xs text-gray-500">Approved Revenue</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Charts Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Quote vs AI Estimate Scatter */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Your Quote vs KINGA Estimate</CardTitle>
+                    <p className="text-xs text-gray-500">Each dot is one quote. Dots above the line = over-quoted.</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div style={{ height: 260 }}>
+                      {myAnalytics?.quoteVarianceData && myAnalytics.quoteVarianceData.length > 0 ? (
+                        <Scatter
+                          data={{
+                            datasets: [
+                              {
+                                label: 'Your Quotes',
+                                data: myAnalytics.quoteVarianceData.map((d: any) => ({ x: d.aiEstimate, y: d.quotedAmount })),
+                                backgroundColor: 'rgba(59,130,246,0.6)',
+                                pointRadius: 5,
+                              },
+                              {
+                                label: 'Perfect Match',
+                                data: (() => {
+                                  const vals = myAnalytics.quoteVarianceData.map((d: any) => d.aiEstimate).filter(Boolean);
+                                  const min = Math.min(...vals);
+                                  const max = Math.max(...vals);
+                                  return [{ x: min, y: min }, { x: max, y: max }];
+                                })(),
+                                type: 'line' as any,
+                                borderColor: '#22c55e',
+                                borderDash: [5, 5],
+                                borderWidth: 1.5,
+                                pointRadius: 0,
+                              },
+                            ],
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+                            scales: {
+                              x: { title: { display: true, text: 'KINGA Estimate', font: { size: 11 } } },
+                              y: { title: { display: true, text: 'Your Quote', font: { size: 11 } } },
+                            },
+                          }}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                          No quote data with AI estimates yet
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Approval Rate Donut */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Quote Outcomes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div style={{ height: 260 }}>
+                      <Doughnut
+                        data={{
+                          labels: ['Approved', 'Pending', 'Rejected'],
+                          datasets: [{
+                            data: [
+                              quoteHistory.filter((q: any) => q.status === 'approved').length,
+                              quoteHistory.filter((q: any) => ['submitted', 'pending', 'comparison'].includes(q.status)).length,
+                              quoteHistory.filter((q: any) => q.status === 'rejected').length,
+                            ],
+                            backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                            borderWidth: 0,
+                          }],
+                        }}
+                        options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Per-Quote Variance Table */}
+              {myAnalytics?.quoteVarianceData && myAnalytics.quoteVarianceData.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Quote Variance Detail</CardTitle>
+                    <p className="text-xs text-gray-500">How each quote compared to KINGA's AI estimate</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-2 px-2 font-medium text-gray-600">Claim</th>
+                            <th className="text-right py-2 px-2 font-medium text-gray-600">Your Quote</th>
+                            <th className="text-right py-2 px-2 font-medium text-gray-600">AI Estimate</th>
+                            <th className="text-right py-2 px-2 font-medium text-gray-600">Variance</th>
+                            <th className="text-center py-2 px-2 font-medium text-gray-600">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {myAnalytics.quoteVarianceData.slice(0, 10).map((d: any, i: number) => {
+                            const variance = d.aiEstimate ? ((d.quotedAmount - d.aiEstimate) / d.aiEstimate * 100) : null;
+                            return (
+                              <tr key={i} className="hover:bg-gray-50">
+                                <td className="py-2 px-2 font-mono text-xs text-gray-700">#{d.claimId}</td>
+                                <td className="py-2 px-2 text-right">{fmt(d.quotedAmount)}</td>
+                                <td className="py-2 px-2 text-right text-gray-500">{d.aiEstimate ? fmt(d.aiEstimate) : '—'}</td>
+                                <td className="py-2 px-2 text-right">
+                                  {variance !== null ? (
+                                    <span className={variance > 15 ? 'text-red-600 font-semibold' : variance > 5 ? 'text-amber-600' : 'text-emerald-600'}>
+                                      {variance > 0 ? '+' : ''}{variance.toFixed(1)}%
+                                    </span>
+                                  ) : '—'}
+                                </td>
+                                <td className="py-2 px-2 text-center"><StatusBadge status={d.status || 'submitted'} /></td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
 

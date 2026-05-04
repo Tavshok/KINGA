@@ -10,6 +10,9 @@
  *  5. Analytics      — performance metrics (trpc.assessors.getPerformanceDashboard)
  */
 import { useState, useMemo } from "react";
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar, Doughnut } from 'react-chartjs-2';
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import {
@@ -917,6 +920,70 @@ export default function InternalAssessorDashboard() {
                   accent="text-green-600"
                 />
               </div>
+
+              {/* Charts Row */}
+              {perfData.recentAssessments && perfData.recentAssessments.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Variance Bar Chart */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold">My Estimate vs Approved Amount</CardTitle>
+                      <CardDescription className="text-xs">Last {Math.min(perfData.recentAssessments.length, 8)} assessments</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div style={{ height: 240 }}>
+                        <Bar
+                          data={{
+                            labels: perfData.recentAssessments.slice(0, 8).map((_: any, i: number) => `#${i + 1}`),
+                            datasets: [
+                              {
+                                label: 'My Estimate',
+                                data: perfData.recentAssessments.slice(0, 8).map((ev: any) => ev.estimatedRepairCost ? ev.estimatedRepairCost / 100 : 0),
+                                backgroundColor: 'rgba(99,102,241,0.7)',
+                                borderRadius: 3,
+                              },
+                            ],
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+                            scales: { y: { beginAtZero: true, ticks: { callback: (v: any) => `${v.toLocaleString()}` } } },
+                          }}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Risk Level Donut */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold">Risk Level Distribution</CardTitle>
+                      <CardDescription className="text-xs">Across your recent assessments</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div style={{ height: 240 }}>
+                        <Doughnut
+                          data={{
+                            labels: ['Low', 'Medium', 'High', 'Critical'],
+                            datasets: [{
+                              data: [
+                                perfData.recentAssessments.filter((ev: any) => ev.fraudRiskLevel === 'low').length,
+                                perfData.recentAssessments.filter((ev: any) => ev.fraudRiskLevel === 'medium').length,
+                                perfData.recentAssessments.filter((ev: any) => ev.fraudRiskLevel === 'high').length,
+                                perfData.recentAssessments.filter((ev: any) => ev.fraudRiskLevel === 'critical').length,
+                              ],
+                              backgroundColor: ['#22c55e', '#f59e0b', '#f97316', '#ef4444'],
+                              borderWidth: 0,
+                            }],
+                          }}
+                          options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
               {/* Recent assessments table */}
               {perfData.recentAssessments && perfData.recentAssessments.length > 0 && (
