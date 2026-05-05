@@ -215,10 +215,10 @@ export default function ExecutiveDashboard() {
   
   // Governance metrics
   const { data: governanceResponse, isLoading: governanceLoading } = trpc.governance.getGovernanceSummary.useQuery(undefined, { retry: 0 });
-  // Governance detail queries removed — full governance data lives in GovernanceDashboard (risk_manager / insurer_admin only).
+  // Governance detail queries removed — executive sees snapshot KPIs only.
   
   const governanceMetrics = governanceResponse?.data;
-  // Governance detail arrays removed — executive sees snapshot KPIs only.
+
 
   // Search query - only execute when searchQuery has value
   const { data: searchResultsResponse, isLoading: searchLoading, refetch: executeSearch } = trpc.analytics.globalSearch.useQuery(
@@ -634,7 +634,7 @@ export default function ExecutiveDashboard() {
 
           {/* ── Tab 2: Operational Health ── */}
           <TabsContent value="operational-health" className="space-y-6">
-            {/* Governance Summary — executive-level KPI snapshot only; full detail in GovernanceDashboard */}
+            {/* Governance Summary — executive-level KPI snapshot */}
             <Card style={{ border: '1px solid var(--border)' }}>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
@@ -642,10 +642,10 @@ export default function ExecutiveDashboard() {
                     <Shield className="h-5 w-5" style={{ color: 'var(--warning)' }} />
                     Governance Health Snapshot
                   </CardTitle>
-                  <CardDescription>High-level compliance indicators (30 days) — see Governance Dashboard for full detail</CardDescription>
+                  <CardDescription>High-level compliance indicators (30 days)</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setLocation("/insurer-portal/governance")}>
-                  Full Governance Report
+                <Button variant="outline" size="sm" onClick={() => setLocation("/insurer-portal/reports-centre")}>
+                  Governance Reports
                 </Button>
               </CardHeader>
               <CardContent>

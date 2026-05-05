@@ -249,6 +249,7 @@ const pathToRole: Array<{ prefix: string; role: string; label: string }> = [
   { prefix: "/insurer-portal/risk-manager",            role: "risk_manager",      label: "Risk Manager" },
   { prefix: "/insurer-portal/internal-assessor",       role: "assessor_internal", label: "Internal Assessor" },
   { prefix: "/insurer-portal/external-assessor",       role: "assessor_external", label: "External Assessor" },
+  { prefix: "/insurer-portal/insurer-admin",            role: "insurer_admin",     label: "Insurer Admin" },
   { prefix: "/insurer/fraud-analytics",                role: "",                  label: "Fraud Analytics" },
   { prefix: "/insurer-portal/workflow-analytics",      role: "",                  label: "Workflow Analytics" },
   { prefix: "/insurer-portal/exception-intelligence",  role: "",                  label: "Exception Intelligence" },
