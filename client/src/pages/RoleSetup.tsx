@@ -67,7 +67,7 @@ import {
 type AssignableRole = "claimant" | "insurer" | "admin";
 type InsurerRole =
   | "claims_processor"
-  | "internal_assessor"
+  | "assessor_internal"
   | "risk_manager"
   | "claims_manager"
   | "executive";
@@ -388,7 +388,7 @@ function AdminRoleManagerView() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="claims_processor">Claims Processor</SelectItem>
-                              <SelectItem value="internal_assessor">Assessor</SelectItem>
+                              <SelectItem value="assessor_internal">Assessor</SelectItem>
                               <SelectItem value="risk_manager">Risk Manager</SelectItem>
                               <SelectItem value="claims_manager">Claims Manager</SelectItem>
                               <SelectItem value="executive">Executive</SelectItem>

@@ -38,7 +38,7 @@ interface CommentRecord {
 const ROLE_LABELS: Record<string, string> = {
   claims_manager: "Claims Manager",
   claims_processor: "Claims Processor",
-  internal_assessor: "Internal Assessor",
+  assessor_internal: "Internal Assessor",
   external_assessor: "External Assessor",
   risk_manager: "Risk Manager",
   executive: "Executive",
@@ -50,7 +50,7 @@ const ROLE_LABELS: Record<string, string> = {
 const ROLE_COLORS: Record<string, string> = {
   claims_manager: "bg-blue-100 text-blue-800",
   claims_processor: "bg-cyan-100 text-cyan-800",
-  internal_assessor: "bg-purple-100 text-purple-800",
+  assessor_internal: "bg-purple-100 text-purple-800",
   external_assessor: "bg-violet-100 text-violet-800",
   risk_manager: "bg-orange-100 text-orange-800",
   executive: "bg-gray-100 text-gray-800",
@@ -72,7 +72,7 @@ const TYPE_COLORS: Record<string, string> = {
 const ALL_ROLES = [
   { value: "claims_manager", label: "Claims Manager" },
   { value: "claims_processor", label: "Claims Processor" },
-  { value: "internal_assessor", label: "Internal Assessor" },
+  { value: "assessor_internal", label: "Internal Assessor" },
   { value: "external_assessor", label: "External Assessor" },
   { value: "risk_manager", label: "Risk Manager" },
   { value: "executive", label: "Executive" },

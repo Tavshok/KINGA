@@ -50,7 +50,7 @@ import { toast } from "sonner";
 
 const ROLE_LABELS: Record<string, string> = {
   claims_processor: "Claims Processor",
-  internal_assessor: "Internal Assessor",
+  assessor_internal: "Internal Assessor",
   external_assessor: "External Assessor",
   risk_manager: "Risk Manager",
   claims_manager: "Claims Manager",

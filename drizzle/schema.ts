@@ -4625,7 +4625,7 @@ export const claimApprovals = mysqlTable("claim_approvals", {
   stageOrder: int("stage_order").notNull(),
   stageName: varchar("stage_name", { length: 255 }).notNull(),
   roleKey: varchar("role_key", { length: 100 }).notNull(),
-  // Role keys: claims_processor | internal_assessor | external_assessor |
+  // Role keys: claims_processor | assessor_internal | external_assessor |
   //            risk_manager | claims_manager | executive | underwriter
   actorUserId: int("actor_user_id"),
   actorName: varchar("actor_name", { length: 255 }),

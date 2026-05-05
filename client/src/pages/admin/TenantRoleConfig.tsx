@@ -51,7 +51,7 @@ export default function TenantRoleConfig() {
       permissions: ["view_assigned_claims", "update_claim_status", "request_documents", "communicate_claimants"]
     },
     {
-      roleKey: "internal_assessor",
+      roleKey: "assessor_internal",
       displayName: "Internal Assessor",
       description: "In-house damage assessment and report generation",
       icon: Search,

@@ -184,7 +184,7 @@ export const tenantRouter = router({
   updateRoleConfig: protectedProcedure
     .input(z.object({
       tenantId: z.string(),
-      role: z.enum(['executive', 'claims_manager', 'claims_processor', 'internal_assessor', 'risk_manager']),
+      role: z.enum(['executive', 'claims_manager', 'claims_processor', 'assessor_internal', 'risk_manager']),
       isEnabled: z.boolean().optional(),
       canApprove: z.boolean().optional(),
       canReject: z.boolean().optional(),

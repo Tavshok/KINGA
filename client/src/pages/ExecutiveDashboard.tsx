@@ -34,8 +34,8 @@ import { KingaReportButton } from "@/components/KingaReportButton";
 import ThemeToggle from "@/components/ThemeToggle";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 
-import {
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
+import {
   exportKPIsToPDF,
   exportAssessorPerformanceToExcel,
   exportPanelBeaterAnalyticsToExcel,

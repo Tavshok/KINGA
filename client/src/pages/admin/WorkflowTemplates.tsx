@@ -62,7 +62,7 @@ import {
 
 const ROLE_KEYS = [
   "claims_processor",
-  "internal_assessor",
+  "assessor_internal",
   "external_assessor",
   "risk_manager",
   "claims_manager",
@@ -74,7 +74,7 @@ type RoleKey = (typeof ROLE_KEYS)[number];
 
 const ROLE_LABELS: Record<RoleKey, string> = {
   claims_processor: "Claims Processor",
-  internal_assessor: "Internal Assessor",
+  assessor_internal: "Internal Assessor",
   external_assessor: "External Assessor",
   risk_manager: "Risk Manager",
   claims_manager: "Claims Manager",
@@ -84,7 +84,7 @@ const ROLE_LABELS: Record<RoleKey, string> = {
 
 const ROLE_COLORS: Record<RoleKey, string> = {
   claims_processor: "bg-blue-100 text-blue-800",
-  internal_assessor: "bg-purple-100 text-purple-800",
+  assessor_internal: "bg-purple-100 text-purple-800",
   external_assessor: "bg-orange-100 text-orange-800",
   risk_manager: "bg-yellow-100 text-yellow-800",
   claims_manager: "bg-green-100 text-green-800",
@@ -280,7 +280,7 @@ function TemplateFormDialog({
   const [stages, setStages] = useState<WorkflowStage[]>(
     initialStages ?? [
       { ...EMPTY_STAGE, stage_order: 1, stage_name: "Claims Processor Review", role_key: "claims_processor" },
-      { ...EMPTY_STAGE, stage_order: 2, stage_name: "Internal Assessor Assessment", role_key: "internal_assessor", can_reject: true },
+      { ...EMPTY_STAGE, stage_order: 2, stage_name: "Internal Assessor Assessment", role_key: "assessor_internal", can_reject: true },
       { ...EMPTY_STAGE, stage_order: 3, stage_name: "Claims Manager Approval", role_key: "claims_manager", can_reject: true },
     ]
   );

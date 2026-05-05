@@ -32,7 +32,7 @@ export const PLATFORM_ROLES = [
 
 export const INSURER_ROLES = [
   "claims_processor",
-  "internal_assessor",
+  "assessor_internal",
   "risk_manager",
   "claims_manager",
   "executive",

@@ -27,7 +27,7 @@ const ASSIGNABLE_ROLES = [
 // Note: these values must match the mysqlEnum in drizzle/schema.ts users.insurerRole
 const INSURER_ROLES = [
   "claims_processor",
-  "internal_assessor",
+  "assessor_internal",
   "risk_manager",
   "claims_manager",
   "executive",

@@ -7,7 +7,7 @@
  * with the matching insurerRole to act before the claim advances.
  *
  * Role keys (matching users.insurerRole enum):
- *   claims_processor | internal_assessor | risk_manager | claims_manager | executive
+ *   claims_processor | assessor_internal | risk_manager | claims_manager | executive
  *
  * External assessors are handled via the "external_received" decision type —
  * their work enters the system but they are not part of the internal chain.
@@ -37,7 +37,7 @@ const WorkflowStageSchema = z.object({
   stage_name: z.string().min(1),
   role_key: z.enum([
     "claims_processor",
-    "internal_assessor",
+    "assessor_internal",
     "external_assessor",
     "risk_manager",
     "claims_manager",
@@ -110,7 +110,7 @@ function buildDefaultStages(): WorkflowStage[] {
     {
       stage_order: 2,
       stage_name: "Internal Assessor Assessment",
-      role_key: "internal_assessor",
+      role_key: "assessor_internal",
       required: true,
       can_reject: true,
       can_request_info: true,
@@ -410,7 +410,7 @@ export const approvalRouter = router({
         stage_name: z.string(),
         role_key: z.enum([
           "claims_processor",
-          "internal_assessor",
+          "assessor_internal",
           "external_assessor",
           "risk_manager",
           "claims_manager",
@@ -605,7 +605,7 @@ export const approvalRouter = router({
         role_key: z
           .enum([
             "claims_processor",
-            "internal_assessor",
+            "assessor_internal",
             "risk_manager",
             "claims_manager",
             "executive",

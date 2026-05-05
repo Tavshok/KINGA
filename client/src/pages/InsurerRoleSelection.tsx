@@ -61,7 +61,7 @@ export default function InsurerRoleSelection() {
       ]
     },
     {
-      id: "internal_assessor",
+      id: "assessor_internal",
       title: "Internal Assessor",
       description: "In-house damage assessment, report generation, and fraud flagging",
       icon: Search,
