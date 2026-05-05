@@ -14,6 +14,7 @@ import {
   AlertTriangle, Play, Calendar, Shield, BarChart3, Search,
   FileBarChart, RotateCcw, Info, ChevronRight
 } from "lucide-react";
+import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ReportJob {
@@ -129,7 +130,7 @@ function GenerateDialog({
 
       <div className="space-y-4 py-2">
         {report.requiresClaimId && (
-          <div>
+          <div className="space-y-2">
             <label className="text-xs font-medium text-gray-700 block mb-1">Claim ID *</label>
             <Input
               type="number"
@@ -138,6 +139,9 @@ function GenerateDialog({
               onChange={(e) => setClaimId(e.target.value)}
               className="h-8 text-sm"
             />
+            {claimId && parseInt(claimId) > 0 && (
+              <ReportReadinessBadge claimId={parseInt(claimId)} variant="banner" />
+            )}
           </div>
         )}
 

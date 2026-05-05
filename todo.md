@@ -11383,3 +11383,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Fix analyticsRoleProcedure to allow claims_manager, risk_manager, executive, insurer_admin
 - [ ] Fix governanceDashboardProcedure to allow claims_manager, insurer_admin, admin
 - [ ] Run tests and save checkpoint
+
+## Report Readiness System (Session 2026-05-05)
+- [x] Design readiness state model: not_submitted / ai_processing / partial / ready
+- [x] Add getReportReadiness tRPC procedure to server/routers/reporting.ts
+- [x] Procedure queries claims + ai_assessments (LEFT JOIN), computes state, label, colour, missingFields, availableReports
+- [x] Build ReportReadinessBadge component (3 variants: inline, banner, compact)
+- [x] Integrate inline badge into ClaimsProcessorDashboard claim cards
+- [x] Integrate inline badge into ClaimsManagerDashboard claim list rows
+- [x] Integrate banner into ClaimReviewDialog (claim detail view)
+- [x] Integrate banner into Reports Centre GenerateDialog (shows when user enters a claim ID)
+- [x] All 37 reporting access tests pass
+- [x] Checkpoint saved: Report Readiness system complete

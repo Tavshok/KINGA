@@ -40,6 +40,7 @@ import {
 } from "chart.js";
 import { Doughnut, Bar, Line } from "react-chartjs-2";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
+import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 export default function ClaimsManagerDashboard() {
@@ -628,6 +629,7 @@ export default function ClaimsManagerDashboard() {
                           <Badge variant="outline" className="text-xs capitalize">
                             {(claim.status || 'pending').replace(/_/g, " ")}
                           </Badge>
+                          <ReportReadinessBadge claimId={claim.id} variant="inline" />
                           {claim.technicalApprovalStatus === "approved" && (
                             <Badge className="bg-green-600 text-white text-xs">
                               <CheckCircle className="h-3 w-3 mr-1" />

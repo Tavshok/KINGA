@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -113,6 +114,13 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
             </Button>
           </div>
         </DialogHeader>
+
+        {/* Report Readiness Banner */}
+        {claimId && (
+          <div className="px-0 pt-1 pb-2">
+            <ReportReadinessBadge claimId={claimId} variant="banner" />
+          </div>
+        )}
 
         {claimLoading ? (
           <div className="flex items-center justify-center py-12">

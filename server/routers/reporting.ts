@@ -395,4 +395,112 @@ export const reportingRouter = router({
         await conn.end();
       }
     }),
+
+  // ─── Report Readiness ────────────────────────────────────────────────────────
+  // Single source of truth for report readiness state per claim.
+  // Used by: claim list rows, claim detail view, Reports Centre selector.
+  getReportReadiness: protectedProcedure
+    .input(z.object({ claimId: z.number() }))
+    .query(async ({ input }) => {
+      const conn = await getConn();
+      try {
+        const [rows] = await conn.execute(
+          `SELECT
+             c.id AS claim_id,
+             c.status AS claim_status,
+             c.claim_reference,
+             a.id AS assessment_id,
+             a.forensic_analysis              IS NOT NULL AS has_forensic,
+             a.physics_analysis               IS NOT NULL AS has_physics,
+             a.fraud_indicators               IS NOT NULL AS has_fraud,
+             a.estimated_cost                 IS NOT NULL AS has_cost,
+             a.forensic_audit_validation_json IS NOT NULL AS has_audit,
+             a.pipeline_run_summary           IS NOT NULL AS has_pipeline,
+             a.recommendation
+           FROM claims c
+           LEFT JOIN ai_assessments a ON a.claim_id = c.id
+           WHERE c.id = ?
+           ORDER BY a.id DESC
+           LIMIT 1`,
+          [input.claimId]
+        ) as any[];
+
+        if (!rows || rows.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+        }
+
+        const row = rows[0];
+        const claimStatus: string = row.claim_status;
+        const hasAssessment = !!row.assessment_id;
+
+        type ReadinessState = "not_submitted" | "ai_processing" | "ai_failed" | "partial" | "ready";
+        let state: ReadinessState;
+        let label: string;
+        let colour: "green" | "amber" | "red" | "grey" | "blue";
+        const missingFields: string[] = [];
+        const availableReports: string[] = [];
+
+        const processingStatuses = ["submitted", "triage", "assessment_pending", "assessment_in_progress", "intake_pending"];
+
+        if (!hasAssessment && processingStatuses.includes(claimStatus)) {
+          state  = "ai_processing";
+          label  = "AI Processing";
+          colour = "blue";
+        } else if (!hasAssessment) {
+          state  = "not_submitted";
+          label  = "Pending Submission";
+          colour = "grey";
+        } else {
+          if (!row.has_forensic)  missingFields.push("Forensic Analysis");
+          if (!row.has_physics)   missingFields.push("Physics Analysis");
+          if (!row.has_fraud)     missingFields.push("Fraud Indicators");
+          if (!row.has_cost)      missingFields.push("Cost Estimate");
+          if (!row.has_audit)     missingFields.push("Forensic Audit Validation");
+
+          if (missingFields.length === 0) {
+            state  = "ready";
+            label  = "Report Ready";
+            colour = "green";
+          } else {
+            state  = "partial";
+            label  = missingFields.length <= 2 ? "Partial Data" : "Limited Data";
+            colour = "amber";
+          }
+        }
+
+        const fullAIReports  = ["claim.forensic", "claim.audit_trail"];
+        const basicReports   = ["claim.assessment", "claim.cost_comparison", "claim.repair_decision"];
+        const portfolioReports = [
+          "portfolio.claims_summary", "portfolio.dwell_time",
+          "portfolio.panel_beater_performance", "portfolio.fraud_summary",
+          "portfolio.assessor_performance", "risk_manager_portfolio",
+          "executive.insurer_summary", "executive.claims_trend",
+          "executive.financial_exposure",
+        ];
+
+        if (state === "ready") {
+          availableReports.push(...fullAIReports, ...basicReports);
+        } else if (state === "partial") {
+          if (row.has_cost && row.has_fraud) availableReports.push(...basicReports);
+          if (row.has_forensic && row.has_physics) availableReports.push("claim.forensic");
+          if (row.has_audit) availableReports.push("claim.audit_trail");
+        }
+        availableReports.push(...portfolioReports);
+
+        return {
+          claimId:        input.claimId,
+          claimReference: row.claim_reference as string,
+          claimStatus,
+          state,
+          label,
+          colour,
+          missingFields,
+          availableReports,
+          hasAssessment,
+          recommendation: row.recommendation as string | null,
+        };
+      } finally {
+        await conn.end();
+      }
+    }),
 });
