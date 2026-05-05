@@ -31,7 +31,7 @@ export const agencyDocuments = mysqlTable("agency_documents", {
 
 export const aiAssessments = mysqlTable("ai_assessments", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	estimatedCost: int("estimated_cost"),
 	damageDescription: longtext("damage_description"),
 	detectedDamageTypes: longtext("detected_damage_types"),
@@ -229,7 +229,7 @@ export const anonymizationAuditLog = mysqlTable("anonymization_audit_log", {
 
 export const appointments = mysqlTable("appointments", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	assessorId: int("assessor_id").notNull(),
 	appointmentType: mysqlEnum("appointment_type", ['claimant_inspection','panel_beater_inspection']).notNull(),
 	claimantId: int("claimant_id"),
@@ -245,7 +245,7 @@ export const appointments = mysqlTable("appointments", {
 
 export const approvalWorkflow = mysqlTable("approval_workflow", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	level: mysqlEnum(['assessor','risk_surveyor','risk_manager']).notNull(),
 	levelOrder: int("level_order").notNull(),
 	approverId: int("approver_id"),
@@ -292,7 +292,7 @@ export const assessorDeviationMetrics = mysqlTable("assessor_deviation_metrics",
 
 export const assessorEvaluations = mysqlTable("assessor_evaluations", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	assessorId: int("assessor_id").notNull(),
 	inspectionDate: timestamp("inspection_date", { mode: 'string' }),
 	inspectionPhotos: text("inspection_photos"),
@@ -345,7 +345,7 @@ export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relatio
 export const assessorMarketplaceReviews = mysqlTable("assessor_marketplace_reviews", {
 	id: int().autoincrement().notNull(),
 	assessorId: int("assessor_id").notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	reviewerUserId: int("reviewer_user_id").notNull(),
 	overallRating: int("overall_rating").notNull(),
@@ -429,7 +429,7 @@ export const auditLogs = mysqlTable("audit_logs", {
 
 export const auditTrail = mysqlTable("audit_trail", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	userId: int("user_id").notNull(),
 	action: varchar({ length: 100 }).notNull(),
 	entityType: varchar("entity_type", { length: 50 }),
@@ -449,7 +449,7 @@ export const auditTrail = mysqlTable("audit_trail", {
 
 export const automationAuditLog = mysqlTable("automation_audit_log", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	confidenceScoreId: int("confidence_score_id").notNull().references(() => claimConfidenceScores.id),
 	compositeConfidenceScore: decimal("composite_confidence_score", { precision: 5, scale: 2 }).notNull(),
@@ -525,7 +525,7 @@ export const claimComments = mysqlTable("claim_comments", {
 
 export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	damageCertainty: decimal("damage_certainty", { precision: 5, scale: 2 }).notNull(),
 	physicsStrength: decimal("physics_strength", { precision: 5, scale: 2 }).notNull(),
@@ -552,7 +552,7 @@ export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
 
 export const claimDocuments = mysqlTable("claim_documents", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	uploadedBy: int("uploaded_by").notNull(),
 	fileName: varchar("file_name", { length: 255 }).notNull(),
 	fileKey: varchar("file_key", { length: 500 }).notNull(),
@@ -574,7 +574,7 @@ export const claimDocuments = mysqlTable("claim_documents", {
 
 export const claimEvents = mysqlTable("claim_events", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	eventType: varchar("event_type", { length: 100 }).notNull(),
 	eventPayload: json("event_payload"),
 	userId: int("user_id"),
@@ -590,7 +590,7 @@ export const claimEvents = mysqlTable("claim_events", {
 
 export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	schemaVersion: int("schema_version").default(1).notNull(),
 	vehicleMake: varchar("vehicle_make", { length: 100 }),
@@ -637,7 +637,7 @@ export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset",
 
 export const claimInvolvementTracking = mysqlTable("claim_involvement_tracking", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	userId: int("user_id").notNull(),
 	workflowStage: mysqlEnum("workflow_stage", ['assessment','technical_approval','financial_decision','payment_authorization']).notNull(),
 	actionType: mysqlEnum("action_type", ['transition_state','approve_technical','authorize_payment','close_claim','redirect_claim','add_assessment','complete_assessment','start_assessment','submit_quote','request_info','escalate']).notNull(),
@@ -673,7 +673,7 @@ export const claimReviewQueue = mysqlTable("claim_review_queue", {
 
 export const claimRoutingDecisions = mysqlTable("claim_routing_decisions", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	confidenceScoreId: int("confidence_score_id").notNull().references(() => claimConfidenceScores.id),
 	automationPolicyId: int("automation_policy_id").notNull().references(() => automationPolicies.id),
@@ -1018,7 +1018,7 @@ export const documentNamingTemplates = mysqlTable("document_naming_templates", {
 export const documentVersions = mysqlTable("document_versions", {
 	id: varchar({ length: 64 }).notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	documentName: varchar("document_name", { length: 500 }).notNull(),
 	documentUrl: text("document_url").notNull(),
 	docType: mysqlEnum("doc_type", ['claim','assessment','report','approval']).notNull(),
@@ -1163,7 +1163,7 @@ export const fastTrackConfig = mysqlTable("fast_track_config", {
 
 export const fastTrackRoutingLog = mysqlTable("fast_track_routing_log", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	configId: int("config_id"),
 	configVersion: int("config_version"),
@@ -1424,7 +1424,7 @@ export const fleets = mysqlTable("fleets", {
 
 export const fraudAlerts = mysqlTable("fraud_alerts", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	alertType: varchar("alert_type", { length: 100 }).notNull(),
 	alertSeverity: mysqlEnum("alert_severity", ['low','medium','high','critical']).notNull(),
 	alertTitle: varchar("alert_title", { length: 255 }).notNull(),
@@ -1447,7 +1447,7 @@ export const fraudAlerts = mysqlTable("fraud_alerts", {
 
 export const fraudIndicators = mysqlTable("fraud_indicators", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	overallFraudScore: int("overall_fraud_score").notNull(),
 	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','high','critical','elevated']).notNull(),
 	delayedSubmissionDays: int("delayed_submission_days"),
@@ -1555,7 +1555,7 @@ export const governanceNotifications = mysqlTable("governance_notifications", {
 	id: int().autoincrement().notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	type: mysqlEnum(['intake_escalation','auto_assignment','ai_rerun','executive_override','segregation_violation']).notNull(),
-	claimId: int("claim_id"),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
 	recipients: text().notNull(),
 	title: varchar({ length: 255 }).notNull(),
 	message: text().notNull(),
@@ -1976,7 +1976,7 @@ export const marketplaceTransactions = mysqlTable("marketplace_transactions", {
 	assignmentId: int("assignment_id").notNull(),
 	assessorId: int("assessor_id").notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	assessmentFee: decimal("assessment_fee", { precision: 10, scale: 2 }).notNull(),
 	kingaCommission: decimal("kinga_commission", { precision: 10, scale: 2 }).notNull(),
 	assessorPayout: decimal("assessor_payout", { precision: 10, scale: 2 }).notNull(),
@@ -2010,7 +2010,7 @@ export const modelTrainingAuditLog = mysqlTable("model_training_audit_log", {
 
 export const modelTrainingQueue = mysqlTable("model_training_queue", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	datasetRecordId: int("dataset_record_id").notNull(),
 	trainingPriority: varchar("training_priority", { length: 50 }).default('normal'),
 	processed: tinyint().default(0),
@@ -2092,7 +2092,7 @@ export const notifications = mysqlTable("notifications", {
 	title: varchar({ length: 255 }).notNull(),
 	message: text().notNull(),
 	type: mysqlEnum(['claim_assigned','quote_submitted','fraud_detected','status_changed','assessment_completed','approval_required','document_uploaded','system_alert']).notNull(),
-	claimId: int("claim_id"),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
 	entityType: varchar("entity_type", { length: 50 }),
 	entityId: int("entity_id"),
 	isRead: tinyint("is_read").default(0).notNull(),
@@ -2120,7 +2120,7 @@ export const organizations = mysqlTable("organizations", {
 
 export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	panelBeaterId: int("panel_beater_id").notNull(),
 	quotedAmount: int("quoted_amount").notNull(),
 	laborCost: int("labor_cost"),
@@ -2274,7 +2274,7 @@ export const platformGovernanceLimits = mysqlTable("platform_governance_limits",
 
 export const policeReports = mysqlTable("police_reports", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	reportNumber: varchar("report_number", { length: 100 }).notNull(),
 	policeStation: varchar("police_station", { length: 200 }),
 	officerName: varchar("officer_name", { length: 200 }),
@@ -2316,7 +2316,7 @@ export const policeReports = mysqlTable("police_reports", {
 export const policyClaimLinks = mysqlTable("policy_claim_links", {
 	id: int().autoincrement().notNull(),
 	policyId: int("policy_id").notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	coverageVerified: tinyint("coverage_verified").default(0),
 	verifiedBy: int("verified_by"),
 	verifiedAt: timestamp("verified_at", { mode: 'string' }),
@@ -2363,7 +2363,7 @@ export const policyEndorsements = mysqlTable("policy_endorsements", {
 
 export const preAccidentDamage = mysqlTable("pre_accident_damage", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	damageType: mysqlEnum("damage_type", ['rust','dent','scratch','paint_damage','mechanical','glass','interior','other']).notNull(),
 	location: varchar({ length: 200 }).notNull(),
 	severity: mysqlEnum(['minor','moderate','severe']).notNull(),
@@ -2585,7 +2585,7 @@ export const reportLinks = mysqlTable("report_links", {
 
 export const reportSnapshots = mysqlTable("report_snapshots", {
 	id: varchar({ length: 255 }).notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	version: int().notNull(),
 	reportType: mysqlEnum("report_type", ['insurer','assessor','regulatory']).notNull(),
 	intelligenceData: json("intelligence_data").notNull(),
@@ -2605,7 +2605,7 @@ export const reportSnapshots = mysqlTable("report_snapshots", {
 export const riskRegister = mysqlTable("risk_register", {
 	id: varchar({ length: 64 }).notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	riskType: mysqlEnum("risk_type", ['fraud','cost_overrun','compliance','operational']).notNull(),
 	likelihood: int().notNull(),
 	impact: int().notNull(),
@@ -2647,7 +2647,7 @@ export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
 
 export const routingHistory = mysqlTable("routing_history", {
 	id: varchar({ length: 64 }).notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	confidenceScore: decimal("confidence_score", { precision: 5, scale: 2 }).notNull(),
 	confidenceComponents: text("confidence_components"),
@@ -2958,7 +2958,7 @@ export const tenants = mysqlTable("tenants", {
 
 export const thirdPartyVehicles = mysqlTable("third_party_vehicles", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	make: varchar({ length: 100 }),
 	model: varchar({ length: 100 }),
 	year: int(),
@@ -3053,7 +3053,7 @@ export const trainingRecords = mysqlTable("training_records", {
 export const usageEvents = mysqlTable("usage_events", {
 	id: int().autoincrement().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-	claimId: int("claim_id"),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	eventType: mysqlEnum("event_type", ['CLAIM_PROCESSED','AI_EVALUATED','FAST_TRACK_TRIGGERED','AUTO_APPROVED','ASSESSOR_TOOL_USED','FLEET_VEHICLE_ACTIVE','AGENCY_POLICY_BOUND','AI_ASSESSMENT_TRIGGERED','DOCUMENT_INGESTED','EXECUTIVE_ANALYTICS_QUERY','GOVERNANCE_CHECK','FLEET_VEHICLE_MANAGED','MARKETPLACE_QUOTE_REQUEST']).notNull(),
 	quantity: int().default(1).notNull(),
 	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
@@ -3156,7 +3156,7 @@ export const varianceDatasets = mysqlTable("variance_datasets", {
 
 export const vehicleConditionAssessment = mysqlTable("vehicle_condition_assessment", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	assessorId: int("assessor_id").notNull(),
 	speedoReading: int("speedo_reading"),
 	speedoUnit: mysqlEnum("speedo_unit", ['km','miles']).default('km'),
@@ -3222,7 +3222,7 @@ export const vehicleHistory = mysqlTable("vehicle_history", {
 
 export const vehicleMarketValuations = mysqlTable("vehicle_market_valuations", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
 	vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
 	vehicleYear: int("vehicle_year").notNull(),
@@ -3274,7 +3274,7 @@ export const vehicleMileageLogs = mysqlTable("vehicle_mileage_logs", {
 
 export const workflowAuditTrail = mysqlTable("workflow_audit_trail", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	userId: int("user_id").notNull(),
 	userRole: mysqlEnum("user_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin']).notNull(),
 	previousState: mysqlEnum("previous_state", ['intake_queue','created','intake_verified','assigned','under_assessment','internal_review','technical_approval','financial_decision','payment_authorized','closed','disputed']),
@@ -3313,7 +3313,7 @@ export const workflowConfiguration = mysqlTable("workflow_configuration", {
 
 export const workflowStates = mysqlTable("workflow_states", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
 	currentState: varchar("current_state", { length: 100 }).notNull(),
 	previousState: varchar("previous_state", { length: 100 }),
@@ -3414,7 +3414,7 @@ export type InsertAgencyClient = typeof agencyClients.$inferInsert;
 
 export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
   id: int().autoincrement().notNull(),
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   status: mysqlEnum(['pending','sent','quoted','accepted','rejected','expired']).notNull().default('pending'),
@@ -3513,7 +3513,7 @@ export type InsertInsurerMarketplaceRelationship = typeof insurerMarketplaceRela
 
 export const quoteOptimisationResults = mysqlTable("quote_optimisation_results", {
   id: int().autoincrement().notNull(),
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   triggeredAt: timestamp("triggered_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
   triggeredBy: int("triggered_by"),
   status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
@@ -3817,7 +3817,7 @@ export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
   // Links to vehicle_registry.id — the persistent vehicle record.
   vehicleId: int("vehicle_id").notNull(),
   // Links to claims.id — the claim that generated this damage record.
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 
   // Damage classification -------------------------------------------------
   // Primary standardised damage zone for this incident.
@@ -3961,7 +3961,7 @@ export type InsertDriver = typeof drivers.$inferInsert;
 export const driverClaims = mysqlTable("driver_claims", {
   id: int().autoincrement().notNull(),
   driverId: int("driver_id").notNull(),
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   // Role of this driver in the claim.
   role: mysqlEnum("role", ['driver','claimant','passenger','third_party_driver','witness','unknown']).default('driver').notNull(),
   // Whether this driver was determined to be at fault.
@@ -3998,7 +3998,7 @@ export const repairHistory = mysqlTable("repair_history", {
   // vehicle_registry.id — the vehicle that was repaired. Null if no registry record.
   vehicleId: int("vehicle_id"),
   // claims.id — the claim this repair belongs to.
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   // Repair scope ---------------------------------------------------------
   // JSON array of repaired components: [{ name, zone, partType, laborHours, partCost, laborCost }]
   componentsRepairedJson: text("components_repaired_json"),
@@ -4082,7 +4082,7 @@ export const crossClaimSignals = mysqlTable("cross_claim_signals", {
   id: int().autoincrement().notNull(),
   // Foreign keys ----------------------------------------------------------
   // The claim this signal was detected on.
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   // Signal identity -------------------------------------------------------
   // Machine-readable signal type (snake_case enum).
   signalType: mysqlEnum("signal_type", [
@@ -4359,7 +4359,7 @@ export type InsertShadowOverrideMonitor = typeof shadowOverrideMonitor.$inferIns
 export const mismatchAnnotations = mysqlTable("mismatch_annotations", {
   id: int().autoincrement().notNull().primaryKey(),
   // Claim and assessment context
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   assessmentId: int("assessment_id").notNull(),
   // Mismatch identification
   mismatchType: varchar("mismatch_type", { length: 64 }).notNull(),
@@ -4389,7 +4389,7 @@ export type InsertMismatchAnnotation = typeof mismatchAnnotations.$inferInsert;
 export const narrativeVersions = mysqlTable("narrative_versions", {
   id: int().autoincrement().notNull().primaryKey(),
   // Context
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   assessmentId: int("assessment_id").notNull(),
   mismatchIndex: int("mismatch_index").notNull(),  // position in mismatches[]
   mismatchType: varchar("mismatch_type", { length: 64 }).notNull(),
@@ -4453,7 +4453,7 @@ export type InsertWeightAdjustmentLog = typeof weightAdjustmentLog.$inferInsert;
 //
 export const benchmarkDeviations = mysqlTable("benchmark_deviations", {
   id: int().autoincrement().notNull(),
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }),
   // Classification keys used to select the benchmark
   vehicleClass: mysqlEnum("vehicle_class", ["light", "medium", "heavy"]).notNull(),
@@ -4507,7 +4507,7 @@ export type InsertBenchmarkDeviation = typeof benchmarkDeviations.$inferInsert;
 //
 export const costLearningRecords = mysqlTable("cost_learning_records", {
   id: int().autoincrement().notNull(),
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   tenantId: varchar("tenant_id", { length: 255 }),
   // Vehicle descriptor: "make model body_type" (lowercase, normalised)
   vehicleDescriptor: varchar("vehicle_descriptor", { length: 255 }).notNull(),
@@ -4619,7 +4619,7 @@ export type InsertWorkflowTemplate = typeof workflowTemplates.$inferInsert;
 // multi-layer workflow. Immutable once written — no updates, only inserts.
 export const claimApprovals = mysqlTable("claim_approvals", {
   id: int().autoincrement().notNull().primaryKey(),
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }).notNull(),
   workflowTemplateId: int("workflow_template_id"),
   stageOrder: int("stage_order").notNull(),
@@ -4649,7 +4649,7 @@ export type InsertClaimApproval = typeof claimApprovals.$inferInsert;
 // One row per claim per adjuster — upsert on re-sign.
 export const adjusterSignOffs = mysqlTable("adjuster_sign_offs", {
   id: int().autoincrement().notNull().primaryKey(),
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   adjusterUserId: int("adjuster_user_id"),
   adjusterName: varchar("adjuster_name", { length: 255 }).notNull(),
   decision: mysqlEnum("decision", ["APPROVE", "REJECT", "ESCALATE", "DEFER"]).notNull(),
@@ -4670,7 +4670,7 @@ export type InsertAdjusterSignOff = typeof adjusterSignOffs.$inferInsert;
 export const photoReextractionJobs = mysqlTable("photo_reextraction_jobs", {
   id: int().autoincrement().notNull().primaryKey(),
   assessmentId: int("assessment_id").notNull(),
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   pdfUrl: text("pdf_url").notNull(),
   status: mysqlEnum("status", ["pending", "running", "completed", "failed"]).default("pending").notNull(),
   requestedDpi: int("requested_dpi").default(300).notNull(),
@@ -4699,7 +4699,7 @@ export type InsertPhotoReextractionJob = typeof photoReextractionJobs.$inferInse
 // repairProbability scores for future claims.
 export const componentRepairOutcomes = mysqlTable("component_repair_outcomes", {
   id: int().autoincrement().notNull().primaryKey(),
-  claimId: int("claim_id").notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
   assessmentId: int("assessment_id").notNull(),
   componentName: varchar("component_name", { length: 120 }).notNull(),
   componentCategory: varchar("component_category", { length: 60 }),
@@ -4731,7 +4731,7 @@ export type InsertComponentRepairOutcome = typeof componentRepairOutcomes.$infer
 export const generatedReports = mysqlTable("generated_reports", {
   id: int().autoincrement().notNull().primaryKey(),
   tenantId: int("tenant_id").notNull(),
-  claimId: int("claim_id"),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   reportType: mysqlEnum("report_type", [
     "claims_assessment",
     "portfolio_summary",
