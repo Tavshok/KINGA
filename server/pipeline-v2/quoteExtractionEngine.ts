@@ -29,6 +29,7 @@
  */
 
 import { invokeLLM } from "../_core/llm";
+import { resolveComponent } from "../../shared/vehicleParts";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -295,7 +296,17 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
 
   // Normalise components
   const components: string[] = Array.isArray(raw.components)
-    ? (raw.components as string[]).map(c => normaliseComponentName(String(c)))
+    ? (raw.components as string[])
+        .map(c => {
+          const normalised = normaliseComponentName(String(c));
+          const resolved = resolveComponent(normalised);
+          if (!resolved) {
+            console.warn(`⚠️  Hallucination guard (quote components): rejected "${normalised}" (raw: "${c}")`);
+            return null;
+          }
+          return resolved.name;
+        })
+        .filter((c): c is string => c !== null)
     : [];
 
   // Extract and validate line_items
@@ -307,8 +318,14 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
       const qty = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
       const lineTotal = typeof item.line_total === 'number' ? item.line_total
         : (unitCost !== null ? unitCost * qty : null);
+      const _normalisedComponent = normaliseComponentName(String(item.component));
+      const _resolvedComponent = resolveComponent(_normalisedComponent);
+      if (!_resolvedComponent) {
+        console.warn(`⚠️  Hallucination guard (quote line_items): rejected "${_normalisedComponent}" (raw: "${item.component}")`);
+        continue; // Skip hallucinated line items
+      }
       line_items.push({
-        component: normaliseComponentName(String(item.component)),
+        component: _resolvedComponent.name,
         unit_cost: unitCost,
         quantity: qty,
         line_total: lineTotal,
