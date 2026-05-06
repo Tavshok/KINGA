@@ -11,13 +11,14 @@
  *   - Never estimate cost
  *   - Return null for any field that cannot be extracted with confidence
  *   - Component names must be normalised to simple English (e.g. "rear bumper")
- *   - Currency defaults to ZAR (South African Rand) if not stated
+ *   - Currency is detected from the quote text first; falls back to the tenant's country default
+ *     (e.g. ZW → USD, ZA → ZAR). Never hardcoded.
  *
  * OUTPUT SCHEMA:
  *   {
  *     panel_beater:    string | null,
  *     total_cost:      number | null,
- *     currency:        "USD" | "ZWL" | "ZAR" | "GBP" | string,
+ *     currency:        "USD" | "ZWL" | "ZAR" | "GBP" | string | null,  // null = not found in document
  *     components:      string[],
  *     labour_defined:  boolean,
  *     parts_defined:   boolean,
@@ -30,6 +31,7 @@
 
 import { invokeLLM } from "../_core/llm";
 import { resolveComponent } from "../../shared/vehicleParts";
+import { getDefaultCurrencyForCountry } from "../../shared/countryCurrency";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -50,7 +52,8 @@ export interface QuoteLineItem {
 export interface ExtractedQuote {
   panel_beater: string | null;
   total_cost: number | null;
-  currency: string;
+  /** Currency code detected from the document. null when not found — caller applies tenant-country default. */
+  currency: string | null;
   components: string[];
   /** Itemised line items with per-component pricing. Empty array if quote is not itemised. */
   line_items: QuoteLineItem[];
@@ -73,7 +76,8 @@ Your task is to convert unstructured repair quote text into a standard JSON obje
 RULES — follow these exactly:
 1. Extract the panel beater / repairer name if present.
 2. Extract the total repair cost as a plain number (no currency symbols, no commas).
-3. Identify the currency. If not stated, use "ZAR" (South African Rand).
+3. Identify the currency from the document text (look for currency symbols like $, R, K, P, ZiG, USD, ZAR, ZMW, BWP).
+   If no currency is stated in the document, return null for the currency field — do NOT guess or default.
 4. List every quoted component in both 'components' (names only) AND 'line_items' (with pricing).
    Normalise names to simple English:
    - "R/H tail lamp assembly" → "RHS tail lamp"
@@ -130,7 +134,9 @@ OUTPUT — return ONLY valid JSON matching this schema exactly:
  */
 export async function extractQuoteFromText(
   rawText: string,
-  contextHint?: string
+  contextHint?: string,
+  /** ISO 3166-1 alpha-2 tenant country code — used to derive default currency when not found in document */
+  tenantCountry?: string | null
 ): Promise<ExtractedQuote> {
   if (!rawText || rawText.trim().length < 10) {
     return buildFallback("Input text is empty or too short to extract a quote.");
@@ -218,7 +224,12 @@ export async function extractQuoteFromText(
     }
 
     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    return validateAndNormalise(parsed);
+    const result = validateAndNormalise(parsed);
+    // Apply tenant-country default currency if the document did not state one
+    if (!result.currency && tenantCountry) {
+      result.currency = getDefaultCurrencyForCountry(tenantCountry);
+    }
+    return result;
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -238,21 +249,23 @@ export async function extractQuoteFromText(
  */
 export async function extractMultipleQuotes(
   rawText: string,
-  contextHint?: string
+  contextHint?: string,
+  /** ISO 3166-1 alpha-2 tenant country code — used to derive default currency when not found in document */
+  tenantCountry?: string | null
 ): Promise<ExtractedQuote[]> {
   // Split on common quote-separator patterns
   const blocks = splitQuoteBlocks(rawText);
 
   if (blocks.length <= 1) {
     // Single block — run standard extraction
-    const single = await extractQuoteFromText(rawText, contextHint);
+    const single = await extractQuoteFromText(rawText, contextHint, tenantCountry);
     return [single];
   }
 
   // Extract each block in sequence (not parallel — LLM rate limits)
   const results: ExtractedQuote[] = [];
   for (const block of blocks) {
-    const result = await extractQuoteFromText(block, contextHint);
+    const result = await extractQuoteFromText(block, contextHint, tenantCountry);
     results.push(result);
   }
   return results;
@@ -387,7 +400,9 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
   return {
     panel_beater: typeof raw.panel_beater === "string" ? raw.panel_beater : null,
     total_cost: totalCost,
-    currency: typeof raw.currency === "string" && raw.currency.length > 0 ? raw.currency : "ZAR",
+    // Currency: use what the LLM extracted from the document. If null, the caller
+    // (extractQuoteFromText) will apply the tenant-country default.
+    currency: typeof raw.currency === "string" && raw.currency.length > 0 ? raw.currency.toUpperCase() : null,
     components,
     line_items,
     labour_defined: raw.labour_defined === true,
@@ -449,7 +464,7 @@ function buildFallback(warning: string): ExtractedQuote {
   return {
     panel_beater: null,
     total_cost: null,
-    currency: "ZAR",
+    currency: null,  // Caller applies tenant-country default
     components: [],
     line_items: [],
     labour_defined: false,

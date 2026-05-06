@@ -373,7 +373,9 @@ export async function runAssemblyStage(
         missingFields: stage4.missingFields,
         validationIssues: stage4.issues,
       },
-      marketRegion: (ctx.claim as any).country || "ZW",
+      // marketRegion: use tenant country (ISO 3166-1 alpha-2) as the market region.
+      // ctx.claim.country does not exist as a DB column — use ctx.tenantCountry instead.
+      marketRegion: ctx.tenantCountry ?? "ZW",
       assumptions,
     };
 
@@ -572,7 +574,7 @@ export async function runAssemblyStage(
         bettermentUsd: null,
       },
       dataQuality: { completenessScore: 0, missingFields: ["all"], validationIssues: [] },
-      marketRegion: "ZW",
+      marketRegion: ctx.tenantCountry ?? "ZW",
       _fallback: markFallback({}, `engine_failure: ${String(err)}`),
       assumptions: [{
         field: "claimRecord",

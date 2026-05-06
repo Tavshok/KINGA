@@ -303,6 +303,7 @@ export const tenantRouter = router({
           displayName: tenants.displayName,
           currencyCode: tenants.currencyCode,
           currencySymbol: tenants.currencySymbol,
+          country: tenants.country,
         })
         .from(tenants)
         .where(eq(tenants.id, tenantId))
@@ -319,6 +320,8 @@ export const tenantRouter = router({
       tenantId: z.string(),
       currencyCode: z.string().min(1).max(10),
       currencySymbol: z.string().min(1).max(10),
+      /** ISO 3166-1 alpha-2 country code — drives default currency for the pipeline */
+      country: z.string().length(2).toUpperCase().nullable().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       if (ctx.user.role !== 'admin') {
@@ -329,7 +332,7 @@ export const tenantRouter = router({
 
       await db
         .update(tenants)
-        .set({ currencyCode: input.currencyCode, currencySymbol: input.currencySymbol })
+        .set({ currencyCode: input.currencyCode, currencySymbol: input.currencySymbol, ...(input.country !== undefined ? { country: input.country } : {}) })
         .where(eq(tenants.id, input.tenantId));
 
       return { success: true };

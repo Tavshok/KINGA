@@ -19,6 +19,8 @@ export interface TenantCurrencyResult {
   currencySymbol: string;
   /** The ISO currency code (e.g. "ZAR", "USD", "ZIG") */
   currencyCode: string;
+  /** ISO 3166-1 alpha-2 country code for the tenant (e.g. "ZW", "ZA", "ZM"). Null if not set. */
+  country: string | null;
 }
 
 export function useTenantCurrency(): TenantCurrencyResult {
@@ -27,6 +29,7 @@ export function useTenantCurrency(): TenantCurrencyResult {
   });
 
   const currencyCode = tenant?.currencyCode ?? "USD";
+  const country = (tenant as any)?.country ?? null;
   // Resolve the display symbol from the code (USD → "US$", ZAR → "R", ZIG → "ZIG")
   const currencySymbol = getCurrencySymbolForCode(currencyCode);
 
@@ -37,5 +40,5 @@ export function useTenantCurrency(): TenantCurrencyResult {
     [currencySymbol]
   );
 
-  return { fmt, currencySymbol, currencyCode };
+  return { fmt, currencySymbol, currencyCode, country };
 }

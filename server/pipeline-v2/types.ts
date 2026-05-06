@@ -1350,6 +1350,13 @@ export interface PipelineContext {
   evidenceRegistry?: import("./evidenceRegistryEngine").EvidenceRegistry | null;
   /** Per-tenant cost rate overrides — loaded from tenants.configJson at pipeline start */
   tenantRates?: TenantRates | null;
+  /**
+   * ISO 3166-1 alpha-2 country code for the tenant's primary operating country.
+   * Loaded from tenants.country at pipeline start. Drives default currency when no
+   * currency is detected from quote text and no tenant-level override is set.
+   * Examples: 'ZW' (Zimbabwe → USD), 'ZA' (South Africa → ZAR), 'ZM' (Zambia → ZMW).
+   */
+  tenantCountry?: string | null;
   /** Full ExtractedImage metadata from PDF extraction — used by the image classifier */
   extractedImagesWithMetadata?: any[];
   /** Photo ingestion log from pre-pipeline PDF extraction */

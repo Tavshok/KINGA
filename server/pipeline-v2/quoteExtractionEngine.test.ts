@@ -69,7 +69,8 @@ describe("extractQuoteFromText", () => {
 
     expect(result.panel_beater).toBeNull();
     expect(result.total_cost).toBeNull();
-    expect(result.currency).toBe("USD");
+    // No tenantCountry provided and no currency in text → null is correct
+    expect(result.currency).toBeNull();
     expect(result.components).toHaveLength(0);
     expect(result.confidence).toBe("low");
     expect(result.extraction_warnings[0]).toContain("empty or too short");
@@ -125,7 +126,8 @@ describe("extractQuoteFromText", () => {
       })
     );
 
-    const result = await extractQuoteFromText("Repair cost: 800 for door panel");
+    // Pass tenantCountry 'ZW' so the country-based default (USD) is applied
+    const result = await extractQuoteFromText("Repair cost: 800 for door panel", undefined, "ZW");
 
     expect(result.currency).toBe("USD");
   });

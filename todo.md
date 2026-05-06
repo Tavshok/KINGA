@@ -11395,3 +11395,14 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Integrate banner into Reports Centre GenerateDialog (shows when user enters a claim ID)
 - [x] All 37 reporting access tests pass
 - [x] Checkpoint saved: Report Readiness system complete
+
+## Country-Aware Currency Resolution
+- [x] Add `country` column (ISO 3166-1 alpha-2) to `tenants` schema and push migration
+- [x] Build shared `COUNTRY_CURRENCY_MAP` constant (ZW→USD, ZA→ZAR, ZM→ZMW, BW→BWP, etc.)
+- [x] Update `getTenantRates` to load `country` from `tenants` table
+- [x] Add `tenantCountry` to `PipelineContext` interface
+- [x] Fix Stage 5 `marketRegion` to use `tenantCountry` (not non-existent `claims.country`)
+- [x] Fix currency resolution priority in Stage 3 quoteExtractionEngine (remove ZAR hardcode)
+- [x] Fix currency resolution priority in Stage 9 to use `COUNTRY_CURRENCY_MAP` fallback
+- [x] Add country selector to onboarding wizard (save to `tenants.country`)
+- [x] Add country/currency display to tenant settings page in AdminDashboard

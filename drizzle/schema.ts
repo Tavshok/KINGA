@@ -2963,6 +2963,8 @@ export const tenants = mysqlTable("tenants", {
 	aiRerunLimitPerHour: int("ai_rerun_limit_per_hour").default(10).notNull(),
 	currencyCode: varchar("currency_code", { length: 10 }).default('USD'),
 	currencySymbol: varchar("currency_symbol", { length: 10 }).default('$'),
+	/** ISO 3166-1 alpha-2 country code for the tenant's primary operating country (e.g. 'ZW', 'ZA', 'ZM', 'BW'). Drives default currency and market region. */
+	country: varchar("country", { length: 2 }),
 },
 (table) => [
 	index("idx_tenants_name").on(table.name),

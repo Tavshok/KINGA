@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/hooks/useAuth";
+import { SUPPORTED_COUNTRIES } from "../../../shared/countryCurrency";
 // Toast functionality - using simple alerts for now
 import { CheckCircle2, Building2, User, Settings, ArrowRight, ArrowLeft } from "lucide-react";
 
@@ -32,7 +34,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
-  const [country, setCountry] = useState("Zimbabwe");
+  const [country, setCountry] = useState("ZW");
 
   // Role-specific state
   const [assessorLicenseNumber, setAssessorLicenseNumber] = useState("");
@@ -66,7 +68,20 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
     }
   };
 
+  const { user } = useAuth();
+  const updateCurrency = trpc.tenant.updateCurrency.useMutation();
+
   const completeOnboarding = () => {
+    // Persist country and default currency to the tenant record
+    if (user?.tenantId && country) {
+      const c = SUPPORTED_COUNTRIES.find(x => x.code === country);
+      updateCurrency.mutate({
+        tenantId: user.tenantId,
+        country,
+        currencyCode: c?.currencyCode ?? "USD",
+        currencySymbol: c?.currencySymbol ?? "$",
+      });
+    }
     // Show success message
     alert("Welcome to KINGA! Your account has been set up successfully.");
     onComplete();
@@ -175,10 +190,9 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Zimbabwe">Zimbabwe</SelectItem>
-                        <SelectItem value="Zambia">Zambia</SelectItem>
-                        <SelectItem value="Botswana">Botswana</SelectItem>
-                        <SelectItem value="South Africa">South Africa</SelectItem>
+                        {SUPPORTED_COUNTRIES.map(c => (
+                          <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

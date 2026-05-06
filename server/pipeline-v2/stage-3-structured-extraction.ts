@@ -726,7 +726,9 @@ async function runInputRecovery(
   try {
     const { extractMultipleQuotes } = await import('./quoteExtractionEngine');
     if (allText.trim().length > 50) {
-      extracted_quotes = await extractMultipleQuotes(allText, 'insurance claim document');
+      // Pass tenantCountry so the engine can apply the correct default currency
+      // when the document does not explicitly state a currency code.
+      extracted_quotes = await extractMultipleQuotes(allText, 'insurance claim document', ctx.tenantCountry);
       // If LLM found a quote but regex did not, remove the quote_not_mapped flag
       const llmFoundQuote = extracted_quotes.some(q => q.total_cost !== null && q.confidence !== 'low');
       if (!hasQuote && !recovered_quote && llmFoundQuote) {

@@ -766,6 +766,9 @@ export async function triggerAiAssessment(claimId: number) {
     db,
     log: (stage: string, msg: string) => console.log(`[${stage}] Claim ${claimId}: ${msg}`),
     tenantRates,
+    // ISO 3166-1 alpha-2 country code for the tenant's primary operating country
+    // Priority: tenants.country column → null (no hardcoded fallback — currency resolution handles the default)
+    tenantCountry: tenantRates?.country ?? null,
     // Photo ingestion log from pre-pipeline PDF extraction (if applicable)
     photoIngestionLog: _dbPhotoIngestionLog,
     // Full ExtractedImage metadata for the image classifier (confidence scoring, quality-based selection)
@@ -3037,6 +3040,8 @@ export async function getTenantRates(tenantId: number | string | null): Promise<
   paintCostPerPanelUsd?: number;
   currencyCode?: string;
   currencySymbol?: string;
+  /** ISO 3166-1 alpha-2 country code for the tenant's primary operating country */
+  country?: string;
 } | null> {
   if (!tenantId) return null;
   try {
@@ -3048,6 +3053,7 @@ export async function getTenantRates(tenantId: number | string | null): Promise<
         configJson: schema.tenants.configJson,
         currencyCode: schema.tenants.currencyCode,
         currencySymbol: schema.tenants.currencySymbol,
+        country: schema.tenants.country,
       })
       .from(schema.tenants)
       .where(eq(schema.tenants.id, tenantIdStr))
@@ -3060,6 +3066,7 @@ export async function getTenantRates(tenantId: number | string | null): Promise<
       paintCostPerPanelUsd?: number;
       currencyCode?: string;
       currencySymbol?: string;
+      country?: string;
     } = {};
     if (typeof config.labourRateUsdPerHour === "number" && config.labourRateUsdPerHour > 0) {
       result.labourRateUsdPerHour = config.labourRateUsdPerHour;
@@ -3074,6 +3081,8 @@ export async function getTenantRates(tenantId: number | string | null): Promise<
       ?? row.currencySymbol ?? undefined;
     if (currencyCode) result.currencyCode = currencyCode;
     if (currencySymbol) result.currencySymbol = currencySymbol;
+    // Country from DB column (set during onboarding or admin settings)
+    if (row.country) result.country = row.country;
     return Object.keys(result).length > 0 ? result : null;
   } catch (err) {
     console.warn("[TenantRates] Failed to fetch tenant rates:", err);

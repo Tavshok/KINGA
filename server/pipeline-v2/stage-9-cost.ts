@@ -21,6 +21,7 @@ import { reconcileDamageComponents } from "./damageReconciliationEngine";
 import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
 import { generateCostIntelligenceNarrative } from "./costIntelligenceNarrative";
 import { scoreCostReliability } from "./costReliabilityScorer";
+import { getDefaultCurrencyForCountry, COUNTRY_CURRENCY_MAP } from '../../shared/countryCurrency';
 import type {
   PipelineContext,
   StageResult,
@@ -125,14 +126,21 @@ export async function runCostOptimisationStage(
     const extractedRepairCountry = stage3?.perDocumentExtractions?.[0]?.repairCountry ?? null;
     const extractedQuoteCurrency = stage3?.perDocumentExtractions?.[0]?.quoteCurrency ?? null;
     const isCrossBorderRepair = extractedRepairCountry !== null && extractedRepairCountry !== region;
-    // Policy currency: tenant override > cross-border detection > regional default
+    // Policy currency resolution priority:
+    // 1. Tenant-level override (tenants.currencyCode)
+    // 2. Cross-border repair: use the repair country's default currency
+    // 3. Tenant country default (via COUNTRY_CURRENCY_MAP)
+    // 4. Absolute fallback: USD
+    const tenantDefaultCurrency = ctx.tenantCountry ? getDefaultCurrencyForCountry(ctx.tenantCountry) : 'USD';
     const currency = ctx.tenantRates?.currencyCode ??
-      (isCrossBorderRepair && extractedRepairCountry === 'ZA' ? 'ZAR' :
-       region === 'ZA' ? 'ZAR' :
-       region === 'ZW' ? 'USD' : 'USD');
-    // Quote currency: extracted > inferred from repairCountry > same as policy currency
+      (isCrossBorderRepair && extractedRepairCountry
+        ? getDefaultCurrencyForCountry(extractedRepairCountry)
+        : tenantDefaultCurrency);
+    // Quote currency: extracted > inferred from repairCountry (via COUNTRY_CURRENCY_MAP) > same as policy currency
     const quoteCurrencyCode = extractedQuoteCurrency ??
-      (isCrossBorderRepair && extractedRepairCountry === 'ZA' ? 'ZAR' : currency);
+      (isCrossBorderRepair && extractedRepairCountry
+        ? getDefaultCurrencyForCountry(extractedRepairCountry)
+        : currency);
     if (isCrossBorderRepair) {
       ctx.log('Stage 9', `Cross-border repair detected: policy region=${region}, repair in ${extractedRepairCountry}, quoteCurrency=${quoteCurrencyCode}, policyCurrency=${currency}`);
     }
@@ -609,7 +617,9 @@ export async function runCostOptimisationStage(
       economicContext = await deriveEconomicContext({
         tenantId: claimRecord.tenantId ? String(claimRecord.tenantId) : null,
         primaryCurrency: ctx.tenantRates?.currencyCode ?? currency,
-        primaryCurrencySymbol: ctx.tenantRates?.currencySymbol ?? (currency === 'ZAR' ? 'R' : currency === 'ZMW' ? 'K' : '$'),
+        // Symbol lookup: tenant override > COUNTRY_CURRENCY_MAP by currency code
+        primaryCurrencySymbol: ctx.tenantRates?.currencySymbol ??
+          (Object.values(COUNTRY_CURRENCY_MAP).find(c => c.code === currency)?.symbol ?? '$'),
         labourRateUsdPerHour: labourRate,
         marketRegion: region,
       });
