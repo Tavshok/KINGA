@@ -360,11 +360,21 @@ export type InputRecoveryFailureFlag =
   | "description_not_mapped"
   | "images_not_processed";
 
+export interface ExtractedQuoteLineItem {
+  component: string;
+  unit_cost: number | null;
+  quantity: number;
+  line_total: number | null;
+  action: string | null;
+}
+
 export interface ExtractedQuoteRecord {
   panel_beater: string | null;
   total_cost: number | null;
   currency: string;
   components: string[];
+  /** Itemised line items with per-component pricing. Empty array if quote is not itemised. */
+  line_items: ExtractedQuoteLineItem[];
   labour_defined: boolean;
   parts_defined: boolean;
   /** Actual labour cost extracted from the quote document (USD). Null if not itemised. */
@@ -381,7 +391,7 @@ export interface InputRecoveryOutput {
   /** STEP 2 — Quote figures recovered from raw text (regex fallback) */
   recovered_quote: RecoveredQuote | null;
   /** STEP 2b — Structured quotes extracted by LLM quote engine (one per quote block) */
-  extracted_quotes?: ExtractedQuoteRecord[];
+  extracted_quotes?: import("./quoteExtractionEngine").ExtractedQuote[];
   /** STEP 3 — Whether images are present in the document set */
   images_present: boolean;
   /** STEP 4 — Damage keywords extracted from text */
@@ -972,6 +982,11 @@ export interface Stage8Output {
       } | null;
     }>;
   } | null;
+  /**
+   * Quote similarity & copy-quotation detection result.
+   * Null when fewer than 2 quotes were submitted or the engine was skipped.
+   */
+  quoteSimilarity?: import("./quoteSimilarityEngine").QuoteSimilarityResult | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

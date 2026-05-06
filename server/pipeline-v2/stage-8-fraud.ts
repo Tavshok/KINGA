@@ -8,6 +8,7 @@
  */
 
 import { ensureFraudContract } from "./engineFallback";
+import { analyseQuoteSimilarity, type QuoteSimilarityResult } from "./quoteSimilarityEngine";
 import { validateCrossEngineConsistency } from "./crossEngineConsistencyValidator";
 import { runPhotoForensics } from "./photoForensicsEngine";
 import {
@@ -593,6 +594,40 @@ export async function runFraudAnalysisStage(
       }
     }
 
+    // 3d. Quote Similarity & Copy-Quotation Detection
+    let quoteSimilarityResult: QuoteSimilarityResult | null = null;
+    try {
+      // extracted_quotes is ExtractedQuote[] (canonical type from quoteExtractionEngine)
+      const extractedQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+      if (extractedQuotes.length >= 2) {
+        const damageComponents = damageAnalysis.damagedParts.map((p: any) => p.name ?? p.part ?? String(p));
+        quoteSimilarityResult = analyseQuoteSimilarity(extractedQuotes, damageComponents);
+        if (quoteSimilarityResult.should_flag) {
+          allIndicators.push({
+            indicator: "quote_similarity_detected",
+            category: "financial",
+            score: quoteSimilarityResult.fraud_score_contribution,
+            description: quoteSimilarityResult.summary,
+          });
+        }
+        ctx.log(
+          "Stage 8 (quote-similarity)",
+          `${extractedQuotes.length} quotes analysed. Verdict: ${quoteSimilarityResult.overall_verdict} ` +
+          `(risk: ${quoteSimilarityResult.overall_risk_score}/100). ` +
+          `Unquoted damage components: ${quoteSimilarityResult.unquoted_damage_components.length}. ` +
+          `Extra quoted: ${quoteSimilarityResult.extra_quoted_components.length}.`
+        );
+      }
+    } catch (simErr) {
+      isDegraded = true;
+      recoveryActions.push({
+        target: "quoteSimilarityEngine",
+        strategy: "default_value",
+        success: true,
+        description: `Quote similarity analysis failed: ${String(simErr)}. Skipping.`,
+      });
+    }
+
     // 4. Missing data penalty
     if (claimRecord.dataQuality.completenessScore < 30) {
       isDegraded = true;
@@ -710,6 +745,7 @@ export async function runFraudAnalysisStage(
       scenarioFraudResult,
       crossEngineConsistency,
       photoForensics: photoForensicsResult,
+      quoteSimilarity: quoteSimilarityResult,
     }, isDegraded ? "degraded_analysis" : "success");
 
     ctx.log("Stage 8", `Fraud analysis complete. Risk: ${fraudRiskLevel} (${fraudRiskScore}/100), Indicators: ${allIndicators.length}, Consistency: ${consistency.score}/100`);
