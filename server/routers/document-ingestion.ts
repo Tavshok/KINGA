@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
-import { getDb, triggerAiAssessment } from "../db";
+import { getDb, triggerAiAssessment, generateKingaRef } from "../db";
 import { TRPCError } from "@trpc/server";
 import { ingestionBatches, ingestionDocuments, extractedDocumentData, claims } from "../../drizzle/schema";
 import { storagePut } from "../storage";
@@ -130,7 +130,7 @@ export const documentIngestionRouter = router({
               // If any step throws, the driver issues ROLLBACK automatically.
               // ---------------------------------------------------------------
               type TxResult =
-                | { kind: "created"; docDbId: number; claimDbId: number; claimNumber: string; isReupload: boolean; originalClaimId?: number };
+                | { kind: "created"; docDbId: number; claimDbId: number; claimNumber: string; kingaRef: string | null; isReupload: boolean; originalClaimId?: number };
 
               const txResult: TxResult = await dbInstance.transaction(async (tx) => {
                 // Step 1 — Check for previous uploads of the same document (by SHA-256 hash).
@@ -187,10 +187,13 @@ export const documentIngestionRouter = router({
                 //   If this insert fails (e.g. UNIQUE constraint on source_document_id),
                 //   the driver rolls back the ingestionDocuments insert above automatically.
                 const claimNumber = input.claimNumber || generateClaimNumber();
+                // Generate immutable KINGA audit reference number (outside tx — atomic DB update)
+                const kingaRef = await generateKingaRef(tenantId);
 
                 const [claimInsertResult] = await tx.insert(claims).values({
                   claimantId: 0,           // Placeholder: no claimant identified yet
                   claimNumber,
+                  kingaRef,
                   policyNumber: input.policyNumber || undefined,
                   tenantId,
                   status: "intake_pending",  // Matches Claims Processor Dashboard filter
@@ -229,6 +232,7 @@ export const documentIngestionRouter = router({
                   docDbId,
                   claimDbId,
                   claimNumber,
+                  kingaRef,
                   isReupload,
                   originalClaimId,
                 };
@@ -255,6 +259,7 @@ export const documentIngestionRouter = router({
                 document_db_id: txResult.docDbId,
                 claim_id: txResult.claimDbId,
                 claim_number: txResult.claimNumber,
+                kinga_ref: txResult.kingaRef ?? null,
                 filename: doc.filename,
                 status: "uploaded",
                 is_reupload: txResult.isReupload,
@@ -295,6 +300,9 @@ export const documentIngestionRouter = router({
           `${reuploadCount > 0 ? ` (${reuploadCount} re-upload(s))` : ''}, Failed: ${failedCount}`
         );
 
+        const kingaRefs = uploadedDocs
+          .filter((d) => d.status === "uploaded" && (d as any).kinga_ref)
+          .map((d) => (d as any).kinga_ref as string);
         return {
           batch_id: batchUuid,
           batch_db_id: batchDbId,
@@ -303,6 +311,7 @@ export const documentIngestionRouter = router({
           reuploads: reuploadCount,
           duplicates_skipped: 0,
           failed: failedCount,
+          kinga_refs: kingaRefs,
           documents: uploadedDocs,
         };
       } catch (error) {

@@ -106,9 +106,13 @@ export default function UploadDocuments() {
       );
 
       const reuploads = (result as any).reuploads ?? 0;
+      const kingaRefs: string[] = (result as any).kinga_refs ?? [];
+      const kingaRefLine = kingaRefs.length > 0
+        ? ` KINGA Ref: ${kingaRefs.map((r: string) => `${r}-CL / ${r}-FR`).join(', ')}.`
+        : '';
       const toastDescription = reuploads > 0
-        ? `Uploaded ${result.uploaded} document(s). ${reuploads} re-upload(s) detected \u2014 new claim(s) created with re-upload tag.`
-        : `Uploaded ${result.uploaded} document(s). ${result.uploaded} new claim(s) created.`;
+        ? `Uploaded ${result.uploaded} document(s). ${reuploads} re-upload(s) detected — new claim(s) created with re-upload tag.${kingaRefLine}`
+        : `Uploaded ${result.uploaded} document(s). ${result.uploaded} new claim(s) created.${kingaRefLine}`;
 
       if (reuploads > 0) {
         toast.success("Upload successful (re-upload detected)", {

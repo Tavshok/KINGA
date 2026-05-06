@@ -4792,7 +4792,7 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           const db = await getDb();
           if (db) {
             // Get the claimantId from the claims table for this claim
-            const [claimRow] = await db.select({ claimantId: claimsTable.claimantId })
+            const [claimRow] = await db.select({ claimantId: claimsTable.claimantId, kingaRef: claimsTable.kingaRef })
               .from(claimsTable)
               .where(eq(claimsTable.id, input.claimId))
               .limit(1);
@@ -5095,12 +5095,26 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
         const photosDetectedCount = Number((assessment as any).imageAnalysisTotalCount ?? 0);
         const photosProcessedCount = Number((assessment as any).imageAnalysisSuccessCount ?? 0);
         console.log('[DEBUG byClaim] photosDetectedCount:', photosDetectedCount, 'photosProcessedCount:', photosProcessedCount, 'imageAnalysisTotalCount raw:', (assessment as any).imageAnalysisTotalCount, 'imageAnalysisSuccessCount raw:', (assessment as any).imageAnalysisSuccessCount);
+        // Resolve kingaRef from the claimRow fetched earlier in the hasPreviousClaims block
+        // claimRow is scoped inside the try block above, so we re-fetch it here safely
+        let _kingaRef: string | null = null;
+        try {
+          const { getDb: _gdb2 } = await import('./db');
+          const { claims: _ct2 } = await import('../drizzle/schema');
+          const { eq: _eq2 } = await import('drizzle-orm');
+          const _db2 = await _gdb2();
+          if (_db2) {
+            const [_kr] = await _db2.select({ kingaRef: _ct2.kingaRef }).from(_ct2).where(_eq2(_ct2.id, input.claimId)).limit(1);
+            _kingaRef = _kr?.kingaRef ?? null;
+          }
+        } catch { /* non-fatal */ }
         const rawResponse = {
           ...result,
           costExtraction,
           weightedFraud,
           _phase2: phase2,
           claimId: input.claimId,
+          kingaRef: _kingaRef,
           _photoForensics: photoForensicsData,
           // Physics values from bridge (actual Stage7 output) — used by report Section 2
           // These are the authoritative values; physicsEstimate is only populated when Stage7 didn't run

@@ -317,6 +317,12 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
             <p style={{ ...S.muted }}>
               Claim {claim?.claimNumber ?? claim?.claimReference ?? `#${claim?.id}`} &nbsp;·&nbsp; {reportDate}
             </p>
+            {e?.kingaRef && (
+              <p style={{ fontSize: 11, fontWeight: 800, fontFamily: 'monospace', color: '#6366f1', letterSpacing: '0.05em', marginTop: 2 }}>
+                {e.kingaRef}-CL
+                <span style={{ fontFamily: 'sans-serif', fontWeight: 400, color: 'var(--muted-foreground)', fontSize: 10, marginLeft: 6 }}>Claims Assessment Report</span>
+              </p>
+            )}
           </div>
           <div style={{ textAlign: "right" }}>
             <VerdictBadge decision={decision} />
@@ -372,6 +378,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               <KVRow label="Claim Status" value={toTitleCase(claim?.status ?? "")} />
               <KVRow label="Review Status" value={toTitleCase(claim?.reviewStatus ?? "")} />
               <KVRow label="Claim Reference" value={claim?.claimNumber ?? claim?.claimReference ?? "—"} />
+              {e?.kingaRef && <KVRow label="KINGA Reference" value={`${e.kingaRef}-CL`} />}
               <KVRow label="Policy Number" value={aiAssessment?.policyNumber ?? claim?.policyNumber ?? "—"} />
               <KVRow label="Insurer" value={aiAssessment?.insurerName ?? claim?.insurerName ?? "—"} />
               <KVRow label="Product Type" value={aiAssessment?.productType ?? claim?.productType ?? "—"} />

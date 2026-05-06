@@ -823,6 +823,13 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
 
       {/* ── Document identity ── */}
       <div className="doc-identity">
+        {(enforcement as any)?.kingaRef && (
+          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 6px', borderBottom: '1.5px solid #6366f1', marginBottom: 4 }}>
+            <span className="di-label" style={{ color: '#6366f1', fontWeight: 800, fontSize: 10, letterSpacing: '0.08em' }}>KINGA REF</span>
+            <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: '#1a1a2e', letterSpacing: '0.05em' }}>{(enforcement as any).kingaRef}-FR</span>
+            <span style={{ marginLeft: 'auto', fontSize: 9, color: '#888', fontStyle: 'italic' }}>Forensic Audit Report</span>
+          </div>
+        )}
         <div><span className="di-label">Claim Ref</span>{claim?.claimNumber ?? claim?.claimReference ?? '—'}</div>
         <div><span className="di-label">Run ID</span>{(aiAssessment as any)?._forensicAnalysis?.pipelineSummary?.runId ?? 'RUN-' + (aiAssessment?.id ?? '?')}</div>
         <div><span className="di-label">Pipeline</span>v2</div>
@@ -6425,6 +6432,9 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
       {/* Page header bar */}
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span>
+          {(enforcement as any)?.kingaRef && (
+            <><span style={{ fontWeight: 800, color: '#6366f1', fontFamily: 'monospace', letterSpacing: '0.04em' }}>{(enforcement as any).kingaRef}-FR</span> &nbsp;|&nbsp;</>
+          )}
           Claim: {claim?.claimNumber ?? claim?.claimReference ?? '—'} &nbsp;|&nbsp;
           Run: {(aiAssessment as any)?._forensicAnalysis?.pipelineSummary?.runId ?? 'RUN-' + (aiAssessment?.id ?? '?')} &nbsp;|&nbsp;
           Hash: #{((aiAssessment?.id ?? 0) * 31337).toString(16).toUpperCase().slice(0, 8)}

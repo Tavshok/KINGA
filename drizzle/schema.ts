@@ -747,6 +747,8 @@ export const claims = mysqlTable("claims", {
 	id: int().autoincrement().notNull(),
 	claimantId: int("claimant_id"),
 	claimNumber: varchar("claim_number", { length: 50 }).notNull(),
+	/** Immutable KINGA audit reference number assigned at document ingestion. Format: KNG-{INSURER_CODE}-{YEAR}-{SEQUENCE}. Never changes after assignment. Null for claims created before this feature was introduced. */
+	kingaRef: varchar("kinga_ref", { length: 40 }),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	vehicleMake: varchar("vehicle_make", { length: 100 }),
 	vehicleModel: varchar("vehicle_model", { length: 100 }),
@@ -2965,6 +2967,10 @@ export const tenants = mysqlTable("tenants", {
 	currencySymbol: varchar("currency_symbol", { length: 10 }).default('$'),
 	/** ISO 3166-1 alpha-2 country code for the tenant's primary operating country (e.g. 'ZW', 'ZA', 'ZM', 'BW'). Drives default currency and market region. */
 	country: varchar("country", { length: 2 }),
+	/** Monotonically increasing counter used to generate KINGA reference numbers for this tenant. Incremented atomically at claim creation. Resets to 0 when kingaSequenceYear changes. */
+	kingaSequence: int("kinga_sequence").default(0).notNull(),
+	/** The calendar year for which kingaSequence is valid. When the current year differs from this value, sequence resets to 1. */
+	kingaSequenceYear: int("kinga_sequence_year").default(0).notNull(),
 },
 (table) => [
 	index("idx_tenants_name").on(table.name),

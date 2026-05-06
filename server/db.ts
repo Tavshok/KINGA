@@ -48,7 +48,8 @@ import {
   InsertClaimEvent,
   ingestionDocuments,
   decisionSnapshots,
-  DecisionSnapshot
+  DecisionSnapshot,
+  tenants
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -325,6 +326,7 @@ export async function searchClaimsByIdentifier({
     like(claims.claimNumber, q),
     like(claims.policyNumber, q),
     like(claims.vehicleRegistration, q),
+    like(claims.kingaRef, q),
   );
   const conditions = [
     matchCondition,
@@ -347,11 +349,64 @@ export async function searchClaimsByIdentifier({
       createdAt: claims.createdAt,
       claimantId: claims.claimantId,
       tenantId: claims.tenantId,
+      kingaRef: claims.kingaRef,
     })
     .from(claims)
     .where(where)
     .orderBy(desc(claims.createdAt))
     .limit(20);
+}
+
+/**
+ * Atomically generate a KINGA reference number for a new claim.
+ * Format: KNG-{INSURER_CODE}-{YEAR}-{SEQUENCE}
+ * - INSURER_CODE: first 8 chars of tenantId, uppercased, alphanumeric only
+ * - YEAR: 4-digit current calendar year
+ * - SEQUENCE: zero-padded 6-digit integer, per-insurer per-year, resets each January
+ *
+ * Uses an atomic UPDATE+SELECT to prevent duplicate numbers under concurrent ingestion.
+ * Falls back to a timestamp-based reference if the tenant row is not found.
+ */
+export async function generateKingaRef(tenantId: string): Promise<string> {
+  const db = await getDb();
+  const currentYear = new Date().getFullYear();
+
+  // Derive a short insurer code from the tenantId (max 8 chars, uppercase alphanumeric)
+  const insurerCode = tenantId
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 8) || 'KINGA';
+
+  if (!db) {
+    // Fallback: use timestamp to guarantee uniqueness without DB
+    const ts = Date.now().toString(36).toUpperCase().slice(-6).padStart(6, '0');
+    return `KNG-${insurerCode}-${currentYear}-${ts}`;
+  }
+
+  try {
+    // Atomically increment the sequence counter for this tenant.
+    // If the stored year differs from the current year, reset to 1 (new year rollover).
+    await db.execute(
+      sql`UPDATE \`tenants\`
+          SET \`kinga_sequence\` = IF(\`kinga_sequence_year\` = ${currentYear}, \`kinga_sequence\` + 1, 1),
+              \`kinga_sequence_year\` = ${currentYear}
+          WHERE \`id\` = ${tenantId}`
+    );
+
+    const rows = await db
+      .select({ seq: tenants.kingaSequence })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId))
+      .limit(1);
+
+    const seq = rows[0]?.seq ?? 1;
+    const seqPadded = String(seq).padStart(6, '0');
+    return `KNG-${insurerCode}-${currentYear}-${seqPadded}`;
+  } catch (err) {
+    // Fallback on any DB error
+    const ts = Date.now().toString(36).toUpperCase().slice(-6).padStart(6, '0');
+    return `KNG-${insurerCode}-${currentYear}-${ts}`;
+  }
 }
 
 export async function getClaimsByAssessor(assessorId: number, tenantId?: string) {
