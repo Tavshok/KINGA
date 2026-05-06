@@ -429,7 +429,7 @@ export const auditLogs = mysqlTable("audit_logs", {
 
 export const auditTrail = mysqlTable("audit_trail", {
 	id: int().autoincrement().notNull(),
-	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
+	claimId: int("claim_id").references(() => claims.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
 	userId: int("user_id").notNull(),
 	action: varchar({ length: 100 }).notNull(),
 	entityType: varchar("entity_type", { length: 50 }),
@@ -513,14 +513,27 @@ export const automationPolicies = mysqlTable("automation_policies", {
 
 export const claimComments = mysqlTable("claim_comments", {
 	id: int().autoincrement().notNull(),
-	claimId: int().notNull().references(() => claims.id),
-	userId: int().notNull().references(() => users.id),
-	userRole: text().notNull(),
-	commentType: text().notNull(),
-	content: text().notNull(),
+	claimId: int("claimId").notNull().references(() => claims.id),
+	userId: int("author_user_id").notNull().references(() => users.id),
+	userRole: varchar("author_role", { length: 50 }).notNull(),
+	toRoles: text("to_roles").notNull().default('[]'),
+	toUserIds: text("to_user_ids").notNull().default('[]'),
+	toEmails: text("to_emails").notNull().default('[]'),
+	commentType: mysqlEnum("comment_type", ['clarification','instruction','escalation','approval_note','rejection_note','inspection_request','general']).notNull().default('general'),
+	requiresResponse: tinyint("requires_response").notNull().default(0),
+	responseDeadlineAt: varchar("response_deadline_at", { length: 50 }),
+	content: text("body").notNull(),
+	parentCommentId: int("parent_comment_id"),
+	isResolved: tinyint("is_resolved").notNull().default(0),
+	resolvedByUserId: int("resolved_by_user_id"),
+	resolvedAt: varchar("resolved_at", { length: 50 }),
+	emailSent: tinyint("email_sent").notNull().default(0),
+	notifyClaimant: tinyint("notify_claimant").notNull().default(0),
+	claimantEmailSent: tinyint("claimant_email_sent").notNull().default(0),
+	statusUpdateTemplate: varchar("status_update_template", { length: 100 }),
 	createdAt: text().notNull(),
-	deletedAt: text(),
 	tenantId: varchar("tenant_id", { length: 255 }),
+	deletedAt: text(),
 });
 
 export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {

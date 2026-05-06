@@ -80,7 +80,7 @@ function InsurerTierSection() {
       pricingTier: editTier,
       monthlyPlatformFee: editMonthlyFee,
       perClaimFee: editPerClaimFee,
-      tierFeatureFlags: JSON.stringify(INSURER_TIERS[editTier].features),
+      tierFeatureFlags: Object.fromEntries(INSURER_TIERS[editTier].features.map(f => [f, true])),
     });
   };
 

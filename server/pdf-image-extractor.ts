@@ -384,8 +384,13 @@ export async function extractImagesWithSummary(pdfBuffer: Buffer, pdfFileName?: 
 }
 
 export async function extractImagesFromPDFUrl(pdfUrl: string, pdfFileName?: string): Promise<ExtractedImage[]> {
-  const pdfBuffer = await downloadPdfWithRetry(pdfUrl);
-  return extractImagesFromPDFBuffer(pdfBuffer, pdfFileName);
+  try {
+    const pdfBuffer = await downloadPdfWithRetry(pdfUrl);
+    return extractImagesFromPDFBuffer(pdfBuffer, pdfFileName);
+  } catch (err: any) {
+    console.warn(`[PDF Extractor] extractImagesFromPDFUrl failed for ${pdfUrl}: ${err.message}`);
+    return [];
+  }
 }
 
 export async function extractImagesFromPDFUrlWithSummary(pdfUrl: string, pdfFileName?: string, options?: { forceDpi?: number }): Promise<ExtractionSummary> {

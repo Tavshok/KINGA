@@ -4,10 +4,10 @@
  * Tests for tenant isolation, duplicate protection, and aggregation accuracy
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { getDb } from "../db";
-import { usageEvents } from "../../drizzle/schema";
-import { sql } from "drizzle-orm";
+import { usageEvents, claims } from "../../drizzle/schema";
+import { sql, inArray } from "drizzle-orm";
 import {
   recordUsageEvent,
   recordClaimProcessed,
@@ -22,18 +22,66 @@ import {
   getUsageTrends,
 } from "./usage-aggregator";
 
+// ─── Test claim IDs (populated in beforeAll) ─────────────────────────────────
+let TEST_CLAIM_IDS: number[] = [];
+
+// Minimal claim rows needed to satisfy the FK constraint on usage_events.claim_id
+const TEST_CLAIM_NUMBERS = [
+  "TEST-USAGE-001",
+  "TEST-USAGE-002",
+  "TEST-USAGE-003",
+  "TEST-USAGE-004",
+  "TEST-USAGE-005",
+  "TEST-USAGE-006",
+  "TEST-USAGE-007",
+  "TEST-USAGE-008",
+  "TEST-USAGE-009",
+  "TEST-USAGE-010",
+];
+
+beforeAll(async () => {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Insert minimal test claims (claimNumber is the only NOT NULL field besides id/status/createdAt/updatedAt)
+  for (const claimNumber of TEST_CLAIM_NUMBERS) {
+    await db
+      .insert(claims)
+      .ignore() // skip if already exists from a previous run
+      .values({ claimNumber, tenantId: "test-usage-meter" });
+  }
+
+  // Fetch the IDs of the inserted claims
+  const rows = await db
+    .select({ id: claims.id })
+    .from(claims)
+    .where(sql`${claims.claimNumber} IN (${sql.join(TEST_CLAIM_NUMBERS.map(n => sql`${n}`), sql`, `)})`);
+
+  TEST_CLAIM_IDS = rows.map((r) => r.id);
+  if (TEST_CLAIM_IDS.length < 10) {
+    throw new Error(`Expected 10 test claim IDs, got ${TEST_CLAIM_IDS.length}`);
+  }
+});
+
+afterAll(async () => {
+  const db = await getDb();
+  if (!db) return;
+  // Clean up test claims (cascade will clean usage_events via SET NULL)
+  await db.delete(claims).where(sql`${claims.tenantId} = 'test-usage-meter'`);
+});
+
 describe("Usage Metering Infrastructure", () => {
   beforeEach(async () => {
-    // Clean up test data
+    // Clean up test usage events
     const db = await getDb();
     if (!db) throw new Error("Database not available");
-
     await db.execute(sql`DELETE FROM ${usageEvents}`);
   });
 
   describe("UsageMeter - Event Recording", () => {
     it("should record usage event with tenant isolation", async () => {
-      const eventId = await recordClaimProcessed("tenant-001", 12345);
+      const claimId = TEST_CLAIM_IDS[0];
+      const eventId = await recordClaimProcessed("tenant-001", claimId);
 
       expect(eventId).toBeTypeOf("number");
 
@@ -48,13 +96,15 @@ describe("Usage Metering Infrastructure", () => {
 
       expect(event).toBeDefined();
       expect(event.tenantId).toBe("tenant-001");
-      expect(event.claimId).toBe(12345);
+      expect(event.claimId).toBe(claimId);
       expect(event.eventType).toBe("CLAIM_PROCESSED");
     });
 
     it("should enforce tenant isolation (cross-tenant queries return nothing)", async () => {
-      await recordClaimProcessed("tenant-001", 12345);
-      await recordClaimProcessed("tenant-002", 67890);
+      const claimA = TEST_CLAIM_IDS[0];
+      const claimB = TEST_CLAIM_IDS[1];
+      await recordClaimProcessed("tenant-001", claimA);
+      await recordClaimProcessed("tenant-002", claimB);
 
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -65,7 +115,7 @@ describe("Usage Metering Infrastructure", () => {
         .where(sql`${usageEvents.tenantId} = 'tenant-001'`);
 
       expect(tenant001Events.length).toBe(1);
-      expect(tenant001Events[0].claimId).toBe(12345);
+      expect(tenant001Events[0].claimId).toBe(claimA);
 
       const tenant002Events = await db
         .select()
@@ -73,22 +123,25 @@ describe("Usage Metering Infrastructure", () => {
         .where(sql`${usageEvents.tenantId} = 'tenant-002'`);
 
       expect(tenant002Events.length).toBe(1);
-      expect(tenant002Events[0].claimId).toBe(67890);
+      expect(tenant002Events[0].claimId).toBe(claimB);
     });
 
     it("should prevent duplicate events with same referenceId", async () => {
+      const claimId = TEST_CLAIM_IDS[0];
+      const refId = `claim-processed-${claimId}`;
+
       const event1 = await recordUsageEvent({
         tenantId: "tenant-001",
-        claimId: 12345,
+        claimId,
         eventType: "CLAIM_PROCESSED",
-        referenceId: "claim-processed-12345",
+        referenceId: refId,
       });
 
       const event2 = await recordUsageEvent({
         tenantId: "tenant-001",
-        claimId: 12345,
+        claimId,
         eventType: "CLAIM_PROCESSED",
-        referenceId: "claim-processed-12345",
+        referenceId: refId,
       });
 
       expect(event1).toBeTypeOf("number");
@@ -106,15 +159,17 @@ describe("Usage Metering Infrastructure", () => {
     });
 
     it("should allow duplicate events without referenceId", async () => {
+      const claimId = TEST_CLAIM_IDS[0];
+
       const event1 = await recordUsageEvent({
         tenantId: "tenant-001",
-        claimId: 12345,
+        claimId,
         eventType: "AI_EVALUATED",
       });
 
       const event2 = await recordUsageEvent({
         tenantId: "tenant-001",
-        claimId: 12345,
+        claimId,
         eventType: "AI_EVALUATED",
       });
 
@@ -134,11 +189,12 @@ describe("Usage Metering Infrastructure", () => {
     });
 
     it("should record all event types correctly", async () => {
-      await recordClaimProcessed("tenant-001", 1);
-      await recordAIEvaluation("tenant-001", 2);
-      await recordFastTrackTriggered("tenant-001", 3);
-      await recordAutoApproval("tenant-001", 4);
-      await recordAssessorToolUsage("tenant-001", 5, "premium-damage-analysis");
+      const [c1, c2, c3, c4, c5] = TEST_CLAIM_IDS;
+      await recordClaimProcessed("tenant-001", c1);
+      await recordAIEvaluation("tenant-001", c2);
+      await recordFastTrackTriggered("tenant-001", c3);
+      await recordAutoApproval("tenant-001", c4);
+      await recordAssessorToolUsage("tenant-001", c5, "premium-damage-analysis");
 
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -159,6 +215,7 @@ describe("Usage Metering Infrastructure", () => {
     });
 
     it("should store metadata correctly", async () => {
+      const claimId = TEST_CLAIM_IDS[0];
       const metadata = {
         configVersion: 1,
         confidenceScore: 92.5,
@@ -167,7 +224,7 @@ describe("Usage Metering Infrastructure", () => {
 
       const eventId = await recordUsageEvent({
         tenantId: "tenant-001",
-        claimId: 12345,
+        claimId,
         eventType: "ASSESSOR_TOOL_USED",
         metadata,
       });
@@ -182,8 +239,8 @@ describe("Usage Metering Infrastructure", () => {
         .limit(1);
 
       expect(event.metadata).toBeDefined();
-      const storedMetadata = typeof event.metadata === 'string' 
-        ? JSON.parse(event.metadata) 
+      const storedMetadata = typeof event.metadata === "string"
+        ? JSON.parse(event.metadata)
         : event.metadata;
       expect(storedMetadata.configVersion).toBe(1);
       expect(storedMetadata.confidenceScore).toBe(92.5);
@@ -193,21 +250,21 @@ describe("Usage Metering Infrastructure", () => {
 
   describe("UsageAggregator - Monthly Summaries", () => {
     beforeEach(async () => {
-      // Seed test data for current month
-      const now = new Date();
-      await recordClaimProcessed("tenant-001", 1);
-      await recordClaimProcessed("tenant-001", 2);
-      await recordAIEvaluation("tenant-001", 1);
-      await recordAIEvaluation("tenant-001", 2);
-      await recordAIEvaluation("tenant-001", 3);
-      await recordFastTrackTriggered("tenant-001", 1);
-      await recordAutoApproval("tenant-001", 1);
-      await recordAssessorToolUsage("tenant-001", 1, "tool-1");
-      await recordAssessorToolUsage("tenant-001", 2, "tool-2");
+      // Seed test data for current month using real claim IDs
+      const [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10] = TEST_CLAIM_IDS;
+      await recordClaimProcessed("tenant-001", c1);
+      await recordClaimProcessed("tenant-001", c2);
+      await recordAIEvaluation("tenant-001", c1);
+      await recordAIEvaluation("tenant-001", c2);
+      await recordAIEvaluation("tenant-001", c3);
+      await recordFastTrackTriggered("tenant-001", c1);
+      await recordAutoApproval("tenant-001", c1);
+      await recordAssessorToolUsage("tenant-001", c1, "tool-1");
+      await recordAssessorToolUsage("tenant-001", c2, "tool-2");
 
       // Add events for different tenant
-      await recordClaimProcessed("tenant-002", 10);
-      await recordAIEvaluation("tenant-002", 10);
+      await recordClaimProcessed("tenant-002", c10);
+      await recordAIEvaluation("tenant-002", c10);
     });
 
     it("should generate accurate monthly summary", async () => {
@@ -275,18 +332,21 @@ describe("Usage Metering Infrastructure", () => {
 
   describe("Duplicate Protection Edge Cases", () => {
     it("should allow same referenceId for different tenants", async () => {
+      const claimId = TEST_CLAIM_IDS[0];
+      const refId = `claim-processed-${claimId}`;
+
       const event1 = await recordUsageEvent({
         tenantId: "tenant-001",
-        claimId: 12345,
+        claimId,
         eventType: "CLAIM_PROCESSED",
-        referenceId: "claim-processed-12345",
+        referenceId: refId,
       });
 
       const event2 = await recordUsageEvent({
         tenantId: "tenant-002",
-        claimId: 12345,
+        claimId,
         eventType: "CLAIM_PROCESSED",
-        referenceId: "claim-processed-12345",
+        referenceId: refId,
       });
 
       expect(event1).toBeTypeOf("number");
@@ -298,15 +358,17 @@ describe("Usage Metering Infrastructure", () => {
       const events = await db
         .select()
         .from(usageEvents)
-        .where(sql`${usageEvents.referenceId} = 'claim-processed-12345'`);
+        .where(sql`${usageEvents.referenceId} = ${refId}`);
 
       expect(events.length).toBe(2); // Both events recorded (different tenants)
     });
 
     it("should handle quantity field correctly", async () => {
+      const claimId = TEST_CLAIM_IDS[0];
+
       const eventId = await recordUsageEvent({
         tenantId: "tenant-001",
-        claimId: 12345,
+        claimId,
         eventType: "ASSESSOR_TOOL_USED",
         quantity: 5,
       });

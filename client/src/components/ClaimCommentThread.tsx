@@ -513,7 +513,7 @@ export function ClaimCommentThread({ claimId, showClaimantOption, compact }: Cla
               key={comment.id}
               comment={comment}
               claimId={claimId}
-              currentUserId={user.id}
+              currentUserId={Number(user.id)}
               showClaimantOption={showClaimantOption}
             />
           ))}

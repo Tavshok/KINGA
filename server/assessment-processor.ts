@@ -909,7 +909,9 @@ If no individual line items exist but a total cost is given, estimate a reasonab
 - For rear-end: ~30% labor, ~50% parts, ~10% paint, ~10% materials  
 - For head-on: ~35% labor, ~45% parts, ~10% paint, ~10% materials
 Always populate costBreakdown with estimated category totals that sum to the total cost.
-For damagedComponents, infer from damage description (e.g., 'left handside' = left fender, left door, left mirror, left quarter panel).`
+For damagedComponents, ONLY use names from this canonical list — do NOT invent names:
+"Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Bakkie)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Bakkie)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank".
+Map damage descriptions to the closest matching canonical name (e.g., 'left handside' → "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)").`
       },
       {
         role: "user",
@@ -949,8 +951,11 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
             accidentType: { type: "string", description: "Classify the incident type. Collision types: rear_end, side_impact, head_on, parking_lot, highway, rollover, animal_strike. Non-collision types: theft, break_in, vandalism, hijacking, forced_entry, attempted_theft, fire, hail, flood, storm, falling_object. CRITICAL: Animal strikes are COLLISION events — use 'animal_strike', NOT a non-collision type. This includes ALL wildlife and livestock: cow, goat, donkey, kudu, deer, warthog, baboon, nyala, eland, bushbuck, wildebeest, gnu, springbok, gemsbok, oryx, steenbok, duiker, mongoose, porcupine, vervet monkey, dassie, rock rabbit, hyrax, bushpig, waterbuck, reedbuck, caracal, jackal, hyena, cheetah, leopard, lion, rhino, hippo, giraffe, ostrich, guinea fowl, hadeda, zebra, buffalo, elephant, horse, pig, sheep, cattle. Road hazard collisions (pothole, ditch, corrugated road, gravel road, dirt road, sand drift, wash-away, flooded drift, donga, speed hump, loose gravel) are also COLLISION events. Animal strikes cause real frontal impact force and must go through physics validation. Use 'other' only if none of these fit." },
             damagedComponents: { 
               type: "array",
-              items: { type: "string" },
-              description: "List of ALL damaged parts/components mentioned or inferred"
+              items: { 
+                type: "string",
+                enum: ["Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Bakkie)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Bakkie)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank"]
+              },
+              description: "List of damaged parts — MUST use only canonical names from the enum list"
             },
             itemizedCosts: {
               type: "array",
@@ -1017,6 +1022,28 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
   console.log(`  Repairer: ${extractedData.repairerName || 'NOT FOUND'}`);
   console.log(`  Itemized Costs: ${extractedData.itemizedCosts?.length || 0} items`);
   console.log(`  Damaged Components: ${extractedData.damagedComponents?.length || 0} items`);
+
+  // ── Post-extraction hallucination guard ─────────────────────────────
+  // Strip any component name the AI invented that is not in the canonical
+  // vehicle parts taxonomy. Log each rejection for audit purposes.
+  if (extractedData.damagedComponents && extractedData.damagedComponents.length > 0) {
+    const _validated: string[] = [];
+    const _rejected: string[] = [];
+    for (const _raw of extractedData.damagedComponents) {
+      const _resolved = resolveComponent(_raw);
+      if (_resolved) {
+        _validated.push(_resolved.name); // Always normalise to canonical name
+      } else {
+        _rejected.push(_raw);
+        console.warn(`\u26a0\ufe0f  Hallucination guard: rejected unrecognised part "${_raw}"`);
+      }
+    }
+    if (_rejected.length > 0) {
+      console.warn(`\u26a0\ufe0f  Hallucination guard: removed ${_rejected.length} unrecognised part(s): ${_rejected.join(', ')}`);
+    }
+    extractedData.damagedComponents = [...new Set(_validated)];
+    console.log(`\u2705 Validated components (${extractedData.damagedComponents.length}): ${extractedData.damagedComponents.join(', ')}`);
+  }
 
   // Track data quality
   const missingData: string[] = [];
@@ -1344,7 +1371,7 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
                   items: {
                     type: "object",
                     properties: {
-                      component: { type: "string", description: "Component name" },
+                      component: { type: "string", description: "Component name — MUST be one of the canonical part names", enum: ["Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Bakkie)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Bakkie)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank"] },
                       action: { type: "string", description: "Either 'repair' or 'replace'" },
                       severity: { type: "string", description: "Either 'minor', 'moderate', or 'severe'" },
                       estimatedCost: { type: "number", description: "Estimated cost for this component" },
@@ -1364,11 +1391,22 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
       });
       
       const recData = JSON.parse(recResponse.choices[0].message.content as string);
-      componentRecommendations = (recData.recommendations || []).map((r: any) => ({
-        ...r,
-        action: r.action === 'replace' ? 'replace' : 'repair',
-        severity: ['minor', 'moderate', 'severe'].includes(r.severity) ? r.severity : 'moderate'
-      }));
+      componentRecommendations = (recData.recommendations || [])
+        .map((r: any) => ({
+          ...r,
+          // Normalise component name to canonical taxonomy
+          component: (() => {
+            const resolved = resolveComponent(r.component);
+            if (!resolved) {
+              console.warn(`\u26a0\ufe0f  Hallucination guard (recommendations): rejected "${r.component}"`);
+              return null;
+            }
+            return resolved.name;
+          })(),
+          action: r.action === 'replace' ? 'replace' : 'repair',
+          severity: ['minor', 'moderate', 'severe'].includes(r.severity) ? r.severity : 'moderate'
+        }))
+        .filter((r: any) => r.component !== null); // Remove hallucinated parts
       
       console.log(`✅ Generated ${componentRecommendations.length} component recommendations`);
       for (const rec of componentRecommendations) {

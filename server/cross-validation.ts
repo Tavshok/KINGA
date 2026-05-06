@@ -173,21 +173,9 @@ Rules:
 - Do NOT speculate about unseen areas
 - Use precise mechanical terms where possible
 
-Use these EXACT part naming conventions:
-- Front Bumper, Rear Bumper (include sub-parts: cover, reinforcement bar, energy absorber)
-- Bonnet (Hood), Boot Lid (Trunk Lid), Tailgate
-- Headlight Assembly (Left/Right), Tail Light (Left/Right)
-- Front Grille (upper/lower)
-- Front Fender (Left/Right) — also called "wing"
-- Front Door (Left/Right), Rear Door (Left/Right)
-- Side Mirror (Left/Right)
-- Quarter Panel (Left/Right)
-- Windscreen (Windshield), Rear Windscreen
-- Roof Panel, A-Pillar, B-Pillar, C-Pillar
-- Sill Panel / Rocker Panel (Left/Right)
-- Fog Light (Left/Right), Indicator (Left/Right)
-- Bull Bar / Nudge Bar, Canopy (Bakkie)
-- Radiator Assembly, Suspension, Wheels & Tyres
+CRITICAL: Use ONLY these exact canonical part names — no other names are valid:
+"Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Bakkie)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Bakkie)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank".
+Do NOT invent new part names. Map what you see to the closest canonical name.
 
 For each damaged part, assess severity based on what is visible:
 - minor: Scratches, small dents, scuffs
@@ -227,7 +215,7 @@ Respond in JSON format ONLY.`,
                 items: {
                   type: "object",
                   properties: {
-                    part_name: { type: "string", description: "Canonical part name" },
+                    part_name: { type: "string", description: "Canonical part name — MUST be one of the canonical names", enum: ["Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Bakkie)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Bakkie)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank"] },
                     damage_description: { type: "string", description: "Brief description of the damage observed" },
                     severity: { type: "string", enum: ["minor", "moderate", "severe", "critical"] },
                     confidence: { type: "number", description: "Confidence 0.0 to 1.0" },
@@ -258,12 +246,21 @@ Respond in JSON format ONLY.`,
 
     return {
       photoUrl,
-      visibleDamage: (parsed.visible_damage || []).map((d: any) => ({
-        partName: d.part_name,
-        damageDescription: d.damage_description,
-        severity: d.severity,
-        confidence: d.confidence,
-      })),
+      visibleDamage: (parsed.visible_damage || [])
+        .map((d: any) => {
+          const _resolved = resolveComponent(d.part_name);
+          if (!_resolved) {
+            console.warn(`⚠️  Hallucination guard (photo): rejected part_name "${d.part_name}"`);
+            return null;
+          }
+          return {
+            partName: _resolved.name, // Always use canonical name
+            damageDescription: d.damage_description,
+            severity: d.severity,
+            confidence: d.confidence,
+          };
+        })
+        .filter((d: any) => d !== null),
       overallDescription: parsed.overall_description || "No damage description available",
       visibleZones: parsed.visible_zones || [],
     };

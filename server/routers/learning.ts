@@ -604,10 +604,12 @@ export const learningRouter = router({
         .orderBy(costLearningRecords.recordedAt)
         .limit(input.limit);
 
-      const batchInputs = recentRows.map((row) => ({
-        claim_id: row.claimId,
-        case_signature: row.caseSignature,
-      }));
+      const batchInputs = recentRows
+        .filter((row) => row.claimId != null)
+        .map((row) => ({
+          claim_id: row.claimId as number,
+          case_signature: row.caseSignature,
+        }));
 
       const results = detectOutOfDomainBatch(batchInputs, knownDb);
       const summary = aggregateOutOfDomainSummary(results);

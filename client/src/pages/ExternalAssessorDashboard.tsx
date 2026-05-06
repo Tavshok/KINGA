@@ -182,8 +182,8 @@ function ExpandableClaimRow({ claim }: { claim: any }) {
                         Estimated Cost
                       </span>
                       <span className="font-semibold">
-                        {aiData.estimatedRepairCost
-                          ? `R ${Number(aiData.estimatedRepairCost).toLocaleString()}`
+                        {(aiData as any).estimatedPartsCost ?? (aiData as any).estimatedRepairCost
+                          ? `R ${Number((aiData as any).estimatedPartsCost ?? (aiData as any).estimatedRepairCost).toLocaleString()}`
                           : "—"}
                       </span>
                     </div>

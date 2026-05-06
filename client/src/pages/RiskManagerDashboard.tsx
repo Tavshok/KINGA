@@ -548,7 +548,7 @@ export default function RiskManagerDashboard() {
                     claim={{ ...claim, approvedAmount: claim.totalClaimAmount }}
                     actions={
                       <>
-                        <Button size="sm" onClick={() => authorisePayment.mutate({ claimId: claim.id, approved: true, notes: '' })} disabled={authorisePayment.isPending}>
+                        <Button size="sm" onClick={() => authorisePayment.mutate({ claimId: claim.id })} disabled={authorisePayment.isPending}>
                           <CheckCircle className="h-4 w-4 mr-1.5" /> {authorisePayment.isPending ? 'Authorising…' : 'Authorise Payment'}
                         </Button>
                         <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => openDialog(claim, "reject")}>

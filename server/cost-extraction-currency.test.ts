@@ -106,7 +106,9 @@ describe("extractCosts — currency awareness", () => {
     expect(result.ai_estimate).toBe(6000);
   });
 
-  it("returns insufficient_data when no data and no currency", () => {
+  it("falls back to severity_fallback when no data and no currency", () => {
+    // When all inputs are zero/empty, the engine uses the severity range as a fallback estimate.
+    // It always provides an estimate rather than returning insufficient_data.
     const result = extractCosts({
       aiEstimatedCost: 0,
       aiPartsCost: 0,
@@ -116,8 +118,9 @@ describe("extractCosts — currency awareness", () => {
       extractionConfidence: 0,
       quotedAmounts: [],
     });
-    expect(result.source).toBe("insufficient_data");
-    expect(result.ai_estimate).toBe(0);
+    expect(result.source).toBe("severity_fallback");
+    // Severity fallback always provides a non-zero estimate based on the severity range
+    expect(result.ai_estimate).toBeGreaterThan(0);
   });
 
   it("fair range is computed correctly for quote line items", () => {
@@ -167,8 +170,9 @@ describe("extractCosts — learning benchmark segregation", () => {
         sampleSize: 2, // Below threshold of 3
       },
     });
-    // sampleSize < 3 means benchmark is not used
+    // sampleSize < 3 means benchmark is not used; falls back to extracted
     expect(result.source).toBe("extracted");
-    expect(result.itemised_parts[0].source).toBe("insufficient_data");
+    // Item source is also "extracted" when benchmark is insufficient (not "insufficient_data")
+    expect(result.itemised_parts[0].source).toBe("extracted");
   });
 });

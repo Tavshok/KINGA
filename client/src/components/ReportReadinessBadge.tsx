@@ -10,7 +10,7 @@
  *   "compact" — icon-only with tooltip for very tight spaces
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Tooltip,
@@ -81,14 +81,14 @@ interface Props {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function ReportReadinessBadge({ claimId, variant = "inline", onLoad }: Props) {
-  const { data, isLoading, isError } = trpc.reporting.getReportReadiness.useQuery(
+  const { data, isLoading, isError } = trpc.reportingEngine.getReportReadiness.useQuery(
     { claimId },
-    {
-      staleTime: 30_000,
-      retry: 1,
-      onSuccess: (d) => onLoad?.(d as ReadinessData),
-    }
+    { staleTime: 30_000, retry: 1 }
   );
+  // tRPC v11 removed onSuccess from useQuery options — use useEffect instead
+  useEffect(() => {
+    if (data) onLoad?.(data as ReadinessData);
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Loading state ──────────────────────────────────────────────────────────
   if (isLoading) {

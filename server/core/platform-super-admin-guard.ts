@@ -23,7 +23,7 @@ export async function logPlatformSuperAdminAccess(
   if (!db) return;
 
   await db.insert(auditTrail).values({
-    claimId: 0, // Platform super admin audit entries are not claim-specific
+    claimId: null, // Platform super admin audit entries are not claim-specific
     userId,
     action: `platform_super_admin_${action}`,
     entityType: resourceType,

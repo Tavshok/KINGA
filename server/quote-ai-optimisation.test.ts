@@ -10,17 +10,79 @@
  *   6. Flags are boolean (no null coercion issues).
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { getDb } from "./db";
-import { quoteOptimisationResults } from "../drizzle/schema";
+import { quoteOptimisationResults, claims, insurerTenants, users } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { getLatestOptimisationResult } from "./quote-ai-optimisation";
+import { extractInsertId } from "./utils/drizzle-helpers";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function makeTimestamp() {
   return new Date().toISOString().slice(0, 19).replace("T", " ");
 }
+
+// ─── Test setup ───────────────────────────────────────────────────────────────
+
+let testClaimId1: number;
+let testClaimId2: number;
+let testTenantId: string;
+let testUserId: number;
+
+beforeAll(async () => {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Create a test tenant
+  testTenantId = `test-quote-opt-tenant-${Date.now()}`;
+  await db.insert(insurerTenants).values({
+    id: testTenantId,
+    name: "Quote Opt Test Tenant",
+    displayName: "Quote Opt Test Tenant",
+  }).onDuplicateKeyUpdate({ set: { name: "Quote Opt Test Tenant" } });
+
+  // Create a test user
+  const userResult = await db.insert(users).values({
+    openId: `quote-opt-user-${Date.now()}`,
+    email: `quote.opt.${Date.now()}@test.com`,
+    name: "Quote Opt Test User",
+    role: "insurer",
+    tenantId: testTenantId,
+  });
+  testUserId = extractInsertId(userResult);
+
+  // Create two test claims
+  const claim1Result = await db.insert(claims).values({
+    claimNumber: `TEST-QUOTE-OPT-001-${Date.now()}`,
+    tenantId: testTenantId,
+    claimantId: testUserId,
+    vehicleRegistration: "QOT001",
+    status: "submitted",
+  });
+  testClaimId1 = extractInsertId(claim1Result);
+
+  const claim2Result = await db.insert(claims).values({
+    claimNumber: `TEST-QUOTE-OPT-002-${Date.now()}`,
+    tenantId: testTenantId,
+    claimantId: testUserId,
+    vehicleRegistration: "QOT002",
+    status: "submitted",
+  });
+  testClaimId2 = extractInsertId(claim2Result);
+});
+
+afterAll(async () => {
+  const db = await getDb();
+  if (!db) return;
+  // Clean up in FK order
+  await db.delete(quoteOptimisationResults).where(eq(quoteOptimisationResults.claimId, testClaimId1));
+  await db.delete(quoteOptimisationResults).where(eq(quoteOptimisationResults.claimId, testClaimId2));
+  await db.delete(claims).where(eq(claims.id, testClaimId1));
+  await db.delete(claims).where(eq(claims.id, testClaimId2));
+  await db.delete(users).where(eq(users.id, testUserId));
+  await db.delete(insurerTenants).where(eq(insurerTenants.id, testTenantId));
+});
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -62,7 +124,6 @@ describe("AI Quote Cost Optimisation", () => {
     const db = await getDb();
     if (!db) return;
 
-    const claimId = 88888888; // synthetic test claim ID
     const now = makeTimestamp();
 
     const quoteAnalysis = [
@@ -72,7 +133,7 @@ describe("AI Quote Cost Optimisation", () => {
     ];
 
     await db.insert(quoteOptimisationResults).values({
-      claimId,
+      claimId: testClaimId1,
       status: "completed",
       quoteAnalysis,
       recommendedProfileId: "p1",
@@ -88,7 +149,7 @@ describe("AI Quote Cost Optimisation", () => {
       updatedAt: now,
     });
 
-    const retrieved = await getLatestOptimisationResult(claimId);
+    const retrieved = await getLatestOptimisationResult(testClaimId1);
 
     expect(retrieved).not.toBeNull();
     expect(retrieved!.status).toBe("completed");
@@ -96,9 +157,6 @@ describe("AI Quote Cost Optimisation", () => {
     expect(retrieved!.overallRiskScore).toBe("medium");
     expect(Number(retrieved!.riskScoreNumeric)).toBe(35);
     expect(retrieved!.overpricingDetected).toBe(0);
-
-    // Cleanup
-    await db.delete(quoteOptimisationResults).where(eq(quoteOptimisationResults.claimId, claimId));
   });
 
   it("cost deviation % formula is correct", () => {
@@ -151,11 +209,10 @@ describe("AI Quote Cost Optimisation", () => {
     const db = await getDb();
     if (!db) return;
 
-    const claimId = 77777777;
     const now = makeTimestamp();
 
     await db.insert(quoteOptimisationResults).values({
-      claimId,
+      claimId: testClaimId2,
       status: "completed",
       recommendedProfileId: "p1",
       recommendedCompanyName: "Test PB",
@@ -169,14 +226,11 @@ describe("AI Quote Cost Optimisation", () => {
       updatedAt: now,
     });
 
-    const row = await getLatestOptimisationResult(claimId);
+    const row = await getLatestOptimisationResult(testClaimId2);
     expect(row).not.toBeNull();
     // Insurer has not yet decided
     expect(row!.insurerAcceptedRecommendation).toBeNull();
     expect(row!.insurerDecisionBy).toBeNull();
     expect(row!.insurerOverrideReason).toBeNull();
-
-    // Cleanup
-    await db.delete(quoteOptimisationResults).where(eq(quoteOptimisationResults.claimId, claimId));
   });
 });

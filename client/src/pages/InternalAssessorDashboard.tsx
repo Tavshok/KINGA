@@ -222,15 +222,15 @@ function AiContextPanel({ claimId }: { claimId: number }) {
   try { costIntel = ai.costIntelligenceJson ? (typeof ai.costIntelligenceJson === 'string' ? JSON.parse(ai.costIntelligenceJson) : ai.costIntelligenceJson) : null; } catch { /* ignore */ }
   try { fraudBreakdown = ai.fraudScoreBreakdownJson ? (typeof ai.fraudScoreBreakdownJson === 'string' ? JSON.parse(ai.fraudScoreBreakdownJson) : ai.fraudScoreBreakdownJson) : null; } catch { /* ignore */ }
   try {
-    const raw = ai.damageLineItemsJson ?? ai.costLineItemsJson;
+    const raw = (ai as any).damageLineItemsJson ?? (ai as any).costLineItemsJson;
     const parsed = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
     damageItems = Array.isArray(parsed) ? parsed.slice(0, 6) : (parsed?.items ?? parsed?.lineItems ?? []).slice(0, 6);
   } catch { /* ignore */ }
 
-  const fraudScore = ai.fraudScore ?? ai.overallFraudScore ?? null;
+  const fraudScore = ai.fraudScore ?? (ai as any).overallFraudScore ?? null;
   const fraudLevel = fraudScore == null ? null : fraudScore >= 70 ? 'high' : fraudScore >= 40 ? 'medium' : 'low';
   const fraudColor = fraudLevel === 'high' ? 'text-red-600' : fraudLevel === 'medium' ? 'text-amber-600' : 'text-emerald-600';
-  const totalEstimate = costIntel?.totalEstimatedCost ?? ai.estimatedRepairCost ?? null;
+  const totalEstimate = costIntel?.totalEstimatedCost ?? (ai as any).estimatedPartsCost ?? (ai as any).estimatedRepairCost ?? null;
 
   return (
     <div className="mt-3 pt-3 border-t border-border grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -258,10 +258,10 @@ function AiContextPanel({ claimId }: { claimId: number }) {
                 ))}
               </ul>
             )}
-            {ai.fraudFlags && (
-              <p className="text-xs text-muted-foreground line-clamp-2">{
-                typeof ai.fraudFlags === 'string' ? ai.fraudFlags : JSON.stringify(ai.fraudFlags)
-              }</p>
+            {(ai as any).fraudFlags && (
+              <p className="text-xs text-muted-foreground line-clamp-2">
+                {typeof (ai as any).fraudFlags === 'string' ? (ai as any).fraudFlags : JSON.stringify((ai as any).fraudFlags)}
+              </p>
             )}
           </>
         ) : (
@@ -305,33 +305,35 @@ function AiContextPanel({ claimId }: { claimId: number }) {
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
           <Brain className="h-3.5 w-3.5" /> AI Verdict
         </p>
-        {ai.recommendedAction ? (
+        {(ai.recommendation ?? (ai as any).recommendedAction) ? (
           <div className="p-2 rounded-md bg-muted/40 border border-border">
-            <p className="text-xs font-semibold text-foreground capitalize mb-1">{ai.recommendedAction?.replace(/_/g, ' ')}</p>
-            {ai.verdictRationale && (
-              <p className="text-xs text-muted-foreground line-clamp-3">{ai.verdictRationale}</p>
+            <p className="text-xs font-semibold text-foreground capitalize mb-1">{(ai.recommendation ?? (ai as any).recommendedAction)?.replace(/_/g, ' ')}</p>
+            {(ai as any).verdictRationale && (
+              <p className="text-xs text-muted-foreground line-clamp-3">{(ai as any).verdictRationale}</p>
             )}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground italic">Verdict pending pipeline completion</p>
         )}
-        {ai.consistencyScore != null && (
+        {(ai as any).consistencyFlag?.score != null && (
           <div className="flex items-center gap-2 mt-1">
             <Activity className="h-3.5 w-3.5 text-blue-500" />
             <span className="text-xs text-muted-foreground">Consistency: </span>
-            <span className={`text-xs font-semibold ${ai.consistencyScore >= 70 ? 'text-emerald-600' : ai.consistencyScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
-              {ai.consistencyScore}%
+            <span className={`text-xs font-semibold ${
+              (ai as any).consistencyFlag.score >= 70 ? 'text-emerald-600'
+              : (ai as any).consistencyFlag.score >= 40 ? 'text-amber-600'
+              : 'text-red-600'
+            }`}>
+              {(ai as any).consistencyFlag.score}%
             </span>
           </div>
         )}
-        {ai.physicsValidation && (
+        {(ai as any)._physics && (
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-purple-500" />
-            <span className="text-xs text-muted-foreground">Physics: </span>
-            <span className={`text-xs font-semibold capitalize ${
-              (typeof ai.physicsValidation === 'string' ? ai.physicsValidation : ai.physicsValidation?.verdict ?? '') === 'pass' ? 'text-emerald-600' : 'text-amber-600'
-            }`}>
-              {typeof ai.physicsValidation === 'string' ? ai.physicsValidation : (ai.physicsValidation?.verdict ?? '—')}
+            <span className="text-xs text-muted-foreground">Physics ΔV: </span>
+            <span className="text-xs font-semibold text-purple-600">
+              {(ai as any)._physics.deltaVKmh ?? '—'} km/h
             </span>
           </div>
         )}

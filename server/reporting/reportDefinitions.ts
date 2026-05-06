@@ -77,7 +77,7 @@ export const REPORT_ACCESS: Record<string, string[]> = {
   "portfolio.panel_beater_performance":["insurer_admin", "claims_manager", "risk_manager"],
 
   // ── Risk & Fraud Reports ──────────────────────────────────────────────────
-  "portfolio.fraud_summary":           ["insurer_admin", "claims_manager", "risk_manager"],
+  "portfolio.fraud_summary":           ["insurer_admin", "claims_manager", "risk_manager", "fraud_manager"],
   // Assessor performance: processor can export/view; managers own it
   "portfolio.assessor_performance":    ["insurer_admin", "claims_processor", "claims_manager", "risk_manager"],
   "risk_manager_portfolio":            ["insurer_admin", "claims_manager", "risk_manager"],

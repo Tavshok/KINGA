@@ -209,7 +209,7 @@ export async function runCrossClaimIntelligence(
             const prevComponents: string[] = JSON.parse(prev.damagedComponentsJson || '[]')
               .map((c: any) => (typeof c === 'string' ? c : c?.name || '').toLowerCase());
             const overlap = currentComponents.filter(c => prevComponents.includes(c));
-            if (overlap.length > 0) matchingClaims.push(prev.claimId);
+            if (overlap.length > 0 && prev.claimId != null) matchingClaims.push(prev.claimId);
           } catch { /* ignore */ }
         }
 

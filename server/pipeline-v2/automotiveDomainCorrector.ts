@@ -497,7 +497,7 @@ export function applyAutomotiveDomainCorrections(claimRecord: ClaimRecord): Doma
 
   // 6. Third-party detection from narrative
   let thirdPartyDetectedFromNarrative = false;
-  const narrative = record.accidentDetails?.description;
+  const narrative = (record.accidentDetails as any)?.narrativeDescription ?? record.accidentDetails?.description;
   if (narrative && !record.accidentDetails?.thirdPartyClaimRequired) {
     thirdPartyDetectedFromNarrative = detectThirdPartyFromNarrative(narrative);
     if (thirdPartyDetectedFromNarrative && record.accidentDetails) {
@@ -509,22 +509,25 @@ export function applyAutomotiveDomainCorrections(claimRecord: ClaimRecord): Doma
         confidence: 0.78,
       });
       record.accidentDetails.thirdPartyClaimRequired = true;
+      (record.accidentDetails as any).thirdPartyPresent = true;
     }
   }
 
-  // 7. Third-party vehicle make correction (if third party vehicle make is present in thirdParty record)
-  const _tpMake = (record as any).thirdParty?.vehicleMake ?? null;
+  // 7. Third-party vehicle make correction (supports both thirdParty.vehicleMake and accidentDetails.thirdPartyVehicleMake)
+  const _tpMakeNested = (record as any).thirdParty?.vehicleMake ?? null;
+  const _tpMakeFlat = (record.accidentDetails as any)?.thirdPartyVehicleMake ?? null;
+  const _tpMake = _tpMakeNested ?? _tpMakeFlat;
   if (_tpMake) {
     const tpMakeResult = correctVehicleMake(_tpMake);
     if (tpMakeResult) {
-      corrections.push({
-        field: 'thirdParty.vehicleMake',
-        original: _tpMake,
-        corrected: tpMakeResult.corrected ?? '',
-        rule: tpMakeResult.rule,
-        confidence: tpMakeResult.confidence,
-      });
-      (record as any).thirdParty.vehicleMake = tpMakeResult.corrected ?? _tpMake;
+      if (_tpMakeNested) {
+        corrections.push({ field: 'thirdParty.vehicleMake', original: _tpMake, corrected: tpMakeResult.corrected ?? '', rule: tpMakeResult.rule, confidence: tpMakeResult.confidence });
+        (record as any).thirdParty.vehicleMake = tpMakeResult.corrected ?? _tpMake;
+      }
+      if (_tpMakeFlat && record.accidentDetails) {
+        corrections.push({ field: 'accidentDetails.thirdPartyVehicleMake', original: _tpMake, corrected: tpMakeResult.corrected ?? '', rule: tpMakeResult.rule, confidence: tpMakeResult.confidence });
+        (record.accidentDetails as any).thirdPartyVehicleMake = tpMakeResult.corrected ?? _tpMake;
+      }
     }
   }
 

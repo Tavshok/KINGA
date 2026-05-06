@@ -1735,6 +1735,7 @@ export async function getAiAssessmentByClaimId(claimId: number, tenantId?: strin
   ]);
   rawAssessment = assessmentResult.length > 0 ? assessmentResult[0] : null;
   claimRow = claimResult.length > 0 ? claimResult[0] : null;
+  if (tenantId && claimRow && claimRow.tenantId !== tenantId) return null;
 
   if (!rawAssessment) return null;
 
@@ -1775,11 +1776,11 @@ export async function createAssessorEvaluation(data: InsertAssessorEvaluation) {
 export async function getAssessorEvaluationByClaimId(claimId: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return null;
-
-  // Always query by claimId directly — no innerJoin tenant filter.
-  // The tenantId parameter is intentionally ignored: claimId uniquely identifies the evaluation,
-  // and the innerJoin pattern silently dropped rows when ctx.user.tenantId !== claim.tenantId.
-  const result = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, claimId)).limit(1);
+  // Enforce tenant isolation: when tenantId is provided, filter by it to prevent cross-tenant access.
+  const conditions = tenantId
+    ? and(eq(assessorEvaluations.claimId, claimId), eq(assessorEvaluations.tenantId, tenantId))
+    : eq(assessorEvaluations.claimId, claimId);
+  const result = await db.select().from(assessorEvaluations).where(conditions).limit(1);
   return result.length > 0 ? result[0] : null;
 }
 

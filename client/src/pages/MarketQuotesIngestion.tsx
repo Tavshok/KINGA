@@ -60,7 +60,7 @@ function QuoteReviewPanel({ quoteId, onDone }: { quoteId: number; onDone: () => 
         </span>
         <span className="flex items-center gap-1 text-muted-foreground">
           <DollarSign className="h-3.5 w-3.5" />
-          {quote.currency ?? "USD"}
+          {(quote as any).currency ?? "USD"}
         </span>
         {quote.supplierCountry && (
           <span className="flex items-center gap-1 text-muted-foreground">
@@ -71,14 +71,14 @@ function QuoteReviewPanel({ quoteId, onDone }: { quoteId: number; onDone: () => 
         <span className="flex items-center gap-1">
           <Badge
             variant={
-              (quote.extractionConfidence ?? 0) >= 0.8
+              (Number((quote as any).extractionConfidence) ?? 0) >= 0.8
                 ? "default"
-                : (quote.extractionConfidence ?? 0) >= 0.5
+                : (Number((quote as any).extractionConfidence) ?? 0) >= 0.5
                 ? "secondary"
                 : "destructive"
             }
           >
-            {Math.round((quote.extractionConfidence ?? 0) * 100)}% extraction confidence
+            {Math.round((Number((quote as any).extractionConfidence) ?? 0) * 100)}% extraction confidence
           </Badge>
         </span>
       </div>
@@ -115,7 +115,7 @@ function QuoteReviewPanel({ quoteId, onDone }: { quoteId: number; onDone: () => 
                   </td>
                   <td className="px-3 py-2 text-right font-mono">
                     {li.price != null
-                      ? `${li.currency ?? quote.currency ?? "USD"} ${Number(li.price).toFixed(2)}`
+                      ? `${li.currency ?? (quote as any).currency ?? "USD"} ${Number(li.price).toFixed(2)}`
                       : "—"}
                   </td>
                   <td className="px-3 py-2 text-right text-muted-foreground">
@@ -150,7 +150,7 @@ function QuoteReviewPanel({ quoteId, onDone }: { quoteId: number; onDone: () => 
           size="sm"
           variant="destructive"
           disabled={isBusy}
-          onClick={() => rejectQuote.mutate({ quoteId })}
+          onClick={() => rejectQuote.mutate({ quoteId, rejectionReason: 'Rejected by reviewer' })}
         >
           {rejectQuote.isPending ? (
             <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />

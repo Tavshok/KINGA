@@ -365,7 +365,7 @@ describe("Tenant Isolation", () => {
         assessorId: tenantAAssessorId,
         damageAssessment: JSON.stringify({ parts: ["bumper", "hood"] }),
         estimatedRepairCost: 60000,
-        recommendedAction: "approve",
+        tenantId: "tenant_a",
       });
 
       // Tenant A can access the evaluation

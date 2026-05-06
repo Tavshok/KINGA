@@ -85,8 +85,8 @@ describe("REPORT_ACCESS — role gating", () => {
     expect(canAccessReport("claim.assessment", "claims_processor")).toBe(true);
   });
 
-  it("claims_processor cannot access claim.forensic", () => {
-    expect(canAccessReport("claim.forensic", "claims_processor")).toBe(false);
+  it("claims_processor CAN access claim.forensic (for investigation)", () => {
+    expect(canAccessReport("claim.forensic", "claims_processor")).toBe(true);
   });
 
   it("insurer_admin can access governance.regulatory_compliance", () => {
@@ -143,7 +143,8 @@ describe("REPORT_ACCESS catalogue completeness", () => {
   it("every role list includes 'admin' or is a subset of known roles", () => {
     const KNOWN_ROLES = [
       "admin", "insurer_admin", "claims_manager", "fraud_manager",
-      "claims_processor", "assessor", "panel_beater", "risk_manager",
+      "claims_processor", "assessor", "assessor_internal", "assessor_external",
+      "panel_beater", "risk_manager", "executive",
     ];
     for (const [key, roles] of Object.entries(REPORT_ACCESS)) {
       for (const role of roles) {

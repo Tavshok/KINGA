@@ -402,12 +402,12 @@ export default function ClaimsManagerDashboard() {
               {/* KPI Cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
-                  { label: 'Total Claims', value: managerOverview?.totalClaims ?? dashboardStats?.total ?? 0, icon: <ClipboardList className="h-4 w-4" />, color: 'text-blue-600' },
-                  { label: 'Active', value: managerOverview?.activeClaims ?? dashboardStats?.activeCount ?? 0, icon: <Activity className="h-4 w-4" />, color: 'text-teal-600' },
-                  { label: 'Completed', value: managerOverview?.completedClaims ?? dashboardStats?.completedCount ?? 0, icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-600' },
-                  { label: 'Fraud Alerts', value: managerOverview?.fraudAlerts ?? dashboardStats?.fraudHighCount ?? 0, icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-600' },
-                  { label: 'Fraud Rate', value: `${(managerOverview?.fraudRate ?? dashboardStats?.fraudRate ?? 0).toFixed(1)}%`, icon: <Shield className="h-4 w-4" />, color: 'text-orange-600' },
-                  { label: 'Avg Days', value: `${(managerOverview?.avgProcessingDays ?? dashboardStats?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-4 w-4" />, color: 'text-purple-600' },
+                  { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? dashboardStats?.total ?? 0, icon: <ClipboardList className="h-4 w-4" />, color: 'text-blue-600' },
+                  { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? dashboardStats?.activeCount ?? 0, icon: <Activity className="h-4 w-4" />, color: 'text-teal-600' },
+                  { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? dashboardStats?.completedCount ?? 0, icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-600' },
+                  { label: 'Fraud Alerts', value: (managerOverview?.kpis?.fraudRate?.value ?? dashboardStats?.fraudHighCount ?? 0), icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-600' },
+                  { label: 'Fraud Rate', value: `${(managerOverview?.kpis?.fraudRate?.value ?? dashboardStats?.fraudRate ?? 0).toFixed(1)}%`, icon: <Shield className="h-4 w-4" />, color: 'text-orange-600' },
+                  { label: 'Avg Days', value: `${(managerOverview?.kpis?.avgCycleDays?.value ?? dashboardStats?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-4 w-4" />, color: 'text-purple-600' },
                 ].map((kpi, i) => (
                   <Card key={i} className="border-0 shadow-sm">
                     <CardContent className="p-3">
@@ -429,11 +429,11 @@ export default function ClaimsManagerDashboard() {
                     <CardTitle className="text-sm font-semibold">Claim Status Distribution</CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
-                    {managerOverview?.statusBreakdown ? (
+                    {managerOverview?.statusDonut ? (
                       <Doughnut
                         data={{
-                          labels: Object.keys(managerOverview.statusBreakdown),
-                          datasets: [{ data: Object.values(managerOverview.statusBreakdown), backgroundColor: ['#0d9488','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#6b7280'], borderWidth: 0 }],
+                          labels: Object.keys(managerOverview.statusDonut),
+                          datasets: [{ data: Object.values(managerOverview.statusDonut), backgroundColor: ['#0d9488','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#6b7280'], borderWidth: 0 }],
                         }}
                         options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, cutout: '65%' }}
                       />
@@ -447,11 +447,11 @@ export default function ClaimsManagerDashboard() {
                     <CardTitle className="text-sm font-semibold">Claims by Incident Type</CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
-                    {managerOverview?.incidentTypeBreakdown && Object.keys(managerOverview.incidentTypeBreakdown).length > 0 ? (
+                    {managerOverview?.incidentTypeBar && Object.keys(managerOverview.incidentTypeBar).length > 0 ? (
                       <Bar
                         data={{
-                          labels: Object.keys(managerOverview.incidentTypeBreakdown).map(k => k.replace(/_/g, ' ')),
-                          datasets: [{ label: 'Claims', data: Object.values(managerOverview.incidentTypeBreakdown), backgroundColor: '#0d9488', borderRadius: 4 }],
+                          labels: Object.keys(managerOverview.incidentTypeBar).map(k => k.replace(/_/g, ' ')),
+                          datasets: [{ label: 'Claims', data: Object.values(managerOverview.incidentTypeBar), backgroundColor: '#0d9488', borderRadius: 4 }],
                         }}
                         options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { font: { size: 9 } } } } }}
                       />
@@ -466,26 +466,26 @@ export default function ClaimsManagerDashboard() {
                     <p className="text-xs text-muted-foreground">AI estimate vs final approved</p>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
-                    {managerOverview?.totalSavings !== undefined ? (
+                    {managerOverview?.kpis?.totalSavings !== undefined ? (
                       <div className="space-y-3">
                         <div className="flex justify-between items-end">
                           <div>
-                            <p className="text-2xl font-bold text-green-600">{fmt(managerOverview.totalSavings ?? 0)}</p>
+                            <p className="text-2xl font-bold text-green-600">{fmt(managerOverview.kpis.totalSavings.value ?? 0)}</p>
                             <p className="text-xs text-muted-foreground">Total savings in period</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-semibold">{managerOverview.savingsCount ?? 0}</p>
-                            <p className="text-xs text-muted-foreground">claims with savings</p>
+                            <p className="text-sm font-semibold">{managerOverview.kpis.completedClaims?.value ?? 0}</p>
+                            <p className="text-xs text-muted-foreground">completed claims</p>
                           </div>
                         </div>
                         <div className="h-2 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full bg-green-500 rounded-full"
-                            style={{ width: `${Math.min(100, ((managerOverview.savingsCount ?? 0) / Math.max(1, managerOverview.totalClaims ?? 1)) * 100)}%` }}
+                            style={{ width: `${Math.min(100, ((managerOverview.kpis.completedClaims?.value ?? 0) / Math.max(1, managerOverview.kpis.totalClaims?.value ?? 1)) * 100)}%` }}
                           />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {(((managerOverview.savingsCount ?? 0) / Math.max(1, managerOverview.totalClaims ?? 1)) * 100).toFixed(0)}% of claims had AI-identified savings
+                          {(((managerOverview.kpis.completedClaims?.value ?? 0) / Math.max(1, managerOverview.kpis.totalClaims?.value ?? 1)) * 100).toFixed(0)}% of claims completed
                         </p>
                       </div>
                     ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">No data for period</div>}

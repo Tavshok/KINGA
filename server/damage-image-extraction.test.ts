@@ -436,33 +436,38 @@ describe("Stage 1b — LLM classification to DamagePhoto conversion", () => {
   });
 });
 
-// ─── extractImagesFromPDFUrl retry logic ─────────────────────────────────────
-
+// ─── extractImagesFromPDFUrl retry logic ─────────────────────────────────────────────
 describe("extractImagesFromPDFUrl retry logic", () => {
   it("returns empty array when fetch fails", async () => {
-    // Mock fetch to fail
+    // Use fake timers to skip the 5s+10s retry backoff delays instantly
+    vi.useFakeTimers();
     const originalFetch = global.fetch;
     global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
-
+    vi.resetModules();
     const { extractImagesFromPDFUrl } = await import("./pdf-image-extractor");
-    const result = await extractImagesFromPDFUrl("https://example.com/nonexistent.pdf");
-
+    const resultPromise = extractImagesFromPDFUrl("https://example.com/nonexistent.pdf");
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
     expect(result).toEqual([]);
     global.fetch = originalFetch;
-  });
-
+    vi.useRealTimers();
+  }, 10_000);
   it("returns empty array when HTTP 404 is returned", async () => {
+    vi.useFakeTimers();
     const originalFetch = global.fetch;
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
+      statusText: "Not Found",
       arrayBuffer: async () => new ArrayBuffer(0),
     } as Response);
-
+    vi.resetModules();
     const { extractImagesFromPDFUrl } = await import("./pdf-image-extractor");
-    const result = await extractImagesFromPDFUrl("https://example.com/missing.pdf");
-
+    const resultPromise = extractImagesFromPDFUrl("https://example.com/missing.pdf");
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
     expect(result).toEqual([]);
     global.fetch = originalFetch;
-  });
+    vi.useRealTimers();
+  }, 10_000);
 });
