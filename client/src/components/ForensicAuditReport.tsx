@@ -4061,6 +4061,13 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
   const e = enforcement;
   const wf = e?.weightedFraud;
   const phase2 = (e as any)?._phase2 as any;
+  // Accident date cross-check results (stored in fraudScoreBreakdown)
+  const fraudScoreBreakdown5 = aiAssessment?.fraudScoreBreakdownJson
+    ? (typeof aiAssessment.fraudScoreBreakdownJson === 'string'
+        ? JSON.parse(aiAssessment.fraudScoreBreakdownJson)
+        : aiAssessment.fraudScoreBreakdownJson)
+    : null;
+  const dateCheck = fraudScoreBreakdown5?.accidentDateCrossCheck ?? null;
 
   const fraudScore = wf?.score ?? 0;
   const fraudLevel = wf?.level ?? "minimal";
@@ -4398,6 +4405,129 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                 {a}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* 5.4 Accident Date Consistency */}
+      {dateCheck && (
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>5.4 Accident Date Consistency</p>
+            {(() => {
+              const v = dateCheck.verdict;
+              const isOk = v === 'consistent';
+              const isInsufficient = v === 'insufficient_data';
+              const color = isOk ? 'var(--fp-success-text)' : isInsufficient ? 'var(--muted-foreground)' : 'var(--fp-critical-text)';
+              const border = isOk ? 'var(--fp-success-border)' : isInsufficient ? 'var(--border)' : 'var(--fp-critical-border)';
+              const bg = isOk ? 'var(--fp-success-bg)' : isInsufficient ? 'var(--muted)' : 'var(--fp-critical-bg)';
+              const label = isOk ? 'CONSISTENT' : isInsufficient ? 'INSUFFICIENT DATA' : v === 'mismatch' ? 'DATE MISMATCH' : v === 'pre_incident_image' ? 'PRE-INCIDENT IMAGE' : 'MULTIPLE FLAGS';
+              return (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: bg, color, border: `1px solid ${border}` }}>{label}</span>
+              );
+            })()}
+          </div>
+          <div className="p-4 space-y-4">
+            {/* Three-source date comparison table */}
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--muted-foreground)" }}>Date Source Comparison</p>
+              <table className="w-full text-xs report-table">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+                    {["Source", "Date", "Status"].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    {
+                      source: "Claim Form",
+                      date: dateCheck.accidentDateParsed ?? "Not extracted",
+                      status: dateCheck.accidentDateParsed ? "extracted" : "missing",
+                    },
+                    {
+                      source: "Police Report",
+                      date: dateCheck.policeReportDateParsed ?? "Not extracted",
+                      status: dateCheck.policeReportDateParsed
+                        ? (dateCheck.claimPoliceMatch === true ? "match" : dateCheck.claimPoliceMatch === false ? "mismatch" : "extracted")
+                        : "missing",
+                    },
+                    {
+                      source: "Image EXIF Metadata",
+                      date: dateCheck.photosWithExifDate > 0
+                        ? `${dateCheck.photosWithExifDate} photo${dateCheck.photosWithExifDate !== 1 ? 's' : ''} with EXIF date`
+                        : "No EXIF dates available",
+                      status: dateCheck.photosWithExifDate > 0
+                        ? (dateCheck.preIncidentImages?.length > 0 ? "flagged" : "consistent")
+                        : "no_data",
+                    },
+                  ].map((row, i) => {
+                    const statusColor =
+                      row.status === 'match' || row.status === 'consistent' || row.status === 'extracted' ? 'var(--fp-success-text)'
+                      : row.status === 'mismatch' || row.status === 'flagged' ? 'var(--fp-critical-text)'
+                      : 'var(--muted-foreground)';
+                    const statusLabel =
+                      row.status === 'match' ? 'Match'
+                      : row.status === 'mismatch' ? 'Mismatch'
+                      : row.status === 'consistent' ? 'Consistent'
+                      : row.status === 'flagged' ? 'Pre-incident image(s)'
+                      : row.status === 'extracted' ? 'Extracted'
+                      : row.status === 'missing' ? 'Not available'
+                      : 'No EXIF data';
+                    return (
+                      <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined, background: 'var(--background)' }}>
+                        <td className="px-3 py-2 font-medium" style={{ color: 'var(--foreground)' }}>{row.source}</td>
+                        <td className="px-3 py-2 font-mono" style={{ color: 'var(--foreground)' }}>{row.date}</td>
+                        <td className="px-3 py-2">
+                          <span className="text-[10px] font-bold" style={{ color: statusColor }}>{statusLabel}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Claim–Police day difference */}
+            {dateCheck.claimPoliceDayDiff !== null && dateCheck.claimPoliceDayDiff !== undefined && (
+              <div className="flex items-center gap-2 text-xs p-2 rounded" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                <span style={{ color: 'var(--muted-foreground)' }}>Claim form vs police report difference:</span>
+                <span className="font-bold" style={{ color: dateCheck.claimPoliceDayDiff > 1 ? 'var(--fp-critical-text)' : 'var(--fp-success-text)' }}>
+                  {dateCheck.claimPoliceDayDiff} day{dateCheck.claimPoliceDayDiff !== 1 ? 's' : ''}
+                </span>
+                {dateCheck.claimPoliceDayDiff <= 1 && (
+                  <span style={{ color: 'var(--muted-foreground)' }}>(within tolerance)</span>
+                )}
+              </div>
+            )}
+
+            {/* Pre-incident images list */}
+            {(dateCheck.preIncidentImages ?? []).length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--fp-critical-text)' }}>
+                  Pre-Incident Images Detected ({dateCheck.preIncidentImages.length})
+                </p>
+                <div className="space-y-1.5">
+                  {(dateCheck.preIncidentImages as any[]).map((img: any, i: number) => (
+                    <div key={i} className="flex items-start justify-between gap-3 text-xs p-2 rounded" style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)' }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-mono truncate" style={{ color: 'var(--foreground)' }}>{img.url?.split('/').pop() ?? img.url}</p>
+                        <p className="mt-0.5" style={{ color: 'var(--muted-foreground)' }}>EXIF: {img.exifDate ?? 'Unknown'}</p>
+                      </div>
+                      <span className="shrink-0 font-bold text-[10px]" style={{ color: 'var(--fp-critical-text)' }}>
+                        {img.daysBeforeIncident} day{img.daysBeforeIncident !== 1 ? 's' : ''} before incident
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Summary narrative */}
+            {dateCheck.summary && (
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{dateCheck.summary}</p>
+            )}
           </div>
         </div>
       )}

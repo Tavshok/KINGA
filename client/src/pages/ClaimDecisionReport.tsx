@@ -39,6 +39,7 @@ import {
   runR7SanityChecks,
 } from "@/components/Phase3ReportComponents";
 import { ForensicAuditReport } from "@/components/ForensicAuditReport";
+import { KingaClaimsReport } from "@/components/KingaClaimsReport";
 import {
   ReportPageHeader,
   ReportSectionDivider,
@@ -1083,6 +1084,7 @@ export default function ClaimDecisionReport() {
     error: '',
   });
   const [showAuditLog, setShowAuditLog] = useState(false);
+  const [reportView, setReportView] = useState<'standard' | 'forensic'>('standard');
   const { data: auditLog = [], refetch: refetchAuditLog } = trpc.aiAssessments.getAuditLog.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId && showAuditLog }
@@ -1459,14 +1461,54 @@ export default function ClaimDecisionReport() {
           return null;
         })()}
 
-        {/* Pre-report panels (Decision Narrative, Claim Quality, Forensic Audit Validation) removed — report starts directly with ForensicAuditReport */}
-                {/* ── Forensic Audit Report v4.2 — 6-section structured format ── */}
-        <ForensicAuditReport
-          claim={claim}
-          aiAssessment={aiAssessment}
-          enforcement={enforcement}
-          quotes={quotesWithItems}
-        />
+        {/* ── Report view toggle ── */}
+        <div className="no-print flex items-center gap-2 mb-3 px-1">
+          <button
+            onClick={() => setReportView('standard')}
+            style={{
+              padding: '5px 14px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              border: '1px solid var(--border)',
+              background: reportView === 'standard' ? 'var(--foreground)' : 'var(--card)',
+              color: reportView === 'standard' ? 'var(--background)' : 'var(--foreground)',
+              cursor: 'pointer',
+            }}
+          >
+            Claims Report
+          </button>
+          <button
+            onClick={() => setReportView('forensic')}
+            style={{
+              padding: '5px 14px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              border: '1px solid var(--border)',
+              background: reportView === 'forensic' ? 'var(--foreground)' : 'var(--card)',
+              color: reportView === 'forensic' ? 'var(--background)' : 'var(--foreground)',
+              cursor: 'pointer',
+            }}
+          >
+            Forensic Report
+          </button>
+        </div>
+        {reportView === 'standard' ? (
+          <KingaClaimsReport
+            claim={claim}
+            aiAssessment={aiAssessment}
+            enforcement={enforcement}
+            quotes={quotesWithItems}
+          />
+        ) : (
+          <ForensicAuditReport
+            claim={claim}
+            aiAssessment={aiAssessment}
+            enforcement={enforcement}
+            quotes={quotesWithItems}
+          />
+        )}
 
         {/* ── Post-report interactive panels — hidden in print/PDF ── */}
         <div className="no-print">

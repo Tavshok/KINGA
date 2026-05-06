@@ -34,6 +34,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { sanitiseField } from "@/lib/sanitise";
 import { currencySymbol } from "@/lib/currency";
 import { ForensicAuditReport } from "@/components/ForensicAuditReport";
+import { KingaClaimsReport } from "@/components/KingaClaimsReport";
 import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
 import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
 
@@ -175,6 +176,7 @@ export default function InsurerComparisonView() {
 
   // Advanced physics toggle state — must be declared before any early returns
   const [showAdvancedPhysics, setShowAdvancedPhysics] = useState(false);
+  const [reportView, setReportView] = useState<'standard' | 'forensic'>('standard');
 
   // Incident type override dialog state
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
@@ -782,15 +784,36 @@ export default function InsurerComparisonView() {
       <main className="container mx-auto px-2 py-4 space-y-5" style={{ background: '#ffffff', color: '#111111' }}>
 
         {/* ═══════════════════════════════════════════════════════════════
-             FORENSIC AUDIT REPORT — replaces old Sections 1–7
+             REPORT VIEW — Claims Report (standard) | Forensic Report
         ═══════════════════════════════════════════════════════════════ */}
         {aiAssessment && enforcement ? (
-          <ForensicAuditReport
-            claim={claim}
-            aiAssessment={aiAssessment}
-            enforcement={enforcement}
-            quotes={quotes}
-          />
+          <>
+            <div className="flex items-center gap-2 mb-3 px-1">
+              {(['standard', 'forensic'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setReportView(v)}
+                  style={{
+                    padding: '5px 14px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    border: '1px solid var(--border)',
+                    background: reportView === v ? 'var(--foreground)' : 'var(--card)',
+                    color: reportView === v ? 'var(--background)' : 'var(--foreground)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {v === 'standard' ? 'Claims Report' : 'Forensic Report'}
+                </button>
+              ))}
+            </div>
+            {reportView === 'standard' ? (
+              <KingaClaimsReport claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
+            ) : (
+              <ForensicAuditReport claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
+            )}
+          </>
         ) : aiAssessment && !enforcement ? (
           <div className="comparison-section">
             <div className="comparison-section-body text-center py-12">
