@@ -1980,6 +1980,76 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             </div>
           </div>
 
+          {/* Physics Diagram Summary — plain-English interpretation for all three audiences */}
+          {(() => {
+            const decG = (_phys as any)?.decelerationG;
+            const vr = (_phys as any)?.velocityRange ?? (_phys as any)?.physicsNumerical?.velocity_range;
+            const ed = (_phys as any)?.energyDistribution ?? (_phys as any)?.physicsNumerical;
+            const dissipated = ed?.energyDissipatedJ ?? (ed?.energy_kj ? ed.energy_kj * 1000 : 0);
+            const kinetic = ed?.kineticEnergyJ ?? 0;
+            const absorptionRatio = kinetic > 0 && dissipated > 0 ? Math.min(dissipated / kinetic, 1) : null;
+            const sc = (_phys as any)?.severityConsensus;
+            const consensusSeverity = sc?.final_severity ?? severity;
+            const alignment = sc?.source_alignment;
+
+            // Build sentence fragments
+            const parts: string[] = [];
+
+            // Speed sentence
+            if (vr?.low_kmh > 0 && vr?.high_kmh > 0) {
+              parts.push(`The physics model estimates the vehicle was travelling at between ${vr.low_kmh.toFixed(0)} and ${vr.high_kmh.toFixed(0)} km/h at the time of impact.`);
+            } else if (estimatedSpeedKmh > 0) {
+              parts.push(`The physics model estimates the vehicle was travelling at approximately ${estimatedSpeedKmh.toFixed(0)} km/h at the time of impact.`);
+            }
+
+            // Force and deceleration sentence
+            if (impactForceKnDisplay > 0 && decG > 0) {
+              parts.push(`The primary impact generated a force of ${impactForceKnDisplay.toFixed(1)} kN with a peak deceleration of ${decG.toFixed(1)} g.`);
+            } else if (impactForceKnDisplay > 0) {
+              parts.push(`The primary impact generated a force of ${impactForceKnDisplay.toFixed(1)} kN.`);
+            }
+
+            // Energy absorption sentence
+            if (absorptionRatio !== null) {
+              const pct = Math.round(absorptionRatio * 100);
+              if (pct > 70) {
+                parts.push(`${pct}% of the kinetic energy was absorbed through structural deformation, which is consistent with moderate-to-severe structural damage and expected component replacement.`);
+              } else if (pct > 40) {
+                parts.push(`${pct}% of the kinetic energy was absorbed through deformation, consistent with moderate damage requiring panel repair and possible structural assessment.`);
+              } else {
+                parts.push(`${pct}% of the kinetic energy was absorbed through deformation, consistent with minor surface damage. Extensive structural claims would warrant scrutiny.`);
+              }
+            }
+
+            // Severity consensus sentence
+            if (consensusSeverity && consensusSeverity !== 'unknown') {
+              if (alignment === 'FULLY_ALIGNED' || alignment === 'ALIGNED') {
+                parts.push(`All available signals — physics model, damage analysis, and image review — are in agreement that the impact severity is ${toSentenceCase(consensusSeverity)}.`);
+              } else if (alignment === 'PARTIAL') {
+                parts.push(`The physics model and damage analysis indicate ${toSentenceCase(consensusSeverity)} severity; however, one or more signals are not fully aligned. Senior assessor review is recommended before settlement.`);
+              } else if (alignment === 'CONFLICTED') {
+                parts.push(`The available signals produce conflicting severity assessments. The physics model indicates ${toSentenceCase(consensusSeverity)} severity, but this is not corroborated by all sources. This claim requires senior assessor review before settlement.`);
+              } else {
+                parts.push(`The assessed impact severity is ${toSentenceCase(consensusSeverity)}.`);
+              }
+            }
+
+            // Direction mismatch
+            if (directionMismatch && directionExplanation) {
+              parts.push(`Note: ${directionExplanation}`);
+            }
+
+            if (parts.length === 0) return null;
+            return (
+              <div className="mb-4 p-3 rounded text-xs leading-relaxed" style={{ background: "var(--muted)", color: "var(--foreground)", borderLeft: "3px solid var(--border)" }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--muted-foreground)" }}>Physics Diagram Summary</p>
+                {parts.map((p, i) => (
+                  <p key={i} className={i > 0 ? 'mt-1' : ''}>{p}</p>
+                ))}
+              </div>
+            );
+          })()}
+
           {consistencyExplanation && (
             <p className="text-xs mb-4 p-2 rounded" style={{ background: "var(--muted)", color: "var(--foreground)" }}>
               {consistencyExplanation}
@@ -6236,6 +6306,16 @@ const REPORT_CSS = `
   .kinga-report .flowchart,.kinga-report .chart-container,.kinga-report canvas{page-break-inside:avoid}
   /* SVG damage map: keep together */
   .kinga-report svg{page-break-inside:avoid}
+  /* SVG zone severity fills — CSS variables are not resolved by PDF renderers, so we override with hardcoded print-safe colours */
+  /* These selectors target SVG rect elements that carry inline style fill values set via SEVERITY_FILL */
+  .kinga-report svg rect[fill="var(--fp-warning-bg)"]{fill:#fff9c4 !important}
+  .kinga-report svg rect[stroke="var(--fp-warning-text)"]{stroke:#b45309 !important}
+  .kinga-report svg rect[fill="var(--fp-critical-bg)"]{fill:#fee2e2 !important}
+  .kinga-report svg rect[stroke="var(--fp-critical-text)"]{stroke:#b91c1c !important}
+  .kinga-report svg rect[fill="var(--muted)"]{fill:#f3f4f6 !important}
+  .kinga-report svg rect[stroke="var(--border)"]{stroke:#d1d5db !important}
+  .kinga-report svg text[fill="var(--muted-foreground)"]{fill:#6b7280 !important}
+  .kinga-report svg text[fill="var(--foreground)"]{fill:#111 !important}
   /* Hide UI chrome that is not part of the report */
   .kinga-report .no-print,.no-print{display:none !important}
   /* Radix Collapsible: force open */
