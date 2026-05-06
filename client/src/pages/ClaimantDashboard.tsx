@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,8 +8,9 @@ import { Separator } from "@/components/ui/separator";
 import {
   FileText, Clock, CheckCircle, Plus, ChevronRight, AlertCircle,
   Car, MapPin, Calendar, RefreshCw, Shield, FileCheck, Banknote,
-  Wrench, Eye, ArrowRight
+  Wrench, Eye, ArrowRight, Search, X
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import KingaLogo from "@/components/KingaLogo";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -121,6 +122,22 @@ export default function ClaimantDashboard() {
 
   // Real data
   const { data: myClaims = [], isLoading, refetch } = trpc.claims.myClaims.useQuery();
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const searchTimeout = useState<ReturnType<typeof setTimeout> | null>(null);
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    if (searchTimeout[0]) clearTimeout(searchTimeout[0]);
+    const t = setTimeout(() => setDebouncedQuery(val.trim()), 400);
+    searchTimeout[1](t);
+  };
+  const { data: searchResults = [], isFetching: searchLoading } = trpc.claims.searchByIdentifier.useQuery(
+    { query: debouncedQuery },
+    { enabled: debouncedQuery.length >= 2 }
+  );
+  const isSearchActive = debouncedQuery.length >= 2;
 
   // Stats
   const activeClaims = myClaims.filter((c: any) =>
@@ -241,13 +258,14 @@ export default function ClaimantDashboard() {
 
         {/* Claims List */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>My Claims</CardTitle>
-              <CardDescription>
-                Track the status of each claim in real time
-              </CardDescription>
-            </div>
+          <CardHeader className="space-y-3">
+            <div className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>My Claims</CardTitle>
+                <CardDescription>
+                  Track the status of each claim in real time
+                </CardDescription>
+              </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -267,9 +285,77 @@ export default function ClaimantDashboard() {
                 New Claim
               </Button>
             </div>
+            {/* Search bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <Input
+                className="pl-9 pr-9 h-9 text-sm"
+                placeholder="Search by claim number, policy number, or vehicle registration…"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => { setSearchQuery(""); setDebouncedQuery(""); }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {isSearchActive ? (
+              /* Search results */
+              <div className="space-y-3">
+                {searchLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2].map(i => (
+                      <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+                    ))}
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <div className="text-center py-10">
+                    <Search className="h-8 w-8 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500">No claims found matching <span className="font-mono font-medium">{debouncedQuery}</span></p>
+                    <p className="text-xs text-gray-400 mt-1">Try a claim number, policy number, or vehicle registration plate</p>
+                  </div>
+                ) : (
+                  searchResults.map((claim: any) => (
+                    <div
+                      key={claim.id}
+                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => setLocation(`/claims/${claim.id}`)}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                          <Car className="h-4 w-4 text-blue-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-sm font-bold text-gray-900">{claim.claimNumber}</span>
+                            {claim.policyNumber && (
+                              <span className="text-xs text-gray-500 font-mono">Policy: {claim.policyNumber}</span>
+                            )}
+                            {claim.vehicleRegistration && (
+                              <span className="text-xs text-gray-500 font-mono">Reg: {claim.vehicleRegistration}</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {[claim.vehicleMake, claim.vehicleModel, claim.vehicleYear].filter(Boolean).join(" ") || "Vehicle details pending"}
+                            {claim.incidentDate && ` · ${new Date(claim.incidentDate).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusBadge status={claim.status} />
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
                   <div key={i} className="h-24 bg-gray-100 rounded-lg animate-pulse" />

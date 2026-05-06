@@ -36,6 +36,9 @@ export const documentIngestionRouter = router({
       z.object({
         batch_name: z.string().optional(),
         ingestion_source: z.enum(["processor_upload", "bulk_batch", "api", "email", "legacy_import", "broker_upload"]),
+        // Optional identifiers the claim processor can pre-fill before AI parsing runs
+        claimNumber: z.string().max(50).optional(),
+        policyNumber: z.string().max(50).optional(),
         documents: z.array(
           z.object({
             filename: z.string(),
@@ -183,11 +186,12 @@ export const documentIngestionRouter = router({
                 // Step 3 — INSERT claims (status = intake_pending, source = document_ingestion)
                 //   If this insert fails (e.g. UNIQUE constraint on source_document_id),
                 //   the driver rolls back the ingestionDocuments insert above automatically.
-                const claimNumber = generateClaimNumber();
+                const claimNumber = input.claimNumber || generateClaimNumber();
 
                 const [claimInsertResult] = await tx.insert(claims).values({
                   claimantId: 0,           // Placeholder: no claimant identified yet
                   claimNumber,
+                  policyNumber: input.policyNumber || undefined,
                   tenantId,
                   status: "intake_pending",  // Matches Claims Processor Dashboard filter
                   workflowState: "intake_queue",

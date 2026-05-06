@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, or, desc, inArray, sql, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import * as schema from "../drizzle/schema";
@@ -302,6 +302,56 @@ export async function getClaimsByClaimant(claimantId: number, tenantId?: string)
     : eq(claims.claimantId, claimantId);
   
   return await db.select().from(claims).where(conditions).orderBy(desc(claims.createdAt));
+}
+
+/**
+ * Search claims by claim number, policy number, or vehicle registration.
+ * - claimant role: restricted to their own claims (claimantId filter applied)
+ * - processor / insurer roles: all claims within the tenant
+ */
+export async function searchClaimsByIdentifier({
+  query,
+  tenantId,
+  claimantId,
+}: {
+  query: string;
+  tenantId?: string;
+  claimantId?: number;
+}) {
+  const db = await getDb();
+  if (!db || !query.trim()) return [];
+  const q = `%${query.trim()}%`;
+  const matchCondition = or(
+    like(claims.claimNumber, q),
+    like(claims.policyNumber, q),
+    like(claims.vehicleRegistration, q),
+  );
+  const conditions = [
+    matchCondition,
+    tenantId ? eq(claims.tenantId, tenantId) : undefined,
+    claimantId ? eq(claims.claimantId, claimantId) : undefined,
+  ].filter(Boolean);
+  const where = conditions.length === 1 ? conditions[0] : and(...conditions);
+  return await db
+    .select({
+      id: claims.id,
+      claimNumber: claims.claimNumber,
+      policyNumber: claims.policyNumber,
+      vehicleRegistration: claims.vehicleRegistration,
+      vehicleMake: claims.vehicleMake,
+      vehicleModel: claims.vehicleModel,
+      vehicleYear: claims.vehicleYear,
+      status: claims.status,
+      incidentDate: claims.incidentDate,
+      incidentLocation: claims.incidentLocation,
+      createdAt: claims.createdAt,
+      claimantId: claims.claimantId,
+      tenantId: claims.tenantId,
+    })
+    .from(claims)
+    .where(where)
+    .orderBy(desc(claims.createdAt))
+    .limit(20);
 }
 
 export async function getClaimsByAssessor(assessorId: number, tenantId?: string) {

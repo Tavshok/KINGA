@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   FileText, Download, RefreshCw, Clock, CheckCircle, XCircle,
   AlertTriangle, Play, Calendar, Shield, BarChart3, Search,
-  FileBarChart, RotateCcw, Info, ChevronRight
+  FileBarChart, RotateCcw, Info, ChevronRight, Car, X as XIcon
 } from "lucide-react";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
 
@@ -95,11 +95,48 @@ function GenerateDialog({
   onGenerated: (jobId: string) => void;
 }) {
   const { toast } = useToast();
+  // Resolved internal claim ID (numeric string for the generate mutation)
   const [claimId, setClaimId] = useState("");
+  // Smart lookup state
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [debouncedLookup, setDebouncedLookup] = useState("");
+  const [lookupTimer, setLookupTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [resolvedClaim, setResolvedClaim] = useState<{
+    id: number; claimNumber: string; policyNumber?: string;
+    vehicleRegistration?: string; vehicleMake?: string; vehicleModel?: string;
+  } | null>(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [format, setFormat] = useState<"pdf" | "excel">("pdf");
   const [subjectId, setSubjectId] = useState("");
+
+  const handleLookupChange = (val: string) => {
+    setLookupQuery(val);
+    setResolvedClaim(null);
+    setClaimId("");
+    if (lookupTimer) clearTimeout(lookupTimer);
+    const t = setTimeout(() => setDebouncedLookup(val.trim()), 400);
+    setLookupTimer(t);
+  };
+
+  const { data: lookupResults = [], isFetching: lookupLoading } = trpc.claims.searchByIdentifier.useQuery(
+    { query: debouncedLookup },
+    { enabled: debouncedLookup.length >= 2 }
+  );
+
+  const selectClaim = (claim: any) => {
+    setResolvedClaim(claim);
+    setClaimId(String(claim.id));
+    setLookupQuery("");
+    setDebouncedLookup("");
+  };
+
+  const clearResolved = () => {
+    setResolvedClaim(null);
+    setClaimId("");
+    setLookupQuery("");
+    setDebouncedLookup("");
+  };
 
   const generate = trpc.reportingEngine.generate.useMutation({
     onSuccess: (data) => {
@@ -127,24 +164,76 @@ function GenerateDialog({
         <DialogTitle className="text-base font-semibold text-gray-900">{report.name}</DialogTitle>
         <p className="text-xs text-gray-500 mt-1">{report.description}</p>
       </DialogHeader>
-
       <div className="space-y-4 py-2">
         {report.requiresClaimId && (
           <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-700 block mb-1">Claim ID *</label>
-            <Input
-              type="number"
-              placeholder="e.g. 4560001"
-              value={claimId}
-              onChange={(e) => setClaimId(e.target.value)}
-              className="h-8 text-sm"
-            />
-            {claimId && parseInt(claimId) > 0 && (
-              <ReportReadinessBadge claimId={parseInt(claimId)} variant="banner" />
+            <label className="text-xs font-medium text-gray-700 block">Claim Lookup *</label>
+            <p className="text-xs text-gray-400 -mt-1 mb-1">Search by claim number, policy number, or vehicle registration</p>
+            {resolvedClaim ? (
+              /* Resolved claim pill */
+              <div className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-md">
+                <div className="h-7 w-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                  <Car className="h-3.5 w-3.5 text-blue-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-900 font-mono">{resolvedClaim.claimNumber}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {[resolvedClaim.vehicleMake, resolvedClaim.vehicleModel].filter(Boolean).join(" ")}
+                    {resolvedClaim.policyNumber && ` · ${resolvedClaim.policyNumber}`}
+                    {resolvedClaim.vehicleRegistration && ` · ${resolvedClaim.vehicleRegistration}`}
+                  </p>
+                </div>
+                <button onClick={clearResolved} className="text-gray-400 hover:text-gray-600 shrink-0">
+                  <XIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              /* Search input + dropdown */
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                <Input
+                  placeholder="e.g. CLM-2024-001, POL-123, CA 123-456"
+                  value={lookupQuery}
+                  onChange={(e) => handleLookupChange(e.target.value)}
+                  className="h-8 text-sm pl-8"
+                  autoFocus
+                />
+                {lookupLoading && (
+                  <RefreshCw className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 animate-spin" />
+                )}
+                {debouncedLookup.length >= 2 && !lookupLoading && lookupResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                    {(lookupResults as any[]).map((c: any) => (
+                      <button
+                        key={c.id}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 border-b border-gray-100 last:border-0"
+                        onClick={() => selectClaim(c)}
+                      >
+                        <Car className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-gray-900 font-mono">{c.claimNumber}</p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {[c.vehicleMake, c.vehicleModel].filter(Boolean).join(" ") || "Vehicle details pending"}
+                            {c.policyNumber && ` · Policy: ${c.policyNumber}`}
+                            {c.vehicleRegistration && ` · Reg: ${c.vehicleRegistration}`}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {debouncedLookup.length >= 2 && !lookupLoading && (lookupResults as any[]).length === 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-sm z-50 px-3 py-2">
+                    <p className="text-xs text-gray-500">No claims found for <span className="font-mono">{debouncedLookup}</span></p>
+                  </div>
+                )}
+              </div>
+            )}
+            {resolvedClaim && (
+              <ReportReadinessBadge claimId={resolvedClaim.id} variant="banner" />
             )}
           </div>
         )}
-
         {!report.requiresClaimId && (
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -157,7 +246,6 @@ function GenerateDialog({
             </div>
           </div>
         )}
-
         {report.key === "governance.sar" && (
           <div>
             <label className="text-xs font-medium text-gray-700 block mb-1">Data Subject Claimant ID *</label>
@@ -170,7 +258,6 @@ function GenerateDialog({
             />
           </div>
         )}
-
         <div>
           <label className="text-xs font-medium text-gray-700 block mb-1">Output Format</label>
           <Select value={format} onValueChange={(v) => setFormat(v as "pdf" | "excel")}>
@@ -184,7 +271,6 @@ function GenerateDialog({
           </Select>
         </div>
       </div>
-
       <DialogFooter>
         <Button variant="outline" size="sm" onClick={onClose} className="text-xs">Cancel</Button>
         <Button
@@ -200,7 +286,6 @@ function GenerateDialog({
     </DialogContent>
   );
 }
-
 // ─── Admin Regeneration Dialog ────────────────────────────────────────────────
 function AdminRegenDialog({ onClose }: { onClose: () => void }) {
   const { toast } = useToast();

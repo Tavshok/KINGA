@@ -19,6 +19,8 @@ interface UploadFile {
 
 export default function UploadDocuments() {
   const [batchName, setBatchName] = useState("");
+  const [claimNumber, setClaimNumber] = useState("");
+  const [policyNumber, setPolicyNumber] = useState("");
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   // Using sonner toast
@@ -85,6 +87,8 @@ export default function UploadDocuments() {
       const result = await uploadMutation.mutateAsync({
         batch_name: batchName || `Batch ${new Date().toISOString()}`,
         ingestion_source: "processor_upload" as const,
+        claimNumber: claimNumber.trim() || undefined,
+        policyNumber: policyNumber.trim() || undefined,
         documents: fileData.map((f) => ({
           filename: f.filename,
           file_data: f.content,
@@ -154,13 +158,13 @@ export default function UploadDocuments() {
       </div>
 
       <div className="grid gap-6">
-        {/* Batch Name Input */}
+        {/* Batch Information + Claim Identifiers */}
         <Card>
           <CardHeader>
             <CardTitle>Batch Information</CardTitle>
-            <CardDescription>Provide a name for this document batch (optional)</CardDescription>
+            <CardDescription>Provide a name for this document batch and optional claim identifiers</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="batchName">Batch Name</Label>
               <Input
@@ -170,6 +174,36 @@ export default function UploadDocuments() {
                 onChange={(e) => setBatchName(e.target.value)}
                 disabled={isUploading}
               />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="claimNumber">
+                  Claim Number{" "}
+                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                </Label>
+                <Input
+                  id="claimNumber"
+                  placeholder="e.g., CLM-2024-001"
+                  value={claimNumber}
+                  onChange={(e) => setClaimNumber(e.target.value)}
+                  disabled={isUploading}
+                />
+                <p className="text-xs text-muted-foreground">Pre-fill if you have a reference. Leave blank to auto-generate.</p>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="policyNumber">
+                  Policy Number{" "}
+                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                </Label>
+                <Input
+                  id="policyNumber"
+                  placeholder="e.g., POL-123456"
+                  value={policyNumber}
+                  onChange={(e) => setPolicyNumber(e.target.value)}
+                  disabled={isUploading}
+                />
+                <p className="text-xs text-muted-foreground">Links this claim to the insured&apos;s policy for report lookup.</p>
+              </div>
             </div>
           </CardContent>
         </Card>

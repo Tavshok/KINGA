@@ -33,6 +33,7 @@ import {
   getAllApprovedPanelBeaters,
   createClaim,
   getClaimsByClaimant,
+  searchClaimsByIdentifier,
   getClaimsByAssessor,
   getClaimsForPanelBeater,
   getClaimById,
@@ -1330,6 +1331,21 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
       return await getClaimsByClaimant(ctx.user.id, tenantId);
     }),
+
+    // Search claims by claim number, policy number, or vehicle registration
+    // Claimants see only their own claims; processors/insurers see all within tenant
+    searchByIdentifier: protectedProcedure
+      .input(z.object({ query: z.string().min(1).max(100) }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        const isClaimant = ctx.user.role === "claimant" || ctx.user.role === "user";
+        return await searchClaimsByIdentifier({
+          query: input.query,
+          tenantId,
+          claimantId: isClaimant ? ctx.user.id : undefined,
+        });
+      }),
 
     // Get claims assigned to assessor
     myAssignments: protectedProcedure.query(async ({ ctx }) => {
