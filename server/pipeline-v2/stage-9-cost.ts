@@ -811,7 +811,7 @@ export async function runCostOptimisationStage(
             if (!lineItem) {
               quoteFlags[pbName] = 'no_data';
             } else {
-              const itemCostUsd = (lineItem.total_price ?? lineItem.unit_price ?? 0) / 100;
+              const itemCostUsd = (lineItem.line_total ?? lineItem.unit_cost ?? 0) / 100;
               if (itemCostUsd > b.p75Usd * 1.15) quoteFlags[pbName] = 'over';
               else if (itemCostUsd < b.p25Usd * 0.85) quoteFlags[pbName] = 'under';
               else quoteFlags[pbName] = 'fair';

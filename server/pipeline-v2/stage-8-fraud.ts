@@ -635,7 +635,7 @@ export async function runFraudAnalysisStage(
       const photoForensicsPhotos = photoForensicsResult?.photos ?? [];
       accidentDateCrossCheckResult = runAccidentDateCrossCheck({
         accidentDate: claimRecord.accidentDetails?.date ?? (claimRecord as any).accidentDate ?? null,
-        policeReportDate: (claimRecord as any).policeReportDate ?? claimRecord.policeReport?.date ?? null,
+        policeReportDate: (claimRecord as any).policeReportDate ?? claimRecord.policeReport?.reportDate ?? null,
         photoForensicsResults: photoForensicsPhotos.map((p: any) => ({
           url: p.url,
           analysisResult: p.analysisResult ? {

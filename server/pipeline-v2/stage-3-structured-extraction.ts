@@ -689,7 +689,8 @@ function extractDamageHints(rawText: string): DamageHints {
 async function runInputRecovery(
   stage1: Stage1Output,
   stage2: Stage2Output,
-  perDocumentExtractions: ExtractedClaimFields[]
+  perDocumentExtractions: ExtractedClaimFields[],
+  tenantCountry?: string | null
 ): Promise<InputRecoveryOutput> {
   const allText = stage2.extractedTexts.map(t => t.rawText).join("\n");
   const flags: InputRecoveryFailureFlag[] = [];
@@ -728,7 +729,7 @@ async function runInputRecovery(
     if (allText.trim().length > 50) {
       // Pass tenantCountry so the engine can apply the correct default currency
       // when the document does not explicitly state a currency code.
-      extracted_quotes = await extractMultipleQuotes(allText, 'insurance claim document', ctx.tenantCountry);
+      extracted_quotes = await extractMultipleQuotes(allText, 'insurance claim document', tenantCountry);
       // If LLM found a quote but regex did not, remove the quote_not_mapped flag
       const llmFoundQuote = extracted_quotes.some(q => q.total_cost !== null && q.confidence !== 'low');
       if (!hasQuote && !recovered_quote && llmFoundQuote) {
@@ -873,7 +874,7 @@ export async function runStructuredExtractionStage(
     // run concurrently with PDF and photo extraction.
     const inputRecoveryTask = async () => {
       try {
-        const result = await runInputRecovery(stage1, stage2, []);
+        const result = await runInputRecovery(stage1, stage2, [], ctx.tenantCountry);
         return result;
       } catch (recErr) {
         ctx.log("Stage 3", `Input recovery failed: ${String(recErr)} — skipping`);

@@ -708,8 +708,61 @@ export function selectScenarioEngine(
   }
 
 
-  // ── VEHICLE COLLISION ──────────────────────────────────────────────────────
-  // Only selected when explicitly confirmed — never as a default
+  // ── EXPLICIT COLLISION SUB-TYPES ──────────────────────────────────────────
+  if (incidentType === "rear_end") {
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: "rear_end_collision", confidence: 92, reasoning: "Rear-end collision confirmed. Physics reconstruction and third-party verification required.", engine_parameters: ENGINE_PARAMETERS.vehicle_collision_engine, is_minor_claim: false, requires_specialist: contextClues.includes("highway") };
+  }
+  if (incidentType === "head_on") {
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: "head_on_collision", confidence: 92, reasoning: "Head-on collision confirmed. High-energy frontal impact — full structural analysis and airbag verification required.", engine_parameters: ENGINE_PARAMETERS.vehicle_collision_engine, is_minor_claim: false, requires_specialist: true };
+  }
+  if (incidentType === "sideswipe") {
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: "side_swipe", confidence: 90, reasoning: "Sideswipe collision confirmed. Lateral damage pattern analysis required.", engine_parameters: ENGINE_PARAMETERS.vehicle_collision_engine, is_minor_claim: false, requires_specialist: false };
+  }
+  if (incidentType === "t_bone") {
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: "single_vehicle_impact", confidence: 92, reasoning: "T-bone (right-angle) collision confirmed. Severe door/pillar intrusion expected — specialist structural assessment required.", engine_parameters: ENGINE_PARAMETERS.vehicle_collision_engine, is_minor_claim: false, requires_specialist: true };
+  }
+  if (incidentType === "hit_and_run") {
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: "rear_end_collision", confidence: 85, reasoning: "Hit-and-run confirmed. Third party fled — police report mandatory. Damage pattern is primary evidence.", engine_parameters: { ...ENGINE_PARAMETERS.vehicle_collision_engine, adjuster_notes: ["Police report is mandatory — third party fled.", "Obtain CCTV or witness statements.", "Check for paint transfer from third-party vehicle."] }, is_minor_claim: false, requires_specialist: false };
+  }
+  if (incidentType === "multi_vehicle") {
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: "multi_vehicle", confidence: 90, reasoning: "Multi-vehicle pile-up confirmed. All involved parties must be documented.", engine_parameters: { ...ENGINE_PARAMETERS.vehicle_collision_engine, adjuster_notes: ["Identify all vehicles and their insurers.", "Map the sequence of impacts.", "Police report is mandatory."] }, is_minor_claim: false, requires_specialist: true };
+  }
+  if (incidentType === "parking_lot") {
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: "single_vehicle_impact", confidence: 82, reasoning: "Parking lot / low-speed manoeuvre damage confirmed. Fast-track eligible if limited to bumper/panel.", engine_parameters: { ...ENGINE_PARAMETERS.vehicle_collision_engine, apply_physics: false, check_airbag: false, expect_police_report: false, min_photo_count: 2, adjuster_notes: ["Low-speed parking damage — physics not required.", "Verify damage is consistent with parking manoeuvre."] }, is_minor_claim: true, requires_specialist: false };
+  }
+  if (incidentType === "single_vehicle" || incidentType === "rollover") {
+    const isRollover = incidentType === "rollover" || matchesAny(combinedText, ["rolled", "overturned", "flipped"]);
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: isRollover ? "rollover" : "single_vehicle_impact", confidence: 88, reasoning: isRollover ? "Rollover confirmed. Roof crush and airbag deployment expected. Specialist structural assessment required." : "Single-vehicle incident confirmed. Physics reconstruction to verify impact with fixed object.", engine_parameters: { ...ENGINE_PARAMETERS.vehicle_collision_engine, third_party_involved: false, expect_police_report: !isRollover, adjuster_notes: isRollover ? ["Check roof crush, A-pillar, B-pillar, and door frame.", "Determine rollover type: tripped vs untripped vs post-collision."] : ["Verify fixed object struck (wall, pole, tree, barrier).", "Check for skid marks consistent with loss of control."] }, is_minor_claim: false, requires_specialist: isRollover };
+  }
+  if (incidentType === "object_strike") {
+    const isFalling = matchesAny(combinedText, ["truck", "lorry", "cargo", "load", "fell on", "fell from", "bridge", "overpass"]);
+    const isBird = matchesAny(combinedText, ["bird"]);
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: "single_vehicle_impact", confidence: 85, reasoning: isFalling ? "Falling object strike (cargo from truck, bridge strike). Roof/bonnet/windscreen damage expected." : isBird ? "Bird strike confirmed. Windscreen and bonnet damage expected." : "Object/debris strike confirmed. Damage pattern should match impact direction.", engine_parameters: { ...ENGINE_PARAMETERS.vehicle_collision_engine, apply_physics: isFalling, third_party_involved: false, expect_police_report: isFalling, check_airbag: false, adjuster_notes: isFalling ? ["Verify source: truck cargo, bridge clearance, or construction site.", "Check roof, bonnet, windscreen, and A-pillar."] : ["Check for biological residue (bird) or paint transfer (debris)."] }, is_minor_claim: isBird && !isFalling, requires_specialist: isFalling };
+  }
+  if (incidentType === "pothole_damage") {
+    return { selected_engine: "weather_event_engine", detected_sub_type: "pothole_damage", confidence: 85, reasoning: "Pothole or road defect damage confirmed. Tyre, rim, and suspension damage expected.", engine_parameters: { ...ENGINE_PARAMETERS.weather_event_engine, apply_physics: false, expect_police_report: false, adjuster_notes: ["Verify tyre, rim, and suspension damage is consistent with pothole impact.", "Obtain road authority records for the incident location."] }, is_minor_claim: true, requires_specialist: false };
+  }
+  if (incidentType === "mechanical_failure") {
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: "single_vehicle_impact", confidence: 82, reasoning: "Mechanical failure confirmed as primary cause. Service history and mechanical inspection required.", engine_parameters: { ...ENGINE_PARAMETERS.vehicle_collision_engine, third_party_involved: false, expect_police_report: false, adjuster_notes: ["Obtain vehicle service history.", "Tyre blowout: check age, tread depth, and inflation records.", "Brake failure: check fluid, pad wear, and service records."] }, is_minor_claim: false, requires_specialist: true };
+  }
+  if (incidentType === "pedestrian_strike") {
+    return { selected_engine: "vehicle_collision_engine", detected_sub_type: "single_vehicle_impact", confidence: 92, reasoning: "Pedestrian or cyclist strike confirmed. Police report mandatory. Third-party injury claim likely.", engine_parameters: { ...ENGINE_PARAMETERS.vehicle_collision_engine, third_party_involved: true, expect_police_report: true, adjuster_notes: ["Police report is mandatory.", "Third-party injury claim likely — notify legal team.", "Damage pattern: bonnet, windscreen, A-pillar consistent with pedestrian impact."] }, is_minor_claim: false, requires_specialist: true };
+  }
+  if (incidentType === "earthquake") {
+    return { selected_engine: "weather_event_engine", detected_sub_type: "wind_damage", confidence: 80, reasoning: "Earthquake or seismic event damage confirmed. Geological records should be verified.", engine_parameters: { ...ENGINE_PARAMETERS.weather_event_engine, adjuster_notes: ["Verify seismic event records for incident date and location.", "Review policy wording — earthquake coverage may be a separate endorsement."] }, is_minor_claim: false, requires_specialist: true };
+  }
+  if (incidentType === "windscreen_damage") {
+    return { selected_engine: "windscreen_engine", detected_sub_type: matchesAny(combinedText, ["shatter", "completely broken", "smashed"]) ? "windscreen_shatter" : "windscreen_crack", confidence: 90, reasoning: "Windscreen or glass damage confirmed. Fast-track eligible if no structural damage.", engine_parameters: ENGINE_PARAMETERS.windscreen_engine, is_minor_claim: true, requires_specialist: false };
+  }
+  if (incidentType === "cosmetic_damage") {
+    return { selected_engine: "cosmetic_damage_engine", detected_sub_type: inferCosmeticSubType(combinedText), confidence: 85, reasoning: "Cosmetic or surface damage confirmed. Fast-track eligible.", engine_parameters: ENGINE_PARAMETERS.cosmetic_damage_engine, is_minor_claim: true, requires_specialist: false };
+  }
+  if (incidentType === "weather_event") {
+    const subType = inferWeatherSubType(combinedText);
+    return { selected_engine: "weather_event_engine", detected_sub_type: subType, confidence: 85, reasoning: `Weather event damage confirmed. Sub-type: ${subType}. Meteorological records should be verified.`, engine_parameters: ENGINE_PARAMETERS.weather_event_engine, is_minor_claim: subType === "hail_damage" || subType === "wind_damage", requires_specialist: subType === "falling_tree" };
+  }
+
+  // ── VEHICLE COLLISION (generic — keyword-driven) ───────────────────────────
   if (
     incidentType === "collision" ||
     incidentType === "vehicle_collision" ||
@@ -721,36 +774,27 @@ export function selectScenarioEngine(
   ) {
     const isRearEnd = matchesAny(combinedText, ["rear end", "rear ended", "hit from behind"]);
     const isHeadOn = matchesAny(combinedText, ["head on", "head-on", "frontal collision"]);
-    const subType: IncidentSubType = isRearEnd
-      ? "rear_end_collision"
-      : isHeadOn
-      ? "head_on_collision"
-      : "single_vehicle_impact";
-
+    const subType: IncidentSubType = isRearEnd ? "rear_end_collision" : isHeadOn ? "head_on_collision" : "single_vehicle_impact";
     const isHighSpeed = contextClues.includes("highway");
     return {
       selected_engine: "vehicle_collision_engine",
       detected_sub_type: subType,
       confidence: 85,
-      reasoning:
-        `Vehicle collision explicitly confirmed. Sub-type: ${subType}. ` +
-        (isHighSpeed
-          ? "Highway context — high-energy impact likely. Full structural analysis required."
-          : "Vehicle collision engine selected for physics reconstruction and third-party verification."),
+      reasoning: `Vehicle collision confirmed. Sub-type: ${subType}. ` + (isHighSpeed ? "Highway context — high-energy impact likely." : "Physics reconstruction and third-party verification required."),
       engine_parameters: ENGINE_PARAMETERS.vehicle_collision_engine,
       is_minor_claim: false,
       requires_specialist: isHighSpeed,
     };
   }
 
-  // ── UNKNOWN ────────────────────────────────────────────────────────────────
+  // ── UNKNOWN — all known types handled above; this fires only for genuinely unclassifiable incidents
   return {
     selected_engine: "unknown_engine",
     detected_sub_type: "unknown",
     confidence: 20,
     reasoning:
       `Incident type '${input.incident_type}' could not be mapped to a known scenario engine. ` +
-      `Manual adjuster review is required. Re-run the Incident Classification Engine with additional source documents.`,
+      `The report will be generated with a manual review flag. An adjuster must verify the incident type.`,
     engine_parameters: ENGINE_PARAMETERS.unknown_engine,
     is_minor_claim: false,
     requires_specialist: false,

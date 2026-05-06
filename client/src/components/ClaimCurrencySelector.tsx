@@ -37,7 +37,7 @@ import { toast } from "sonner";
 
 const SUPPORTED_CURRENCIES = [
   { code: "USD", label: "US Dollar", symbol: "US$", flag: "🇺🇸" },
-  { code: "ZIG", label: "Zimbabwe Gold", symbol: "ZIG", flag: "🇿🇼" },
+  { code: "ZWG", label: "Zimbabwe Gold (ZiG)", symbol: "ZiG", flag: "🇿🇼" },
   { code: "ZAR", label: "South African Rand", symbol: "R", flag: "🇿🇦" },
 ] as const;
 

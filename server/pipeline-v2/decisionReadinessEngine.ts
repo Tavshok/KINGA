@@ -126,13 +126,22 @@ export interface DecisionReadinessInput {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const VALID_INCIDENT_TYPES = new Set([
+  // ── Core canonical types ────────────────────────────────────────────────────
   "animal_strike",
   "vehicle_collision",
   "theft",
   "fire",
   "flood",
   "vandalism",
-  // Collision sub-types — all map to vehicle_collision for gate purposes
+  "weather_event",
+  "earthquake",
+  "mechanical_failure",
+  "windscreen_damage",
+  "cosmetic_damage",
+  "pedestrian_strike",
+  "object_strike",
+  "pothole_damage",
+  // ── Collision sub-types — all canonicalise to vehicle_collision ────────────
   "collision",
   "rear_end",
   "head_on",
@@ -140,14 +149,28 @@ const VALID_INCIDENT_TYPES = new Set([
   "rollover",
   "t_bone",
   "sideswipe",
+  "single_vehicle",
+  "hit_and_run",
+  "multi_vehicle",
+  "parking_lot",
 ]);
 
-/** Normalise collision sub-types to the canonical label for gate evaluation. */
+/** Normalise all incident sub-types to a canonical label for gate evaluation. */
 function canonicaliseIncidentType(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const lower = raw.trim().toLowerCase();
-  const COLLISION_SUBTYPES = new Set(["rear_end", "head_on", "side_impact", "rollover", "t_bone", "sideswipe", "collision"]);
-  return COLLISION_SUBTYPES.has(lower) ? "vehicle_collision" : lower;
+  // All collision variants → vehicle_collision
+  const COLLISION_SUBTYPES = new Set([
+    "rear_end", "head_on", "side_impact", "rollover", "t_bone", "sideswipe",
+    "collision", "single_vehicle", "hit_and_run", "multi_vehicle", "parking_lot",
+    "pedestrian_strike", "object_strike", "mechanical_failure", "pothole_damage",
+  ]);
+  if (COLLISION_SUBTYPES.has(lower)) return "vehicle_collision";
+  // Weather variants → weather_event
+  if (["hail", "storm", "earthquake", "falling_tree", "wind_damage"].includes(lower)) return "weather_event";
+  // Glass/cosmetic → cosmetic_damage
+  if (["windscreen_damage", "windscreen", "cosmetic_damage", "cosmetic"].includes(lower)) return "cosmetic_damage";
+  return lower;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -254,12 +277,15 @@ function checkIncidentConfirmed(input: IncidentConfirmedInput): ReadinessCheck {
   }
 
   if (!VALID_INCIDENT_TYPES.has(incident_type.toLowerCase())) {
+    // Unknown but non-null incident type: WARN only — never block report generation.
+    // The pipeline handles every real-world accident; an unrecognised type means
+    // the classification engine needs more evidence, not that the report should stop.
     return {
       check_id: "INCIDENT_CONFIRMED",
       label: "Incident type confirmed",
-      status: "FAIL",
-      detail: `Incident type "${incident_type}" is not a recognised classification. Valid types are: ${Array.from(VALID_INCIDENT_TYPES).join(", ")}.`,
-      is_critical: true,
+      status: "WARN",
+      detail: `Incident type "${incident_type}" is an unrecognised classification. The report has been generated with a manual review flag. An adjuster should verify the incident type before issuing a final decision.`,
+      is_critical: false,
     };
   }
 
