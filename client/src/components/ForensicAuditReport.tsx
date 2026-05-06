@@ -382,7 +382,7 @@ const ARROW_GEOM: Record<string, { x1:number; y1:number; x2:number; y2:number }>
 const EVENT_COLOURS = ["#ef4444", "#3b82f6", "#f59e0b", "#8b5cf6"];
 const EVENT_LABELS  = ["Event 1", "Event 2", "Event 3", "Event 4"];
 
-function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multiEventSequence, deltaV, energyKj, impactForceKn }: {
+function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multiEventSequence, deltaV, energyKj, impactForceKn, decelerationG, velocityRange, energyAbsorptionRatio }: {
   damageZones: string[];
   incidentType: string;
   inconsistencyLabel?: string;
@@ -390,6 +390,9 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
   deltaV?: number;
   energyKj?: number;
   impactForceKn?: number;
+  decelerationG?: number | null;
+  velocityRange?: { low_kmh: number; high_kmh: number } | null;
+  energyAbsorptionRatio?: number | null;
 }) {
   const zones = [
     { id: "front",     label: "Front",      x: 110, y: 8,   w: 100, h: 48 },
@@ -487,6 +490,12 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
 
           {/* Compass labels */}
           <text x="160" y="-8" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">N — FRONT</text>
+          {/* Velocity range confidence band — placed above compass label */}
+          {velocityRange && velocityRange.low_kmh > 0 ? (
+            <text x="160" y="-20" textAnchor="middle" fontSize="7.5" fill="#6366f1" fontStyle="italic">
+              {`Speed est. ${velocityRange.low_kmh.toFixed(0)}–${velocityRange.high_kmh.toFixed(0)} km/h`}
+            </text>
+          ) : null}
           <text x="160" y="300" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">S — REAR</text>
           <text x="-8" y="144" textAnchor="end" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">L</text>
           <text x="328" y="144" textAnchor="start" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">R</text>
@@ -570,14 +579,19 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
                 <line
                   x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2}
                   stroke={arrow.colour}
-                  strokeWidth={isFirst ? 4 : 3}
+                  strokeWidth={isFirst ? (impactForceKn && impactForceKn > 0 ? Math.min(2 + impactForceKn / 20, 7) : 4) : 3}
                   strokeDasharray={arrow.dashed ? "6 3" : undefined}
                   markerEnd={`url(#${markerId})`}
                 />
-                {/* Arrow label */}
+                {/* Arrow label — event name + force + decel for primary arrow */}
                 <text x={lblX} y={lblY} fontSize="8" fontWeight="bold" fill={arrow.colour} textAnchor="middle">
                   {arrow.label}
                 </text>
+                {isFirst && impactForceKn && impactForceKn > 0 ? (
+                  <text x={lblX} y={lblY + 10} fontSize="7.5" fill={arrow.colour} textAnchor="middle" opacity="0.9">
+                    {`${impactForceKn.toFixed(1)} kN${decelerationG && decelerationG > 0 ? ` · ${decelerationG.toFixed(1)} g` : ''}`}
+                  </text>
+                ) : null}
               </g>
             );
           })}
@@ -593,17 +607,61 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
             </g>
           )}
 
+          {/* Energy absorption arc — drawn around primary impact zone when ratio is available */}
+          {(() => {
+            if (!energyAbsorptionRatio || energyAbsorptionRatio <= 0) return null;
+            const primaryDir = arrowList[0]?.dir;
+            const zoneMap: Record<string, { cx: number; cy: number; r: number }> = {
+              front:   { cx: 160, cy: 32,  r: 30 },
+              rear:    { cx: 160, cy: 248, r: 30 },
+              left:    { cx: 30,  cy: 140, r: 24 },
+              right:   { cx: 290, cy: 140, r: 24 },
+            };
+            const zc = primaryDir ? zoneMap[primaryDir] : null;
+            if (!zc) return null;
+            const ratio = Math.min(Math.max(energyAbsorptionRatio, 0), 1);
+            const arcColour = ratio > 0.7 ? '#ef4444' : ratio > 0.4 ? '#f59e0b' : '#22c55e';
+            const arcPct = Math.round(ratio * 100);
+            const circumference = 2 * Math.PI * zc.r;
+            const dashLen = ratio * circumference;
+            const gapLen = circumference - dashLen;
+            return (
+              <g>
+                <circle cx={zc.cx} cy={zc.cy} r={zc.r} fill="none" stroke="var(--border)" strokeWidth="3" opacity="0.35" />
+                <circle
+                  cx={zc.cx} cy={zc.cy} r={zc.r}
+                  fill="none"
+                  stroke={arcColour}
+                  strokeWidth="3"
+                  strokeDasharray={`${dashLen.toFixed(1)} ${gapLen.toFixed(1)}`}
+                  strokeLinecap="round"
+                  transform={`rotate(-90 ${zc.cx} ${zc.cy})`}
+                  opacity="0.85"
+                />
+                <text x={zc.cx} y={zc.cy + 4} textAnchor="middle" fontSize="8" fontWeight="bold" fill={arcColour}>{arcPct}%</text>
+                <text x={zc.cx} y={zc.cy + 14} textAnchor="middle" fontSize="6.5" fill={arcColour} opacity="0.8">abs.</text>
+              </g>
+            );
+          })()}
           {/* Physics force annotations — shown at bottom of diagram when data is available */}
           {(deltaV != null && deltaV > 0) || (energyKj != null && energyKj > 0) || (impactForceKn != null && impactForceKn > 0) ? (
             <g>
-              <rect x="52" y="274" width="216" height="16" rx="3" fill="var(--muted)" stroke="var(--border)" strokeWidth="1" opacity="0.9" />
-              <text x="160" y="285" textAnchor="middle" fontSize="7.5" fill="var(--muted-foreground)">
+              <rect x="52" y="272" width="216" height="28" rx="3" fill="var(--muted)" stroke="var(--border)" strokeWidth="1" opacity="0.9" />
+              <text x="160" y="283" textAnchor="middle" fontSize="7.5" fill="var(--muted-foreground)">
                 {[
                   deltaV != null && deltaV > 0 ? `ΔV ${deltaV.toFixed(1)} km/h` : null,
                   energyKj != null && energyKj > 0 ? `KE ${energyKj.toFixed(1)} kJ` : null,
                   impactForceKn != null && impactForceKn > 0 ? `F ${impactForceKn.toFixed(1)} kN` : null,
                 ].filter(Boolean).join('  ·  ')}
               </text>
+              {(decelerationG && decelerationG > 0) || (energyAbsorptionRatio && energyAbsorptionRatio > 0) ? (
+                <text x="160" y="295" textAnchor="middle" fontSize="7" fill="var(--muted-foreground)" opacity="0.85">
+                  {[
+                    decelerationG && decelerationG > 0 ? `${decelerationG.toFixed(1)} g decel.` : null,
+                    energyAbsorptionRatio && energyAbsorptionRatio > 0 ? `${Math.round(energyAbsorptionRatio * 100)}% energy absorbed` : null,
+                  ].filter(Boolean).join('  ·  ')}
+                </text>
+              ) : null}
             </g>
           ) : null}
         </svg>
@@ -637,6 +695,18 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
             <span style={{ color: "var(--muted-foreground)" }}>Unexplained zone</span>
           </span>
         )}
+        {energyAbsorptionRatio && energyAbsorptionRatio > 0 ? (
+          <span className="flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 14 14">
+              <circle cx="7" cy="7" r="5" fill="none" stroke="var(--border)" strokeWidth="2" opacity="0.4" />
+              <circle cx="7" cy="7" r="5" fill="none"
+                stroke={energyAbsorptionRatio > 0.7 ? '#ef4444' : energyAbsorptionRatio > 0.4 ? '#f59e0b' : '#22c55e'}
+                strokeWidth="2" strokeDasharray={`${(energyAbsorptionRatio * 31.4).toFixed(1)} ${(31.4 - energyAbsorptionRatio * 31.4).toFixed(1)}`}
+                transform="rotate(-90 7 7)" />
+            </svg>
+            <span style={{ color: "var(--muted-foreground)" }}>Energy absorbed</span>
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -1840,7 +1910,29 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Damage Zone Map</p>
-              <VehicleDamageMap damageZones={damageZones} incidentType={incidentType} multiEventSequence={multiEventSequence} deltaV={deltaV > 0 ? deltaV : undefined} energyKj={energyKj > 0 ? energyKj : undefined} impactForceKn={impactForceKnDisplay > 0 ? impactForceKnDisplay : undefined} />
+              <VehicleDamageMap
+                damageZones={damageZones}
+                incidentType={incidentType}
+                multiEventSequence={multiEventSequence}
+                deltaV={deltaV > 0 ? deltaV : undefined}
+                energyKj={energyKj > 0 ? energyKj : undefined}
+                impactForceKn={impactForceKnDisplay > 0 ? impactForceKnDisplay : undefined}
+                decelerationG={(_phys as any)?.decelerationG > 0 ? (_phys as any).decelerationG : null}
+                velocityRange={(() => {
+                  const vr = (_phys as any)?.velocityRange;
+                  if (vr?.low_kmh > 0 && vr?.high_kmh > 0) return { low_kmh: vr.low_kmh, high_kmh: vr.high_kmh };
+                  const pn = (_phys as any)?.physicsNumerical?.velocity_range;
+                  if (pn?.low_kmh > 0 && pn?.high_kmh > 0) return { low_kmh: pn.low_kmh, high_kmh: pn.high_kmh };
+                  return null;
+                })()}
+                energyAbsorptionRatio={(() => {
+                  const ed = (_phys as any)?.energyDistribution ?? (_phys as any)?.physicsNumerical;
+                  const dissipated = ed?.energyDissipatedJ ?? (ed?.energy_kj ? ed.energy_kj * 1000 : 0);
+                  const kinetic = ed?.kineticEnergyJ ?? 0;
+                  if (kinetic > 0 && dissipated > 0) return Math.min(dissipated / kinetic, 1);
+                  return null;
+                })()}
+              />
               {damageZones.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {damageZones.map((z, i) => (
