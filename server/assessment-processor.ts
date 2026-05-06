@@ -911,7 +911,7 @@ If no individual line items exist but a total cost is given, estimate a reasonab
 - For head-on: ~35% labor, ~45% parts, ~10% paint, ~10% materials
 Always populate costBreakdown with estimated category totals that sum to the total cost.
 For damagedComponents, ONLY use names from this canonical list — do NOT invent names:
-"Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Bakkie)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Bakkie)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank".
+"Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Pickup)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Pickup)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank".
 Map damage descriptions to the closest matching canonical name (e.g., 'left handside' → "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)").`
       },
       {
@@ -954,7 +954,7 @@ Map damage descriptions to the closest matching canonical name (e.g., 'left hand
               type: "array",
               items: { 
                 type: "string",
-                enum: ["Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Bakkie)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Bakkie)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank"]
+                enum: ["Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Pickup)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Pickup)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank"]
               },
               description: "List of damaged parts — MUST use only canonical names from the enum list"
             },
@@ -1375,7 +1375,7 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
                   items: {
                     type: "object",
                     properties: {
-                      component: { type: "string", description: "Component name — MUST be one of the canonical part names", enum: ["Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Bakkie)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Bakkie)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank"] },
+                      component: { type: "string", description: "Component name — MUST be one of the canonical part names", enum: ["Front Bumper", "Bonnet (Hood)", "Headlight Assembly (Left)", "Headlight Assembly (Right)", "Front Grille", "Radiator Assembly", "Front Fender (Left)", "Front Fender (Right)", "Fog Light (Left)", "Fog Light (Right)", "Bull Bar / Nudge Bar", "Front Indicator (Left)", "Front Indicator (Right)", "Front Door (Left / Passenger)", "Rear Door (Left)", "Side Mirror (Left)", "Quarter Panel (Left)", "Sill Panel / Rocker Panel (Left)", "Side Panel (Left)", "Front Door (Right / Driver)", "Rear Door (Right)", "Side Mirror (Right)", "Quarter Panel (Right)", "Sill Panel / Rocker Panel (Right)", "Rear Bumper", "Boot Lid (Trunk Lid)", "Tailgate (SUV / Pickup)", "Tail Light (Left)", "Tail Light (Right)", "Rear Body Panel", "Number Plate Light", "Canopy (Pickup)", "Windscreen (Windshield)", "Wiper Assembly", "Rear Windscreen", "Roof Panel", "Sunroof / Moonroof", "A-Pillar", "B-Pillar", "C-Pillar", "Chassis Frame / Subframe", "Front Suspension", "Rear Suspension", "Exhaust System", "Drivetrain", "Wheels & Tyres", "Engine Sump / Oil Pan", "Fuel Tank"] },
                       action: { type: "string", description: "Either 'repair' or 'replace'" },
                       severity: { type: "string", description: "Either 'minor', 'moderate', or 'severe'" },
                       estimatedCost: { type: "number", description: "Estimated cost for this component" },
@@ -2160,25 +2160,38 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
       
       // -- Merge CV-detected parts back into damagedComponents --
       // Parts the computer vision found in photos that were NOT in the quote
-      // are still real damage. Add them to damagedComponents (union merge,
-      // deduped via resolveComponent so canonical names are used).
+      // are still real damage. Add them to damagedComponents ONLY if they
+      // resolve to a canonical name in the parts taxonomy — this prevents
+      // raw LLM vision strings (hallucinations) from entering the pipeline.
       const _cvVisibleNotQuoted = crossValidation.items
-        .filter(item => item.category === 'visible_not_quoted')
-        .map(item => item.resolvedPart?.name ?? item.partName);
+        .filter(item => item.category === 'visible_not_quoted');
       if (_cvVisibleNotQuoted.length > 0) {
         const _existingSet = new Set(extractedData.damagedComponents || []);
         let _cvAdded = 0;
-        for (const _cvPart of _cvVisibleNotQuoted) {
-          const _cvResolved = resolveComponent(_cvPart);
-          const _canonicalName = _cvResolved?.name ?? _cvPart;
+        const _cvAdded_names: string[] = [];
+        const _cvSkipped: string[] = [];
+        for (const _cvItem of _cvVisibleNotQuoted) {
+          // Use pre-resolved part if available, otherwise try resolving the raw name
+          const _cvResolved = _cvItem.resolvedPart ?? resolveComponent(_cvItem.partName);
+          if (!_cvResolved) {
+            // Cannot map to canonical taxonomy — discard to prevent hallucination
+            _cvSkipped.push(_cvItem.partName);
+            console.warn(`\u26a0\ufe0f  CV merge: skipping unresolvable CV part "${_cvItem.partName}" — not in taxonomy`);
+            continue;
+          }
+          const _canonicalName = _cvResolved.name;
           if (!_existingSet.has(_canonicalName)) {
             _existingSet.add(_canonicalName);
             _cvAdded++;
+            _cvAdded_names.push(_canonicalName);
           }
         }
         if (_cvAdded > 0) {
           extractedData.damagedComponents = Array.from(_existingSet);
-          console.log(`\u2705 CV merge: added ${_cvAdded} photo-visible part(s) to damagedComponents: ${_cvVisibleNotQuoted.join(', ')}`);
+          console.log(`\u2705 CV merge: added ${_cvAdded} canonical part(s) to damagedComponents: ${_cvAdded_names.join(', ')}`);
+        }
+        if (_cvSkipped.length > 0) {
+          console.warn(`\u26a0\ufe0f  CV merge: discarded ${_cvSkipped.length} unresolvable CV part(s): ${_cvSkipped.join(', ')}`);
         }
       }
 

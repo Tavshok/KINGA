@@ -69,7 +69,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "front_bumper",
     name: "Front Bumper",
-    aliases: ["front bumper cover", "front valance", "bumper bar", "front spoiler", "F/B", "FB", "front bar", "voorstomp", "front facia", "front fascia", "front bumper assy", "front bumper assembly", "B/bar", "bumper bar front"],
+    aliases: ["front bumper cover", "front valance", "bumper bar", "front spoiler", "F/B", "FB", "front bar", "front facia", "front fascia", "front bumper assy", "front bumper assembly", "B/bar", "bumper bar front"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -405,7 +405,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "rear_bumper",
     name: "Rear Bumper",
-    aliases: ["rear bumper cover", "back bumper", "rear valance", "R/B", "RB", "rear bar", "agterstomp", "rear facia", "rear fascia", "R bumper", "rear bumper assy", "back bar", "rear bumper assembly"],
+    aliases: ["rear bumper cover", "back bumper", "rear valance", "R/B", "RB", "rear bar", "rear facia", "rear fascia", "R bumper", "rear bumper assy", "back bar", "rear bumper assembly"],
     zone: "rear",
     structural: false,
     costTier: "medium",
@@ -437,8 +437,8 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   },
   {
     id: "tailgate",
-    name: "Tailgate (SUV / Bakkie)",
-    aliases: ["tail gate", "rear gate", "bakkie tailgate", "liftgate"],
+    name: "Tailgate (SUV / Pickup)",
+    aliases: ["tail gate", "rear gate", "pickup tailgate", "liftgate", "load bed gate"],
     zone: "rear",
     structural: true,
     costTier: "high",
@@ -496,8 +496,8 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   },
   {
     id: "rear_canopy",
-    name: "Canopy (Bakkie)",
-    aliases: ["bakkie canopy", "truck canopy", "load bin cover", "tonneau cover", "bakkie load bed", "load bed", "bak", "laaikas"],
+    name: "Canopy (Pickup)",
+    aliases: ["pickup canopy", "truck canopy", "load bin cover", "tonneau cover", "pickup load bed", "load bed", "load bay cover"],
     zone: "rear",
     structural: false,
     costTier: "medium",
@@ -514,7 +514,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "windscreen",
     name: "Windscreen (Windshield)",
-    aliases: ["windshield", "front windscreen", "front glass", "laminated glass", "W/screen", "W/S", "windscreen", "voorruit"],
+    aliases: ["windshield", "front windscreen", "front glass", "laminated glass", "W/screen", "W/S", "windscreen"],
     zone: "windshield",
     structural: true,
     costTier: "medium",

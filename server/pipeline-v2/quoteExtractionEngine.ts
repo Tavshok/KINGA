@@ -11,7 +11,7 @@
  *   - Never estimate cost
  *   - Return null for any field that cannot be extracted with confidence
  *   - Component names must be normalised to simple English (e.g. "rear bumper")
- *   - Currency defaults to USD if not stated
+ *   - Currency defaults to ZAR (South African Rand) if not stated
  *
  * OUTPUT SCHEMA:
  *   {
@@ -73,13 +73,17 @@ Your task is to convert unstructured repair quote text into a standard JSON obje
 RULES — follow these exactly:
 1. Extract the panel beater / repairer name if present.
 2. Extract the total repair cost as a plain number (no currency symbols, no commas).
-3. Identify the currency. If not stated, use "USD".
+3. Identify the currency. If not stated, use "ZAR" (South African Rand).
 4. List every quoted component in both 'components' (names only) AND 'line_items' (with pricing).
    Normalise names to simple English:
    - "R/H tail lamp assembly" → "RHS tail lamp"
    - "Radiator support panel (upper)" → "radiator support panel"
-   - "B/bar" → "rear bumper"
+   - "B/bar" → "front bumper" (bumper bar = front bumper in SA usage)
    - "F/bar" → "front bumper"
+   - "R/B" or "R/bar" → "rear bumper"
+   - "Q/P" → "quarter panel"
+   - "W/screen" or "W/S" → "windscreen"
+   - "A/P" → "A-pillar"
    - "Labour – panel repair" → do NOT include as a component; set labour_defined = true
 5. For line_items: extract each component row from the quote table with its unit cost, quantity, and line total.
    - If a row shows "Rear bumper  R 1,200.00" → component="rear bumper", unit_cost=1200, quantity=1, line_total=1200
@@ -383,7 +387,7 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
   return {
     panel_beater: typeof raw.panel_beater === "string" ? raw.panel_beater : null,
     total_cost: totalCost,
-    currency: typeof raw.currency === "string" && raw.currency.length > 0 ? raw.currency : "USD",
+    currency: typeof raw.currency === "string" && raw.currency.length > 0 ? raw.currency : "ZAR",
     components,
     line_items,
     labour_defined: raw.labour_defined === true,
@@ -445,7 +449,7 @@ function buildFallback(warning: string): ExtractedQuote {
   return {
     panel_beater: null,
     total_cost: null,
-    currency: "USD",
+    currency: "ZAR",
     components: [],
     line_items: [],
     labour_defined: false,
