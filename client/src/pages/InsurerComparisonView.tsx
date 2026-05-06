@@ -777,9 +777,13 @@ export default function InsurerComparisonView() {
                     })(),
                   };
                   
-                  // Navigate to the Decision Report (ForensicAuditReport) for PDF export
-                  setLocation(`/insurer/claims/${claimId}/verdict?print=1`);
-                  toast.success("Opening Decision Report for PDF export...");
+                  // Switch to forensic view and trigger browser print dialog
+                  setReportView('forensic');
+                  // Small delay to let the view render before print dialog opens
+                  setTimeout(() => {
+                    window.print();
+                  }, 400);
+                  toast.success("Opening Forensic Report for PDF export...");
                 }}
               >
                 <Download className="mr-2 h-4 w-4" />
