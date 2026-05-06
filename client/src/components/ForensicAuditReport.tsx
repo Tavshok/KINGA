@@ -948,6 +948,52 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         );
       })()}
 
+      {/* ── Physics Snapshot — condensed one-liner for insurer reading the cover ── */}
+      {(() => {
+        const _covPhys = (enforcement as any)?._physics as any;
+        const speedEst = (_covPhys?.estimatedSpeedKmh ?? 0) > 0 ? _covPhys.estimatedSpeedKmh : (e?.physicsEstimate?.estimatedVelocityKmh ?? 0);
+        const forceKn = (_covPhys?.impactForceKn ?? 0) > 0 ? _covPhys.impactForceKn : null;
+        const decG = _covPhys?.decelerationG ?? null;
+        const vr = _covPhys?.velocityRange ?? _covPhys?.physicsNumerical?.velocity_range;
+        const ed = _covPhys?.energyDistribution ?? _covPhys?.physicsNumerical;
+        const dissipated = ed?.energyDissipatedJ ?? (ed?.energy_kj ? ed.energy_kj * 1000 : 0);
+        const kinetic = ed?.kineticEnergyJ ?? 0;
+        const absorptionPct = kinetic > 0 && dissipated > 0 ? Math.round(Math.min(dissipated / kinetic, 1) * 100) : null;
+        const sc = _covPhys?.severityConsensus;
+        const consensusVerdict = sc?.final_severity ?? null;
+        const consensusAlign = sc?.source_alignment ?? null;
+        const isAlignedCov = consensusAlign === 'FULL' || consensusAlign === 'FULLY_ALIGNED' || consensusAlign === 'ALIGNED';
+        const isPartialCov = consensusAlign === 'PARTIAL';
+        const isConflictedCov = consensusAlign && !isAlignedCov && !isPartialCov;
+
+        // Build the one-liner parts
+        const snippets: string[] = [];
+        if (vr?.low_kmh > 0 && vr?.high_kmh > 0) {
+          snippets.push(`Speed: ${vr.low_kmh.toFixed(0)}–${vr.high_kmh.toFixed(0)} km/h`);
+        } else if (speedEst > 0) {
+          snippets.push(`Speed: ~${speedEst.toFixed(0)} km/h`);
+        }
+        if (forceKn && forceKn > 0) snippets.push(`Force: ${forceKn.toFixed(1)} kN`);
+        if (decG && decG > 0) snippets.push(`Decel: ${decG.toFixed(1)} g`);
+        if (absorptionPct !== null) snippets.push(`Energy absorbed: ${absorptionPct}%`);
+        if (consensusVerdict) snippets.push(`Severity: ${consensusVerdict.charAt(0).toUpperCase() + consensusVerdict.slice(1)}`);
+
+        if (snippets.length === 0) return null;
+
+        const alignColour = isConflictedCov ? '#c00' : isPartialCov ? '#c8a000' : '#2e7d32';
+        const alignLabel = isConflictedCov ? 'CONFLICTED' : isPartialCov ? 'PARTIAL' : isAlignedCov ? 'ALIGNED' : null;
+
+        return (
+          <div style={{ margin: '10px 0', padding: '8px 12px', background: '#f8f8f8', borderLeft: `3px solid ${alignColour}`, fontSize: 11, lineHeight: 1.6 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginRight: 8 }}>Physics Snapshot</span>
+            <span style={{ color: '#222' }}>{snippets.join(' · ')}</span>
+            {alignLabel && (
+              <span style={{ marginLeft: 10, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: alignColour, border: `1px solid ${alignColour}`, borderRadius: 3, padding: '1px 5px' }}>{alignLabel}</span>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ── Pipeline Execution Summary ── */}
       {(() => {
         const ps = (aiAssessment as any)?._forensicAnalysis?.pipelineSummary ?? null;
@@ -2039,13 +2085,38 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               parts.push(`Note: ${directionExplanation}`);
             }
 
+            // Speed discrepancy fraud flag
+            // Triggered when the physics-estimated speed differs from the claimed speed by more than 20%
+            const physicsSpeed = vr?.mid_kmh ?? estimatedSpeedKmh;
+            const speedDiscrepancyFlag: string | null = (() => {
+              if (!physicsSpeed || physicsSpeed <= 0 || !claimedSpeed || claimedSpeed <= 0) return null;
+              const diff = Math.abs(physicsSpeed - claimedSpeed);
+              const pct = diff / claimedSpeed;
+              if (pct < 0.20) return null; // within 20% — no flag
+              const direction = physicsSpeed > claimedSpeed ? 'higher' : 'lower';
+              const severity = pct >= 0.50 ? 'significant' : 'material';
+              return `Speed discrepancy detected: the claimant reported ${claimedSpeed.toFixed(0)} km/h, but the physics model estimates ${physicsSpeed.toFixed(0)} km/h — a ${severity} difference of ${Math.round(pct * 100)}% (${direction} than claimed). This discrepancy warrants verification of the claimant’s stated speed before settlement.`;
+            })();
+            if (speedDiscrepancyFlag) parts.push(speedDiscrepancyFlag);
+
             if (parts.length === 0) return null;
+
+            // Determine border colour: red if speed discrepancy or conflicted, amber if partial, else default
+            const summaryBorderColour = speedDiscrepancyFlag || alignment === 'CONFLICTED'
+              ? 'var(--fp-critical-border)'
+              : alignment === 'PARTIAL'
+              ? 'var(--fp-warning-border)'
+              : 'var(--border)';
+
             return (
-              <div className="mb-4 p-3 rounded text-xs leading-relaxed" style={{ background: "var(--muted)", color: "var(--foreground)", borderLeft: "3px solid var(--border)" }}>
+              <div className="mb-4 p-3 rounded text-xs leading-relaxed" style={{ background: "var(--muted)", color: "var(--foreground)", borderLeft: `3px solid ${summaryBorderColour}` }}>
                 <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--muted-foreground)" }}>Physics Diagram Summary</p>
-                {parts.map((p, i) => (
-                  <p key={i} className={i > 0 ? 'mt-1' : ''}>{p}</p>
-                ))}
+                {parts.map((p, i) => {
+                  const isFlag = p === speedDiscrepancyFlag;
+                  return (
+                    <p key={i} className={i > 0 ? 'mt-1' : ''} style={isFlag ? { color: 'var(--fp-critical-text)', fontWeight: 600 } : undefined}>{p}</p>
+                  );
+                })}
               </div>
             );
           })()}
@@ -2955,11 +3026,17 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
   };
 
   // Action instruction — plain English for adjuster/insurer
-  const actionInstruction = alignment === 'FULL'
-    ? `All ${sourcesAvailable} available source${sourcesAvailable !== 1 ? 's' : ''} agree. Severity finding is ${verdict}. No independent review required on severity grounds.`
-    : alignment === 'PARTIAL'
-    ? `Majority of sources agree on ${verdict} severity. One source disagrees — review the conflicting signal before settlement if the severity classification affects reserve level.`
-    : `Sources conflict on severity. Conservative verdict (${verdict}) adopted. Senior assessor review required before settlement.`;
+  // Note: source_alignment values from pipeline are 'FULL', 'PARTIAL', 'CONFLICTED'
+  const isAligned = alignment === 'FULL' || alignment === 'FULLY_ALIGNED' || alignment === 'ALIGNED';
+  const isPartial = alignment === 'PARTIAL';
+  // isConflicted covers both 'CONFLICT' (legacy) and 'CONFLICTED' (current pipeline value)
+  const isConflicted = alignment === 'CONFLICTED' || alignment === 'CONFLICT' || (!isAligned && !isPartial);
+
+  const actionInstruction = isAligned
+    ? `All ${sourcesAvailable} available source${sourcesAvailable !== 1 ? 's' : ''} are in agreement. Severity finding is ${verdict}. Recommended action: proceed to settlement subject to standard reserve and liability checks.`
+    : isPartial
+    ? `The majority of sources indicate ${verdict} severity, but one signal is not aligned. Recommended action: refer for physical inspection or senior assessor review before finalising the reserve, particularly if the severity classification affects the settlement amount.`
+    : `The available signals produce conflicting severity assessments. Conservative verdict (${verdict}) has been adopted. Recommended action: do not settle until a senior assessor has reviewed the conflicting signals and confirmed the severity classification in writing.`;
 
   return (
     <div className="mb-4">
@@ -3037,7 +3114,7 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
           )}
 
           {/* Action instruction — plain English for adjuster/insurer */}
-          <div className="flex items-start gap-3 p-3 rounded" style={{ background: alignment === 'CONFLICT' ? 'var(--fp-critical-bg)' : alignment === 'PARTIAL' ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)', border: `1px solid ${alignment === 'CONFLICT' ? 'var(--fp-critical-border)' : alignment === 'PARTIAL' ? 'var(--fp-warning-border)' : 'var(--fp-success-border)'}` }}>
+          <div className="flex items-start gap-3 p-3 rounded" style={{ background: isConflicted ? 'var(--fp-critical-bg)' : isPartial ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)', border: `1px solid ${isConflicted ? 'var(--fp-critical-border)' : isPartial ? 'var(--fp-warning-border)' : 'var(--fp-success-border)'}` }}>
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5" style={{ background: alignBadge.bg, color: alignBadge.text, border: `1px solid ${alignBadge.border}` }}>{alignment === 'FULL' ? '✓' : alignment === 'PARTIAL' ? '!' : '⚠'}</span>
             <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{actionInstruction}</p>
           </div>
