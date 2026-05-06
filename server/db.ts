@@ -1332,6 +1332,14 @@ export async function triggerAiAssessment(claimId: number) {
     // Stage 6 enriched photo metadata — persisted so the UI can show per-photo vision analysis results
     // Previously this was computed but never written to the DB column, causing enriched_photos_json to always be NULL.
     enrichedPhotosJson: result.enrichedPhotosJson ?? null,
+    // Hallucination guard: parts the AI generated that could not be resolved to canonical names.
+    // Preserved for manual review rather than silently dropped — data integrity.
+    unresolvedPartsJson: (() => {
+      try {
+        const unresolved = (claimRecord as any)?.unresolvedParts ?? [];
+        return unresolved.length > 0 ? JSON.stringify(unresolved) : null;
+      } catch { return null; }
+    })(),
   };
   // Apply the global NaN sanitizer before passing to Drizzle.
   // This catches any numeric field that slipped through safeInt/safeFloat guards.

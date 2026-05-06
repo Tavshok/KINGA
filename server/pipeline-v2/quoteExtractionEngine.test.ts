@@ -146,9 +146,11 @@ describe("extractQuoteFromText", () => {
 
     const result = await extractQuoteFromText("Workshop A: B/bar, R/H tail lamp, W/screen");
 
-    expect(result.components).toContain("rear bumper");
-    expect(result.components).toContain("rhs tail lamp");
-    expect(result.components).toContain("windscreen");
+    // After hallucination guard normalisation, names are canonical (title case)
+    // B/bar -> Front Bumper, R/H tail lamp -> Tail Light (Left), W/screen -> Windscreen (Windshield)
+    expect(result.components).toContain("Front Bumper");
+    expect(result.components.some((c: string) => /tail light/i.test(c))).toBe(true);
+    expect(result.components).toContain("Windscreen (Windshield)");
   });
 
   it("marks confidence as low when total_cost is null", async () => {

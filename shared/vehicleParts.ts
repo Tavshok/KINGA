@@ -69,7 +69,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "front_bumper",
     name: "Front Bumper",
-    aliases: ["front bumper cover", "front valance", "bumper bar", "front spoiler"],
+    aliases: ["front bumper cover", "front valance", "bumper bar", "front spoiler", "F/B", "FB", "front bar", "voorstomp", "front facia", "front fascia", "front bumper assy", "front bumper assembly", "B/bar", "bumper bar front"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -290,7 +290,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "left_quarter_panel",
     name: "Quarter Panel (Left)",
-    aliases: ["LH quarter panel", "left rear quarter", "left rear fender"],
+    aliases: ["LH quarter panel", "left rear quarter", "left rear fender", "Q/P LH", "QP LH", "LH Q/P", "LH QP", "left quarter", "linker kwartpaneel"],
     zone: "left_side",
     structural: true,
     costTier: "high",
@@ -375,7 +375,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "right_quarter_panel",
     name: "Quarter Panel (Right)",
-    aliases: ["RH quarter panel", "right rear quarter", "right rear fender"],
+    aliases: ["RH quarter panel", "right rear quarter", "right rear fender", "Q/P RH", "QP RH", "RH Q/P", "RH QP", "right quarter", "regterkwartpaneel"],
     zone: "right_side",
     structural: true,
     costTier: "high",
@@ -405,7 +405,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "rear_bumper",
     name: "Rear Bumper",
-    aliases: ["rear bumper cover", "back bumper", "rear valance"],
+    aliases: ["rear bumper cover", "back bumper", "rear valance", "R/B", "RB", "rear bar", "agterstomp", "rear facia", "rear fascia", "R bumper", "rear bumper assy", "back bar", "rear bumper assembly"],
     zone: "rear",
     structural: false,
     costTier: "medium",
@@ -497,7 +497,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "rear_canopy",
     name: "Canopy (Bakkie)",
-    aliases: ["bakkie canopy", "truck canopy", "load bin cover", "tonneau cover"],
+    aliases: ["bakkie canopy", "truck canopy", "load bin cover", "tonneau cover", "bakkie load bed", "load bed", "bak", "laaikas"],
     zone: "rear",
     structural: false,
     costTier: "medium",
@@ -514,7 +514,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "windscreen",
     name: "Windscreen (Windshield)",
-    aliases: ["windshield", "front windscreen", "front glass", "laminated glass"],
+    aliases: ["windshield", "front windscreen", "front glass", "laminated glass", "W/screen", "W/S", "windscreen", "voorruit"],
     zone: "windshield",
     structural: true,
     costTier: "medium",
@@ -589,7 +589,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "a_pillar",
     name: "A-Pillar",
-    aliases: ["front pillar", "windscreen pillar"],
+    aliases: ["front pillar", "windscreen pillar", "A/P", "AP", "a pillar", "voorste pilaar"],
     zone: "roof",
     structural: true,
     costTier: "high",
@@ -775,8 +775,11 @@ export function resolveComponent(rawName: string): VehiclePart | null {
   if (_aliasIndex.has(lower)) return _aliasIndex.get(lower)!;
   
   // 2. Substring match (e.g. "left front door" matches "Front Door (Left / Passenger)")
+  // Guard: only attempt substring match for alias keys >= 4 characters.
+  // Short abbreviations like "RB", "AP", "LH" would otherwise match as
+  // substrings inside unrelated words (e.g. "tuRBo", "cAPacitor").
   for (const [key, part] of Array.from(_aliasIndex.entries())) {
-    if (lower.includes(key) || key.includes(lower)) {
+    if (key.length >= 4 && (lower.includes(key) || key.includes(lower))) {
       return part;
     }
   }

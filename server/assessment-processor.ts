@@ -195,6 +195,7 @@ interface AssessmentResult {
   pdfUrl: string;
   crossValidation?: CrossValidationReport;
   normalizedComponents?: { raw: string; normalized: string; partId: string | null; zone: string | null }[];
+  unresolvedParts?: string[];
   vehicleMake: string;
   vehicleModel: string;
   vehicleYear: number;
@@ -1024,22 +1025,25 @@ Map damage descriptions to the closest matching canonical name (e.g., 'left hand
   console.log(`  Damaged Components: ${extractedData.damagedComponents?.length || 0} items`);
 
   // ── Post-extraction hallucination guard ─────────────────────────────
-  // Strip any component name the AI invented that is not in the canonical
-  // vehicle parts taxonomy. Log each rejection for audit purposes.
+  // Normalise all component names to the canonical vehicle parts taxonomy.
+  // Parts that resolve -> kept with canonical name.
+  // Parts that don't resolve -> kept in unresolvedParts list for manual
+  //   review rather than silently dropped (preserves data integrity).
+  const _unresolvedParts: string[] = [];
   if (extractedData.damagedComponents && extractedData.damagedComponents.length > 0) {
     const _validated: string[] = [];
-    const _rejected: string[] = [];
     for (const _raw of extractedData.damagedComponents) {
       const _resolved = resolveComponent(_raw);
       if (_resolved) {
-        _validated.push(_resolved.name); // Always normalise to canonical name
+        _validated.push(_resolved.name); // Normalise to canonical name
       } else {
-        _rejected.push(_raw);
-        console.warn(`\u26a0\ufe0f  Hallucination guard: rejected unrecognised part "${_raw}"`);
+        // Preserve for manual review -- do NOT silently drop
+        _unresolvedParts.push(_raw);
+        console.warn(`\u26a0\ufe0f  Hallucination guard: unresolvable part "${_raw}" -- flagged for manual review`);
       }
     }
-    if (_rejected.length > 0) {
-      console.warn(`\u26a0\ufe0f  Hallucination guard: removed ${_rejected.length} unrecognised part(s): ${_rejected.join(', ')}`);
+    if (_unresolvedParts.length > 0) {
+      console.warn(`\u26a0\ufe0f  Hallucination guard: ${_unresolvedParts.length} part(s) could not be resolved: ${_unresolvedParts.join(', ')}`);
     }
     extractedData.damagedComponents = [...new Set(_validated)];
     console.log(`\u2705 Validated components (${extractedData.damagedComponents.length}): ${extractedData.damagedComponents.join(', ')}`);
@@ -2154,6 +2158,30 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
       console.log(`   Visible not quoted: ${crossValidation.summary.visibleNotQuotedCount}`);
       console.log(`   Risk score: ${crossValidation.summary.overallRiskScore}/100 (${crossValidation.summary.overallRiskLevel})`);
       
+      // -- Merge CV-detected parts back into damagedComponents --
+      // Parts the computer vision found in photos that were NOT in the quote
+      // are still real damage. Add them to damagedComponents (union merge,
+      // deduped via resolveComponent so canonical names are used).
+      const _cvVisibleNotQuoted = crossValidation.items
+        .filter(item => item.category === 'visible_not_quoted')
+        .map(item => item.resolvedPart?.name ?? item.partName);
+      if (_cvVisibleNotQuoted.length > 0) {
+        const _existingSet = new Set(extractedData.damagedComponents || []);
+        let _cvAdded = 0;
+        for (const _cvPart of _cvVisibleNotQuoted) {
+          const _cvResolved = resolveComponent(_cvPart);
+          const _canonicalName = _cvResolved?.name ?? _cvPart;
+          if (!_existingSet.has(_canonicalName)) {
+            _existingSet.add(_canonicalName);
+            _cvAdded++;
+          }
+        }
+        if (_cvAdded > 0) {
+          extractedData.damagedComponents = Array.from(_existingSet);
+          console.log(`\u2705 CV merge: added ${_cvAdded} photo-visible part(s) to damagedComponents: ${_cvVisibleNotQuoted.join(', ')}`);
+        }
+      }
+
       // Feed cross-validation fraud indicators into fraud analysis
       if (crossValidation.fraudIndicators.length > 0) {
         fraudAnalysis.top_risk_factors.push(...crossValidation.fraudIndicators);
@@ -2254,6 +2282,7 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
       deductions: narrativeValidation.deductions,
     },
     normalizedComponents,
+    unresolvedParts: _unresolvedParts,
     missingData,
     dataQuality,
     dataCompleteness: completeness

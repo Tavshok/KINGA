@@ -86,6 +86,7 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   pipelineRunSummary: longtext("pipeline_run_summary"),
   // Stage 11 output: per-image vision enrichment (JSON array of EnrichedPhoto objects)
   enrichedPhotosJson: longtext("enriched_photos_json"),
+  unresolvedPartsJson: longtext("unresolved_parts_json"),
   // Stage 11 output: cross-check inconsistencies between photo findings and reported damage
   photoInconsistenciesJson: longtext("photo_inconsistencies_json"),
   // Stage 12 output: three-source damage consistency check (JSON ConsistencyCheckResult)

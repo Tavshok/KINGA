@@ -403,16 +403,24 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
 function normaliseComponentName(raw: string): string {
   const name = raw.trim();
   const map: [RegExp, string][] = [
-    [/\bB\/bar\b/i, "rear bumper"],
+    // SA panel-beater shorthands
+    // B/bar = bumper bar = front bumper (NOT rear bumper)
+    [/\bB\/bar\b/i, "front bumper"],
     [/\bF\/bar\b/i, "front bumper"],
+    [/\bR\/bar\b/i, "rear bumper"],
+    [/\bR\/B\b/i, "rear bumper"],
+    [/\bF\/B\b/i, "front bumper"],
+    [/\bQ\/P\b/i, "quarter panel"],
+    [/\bA\/P\b/i, "a-pillar"],
+    [/\bW\/screen\b/i, "windscreen"],
+    [/\bW\/S\b/i, "windscreen"],
+    [/\bA\/bag\b/i, "airbag"],
     [/\bR\/H\b/i, "RHS"],
     [/\bL\/H\b/i, "LHS"],
     [/\bR\/F\b/i, "right front"],
     [/\bL\/F\b/i, "left front"],
     [/\bR\/R\b/i, "right rear"],
     [/\bL\/R\b/i, "left rear"],
-    [/\bW\/screen\b/i, "windscreen"],
-    [/\bA\/bag\b/i, "airbag"],
     [/\bRad\b/i, "radiator"],
     [/\bGrille\b/i, "grille"],
     [/\(upper\)/i, ""],

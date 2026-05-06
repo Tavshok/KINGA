@@ -20,6 +20,15 @@ export interface DateRange {
   endDate: Date;
 }
 
+/**
+ * Convert a Date to MySQL DATETIME string (YYYY-MM-DD HH:MM:SS)
+ * Required because routingHistory.timestamp and fastTrackRoutingLog.evaluatedAt
+ * use Drizzle mode:'string', so comparisons must use strings not Date objects.
+ */
+function toMySQLDateString(d: Date): string {
+  return d.toISOString().replace('T', ' ').substring(0, 19);
+}
+
 export interface FastTrackRateMetrics {
   totalClaims: number;
   eligibleClaims: number;
@@ -73,8 +82,8 @@ export async function calculateFastTrackRate(
     .where(
       and(
         eq(routingHistory.tenantId, tenantId),
-        gte(routingHistory.timestamp, dateRange.startDate),
-        lte(routingHistory.timestamp, dateRange.endDate)
+        gte(routingHistory.timestamp, toMySQLDateString(dateRange.startDate)),
+        lte(routingHistory.timestamp, toMySQLDateString(dateRange.endDate))
       )
     );
 
@@ -88,8 +97,8 @@ export async function calculateFastTrackRate(
       and(
         eq(routingHistory.tenantId, tenantId),
         eq(routingHistory.routingCategory, "HIGH"),
-        gte(routingHistory.timestamp, dateRange.startDate),
-        lte(routingHistory.timestamp, dateRange.endDate)
+        gte(routingHistory.timestamp, toMySQLDateString(dateRange.startDate)),
+        lte(routingHistory.timestamp, toMySQLDateString(dateRange.endDate))
       )
     );
 
@@ -103,8 +112,8 @@ export async function calculateFastTrackRate(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
         eq(fastTrackRoutingLog.eligible, true),
-        gte(fastTrackRoutingLog.evaluatedAt, dateRange.startDate),
-        lte(fastTrackRoutingLog.evaluatedAt, dateRange.endDate)
+        gte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.startDate)),
+        lte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.endDate))
       )
     );
 
@@ -140,8 +149,8 @@ export async function calculateAutoApprovalRate(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
         eq(fastTrackRoutingLog.eligible, true),
-        gte(fastTrackRoutingLog.evaluatedAt, dateRange.startDate),
-        lte(fastTrackRoutingLog.evaluatedAt, dateRange.endDate)
+        gte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.startDate)),
+        lte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.endDate))
       )
     );
 
@@ -155,8 +164,8 @@ export async function calculateAutoApprovalRate(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
         eq(fastTrackRoutingLog.decision, "AUTO_APPROVE"),
-        gte(fastTrackRoutingLog.evaluatedAt, dateRange.startDate),
-        lte(fastTrackRoutingLog.evaluatedAt, dateRange.endDate)
+        gte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.startDate)),
+        lte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.endDate))
       )
     );
 
@@ -200,8 +209,8 @@ export async function calculateProcessingTime(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
         eq(fastTrackRoutingLog.eligible, true),
-        gte(workflowAuditTrail.createdAt, dateRange.startDate),
-        lte(workflowAuditTrail.createdAt, dateRange.endDate)
+        gte(workflowAuditTrail.createdAt, toMySQLDateString(dateRange.startDate)),
+        lte(workflowAuditTrail.createdAt, toMySQLDateString(dateRange.endDate))
       )
     )
     .groupBy(workflowAuditTrail.claimId);
@@ -234,8 +243,8 @@ export async function calculateProcessingTime(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
         sql`${fastTrackRoutingLog.id} IS NULL`, // Not in fast-track log
-        gte(workflowAuditTrail.createdAt, dateRange.startDate),
-        lte(workflowAuditTrail.createdAt, dateRange.endDate)
+        gte(workflowAuditTrail.createdAt, toMySQLDateString(dateRange.startDate)),
+        lte(workflowAuditTrail.createdAt, toMySQLDateString(dateRange.endDate))
       )
     )
     .groupBy(workflowAuditTrail.claimId);
@@ -282,8 +291,8 @@ export async function calculateExecutiveOverrides(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
         eq(fastTrackRoutingLog.decision, "AUTO_APPROVE"),
-        gte(fastTrackRoutingLog.evaluatedAt, dateRange.startDate),
-        lte(fastTrackRoutingLog.evaluatedAt, dateRange.endDate)
+        gte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.startDate)),
+        lte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.endDate))
       )
     );
 
@@ -298,8 +307,8 @@ export async function calculateExecutiveOverrides(
         eq(fastTrackRoutingLog.tenantId, tenantId),
         eq(fastTrackRoutingLog.decision, "AUTO_APPROVE"),
         eq(fastTrackRoutingLog.override, 1),
-        gte(fastTrackRoutingLog.evaluatedAt, dateRange.startDate),
-        lte(fastTrackRoutingLog.evaluatedAt, dateRange.endDate)
+        gte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.startDate)),
+        lte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.endDate))
       )
     );
   const overrideCount = Number(overrideResult?.count || 0);;
@@ -335,8 +344,8 @@ export async function calculateRiskDistribution(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
         eq(fastTrackRoutingLog.eligible, true),
-        gte(fastTrackRoutingLog.evaluatedAt, dateRange.startDate),
-        lte(fastTrackRoutingLog.evaluatedAt, dateRange.endDate)
+        gte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.startDate)),
+        lte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.endDate))
       )
     );
 

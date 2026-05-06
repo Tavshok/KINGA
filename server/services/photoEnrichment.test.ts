@@ -3,6 +3,12 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// ── Mock global fetch so isUrlAccessible always returns accessible ──────────────
+// Without this, isUrlAccessible() makes real HTTP requests to example.com URLs
+// which fail in the test environment, causing analyzePhoto to return the fallback
+// (impactZone: 'unknown') instead of the mocked LLM response.
+vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 200 }));
+
 // ── Mock invokeLLM ─────────────────────────────────────────────────────────────
 vi.mock('../_core/llm', () => ({
   invokeLLM: vi.fn(),
