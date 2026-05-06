@@ -35,6 +35,7 @@ import { sanitiseField } from "@/lib/sanitise";
 import { currencySymbol } from "@/lib/currency";
 import { ForensicAuditReport } from "@/components/ForensicAuditReport";
 import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
+import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -501,6 +502,8 @@ export default function InsurerComparisonView() {
                   Fraud: {fraudLevel.replace('_', ' ').toUpperCase()}
                 </span>
               </div>
+              {/* Currency change audit history — collapses when empty */}
+              <ClaimCurrencyHistory claimId={claimId} />
             </div>
 
             {/* Hero KPI strip */}

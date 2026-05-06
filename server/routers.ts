@@ -3353,6 +3353,54 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         return { success: true, currencyCode: input.currencyCode };
       }),
+
+    /**
+     * Get Currency Change History
+     *
+     * Returns all audit trail entries for currency changes on a specific claim,
+     * ordered newest-first. Each entry includes the actor's name, role, the new
+     * currency code, and the timestamp of the change.
+     *
+     * @param claimId - ID of the claim
+     * @returns Array of currency change audit entries
+     */
+    getCurrencyHistory: protectedProcedure
+      .input(z.object({
+        claimId: z.number().int().positive(),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+        const { auditTrail: auditTrailTable, users: usersTable } = await import('../drizzle/schema');
+        const rows = await db
+          .select({
+            id: auditTrailTable.id,
+            changeDescription: auditTrailTable.changeDescription,
+            createdAt: auditTrailTable.createdAt,
+            userName: usersTable.name,
+            userRole: usersTable.role,
+            userInsurer: usersTable.insurerRole,
+          })
+          .from(auditTrailTable)
+          .leftJoin(usersTable, eq(usersTable.id, auditTrailTable.userId))
+          .where(
+            and(
+              eq(auditTrailTable.claimId, input.claimId),
+              eq(auditTrailTable.action, 'claim_currency_updated'),
+            )
+          )
+          .orderBy(desc(auditTrailTable.createdAt))
+          .limit(50);
+        return rows.map((r) => ({
+          id: r.id,
+          description: r.changeDescription ?? '',
+          createdAt: r.createdAt,
+          actorName: r.userName ?? 'Unknown',
+          actorRole: r.userInsurer ?? r.userRole ?? 'unknown',
+        }));
+      }),
+
     /**
      * Accept a failed physics constraint with an adjuster explanation.
      * Marks the constraint as "accepted with explanation" so it no longer

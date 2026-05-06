@@ -11423,3 +11423,9 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Wire ClaimCurrencyOverride into InsurerComparisonView (claim header badge row)
 - [x] Wire ClaimCurrencyOverride into AssessorClaimDetails (claim header)
 - [x] Create server/taxonomy-sync.test.ts — 4 tests asserting LLM prompt enums match VEHICLE_PARTS
+
+## Follow-up Sprint (May 2026 — items 1 & 3)
+
+- [x] Extend taxonomy-sync.test.ts to cover quoteExtractionEngine.ts part-name enums
+- [x] Add currency change audit history panel to InsurerComparisonView claim detail page
+- [x] Add tRPC query to fetch currency-related audit entries for a claim

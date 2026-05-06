@@ -17,6 +17,7 @@ import VehicleValuationCard from "@/components/VehicleValuationCard";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
 import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
+import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
 
 export default function AssessorClaimDetails() {
   const { user, logout } = useAuth();
@@ -125,6 +126,8 @@ export default function AssessorClaimDetails() {
                   <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
                   <ClaimCurrencyOverride claimId={claimId} currentCurrencyCode={(claim as any).currencyCode} />
                 </div>
+                {/* Currency change audit history — collapses when empty */}
+                <ClaimCurrencyHistory claimId={claimId} />
               </div>
             </div>
             <div className="flex items-center gap-4">
