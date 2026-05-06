@@ -31,7 +31,9 @@ import {
   ArrowRight,
   ExternalLink,
   Search,
-  RotateCcw
+  RotateCcw,
+  Copy,
+  Hash
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
@@ -502,6 +504,36 @@ export default function ClaimsProcessorDashboard() {
                   );
                 })()}
               </div>
+
+              {/* KINGA Reference Number Badge */}
+              {claim.kingaRef && (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <div
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 cursor-pointer select-all hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                    title="Click to copy KINGA reference number"
+                    onClick={() => {
+                      navigator.clipboard.writeText(claim.kingaRef + '-FR');
+                      toast.success('KINGA ref copied', { description: claim.kingaRef + '-FR' });
+                    }}
+                  >
+                    <Hash className="h-3 w-3" />
+                    {claim.kingaRef}-FR
+                    <Copy className="h-3 w-3 opacity-60" />
+                  </div>
+                  <div
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-semibold bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+                    title="Click to copy Claim Report reference"
+                    onClick={() => {
+                      navigator.clipboard.writeText(claim.kingaRef + '-CL');
+                      toast.success('KINGA ref copied', { description: claim.kingaRef + '-CL' });
+                    }}
+                  >
+                    <Hash className="h-3 w-3" />
+                    {claim.kingaRef}-CL
+                    <Copy className="h-3 w-3 opacity-60" />
+                  </div>
+                </div>
+              )}
 
               {/* Data Source Badge */}
               {claim.sourceDocumentId && (

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download, Zap, Activity, Printer } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download, Zap, Activity, Printer, Copy, Hash } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
@@ -488,6 +488,35 @@ export default function InsurerComparisonView() {
                   <span className="text-xs px-2 py-0.5 rounded" style={{ background: '#e5e7eb', color: '#374151', border: '1px solid #d1d5db' }}>
                     {claim.vehicleRegistration}
                   </span>
+                )}
+                {/* KINGA Reference Number Badge */}
+                {claim.kingaRef && (
+                  <>
+                    <div
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 cursor-pointer select-all hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                      title="Click to copy KINGA Forensic Report reference"
+                      onClick={() => {
+                        navigator.clipboard.writeText(claim.kingaRef! + '-FR');
+                        toast.success('KINGA ref copied', { description: claim.kingaRef + '-FR' });
+                      }}
+                    >
+                      <Hash className="h-3 w-3" />
+                      {claim.kingaRef}-FR
+                      <Copy className="h-3 w-3 opacity-60" />
+                    </div>
+                    <div
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-semibold bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+                      title="Click to copy KINGA Claim Report reference"
+                      onClick={() => {
+                        navigator.clipboard.writeText(claim.kingaRef! + '-CL');
+                        toast.success('KINGA ref copied', { description: claim.kingaRef + '-CL' });
+                      }}
+                    >
+                      <Hash className="h-3 w-3" />
+                      {claim.kingaRef}-CL
+                      <Copy className="h-3 w-3 opacity-60" />
+                    </div>
+                  </>
                 )}
                 <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
                 {/* Per-claim currency override — click to change currency for this claim */}

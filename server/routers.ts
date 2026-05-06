@@ -1732,7 +1732,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           return rows.filter(r =>
             r.claimNumber?.toLowerCase().includes(q) ||
             r.claimantName?.toLowerCase().includes(q) ||
-            r.vehicleRegistration?.toLowerCase().includes(q)
+            r.vehicleRegistration?.toLowerCase().includes(q) ||
+            r.kingaRef?.toLowerCase().includes(q) ||
+            r.policyNumber?.toLowerCase().includes(q)
           );
         }
         return rows;
@@ -1790,7 +1792,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           return rows.filter(r =>
             r.claimNumber?.toLowerCase().includes(q) ||
             r.claimantName?.toLowerCase().includes(q) ||
-            r.vehicleRegistration?.toLowerCase().includes(q)
+            r.vehicleRegistration?.toLowerCase().includes(q) ||
+            r.kingaRef?.toLowerCase().includes(q) ||
+            r.policyNumber?.toLowerCase().includes(q)
           );
         }
         return rows;
@@ -2349,6 +2353,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           priority: claims.priority,
           assignedProcessorId: claims.assignedProcessorId,
           currencyCode: claims.currencyCode,
+          kingaRef: claims.kingaRef,
+          policyNumber: claims.policyNumber,
+          sourceDocumentId: claims.sourceDocumentId,
+          documentProcessingStatus: claims.documentProcessingStatus,
+          aiConfidenceScore: claims.aiConfidenceScore,
+          aiAssessmentTriggered: claims.aiAssessmentTriggered,
+          aiAssessmentCompleted: claims.aiAssessmentCompleted,
         })
         .from(claims)
         .where(and(...conditions))
@@ -2371,7 +2382,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           return enriched.filter(r =>
             r.claimNumber?.toLowerCase().includes(q) ||
             r.claimantName?.toLowerCase().includes(q) ||
-            r.vehicleRegistration?.toLowerCase().includes(q)
+            r.vehicleRegistration?.toLowerCase().includes(q) ||
+            r.kingaRef?.toLowerCase().includes(q) ||
+            r.policyNumber?.toLowerCase().includes(q)
           );
         }
         return enriched;
