@@ -1719,6 +1719,9 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     ["Vehicle mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
                     ["Accident severity", toSentenceCase(severity.replace(/_/g, " "))],
                     ["Incident type", toSentenceCase(incidentType.replace(/_/g, " "))],
+                    ...((_phys as any)?.decelerationG > 0 ? [["Deceleration", `${fmt((_phys as any).decelerationG, 2)} g`]] : []),
+                    ...((_phys as any)?.velocityRange?.low_kmh > 0 ? [["Velocity range (est.)", `${fmt((_phys as any).velocityRange.low_kmh, 1)}–${fmt((_phys as any).velocityRange.high_kmh, 1)} km/h`]] : []),
+                    ...((_phys as any)?.damageConsistencyScore != null ? [["Damage consistency score", `${Math.round((_phys as any).damageConsistencyScore)}/100`]] : []),
                   ].map(([k, v], i) => (
                     <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                       <td className="py-1.5 pr-3 font-semibold" style={{ color: "var(--muted-foreground)" }}>{k}</td>
@@ -1772,6 +1775,55 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               color: "var(--foreground)",
             }}>
               {directionMismatch ? "Direction mismatch: " : "Direction consistent: "}{directionExplanation}
+            </div>
+          )}
+          {/* Latent Damage Probability bars — engineer-grade hidden damage risk */}
+          {(() => {
+            const ldp = (_phys as any)?.latentDamageProbability;
+            if (!ldp) return null;
+            const entries = Object.entries(ldp) as [string, number][];
+            if (entries.length === 0) return null;
+            // Normalise: values may be 0-1 or 0-100; detect by max value
+            const maxRaw = Math.max(...entries.map(([,v]) => v));
+            const scale = maxRaw <= 1 ? 100 : 1;
+            const normalised = entries.map(([k, v]) => [k, Math.round(v * scale)] as [string, number]);
+            const anySignificant = normalised.some(([,v]) => v >= 15);
+            if (!anySignificant) return null;
+            return (
+              <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Latent Damage Probability</p>
+                  <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>Hidden damage risk by system</span>
+                </div>
+                <div className="space-y-1.5">
+                  {normalised.sort(([,a],[,b]) => b - a).map(([sys, pct]) => {
+                    const barColour = pct >= 60 ? 'var(--fp-critical-text)' : pct >= 35 ? 'var(--fp-warning-text)' : pct >= 15 ? 'var(--fp-locked-text)' : 'var(--fp-success-text)';
+                    return (
+                      <div key={sys}>
+                        <div className="flex justify-between text-[10px] mb-0.5">
+                          <span className="capitalize" style={{ color: 'var(--muted-foreground)' }}>{sys}</span>
+                          <span className="tabular-nums font-semibold" style={{ color: 'var(--foreground)' }}>{pct}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full" style={{ background: 'var(--muted)' }}>
+                          <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: barColour, opacity: 0.8 }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {normalised.some(([,v]) => v >= 40) && (
+                  <p className="text-[10px] mt-2 px-2 py-1" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)', borderRadius: '4px' }}>
+                    One or more systems show elevated hidden damage risk — physical inspection recommended before final settlement.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+          {/* Reconstruction summary — engineering derivation chain */}
+          {(_phys as any)?.reconstructionSummary && (
+            <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Reconstruction Summary</p>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{(_phys as any).reconstructionSummary}</p>
             </div>
           )}
         </div>
@@ -2473,6 +2525,10 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               </div>
             );
           })()}
+          {/* 2.8 Severity Consensus */}
+          <Section28SeverityConsensus severityConsensus={(_phys as any)?.severityConsensus ?? null} />
+          {/* 2.9 Damage Pattern Validation */}
+          <Section29DamagePatternValidation damagePatternValidation={(_phys as any)?.damagePatternValidation ?? null} />
         </div>
       </div>
     </div>
@@ -2685,6 +2741,323 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
             cross-validated by the Speed Inference Ensemble (Section 2.6). The claimed speed is the driver\'s stated speed from the claim form.
             This comparison is an objective forensic measurement — the adjuster determines its significance.
           </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Section 2.8: Severity Consensus Panel ─────────────────────────────────
+// Three-source verdict: physics model, damage analysis, image AI.
+// Designed to answer three audiences simultaneously:
+//   Engineer: raw source signals + confidence derivation
+//   Investigator: alignment verdict + conflict flag
+//   Insurer/Adjuster: plain-English action instruction
+function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: any | null }) {
+  if (!severityConsensus) return null;
+  const sc = severityConsensus;
+  const verdict: string = sc.final_severity ?? 'unknown';
+  const alignment: string = sc.source_alignment ?? 'UNKNOWN';
+  const confidence: number = sc.confidence ?? 0;
+  const reasoning: string = sc.reasoning ?? '';
+  const signals = sc.source_signals ?? {};
+  const sourcesAvailable: number = sc.sources_available ?? 0;
+
+  // Alignment badge colours — badge only, body text stays foreground
+  const alignBadge = alignment === 'FULL'
+    ? { bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'var(--fp-success-text)', label: 'FULLY ALIGNED' }
+    : alignment === 'PARTIAL'
+    ? { bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)', label: 'PARTIAL ALIGNMENT' }
+    : { bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', text: 'var(--fp-critical-text)', label: 'CONFLICTED' };
+
+  // Verdict colour — used only on the verdict badge
+  const verdictColour = verdict === 'severe' || verdict === 'catastrophic'
+    ? { bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', text: 'var(--fp-critical-text)' }
+    : verdict === 'moderate'
+    ? { bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)' }
+    : { bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'var(--fp-success-text)' };
+
+  // Source signal display
+  const sourceRows: { label: string; key: string; icon: string }[] = [
+    { label: 'Physics model', key: 'physics', icon: '⚙' },
+    { label: 'Damage analysis', key: 'damage', icon: '🔍' },
+    { label: 'Image AI', key: 'image', icon: '📷' },
+  ];
+
+  // Severity colour for individual source badges
+  const srcBadge = (sev: string | null) => {
+    if (!sev) return { bg: 'var(--fp-info-bg)', border: 'var(--fp-info-border)', text: 'var(--fp-info-text)' };
+    if (sev === 'severe' || sev === 'catastrophic') return { bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', text: 'var(--fp-critical-text)' };
+    if (sev === 'moderate') return { bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)' };
+    return { bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'var(--fp-success-text)' };
+  };
+
+  // Action instruction — plain English for adjuster/insurer
+  const actionInstruction = alignment === 'FULL'
+    ? `All ${sourcesAvailable} available source${sourcesAvailable !== 1 ? 's' : ''} agree. Severity finding is ${verdict}. No independent review required on severity grounds.`
+    : alignment === 'PARTIAL'
+    ? `Majority of sources agree on ${verdict} severity. One source disagrees — review the conflicting signal before settlement if the severity classification affects reserve level.`
+    : `Sources conflict on severity. Conservative verdict (${verdict}) adopted. Senior assessor review required before settlement.`;
+
+  return (
+    <div className="mb-4">
+      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)' }}>
+        {/* Header */}
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>2.8 Severity Consensus</p>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: alignBadge.bg, color: alignBadge.text, border: `1px solid ${alignBadge.border}` }}>{alignBadge.label}</span>
+        </div>
+        <div className="p-4">
+          {/* Verdict + Confidence — prominent for investigator */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Final Verdict</p>
+              <p className="text-lg font-bold capitalize" style={{ color: 'var(--foreground)' }}>{verdict}</p>
+              <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 uppercase" style={{ background: verdictColour.bg, color: verdictColour.text, border: `1px solid ${verdictColour.border}` }}>{verdict}</span>
+            </div>
+            <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Confidence</p>
+              <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--foreground)' }}>{Math.round(confidence)}%</p>
+              <div className="h-1.5 rounded-full mt-2" style={{ background: 'var(--muted)' }}>
+                <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, confidence)}%`, background: confidence >= 70 ? 'var(--fp-success-text)' : confidence >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-critical-text)', opacity: 0.8 }} />
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Sources Used</p>
+              <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--foreground)' }}>{sourcesAvailable} / 3</p>
+              <p className="text-[10px] mt-1" style={{ color: 'var(--muted-foreground)' }}>{sourcesAvailable === 3 ? 'Full triangulation' : sourcesAvailable === 2 ? 'Partial triangulation' : 'Single source'}</p>
+            </div>
+          </div>
+
+          {/* Source signal table — for engineer: raw values, for investigator: agreement/conflict */}
+          <table className="w-full text-xs report-table mb-4">
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: 'var(--muted-foreground)' }}>Source</th>
+                <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: 'var(--muted-foreground)' }}>Signal</th>
+                <th className="py-1.5 text-left font-semibold" style={{ color: 'var(--muted-foreground)' }}>Agrees with verdict</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sourceRows.map(({ label, key, icon }) => {
+                const signal: string | null = signals[key] ?? null;
+                const agrees = signal != null && signal === verdict;
+                const badge = srcBadge(signal);
+                return (
+                  <tr key={key} style={{ borderTop: '1px solid var(--border)' }}>
+                    <td className="py-1.5 pr-3" style={{ color: 'var(--muted-foreground)' }}>{icon} {label}</td>
+                    <td className="py-1.5 pr-3">
+                      {signal
+                        ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ background: badge.bg, color: badge.text, border: `1px solid ${badge.border}` }}>{signal}</span>
+                        : <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>Not available</span>
+                      }
+                    </td>
+                    <td className="py-1.5">
+                      {signal == null
+                        ? <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>—</span>
+                        : agrees
+                        ? <span className="text-[10px] font-bold" style={{ color: 'var(--fp-success-text)' }}>✓ Yes</span>
+                        : <span className="text-[10px] font-bold" style={{ color: 'var(--fp-critical-text)' }}>✗ No — {signal}</span>
+                      }
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Reasoning — engineering derivation chain */}
+          {reasoning && (
+            <div className="p-3 rounded mb-3" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Derivation</p>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{reasoning}</p>
+            </div>
+          )}
+
+          {/* Action instruction — plain English for adjuster/insurer */}
+          <div className="flex items-start gap-3 p-3 rounded" style={{ background: alignment === 'CONFLICT' ? 'var(--fp-critical-bg)' : alignment === 'PARTIAL' ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)', border: `1px solid ${alignment === 'CONFLICT' ? 'var(--fp-critical-border)' : alignment === 'PARTIAL' ? 'var(--fp-warning-border)' : 'var(--fp-success-border)'}` }}>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5" style={{ background: alignBadge.bg, color: alignBadge.text, border: `1px solid ${alignBadge.border}` }}>{alignment === 'FULL' ? '✓' : alignment === 'PARTIAL' ? '!' : '⚠'}</span>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{actionInstruction}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Section 2.9: Damage Pattern Validation Panel ────────────────────────────
+// Expected vs found component analysis.
+// Designed to answer three audiences simultaneously:
+//   Engineer: expected/found component lists + coverage percentages
+//   Investigator: missing expected components (fraud signal) + unexpected components (billing anomaly)
+//   Insurer/Adjuster: structural damage flag + named action items
+function Section29DamagePatternValidation({ damagePatternValidation }: { damagePatternValidation: any | null }) {
+  if (!damagePatternValidation) return null;
+  const dpv = damagePatternValidation;
+  const patternMatch: string = dpv.pattern_match ?? 'NONE';
+  const missingExpected: string[] = dpv.missing_expected_components ?? [];
+  const unexpected: string[] = dpv.unexpected_components ?? [];
+  const structuralDetected: boolean = dpv.structural_damage_detected ?? false;
+  const confidence: number = dpv.confidence ?? 0;
+  const reasoning: string = dpv.reasoning ?? '';
+  const detail = dpv.validation_detail ?? {};
+  const expectedPrimary: string[] = detail.expected_primary ?? [];
+  const expectedSecondary: string[] = detail.expected_secondary ?? [];
+  const matchedPrimary: string[] = detail.matched_primary ?? [];
+  const matchedSecondary: string[] = detail.matched_secondary ?? [];
+  const structuralFound: string[] = detail.structural_components_found ?? [];
+  const imageContradiction: boolean = detail.image_contradiction ?? false;
+  const imageContradictionReason: string = detail.image_contradiction_reason ?? '';
+  const primaryCovPct: number = detail.primary_coverage_pct ?? 0;
+  const secondaryCovPct: number = detail.secondary_coverage_pct ?? 0;
+
+  // Pattern match badge
+  const matchBadge = patternMatch === 'STRONG'
+    ? { bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'var(--fp-success-text)' }
+    : patternMatch === 'MODERATE'
+    ? { bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)' }
+    : patternMatch === 'WEAK'
+    ? { bg: 'var(--fp-locked-bg)', border: 'var(--fp-locked-border)', text: 'var(--fp-locked-text)' }
+    : { bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', text: 'var(--fp-critical-text)' };
+
+  const hasAnomalies = missingExpected.length > 0 || unexpected.length > 0 || structuralDetected || imageContradiction;
+
+  return (
+    <div className="mb-4">
+      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)' }}>
+        {/* Header */}
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>2.9 Damage Pattern Validation</p>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: matchBadge.bg, color: matchBadge.text, border: `1px solid ${matchBadge.border}` }}>{patternMatch} MATCH</span>
+        </div>
+        <div className="p-4">
+          {/* Structural damage banner — most critical signal */}
+          {structuralDetected && (
+            <div className="flex items-center gap-2 p-2.5 rounded mb-3" style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)' }}>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>⚠ STRUCTURAL</span>
+              <p className="text-xs" style={{ color: 'var(--foreground)' }}>
+                Structural damage components detected: {structuralFound.length > 0 ? structuralFound.join(', ') : 'present'}.
+                Frame/chassis integrity may be compromised — independent structural assessment required before settlement.
+              </p>
+            </div>
+          )}
+
+          {/* Image contradiction banner */}
+          {imageContradiction && (
+            <div className="flex items-center gap-2 p-2.5 rounded mb-3" style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)' }}>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>⚠ IMAGE CONFLICT</span>
+              <p className="text-xs" style={{ color: 'var(--foreground)' }}>{imageContradictionReason || 'Image evidence contradicts claimed damage pattern.'}</p>
+            </div>
+          )}
+
+          {/* Coverage metrics — engineer-grade */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <div className="flex justify-between text-[10px] mb-1">
+                <span style={{ color: 'var(--muted-foreground)' }}>Primary zone coverage</span>
+                <span className="tabular-nums font-semibold" style={{ color: 'var(--foreground)' }}>{primaryCovPct}%</span>
+              </div>
+              <div className="h-2 rounded-full" style={{ background: 'var(--muted)' }}>
+                <div className="h-2 rounded-full" style={{ width: `${Math.min(100, primaryCovPct)}%`, background: primaryCovPct >= 70 ? 'var(--fp-success-text)' : primaryCovPct >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-critical-text)', opacity: 0.8 }} />
+              </div>
+              <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{matchedPrimary.length}/{expectedPrimary.length} expected primary components matched</p>
+            </div>
+            <div>
+              <div className="flex justify-between text-[10px] mb-1">
+                <span style={{ color: 'var(--muted-foreground)' }}>Secondary zone coverage</span>
+                <span className="tabular-nums font-semibold" style={{ color: 'var(--foreground)' }}>{secondaryCovPct}%</span>
+              </div>
+              <div className="h-2 rounded-full" style={{ background: 'var(--muted)' }}>
+                <div className="h-2 rounded-full" style={{ width: `${Math.min(100, secondaryCovPct)}%`, background: secondaryCovPct >= 70 ? 'var(--fp-success-text)' : secondaryCovPct >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-critical-text)', opacity: 0.8 }} />
+              </div>
+              <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{matchedSecondary.length}/{expectedSecondary.length} expected secondary components matched</p>
+            </div>
+          </div>
+
+          {/* Component table — expected vs found */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* Expected primary */}
+            {expectedPrimary.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--muted-foreground)' }}>Expected primary components</p>
+                <div className="space-y-1">
+                  {expectedPrimary.map((comp) => {
+                    const matched = matchedPrimary.some(m => m.toLowerCase().includes(comp.toLowerCase()) || comp.toLowerCase().includes(m.toLowerCase()));
+                    return (
+                      <div key={comp} className="flex items-center gap-1.5 text-[10px]">
+                        <span style={{ color: matched ? 'var(--fp-success-text)' : 'var(--fp-critical-text)', fontWeight: 700 }}>{matched ? '✓' : '✗'}</span>
+                        <span className="capitalize" style={{ color: 'var(--foreground)' }}>{comp}</span>
+                        {!matched && <span className="text-[9px]" style={{ color: 'var(--fp-critical-text)' }}>missing</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {/* Anomalies column */}
+            <div>
+              {missingExpected.length > 0 && (
+                <>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--fp-critical-text)' }}>Missing expected components</p>
+                  <div className="space-y-1 mb-3">
+                    {missingExpected.map((comp) => (
+                      <div key={comp} className="flex items-center gap-1.5 text-[10px]">
+                        <span style={{ color: 'var(--fp-critical-text)', fontWeight: 700 }}>✗</span>
+                        <span className="capitalize" style={{ color: 'var(--foreground)' }}>{comp}</span>
+                        <span className="text-[9px] px-1 rounded" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>fraud signal</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {unexpected.length > 0 && (
+                <>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--fp-warning-text)' }}>Unexpected components</p>
+                  <div className="space-y-1">
+                    {unexpected.map((comp) => (
+                      <div key={comp} className="flex items-center gap-1.5 text-[10px]">
+                        <span style={{ color: 'var(--fp-warning-text)', fontWeight: 700 }}>?</span>
+                        <span className="capitalize" style={{ color: 'var(--foreground)' }}>{comp}</span>
+                        <span className="text-[9px] px-1 rounded" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>billing anomaly</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {!missingExpected.length && !unexpected.length && (
+                <div className="flex items-center gap-1.5 text-[10px]" style={{ color: 'var(--fp-success-text)' }}>
+                  <span style={{ fontWeight: 700 }}>✓</span>
+                  <span>No anomalies detected</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Reasoning — engineering derivation chain */}
+          {reasoning && (
+            <div className="p-3 rounded mb-3" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Pattern Validation Reasoning</p>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{reasoning}</p>
+            </div>
+          )}
+
+          {/* Action instruction — plain English for adjuster/insurer */}
+          {hasAnomalies ? (
+            <div className="p-3 rounded" style={{ background: 'var(--fp-warning-bg)', border: '1px solid var(--fp-warning-border)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--fp-warning-text)' }}>Adjuster Action Required</p>
+              <ul className="text-xs space-y-1" style={{ color: 'var(--foreground)' }}>
+                {missingExpected.length > 0 && <li>• Missing expected components ({missingExpected.join(', ')}) — verify whether these were omitted from the claim or genuinely absent from the damage.</li>}
+                {unexpected.length > 0 && <li>• Unexpected components ({unexpected.join(', ')}) — confirm these are consistent with the stated impact direction and speed before authorising payment.</li>}
+                {structuralDetected && <li>• Structural damage detected — independent structural assessment required before settlement.</li>}
+                {imageContradiction && <li>• Image evidence contradicts claimed damage pattern — physical inspection required.</li>}
+              </ul>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 p-3 rounded" style={{ background: 'var(--fp-success-bg)', border: '1px solid var(--fp-success-border)' }}>
+              <span style={{ color: 'var(--fp-success-text)', fontWeight: 700 }}>✓</span>
+              <p className="text-xs" style={{ color: 'var(--foreground)' }}>Damage pattern is consistent with the claimed incident type and impact direction. No anomalies requiring adjuster action.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -5088,22 +5088,36 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           _photoForensics: photoForensicsData,
           // Physics values from bridge (actual Stage7 output) — used by report Section 2
           // These are the authoritative values; physicsEstimate is only populated when Stage7 didn't run
-          _physics: {
-            deltaVKmh: Number(deltaVKmh) || 0,
-            impactForceKn: Number(impactForceKn) || 0,
-            energyKj: Number(energyKj) || 0,
-            vehicleMassKg: Number(vehicleMassKg) || 0,
-            estimatedSpeedKmh: Number(estimatedSpeedKmh) || 0,
-            speedInferenceEnsemble: bridge.speedInferenceEnsemble ?? null,
-            // Dual-speed forensics: claimed vs physics-inferred speed comparison
-            speedForensics: (() => {
-              try {
-                const pa = (assessment as any).physicsAnalysis;
-                const parsed = typeof pa === 'string' ? JSON.parse(pa) : pa;
-                return parsed?.speedForensics ?? null;
-              } catch { return null; }
-            })(),
-          },
+          _physics: (() => {
+            // Parse the full physicsAnalysis JSON once so all sub-fields are available
+            let physicsJson: any = null;
+            try {
+              const pa = (assessment as any).physicsAnalysis;
+              physicsJson = pa ? (typeof pa === 'string' ? JSON.parse(pa) : pa) : null;
+            } catch { /* non-fatal */ }
+            return {
+              deltaVKmh: Number(deltaVKmh) || 0,
+              impactForceKn: Number(impactForceKn) || 0,
+              energyKj: Number(energyKj) || 0,
+              vehicleMassKg: Number(vehicleMassKg) || 0,
+              estimatedSpeedKmh: Number(estimatedSpeedKmh) || 0,
+              speedInferenceEnsemble: bridge.speedInferenceEnsemble ?? null,
+              // Dual-speed forensics: claimed vs physics-inferred speed comparison
+              speedForensics: physicsJson?.speedForensics ?? null,
+              // Extended physics fields — stored in physicsAnalysis JSON but previously not exposed
+              severityConsensus: physicsJson?.severityConsensus ?? null,
+              damagePatternValidation: physicsJson?.damagePatternValidation ?? null,
+              latentDamageProbability: physicsJson?.latentDamageProbability ?? null,
+              velocityRange: physicsJson?.velocityRange ?? null,
+              physicsNumerical: physicsJson?.physicsNumerical ?? null,
+              impactVector: physicsJson?.impactVector ?? null,
+              energyDistribution: physicsJson?.energyDistribution ?? null,
+              decelerationG: physicsJson?.decelerationG ?? null,
+              reconstructionSummary: physicsJson?.reconstructionSummary ?? null,
+              damageConsistencyScore: physicsJson?.damageConsistencyScore ?? null,
+              accidentSeverity: physicsJson?.accidentSeverity ?? null,
+            };
+          })(),
           // Override photosDetected with numeric count so ForensicAuditReport renders correctly
           photosDetected: photosDetectedCount > 0 ? photosDetectedCount : (bridge.photosDetected ? phase2PhotoUrls.length : 0),
           photosProcessedCount: photosProcessedCount > 0 ? photosProcessedCount : phase2PhotoUrls.length,
