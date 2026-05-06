@@ -103,6 +103,21 @@ RULES — follow these exactly:
    - If unit_cost is not stated but line_total is, set unit_cost = line_total / quantity.
    - Set action to "replace", "repair", "refinish", or "other" based on the row description.
    - If no itemised pricing exists (only a total), return an empty array for line_items.
+   TWO-COLUMN QUOTE TABLES (very common in African repair shops):
+   Many African repair quotes have TWO price columns: "SUPPLY & FIT" (full replacement) and "REPAIR" (repair only).
+   The OCR often merges both column values into a single string next to the component name.
+   Rules for two-column tables:
+   a) When you see two numbers next to a component name (e.g. "L/R door  200 190"), the FIRST is supply-and-fit, the SECOND is repair-only.
+   b) Use the FIRST number as unit_cost and line_total. Set action="replace".
+   c) If the component row has a checkmark symbol (✓, L, レ, ✔) in one column, that column was selected. Use the price in that column.
+   d) "Sundries", "Paint", "Sub Total", "VAT", "TOTAL" are special rows — extract their values as line items with action="other" for sundries/paint, and skip Sub Total/VAT/TOTAL rows (they are not components).
+   e) Example OCR output: "4s tail lamp  200 190" → component="tail lamp", unit_cost=200, line_total=200, action="replace"
+   f) Example: "Paint  2040" → component="paint", unit_cost=2040, line_total=2040, action="refinish"
+   g) Example: "Sundries  30" → component="sundries", unit_cost=30, line_total=30, action="other"
+   h) Example: "LIR door  45058" → this is OCR garble for "L/R door  450 58" → component="LR door", unit_cost=450, line_total=450, action="replace"
+   PROPORTIONAL FALLBACK: If you cannot parse individual line totals but the document total is known and there are N components,
+   distribute the total proportionally across components using equal shares as a last resort.
+   Set extraction_warnings to include "proportional_fallback_used" in that case.
 6. Do NOT infer or guess missing components.
 7. Do NOT estimate any cost.
 8. If a field cannot be found, return null (for strings/numbers) or false (for booleans).

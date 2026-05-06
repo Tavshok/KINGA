@@ -11429,3 +11429,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Extend taxonomy-sync.test.ts to cover quoteExtractionEngine.ts part-name enums
 - [x] Add currency change audit history panel to InsurerComparisonView claim detail page
 - [x] Add tRPC query to fetch currency-related audit entries for a claim
+
+## Session — 2026-05-06 (Batch 2)
+
+- [ ] Fix quote line item amounts — Stage 9 extraction not persisting line_total correctly (all 0.00)
+- [ ] Audit executive dashboard for orphan states and broken tab paths — fix every dead end
+- [ ] Suppress report-ready notifications from non-owner portals (executive panel should not receive them)
+- [ ] Produce tier/pricing strategy document based on current system capabilities

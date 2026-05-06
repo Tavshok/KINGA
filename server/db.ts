@@ -231,6 +231,29 @@ export async function getUsersByRole(role: typeof users.$inferSelect.role) {
   return await db.select().from(users).where(eq(users.role, role));
 }
 
+/**
+ * Get insurer users filtered by specific insurer sub-roles.
+ * Use this instead of getUsersByRole("insurer") when sending operational
+ * notifications that should NOT go to executive or risk_manager sub-roles.
+ *
+ * @param insurerRoles - Array of insurer sub-roles to include
+ * @returns Users with role="insurer" whose insurerRole is in the provided list
+ */
+export async function getUsersByInsurerRoles(insurerRoles: string[]): Promise<(typeof users.$inferSelect)[]> {
+  const db = await getDb();
+  if (!db) return [];
+  if (!insurerRoles.length) return [];
+  return await db
+    .select()
+    .from(users)
+    .where(
+      and(
+        eq(users.role, "insurer"),
+        inArray(users.insurerRole, insurerRoles)
+      )
+    );
+}
+
 // ============================================================================
 // PANEL BEATER OPERATIONS
 // ============================================================================

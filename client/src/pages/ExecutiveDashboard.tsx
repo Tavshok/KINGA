@@ -25,7 +25,7 @@ import {
   Shield, ShieldCheck, TrendingDown, Download,
   AlertCircle, Gauge, Target, Zap
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import ExecutiveAnalyticsCharts from "@/components/ExecutiveAnalyticsCharts";
 import { AnalyticsExportButton } from "@/components/AnalyticsExportButton";
@@ -183,7 +183,26 @@ function LargeKPICard({ title, value, subtitle, icon: Icon, trend, color }: KPIC
 export default function ExecutiveDashboard() {
   const { fmt, currencySymbol } = useTenantCurrency();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [, setLocation] = useLocation();
+  const searchStr = useSearch();
+  // Sync active tab with ?tab= query param from sidebar links
+  // e.g. /insurer-portal/executive?tab=financials → roi-breakdown
+  const TAB_MAP: Record<string, string> = {
+    financials: "roi-breakdown",
+    "roi-breakdown": "roi-breakdown",
+    "operational-health": "operational-health",
+    notifications: "notifications",
+    overview: "overview",
+  };
+  const [activeTab, setActiveTab] = useState(() => {
+    const param = new URLSearchParams(searchStr).get("tab") ?? "overview";
+    return TAB_MAP[param] ?? "overview";
+  });
+  useEffect(() => {
+    const param = new URLSearchParams(searchStr).get("tab") ?? "overview";
+    const mapped = TAB_MAP[param] ?? "overview";
+    setActiveTab(mapped);
+  }, [searchStr]);
   
   // Comment & Review Request state
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
@@ -270,27 +289,26 @@ export default function ExecutiveDashboard() {
     };
   }, [kpis]);
 
-  // Add comment mutation
-  const addComment = { 
-    mutateAsync: async (params: any) => { console.log('Comment:', params); }, 
-    mutate: (params: any) => { console.log('Comment:', params); } 
-  } as any;
-  
-  const handleCommentSuccess = () => {
-    toast.success("Comment Added", {
-      description: "Your comment has been added to the claim.",
-    });
-    setShowCommentDialog(false);
-    setSelectedClaim(null);
-    setCommentContent("");
-    setCommentType("general");
-  };
+  // Add comment mutation — wired to real backend
+  const addComment = trpc.comments.addComment.useMutation({
+    onSuccess: () => {
+      toast.success("Comment Added", {
+        description: "Your comment has been added to the claim.",
+      });
+      setShowCommentDialog(false);
+      setSelectedClaim(null);
+      setCommentContent("");
+      setCommentType("general");
+    },
+    onError: (err: any) => {
+      toast.error("Failed to add comment", { description: err?.message ?? "Unknown error" });
+    },
+  });
 
   const handleAddComment = (claim: any) => {
     setSelectedClaim(claim);
     setShowCommentDialog(true);
   };
-
   const handleSubmitComment = () => {
     if (!selectedClaim || !commentContent.trim()) {
       toast.error("Validation Error", {
@@ -298,19 +316,15 @@ export default function ExecutiveDashboard() {
       });
       return;
     }
-
     addComment.mutate({
       claimId: selectedClaim.id,
-      commentType: commentType as any,
       content: commentContent,
     });
   };
-
   const handleRequestReview = (claim: any) => {
     setSelectedClaim(claim);
     setShowReviewDialog(true);
   };
-
   const handleSubmitReviewRequest = () => {
     if (!selectedClaim || !reviewRole || !reviewNotes.trim()) {
       toast.error("Validation Error", {
@@ -318,13 +332,10 @@ export default function ExecutiveDashboard() {
       });
       return;
     }
-
     addComment.mutate({
       claimId: selectedClaim.id,
-      commentType: "flag",
       content: `EXECUTIVE REVIEW REQUEST for ${reviewRole}: ${reviewNotes}`,
     });
-
     setShowReviewDialog(false);
     setSelectedClaim(null);
     setReviewRole("");

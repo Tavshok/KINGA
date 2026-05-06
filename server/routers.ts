@@ -43,6 +43,7 @@ import {
   updateClaimPolicyVerification,
   triggerAiAssessment,
   getUsersByRole,
+  getUsersByInsurerRoles,
   createPanelBeaterQuote,
   getQuotesByClaimId,
   getQuotesByPanelBeater,
@@ -4155,8 +4156,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                 if (optimisationResult) {
                   try {
                     const { sendAiOptimisationCompleteEmail } = await import("./safe-email");
-                    const { getUsersByRole: _getUsersByRole } = await import("./db");
-                    const insurers = await _getUsersByRole("insurer");
+                    const { getUsersByInsurerRoles: _getInsurerRoles } = await import("./db");
+                    // Only email operational roles (claims_manager, insurer_admin) — not executive
+                    const insurers = await _getInsurerRoles(["claims_manager", "insurer_admin"]);
                     // Filter to insurers in the same tenant as the claim
                     const tenantInsuers = insurers.filter(
                       (u) => !claim.tenantId || u.tenantId === claim.tenantId
@@ -4186,11 +4188,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           // ────────────────────────────────────────────────────────────────────
 
           // Notify insurer that all quotes are ready for comparison
+          // Only notify operational roles (claims_manager, insurer_admin) — not executive
           if (claim) {
-            const insurers = await getUsersByRole("insurer");
+            const insurers = await getUsersByInsurerRoles(["claims_manager", "insurer_admin"]);
+            const tenantInsurers = insurers.filter((u) => !claim.tenantId || u.tenantId === claim.tenantId);
             const { createNotification } = await import("./db");
             
-            for (const insurer of insurers) {
+            for (const insurer of tenantInsurers) {
               await createNotification({
                 userId: insurer.id,
                 title: "All Quotes Received — AI Analysis Running",
@@ -4205,11 +4209,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           }
         } else {
           // Notify insurer of new quote submission
+          // Only notify operational roles (claims_manager, insurer_admin) — not executive
           if (claim) {
-            const insurers = await getUsersByRole("insurer");
+            const insurers = await getUsersByInsurerRoles(["claims_manager", "insurer_admin"]);
+            const tenantInsurers = insurers.filter((u) => !claim.tenantId || u.tenantId === claim.tenantId);
             const { createNotification } = await import("./db");
             
-            for (const insurer of insurers) {
+            for (const insurer of tenantInsurers) {
               await createNotification({
                 userId: insurer.id,
                 title: "New Quote Submitted",

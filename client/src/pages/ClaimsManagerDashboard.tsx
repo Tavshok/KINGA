@@ -258,8 +258,12 @@ export default function ClaimsManagerDashboard() {
     },
   });
 
-  // Comment functionality - to be implemented
-  const addComment = { mutateAsync: async (params: any) => { console.log('Comment:', params); } };
+  // Comment functionality — wired to real backend
+  const addComment = trpc.comments.addComment.useMutation({
+    onError: (err: any) => {
+      console.error('[ClaimsManager] Failed to add comment:', err?.message);
+    },
+  });
 
   const handleClose = (claim: any) => {
     setSelectedClaim(claim);
@@ -282,7 +286,6 @@ export default function ClaimsManagerDashboard() {
     if (closureNotes) {
       await addComment.mutateAsync({
         claimId: selectedClaim.id,
-        commentType: "general",
         content: `Claims Manager Review: ${closureAction === "approve_for_payment" ? "Approved for Payment Processing" : closureAction === "approve_for_repair" ? "Approved for Repair Assignment" : "Closed - No Further Action"} | Notes: ${closureNotes}`,
       });
     }
@@ -298,8 +301,7 @@ export default function ClaimsManagerDashboard() {
 
     await addComment.mutateAsync({
       claimId: selectedClaim.id,
-      commentType: "clarification_request",
-      content: `SENT BACK BY CLAIMS MANAGER: ${sendBackComments}`,
+      content: `SENT BACK BY CLAIMS MANAGER (Clarification Request): ${sendBackComments}`,
     });
 
     sendBackClaim.mutate({ claimId: selectedClaim.id, selectedQuoteId: 0 });
