@@ -222,6 +222,21 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
   const currCode = claim?.currencyCode ?? "USD";
   const fmtC = makeFmtCurrency(currCode);
 
+  // Market value: prefer valuation engine output (Stage 5c) over claim-form stated value
+  // aiAssessment._claimRecord is the parsed ClaimRecord exposed by the byClaim tRPC procedure
+  const _claimRecord0 = aiAssessment?._claimRecord ?? null;
+  const _valResult = _claimRecord0?.valuation ?? null;
+  const marketValueUsd: number | null = _valResult?.marketValueUsd ?? _claimRecord0?.vehicle?.marketValueUsd ?? null;
+  const marketValueSource: string | null = _valResult?.dataSource
+    ? _valResult.dataSource
+    : _valResult?.valuationMethod === 'document_stated'
+      ? 'Stated on claim form'
+      : _valResult?.valuationMethod === 'llm_estimate'
+        ? 'KINGA AI estimate'
+        : marketValueUsd
+          ? 'Stated on claim form'
+          : null;
+
   // Decision
   const decision: string = e?.finalDecision?.decision ?? phase2?.finalDecision ?? "REVIEW_REQUIRED";
   const primaryReason: string = e?.finalDecision?.primaryReason ?? phase2?.keyDrivers?.[0] ?? "";
@@ -379,6 +394,12 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               <KVRow label="Incident Type" value={toTitleCase(aiAssessment?.accidentType ?? claim?.incidentType ?? "—")} />
               <KVRow label="Police Report #" value={aiAssessment?.policeReportNumber ?? claim?.policeReportNumber ?? "—"} />
               <KVRow label="Driver Licence" value={aiAssessment?.driverLicenseNumber ?? claim?.driverLicenseNumber ?? "—"} />
+              {marketValueUsd != null && (
+                <KVRow label="Market Value" value={fmtC(marketValueUsd)} wide />
+              )}
+              {marketValueSource && (
+                <KVRow label="Valuation Basis" value={marketValueSource} wide />
+              )}
             </div>
           </div>
         </div>

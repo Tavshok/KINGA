@@ -808,11 +808,12 @@ export default function InsurerComparisonView() {
                 </button>
               ))}
             </div>
-            {reportView === 'standard' ? (
+            <div data-report-view="standard" style={reportView !== 'standard' ? { display: 'none' } : undefined}>
               <KingaClaimsReport claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
-            ) : (
+            </div>
+            <div data-report-view="forensic" style={reportView !== 'forensic' ? { display: 'none' } : undefined}>
               <ForensicAuditReport claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
-            )}
+            </div>
           </>
         ) : aiAssessment && !enforcement ? (
           <div className="comparison-section">

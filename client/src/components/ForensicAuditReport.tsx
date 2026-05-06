@@ -1001,7 +1001,18 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const claimReference = claimRecord0?.insuranceContext?.claimReference ?? claim?.claimNumber ?? claim?.claimReference ?? null;
   const excessAmountUsd = claimRecord0?.insuranceContext?.excessAmountUsd ?? null;
   const driverLicenseNumber = claimRecord0?.driver?.licenseNumber ?? null;
-  const marketValueUsd = claimRecord0?.vehicle?.marketValueUsd ?? null;
+  // Market value: prefer valuation engine output (Stage 5c) over claim-form stated value
+  const _valEngineResult = claimRecord0?.valuation ?? null;
+  const marketValueUsd = _valEngineResult?.marketValueUsd ?? claimRecord0?.vehicle?.marketValueUsd ?? null;
+  const marketValueSource: string | null = _valEngineResult?.dataSource
+    ? _valEngineResult.dataSource
+    : _valEngineResult?.valuationMethod === 'document_stated'
+      ? 'Stated on claim form'
+      : _valEngineResult?.valuationMethod === 'llm_estimate'
+        ? 'KINGA AI estimate'
+        : claimRecord0?.vehicle?.marketValueUsd
+          ? 'Stated on claim form'
+          : null;
   const vehicleMileage = claimRecord0?.vehicle?.mileageKm ?? claim?.vehicleMileage ?? null;
   const vehicleVin = claimRecord0?.vehicle?.vin ?? claim?.vehicleVin ?? aiAssessment?.vehicleVin ?? null;
   const vehicleEngineNumber = claimRecord0?.vehicle?.engineNumber ?? claim?.vehicleEngineNumber ?? null;
@@ -1331,7 +1342,8 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 ["Engine number", vehicleEngineNumber ?? "Not recorded"],
                 ["Odometer", vehicleMileage != null ? `${vehicleMileage.toLocaleString()} km` : "Not recorded"],
                 ["Market value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Not stated"],
-              ].map(([k, v], i) => (
+                marketValueSource ? ["Valuation basis", marketValueSource] : null,
+              ].filter(Boolean).map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                   <td className="py-2 pr-4 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
                   <td className="py-2" style={{ color: "var(--foreground)" }}>{v as React.ReactNode}</td>

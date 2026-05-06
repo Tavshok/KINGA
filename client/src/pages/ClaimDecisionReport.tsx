@@ -1345,6 +1345,16 @@ export default function ClaimDecisionReport() {
     };
   }, [claim]);
 
+  // Sync active report view to a data attribute so @media print CSS can hide the inactive report
+  useEffect(() => {
+    document.documentElement.setAttribute("data-report-type", reportView);
+    document.body.setAttribute("data-report-type", reportView);
+    return () => {
+      document.documentElement.removeAttribute("data-report-type");
+      document.body.removeAttribute("data-report-type");
+    };
+  }, [reportView]);
+
   const isLoading = claimLoading || aiLoading || enforcementLoading || quotesLoading;
 
   if (isLoading) {
@@ -1494,21 +1504,31 @@ export default function ClaimDecisionReport() {
             Forensic Report
           </button>
         </div>
-        {reportView === 'standard' ? (
+        <div data-report-view="standard" style={reportView !== 'standard' ? { display: 'none' } : undefined}>
           <KingaClaimsReport
             claim={claim}
             aiAssessment={aiAssessment}
             enforcement={enforcement}
             quotes={quotesWithItems}
           />
-        ) : (
+        </div>
+        <div data-report-view="forensic" style={reportView !== 'forensic' ? { display: 'none' } : undefined}>
           <ForensicAuditReport
             claim={claim}
             aiAssessment={aiAssessment}
             enforcement={enforcement}
             quotes={quotesWithItems}
           />
-        )}
+        </div>
+        {/* Print CSS: show only the active report view */}
+        <style>{`
+          @media print {
+            [data-report-view="standard"] { display: block !important; }
+            [data-report-view="forensic"] { display: block !important; }
+            [data-report-type="standard"] [data-report-view="forensic"] { display: none !important; }
+            [data-report-type="forensic"] [data-report-view="standard"] { display: none !important; }
+          }
+        `}</style>
 
         {/* ── Post-report interactive panels — hidden in print/PDF ── */}
         <div className="no-print">
