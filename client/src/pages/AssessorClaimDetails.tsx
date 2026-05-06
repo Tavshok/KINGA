@@ -16,6 +16,7 @@ import PoliceReportForm from "@/components/PoliceReportForm";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
+import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
 
 export default function AssessorClaimDetails() {
   const { user, logout } = useAuth();
@@ -122,6 +123,7 @@ export default function AssessorClaimDetails() {
                 <div className="flex items-center gap-2 mt-0.5">
                   <p className="text-sm text-muted-foreground font-mono">{claim.claimNumber}</p>
                   <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
+                  <ClaimCurrencyOverride claimId={claimId} currentCurrencyCode={(claim as any).currencyCode} />
                 </div>
               </div>
             </div>

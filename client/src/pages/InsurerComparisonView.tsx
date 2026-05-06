@@ -34,6 +34,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { sanitiseField } from "@/lib/sanitise";
 import { currencySymbol } from "@/lib/currency";
 import { ForensicAuditReport } from "@/components/ForensicAuditReport";
+import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -486,6 +487,15 @@ export default function InsurerComparisonView() {
                   </span>
                 )}
                 <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
+                {/* Per-claim currency override — click to change currency for this claim */}
+                <ClaimCurrencyOverride
+                  claimId={claimId}
+                  currentCurrencyCode={claim.currencyCode}
+                  onUpdated={() => {
+                    utils.claims.getById.invalidate({ id: claimId });
+                    utils.aiAssessments.byClaim.invalidate({ claimId });
+                  }}
+                />
                 <span className={`bi-chip ${fraudChipClass}`}>
                   <span className="bi-chip-dot" />
                   Fraud: {fraudLevel.replace('_', ' ').toUpperCase()}

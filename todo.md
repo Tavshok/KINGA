@@ -11406,3 +11406,20 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix currency resolution priority in Stage 9 to use `COUNTRY_CURRENCY_MAP` fallback
 - [x] Add country selector to onboarding wizard (save to `tenants.country`)
 - [x] Add country/currency display to tenant settings page in AdminDashboard
+
+## ZiG / Per-Claim Currency / Taxonomy Sync
+- [ ] Add ZiG (ZWG) to LLM system prompt in quoteExtractionEngine.ts
+- [ ] Update shared/countryCurrency.ts to note ZiG as secondary Zimbabwe currency
+- [ ] Add per-claim currency override dropdown on claim detail page
+- [ ] Wire per-claim currency override to tRPC mutation (update claims.currencyCode)
+- [ ] Add taxonomy sync vitest: assert LLM prompt enums match VEHICLE_PARTS canonical names
+
+## Sprint — ZiG / Per-Claim Currency / Taxonomy Sync (May 2026)
+
+- [x] Add ZWG (ZiG) to quoteExtractionEngine LLM system prompt currency detection
+- [x] Add ZWG + ZWL to SYMBOL_MAP in client/src/lib/currency.ts
+- [x] Expand updateCurrency tRPC mutation enum to all supported currencies (USD, ZWG, ZWL, ZAR, ZMW, BWP, NAD, MZN, MWK, TZS, KES, UGX, GBP, EUR)
+- [x] Create ClaimCurrencyOverride component (inline editable badge, roles-gated)
+- [x] Wire ClaimCurrencyOverride into InsurerComparisonView (claim header badge row)
+- [x] Wire ClaimCurrencyOverride into AssessorClaimDetails (claim header)
+- [x] Create server/taxonomy-sync.test.ts — 4 tests asserting LLM prompt enums match VEHICLE_PARTS

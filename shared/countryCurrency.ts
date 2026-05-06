@@ -19,8 +19,17 @@
  * This map is the SINGLE source of truth for country → default currency.
  * Do NOT hardcode currency codes anywhere else in the pipeline.
  */
+/**
+ * Zimbabwe secondary currency: ZiG (Zimbabwe Gold)
+ * ISO 4217 code: ZWG (introduced April 2024, replaced ZWL)
+ * Symbol: ZiG (appears literally in panel beater quotes)
+ * The pipeline detects ZiG from quote text and stores it as currency code "ZWG".
+ * The DEFAULT for Zimbabwe is still USD (primary transactional currency).
+ */
+export const ZIG_CURRENCY = { code: 'ZWG', symbol: 'ZiG', name: 'Zimbabwe Gold' } as const;
+
 export const COUNTRY_CURRENCY_MAP: Record<string, { code: string; symbol: string; name: string }> = {
-  ZW: { code: 'USD', symbol: '$',   name: 'US Dollar' },          // Zimbabwe — USD primary
+  ZW: { code: 'USD', symbol: '$',   name: 'US Dollar' },          // Zimbabwe — USD primary; ZiG (ZWG) also in circulation
   ZA: { code: 'ZAR', symbol: 'R',   name: 'South African Rand' },
   ZM: { code: 'ZMW', symbol: 'K',   name: 'Zambian Kwacha' },
   BW: { code: 'BWP', symbol: 'P',   name: 'Botswana Pula' },

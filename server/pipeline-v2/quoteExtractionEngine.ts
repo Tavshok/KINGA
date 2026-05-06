@@ -18,7 +18,7 @@
  *   {
  *     panel_beater:    string | null,
  *     total_cost:      number | null,
- *     currency:        "USD" | "ZWL" | "ZAR" | "GBP" | string | null,  // null = not found in document
+ * *   currency:        "USD" | "ZWG" | "ZWL" | "ZAR" | "GBP" | string | null,  // null = not found in document
  *     components:      string[],
  *     labour_defined:  boolean,
  *     parts_defined:   boolean,
@@ -76,8 +76,16 @@ Your task is to convert unstructured repair quote text into a standard JSON obje
 RULES — follow these exactly:
 1. Extract the panel beater / repairer name if present.
 2. Extract the total repair cost as a plain number (no currency symbols, no commas).
-3. Identify the currency from the document text (look for currency symbols like $, R, K, P, ZiG, USD, ZAR, ZMW, BWP).
+3. Identify the currency from the document text. Look for:
+   - Currency symbols: $, R, K, P
+   - Currency codes: USD, ZAR, ZMW, BWP, NAD, MZN, KES, TZS, UGX, MWK
+   - Zimbabwe currencies:
+     * USD — US Dollar (primary Zimbabwe currency)
+     * ZiG or ZWG — Zimbabwe Gold (newer Zimbabwe currency, introduced 2024; the symbol
+       "ZiG" appears in quotes; map this to currency code "ZWG")
+     * ZWL — Zimbabwe Dollar (legacy; rarely seen but still valid)
    If no currency is stated in the document, return null for the currency field — do NOT guess or default.
+   If you see "ZiG" in the document, return currency = "ZWG".
 4. List every quoted component in both 'components' (names only) AND 'line_items' (with pricing).
    Normalise names to simple English:
    - "R/H tail lamp assembly" → "RHS tail lamp"

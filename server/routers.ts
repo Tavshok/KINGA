@@ -3295,7 +3295,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
      * based on the policy insured. Also propagates the currency to all related
      * AI assessments and panel beater quotes for that claim.
      *
-     * Supported codes: USD, ZIG, ZAR (ISO 4217)
+     * Supported codes: USD, ZWG (ZiG), ZWL, ZAR, ZMW, BWP, NAD, MZN, MWK, TZS, KES, UGX, GBP, EUR (ISO 4217)
      *
      * @requires Authentication (claims_manager, claims_processor, insurer, or admin role)
      * @param claimId - ID of the claim to update
@@ -3305,7 +3305,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     updateCurrency: protectedProcedure
       .input(z.object({
         claimId: z.number().int().positive(),
-        currencyCode: z.enum(["USD", "ZIG", "ZAR"]),
+        currencyCode: z.enum(["USD", "ZWG", "ZWL", "ZAR", "ZMW", "BWP", "NAD", "MZN", "MWK", "TZS", "KES", "UGX", "GBP", "EUR"]),
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });

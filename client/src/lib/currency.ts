@@ -92,7 +92,9 @@ export function getCurrencyCode(): string {
 
 // ─── ISO 4217 Currency Symbol Map ──────────────────────────────────────────
 const SYMBOL_MAP: Record<string, string> = {
-  USD: '$', EUR: '€', GBP: '£', ZAR: 'R', ZMW: 'ZMW', ZIG: 'ZiG',
+  USD: '$', EUR: '€', GBP: '£', ZAR: 'R', ZMW: 'K', ZIG: 'ZiG',
+  // ZWG = Zimbabwe Gold (ISO 4217 code, introduced April 2024; symbol "ZiG" appears in quotes)
+  ZWG: 'ZiG', ZWL: 'ZWL$',
   KES: 'KSh', NGN: '₦', GHS: 'GH₵', BWP: 'P', MWK: 'MK', TZS: 'TSh',
   UGX: 'USh', MZN: 'MT', NAD: 'N$', SZL: 'L', LSL: 'L', AOA: 'Kz',
 };
