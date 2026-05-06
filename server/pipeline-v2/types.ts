@@ -987,6 +987,11 @@ export interface Stage8Output {
    * Null when fewer than 2 quotes were submitted or the engine was skipped.
    */
   quoteSimilarity?: import("./quoteSimilarityEngine").QuoteSimilarityResult | null;
+  /**
+   * Accident date cross-check result — claim form vs police report vs image EXIF.
+   * Null when no date sources were available.
+   */
+  accidentDateCrossCheck?: import("./accidentDateCrossCheckEngine").DateCrossCheckResult | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1187,6 +1192,19 @@ export interface Stage9Output {
   aiEstimateSource?: "learning_db" | "quote_derived" | "hardcoded_fallback" | "insufficient_data";
   /** Human-readable note explaining the AI estimate source */
   aiEstimateNote?: string | null;
+  /**
+   * Phase 2: Per-component KINGA benchmark ranges derived from componentRepairOutcomes.
+   * Keyed by canonical component name. null entry = no historical data for that component.
+   */
+  perComponentBenchmarks?: Record<string, {
+    p25Usd: number;
+    medianUsd: number;
+    p75Usd: number;
+    sampleSize: number;
+    vehicleMakeFiltered: boolean;
+    /** Verdict for each submitted quote's line item: over | fair | under | no_data */
+    quoteFlags: Record<string, "over" | "fair" | "under" | "no_data">;
+  } | null>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────────

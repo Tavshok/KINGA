@@ -9,6 +9,7 @@
 
 import { ensureFraudContract } from "./engineFallback";
 import { analyseQuoteSimilarity, type QuoteSimilarityResult } from "./quoteSimilarityEngine";
+import { runAccidentDateCrossCheck, type DateCrossCheckResult } from "./accidentDateCrossCheckEngine";
 import { validateCrossEngineConsistency } from "./crossEngineConsistencyValidator";
 import { runPhotoForensics } from "./photoForensicsEngine";
 import {
@@ -628,6 +629,47 @@ export async function runFraudAnalysisStage(
       });
     }
 
+    // 3e. Accident Date Cross-Check (claim form vs police report vs image EXIF)
+    let accidentDateCrossCheckResult: DateCrossCheckResult | null = null;
+    try {
+      const photoForensicsPhotos = photoForensicsResult?.photos ?? [];
+      accidentDateCrossCheckResult = runAccidentDateCrossCheck({
+        accidentDate: claimRecord.accidentDetails?.date ?? (claimRecord as any).accidentDate ?? null,
+        policeReportDate: (claimRecord as any).policeReportDate ?? claimRecord.policeReport?.date ?? null,
+        photoForensicsResults: photoForensicsPhotos.map((p: any) => ({
+          url: p.url,
+          analysisResult: p.analysisResult ? {
+            capture_datetime: p.analysisResult.capture_datetime ?? null,
+            is_non_vehicle: p.analysisResult.is_non_vehicle ?? false,
+          } : null,
+        })),
+      });
+      if (accidentDateCrossCheckResult.fraudScore > 0) {
+        allIndicators.push({
+          indicator: 'accident_date_inconsistency',
+          category: 'documentation',
+          score: accidentDateCrossCheckResult.fraudScore,
+          description: accidentDateCrossCheckResult.summary,
+          severity: accidentDateCrossCheckResult.fraudScore >= 15 ? 'high' : 'medium',
+        });
+      }
+      ctx.log(
+        'Stage 8 (date-crosscheck)',
+        `Verdict: ${accidentDateCrossCheckResult.verdict}. ` +
+        `Fraud score: +${accidentDateCrossCheckResult.fraudScore}. ` +
+        `Pre-incident images: ${accidentDateCrossCheckResult.preIncidentImages.length}. ` +
+        `Photos with EXIF: ${accidentDateCrossCheckResult.photosWithExifDate}.`
+      );
+    } catch (dateErr) {
+      isDegraded = true;
+      recoveryActions.push({
+        target: 'accidentDateCrossCheckEngine',
+        strategy: 'default_value',
+        success: true,
+        description: `Accident date cross-check failed: ${String(dateErr)}. Skipping.`,
+      });
+    }
+
     // 4. Missing data penalty
     if (claimRecord.dataQuality.completenessScore < 30) {
       isDegraded = true;
@@ -746,6 +788,7 @@ export async function runFraudAnalysisStage(
       crossEngineConsistency,
       photoForensics: photoForensicsResult,
       quoteSimilarity: quoteSimilarityResult,
+      accidentDateCrossCheck: accidentDateCrossCheckResult,
     }, isDegraded ? "degraded_analysis" : "success");
 
     ctx.log("Stage 8", `Fraud analysis complete. Risk: ${fraudRiskLevel} (${fraudRiskScore}/100), Indicators: ${allIndicators.length}, Consistency: ${consistency.score}/100`);

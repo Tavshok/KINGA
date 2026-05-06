@@ -310,6 +310,7 @@ export function buildFraudFallback(reason = "insufficient_input"): FraudFallback
     scenarioFraudResult: null,
     crossEngineConsistency: null,
     quoteSimilarity: null,
+    accidentDateCrossCheck: null,
     _fallback: fallbackMeta,
     _fallback_fields: ["fraudRiskScore", "fraudRiskLevel", "indicators"],
   };
@@ -348,6 +349,7 @@ export function ensureFraudContract(
     crossEngineConsistency: partial.crossEngineConsistency ?? null,
     photoForensics: partial.photoForensics ?? null,
     quoteSimilarity: partial.quoteSimilarity ?? null,
+    accidentDateCrossCheck: partial.accidentDateCrossCheck ?? null,
     _fallback_fields: missing,
   };
 }

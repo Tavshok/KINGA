@@ -13,7 +13,7 @@ import { deriveEconomicContext } from "./economicContextEngine";
 import { computeIFE, type IFEReport } from "./inputFidelityEngine";
 import { buildDOECandidates, runDOE, type DOEResult } from "./decisionOptimisationEngine";
 import { extractCostLearningRecord } from "./costLearningRecorder";
-import { insertCostLearningRecord, getActiveCalibrationMultiplier } from "../db";
+import { insertCostLearningRecord, getActiveCalibrationMultiplier, getComponentBenchmarks } from "../db";
 import { sql as drizzleSql } from "drizzle-orm";
 import { optimiseRepairCost, type InputQuote } from "./quoteOptimisationEngine";
 import { runCostDecision } from "./costDecisionEngine";
@@ -783,6 +783,61 @@ export async function runCostOptimisationStage(
       marketValueUsd: claimRecord.valuation?.marketValueUsd
         ?? (ctx.claim?.vehicleMarketValue != null ? (ctx.claim.vehicleMarketValue as number) / 100 : null),
     }, isDegraded ? "degraded_estimate" : "success");
+
+    // ── Phase 2: Per-component KINGA benchmarks ─────────────────────────────
+    // Fetch p25/median/p75 from componentRepairOutcomes for each damaged component.
+    // This enriches the report with per-line-item over/fair/under flags.
+    try {
+      const damagedComponentNames = damageAnalysis.damagedParts
+        .map((p: any) => p.name)
+        .filter((n: any): n is string => typeof n === 'string' && n.length > 0);
+      if (damagedComponentNames.length > 0) {
+        const benchmarks = await getComponentBenchmarks(
+          damagedComponentNames,
+          claimRecord.vehicle?.make ?? null
+        );
+        const perComponentBenchmarks: Record<string, any> = {};
+        for (const b of benchmarks) {
+          // Compute per-quote flags for this component
+          const quoteFlags: Record<string, 'over' | 'fair' | 'under' | 'no_data'> = {};
+          const allQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+          for (const q of allQuotes) {
+            const pbName = q.panel_beater ?? `Quote ${allQuotes.indexOf(q) + 1}`;
+            // Find matching line item in this quote
+            const lineItem = (q.line_items ?? []).find((li: any) =>
+              (li.description ?? '').toLowerCase().includes(b.component.toLowerCase()) ||
+              b.component.toLowerCase().includes((li.description ?? '').toLowerCase().split(' ')[0])
+            );
+            if (!lineItem) {
+              quoteFlags[pbName] = 'no_data';
+            } else {
+              const itemCostUsd = (lineItem.total_price ?? lineItem.unit_price ?? 0) / 100;
+              if (itemCostUsd > b.p75Usd * 1.15) quoteFlags[pbName] = 'over';
+              else if (itemCostUsd < b.p25Usd * 0.85) quoteFlags[pbName] = 'under';
+              else quoteFlags[pbName] = 'fair';
+            }
+          }
+          perComponentBenchmarks[b.component] = {
+            p25Usd: b.p25Usd,
+            medianUsd: b.medianUsd,
+            p75Usd: b.p75Usd,
+            sampleSize: b.sampleSize,
+            vehicleMakeFiltered: b.vehicleMakeFiltered,
+            quoteFlags,
+          };
+        }
+        // Mark components with no benchmark data
+        for (const name of damagedComponentNames) {
+          if (!(name in perComponentBenchmarks)) {
+            perComponentBenchmarks[name] = null;
+          }
+        }
+        (output as any).perComponentBenchmarks = perComponentBenchmarks;
+        ctx.log('Stage 9', `Per-component benchmarks: ${benchmarks.length} components with data, ${damagedComponentNames.length - benchmarks.length} without`);
+      }
+    } catch (benchErr) {
+      ctx.log('Stage 9', `Per-component benchmark query failed (non-fatal): ${String(benchErr)}`);
+    }
 
     ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct != null ? (quoteDeviationPct as number).toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);
 

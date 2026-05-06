@@ -3048,6 +3048,11 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const marketValueUsd3: number | null = costIntel?.marketValueUsd ?? llmValuation3?.marketValueUsd ?? claimRecord3?.vehicle?.marketValueUsd ?? null;
   // Learning benchmark from cost extraction engine
   const learningBenchmark3 = (e?.costExtraction as any)?.learningBenchmark ?? null;
+  // Phase 2: Per-component KINGA benchmarks (p25/median/p75 + per-quote flags)
+  const perComponentBenchmarks: Record<string, any> | null = costIntel?.perComponentBenchmarks ?? null;
+  // Phase 1: Quote similarity results (from fraudScoreBreakdownJson)
+  const fraudScoreBreakdown = (aiAssessment as any)?.fraudScoreBreakdownJson ?? null;
+  const quoteSimilarity = fraudScoreBreakdown?.quoteSimilarity ?? null;
 
   // ── Build item-per-row cross-repairer comparison table ──────────────────────
   // Fuzzy-match helper: tokenise a description and return a normalised key.
@@ -3121,6 +3126,30 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
       {/* ── Negotiation Delta Analysis ── */}
       <NegotiationDeltaBlock costIntel={costIntel} fmtMoney={fmtMoney} />
 
+      {/* ── Copy-quotation alert banner (Phase 1 similarity engine) ── */}
+      {quoteSimilarity && (quoteSimilarity.overall_verdict === 'confirmed' || quoteSimilarity.overall_verdict === 'suspected') && (
+        <div className="rounded-lg px-4 py-3 flex items-start gap-3" style={{
+          background: quoteSimilarity.overall_verdict === 'confirmed' ? 'var(--status-reject-bg)' : 'var(--fp-warning-bg, #fef3c7)',
+          border: `1px solid ${quoteSimilarity.overall_verdict === 'confirmed' ? 'var(--fp-critical-border)' : 'var(--fp-warning-border, #f59e0b)'}`,
+        }}>
+          <span className="text-base" style={{ lineHeight: 1 }}>&#9888;</span>
+          <div>
+            <p className="text-xs font-bold" style={{ color: quoteSimilarity.overall_verdict === 'confirmed' ? 'var(--fp-critical-text)' : 'var(--fp-warning-text, #92400e)' }}>
+              {quoteSimilarity.overall_verdict === 'confirmed' ? 'COPY QUOTATION DETECTED' : 'SUSPICIOUS QUOTE SIMILARITY'}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--foreground)' }}>
+              {quoteSimilarity.overall_verdict === 'confirmed'
+                ? `Structural fingerprint analysis indicates these quotes were likely authored by the same source. Highest pair similarity: ${Math.round((quoteSimilarity.highest_pair_similarity ?? 0) * 100)}%.`
+                : `Quote comparison reveals unusually high structural similarity between submitted quotes. Highest pair similarity: ${Math.round((quoteSimilarity.highest_pair_similarity ?? 0) * 100)}%. Independent verification recommended.`}
+            </p>
+            {(quoteSimilarity.copy_pairs ?? []).length > 0 && (
+              <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                Flagged pairs: {(quoteSimilarity.copy_pairs as any[]).map((p: any) => `${p.quote_a} ↔ ${p.quote_b} (${Math.round((p.overall_similarity ?? 0) * 100)}%)`).join(', ')}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
       {/* ── Cross-repairer itemised quote comparison table ── */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
@@ -3134,19 +3163,33 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                   <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)", minWidth: 180 }}>Repair Item</th>
                   <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)", whiteSpace: 'nowrap' }}>Category</th>
-                  {pbQuotes.map((q, qi) => (
-                    <th key={qi} className="text-right px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)", whiteSpace: 'nowrap' }}>{q.name}</th>
-                  ))}
-                  {pbQuotes.length > 1 && (
-                    <th className="text-right px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)", whiteSpace: 'nowrap' }}>Optimised</th>
-                  )}
+                  {pbQuotes.map((q, qi) => {
+                    // Per-quote similarity verdict badge
+                    const pairVerdicts = (quoteSimilarity?.pair_results ?? []) as any[];
+                    const isFlagged = pairVerdicts.some((p: any) =>
+                      (p.verdict === 'confirmed' || p.verdict === 'suspected') &&
+                      (p.quote_a === q.name || p.quote_b === q.name)
+                    );
+                    return (
+                      <th key={qi} className="text-right px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)", whiteSpace: 'nowrap' }}>
+                        {q.name}
+                        {isFlagged && (
+                          <span className="ml-1 text-[10px] font-bold px-1 rounded" style={{ background: 'var(--fp-warning-bg, #fef3c7)', color: 'var(--fp-warning-text, #92400e)' }}>SIM</span>
+                        )}
+                      </th>
+                    );
+                  })}
+                  {/* KINGA Estimate column — always shown when ≥1 quote; replaces “Optimised” */}
+                  <th className="text-right px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)", whiteSpace: 'nowrap', borderLeft: '2px solid var(--border)' }}>KINGA Estimate</th>
                 </tr>
               </thead>
               <tbody>
                 {allRows3.map((row, ri) => {
                   const isMissedRow = ri >= matchedRows3.length;
                   const validAmounts = row.cells.map(c => c.amount).filter((a): a is number => a !== null);
-                  const optimised = validAmounts.length > 0 ? Math.min(...validAmounts) : null;
+                  // KINGA estimate: use benchmark median if available, else min of quotes
+                  const benchmark = perComponentBenchmarks?.[row.description];
+                  const kingaEstimate = benchmark?.medianUsd ?? (validAmounts.length > 0 ? Math.min(...validAmounts) : null);
                   return (
                     <tr key={ri} style={{ borderTop: "1px solid var(--border)", background: isMissedRow ? "var(--muted)" : "var(--background)" }}>
                       <td className="px-3 py-2 font-medium" style={{ color: isMissedRow ? "var(--muted-foreground)" : "var(--foreground)" }}>
@@ -3154,19 +3197,39 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                         {isMissedRow && <span className="ml-2 text-xs" style={{ color: "var(--muted-foreground)", fontStyle: 'italic' }}>(not in all quotes)</span>}
                       </td>
                       <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{row.category || '—'}</td>
-                      {row.cells.map((cell, ci) => (
-                        <td key={ci} className="px-3 py-2 tabular-nums text-right" style={{ color: cell.amount !== null ? "var(--foreground)" : "var(--muted-foreground)", fontStyle: cell.amount === null ? 'italic' : 'normal' }}>
-                          {cell.amount !== null ? fmtMoney(cell.amount) : '—'}
-                          {cell.aiReview && cell.aiReview !== 'Consistent' && (
-                            <span className="block text-xs" style={{ color: "var(--muted-foreground)" }}>{cell.aiReview}</span>
-                          )}
-                        </td>
-                      ))}
-                      {pbQuotes.length > 1 && (
-                        <td className="px-3 py-2 tabular-nums text-right font-semibold" style={{ color: "var(--foreground)" }}>
-                          {optimised !== null ? fmtMoney(optimised) : '—'}
-                        </td>
-                      )}
+                      {row.cells.map((cell, ci) => {
+                        // Per-cell colour coding from Phase 2 benchmark flags
+                        const qName = pbQuotes[ci]?.name ?? '';
+                        const flag = benchmark?.quoteFlags?.[qName] ?? null;
+                        const cellColor = flag === 'over'
+                          ? 'var(--fp-critical-text)'
+                          : flag === 'under'
+                            ? 'var(--fp-warning-text, #92400e)'
+                            : cell.amount !== null ? 'var(--foreground)' : 'var(--muted-foreground)';
+                        const cellBg = flag === 'over'
+                          ? 'var(--status-reject-bg)'
+                          : flag === 'under'
+                            ? 'var(--fp-warning-bg, #fef3c7)'
+                            : undefined;
+                        return (
+                          <td key={ci} className="px-3 py-2 tabular-nums text-right" style={{ color: cellColor, fontStyle: cell.amount === null ? 'italic' : 'normal', background: cellBg }}>
+                            {cell.amount !== null ? fmtMoney(cell.amount) : '—'}
+                            {flag && flag !== 'fair' && flag !== 'no_data' && (
+                              <span className="block text-[10px] font-semibold" style={{ color: cellColor }}>{flag === 'over' ? '▲ Over' : '▼ Under'}</span>
+                            )}
+                            {cell.aiReview && cell.aiReview !== 'Consistent' && (
+                              <span className="block text-xs" style={{ color: "var(--muted-foreground)" }}>{cell.aiReview}</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      {/* KINGA Estimate cell */}
+                      <td className="px-3 py-2 tabular-nums text-right font-semibold" style={{ color: "var(--foreground)", borderLeft: '2px solid var(--border)', background: 'var(--muted)' }}>
+                        {kingaEstimate !== null ? fmtMoney(kingaEstimate) : '—'}
+                        {benchmark?.sampleSize != null && benchmark.sampleSize > 0 && (
+                          <span className="block text-[10px] font-normal" style={{ color: 'var(--muted-foreground)' }}>n={benchmark.sampleSize}</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -3179,14 +3242,18 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                       {fmtMoney(q.total)}
                     </td>
                   ))}
-                  {pbQuotes.length > 1 && (
-                    <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: "var(--foreground)" }}>
-                      {fmtMoney(allRows3.reduce((sum, row) => {
-                        const va = row.cells.map(c => c.amount).filter((a): a is number => a !== null);
-                        return sum + (va.length > 0 ? Math.min(...va) : 0);
-                      }, 0))}
-                    </td>
-                  )}
+                  {/* KINGA Estimate total */}
+                  <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: "var(--foreground)", borderLeft: '2px solid var(--border)', background: 'var(--muted)' }}>
+                    {fmtMoney(allRows3.reduce((sum, row) => {
+                      const bm = perComponentBenchmarks?.[row.description];
+                      const va = row.cells.map(c => c.amount).filter((a): a is number => a !== null);
+                      const est = bm?.medianUsd ?? (va.length > 0 ? Math.min(...va) : 0);
+                      return sum + est;
+                    }, 0))}
+                    {perComponentBenchmarks && Object.values(perComponentBenchmarks).some(b => b?.sampleSize > 0) && (
+                      <span className="block text-[10px] font-normal" style={{ color: 'var(--muted-foreground)' }}>KINGA model</span>
+                    )}
+                  </td>
                 </tr>
               </tfoot>
             </table>

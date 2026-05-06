@@ -943,6 +943,10 @@ export async function triggerAiAssessment(claimId: number) {
         crossEngineConsistency: fraudAnalysis.crossEngineConsistency ?? null,
         confidenceAggregation: (fraudAnalysis as any).confidenceAggregation ?? null,
         photoForensics: fraudAnalysis.photoForensics ?? null,
+        // Phase 1: Quote similarity engine results
+        quoteSimilarity: (fraudAnalysis as any).quoteSimilarity ?? null,
+        // Accident date cross-check (claim form vs police report vs image EXIF)
+        accidentDateCrossCheck: (fraudAnalysis as any).accidentDateCrossCheck ?? null,
       })
     : null;
 
@@ -1003,6 +1007,8 @@ export async function triggerAiAssessment(claimId: number) {
     // Market value — for total-loss threshold display in Section 3
     marketValueUsd: costAnalysis.marketValueUsd ?? null,
     totalEstimatedCost: costAnalysis.expectedRepairCostCents ? costAnalysis.expectedRepairCostCents / 100 : null,
+    // Phase 2: Per-component KINGA benchmark ranges (p25/median/p75 + per-quote over/fair/under flags)
+    perComponentBenchmarks: (costAnalysis as any).perComponentBenchmarks ?? null,
   }) : (
     // Even if costAnalysis is null, still persist the documented quote values
     // so the UI can display the panel beater quote from the extracted document.
@@ -3142,4 +3148,108 @@ export async function updateTenantRates(
     .update(schema.tenants)
     .set({ configJson: updated })
     .where(eq(schema.tenants.id, tenantId));
+}
+
+// ─── Per-Component KINGA Benchmark Query ─────────────────────────────────────
+/**
+ * Aggregate per-component price benchmarks from componentRepairOutcomes.
+ * Returns p25 / median / p75 for each requested component name,
+ * optionally filtered by vehicleMake and outcome (repair | replace).
+ *
+ * Falls back to all makes when no rows exist for the specific make.
+ * Returns null for a component when no historical data exists at all.
+ */
+export interface ComponentBenchmark {
+  component: string;
+  outcome: "repair" | "replace";
+  p25Usd: number;
+  medianUsd: number;
+  p75Usd: number;
+  sampleSize: number;
+  vehicleMakeFiltered: boolean;
+}
+
+export async function getComponentBenchmarks(
+  componentNames: string[],
+  vehicleMake?: string | null,
+  preferredOutcome?: "repair" | "replace"
+): Promise<ComponentBenchmark[]> {
+  if (!componentNames.length) return [];
+  const db = await getDb();
+  if (!db) return [];
+
+  const results: ComponentBenchmark[] = [];
+
+  for (const component of componentNames) {
+    // Try make-specific first, then fall back to all makes
+    for (const makeFiltered of [true, false]) {
+      const whereConditions: any[] = [
+        eq(schema.componentRepairOutcomes.componentName, component),
+      ];
+      if (makeFiltered && vehicleMake) {
+        whereConditions.push(
+          sql`LOWER(${schema.componentRepairOutcomes.vehicleMake}) = LOWER(${vehicleMake})`
+        );
+      }
+      if (preferredOutcome) {
+        whereConditions.push(
+          eq(schema.componentRepairOutcomes.outcome, preferredOutcome)
+        );
+      }
+
+      const rows = await db
+        .select({
+          repairCostUsd: schema.componentRepairOutcomes.repairCostUsd,
+          replaceCostUsd: schema.componentRepairOutcomes.replaceCostUsd,
+          outcome: schema.componentRepairOutcomes.outcome,
+        })
+        .from(schema.componentRepairOutcomes)
+        .where(and(...whereConditions))
+        .limit(500);
+
+      if (!rows.length) {
+        if (makeFiltered) continue;
+        break;
+      }
+
+      const costs: number[] = rows
+        .map((r: any) => {
+          const v =
+            preferredOutcome === "repair"
+              ? r.repairCostUsd
+              : preferredOutcome === "replace"
+              ? r.replaceCostUsd
+              : (r.repairCostUsd ?? r.replaceCostUsd);
+          return v != null ? parseFloat(String(v)) : null;
+        })
+        .filter((v: any): v is number => v !== null && !isNaN(v) && v > 0);
+
+      if (!costs.length) {
+        if (makeFiltered) continue;
+        break;
+      }
+
+      costs.sort((a: number, b: number) => a - b);
+      const n = costs.length;
+      const p25 = costs[Math.floor(n * 0.25)] ?? costs[0];
+      const median =
+        n % 2 === 0
+          ? ((costs[n / 2 - 1] + costs[n / 2]) / 2)
+          : costs[Math.floor(n / 2)];
+      const p75 = costs[Math.floor(n * 0.75)] ?? costs[n - 1];
+
+      results.push({
+        component,
+        outcome: preferredOutcome ?? "repair",
+        p25Usd: Math.round(p25 * 100) / 100,
+        medianUsd: Math.round(median * 100) / 100,
+        p75Usd: Math.round(p75 * 100) / 100,
+        sampleSize: n,
+        vehicleMakeFiltered: makeFiltered && !!vehicleMake,
+      });
+      break;
+    }
+  }
+
+  return results;
 }
