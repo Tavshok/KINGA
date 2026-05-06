@@ -2241,7 +2241,17 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             const damagedPartsRaw = (aiAssessment as any)?.damagedComponentsJson;
             const damagedParts: any[] = (() => {
               if (!damagedPartsRaw) return [];
-              try { return typeof damagedPartsRaw === 'string' ? JSON.parse(damagedPartsRaw) : (Array.isArray(damagedPartsRaw) ? damagedPartsRaw : []); } catch { return []; }
+              try {
+                const raw = typeof damagedPartsRaw === 'string' ? JSON.parse(damagedPartsRaw) : (Array.isArray(damagedPartsRaw) ? damagedPartsRaw : []);
+                // Normalise names to title case and deduplicate
+                const seen = new Set<string>();
+                return raw.filter((p: any) => {
+                  const norm = toTitleCase((p.name ?? '').toLowerCase().trim());
+                  if (seen.has(norm)) return false;
+                  seen.add(norm);
+                  return true;
+                }).map((p: any) => ({ ...p, name: toTitleCase((p.name ?? '').toLowerCase().trim()) || p.name }));
+              } catch { return []; }
             })();
             // Only render if at least one component has numeric physics data
             const hasPhysicsData = damagedParts.some((p: any) =>
@@ -2462,7 +2472,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                         if (!damagedPartsRaw) return [];
                         try { return typeof damagedPartsRaw === 'string' ? JSON.parse(damagedPartsRaw) : (Array.isArray(damagedPartsRaw) ? damagedPartsRaw : []); } catch { return []; }
                       })();
-                      const dp = damagedPartsObjects.find((d: any) => (d.name ?? '').toLowerCase() === (r.component ?? '').toLowerCase());
+                      const dp = damagedPartsObjects.find((d: any) => toTitleCase((d.name ?? '').toLowerCase().trim()) === toTitleCase((r.component ?? '').toLowerCase().trim()));
                       const sc = statusColor(r.reconciliation_status);
                       return (
                         <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--muted)' }}>

@@ -232,7 +232,17 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
   const ci = parseJson(aiAssessment?.costIntelligenceJson);
   const fraudBd = parseJson(aiAssessment?.fraudScoreBreakdownJson);
   const damagedPartsRaw = parseJson(aiAssessment?.damagedComponentsJson);
-  const damagedParts: any[] = Array.isArray(damagedPartsRaw) ? damagedPartsRaw : [];
+  // Normalise component names to title case and deduplicate by normalised name
+  const damagedParts: any[] = (() => {
+    if (!Array.isArray(damagedPartsRaw)) return [];
+    const seen = new Set<string>();
+    return damagedPartsRaw.filter((p: any) => {
+      const normName = toTitleCase((p.name ?? '').toLowerCase().trim());
+      if (seen.has(normName)) return false;
+      seen.add(normName);
+      return true;
+    }).map((p: any) => ({ ...p, name: toTitleCase((p.name ?? '').toLowerCase().trim()) || p.name }));
+  })();
 
   const currCode = claim?.currencyCode ?? "USD";
   const fmtC = makeFmtCurrency(currCode);
@@ -287,8 +297,27 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
   const overallSeverity: string = aiAssessment?.structuralDamageSeverity ?? aiAssessment?.overallSeverity ?? "unknown";
   const structuralDamage: boolean = !!(aiAssessment?.structuralDamageSeverity && aiAssessment.structuralDamageSeverity !== "none");
 
-  // Photos — already filtered to damage/vehicle images by Stage 2.6 classifier
-  const photoUrls: string[] = (aiAssessment?.photoUrls ?? aiAssessment?.processedPhotoUrls ?? []).slice(0, 4);
+  // Photos — parse from damagePhotosJson (array of URL strings stored by pipeline),
+  // with fallback to enforcement damagePhotoUrls and legacy photoUrls fields.
+  const allPhotoUrls: string[] = (() => {
+    // Primary: damagePhotosJson is a JSON-encoded array of URL strings on the byClaim response
+    const raw = aiAssessment?.damagePhotosJson;
+    if (raw) {
+      try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((p: any) => typeof p === 'string' ? p : (p?.imageUrl ?? p?.url ?? '')).filter(Boolean);
+        }
+      } catch { /* fall through */ }
+    }
+    // Fallback: enforcement response damagePhotoUrls (from getEnforcement)
+    if (Array.isArray(aiAssessment?.damagePhotoUrls) && aiAssessment.damagePhotoUrls.length > 0) {
+      return aiAssessment.damagePhotoUrls;
+    }
+    // Legacy fallbacks
+    return aiAssessment?.photoUrls ?? aiAssessment?.processedPhotoUrls ?? [];
+  })();
+  const photoUrls: string[] = allPhotoUrls.slice(0, 4);
 
   // Quote comparison
   const quoteSimilarity = fraudBd?.quoteSimilarity ?? null;
@@ -479,7 +508,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
             {photoUrls.length > 0 && (
               <div>
                 <div style={S.divider} />
-                <p style={{ ...S.label, marginBottom: 8 }}>Damage Photographs ({photoUrls.length} of {(aiAssessment?.photoUrls ?? []).length} shown)</p>
+                <p style={{ ...S.label, marginBottom: 8 }}>Damage Photographs ({photoUrls.length} of {allPhotoUrls.length} shown)</p>
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(photoUrls.length, 4)}, 1fr)`, gap: 10 }}>
                   {photoUrls.map((url: string, i: number) => {
                     // Match photo to a damaged component for caption
