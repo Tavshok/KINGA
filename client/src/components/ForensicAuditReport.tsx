@@ -719,11 +719,17 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const phase2 = (e as any)?._phase2 as any;
   const wf = e?.weightedFraud;
 
-  // Use weighted fraud engine as primary decision source (same as top-level badge).
-  // Phase2 finalDecision is a secondary signal and may use a different scoring model.
-  const wfLevel = wf?.level ?? "minimal";
-  const wfScore = wf?.score ?? 0;
-  // Map weighted fraud level to a decision string
+  // Canonical fraud score: Stage 8 pipeline output (stored in fraudScoreBreakdownJson.overallScore)
+  // falls back to weightedFraud.score (supplementary enforcement-time engine)
+  const fraudBreakdown0 = aiAssessment?.fraudScoreBreakdownJson
+    ? (typeof aiAssessment.fraudScoreBreakdownJson === 'string'
+        ? (() => { try { return JSON.parse(aiAssessment.fraudScoreBreakdownJson); } catch { return null; } })()
+        : aiAssessment.fraudScoreBreakdownJson)
+    : null;
+  const wfLevel = fraudBreakdown0?.level ?? wf?.level ?? "minimal";
+  const canonicalScore0 = fraudBreakdown0?.overallScore ?? (aiAssessment as any)?.fraudScore ?? null;
+  const wfScore = canonicalScore0 != null && canonicalScore0 > 0 ? Number(canonicalScore0) : (wf?.score ?? 0);
+  // Map canonical fraud score to a decision string
   const wfDecision = wfScore >= 70 ? "DECLINE" : wfScore >= 40 ? "REVIEW_REQUIRED" : null;
   const rawDecision: string = wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
   const fraudScore = wfScore;
@@ -1728,7 +1734,9 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
   const physicsInferredSpeed = estimatedSpeedKmh > 0 ? estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? null);
   const severity = aiAssessment?.structuralDamageSeverity ?? "unknown";
 
-  const damageZones: string[] = e?.directionFlag?.damageZones ?? [];
+  // damageZones is at the top level of the enforcement result — NOT inside directionFlag
+  // (IntelligenceEnforcementResult.directionFlag only has mismatch/explanation/possibleExplanations)
+  const damageZones: string[] = (e as any)?.damageZones ?? e?.directionFlag?.damageZones ?? [];
   const directionMismatch = e?.directionFlag?.mismatch ?? false;
   const directionExplanation = e?.directionFlag?.explanation ?? "";
   const consistencyExplanation = e?.consistencyFlag?.explanation ?? "";
@@ -3898,18 +3906,21 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
 
       {/* Cost Waterfall Chart — benchmark vs quoted vs fair range vs write-off threshold */}
       {pbQuotes.length > 0 && (() => {
-        const benchmarkUsd = learningBenchmark3?.estimatedCostUsd ?? 0;
+        // learningBenchmark3 is echoed from CostExtractionResult — field is avgCostUsd (not estimatedCostUsd)
+        // fair_range comes from the costExtraction result itself
+        const benchmarkUsd = learningBenchmark3?.avgCostUsd ?? 0;
+        const fairRange = ce?.fair_range ?? { min: 0, max: 0 };
         const currencySymbol = fmtMoney(1).replace(/[\d,.\s]/g, '').trim() || '$';
         const waterfallData: CostWaterfallData = {
           benchmarkUsd,
           quotedTotalUsd: quotedTotal,
           marketValueUsd: marketValueUsd3 ?? undefined,
-          fairRangeMinUsd: learningBenchmark3?.fairRangeMinUsd ?? 0,
-          fairRangeMaxUsd: learningBenchmark3?.fairRangeMaxUsd ?? 0,
+          fairRangeMinUsd: fairRange.min,
+          fairRangeMaxUsd: fairRange.max,
           currencySymbol,
         };
-        // Only render if we have at least one meaningful value
-        if (benchmarkUsd === 0 && quotedTotal === 0) return null;
+        // Render if we have a quoted total (benchmark may be 0 if no historical claims yet)
+        if (quotedTotal === 0) return null;
         return (
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)' }}>
             <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
@@ -4700,8 +4711,15 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
     : null;
   const dateCheck = fraudScoreBreakdown5?.accidentDateCrossCheck ?? null;
 
-  const fraudScore = wf?.score ?? 0;
-  const fraudLevel = wf?.level ?? "minimal";
+  // Canonical fraud score priority chain:
+  // 1. fraudScoreBreakdownJson.overallScore (Stage 8 pipeline output, stored in DB)
+  // 2. aiAssessment.fraudScore (same Stage 8 score, from the normalised bridge)
+  // 3. weightedFraud.score (supplementary enforcement-time engine — fallback only)
+  const canonicalFraudScore = fraudScoreBreakdown5?.overallScore ?? (aiAssessment as any)?.fraudScore ?? null;
+  const fraudScore = canonicalFraudScore != null && canonicalFraudScore > 0
+    ? Number(canonicalFraudScore)
+    : (wf?.score ?? 0);
+  const fraudLevel = fraudScoreBreakdown5?.level ?? wf?.level ?? "minimal";
   const fraudLabel = wf?.explanation ?? fraudLevel;
   const fraudColor = fraudScore >= 70 ? "var(--fp-critical-text)" : fraudScore >= 40 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
   const fraudBand = fraudScore >= 70 ? "High risk" : fraudScore >= 40 ? "Moderate risk" : "Low risk";

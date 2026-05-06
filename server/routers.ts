@@ -5129,6 +5129,9 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           claimId: input.claimId,
           kingaRef: _kingaRef,
           _photoForensics: photoForensicsData,
+          // Expose damageZones at top level so ForensicAuditReport Section2 VehicleDamageMap can read it
+          // (IntelligenceEnforcementResult.directionFlag does NOT include damageZones — it only has mismatch/explanation)
+          damageZones,
           // Physics values from bridge (actual Stage7 output) — used by report Section 2
           // These are the authoritative values; physicsEstimate is only populated when Stage7 didn't run
           _physics: (() => {

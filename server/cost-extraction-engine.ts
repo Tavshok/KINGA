@@ -65,6 +65,8 @@ export interface CostExtractionResult {
   itemised_parts: ItemisedPart[];
   source: "quote_line_items" | "learning_db" | "extracted" | "estimated" | "severity_fallback" | "insufficient_data";
   basis: string;
+  /** Echo of the learning benchmark input — used by the waterfall chart in the Forensic Report */
+  learningBenchmark?: LearningBenchmarkInput | null;
 }
 
 export interface CostExtractionInput {
@@ -187,6 +189,7 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
       itemised_parts,
       source: "quote_line_items",
       basis: `Actual submitted quote with ${quoteLineItems.length} line item(s) [${currencyCode}]`,
+      learningBenchmark: learningBenchmark ?? null,
     };
   }
 
@@ -260,6 +263,7 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
       confidence,
       itemised_parts,
       source,
+      learningBenchmark: learningBenchmark ?? null,
       basis: hasBothSplit
         ? `AI-extracted total with parts/labour split from claim document (${extractionConfidence}% confidence, ${currencyCode}).${benchmarkNote}`
         : `AI-extracted total from claim document (${extractionConfidence}% confidence, ${currencyCode}). Parts/labour auto-split 60/40.${benchmarkNote}`,
@@ -279,6 +283,7 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
       labour,
       fair_range: computeFairRange(primaryQuote, confidence, true),
       confidence,
+      learningBenchmark: learningBenchmark ?? null,
       itemised_parts: [{
         component: "Total quoted repair",
         parts_cost: parts,
@@ -316,6 +321,7 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
       labour,
       fair_range: computeFairRange(total, confidence, false),
       confidence,
+      learningBenchmark: learningBenchmark ?? null,
       itemised_parts,
       source: "estimated",
       basis: `Component-based estimate: ${damageComponents.length} component(s) × ${currSymbol}${costPerComponent} (${severity} severity). No quote or AI extraction available.`,
@@ -343,6 +349,7 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
       source_label: `Severity-range estimate (${severity}): ${currSymbol}${range.min}–${currSymbol}${range.max}. No quote, no AI extraction, no components available.`,
     }],
     source: "severity_fallback",
+    learningBenchmark: learningBenchmark ?? null,
     basis: `Severity-based range estimate (${severity}): ${currSymbol}${range.min}–${currSymbol}${range.max} ${currencyCode}. No quote, no AI extraction, and no damage components available.`,
   };
 }
