@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { trpc } from "@/lib/trpc";
 import { Loader2, Save, RotateCcw, Shield, Settings, AlertTriangle, Globe } from "lucide-react";
 import { SUPPORTED_COUNTRIES } from "../../../shared/countryCurrency";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function WorkflowSettings() {
   // const { toast } = useToast();

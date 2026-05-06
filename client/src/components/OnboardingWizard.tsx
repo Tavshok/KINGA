@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { SUPPORTED_COUNTRIES } from "../../../shared/countryCurrency";
 // Toast functionality - using simple alerts for now
 import { CheckCircle2, Building2, User, Settings, ArrowRight, ArrowLeft } from "lucide-react";
