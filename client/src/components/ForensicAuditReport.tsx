@@ -41,12 +41,32 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface FARApprovalEntry {
+  id: number;
+  stageOrder: number | null;
+  stageName: string | null;
+  roleKey: string | null;
+  actorName: string | null;
+  decision: string;
+  notes: string | null;
+  actedAt: string | null;
+}
+
+interface FARWorkflowStage {
+  stage_order: number;
+  name: string;
+  role_key: string;
+  required: boolean;
+}
+
 interface ForensicAuditReportProps {
   claim: any;
   aiAssessment: any;
   enforcement: any;
   quotes?: any[];
   accuracyReport?: any; // FieldAccuracyReport from fieldAccuracyEngine
+  approvalHistory?: FARApprovalEntry[];
+  workflowStages?: FARWorkflowStage[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -6440,7 +6460,7 @@ const REPORT_CSS = `
 `;
 
 
-export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }: ForensicAuditReportProps) {
+export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, approvalHistory = [], workflowStages = [] }: ForensicAuditReportProps) {
   if (!enforcement || !aiAssessment) return null;
 
   // ── Currency-aware formatter ─────────────────────────────────────────────
@@ -6503,6 +6523,119 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
 
       <div className="section-heading">07 — Machine Learning Insights</div>
       <Section7Learning aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
+
+      {/* ── SECTION 8 — Approval Chain & Audit Signatures ── */}
+      <div className="section-heading">08 — Approval Chain &amp; Audit Signatures</div>
+      {(() => {
+        const FAR_ROLE_LABELS: Record<string, string> = {
+          claims_processor: "Claims Processor",
+          assessor_internal: "Internal Assessor",
+          external_assessor: "External Assessor",
+          risk_manager: "Risk Manager",
+          claims_manager: "Claims Manager",
+          executive: "Executive",
+          underwriter: "Underwriter",
+        };
+        const FAR_DECISION_STYLES: Record<string, { label: string; bg: string; color: string; border: string }> = {
+          approved:          { label: "Approved",      bg: "#e6f4e6", color: "#2a7a2a", border: "#2a7a2a" },
+          rejected:          { label: "Rejected",      bg: "#fce8e8", color: "#a32d2d", border: "#a32d2d" },
+          returned:          { label: "Returned",      bg: "#fef3e2", color: "#8a5c00", border: "#8a5c00" },
+          escalated:         { label: "Escalated",     bg: "#eff6ff", color: "#1e40af", border: "#1e40af" },
+          external_received: { label: "Ext. Received", bg: "#f5f3ff", color: "#5b21b6", border: "#5b21b6" },
+        };
+        const stages: { order: number; name: string; roleKey: string; required: boolean }[] =
+          workflowStages.length > 0
+            ? workflowStages.map((s) => ({ order: s.stage_order, name: s.name, roleKey: s.role_key, required: s.required }))
+            : Array.from(
+                new Map(
+                  approvalHistory
+                    .filter((e) => e.stageOrder != null)
+                    .map((e) => [e.stageOrder!, { order: e.stageOrder!, name: e.stageName ?? `Stage ${e.stageOrder}`, roleKey: e.roleKey ?? "", required: true }])
+                ).values()
+              ).sort((a, b) => a.order - b.order);
+
+        const completedByOrder = new Map<number, FARApprovalEntry>();
+        for (const entry of approvalHistory) {
+          if (entry.stageOrder != null) completedByOrder.set(entry.stageOrder, entry);
+        }
+
+        if (stages.length === 0 && approvalHistory.length === 0) {
+          return (
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '16px 20px', marginBottom: 16 }}>
+              <p style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic', margin: 0, textAlign: 'center' }}>No approval workflow has been initiated for this claim.</p>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{ marginBottom: 16 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: '#f1f5f9' }}>
+                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '5%' }}>#</th>
+                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '18%' }}>Role</th>
+                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '20%' }}>Stage</th>
+                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '12%' }}>Decision</th>
+                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '18%' }}>Officer Name</th>
+                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '15%' }}>Date &amp; Time</th>
+                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '12%' }}>Signature</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stages.map((stage) => {
+                  const completed = completedByOrder.get(stage.order);
+                  const ds = completed ? (FAR_DECISION_STYLES[completed.decision] ?? { label: completed.decision, bg: '#f1f5f9', color: '#334155', border: '#cbd5e1' }) : null;
+                  const dateStr = completed?.actedAt
+                    ? new Date(completed.actedAt).toLocaleString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : null;
+                  return (
+                    <tr key={stage.order} style={{ background: completed ? '#fff' : '#fafafa' }}>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', fontWeight: 700, color: '#1e3a5f' }}>{stage.order}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', fontWeight: 600, color: '#334155' }}>{FAR_ROLE_LABELS[stage.roleKey] ?? stage.roleKey}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', color: '#334155' }}>{stage.name}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0' }}>
+                        {ds ? (
+                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: ds.bg, color: ds.color, border: `1px solid ${ds.border}` }}>{ds.label}</span>
+                        ) : (
+                          <span style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>Pending</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', color: '#0f172a' }}>
+                        {completed?.actorName ?? <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: 11 }}>
+                        {dateStr ?? <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0' }}>
+                        {completed ? (
+                          <div style={{ borderBottom: '1px solid #94a3b8', height: 22, width: '100%', position: 'relative' }}>
+                            <span style={{ position: 'absolute', bottom: 2, left: 0, fontSize: 9, color: '#94a3b8', fontStyle: 'italic' }}>{completed.actorName ?? ''}</span>
+                          </div>
+                        ) : (
+                          <div style={{ borderBottom: '1px dashed #cbd5e1', height: 22, width: '100%' }} />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {approvalHistory.some((e) => e.notes) && (
+              <div style={{ marginTop: 14 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 8 }}>Reviewer Notes</p>
+                {approvalHistory.filter((e) => e.notes).map((e) => (
+                  <div key={e.id} style={{ marginBottom: 8, paddingLeft: 12, borderLeft: '3px solid #1e3a5f' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 2 }}>
+                      {FAR_ROLE_LABELS[e.roleKey ?? ''] ?? e.roleKey} — Stage {e.stageOrder} — {e.actorName ?? 'Unknown'}
+                    </p>
+                    <p style={{ fontSize: 12, color: '#334155', margin: 0, fontStyle: 'italic' }}>&#8220;{e.notes}&#8221;</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── KINGA AI Engine Block — always at the bottom of the report body ── */}
       <div style={{ background: '#f9fafb', border: '1px solid var(--fp-border)', borderRadius: 8, padding: '16px 20px', textAlign: 'center', marginTop: 24, marginBottom: 8 }}>

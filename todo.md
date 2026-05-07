@@ -11447,3 +11447,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Unify existing approval/signature section styling in both reports
 - [x] Remove insurer_admin from all operational notification targets
 - [x] Add next-stage notification when approval stage advances
+
+## Session — 2026-05-07 (Approval Workflow & Report Signatures)
+- [x] Fix approval workflow — insurer_admin removed from notification chain, only claims_manager notified for operational events
+- [x] Add next-stage notification in approval.ts — when stage N approved, notify users with next stage role_key
+- [x] Add getUsersByInsurerRoles helper to db.ts for targeted notifications
+- [x] Add sharedWithRolesJson column to ai_assessments table (SQL migration applied)
+- [x] Add Section 9 Approval Chain & Audit Signatures to KingaClaimsReport
+- [x] Add Section 8 Approval Chain & Audit Signatures to ForensicAuditReport
+- [x] Wire getClaimApprovalStatus query in InsurerComparisonView and pass to both reports
+- [x] Fix ExecutiveDashboard tab query param (?tab=financials) handling
+- [x] Fix addComment stub in ClaimsManagerDashboard to use real trpc mutation
+- [x] Remove insurer_admin from all getUsersByInsurerRoles operational notification calls

@@ -180,6 +180,12 @@ export default function InsurerComparisonView() {
     { enabled: !!claimId }
   );
 
+  // Get approval chain data for the report signature sections
+  const { data: approvalStatus } = trpc.approval.getClaimApprovalStatus.useQuery(
+    { claim_id: claimId },
+    { enabled: !!claimId, refetchOnWindowFocus: false }
+  );
+
   const isLoading = claimLoading || aiLoading || assessorLoading || quotesLoading || enforcementLoading;
 
   // Currency symbol — resolved from claim.currencyCode (e.g. ZIG → ZiG)
@@ -894,10 +900,32 @@ export default function InsurerComparisonView() {
               ))}
             </div>
             <div data-report-view="standard" style={reportView !== 'standard' ? { display: 'none' } : undefined}>
-              <KingaClaimsReport claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
+              <KingaClaimsReport
+                claim={claim}
+                aiAssessment={aiAssessment}
+                enforcement={enforcement}
+                quotes={quotes}
+                approvalHistory={(approvalStatus?.approval_history ?? []) as any[]}
+                workflowStages={[
+                  ...(approvalStatus?.completed_stages ?? []),
+                  ...(approvalStatus?.pending_stages ?? []),
+                  ...(approvalStatus?.optional_stages ?? []),
+                ].sort((a: any, b: any) => (a.stage_order ?? 0) - (b.stage_order ?? 0)) as any[]}
+              />
             </div>
             <div data-report-view="forensic" style={reportView !== 'forensic' ? { display: 'none' } : undefined}>
-              <ForensicAuditReport claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
+              <ForensicAuditReport
+                claim={claim}
+                aiAssessment={aiAssessment}
+                enforcement={enforcement}
+                quotes={quotes}
+                approvalHistory={(approvalStatus?.approval_history ?? []) as any[]}
+                workflowStages={[
+                  ...(approvalStatus?.completed_stages ?? []),
+                  ...(approvalStatus?.pending_stages ?? []),
+                  ...(approvalStatus?.optional_stages ?? []),
+                ].sort((a: any, b: any) => (a.stage_order ?? 0) - (b.stage_order ?? 0)) as any[]}
+              />
             </div>
           </>
         ) : aiAssessment && !enforcement ? (
