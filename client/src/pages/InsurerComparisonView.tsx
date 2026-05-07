@@ -905,6 +905,8 @@ export default function InsurerComparisonView() {
                 aiAssessment={aiAssessment}
                 enforcement={enforcement}
                 quotes={quotes}
+                claimId={claimId}
+                pipelineRunId={aiAssessment?.id}
                 approvalHistory={(approvalStatus?.approval_history ?? []) as any[]}
                 workflowStages={[
                   ...(approvalStatus?.completed_stages ?? []),
@@ -919,6 +921,8 @@ export default function InsurerComparisonView() {
                 aiAssessment={aiAssessment}
                 enforcement={enforcement}
                 quotes={quotes}
+                claimId={claimId}
+                pipelineRunId={aiAssessment?.id}
                 approvalHistory={(approvalStatus?.approval_history ?? []) as any[]}
                 workflowStages={[
                   ...(approvalStatus?.completed_stages ?? []),

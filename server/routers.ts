@@ -5844,6 +5844,66 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
         } catch { /* ignore */ }
         return { sharedWithRoles: roles };
       }),
+    // Get all claims whose report has been shared with the current user's insurerRole
+    getSharedWithMe: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const insurerRole = (ctx.user as any).insurerRole as string | null;
+      if (!insurerRole) return { claims: [] as any[] };
+      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+      const { getDb: _getDb } = await import("./db");
+      const db2 = await _getDb();
+      if (!db2) return { claims: [] as any[] };
+      const { aiAssessments: aiAssessmentsTable2 } = await import("../drizzle/schema");
+      const { claims: claimsTable2 } = await import("../drizzle/schema");
+      const { eq: eq2, and: and2, isNotNull: isNotNull2 } = await import("drizzle-orm");
+      const rows2 = await db2
+        .select({
+          assessmentId: aiAssessmentsTable2.id,
+          claimId: aiAssessmentsTable2.claimId,
+          sharedWithRolesJson: (aiAssessmentsTable2 as any).sharedWithRolesJson,
+          fraudScore: aiAssessmentsTable2.fraudScore,
+          overallRisk: aiAssessmentsTable2.overallRisk,
+          createdAt: aiAssessmentsTable2.createdAt,
+          claimNumber: claimsTable2.claimNumber,
+          vehicleMake: claimsTable2.vehicleMake,
+          vehicleModel: claimsTable2.vehicleModel,
+          vehicleYear: claimsTable2.vehicleYear,
+          claimStatus: claimsTable2.status,
+          incidentDate: claimsTable2.incidentDate,
+        })
+        .from(aiAssessmentsTable2)
+        .innerJoin(claimsTable2, eq2(aiAssessmentsTable2.claimId, claimsTable2.id))
+        .where(
+          tenantId
+            ? and2(
+                isNotNull2((aiAssessmentsTable2 as any).sharedWithRolesJson),
+                eq2(claimsTable2.tenantId, tenantId)
+              )
+            : isNotNull2((aiAssessmentsTable2 as any).sharedWithRolesJson)
+        )
+        .orderBy(aiAssessmentsTable2.createdAt);
+      const filtered2 = rows2.filter((row: any) => {
+        try {
+          const roles2: string[] = JSON.parse((row as any).sharedWithRolesJson ?? "[]");
+          return roles2.includes(insurerRole);
+        } catch { return false; }
+      });
+      return {
+        claims: filtered2.map((row: any) => ({
+          assessmentId: row.assessmentId,
+          claimId: row.claimId,
+          claimNumber: row.claimNumber,
+          vehicleMake: row.vehicleMake,
+          vehicleModel: row.vehicleModel,
+          vehicleYear: row.vehicleYear,
+          claimStatus: row.claimStatus,
+          incidentDate: row.incidentDate,
+          fraudScore: row.fraudScore,
+          overallRisk: row.overallRisk,
+          createdAt: row.createdAt,
+        })),
+      };
+    }),
   }),
   // Storage operationss
   storage: router({

@@ -17,12 +17,13 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { getDb, createNotification, getUsersByInsurerRoles } from "../db";
-import { eq, desc, and, asc } from "drizzle-orm";
+import { eq, desc, and, asc, isNull } from "drizzle-orm";
 import {
   workflowTemplates,
   claimApprovals,
   claims,
   users,
+  claimComments,
 } from "../../drizzle/schema";
 import {
   generateClaimNotification,
@@ -436,6 +437,33 @@ export const approvalRouter = router({
           code: "FORBIDDEN",
           message: `This stage requires role '${input.role_key}'. Your role is '${userInsurerId || "unassigned"}'.`,
         });
+      }
+
+      // Check for unresolved blocking annotations — only for 'approved' decisions
+      // claims_manager and executive may override with a note
+      if (input.decision === "approved") {
+        const canOverride = ["claims_manager", "executive", "insurer_admin"].includes(userInsurerId);
+        if (!canOverride) {
+          const blockingAnnotations = await drizzle
+            .select({ id: claimComments.id, sectionKey: claimComments.sectionKey, content: claimComments.content })
+            .from(claimComments)
+            .where(
+              and(
+                eq(claimComments.claimId, input.claim_id),
+                eq(claimComments.blocksApproval, 1),
+                eq(claimComments.isResolved, 0),
+                isNull(claimComments.deletedAt)
+              )
+            )
+            .limit(5);
+          if (blockingAnnotations.length > 0) {
+            const sections = [...new Set(blockingAnnotations.map((a) => a.sectionKey).filter(Boolean))];
+            throw new TRPCError({
+              code: "PRECONDITION_FAILED",
+              message: `Cannot approve: ${blockingAnnotations.length} unresolved blocking annotation(s) in section(s): ${sections.join(", ")}. Resolve them first, or escalate to claims manager.`,
+            });
+          }
+        }
       }
 
       // Check this stage hasn't already been actioned

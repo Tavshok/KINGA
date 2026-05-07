@@ -15,6 +15,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { ReportSectionThread } from "./ReportSectionThread";
+import { ConfidenceImprovementChecklist } from "./ConfidenceImprovementChecklist";
 import { Bar } from "react-chartjs-2";
 import { trpc } from "@/lib/trpc";
 import { CheckCircle, XCircle, AlertTriangle, Printer } from "lucide-react";
@@ -67,6 +69,10 @@ interface ForensicAuditReportProps {
   accuracyReport?: any; // FieldAccuracyReport from fieldAccuracyEngine
   approvalHistory?: FARApprovalEntry[];
   workflowStages?: FARWorkflowStage[];
+  /** Numeric claim ID for section annotations */
+  claimId?: number;
+  /** Current pipeline run ID for annotation versioning */
+  pipelineRunId?: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -269,19 +275,26 @@ function filterAssessorConclusions(text: string): string {
 
 // ─── Section Divider ─────────────────────────────────────────────────────────
 
-function SectionDivider({ number, title }: { number: string; title: string }) {
+function SectionDivider({ number, title, sectionKey, claimId, pipelineRunId }: { number: string; title: string; sectionKey?: string; claimId?: number; pipelineRunId?: number }) {
   return (
-    <div className="flex items-center gap-3 mb-4 mt-6 print-section-divider">
-      <div
-        className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0"
-        style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
-      >
-        {number}
+    <div className="mb-4 mt-6 print-section-divider">
+      <div className="flex items-center gap-3">
+        <div
+          className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0"
+          style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
+        >
+          {number}
+        </div>
+        <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: "var(--foreground)" }}>
+          {title}
+        </h2>
+        <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
       </div>
-      <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: "var(--foreground)" }}>
-        {title}
-      </h2>
-      <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+      {sectionKey && claimId != null && (
+        <div style={{ marginLeft: "40px", marginTop: "4px" }}>
+          <ReportSectionThread claimId={claimId} sectionKey={sectionKey} pipelineRunId={pipelineRunId} />
+        </div>
+      )}
     </div>
   );
 }
@@ -6460,7 +6473,7 @@ const REPORT_CSS = `
 `;
 
 
-export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, approvalHistory = [], workflowStages = [] }: ForensicAuditReportProps) {
+export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, approvalHistory = [], workflowStages = [], claimId, pipelineRunId }: ForensicAuditReportProps) {
   if (!enforcement || !aiAssessment) return null;
 
   // ── Currency-aware formatter ─────────────────────────────────────────────
@@ -6504,24 +6517,31 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
       <div className="section-heading">01 — Incident &amp; Data Integrity</div>
+      {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="incident_integrity" pipelineRunId={pipelineRunId} />}
       <Section1Incident claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
 
       <div className="section-heading">02 — Technical Forensics</div>
+      {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="physics" pipelineRunId={pipelineRunId} />}
       <Section2Physics claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
 
       <div className="section-heading">03 — Financial Validation</div>
+      {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="financial_validation" pipelineRunId={pipelineRunId} />}
       <Section3Financial aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} claimId={claim?.id} />
 
       <div className="section-heading" data-section="4">04 — Evidence Inventory</div>
+      {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="evidence_inventory" pipelineRunId={pipelineRunId} />}
       <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
 
       <div className="section-heading">05 — Risk &amp; Fraud Assessment</div>
+      {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="fraud_risk" pipelineRunId={pipelineRunId} />}
       <Section5Fraud aiAssessment={aiAssessment} enforcement={enforcement} speedForensics={(enforcement as any)?._physics?.speedForensics ?? null} />
 
       <div className="section-heading">06 — Decision Authority &amp; Audit Trail</div>
+      {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="decision_authority" pipelineRunId={pipelineRunId} />}
       <Section6Decision claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
 
       <div className="section-heading">07 — Machine Learning Insights</div>
+      {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="ml_insights" pipelineRunId={pipelineRunId} />}
       <Section7Learning aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
 
       {/* ── SECTION 8 — Approval Chain & Audit Signatures ── */}
@@ -6636,6 +6656,13 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
           </div>
         );
       })()}
+
+      {/* ══ APPENDIX A — Confidence Improvement Checklist ══ */}
+      <ConfidenceImprovementChecklist
+        aiAssessment={aiAssessment}
+        claim={claim}
+        styleMode="forensic"
+      />
 
       {/* ── KINGA AI Engine Block — always at the bottom of the report body ── */}
       <div style={{ background: '#f9fafb', border: '1px solid var(--fp-border)', borderRadius: 8, padding: '16px 20px', textAlign: 'center', marginTop: 24, marginBottom: 8 }}>

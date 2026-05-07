@@ -1,0 +1,8 @@
+{
+  "query": "\nALTER TABLE claim_comments\n  ADD COLUMN section_key     VARCHAR(100)  DEFAULT NULL,\n  ADD COLUMN subsection_key  VARCHAR(100)  DEFAULT NULL,\n  ADD COLUMN finding_id      VARCHAR(100)  DEFAULT NULL,\n  ADD COLUMN pipeline_run_id INT           DEFAULT NULL,\n  ADD COLUMN severity        VARCHAR(20)   NOT NULL DEFAULT 'info',\n  ADD COLUMN disposition     VARCHAR(30)   DEFAULT NULL,\n  ADD COLUMN blocks_approval TINYINT(1)    NOT NULL DEFAULT 0;\n\nCREATE INDEX idx_cc_section ON claim_comments (claim_id, section_key, pipeline_run_id);\nCREATE INDEX idx_cc_blocks   ON claim_comments (claim_id, blocks_approval, is_resolved);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nALTER TABLE claim_comments\n  ADD COLUMN section_key     VARCHAR(100)  DEFAULT NULL,\n  ADD COLUMN subsection_key  VARCHAR(100)  DEFAULT NULL,\n  ADD COLUMN finding_id      VARCHAR(100)  DEFAULT NULL,\n  ADD COLUMN pipeline_run_id INT           DEFAULT NULL,\n  ADD COLUMN severity        VARCHAR(20)   NOT NULL DEFAULT 'info',\n  ADD COLUMN disposition     VARCHAR(30)   DEFAULT NULL,\n  ADD COLUMN blocks_approval TINYINT(1)    NOT NULL DEFAULT 0;\n\nCREATE INDEX idx_cc_section ON claim_comments (claim_id, section_key, pipeline_run_id);\nCREATE INDEX idx_cc_blocks   ON claim_comments (claim_id, blocks_approval, is_resolved);\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1072 (42000) at line 11: column does not exist: claim_id"
+  ]
+}

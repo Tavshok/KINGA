@@ -18,6 +18,8 @@
 
 import React from "react";
 import { currencySymbol } from "@/lib/currency";
+import { ReportSectionThread } from "./ReportSectionThread";
+import { ConfidenceImprovementChecklist } from "./ConfidenceImprovementChecklist";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +48,10 @@ interface KingaClaimsReportProps {
   quotes?: any[];
   approvalHistory?: ApprovalEntry[];
   workflowStages?: WorkflowStage[];
+  /** Numeric claim ID for section annotations */
+  claimId?: number;
+  /** Current pipeline run ID for annotation versioning */
+  pipelineRunId?: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -153,15 +159,24 @@ const S = {
 
 // ─── Section header ───────────────────────────────────────────────────────────
 
-function SectionHeader({ num, title, subtitle }: { num: number; title: string; subtitle?: string }) {
+function SectionHeader({ num, title, subtitle, sectionKey, claimId, pipelineRunId }: { num: number; title: string; subtitle?: string; sectionKey?: string; claimId?: number; pipelineRunId?: number }) {
   return (
     <div style={S.cardHeader}>
-      <div className="flex items-center">
-        <span style={S.sectionNum}>{num}</span>
-        <div>
-          <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{title}</p>
-          {subtitle && <p style={{ ...S.muted, marginTop: 1 }}>{subtitle}</p>}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center">
+          <span style={S.sectionNum}>{num}</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{title}</p>
+            {subtitle && <p style={{ ...S.muted, marginTop: 1 }}>{subtitle}</p>}
+          </div>
         </div>
+        {sectionKey && claimId != null && (
+          <ReportSectionThread
+            claimId={claimId}
+            sectionKey={sectionKey}
+            pipelineRunId={pipelineRunId}
+          />
+        )}
       </div>
     </div>
   );
@@ -265,7 +280,7 @@ const DECISION_STYLES_KCR: Record<string, { label: string; bg: string; color: st
   external_received: { label: "Ext. Received", bg: "#f5f3ff", color: "#5b21b6", border: "#5b21b6" },
 };
 
-export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [], approvalHistory = [], workflowStages = [] }: KingaClaimsReportProps) {
+export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [], approvalHistory = [], workflowStages = [], claimId, pipelineRunId }: KingaClaimsReportProps) {
   const e = enforcement as any;
   const phase2 = e?._phase2 as any;
   const ci = parseJson(aiAssessment?.costIntelligenceJson);
@@ -418,7 +433,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
         {/* ══ SECTION 1 — Executive Decision Summary ══ */}
         <div style={S.card}>
-          <SectionHeader num={1} title="Executive Decision Summary" />
+          <SectionHeader num={1} title="Executive Decision Summary" sectionKey="executive_summary" claimId={claimId} pipelineRunId={pipelineRunId} />
           <div style={S.cardBody}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
               {[
@@ -455,7 +470,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
         {/* ══ SECTION 2 — Workflow & Actions ══ */}
         <div style={S.card}>
-          <SectionHeader num={2} title="Claim Status & Workflow" />
+          <SectionHeader num={2} title="Claim Status & Workflow" sectionKey="workflow" claimId={claimId} pipelineRunId={pipelineRunId} />
           <div style={S.cardBody}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
               <KVRow label="Claim Status" value={toTitleCase(claim?.status ?? "")} />
@@ -471,7 +486,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
         {/* ══ SECTION 3 — Vehicle & Policy Information ══ */}
         <div style={S.card}>
-          <SectionHeader num={3} title="Vehicle & Policy Information" />
+          <SectionHeader num={3} title="Vehicle & Policy Information" sectionKey="vehicle_policy" claimId={claimId} pipelineRunId={pipelineRunId} />
           <div style={S.cardBody}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
               <KVRow label="Make / Model" value={`${claim?.vehicleMake ?? ""} ${claim?.vehicleModel ?? ""}`.trim() || "—"} />
@@ -496,7 +511,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
         {/* ══ SECTION 4 — Damage Assessment ══ */}
         <div style={S.card}>
-          <SectionHeader num={4} title="Damage Assessment" subtitle="AI vision analysis of submitted damage photographs" />
+          <SectionHeader num={4} title="Damage Assessment" subtitle="AI vision analysis of submitted damage photographs" sectionKey="damage_assessment" claimId={claimId} pipelineRunId={pipelineRunId} />
           <div style={S.cardBody}>
             {/* Damage summary row */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
@@ -586,6 +601,9 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
             num={5}
             title="Quotation & Cost Analysis"
             subtitle={quotes.length > 1 ? `${quotes.length} quotes received — side-by-side comparison with KINGA estimate` : "Quote analysis"}
+            sectionKey="quote_analysis"
+            claimId={claimId}
+            pipelineRunId={pipelineRunId}
           />
           <div style={S.cardBody}>
 
@@ -713,7 +731,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
         {/* ══ SECTION 6 — Fraud & Risk Assessment ══ */}
         <div style={S.card}>
-          <SectionHeader num={6} title="Fraud & Risk Assessment" />
+          <SectionHeader num={6} title="Fraud & Risk Assessment" sectionKey="fraud_risk" claimId={claimId} pipelineRunId={pipelineRunId} />
           <div style={S.cardBody}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
               <div style={{ padding: "10px 12px", background: "#f1f5f9", borderRadius: 6 }}>
@@ -761,7 +779,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
         {/* ══ SECTION 7 — Physics Consistency ══ */}
         <div style={S.card}>
-          <SectionHeader num={7} title="Physics Consistency" subtitle="Mechanical plausibility of reported damage relative to impact forces" />
+          <SectionHeader num={7} title="Physics Consistency" subtitle="Mechanical plausibility of reported damage relative to impact forces" sectionKey="physics" claimId={claimId} pipelineRunId={pipelineRunId} />
           <div style={S.cardBody}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
               {[
@@ -800,7 +818,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
         {/* ══ SECTION 8 — Final Recommendation ══ */}
         <div style={S.card}>
-          <SectionHeader num={8} title="Final Recommendation" />
+          <SectionHeader num={8} title="Final Recommendation" sectionKey="recommendation" claimId={claimId} pipelineRunId={pipelineRunId} />
           <div style={S.cardBody}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
               <div style={{ flexShrink: 0 }}>
@@ -954,6 +972,13 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
         </div>
 
       </div>
+
+      {/* ══ APPENDIX A — Confidence Improvement Checklist ══ */}
+      <ConfidenceImprovementChecklist
+        aiAssessment={aiAssessment}
+        claim={claim}
+        styleMode="kinga"
+      />
     </div>
   );
 }

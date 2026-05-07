@@ -538,6 +538,14 @@ export const claimComments = mysqlTable("claim_comments", {
 	createdAt: text().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	deletedAt: text(),
+	// Phase A collaboration columns
+	sectionKey: varchar("section_key", { length: 100 }),
+	subsectionKey: varchar("subsection_key", { length: 100 }),
+	findingId: varchar("finding_id", { length: 100 }),
+	pipelineRunId: int("pipeline_run_id"),
+	severity: varchar("severity", { length: 20 }).notNull().default('info'),
+	disposition: varchar("disposition", { length: 30 }),
+	blocksApproval: tinyint("blocks_approval").notNull().default(0),
 });
 
 export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {

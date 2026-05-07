@@ -11459,3 +11459,16 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix ExecutiveDashboard tab query param (?tab=financials) handling
 - [x] Fix addComment stub in ClaimsManagerDashboard to use real trpc mutation
 - [x] Remove insurer_admin from all getUsersByInsurerRoles operational notification calls
+
+## Session — 2026-05-07 (Collaboration Phase A + Confidence Checklist)
+
+- [ ] Phase A DB migration: add section_key, subsection_key, finding_id, pipeline_run_id, severity, disposition, blocks_approval to claim_comments
+- [ ] Add shared/report-section-keys.ts with canonical section key constants
+- [ ] Add addSectionComment, listSectionComments, resolveAnnotation to commentsRouter
+- [ ] Enforce approval blocker in submitApprovalDecision (blocks_approval=1 + is_resolved=0)
+- [ ] Build ReportSectionThread UI component
+- [ ] Wire ReportSectionThread into KingaClaimsReport section headers
+- [ ] Wire ReportSectionThread into ForensicAuditReport section headers
+- [ ] Build server-side confidence gap analysis (computeConfidenceGaps) from pipeline output
+- [ ] Add Confidence Improvement Checklist appendix to KingaClaimsReport
+- [ ] Add Confidence Improvement Checklist appendix to ForensicAuditReport
