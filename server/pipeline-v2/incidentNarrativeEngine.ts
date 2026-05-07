@@ -34,6 +34,7 @@
  */
 
 import { invokeLLM } from "../_core/llm";
+import { KINGA_FORENSIC_SYSTEM_PROMPT } from "./kingaReportSystemPrompt";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -426,7 +427,7 @@ Return ONLY valid JSON matching this exact schema:
       messages: [
         {
           role: "system",
-          content: "You are a forensic insurance claims analyst. Return only valid JSON. No markdown, no explanation outside the JSON.",
+          content: `${KINGA_FORENSIC_SYSTEM_PROMPT}\n\nYou are operating as a forensic insurance claims analyst for the KINGA AutoVerify AI system. Return only valid JSON. No markdown, no explanation outside the JSON.`,
         },
         { role: "user", content: prompt },
       ],

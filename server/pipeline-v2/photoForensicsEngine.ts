@@ -22,6 +22,7 @@ import os from "os";
 import fs from "fs/promises";
 import crypto from "crypto";
 import type { FraudIndicator } from "./types";
+import { KINGA_FORENSIC_SYSTEM_PROMPT } from "./kingaReportSystemPrompt";
 
 const MAX_PHOTOS_TO_ANALYSE = 10;   // Analyse up to 10 photos per claim
 const DOWNLOAD_TIMEOUT_MS = 30_000; // 30s covers large S3 photos (3-8MB)
@@ -291,6 +292,10 @@ async function runAiVisionAnalysis(photoUrl: string): Promise<VisionClassificati
     const { invokeLLM } = await import("../_core/llm");
     const result = await invokeLLM({
       messages: [
+        {
+          role: "system",
+          content: `${KINGA_FORENSIC_SYSTEM_PROMPT}\n\nYou are a motor vehicle insurance claims photo analyst for the KINGA AutoVerify AI system. Apply the quality standards above to all image analysis and findings.`,
+        },
         {
           role: "user",
           content: [

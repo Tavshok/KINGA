@@ -21,6 +21,7 @@
  */
 
 import { invokeLLM } from "../_core/llm";
+import { KINGA_FORENSIC_SYSTEM_PROMPT } from "./kingaReportSystemPrompt";
 import type {
   ClaimRecord,
   Stage6Output,
@@ -243,9 +244,7 @@ async function definePhysicsConstraints(
   damageSummary: string,
   imageSummary: string
 ): Promise<PhysicsConstraint[]> {
-  const constraintSystemPrompt = `You are a forensic mechanical analyst.
-
-Your task is to define the physical and structural conditions that MUST be true for a given incident cause to be valid.
+  const constraintSystemPrompt = `${KINGA_FORENSIC_SYSTEM_PROMPT}\n\nYou are a forensic mechanical analyst.\n\nYour task is to define the physical and structural conditions that MUST be true for a given incident cause to be valid.
 
 Rules:
 - Only include conditions that are physically necessary
@@ -505,8 +504,7 @@ async function generateConstraintNarrative(
     ? `PARTIALLY VALID — ${constraintValidation.failedCount} of ${constraintValidation.constraints.length} constraint(s) failed. Penalty: −${constraintValidation.penaltyApplied} points.`
     : `VALID — All ${constraintValidation.constraints.length} constraint(s) passed.`;
 
-  const systemPrompt = `You are a forensic vehicle damage expert.
-
+  const systemPrompt = `${KINGA_FORENSIC_SYSTEM_PROMPT}\n\nYou are a forensic vehicle damage expert.
 You must explain why an inferred incident cause is valid or invalid based strictly on constraint validation results.
 
 Rules:
@@ -590,8 +588,7 @@ export async function runCausalReasoningEngine(
   const { text: photoContext, imageUrls } = formatEnrichedPhotos(enrichedPhotosJson);
   const scoringBlock = formatScoringBlock(physics, precomputedScores ?? null);
 
-  const systemPrompt = `You are a forensic vehicle incident analyst.
-
+  const systemPrompt = `${KINGA_FORENSIC_SYSTEM_PROMPT}\n\nYou are a forensic vehicle incident analyst.
 You MUST:
 - Base conclusions ONLY on provided evidence (description, physics output, damage component list, photos)
 - Explicitly identify every contradiction between sources — do not smooth over them in the narrative

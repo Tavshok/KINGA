@@ -11477,3 +11477,13 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 
 - [x] Print/Export PDF button made context-aware — now prints whichever report (KINGA Claims Report or Forensic Audit Report) is currently active; no longer forces switch to forensic view; button label updated to "Print / Export PDF" with Printer icon
 - [x] "Shared With Me" tab added to ReportsCentre — calls trpc.aiAssessments.getSharedWithMe, shows table of claims shared with current user's insurerRole with claim number, vehicle, incident date, fraud score, risk level, shared date, and "View Report" link to InsurerComparisonView
+
+## Session: May 2026 — Master Report System Prompt Integration
+
+- [x] Created server/pipeline-v2/kingaReportSystemPrompt.ts — exports KINGA_REPORT_SYSTEM_PROMPT, KINGA_FORENSIC_SYSTEM_PROMPT, KINGA_CLAIMS_REPORT_SYSTEM_PROMPT
+- [x] Injected KINGA_FORENSIC_SYSTEM_PROMPT into incidentNarrativeEngine.ts (LLM reasoning pass system message)
+- [x] Injected KINGA_REPORT_SYSTEM_PROMPT into stage-6-damage-analysis.ts (primary vision damage extraction system message)
+- [x] Injected KINGA_FORENSIC_SYSTEM_PROMPT into photoForensicsEngine.ts (AI vision analysis system message)
+- [x] Injected KINGA_FORENSIC_SYSTEM_PROMPT into stage-7b-causal-reasoning.ts (all 3 LLM calls: constraint definition, constraint narrative, main causal verdict)
+- [x] OCR/extraction engines (stage-2, stage-3, quoteExtraction, escalationReasoning, claimsNotification) intentionally NOT modified — pure JSON output engines must not receive narrative quality rules
+- [x] Build passes cleanly (0 TypeScript errors)
