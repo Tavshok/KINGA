@@ -12,7 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import {
   FileText, Download, RefreshCw, Clock, CheckCircle, XCircle,
   AlertTriangle, Play, Calendar, Shield, BarChart3, Search,
-  FileBarChart, RotateCcw, Info, ChevronRight, Car, X as XIcon
+  FileBarChart, RotateCcw, Info, ChevronRight, Car, X as XIcon,
+  Share2, Users, ExternalLink
 } from "lucide-react";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
 
@@ -614,6 +615,12 @@ export default function ReportsCentre() {
     onError: (e) => toast({ title: "Failed to update schedule", description: e.message, variant: "destructive" }),
   });
 
+  // Shared With Me — claims pushed to the current user's insurer role
+  const { data: sharedWithMeData } = trpc.aiAssessments.getSharedWithMe.useQuery(undefined, {
+    enabled: !!user,
+  });
+  const sharedClaims = sharedWithMeData?.claims ?? [];
+
   // Poll a specific job
   const { data: polledJob } = trpc.reportingEngine.getJobStatus.useQuery(
     { jobId: pollingJobId! },
@@ -695,6 +702,10 @@ export default function ReportsCentre() {
             <TabsTrigger value="schedules" className="text-xs data-[state=active]:bg-white data-[state=active]:text-gray-900">
               <Calendar className="h-3.5 w-3.5 mr-1.5" />
               Scheduled Reports
+            </TabsTrigger>
+            <TabsTrigger value="shared" className="text-xs data-[state=active]:bg-white data-[state=active]:text-gray-900">
+              <Share2 className="h-3.5 w-3.5 mr-1.5" />
+              Shared With Me {sharedClaims.length > 0 && <span className="ml-1 bg-indigo-100 text-indigo-700 rounded-full px-1.5 py-0.5 text-xs">{sharedClaims.length}</span>}
             </TabsTrigger>
           </TabsList>
 
@@ -883,6 +894,90 @@ export default function ReportsCentre() {
                                   Delete
                                 </Button>
                               </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+          {/* ── Shared With Me ──────────────────────────────────────────── */}
+          <TabsContent value="shared">
+            <div>
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">Reports Shared With You</h3>
+                <p className="text-xs text-gray-500">
+                  Claims whose AI assessment reports have been pushed to your role for review.
+                </p>
+              </div>
+              {sharedClaims.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Share2 className="h-10 w-10 text-gray-300 mb-3" />
+                  <p className="text-sm font-medium text-gray-500">No reports shared with you yet</p>
+                  <p className="text-xs text-gray-400 mt-1">When a colleague pushes a report to your role, it will appear here.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 bg-gray-50">
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Claim</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Vehicle</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Incident Date</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Fraud Score</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Risk</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Shared On</th>
+                        <th className="px-4 py-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {sharedClaims.map((item: any) => {
+                        const fraudPct = item.fraudScore != null ? Math.round(item.fraudScore * 100) : null;
+                        const riskColor =
+                          item.overallRisk === "high" ? "bg-red-100 text-red-700" :
+                          item.overallRisk === "medium" ? "bg-amber-100 text-amber-700" :
+                          "bg-emerald-100 text-emerald-700";
+                        return (
+                          <tr key={item.assessmentId} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3">
+                              <span className="font-mono text-xs font-semibold text-gray-800">
+                                {item.claimNumber ?? `#${item.claimId}`}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-700">
+                              {[item.vehicleYear, item.vehicleMake, item.vehicleModel].filter(Boolean).join(" ") || "—"}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500">
+                              {item.incidentDate ? new Date(item.incidentDate).toLocaleDateString() : "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {fraudPct != null ? (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${fraudPct >= 60 ? "bg-red-100 text-red-700" : fraudPct >= 30 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+                                  {fraudPct}%
+                                </span>
+                              ) : "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.overallRisk ? (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold capitalize ${riskColor}`}>
+                                  {item.overallRisk}
+                                </span>
+                              ) : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500">
+                              {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <a
+                                href={`/insurer/claims/${item.claimId}/comparison`}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                              >
+                                View Report
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
                             </td>
                           </tr>
                         );

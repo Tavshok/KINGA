@@ -11472,3 +11472,8 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Build server-side confidence gap analysis (computeConfidenceGaps) from pipeline output
 - [ ] Add Confidence Improvement Checklist appendix to KingaClaimsReport
 - [ ] Add Confidence Improvement Checklist appendix to ForensicAuditReport
+
+## Session: May 2026 — Final TODO Items
+
+- [x] Print/Export PDF button made context-aware — now prints whichever report (KINGA Claims Report or Forensic Audit Report) is currently active; no longer forces switch to forensic view; button label updated to "Print / Export PDF" with Printer icon
+- [x] "Shared With Me" tab added to ReportsCentre — calls trpc.aiAssessments.getSharedWithMe, shows table of claims shared with current user's insurerRole with claim number, vehicle, incident date, fraud score, risk level, shared date, and "View Report" link to InsurerComparisonView

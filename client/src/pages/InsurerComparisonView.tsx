@@ -819,17 +819,14 @@ export default function InsurerComparisonView() {
                     })(),
                   };
                   
-                  // Switch to forensic view and trigger browser print dialog
-                  setReportView('forensic');
-                  // Small delay to let the view render before print dialog opens
-                  setTimeout(() => {
-                    window.print();
-                  }, 400);
-                  toast.success("Opening Forensic Report for PDF export...");
+                  // Print whichever report is currently active
+                  const label = reportView === 'forensic' ? 'Forensic Audit Report' : 'KINGA Claims Report';
+                  toast.success(`Opening ${label} for PDF export…`);
+                  setTimeout(() => { window.print(); }, 400);
                 }}
               >
-                <Download className="mr-2 h-4 w-4" />
-                Export PDF
+                <Printer className="mr-2 h-4 w-4" />
+                Print / Export PDF
               </Button>
               <Button
                 variant="outline"
