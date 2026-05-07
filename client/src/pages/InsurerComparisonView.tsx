@@ -3,7 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download, Zap, Activity, Printer, Copy, Hash } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download, Zap, Activity, Printer, Copy, Hash, Share2, Send } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
@@ -37,6 +40,17 @@ import { ForensicAuditReport } from "@/components/ForensicAuditReport";
 import { KingaClaimsReport } from "@/components/KingaClaimsReport";
 import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
 import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
+
+// Insurer role labels for the Push Report dialog
+const INSURER_ROLE_OPTIONS = [
+  { value: "claims_processor", label: "Claims Processor" },
+  { value: "assessor_internal", label: "Internal Assessor" },
+  { value: "risk_manager", label: "Risk Manager" },
+  { value: "claims_manager", label: "Claims Manager" },
+  { value: "executive", label: "Executive" },
+  { value: "underwriter", label: "Underwriter" },
+  { value: "insurer_admin", label: "Insurer Admin" },
+] as const;
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -180,8 +194,30 @@ export default function InsurerComparisonView() {
 
   // Incident type override dialog state
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
+  // Push Report to Role dialog state
+  const [pushReportOpen, setPushReportOpen] = useState(false);
+  const [pushTargetRole, setPushTargetRole] = useState<string>("");
+  const [pushMessage, setPushMessage] = useState("");
 
   // Re-run AI assessment mutation (used in Claim Summary card)
+  // Push Report to Role mutation
+  const pushReportMutation = trpc.aiAssessments.pushReportToRole.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      setPushReportOpen(false);
+      setPushTargetRole("");
+      setPushMessage("");
+    },
+    onError: (err) => {
+      toast.error(`Failed to share report: ${err.message}`);
+    },
+  });
+  const { data: sharedRolesData } = trpc.aiAssessments.getSharedRoles.useQuery(
+    { claimId: Number(claimId) },
+    { enabled: !!claimId && !isNaN(Number(claimId)) }
+  );
+  const sharedWithRoles: string[] = sharedRolesData?.sharedWithRoles ?? [];
+
   const reRunMutation = trpc.claims.triggerAiAssessment.useMutation({
     onSuccess: () => {
       utils.claims.getById.invalidate({ id: claimId });
@@ -789,6 +825,22 @@ export default function InsurerComparisonView() {
                 <Download className="mr-2 h-4 w-4" />
                 Export PDF
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                style={{ borderColor: '#6366f1', color: '#6366f1', background: 'transparent' }}
+                onClick={() => setPushReportOpen(true)}
+                disabled={!aiAssessment}
+                title="Share this report with a specific role"
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                Share Report
+                {sharedWithRoles.length > 0 && (
+                  <span style={{ marginLeft: 6, background: '#6366f1', color: '#fff', borderRadius: 9999, padding: '1px 7px', fontSize: 11 }}>
+                    {sharedWithRoles.length}
+                  </span>
+                )}
+              </Button>
               <ThemeToggle />
               <Button
                 variant="default"
@@ -898,6 +950,75 @@ export default function InsurerComparisonView() {
           }}
         />
       )}
+
+      {/* ─── Push Report to Role Dialog ─────────────────────────────── */}
+      <Dialog open={pushReportOpen} onOpenChange={setPushReportOpen}>
+        <DialogContent style={{ maxWidth: 440 }}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" style={{ color: '#6366f1' }} />
+              Share Report with Role
+            </DialogTitle>
+            <DialogDescription>
+              The selected role's users will receive a notification and the report will appear in their Reports Centre.
+              {sharedWithRoles.length > 0 && (
+                <span className="block mt-1 text-xs" style={{ color: '#6366f1' }}>
+                  Already shared with: {sharedWithRoles.map(r => r.replace(/_/g, ' ')).join(', ')}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Target Role</label>
+              <Select value={pushTargetRole} onValueChange={setPushTargetRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {INSURER_ROLE_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                      {sharedWithRoles.includes(opt.value) && (
+                        <span className="ml-2 text-xs" style={{ color: '#6366f1' }}>✓ shared</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Optional Message <span className="text-muted-foreground font-normal">(max 500 chars)</span></label>
+              <Textarea
+                placeholder="Add a note for the recipient..."
+                value={pushMessage}
+                onChange={e => setPushMessage(e.target.value)}
+                maxLength={500}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPushReportOpen(false)} disabled={pushReportMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!pushTargetRole) { toast.error('Please select a target role'); return; }
+                pushReportMutation.mutate({ claimId: Number(claimId), targetRole: pushTargetRole as any, message: pushMessage || undefined });
+              }}
+              disabled={!pushTargetRole || pushReportMutation.isPending}
+              style={{ background: '#6366f1', color: '#fff' }}
+            >
+              {pushReportMutation.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sharing...</>
+              ) : (
+                <><Send className="mr-2 h-4 w-4" />Share Report</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

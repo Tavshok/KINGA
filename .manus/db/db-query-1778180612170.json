@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE ai_assessments ADD COLUMN IF NOT EXISTS shared_with_roles_json LONGTEXT NULL COMMENT 'JSON array of insurer sub-role strings that this report has been pushed to';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute ALTER TABLE ai_assessments ADD COLUMN IF NOT EXISTS shared_with_roles_json LONGTEXT NULL COMMENT 'JSON array of insurer sub-role strings that this report has been pushed to';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1594
+}

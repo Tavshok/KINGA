@@ -4157,8 +4157,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                   try {
                     const { sendAiOptimisationCompleteEmail } = await import("./safe-email");
                     const { getUsersByInsurerRoles: _getInsurerRoles } = await import("./db");
-                    // Only email operational roles (claims_manager, insurer_admin) — not executive
-                    const insurers = await _getInsurerRoles(["claims_manager", "insurer_admin"]);
+                    // Only email operational roles (claims_manager) — not executive or insurer_admin
+                    const insurers = await _getInsurerRoles(["claims_manager"]);
                     // Filter to insurers in the same tenant as the claim
                     const tenantInsuers = insurers.filter(
                       (u) => !claim.tenantId || u.tenantId === claim.tenantId
@@ -4190,7 +4190,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           // Notify insurer that all quotes are ready for comparison
           // Only notify operational roles (claims_manager, insurer_admin) — not executive
           if (claim) {
-            const insurers = await getUsersByInsurerRoles(["claims_manager", "insurer_admin"]);
+            const insurers = await getUsersByInsurerRoles(["claims_manager"]);
             const tenantInsurers = insurers.filter((u) => !claim.tenantId || u.tenantId === claim.tenantId);
             const { createNotification } = await import("./db");
             
@@ -4211,7 +4211,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           // Notify insurer of new quote submission
           // Only notify operational roles (claims_manager, insurer_admin) — not executive
           if (claim) {
-            const insurers = await getUsersByInsurerRoles(["claims_manager", "insurer_admin"]);
+            const insurers = await getUsersByInsurerRoles(["claims_manager"]);
             const tenantInsurers = insurers.filter((u) => !claim.tenantId || u.tenantId === claim.tenantId);
             const { createNotification } = await import("./db");
             
@@ -5746,6 +5746,103 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
             extractionConfidence: s.extractionConfidence,
           },
         }));
+      }),
+    // ─── Push Report to Role ─────────────────────────────────────────────────
+    // Shares a completed assessment report with a specific insurer role.
+    // All users with that role will receive a notification and the report will
+    // appear in their Reports Centre under "Shared with Me".
+    pushReportToRole: protectedProcedure
+      .input(z.object({
+        claimId: z.number().int(),
+        targetRole: z.enum([
+          "claims_processor",
+          "assessor_internal",
+          "risk_manager",
+          "claims_manager",
+          "executive",
+          "underwriter",
+          "insurer_admin",
+        ]),
+        message: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const { getDb, getAiAssessmentByClaimId, createNotification } = await import("./db");
+        const { getUsersByInsurerRoles: _getByRoles } = await import("./db");
+        const { aiAssessments: aiAssessmentsTable } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const { claims: claimsTable } = await import("../drizzle/schema");
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+        // Fetch the assessment to get its ID and verify it exists
+        const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
+        if (!assessment) throw new TRPCError({ code: "NOT_FOUND", message: "Assessment not found for this claim" });
+
+        // Fetch claim details for the notification
+        const [claimRow] = await db.select({ claimNumber: claimsTable.claimNumber, vehicleMake: claimsTable.vehicleMake, vehicleModel: claimsTable.vehicleModel })
+          .from(claimsTable)
+          .where(eq(claimsTable.id, input.claimId))
+          .limit(1);
+
+        // Update sharedWithRolesJson — append the new role if not already present
+        let currentRoles: string[] = [];
+        try {
+          const raw = (assessment as any).sharedWithRolesJson;
+          currentRoles = raw ? JSON.parse(raw) : [];
+        } catch { /* ignore */ }
+        if (!currentRoles.includes(input.targetRole)) {
+          currentRoles.push(input.targetRole);
+          await db.update(aiAssessmentsTable)
+            .set({ sharedWithRolesJson: JSON.stringify(currentRoles) } as any)
+            .where(eq(aiAssessmentsTable.id, assessment.id));
+        }
+
+        // Notify all users with the target role
+        const targetUsers = await _getByRoles([input.targetRole]);
+        const actorName = (ctx.user as any).name ?? "A colleague";
+        const claimRef = claimRow?.claimNumber ?? `Claim #${input.claimId}`;
+        const vehicleLabel = [claimRow?.vehicleMake, claimRow?.vehicleModel].filter(Boolean).join(" ") || "";
+        const customMsg = input.message ? ` — "${input.message}"` : "";
+        for (const targetUser of targetUsers) {
+          if (targetUser.id) {
+            await createNotification({
+              userId: targetUser.id,
+              title: `Report Shared: ${claimRef}`,
+              message: `${actorName} has shared the assessment report for ${claimRef}${vehicleLabel ? ` (${vehicleLabel})` : ""} with your role${customMsg}. View it in your Reports Centre.`,
+              type: "info",
+              claimId: input.claimId,
+              entityType: "claim",
+              entityId: input.claimId,
+              actionUrl: `/insurer-portal/comparison/${input.claimId}`,
+              priority: "medium",
+            });
+          }
+        }
+
+        return {
+          success: true,
+          sharedWithRoles: currentRoles,
+          notifiedCount: targetUsers.length,
+          message: `Report shared with ${targetUsers.length} user${targetUsers.length !== 1 ? "s" : ""} in the "${input.targetRole.replace(/_/g, " ")}" role.`,
+        };
+      }),
+    // Get which roles a report has been shared with
+    getSharedRoles: protectedProcedure
+      .input(z.object({ claimId: z.number().int() }))
+      .query(async ({ input, ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const { getAiAssessmentByClaimId } = await import("./db");
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
+        if (!assessment) return { sharedWithRoles: [] as string[] };
+        let roles: string[] = [];
+        try {
+          const raw = (assessment as any).sharedWithRolesJson;
+          roles = raw ? JSON.parse(raw) : [];
+        } catch { /* ignore */ }
+        return { sharedWithRoles: roles };
       }),
   }),
   // Storage operationss

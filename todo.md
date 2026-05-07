@@ -11436,3 +11436,14 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Audit executive dashboard for orphan states and broken tab paths — fix every dead end
 - [ ] Suppress report-ready notifications from non-owner portals (executive panel should not receive them)
 - [ ] Produce tier/pricing strategy document based on current system capabilities
+
+## Session — 2026-05-07 (Approval Chain + Report Signatures)
+
+- [ ] Complete DB migration: sharedWithRolesJson column on aiAssessments
+- [ ] Add pushReportToRole tRPC procedure (aiAssessments router)
+- [ ] Add Share-to-Role UI button in InsurerComparisonView report section
+- [ ] Add per-role approval comment + signature sections to KingaClaimsReport
+- [ ] Add per-role approval comment + signature sections to ForensicAuditReport
+- [ ] Unify existing approval/signature section styling in both reports
+- [x] Remove insurer_admin from all operational notification targets
+- [x] Add next-stage notification when approval stage advances

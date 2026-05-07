@@ -5503,12 +5503,12 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
         );
       })()}
 
-      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-        <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Audit Trail</p>
+      <div style={{ border: '1px solid var(--fp-border)', background: '#fff', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--fp-border)', background: 'var(--fp-section-bg)' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#374151', margin: 0 }}>Audit Trail</p>
         </div>
-        <div className="p-4">
-          <table className="w-full text-xs report-table">
+        <div style={{ padding: '12px 16px' }}>
+          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
             <tbody>
               {[
                 ["Analysed by", `KINGA Engine ${engineVersion}`],
@@ -5520,9 +5520,9 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
                 ["Report generated", fmtDate(aiAssessment?.createdAt ?? new Date().toISOString())],
                 ["Digital signature", "KINGA AI (engine)"],
               ].map(([k, v], i) => (
-                <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
-                  <td className="py-2 pr-4 font-semibold w-44" style={{ color: "var(--muted-foreground)" }}>{k}</td>
-                  <td className="py-2 tabular-nums" style={{ color: "var(--foreground)" }}>{v}</td>
+                <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--fp-border)' : undefined }}>
+                  <td style={{ padding: '7px 16px 7px 0', fontWeight: 600, width: 176, color: '#6b7280', verticalAlign: 'top' }}>{k}</td>
+                  <td style={{ padding: '7px 0', color: '#111827', fontVariantNumeric: 'tabular-nums' }}>{v}</td>
                 </tr>
               ))}
             </tbody>
@@ -6304,6 +6304,8 @@ const REPORT_CSS = `
   --status-reject-bg:#ffebee;
   --status-reject-border:#ef9a9a;
   --status-reject-text:#c00;
+  --fp-section-bg:#f8f9fa;
+  --fp-border:#e5e7eb;
 }
 /* Force white background and serif font on all child elements */
 .kinga-report, .kinga-report *:not(button):not(.no-print),
@@ -6366,8 +6368,8 @@ const REPORT_CSS = `
 /* Override tinted Tailwind utility classes to white */
 .kinga-report .bg-amber-50{background:#fff !important;color:#7a5c00 !important}
 .kinga-report .bg-red-50{background:#fff !important;color:#c00 !important}
-/* CongruencyPanel and DataQualityPanel */
-.kinga-report [class*="overflow-hidden"]{background:#fff !important}
+/* CongruencyPanel and DataQualityPanel — only override the outer wrapper, not inner headers */
+.kinga-report [class*="overflow-hidden"]:not([style*="background"]):not([class*="px-4"]){background:#fff !important}
 /* ── Photo overlay dark backgrounds ── */
 .kinga-report .bg-black\/55,.kinga-report [style*="bg-black"]{background:rgba(0,0,0,0.55) !important}
 /* ── Inline dark backgrounds from Tailwind (bg-gray-900, bg-slate-800, etc.) ── */
@@ -6503,12 +6505,12 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
       <Section7Learning aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
 
       {/* ── KINGA AI Engine Block — always at the bottom of the report body ── */}
-      <div style={{ background: '#fff', border: '1px solid #ddd', padding: '16px', textAlign: 'center', marginTop: '24px', marginBottom: '8px' }}>
-        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#111' }}>KINGA AI</p>
-        <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
-          Engine v{aiAssessment?.engineVersion ?? '4.2'} · Report #{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8, '0').toUpperCase().slice(0, 8)} · {new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+      <div style={{ background: '#f9fafb', border: '1px solid var(--fp-border)', borderRadius: 8, padding: '16px 20px', textAlign: 'center', marginTop: 24, marginBottom: 8 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#111827', margin: 0 }}>KINGA AI</p>
+        <p style={{ fontSize: 11, color: '#6b7280', marginTop: 4, marginBottom: 0 }}>
+          Engine v{aiAssessment?.engineVersion ?? '4.2'} &nbsp;·&nbsp; Report #{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8, '0').toUpperCase().slice(0, 8)} &nbsp;·&nbsp; {new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
         </p>
-        <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>
+        <p style={{ fontSize: 10, color: '#9ca3af', marginTop: 6, marginBottom: 0, lineHeight: 1.5 }}>
           This report is generated by an AI system and is intended to assist human adjusters. All decisions require human review and authorisation. KINGA AI does not constitute legal advice.
         </p>
       </div>

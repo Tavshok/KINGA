@@ -16,7 +16,7 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { getDb, createNotification } from "../db";
+import { getDb, createNotification, getUsersByInsurerRoles } from "../db";
 import { eq, desc, and, asc } from "drizzle-orm";
 import {
   workflowTemplates,
@@ -542,6 +542,38 @@ export const approvalRouter = router({
               actionUrl: `/insurer-portal/comparison/${input.claim_id}`,
               priority: "low",
             });
+          }
+
+          // ── Notify next-stage role when a stage is approved ──────────────────
+          if (input.decision === "approved" || input.decision === "external_received") {
+            // Re-fetch the template to find the next stage
+            const tpl = await getActiveTemplate(drizzle, tenantId);
+            const allStages: WorkflowStage[] = tpl
+              ? parseStagesFromJson(tpl.stagesJson)
+              : buildDefaultStages();
+            const nextStage = allStages
+              .filter((s) => s.required)
+              .find((s) => s.stage_order === input.stage_order + 1);
+            if (nextStage) {
+              // Map role_key to insurer sub-role string for getUsersByInsurerRoles
+              const nextRoleKey = nextStage.role_key;
+              const nextRoleUsers = await getUsersByInsurerRoles([nextRoleKey]);
+              for (const nextUser of nextRoleUsers) {
+                if (nextUser.id) {
+                  await createNotification({
+                    userId: nextUser.id,
+                    title: `Claim Ready for Your Review — ${claimRow?.claimNumber ?? `#${input.claim_id}`}`,
+                    message: `Stage ${input.stage_order} (${input.stage_name}) has been approved by ${(ctx.user as { name?: string }).name ?? "a colleague"}. The claim is now awaiting your action at Stage ${nextStage.stage_order}: "${nextStage.stage_name}".`,
+                    type: "info",
+                    claimId: input.claim_id,
+                    entityType: "claim",
+                    entityId: input.claim_id,
+                    actionUrl: `/insurer-portal/comparison/${input.claim_id}`,
+                    priority: "medium",
+                  });
+                }
+              }
+            }
           }
 
           // Send owner alert for HIGH/URGENT priority events

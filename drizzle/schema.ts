@@ -174,6 +174,9 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Schema: { overallStatus, criticalFailures, highSeverityIssues, mediumIssues, lowIssues,
   //           consistencyScore, confidenceInAssessment, summary, validatedAt }
   forensicAuditValidationJson: longtext("forensic_audit_validation_json"),
+  // Report sharing: JSON array of insurer sub-role strings that this report has been pushed to.
+  // e.g. ["risk_manager", "executive"] means those roles can see this report in their Reports Centre.
+  sharedWithRolesJson: longtext("shared_with_roles_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
