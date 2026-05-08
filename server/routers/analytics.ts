@@ -710,7 +710,8 @@ export const analyticsRouter = router({
 
   // ─── Risk Manager Analytics (Top-Tier Gated) ─────────────────────────────────
   getRiskManagerKPIs: analyticsRoleProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({ months: z.union([z.literal(3), z.literal(6), z.literal(12)]).default(6) }))
+    .query(async ({ input, ctx }) => {
       try {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
@@ -733,15 +734,16 @@ export const analyticsRouter = router({
 
         const tenantFilter = tenantId ? `tenant_id = '${tenantId}'` : '1=1';
         const tenantFilterRC = tenantId ? `rc.tenant_id = '${tenantId}'` : '1=1';
+        const months = input.months;
 
-        // KPI 1: Claims frequency by incident type, last 6 months
+        // KPI 1: Claims frequency by incident type
         const freqResult = await db.execute(sql`
           SELECT incident_type,
             DATE_FORMAT(created_at, '%Y-%m') as month,
             COUNT(*) as claim_count
           FROM claims
           WHERE ${sql.raw(tenantFilter)}
-            AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            AND created_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
             AND incident_type IS NOT NULL
           GROUP BY incident_type, month
           ORDER BY month ASC, claim_count DESC
@@ -762,6 +764,7 @@ export const analyticsRouter = router({
           WHERE ${sql.raw(tenantFilter)}
             AND vehicle_year IS NOT NULL
             AND COALESCE(final_approved_amount, approved_amount) IS NOT NULL
+            AND created_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
           GROUP BY age_bucket
         `);
         const repairCostRows = Array.isArray((repairCostResult as any)[0]) ? (repairCostResult as any)[0] : [];
@@ -773,12 +776,13 @@ export const analyticsRouter = router({
           WHERE ${sql.raw(tenantFilter)}
             AND incident_type IS NOT NULL
             AND fraud_risk_level IS NOT NULL
+            AND created_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
           GROUP BY incident_type, fraud_risk_level
           ORDER BY incident_type, fraud_risk_level
         `);
         const fraudRateRows = Array.isArray((fraudRateResult as any)[0]) ? (fraudRateResult as any)[0] : [];
 
-        // KPI 4: TP recovery exposure by month (last 6 months)
+        // KPI 4: TP recovery exposure by month
         const recoveryExposureResult = await db.execute(sql`
           SELECT
             DATE_FORMAT(rc.created_at, '%Y-%m') as month,
@@ -787,24 +791,25 @@ export const analyticsRouter = router({
             COUNT(*) as case_count
           FROM recovery_cases rc
           WHERE ${sql.raw(tenantFilterRC)}
-            AND rc.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            AND rc.created_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
           GROUP BY month
           ORDER BY month ASC
         `);
         const recoveryExposureRows = Array.isArray((recoveryExposureResult as any)[0]) ? (recoveryExposureResult as any)[0] : [];
 
-        // KPI 5: Repeat offender rate
+        // KPI 5: Repeat offender rate (within selected window)
         const repeatOffenderResult = await db.execute(sql`
           SELECT
             SUM(CASE WHEN is_repeat_offender = 1 THEN 1 ELSE 0 END) as repeat_count,
             COUNT(*) as total_count
           FROM recovery_cases rc
           WHERE ${sql.raw(tenantFilterRC)}
+            AND rc.created_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
         `);
         const repeatRows = Array.isArray((repeatOffenderResult as any)[0]) ? (repeatOffenderResult as any)[0] : [];
         const repeatData = repeatRows[0] || {};
 
-        // KPI 6: Settlement cycle time by month (last 6 months)
+        // KPI 6: Settlement cycle time by month
         const cycleTimeResult = await db.execute(sql`
           SELECT
             DATE_FORMAT(closed_at, '%Y-%m') as month,
@@ -813,7 +818,7 @@ export const analyticsRouter = router({
           FROM claims
           WHERE ${sql.raw(tenantFilter)}
             AND closed_at IS NOT NULL
-            AND closed_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            AND closed_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(months))} MONTH)
           GROUP BY month
           ORDER BY month ASC
         `);

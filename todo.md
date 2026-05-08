@@ -11657,3 +11657,9 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Build RiskManagerAnalytics.tsx page with KPI cards and Chart.js trend charts
 - [x] Gate page by risk_manager role AND tier-enterprise (FORBIDDEN with TIER_UPGRADE_REQUIRED message)
 - [x] Wire nav link in InsurerPortalLayout for risk_manager role (Intelligence section)
+
+## Phase 18b — Risk Analytics: Date-Range Filter + PDF Export
+- [x] Update getRiskManagerKPIs to accept a `months` input (3 | 6 | 12) — all 6 queries now use the selected window
+- [x] Add date-range selector (Last 3M / 6M / 12M) to RiskManagerAnalytics.tsx header
+- [x] Add "Download Report" PDF export button using jsPDF + html2canvas (lazy-loaded)
+- [x] PDF includes: KINGA brand header bar, title, date range, tenant, all charts + KPI cards captured via html2canvas

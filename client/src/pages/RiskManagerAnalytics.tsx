@@ -4,16 +4,14 @@
  * Own-book motor intelligence dashboard for Risk Manager role.
  * GATED: risk_manager role + tier-enterprise tenant tier.
  *
- * 6 KPI modules:
- *  1. Claims Frequency by Incident Type (stacked bar, last 6 months)
- *  2. Average Repair Cost by Vehicle Age (horizontal bar)
- *  3. Fraud Flag Rate by Claim Type (grouped bar)
- *  4. Third-Party Recovery Exposure (dual-axis line, last 6 months)
- *  5. Repeat Offender Rate (donut + stat)
- *  6. Settlement Cycle Time (line chart, last 6 months)
+ * Features:
+ *  - Date-range selector: Last 3M / 6M / 12M
+ *  - 6 KPI summary cards
+ *  - 6 Chart.js visualisations
+ *  - PDF export (jsPDF + html2canvas) — branded KINGA report
  */
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import InsurerPortalLayout from "@/components/InsurerPortalLayout";
@@ -27,6 +25,8 @@ import {
   Lock,
   AlertTriangle,
   RefreshCw,
+  Download,
+  Loader2,
 } from "lucide-react";
 import Chart from "chart.js/auto";
 
@@ -49,12 +49,19 @@ const INCIDENT_COLORS: Record<string, string> = {
   other:      SLATE,
 };
 
-// ─── Helper: format currency (USD) ───────────────────────────────────────────
+// ─── Helper: format currency ──────────────────────────────────────────────────
 function fmtUSD(val: number) {
   if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
   if (val >= 1_000)     return `$${(val / 1_000).toFixed(0)}K`;
   return `$${val.toFixed(0)}`;
 }
+
+// ─── Date-range options ───────────────────────────────────────────────────────
+const RANGE_OPTIONS = [
+  { label: "Last 3M",  value: 3  as const },
+  { label: "Last 6M",  value: 6  as const },
+  { label: "Last 12M", value: 12 as const },
+];
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KpiCard({
@@ -122,7 +129,7 @@ function ClaimsFrequencyChart({
   useEffect(() => {
     if (!canvasRef.current || !data.length) return;
 
-    const months       = [...new Set(data.map((d) => d.month))].sort();
+    const months        = [...new Set(data.map((d) => d.month))].sort();
     const incidentTypes = [...new Set(data.map((d) => d.incidentType))];
 
     const datasets = incidentTypes.map((type) => ({
@@ -352,8 +359,6 @@ function RepeatOffenderChart({
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    const unique = Math.max(0, totalCount - repeatCount);
-
     if (chartRef.current) chartRef.current.destroy();
     chartRef.current = new Chart(canvasRef.current, {
       type: "doughnut",
@@ -361,10 +366,10 @@ function RepeatOffenderChart({
         labels: ["Repeat Offenders", "First-Time"],
         datasets: [
           {
-            data: [repeatCount, unique],
-            backgroundColor: [RED, TEAL],
-            borderWidth: 0,
-            hoverOffset: 4,
+            data: [repeatCount, Math.max(0, totalCount - repeatCount)],
+            backgroundColor: [RED, "#1E293B"],
+            borderColor: ["#0F172A", "#0F172A"],
+            borderWidth: 3,
           },
         ],
       },
@@ -387,13 +392,12 @@ function RepeatOffenderChart({
         <canvas ref={canvasRef} />
       </div>
       <div className="flex flex-col gap-2">
-        <div>
-          <p className="text-3xl font-bold text-white">{rate.toFixed(1)}%</p>
-          <p className="text-xs text-slate-400 mt-0.5">Repeat offender rate</p>
-        </div>
-        <div className="text-xs text-slate-400 space-y-1">
-          <p><span className="text-red-400 font-semibold">{repeatCount}</span> repeat offenders</p>
-          <p><span className="text-teal-400 font-semibold">{totalCount}</span> total TP cases</p>
+        <p className="text-3xl font-bold text-white">{rate.toFixed(1)}%</p>
+        <p className="text-sm text-slate-400">Repeat offender rate</p>
+        <p className="text-xs text-slate-500">{repeatCount} of {totalCount} TP cases</p>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+          <span className="text-xs text-slate-400">Known repeat third-parties</span>
         </div>
       </div>
     </div>
@@ -419,8 +423,8 @@ function CycleTimeChart({
         labels: data.map((d) => d.month),
         datasets: [
           {
-            label: "Avg Settlement Days",
-            data: data.map((d) => Math.round(d.avgDays * 10) / 10),
+            label: "Avg Days to Settlement",
+            data: data.map((d) => Math.round(d.avgDays)),
             borderColor: INDIGO,
             backgroundColor: `${INDIGO}22`,
             fill: true,
@@ -461,22 +465,22 @@ function CycleTimeChart({
 // ─── Tier Upgrade Gate ────────────────────────────────────────────────────────
 function TierUpgradeGate() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4">
-      <div className="w-16 h-16 rounded-2xl bg-amber-500/15 flex items-center justify-center">
+    <div className="flex flex-col items-center justify-center min-h-[40vh] gap-6 text-center px-4">
+      <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center">
         <Lock size={28} className="text-amber-400" />
       </div>
       <div>
         <h2 className="text-xl font-bold text-white mb-2">Enterprise Feature</h2>
-        <p className="text-slate-400 max-w-md text-sm leading-relaxed">
-          Risk Manager Analytics is available on the <span className="text-amber-400 font-semibold">Enterprise</span> tier.
-          Upgrade your subscription to unlock own-book motor intelligence, fraud rate analysis, and settlement cycle benchmarking.
+        <p className="text-slate-400 text-sm max-w-md">
+          Risk Manager Analytics is available on the <strong className="text-amber-400">Enterprise tier</strong>.
+          Upgrade to unlock own-book motor intelligence, fraud benchmarking, and recovery exposure reporting.
         </p>
       </div>
-      <div className="flex flex-col gap-2 text-xs text-slate-500">
-        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Claims frequency by incident type</p>
-        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Repair cost analysis by vehicle age</p>
-        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Fraud flag rate by claim type</p>
-        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Third-party recovery exposure</p>
+      <div className="grid grid-cols-2 gap-3 text-sm text-slate-400 max-w-sm">
+        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Claims frequency trends</p>
+        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Repair cost benchmarking</p>
+        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Fraud flag rate by type</p>
+        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> TP recovery exposure</p>
         <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Repeat offender intelligence</p>
         <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Settlement cycle time benchmarking</p>
       </div>
@@ -490,41 +494,121 @@ function TierUpgradeGate() {
   );
 }
 
+// ─── PDF Export ───────────────────────────────────────────────────────────────
+async function exportToPDF(
+  contentRef: React.RefObject<HTMLDivElement>,
+  months: number,
+  tenantId: string | undefined,
+) {
+  const { jsPDF } = await import("jspdf");
+  const { default: html2canvas } = await import("html2canvas");
+
+  const el = contentRef.current;
+  if (!el) return;
+
+  // Capture the dashboard content as a canvas image
+  const canvas = await html2canvas(el, {
+    backgroundColor: "#0F172A",
+    scale: 1.5,
+    useCORS: true,
+    logging: false,
+  });
+
+  const imgData   = canvas.toDataURL("image/png");
+  const pageW     = 297; // A4 landscape mm
+  const pageH     = 210;
+  const margin    = 14;
+  const headerH   = 18;
+  const footerH   = 10;
+  const usableW   = pageW - margin * 2;
+  const usableH   = pageH - headerH - footerH - margin * 2;
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+  // ── Brand header bar ──
+  doc.setFillColor(20, 83, 45); // green-900
+  doc.rect(0, 0, pageW, headerH, "F");
+  doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.text("KINGA  ·  AutoVerify AI", margin, 11);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(`Risk Manager Analytics  ·  Last ${months} months`, pageW / 2, 11, { align: "center" });
+  doc.text(new Date().toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" }), pageW - margin, 11, { align: "right" });
+
+  // ── Tenant + range subtitle ──
+  doc.setFillColor(15, 23, 42); // slate-900
+  doc.rect(0, headerH, pageW, 8, "F");
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139); // slate-500
+  doc.text(`Tenant: ${tenantId ?? "Enterprise"}  ·  Date range: Last ${months} months  ·  Own-book data only`, margin, headerH + 5.5);
+
+  // ── Dashboard image ──
+  const imgAspect = canvas.width / canvas.height;
+  const imgH      = Math.min(usableH, usableW / imgAspect);
+  const imgW      = imgH * imgAspect;
+  const imgX      = margin + (usableW - imgW) / 2;
+  const imgY      = headerH + 8 + margin / 2;
+
+  doc.addImage(imgData, "PNG", imgX, imgY, imgW, imgH);
+
+  // ── Footer ──
+  const footerY = pageH - footerH + 3;
+  doc.setFillColor(20, 83, 45);
+  doc.rect(0, pageH - footerH, pageW, footerH, "F");
+  doc.setFontSize(7);
+  doc.setTextColor(134, 239, 172); // green-300
+  doc.text("Confidential — For internal use only", margin, footerY);
+  doc.setTextColor(255, 255, 255);
+  doc.text("kinga.ai", pageW - margin, footerY, { align: "right" });
+
+  doc.save(`kinga-risk-analytics-${months}m-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function RiskManagerAnalytics() {
   const { user } = useAuth();
+  const [months, setMonths] = useState<3 | 6 | 12>(6);
+  const [exporting, setExporting] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading, error, refetch } = trpc.analytics.getRiskManagerKPIs.useQuery(undefined, {
-    retry: false,
-  });
+  const { data, isLoading, error, refetch } = trpc.analytics.getRiskManagerKPIs.useQuery(
+    { months },
+    { retry: false },
+  );
 
   // Derive summary KPIs from raw data
   const summaryKpis = useMemo(() => {
     if (!data) return null;
 
-    // Total claims in last 6 months
-    const totalClaims6m = data.claimsFrequency.reduce((s, r) => s + r.claimCount, 0);
+    const totalClaims = data.claimsFrequency.reduce((s, r) => s + r.claimCount, 0);
 
-    // Avg repair cost across all age buckets (weighted)
     const totalCost  = data.repairCostByAge.reduce((s, r) => s + r.avgCost * r.claimCount, 0);
     const totalCount = data.repairCostByAge.reduce((s, r) => s + r.claimCount, 0);
     const avgRepairCost = totalCount > 0 ? totalCost / totalCount : 0;
 
-    // High fraud rate
     const highFraud = data.fraudRateByType.filter((r) => r.fraudRiskLevel === "high").reduce((s, r) => s + r.count, 0);
     const allFraud  = data.fraudRateByType.reduce((s, r) => s + r.count, 0);
     const fraudRate = allFraud > 0 ? Math.round((highFraud / allFraud) * 1000) / 10 : 0;
 
-    // Total recovery quantum
     const totalQuantum = data.recoveryExposure.reduce((s, r) => s + r.totalQuantum, 0);
 
-    // Avg cycle time
     const totalDays   = data.settlementCycleTime.reduce((s, r) => s + r.avgDays * r.closedCount, 0);
     const totalClosed = data.settlementCycleTime.reduce((s, r) => s + r.closedCount, 0);
     const avgCycleDays = totalClosed > 0 ? Math.round(totalDays / totalClosed) : 0;
 
-    return { totalClaims6m, avgRepairCost, fraudRate, totalQuantum, avgCycleDays };
+    return { totalClaims, avgRepairCost, fraudRate, totalQuantum, avgCycleDays };
   }, [data]);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      await exportToPDF(contentRef, months, user?.tenantId);
+    } finally {
+      setExporting(false);
+    }
+  }, [months, user?.tenantId]);
 
   // Tier gate — FORBIDDEN with TIER_UPGRADE_REQUIRED message
   const isTierGated =
@@ -535,35 +619,75 @@ export default function RiskManagerAnalytics() {
   const isRoleGated =
     error?.data?.code === "FORBIDDEN" && !isTierGated;
 
+  const rangeLabel = RANGE_OPTIONS.find((o) => o.value === months)?.label ?? `Last ${months}M`;
+
   return (
     <InsurerPortalLayout>
       <div className="p-6 max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
               <TrendingUp size={20} className="text-teal-400" />
               Risk Manager Analytics
             </h1>
             <p className="text-slate-400 text-sm mt-0.5">
-              Own-book motor intelligence · {user?.tenantId ?? "Enterprise"} · Last 6 months
+              Own-book motor intelligence · {user?.tenantId ?? "Enterprise"} · {rangeLabel}
             </p>
           </div>
-          {data && (
+
+          {/* Controls */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Date-range selector */}
+            <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+              {RANGE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setMonths(opt.value)}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                    months === opt.value
+                      ? "bg-teal-600 text-white"
+                      : "text-slate-400 hover:text-white hover:bg-slate-700"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Refresh */}
             <button
               onClick={() => refetch()}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 rounded-lg transition-colors"
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 rounded-lg transition-colors disabled:opacity-50"
             >
-              <RefreshCw size={12} />
+              <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} />
               Refresh
             </button>
-          )}
+
+            {/* PDF Export — only shown when data is loaded */}
+            {data && !isTierGated && (
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-teal-700 hover:bg-teal-600 border border-teal-600 rounded-lg transition-colors disabled:opacity-60"
+              >
+                {exporting ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Download size={12} />
+                )}
+                {exporting ? "Exporting…" : "Download Report"}
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Tier gate */}
+        {/* ── Tier gate ──────────────────────────────────────────────────── */}
         {isTierGated && <TierUpgradeGate />}
 
-        {/* Role gate */}
+        {/* ── Role gate ──────────────────────────────────────────────────── */}
         {isRoleGated && (
           <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 text-center">
             <AlertTriangle size={32} className="text-amber-400" />
@@ -572,7 +696,7 @@ export default function RiskManagerAnalytics() {
           </div>
         )}
 
-        {/* Loading */}
+        {/* ── Loading skeletons ───────────────────────────────────────────── */}
         {isLoading && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -581,15 +705,16 @@ export default function RiskManagerAnalytics() {
           </div>
         )}
 
-        {/* Data */}
+        {/* ── Dashboard content (captured for PDF) ───────────────────────── */}
         {data && summaryKpis && !isTierGated && (
-          <>
+          <div ref={contentRef} className="space-y-6">
+
             {/* KPI Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
               <KpiCard
                 icon={Car}
-                label="Claims (6M)"
-                value={summaryKpis.totalClaims6m.toLocaleString()}
+                label={`Claims (${rangeLabel})`}
+                value={summaryKpis.totalClaims.toLocaleString()}
                 sub="Across all incident types"
                 accent={TEAL}
               />
@@ -609,7 +734,7 @@ export default function RiskManagerAnalytics() {
               />
               <KpiCard
                 icon={Target}
-                label="TP Exposure (6M)"
+                label={`TP Exposure (${rangeLabel})`}
                 value={fmtUSD(summaryKpis.totalQuantum)}
                 sub="Total quantum claimed"
                 accent={AMBER}
@@ -634,7 +759,7 @@ export default function RiskManagerAnalytics() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <ChartBox
                 title="Claims Frequency by Incident Type"
-                subtitle="Stacked monthly count — last 6 months"
+                subtitle={`Stacked monthly count — ${rangeLabel}`}
               >
                 <ClaimsFrequencyChart data={data.claimsFrequency} />
               </ChartBox>
@@ -656,7 +781,7 @@ export default function RiskManagerAnalytics() {
               </ChartBox>
               <ChartBox
                 title="Third-Party Recovery Exposure"
-                subtitle="Quantum claimed vs recovered — last 6 months"
+                subtitle={`Quantum claimed vs recovered — ${rangeLabel}`}
               >
                 <RecoveryExposureChart data={data.recoveryExposure} />
               </ChartBox>
@@ -676,7 +801,7 @@ export default function RiskManagerAnalytics() {
               </ChartBox>
               <ChartBox
                 title="Settlement Cycle Time"
-                subtitle="Average days from submission to closure — last 6 months"
+                subtitle={`Average days from submission to closure — ${rangeLabel}`}
               >
                 <CycleTimeChart data={data.settlementCycleTime} />
               </ChartBox>
@@ -686,7 +811,7 @@ export default function RiskManagerAnalytics() {
             <p className="text-xs text-slate-600 text-right">
               Data is tenant-isolated · Own-book only · Refreshed on demand
             </p>
-          </>
+          </div>
         )}
       </div>
     </InsurerPortalLayout>
