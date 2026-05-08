@@ -11670,3 +11670,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add sendRiskAnalyticsReport tRPC mutation: sends KPI summary via notifyOwner notification service
 - [x] Add "Send by Email" button in page header — opens dialog with recipient name/email + KPI preview
 - [x] Show success/error toast after email send (sonner)
+
+## Phase 19 — Insurer Portal Full Audit & Fix
+- [x] Audit InsurerPortalLayout.tsx: all 8 roles have correct nav items (recovery_officer and insurer_admin already had nav sections)
+- [x] Audit App.tsx: all insurer portal routes are registered and correct
+- [x] Audit page files: RecoveryPortal.tsx, InsurerAdminDashboard.tsx confirmed present
+- [x] Fix: Recovery Officer tile was missing from InsurerRoleSelection — added with Scale icon, lime gradient, /insurer-portal/recovery path
+- [x] Fix: Insurer Admin tile was missing from InsurerRoleSelection — added with Settings2 icon, slate gradient, /insurer-portal/insurer-admin path
+- [x] Fix: External Assessor tile confirmed already present (user confirmed)
+- [x] Fix: /insurer-portal/insurer-admin route was rendering InsurerDashboard (generic) — now renders InsurerAdminDashboard (insurer-level admin panel)
+- [x] Created InsurerAdminDashboard.tsx: live KPI cards, 6 quick-action tiles, recent claims table, admin profile card, role directory
+- [x] Rewrote InsurerRoleSelection with dark slate design matching portal aesthetic — 4-column responsive grid
+- [x] Build clean: InsurerAdminDashboard-BwWOk0ZQ.js + InsurerRoleSelection-DiKWRZFp.js in dist

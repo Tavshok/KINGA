@@ -61,6 +61,7 @@ const RiskManagerDashboard = lazy(() => import("./pages/RiskManagerDashboard"));
 const RiskManagerAnalytics = lazy(() => import("./pages/RiskManagerAnalytics"));
 const ClaimsManagerDashboard = lazy(() => import("./pages/ClaimsManagerDashboard"));
 const ExternalAssessorDashboard = lazy(() => import("./pages/ExternalAssessorDashboard"));
+const InsurerAdminDashboard = lazy(() => import("./pages/InsurerAdminDashboard"));
 const ClaimsManagerComparisonView = lazy(() => import("./pages/ClaimsManagerComparisonView"));
 const WorkflowSettings = lazy(() => import("./pages/WorkflowSettings"));
 const MonetizationDashboard = lazy(() => import("./pages/MonetizationDashboard"));
@@ -357,7 +358,7 @@ function Router() {
         <Route path="/insurer-portal/insurer-admin">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["insurer_admin"]}>
-              <InsurerPortalLayout><InsurerDashboard /></InsurerPortalLayout>
+              <InsurerAdminDashboard />
             </RoleGuard>
           </ProtectedRoute>
         </Route>
