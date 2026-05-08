@@ -487,7 +487,7 @@ export const agencyBrokerRouter = router({
             action: "fleet_quote_accepted",
             entityType: qr.requestType === "fleet_policy" ? "fleet_account" : "insurer_quote_request",
             entityId: qr.fleetAccountId ?? qr.id,
-            changeDescription: `Quote #${input.quoteRequestId} accepted from insurer ${qr.insurerTenantId}. Amount: ${qr.quoteCurrency ?? "ZAR"} ${quoteAmountNum}. Commission estimate: ${qr.quoteCurrency ?? "ZAR"} ${commissionEstimate} (${COMMISSION_RATE * 100}%). ${(siblingResult as any)?.rowsAffected ?? 0} competing quote(s) closed.`,
+            changeDescription: `Quote #${input.quoteRequestId} accepted from insurer ${qr.insurerTenantId}. Amount: ${qr.quoteCurrency ?? "USD"} ${quoteAmountNum}. Commission estimate: ${qr.quoteCurrency ?? "USD"} ${commissionEstimate} (${COMMISSION_RATE * 100}%). ${(siblingResult as any)?.rowsAffected ?? 0} competing quote(s) closed.`,
             createdAt: now,
           } as any);
         } catch {
@@ -499,7 +499,7 @@ export const agencyBrokerRouter = router({
           success: true,
           status: "accepted",
           commissionEstimate,
-          currency: qr.quoteCurrency ?? "ZAR",
+          currency: qr.quoteCurrency ?? "USD",
           siblingsClosed: (siblingResult as any)?.rowsAffected ?? 0,
         };
 

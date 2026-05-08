@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
@@ -72,6 +73,7 @@ export default function RecoveryCaseDetail() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { fmt: fmtCurrency } = useTenantCurrency();
   const caseId = parseInt(id ?? "0", 10);
 
   const [editStatus, setEditStatus] = useState<string>("");
@@ -307,10 +309,7 @@ export default function RecoveryCaseDetail() {
   const statusMeta = STATUS_META[caseData.status] ?? STATUS_META.pending_review;
   const StatusIcon = statusMeta.icon;
   const wrongedMeta = WRONGED_PARTY_META[caseData.wrongedParty] ?? WRONGED_PARTY_META.unknown;
-  const currency = caseData.currencyCode ?? "USD";
-  // approvedSettlementAmount and recoveredAmount are stored as whole ZAR in the DB (not cents)
-  const fmt = (amount?: number | null) =>
-    amount != null ? `${currency} ${amount.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}` : "—";
+  // Use tenant currency from useTenantCurrency hook — fmtCurrency handles currency code from tenant context
 
   const rpsColor = caseData.recoveryPotentialScore >= 70 ? "text-emerald-400"
     : caseData.recoveryPotentialScore >= 40 ? "text-amber-400"
@@ -657,8 +656,8 @@ export default function RecoveryCaseDetail() {
               <InfoRow label="Vehicle Registration" value={caseData.vehicleRegistration} icon={Car} />
               <InfoRow label="Incident Date" value={caseData.incidentDate ? new Date(caseData.incidentDate).toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" }) : null} icon={Calendar} />
               <InfoRow label="Police Report Number" value={caseData.policeReportNumber} icon={Shield} />
-              <InfoRow label="Approved Settlement Amount" value={fmt(caseData.approvedSettlementAmount)} icon={DollarSign} />
-              <InfoRow label="Recovered Amount" value={fmt(caseData.recoveredAmount)} icon={TrendingUp} />
+              <InfoRow label="Approved Settlement Amount" value={caseData.approvedSettlementAmount != null ? fmtCurrency(caseData.approvedSettlementAmount) : "—"} icon={DollarSign} />
+              <InfoRow label="Recovered Amount" value={caseData.recoveredAmount != null ? fmtCurrency(caseData.recoveredAmount) : "—"} icon={TrendingUp} />
             </Section>
 
             {/* Third-party details */}
@@ -831,7 +830,7 @@ export default function RecoveryCaseDetail() {
                               <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${sm.color} ${sm.bg}`}>{sm.label}</span>
                             </td>
                             <td className="py-2 text-right text-foreground">
-                              {pc.recoveredAmount != null ? `${pc.currencyCode ?? 'ZAR'} ${pc.recoveredAmount.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}` : '—'}
+                              {pc.recoveredAmount != null ? fmtCurrency(pc.recoveredAmount) : '—'}
                             </td>
                           </tr>
                         );
@@ -1045,7 +1044,7 @@ export default function RecoveryCaseDetail() {
                   </div>
                   {(newNoteType === "settlement_offer" || newNoteType === "settlement_accepted") && (
                     <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Amount ({caseData.currencyCode ?? "ZAR"})</label>
+                      <label className="text-xs text-muted-foreground">Amount ({caseData.currencyCode ?? "USD"})</label>
                       <Input
                         type="number"
                         value={newNoteAmount}
@@ -1077,7 +1076,7 @@ export default function RecoveryCaseDetail() {
                         subject: newNoteSubject || undefined,
                         body: newNoteBody || undefined,
                         amountCents: newNoteAmount ? Math.round(parseFloat(newNoteAmount) * 100) : undefined,
-                        currencyCode: caseData.currencyCode ?? "ZAR",
+                        currencyCode: caseData.currencyCode ?? "USD",
                       });
                     }}
                   >

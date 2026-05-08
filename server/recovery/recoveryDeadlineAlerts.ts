@@ -203,7 +203,7 @@ async function sendAlert(rc: any, daysLeft: number, urgency: string): Promise<vo
     "",
     `Third Party: ${rc.thirdPartyName ?? "Unknown"}`,
     `Third-Party Insurer: ${rc.thirdPartyInsurer ?? "Unknown"}`,
-    `Approved Settlement Amount: ${rc.currencyCode ?? "ZAR"} ${rc.approvedSettlementAmount ? (rc.approvedSettlementAmount / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2 }) : "N/A"}`,
+    `Approved Settlement Amount: ${rc.currencyCode ?? "USD"} ${rc.approvedSettlementAmount ? (rc.approvedSettlementAmount / 100).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "N/A"}`,
     `Recovery Potential Score: ${rc.recoveryPotentialScore}/100`,
     `Current Status: ${rc.status.replace(/_/g, " ")}`,
     "",

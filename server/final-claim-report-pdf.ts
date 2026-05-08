@@ -134,7 +134,7 @@ export async function generateFinalClaimReportPDF(
  */
 function generateFinalReportHTML(data: FinalClaimReportData): string {
   const currencyCode = data.currencyCode ?? 'USD';
-  const currencySymbol = currencyCode === 'ZAR' ? 'R' : currencyCode === 'ZIG' ? 'ZIG ' : 'US$';
+  const currencySymbol = currencyCode === 'ZAR' ? 'R' : currencyCode === 'ZIG' ? 'ZIG' : currencyCode === 'ZWL' ? 'ZWL' : currencyCode === 'USD' ? 'US$' : currencyCode;
   const formatCurrency = (cents: number) => {
     return `${currencySymbol}${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };

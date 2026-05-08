@@ -67,7 +67,7 @@ function statusBadge(status: string) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function InsurerFleetRFQs() {
-  const { currencySymbol } = useTenantCurrency();
+  const { currencySymbol, currencyCode } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [respondDialog, setRespondDialog] = useState<RFQRow | null>(null);
   const [quoteAmount, setQuoteAmount] = useState("");
@@ -112,7 +112,7 @@ export default function InsurerFleetRFQs() {
     respondMutation.mutate({
       quoteRequestId: respondDialog.id,
       quoteAmount: amount,
-      quoteCurrency: "ZAR",
+      quoteCurrency: currencyCode,
       quoteNotes: quoteNotes || undefined,
       quoteValidUntil: quoteValidUntil || undefined,
     });
@@ -271,7 +271,7 @@ export default function InsurerFleetRFQs() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <Label htmlFor="quoteAmount" className="text-sm font-medium">Quote Amount (ZAR) *</Label>
+              <Label htmlFor="quoteAmount" className="text-sm font-medium">Quote Amount ({currencyCode}) *</Label>
               <Input
                 id="quoteAmount"
                 type="number"

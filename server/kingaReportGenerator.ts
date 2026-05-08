@@ -167,11 +167,11 @@ const fmtDate = (v: any) => {
   } catch { return String(v); }
 };
 const fmtMono = (v: any) => (v == null || v === '' ? '—' : String(v));
-const fmtCurrency = (v: any, code = 'ZAR') => {
+const fmtCurrency = (v: any, code = 'USD') => {
   const n = parseFloat(String(v ?? 0));
   if (isNaN(n)) return '—';
-  const sym = code === 'USD' ? '$' : code === 'EUR' ? '€' : code === 'GBP' ? '£' : 'R';
-  return `${sym} ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const sym = code === 'USD' ? 'US$' : code === 'EUR' ? '€' : code === 'GBP' ? '£' : code === 'ZAR' ? 'R' : code === 'ZIG' ? 'ZIG' : code === 'ZWL' ? 'ZWL' : code;
+  return `${sym} ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 const fmtPct = (v: any) => (v == null ? '—' : `${Number(v).toFixed(1)}%`);
 const fraudColour = (score: number) => score <= 35 ? C.teal : score <= 65 ? C.amber : C.red;
@@ -288,7 +288,7 @@ function CoverPage({ reportTitle, reportSubtitle, reportTypeLabel, meta, tier, r
 
 function ClaimsAssessmentReport({ data }: { data: any }) {
   const { claim, aiAssessment, assessorEvaluation, panelBeaterQuotes = [], tier, reportId, generatedAt } = data;
-  const currency = claim?.currencyCode ?? 'ZAR';
+  const currency = claim?.currencyCode ?? 'USD';
   const estimated = parseFloat(claim?.estimatedClaimValue ?? '0');
   const approved = parseFloat(claim?.finalApprovedAmount ?? '0');
   const saving = estimated > 0 && approved > 0 && approved < estimated ? estimated - approved : 0;
@@ -657,9 +657,9 @@ function ClaimsAssessmentReport({ data }: { data: any }) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function ClaimsManagerReport({ data }: { data: any }) {
-  const { overview, activeClaims = [], fraudAlerts = [], escalations = [], stats, tier, reportId, generatedAt, period, tenantName } = data;
+  const { overview, activeClaims = [], fraudAlerts = [], escalations = [], stats, tier, reportId, generatedAt, period, tenantName, currencyCode } = data;
   const kpis = overview?.kpis ?? {};
-  const currency = 'ZAR';
+  const currency = currencyCode ?? 'USD';
 
   return React.createElement(Document,
     { title: `KINGA Claims Portfolio Report — ${tenantName ?? reportId}`, author: 'KINGA AutoVerify AI' },
@@ -908,8 +908,8 @@ function ClaimsManagerReport({ data }: { data: any }) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function RiskManagerReport({ data }: { data: any }) {
-  const { riskAnalytics, fraudAlerts = [], escalations = [], financialQueue = [], tier, reportId, generatedAt, tenantName } = data;
-  const currency = 'ZAR';
+  const { riskAnalytics, fraudAlerts = [], escalations = [], financialQueue = [], tier, reportId, generatedAt, tenantName, currencyCode } = data;
+  const currency = currencyCode ?? 'USD';
   const riskKpis = riskAnalytics?.kpis ?? {};
 
   return React.createElement(Document,
@@ -1084,8 +1084,8 @@ function RiskManagerReport({ data }: { data: any }) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function ExecutiveReport({ data }: { data: any }) {
-  const { executiveSummary, overview, riskAnalytics, tier, reportId, generatedAt, tenantName } = data;
-  const currency = 'ZAR';
+  const { executiveSummary, overview, riskAnalytics, tier, reportId, generatedAt, tenantName, currencyCode } = data;
+  const currency = currencyCode ?? 'USD';
   const kpis = executiveSummary?.kpis ?? overview?.kpis ?? {};
 
   return React.createElement(Document,
@@ -1198,8 +1198,8 @@ function ExecutiveReport({ data }: { data: any }) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function AssessorPerformanceReport({ data }: { data: any }) {
-  const { performance, assignments = [], appointments = [], evaluations = [], tier, reportId, generatedAt } = data;
-  const currency = 'ZAR';
+  const { performance, assignments = [], appointments = [], evaluations = [], tier, reportId, generatedAt, currencyCode } = data;
+  const currency = currencyCode ?? 'USD';
 
   return React.createElement(Document,
     { title: `KINGA Assessor Performance Report — ${reportId}`, author: 'KINGA AutoVerify AI' },
@@ -1331,8 +1331,8 @@ function AssessorPerformanceReport({ data }: { data: any }) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function ProcessorPerformanceReport({ data }: { data: any }) {
-  const { queue = [], stats, tier, reportId, generatedAt, processorName } = data;
-  const currency = 'ZAR';
+  const { queue = [], stats, tier, reportId, generatedAt, processorName, currencyCode } = data;
+  const currency = currencyCode ?? 'USD';
   const breached = queue.filter((c: any) => c.slaStatus === 'breached').length;
   const critical = queue.filter((c: any) => c.slaStatus === 'critical').length;
   const onTrack = queue.filter((c: any) => c.slaStatus === 'on_track').length;
@@ -1430,8 +1430,8 @@ function ProcessorPerformanceReport({ data }: { data: any }) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function PanelBeaterPerformanceReport({ data }: { data: any }) {
-  const { analytics, quoteHistory = [], profile, tier, reportId, generatedAt } = data;
-  const currency = 'ZAR';
+  const { analytics, quoteHistory = [], profile, tier, reportId, generatedAt, currencyCode } = data;
+  const currency = currencyCode ?? 'USD';
 
   return React.createElement(Document,
     { title: `KINGA Panel Beater Performance Report — ${reportId}`, author: 'KINGA AutoVerify AI' },

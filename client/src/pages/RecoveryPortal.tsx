@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 // Maps each status card tab to the DB status value(s) used in getCases
 const STATUS_CARDS = [
@@ -18,9 +19,7 @@ const STATUS_CARDS = [
   { label: "Archived",             tab: "archived",          dbStatus: "archived",           icon: Archive,       color: "text-slate-400",   bg: "bg-slate-500/10",   description: "Low-RPS cases not actioned" },
 ];
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR", maximumFractionDigits: 0 }).format(amount);
-}
+// formatCurrency is provided by useTenantCurrency hook — no local stub needed
 
 function deadlineChip(deadline: string | null | undefined) {
   if (!deadline) return null;
@@ -35,6 +34,7 @@ function deadlineChip(deadline: string | null | undefined) {
 
 export default function RecoveryPortal() {
   const { user } = useAuth();
+  const { fmt: fmtCurrency } = useTenantCurrency();
   const [, navigate] = useLocation();
   // Read ?tab= from URL so sidebar nav links pre-select the correct queue
   const initialTab = typeof window !== 'undefined'
@@ -116,7 +116,7 @@ export default function RecoveryPortal() {
                 Under recovery
               </div>
               <div className="text-xl font-bold text-foreground mt-1">
-                {kpisLoading ? <span className="text-muted-foreground/30">—</span> : formatCurrency(kpis?.totalSettlementAmount ?? 0)}
+                {kpisLoading ? <span className="text-muted-foreground/30">—</span> : fmtCurrency(kpis?.totalSettlementAmount ?? 0)}
               </div>
               <div className="text-sm font-medium text-muted-foreground mt-1">Total Quantum</div>
             </div>
@@ -140,7 +140,7 @@ export default function RecoveryPortal() {
                 Amount recovered
               </div>
               <div className="text-xl font-bold text-emerald-400 mt-1">
-                {kpisLoading ? <span className="text-muted-foreground/30">—</span> : formatCurrency(kpis?.totalRecovered ?? 0)}
+                {kpisLoading ? <span className="text-muted-foreground/30">—</span> : fmtCurrency(kpis?.totalRecovered ?? 0)}
               </div>
               <div className="text-sm font-medium text-muted-foreground mt-1">Total Recovered</div>
             </div>
@@ -279,7 +279,7 @@ export default function RecoveryPortal() {
                       </div>
                       {rc.approvedSettlementAmount && (
                         <div className="text-right hidden sm:block">
-                          <div className="text-sm font-medium text-foreground">{formatCurrency(rc.approvedSettlementAmount)}</div>
+                          <div className="text-sm font-medium text-foreground">{fmtCurrency(rc.approvedSettlementAmount)}</div>
                           <div className="text-xs text-muted-foreground">Quantum</div>
                         </div>
                       )}

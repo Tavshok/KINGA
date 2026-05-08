@@ -11694,3 +11694,20 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix: RecoveryCaseDetail fmt() was dividing by 100 for approvedSettlementAmount/recoveredAmount (same issue)
 - [x] Fix: RecoveryCaseDetail prior cases recoveredAmount display was dividing by 100
 - [x] Build clean: pnpm build ✔
+
+## Phase 21 — Multicurrency Fix: Remove All Hardcoded ZAR Defaults
+- [x] Audit all ZAR hardcodes in client pages and backend — 15 instances found across 9 files
+- [x] Fix frontend: RecoveryPortal.tsx — replaced local formatCurrency (ZAR) with useTenantCurrency hook
+- [x] Fix frontend: ThirdPartyProfiles.tsx — replaced local formatCurrency (ZAR) with useTenantCurrency hook
+- [x] Fix frontend: RecoveryCaseDetail.tsx — replaced local fmt() (ZAR) with useTenantCurrency hook
+- [x] Fix frontend: InsurerFleetRFQs.tsx — removed hardcoded ZAR label and default
+- [x] Fix frontend: RecoveryPerformanceTab.tsx — replaced local fmt() (ZAR) with useTenantCurrency hook
+- [x] Fix backend: kingaReportGenerator.ts — all 7 report functions now use currencyCode ?? 'USD'; fmtCurrency helper updated
+- [x] Fix backend: demandLetterGenerator.ts — currencyCode/symbol fallback changed from ZAR/R to USD/US$
+- [x] Fix backend: recoveryDeadlineAlerts.ts — notification amount display changed from ZAR/en-ZA to USD/en-US
+- [x] Fix backend: recoveryTrigger.ts — both recovery case inserts changed from ZAR to USD
+- [x] Fix backend: routers.ts — correspondence log currencyCode default and PDF display changed from ZAR to USD
+- [x] Fix backend: agency-broker.ts — quoteCurrency default changed from ZAR to USD
+- [x] Fix backend: final-claim-report-pdf.ts — currencySymbol resolver updated (ZIG/ZWL/USD/ZAR all handled)
+- [x] Confirmed: shared/currency.ts already correctly defaults to USD; useTenantCurrency hook already defaults to USD
+- [x] Build clean: pnpm build ✔ (20.82s)

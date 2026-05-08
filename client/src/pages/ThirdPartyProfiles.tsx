@@ -13,6 +13,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import {
   Users, Search, AlertTriangle, Building2, Car, Phone,
   MapPin, Hash, ChevronRight, FileText, TrendingUp, DollarSign,
@@ -43,16 +44,11 @@ const STATUS_COLOR: Record<string, string> = {
   archived: "text-slate-400",
 };
 
-function formatCurrency(amount: number, currency = "ZAR") {
-  return new Intl.NumberFormat("en-ZA", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+// Currency formatting is handled by useTenantCurrency hook
 
 export default function ThirdPartyProfiles() {
   const { user } = useAuth();
+  const { fmt: fmtCurrency } = useTenantCurrency();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -210,7 +206,7 @@ export default function ThirdPartyProfiles() {
                       </div>
                       <div className="text-right hidden md:block">
                         <div className="text-sm font-bold text-foreground">
-                          {formatCurrency(profile.totalApprovedCents)}
+                          {fmtCurrency(profile.totalApprovedCents)}
                         </div>
                         <div className="text-xs text-muted-foreground">Total Quantum</div>
                       </div>
@@ -341,7 +337,7 @@ export default function ThirdPartyProfiles() {
                                 {c.approvedSettlementAmount != null && (
                                   <div className="text-right hidden sm:block">
                                     <div className="text-xs font-medium text-foreground">
-                                      {formatCurrency(c.approvedSettlementAmount, c.currencyCode ?? "ZAR")}
+                                      {fmtCurrency(c.approvedSettlementAmount)}
                                     </div>
                                     <div className="text-xs text-muted-foreground">Quantum</div>
                                   </div>

@@ -530,8 +530,8 @@ export async function generateDemandLetter(recoveryCaseId: number): Promise<{
     insurerDisplayName: tenantRow?.displayName ?? tenantRow?.name ?? rcRow.tenantId,
     insurerLogoUrl: tenantRow?.logoUrl,
     insurerPrimaryColor: tenantRow?.primaryColor ?? "#10b981",
-    currencyCode: rcRow.currencyCode ?? tenantRow?.primaryCurrency ?? "ZAR",
-    currencySymbol: tenantRow?.primaryCurrencySymbol ?? "R",
+    currencyCode: rcRow.currencyCode ?? tenantRow?.primaryCurrency ?? "USD",
+    currencySymbol: tenantRow?.primaryCurrencySymbol ?? "US$",
 
     claimNumber: claimRow.claimNumber,
     kingaRef: claimRow.kingaRef,

@@ -8782,7 +8782,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           fromTarget:    input.fromTarget ?? null,
           toTarget:      input.toTarget ?? null,
           amountCents:   input.amountCents ?? null,
-          currencyCode:  input.currencyCode ?? "ZAR",
+          currencyCode:  input.currencyCode ?? "USD",
           createdAt:     now,
         });
         return { success: true };
@@ -8842,7 +8842,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
               else doc.text('', { continued: false });
               doc.fontSize(8).fillColor('#666').font('Helvetica').text(`${entry.createdAt}${entry.actorName ? ' · ' + entry.actorName : ''}${entry.actorRole ? ' (' + entry.actorRole.replace(/_/g, ' ') + ')' : ''}`);
               if (entry.body) { doc.moveDown(0.2); doc.fontSize(9).fillColor('#333').font('Helvetica').text(entry.body, { indent: 10 }); }
-              if (entry.amountCents) { doc.moveDown(0.2); doc.fontSize(9).fillColor('#2d6a4f').text(`Amount: ${entry.currencyCode ?? 'ZAR'} ${(entry.amountCents / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`, { indent: 10 }); }
+              if (entry.amountCents) { doc.moveDown(0.2); doc.fontSize(9).fillColor('#2d6a4f').text(`Amount: ${entry.currencyCode ?? 'USD'} ${(entry.amountCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, { indent: 10 }); }
               if (entry.attachmentUrl) { doc.moveDown(0.2); doc.fontSize(8).fillColor('#5a67d8').text(`Attachment: ${entry.attachmentUrl}`, { indent: 10 }); }
               doc.moveDown(0.5);
               if (idx < entries.length - 1) { doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#eee').stroke(); doc.moveDown(0.3); }

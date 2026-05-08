@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import {
   Scale, TrendingUp, DollarSign, Target, Award, AlertOctagon,
   Download, RefreshCw, ExternalLink, Clock, CheckCircle,
@@ -18,9 +19,7 @@ import { Link } from "wouter";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function fmt(amount: number, currency = "ZAR") {
-  return new Intl.NumberFormat("en-ZA", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
-}
+// fmt is provided by useTenantCurrency hook inside the component
 
 function pct(value: number) {
   return `${value}%`;
@@ -90,6 +89,7 @@ function StatusRow({
 
 export function RecoveryPerformanceTab() {
   const { toast } = useToast();
+  const { fmt, currencyCode } = useTenantCurrency();
   const [exporting, setExporting] = useState(false);
 
   const { data: kpis, isLoading, refetch, isFetching } = trpc.recovery.getKPIs.useQuery(undefined, {
