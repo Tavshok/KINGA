@@ -11623,3 +11623,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add getCorrespondenceLog and addCorrespondenceEntry tRPC procedures
 - [x] Auto-log entries when demand letter is generated and when status changes to demand_sent
 - [x] Build Correspondence Log tab on Recovery Case Detail page
+
+## Phase 14 — Response Received Quick-Action + Correspondence Log PDF Export
+- [x] Add responseReceivedModal state and handleMarkResponseReceived handler
+- [x] Add demandResponseReceivedAt field to updateCase input schema in routers.ts
+- [x] Add Response Received button to quick-action bar in RecoveryCaseDetail.tsx
+- [x] Add exportCorrespondenceLog tRPC procedure (generates PDF via jsPDF)
+- [x] Add Export PDF button to Correspondence Log panel

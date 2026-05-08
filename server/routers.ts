@@ -8775,6 +8775,74 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         });
         return { success: true };
       }),
+
+    /**
+     * Export the correspondence log for a recovery case as a PDF.
+     * Returns a base64-encoded PDF string for client-side download.
+     */
+    exportCorrespondenceLog: protectedProcedure
+      .input(z.object({ caseId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        const allowedRoles = ['recovery_officer','claims_manager','executive','insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access denied' });
+        }
+        // Load case details
+        const [rcRow] = await db.select().from(recoveryCases).where(and(eq(recoveryCases.id, input.caseId), eq(recoveryCases.tenantId, tenantId))).limit(1);
+        if (!rcRow) throw new TRPCError({ code: 'NOT_FOUND', message: 'Recovery case not found' });
+        // Load correspondence entries
+        const entries = await db
+          .select()
+          .from(recoveryCorrespondenceLog)
+          .where(and(eq(recoveryCorrespondenceLog.recoveryCaseId, input.caseId), eq(recoveryCorrespondenceLog.tenantId, tenantId)))
+          .orderBy(recoveryCorrespondenceLog.createdAt);
+        // Build PDF using pdfkit
+        const PDFDocument = (await import('pdfkit')).default;
+        const { storagePut } = await import('./storage');
+        const chunks: Buffer[] = [];
+        await new Promise<void>((resolve, reject) => {
+          const doc = new PDFDocument({ margin: 50, size: 'A4' });
+          doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+          doc.on('end', resolve);
+          doc.on('error', reject);
+          // Header
+          doc.fontSize(18).font('Helvetica-Bold').text('Correspondence Log', { align: 'center' });
+          doc.moveDown(0.3);
+          doc.fontSize(11).font('Helvetica').text(`Recovery Case #${rcRow.id}`, { align: 'center' });
+          doc.fontSize(9).fillColor('#666').text(`Third Party: ${rcRow.thirdPartyName ?? 'Unknown'} | Insurer: ${rcRow.thirdPartyInsurer ?? 'Unknown'}`, { align: 'center' });
+          doc.moveDown(0.3);
+          doc.fontSize(9).text(`Exported: ${new Date().toLocaleDateString('en-ZA')} ${new Date().toLocaleTimeString('en-ZA')} by ${user.name ?? user.email ?? 'Unknown'}`, { align: 'center' });
+          doc.moveDown(1);
+          // Divider
+          doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#ccc').stroke();
+          doc.moveDown(0.5);
+          if (entries.length === 0) {
+            doc.fillColor('#333').fontSize(10).text('No correspondence entries recorded for this case.');
+          } else {
+            entries.forEach((entry, idx) => {
+              const typeLabel = entry.entryType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              doc.fillColor('#1a1a2e').fontSize(10).font('Helvetica-Bold').text(`${idx + 1}. [${typeLabel}]`, { continued: true });
+              if (entry.subject) doc.font('Helvetica').fillColor('#333').text(` — ${entry.subject}`, { continued: false });
+              else doc.text('', { continued: false });
+              doc.fontSize(8).fillColor('#666').font('Helvetica').text(`${entry.createdAt}${entry.actorName ? ' · ' + entry.actorName : ''}${entry.actorRole ? ' (' + entry.actorRole.replace(/_/g, ' ') + ')' : ''}`);
+              if (entry.body) { doc.moveDown(0.2); doc.fontSize(9).fillColor('#333').font('Helvetica').text(entry.body, { indent: 10 }); }
+              if (entry.amountCents) { doc.moveDown(0.2); doc.fontSize(9).fillColor('#2d6a4f').text(`Amount: ${entry.currencyCode ?? 'ZAR'} ${(entry.amountCents / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`, { indent: 10 }); }
+              if (entry.attachmentUrl) { doc.moveDown(0.2); doc.fontSize(8).fillColor('#5a67d8').text(`Attachment: ${entry.attachmentUrl}`, { indent: 10 }); }
+              doc.moveDown(0.5);
+              if (idx < entries.length - 1) { doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#eee').stroke(); doc.moveDown(0.3); }
+            });
+          }
+          doc.end();
+        });
+        const pdfBuffer = Buffer.concat(chunks);
+        const fileKey = `recovery-correspondence/${tenantId}/case-${input.caseId}-log-${Date.now()}.pdf`;
+        const { url } = await storagePut(fileKey, pdfBuffer, 'application/pdf');
+        return { downloadUrl: url };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

@@ -88,6 +88,10 @@ export default function RecoveryCaseDetail() {
   const [settlementNotes, setSettlementNotes] = useState("");
   const [demandSentModal, setDemandSentModal] = useState(false);
   const [demandResponseDue, setDemandResponseDue] = useState("");
+  const [responseReceivedModal, setResponseReceivedModal] = useState(false);
+  const [responseReceivedDate, setResponseReceivedDate] = useState("");
+  const [responseReceivedNotes, setResponseReceivedNotes] = useState("");
+  const [responseOutcome, setResponseOutcome] = useState<"response_received" | "settlement_offer" | "settlement_rejected" | "legal_escalation">("response_received");
   // Correspondence log
   const [showCorrespondenceLog, setShowCorrespondenceLog] = useState(false);
   const [newNoteType, setNewNoteType] = useState<string>("case_note");
@@ -131,6 +135,15 @@ export default function RecoveryCaseDetail() {
     { caseId },
     { enabled: caseId > 0 && showCorrespondenceLog }
   );
+  const exportCorrespondenceLog = trpc.recovery.exportCorrespondenceLog.useMutation({
+    onSuccess: (data) => {
+      if (data.downloadUrl) window.open(data.downloadUrl, "_blank");
+      toast({ title: "PDF exported", description: "Correspondence log PDF is ready for download." });
+    },
+    onError: (err) => {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    },
+  });
   const addCorrespondenceEntry = trpc.recovery.addCorrespondenceEntry.useMutation({
     onSuccess: () => {
       toast({ title: "Entry added", description: "Correspondence log updated." });
@@ -222,6 +235,34 @@ export default function RecoveryCaseDetail() {
       settlementNotes: settlementNotes || undefined,
     }, {
       onSuccess: () => { setSettlementModal(false); setSettlementAmount(""); setSettlementNotes(""); },
+    });
+  };
+
+  // Quick-action: Mark Response Received
+  const handleMarkResponseReceived = () => {
+    if (!responseReceivedDate) {
+      toast({ title: "Date required", description: "Enter the date the response was received.", variant: "destructive" });
+      return;
+    }
+    setIsSaving(true);
+    updateCase.mutate({
+      id: caseId,
+      demandResponseReceivedAt: responseReceivedDate,
+      ...(responseReceivedNotes ? { officerNotes: (caseData?.officerNotes ? caseData.officerNotes + "\n" : "") + `[${new Date().toLocaleDateString("en-ZA")}] Response received: ${responseReceivedNotes}` } : {}),
+    }, {
+      onSuccess: () => {
+        // Also add a correspondence log entry
+        addCorrespondenceEntry.mutate({
+          caseId,
+          entryType: responseOutcome as any,
+          subject: `Response received from third party / insurer`,
+          body: responseReceivedNotes || undefined,
+        });
+        setResponseReceivedModal(false);
+        setResponseReceivedDate("");
+        setResponseReceivedNotes("");
+        setResponseOutcome("response_received");
+      },
     });
   };
 
@@ -339,6 +380,18 @@ export default function RecoveryCaseDetail() {
               </Button>
             )}
 
+            {/* Response Received — available when demand has been sent */}
+            {['demand_sent'].includes(caseData.status) && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 border-teal-500/40 text-teal-400 hover:bg-teal-500/10"
+                onClick={() => setResponseReceivedModal(true)}
+                disabled={isSaving}
+              >
+                <MessageSquare className="h-3.5 w-3.5" /> Response Received
+              </Button>
+            )}
             {/* Escalate to Legal — available when open or demand sent */}
             {['open','demand_sent','pending_review'].includes(caseData.status) && (
               <Button
@@ -372,6 +425,66 @@ export default function RecoveryCaseDetail() {
           </div>
         )}
 
+        {/* Response Received Modal */}
+        <Dialog open={responseReceivedModal} onOpenChange={setResponseReceivedModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-teal-400" /> Mark Response Received
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                Record that a response has been received from the third party or their insurer.
+              </p>
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">Response Date <span className="text-rose-400">*</span></label>
+                <Input
+                  type="date"
+                  value={responseReceivedDate}
+                  onChange={(e) => setResponseReceivedDate(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">Response Outcome</label>
+                <Select value={responseOutcome} onValueChange={(v) => setResponseOutcome(v as any)}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="response_received">Acknowledged / No offer yet</SelectItem>
+                    <SelectItem value="settlement_offer">Settlement offer received</SelectItem>
+                    <SelectItem value="settlement_rejected">Liability denied / Rejected</SelectItem>
+                    <SelectItem value="legal_escalation">Referred to their legal team</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">Notes (optional)</label>
+                <Textarea
+                  value={responseReceivedNotes}
+                  onChange={(e) => setResponseReceivedNotes(e.target.value)}
+                  placeholder="Summary of the response, reference number, contact person…"
+                  rows={3}
+                  className="text-sm resize-none"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setResponseReceivedModal(false)}>Cancel</Button>
+              <Button
+                size="sm"
+                className="gap-2 bg-teal-600 hover:bg-teal-700 text-white"
+                onClick={handleMarkResponseReceived}
+                disabled={isSaving}
+              >
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+                Confirm Response Received
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {/* Mark Demand Sent Modal */}
         <Dialog open={demandSentModal} onOpenChange={setDemandSentModal}>
           <DialogContent className="max-w-md">
@@ -875,7 +988,19 @@ export default function RecoveryCaseDetail() {
                   </span>
                 )}
               </div>
-              {showCorrespondenceLog ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              <div className="flex items-center gap-2">
+                {showCorrespondenceLog && (
+                  <button
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border border-violet-500/30 text-violet-400 hover:bg-violet-500/10 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); exportCorrespondenceLog.mutate({ caseId }); }}
+                    disabled={exportCorrespondenceLog.isLoading}
+                  >
+                    {exportCorrespondenceLog.isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileDown className="h-3 w-3" />}
+                    Export PDF
+                  </button>
+                )}
+                {showCorrespondenceLog ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </div>
             </button>
 
             {showCorrespondenceLog && (
