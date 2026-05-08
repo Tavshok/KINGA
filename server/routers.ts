@@ -27,7 +27,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
 import { parsePhysicsAnalysis } from "./types/physics-validation";
-import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments } from "../drizzle/schema";
+import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments, recoveryCases } from "../drizzle/schema";
 import { eq, and, desc, asc, inArray, notInArray, gt, gte, lte, or, sql, count, avg, isNotNull } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
@@ -8157,6 +8157,192 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           filename: `policy-${policy.policyNumber}.pdf`,
           data: base64PDF,
         };
+      }),
+  }),
+
+  // ── Subrogation Recovery Module ──────────────────────────────────────────
+  recovery: router({
+    /**
+     * Get all recovery cases for the current insurer tenant.
+     * Accessible by: recovery_officer, claims_manager, executive, insurer_admin
+     */
+    getCases: protectedProcedure
+      .input(z.object({
+        status: z.string().optional(),
+        assignedToMe: z.boolean().optional(),
+        page: z.number().min(1).default(1),
+        pageSize: z.number().min(1).max(100).default(20),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        if (!tenantId) throw new TRPCError({ code: 'FORBIDDEN', message: 'No insurer tenant associated with this account' });
+        const allowedRoles = ['recovery_officer','claims_manager','executive','insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access requires recovery_officer, claims_manager, executive, or insurer_admin role' });
+        }
+        const page = input?.page ?? 1;
+        const pageSize = input?.pageSize ?? 20;
+        const offset = (page - 1) * pageSize;
+        const conditions = [eq(recoveryCases.tenantId, tenantId)];
+        if (input?.status) conditions.push(eq(recoveryCases.status, input.status as any));
+        if (input?.assignedToMe) conditions.push(eq(recoveryCases.assignedOfficerUserId, user.id));
+        const rows = await db
+          .select()
+          .from(recoveryCases)
+          .leftJoin(claims, eq(recoveryCases.claimId, claims.id))
+          .where(and(...conditions))
+          .orderBy(desc(recoveryCases.recoveryPotentialScore))
+          .limit(pageSize)
+          .offset(offset);
+        return rows.map(r => ({
+          ...r.recovery_cases,
+          claimNumber: r.claims?.claimNumber ?? null,
+          vehicleRegistration: r.claims?.vehicleRegistration ?? null,
+          incidentDate: r.claims?.incidentDate ?? null,
+        }));
+      }),
+
+    /**
+     * Get a single recovery case by ID.
+     */
+    getCase: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        const allowedRoles = ['recovery_officer','claims_manager','executive','insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access denied' });
+        }
+        const [row] = await db
+          .select()
+          .from(recoveryCases)
+          .leftJoin(claims, eq(recoveryCases.claimId, claims.id))
+          .where(and(eq(recoveryCases.id, input.id), eq(recoveryCases.tenantId, tenantId)))
+          .limit(1);
+        if (!row) throw new TRPCError({ code: 'NOT_FOUND', message: 'Recovery case not found' });
+        return {
+          ...row.recovery_cases,
+          claimNumber: row.claims?.claimNumber ?? null,
+          vehicleRegistration: row.claims?.vehicleRegistration ?? null,
+          incidentDate: row.claims?.incidentDate ?? null,
+          policeReportNumber: row.claims?.policeReportNumber ?? null,
+          thirdPartyNameFromClaim: row.claims?.thirdPartyName ?? null,
+          thirdPartyRegistrationFromClaim: row.claims?.thirdPartyRegistration ?? null,
+          thirdPartyInsurerFromClaim: row.claims?.thirdPartyInsurer ?? null,
+        };
+      }),
+
+    /**
+     * Update a recovery case — officer notes, status change, investigation details.
+     */
+    updateCase: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(['pending_review','under_investigation','open','demand_sent','disputed_legal','settled_full','settled_partial','closed_no_recovery','archived']).optional(),
+        officerNotes: z.string().optional(),
+        recoveredAmount: z.number().optional(),
+        investigationReason: z.string().optional(),
+        investigationExpectedResolutionDate: z.string().optional(),
+        demandLetterSentAt: z.string().optional(),
+        demandResponseDueDate: z.string().optional(),
+        demandResponseReceivedAt: z.string().optional(),
+        settlementAgreementDate: z.string().optional(),
+        settlementNotes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        const allowedRoles = ['recovery_officer','claims_manager','executive','insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access denied' });
+        }
+        const [existing] = await db
+          .select({ id: recoveryCases.id })
+          .from(recoveryCases)
+          .where(and(eq(recoveryCases.id, input.id), eq(recoveryCases.tenantId, tenantId)))
+          .limit(1);
+        if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Recovery case not found' });
+        const updateData: Record<string, unknown> = {};
+        if (input.status !== undefined) updateData.status = input.status;
+        if (input.officerNotes !== undefined) updateData.officerNotes = input.officerNotes;
+        if (input.recoveredAmount !== undefined) updateData.recoveredAmount = input.recoveredAmount;
+        if (input.investigationReason !== undefined) updateData.investigationReason = input.investigationReason;
+        if (input.investigationExpectedResolutionDate !== undefined) updateData.investigationExpectedResolutionDate = input.investigationExpectedResolutionDate;
+        if (input.demandLetterSentAt !== undefined) updateData.demandLetterSentAt = input.demandLetterSentAt;
+        if (input.demandResponseDueDate !== undefined) updateData.demandResponseDueDate = input.demandResponseDueDate;
+        if (input.demandResponseReceivedAt !== undefined) updateData.demandResponseReceivedAt = input.demandResponseReceivedAt;
+        if (input.settlementAgreementDate !== undefined) updateData.settlementAgreementDate = input.settlementAgreementDate;
+        if (input.settlementNotes !== undefined) updateData.settlementNotes = input.settlementNotes;
+        // Auto-set closedAt when terminal status is set
+        if (input.status && ['settled_full','settled_partial','closed_no_recovery','archived'].includes(input.status)) {
+          updateData.closedAt = new Date().toISOString().replace('T',' ').substring(0,19);
+        }
+        await db.update(recoveryCases).set(updateData).where(eq(recoveryCases.id, input.id));
+        return { success: true };
+      }),
+
+    /**
+     * Assign a recovery case to a recovery officer.
+     */
+    assignCase: protectedProcedure
+      .input(z.object({ id: z.number(), officerUserId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        const allowedRoles = ['claims_manager','executive','insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only claims managers, executives, or admins can assign recovery cases' });
+        }
+        await db.update(recoveryCases)
+          .set({ assignedOfficerUserId: input.officerUserId, assignedAt: new Date().toISOString().replace('T',' ').substring(0,19) })
+          .where(and(eq(recoveryCases.id, input.id), eq(recoveryCases.tenantId, tenantId)));
+        return { success: true };
+      }),
+
+    /**
+     * Get recovery KPIs for the current insurer tenant.
+     */
+    getKPIs: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        const allowedRoles = ['recovery_officer','claims_manager','executive','insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access denied' });
+        }
+        const rows = await db
+          .select()
+          .from(recoveryCases)
+          .where(eq(recoveryCases.tenantId, tenantId));
+        const total = rows.length;
+        const open = rows.filter(r => r.status === 'open').length;
+        const underInvestigation = rows.filter(r => r.status === 'under_investigation').length;
+        const demandSent = rows.filter(r => r.status === 'demand_sent').length;
+        const settled = rows.filter(r => r.status === 'settled_full' || r.status === 'settled_partial').length;
+        const totalRecovered = rows.reduce((sum, r) => sum + (r.recoveredAmount ?? 0), 0);
+        const totalSettlementAmount = rows.reduce((sum, r) => sum + (r.approvedSettlementAmount ?? 0), 0);
+        const recoveryRate = totalSettlementAmount > 0 ? Math.round((totalRecovered / totalSettlementAmount) * 100) : 0;
+        const avgRPS = total > 0 ? Math.round(rows.reduce((sum, r) => sum + r.recoveryPotentialScore, 0) / total) : 0;
+        // Prescription warnings: cases with deadline within 90 days
+        const today = new Date();
+        const in90Days = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const prescriptionWarnings = rows.filter(r =>
+          r.prescriptionDeadline && r.prescriptionDeadline <= in90Days &&
+          !['settled_full','settled_partial','closed_no_recovery','archived'].includes(r.status)
+        ).length;
+        return { total, open, underInvestigation, demandSent, settled, totalRecovered, totalSettlementAmount, recoveryRate, avgRPS, prescriptionWarnings };
       }),
   }),
 });

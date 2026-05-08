@@ -11498,3 +11498,26 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] recovery_officer path mapping and role badge added to InsurerPortalLayout.tsx
 - [x] RecoveryPortal.tsx page created with queue cards and KPI placeholders
 - [x] /insurer-portal/recovery route registered in App.tsx
+
+## Phase 2 — Subrogation Recovery Module (Session 2026-05-08)
+- [ ] recovery_cases table added to drizzle/schema.ts
+- [ ] Database migration pushed for recovery_cases
+- [ ] wronged_party field added to Stage 7b causal reasoning output
+- [ ] wronged_party stored in ai_assessments table
+- [ ] Automated settlement trigger creates recovery case when claim settles
+- [ ] Recovery Potential Score (RPS) calculation implemented
+- [ ] tRPC procedures: getRecoveryCases, getRecoveryCaseById, updateRecoveryCaseStatus
+- [ ] Claims Manager navigation updated with Recovery section
+- [ ] Recovery queue wired to live data in RecoveryPortal.tsx
+
+## Phase 2 — Subrogation Recovery Module (Completed)
+- [x] recovery_cases table added to schema.ts
+- [x] recovery_cases table created in database via SQL
+- [x] wrongedParty and thirdPartyLiabilityPct fields added to CausalVerdict interface
+- [x] Stage 7b JSON schema updated to output wrongedParty and thirdPartyLiabilityPct
+- [x] Stage 7b parsed result and fallback verdict updated with new fields
+- [x] recoveryTrigger.ts service created with RPS computation engine
+- [x] Recovery trigger hooked into workflow-engine.ts (fires on payment_authorized and closed)
+- [x] recovery router added to appRouter with getCases, getCase, updateCase, assignCase, getKPIs
+- [x] recoveryCases imported into routers.ts
+- [x] Subrogation Recovery section added to Claims Manager navigation

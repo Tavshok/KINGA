@@ -73,6 +73,16 @@ export interface CausalVerdict {
   flagForFraud: boolean;
   /** Reason for fraud flag, if any */
   fraudFlagReason: string | null;
+  /**
+   * Subrogation: which party was wronged by the incident.
+   * 'insured'     — the claimant was the victim (third party was at fault)
+   * 'third_party' — the third party was the victim (claimant was at fault)
+   * 'shared'      — contributory negligence; both parties share liability
+   * 'unknown'     — liability cannot be determined from available evidence
+   */
+  wrongedParty: 'insured' | 'third_party' | 'shared' | 'unknown';
+  /** Estimated percentage of liability attributable to the third party (0–100). 0 if no third party or unknown. */
+  thirdPartyLiabilityPct: number;
   /** LLM reasoning trace (for audit) */
   reasoningTrace: string;
   /** Whether the LLM was used or keyword fallback was applied */
@@ -219,6 +229,8 @@ function buildFallbackVerdict(
     narrativeVerdict: "Causal reasoning engine could not complete LLM analysis. Manual adjuster review is recommended.",
     flagForFraud: false,
     fraudFlagReason: null,
+    wrongedParty: 'unknown' as const,
+    thirdPartyLiabilityPct: 0,
     reasoningTrace: "LLM call failed; keyword fallback applied.",
     llmUsed: false,
     constraintValidation: null,
@@ -717,13 +729,15 @@ RETURN:
           narrativeVerdict: { type: "string", description: "Adjuster-style narrative verdict paragraph (3-5 sentences)" },
           flagForFraud: { type: "boolean", description: "Whether this verdict warrants a fraud investigation flag" },
           fraudFlagReason: { type: "string", description: "Reason for fraud flag, or empty string if not flagged" },
+          wrongedParty: { type: "string", description: "Subrogation liability determination: 'insured' (third party was at fault, claimant is the victim), 'third_party' (claimant was at fault, third party is the victim), 'shared' (contributory negligence, both parties share liability), or 'unknown' (cannot be determined from available evidence)" },
+          thirdPartyLiabilityPct: { type: "integer", description: "Estimated percentage of liability attributable to the third party, 0-100. Use 0 if no third party involved or liability is unknown." },
           reasoningTrace: { type: "string", description: "One paragraph summarising the reasoning process" },
         },
         required: [
           "inferredCause", "plausibilityScore", "inferredCollisionDirection",
           "physicsAlignment", "imageAlignment", "supportingEvidence",
           "contradictions", "alternativeCauses", "narrativeVerdict", "flagForFraud",
-          "fraudFlagReason", "reasoningTrace",
+          "fraudFlagReason", "wrongedParty", "thirdPartyLiabilityPct", "reasoningTrace",
         ],
         additionalProperties: false,
       },
@@ -830,6 +844,8 @@ RETURN:
       narrativeVerdict: parsed.narrativeVerdict || "No verdict generated.",
       flagForFraud: fraudFlagged,
       fraudFlagReason: fraudReason,
+      wrongedParty: (['insured','third_party','shared','unknown'].includes(parsed.wrongedParty) ? parsed.wrongedParty : 'unknown') as CausalVerdict['wrongedParty'],
+      thirdPartyLiabilityPct: typeof parsed.thirdPartyLiabilityPct === 'number' ? Math.min(100, Math.max(0, parsed.thirdPartyLiabilityPct)) : 0,
       reasoningTrace: parsed.reasoningTrace || "",
       llmUsed: true,
       constraintValidation,

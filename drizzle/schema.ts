@@ -4794,3 +4794,65 @@ export const generatedReports = mysqlTable("generated_reports", {
 ]);
 export type GeneratedReportRow = typeof generatedReports.$inferSelect;
 export type InsertGeneratedReport = typeof generatedReports.$inferInsert;
+
+// ─── Subrogation Recovery Cases ────────────────────────────────────────────
+// Created automatically when a claim reaches 'completed' or 'closed' status
+// and has a non-zero Recovery Potential Score (RPS >= 30).
+// Lifecycle: pending_review → under_investigation → open → demand_sent →
+//            disputed_legal → settled_full | settled_partial | closed_no_recovery | archived
+export const recoveryCases = mysqlTable("recovery_cases", {
+  id: int().autoincrement().notNull().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  claimId: int("claim_id").references(() => claims.id, { onDelete: 'restrict', onUpdate: 'cascade' }).notNull(),
+  recoveryPotentialScore: int("recovery_potential_score").notNull().default(0),
+  wrongedParty: mysqlEnum("wronged_party", ['insured','third_party','shared','unknown']).notNull().default('unknown'),
+  thirdPartyLiabilityPct: int("third_party_liability_pct").default(0),
+  thirdPartyName: varchar("third_party_name", { length: 255 }),
+  thirdPartyRegistration: varchar("third_party_registration", { length: 50 }),
+  thirdPartyInsurer: varchar("third_party_insurer", { length: 255 }),
+  thirdPartyPolicyNumber: varchar("third_party_policy_number", { length: 100 }),
+  thirdPartyContactDetails: text("third_party_contact_details"),
+  approvedSettlementAmount: int("approved_settlement_amount"),
+  recoveredAmount: int("recovered_amount"),
+  currencyCode: varchar("currency_code", { length: 10 }).default('ZAR'),
+  status: mysqlEnum("status", [
+    'pending_review',
+    'under_investigation',
+    'open',
+    'demand_sent',
+    'disputed_legal',
+    'settled_full',
+    'settled_partial',
+    'closed_no_recovery',
+    'archived',
+  ]).notNull().default('pending_review'),
+  investigationReason: text("investigation_reason"),
+  investigationExpectedResolutionDate: varchar("investigation_expected_resolution_date", { length: 20 }),
+  prescriptionDeadline: varchar("prescription_deadline", { length: 20 }),
+  prescriptionWarningIssuedAt: varchar("prescription_warning_issued_at", { length: 50 }),
+  demandLetterSentAt: varchar("demand_letter_sent_at", { length: 50 }),
+  demandLetterS3Key: varchar("demand_letter_s3_key", { length: 500 }),
+  demandLetterUrl: varchar("demand_letter_url", { length: 1000 }),
+  demandResponseDueDate: varchar("demand_response_due_date", { length: 20 }),
+  demandResponseReceivedAt: varchar("demand_response_received_at", { length: 50 }),
+  settlementAgreementDate: varchar("settlement_agreement_date", { length: 20 }),
+  settlementNotes: text("settlement_notes"),
+  assignedOfficerUserId: int("assigned_officer_user_id"),
+  assignedAt: varchar("assigned_at", { length: 50 }),
+  officerNotes: text("officer_notes"),
+  aiDemandLetterJson: longtext("ai_demand_letter_json"),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+  closedAt: varchar("closed_at", { length: 50 }),
+}, (table) => [
+  index("idx_rc_tenant_id").on(table.tenantId),
+  index("idx_rc_claim_id").on(table.claimId),
+  index("idx_rc_status").on(table.status),
+  index("idx_rc_tenant_status").on(table.tenantId, table.status),
+  index("idx_rc_assigned_officer").on(table.assignedOfficerUserId),
+  index("idx_rc_rps").on(table.recoveryPotentialScore),
+  index("idx_rc_prescription").on(table.prescriptionDeadline),
+]);
+
+export type RecoveryCaseRow = typeof recoveryCases.$inferSelect;
+export type InsertRecoveryCase = typeof recoveryCases.$inferInsert;

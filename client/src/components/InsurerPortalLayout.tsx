@@ -84,6 +84,13 @@ const navByRole: Record<string, NavSection[]> = {
         { label: "Reports Centre", description: "Generate and download reports", href: "/insurer-portal/reports-centre", icon: FileBarChart },
       ],
     },
+    {
+      title: "Subrogation Recovery",
+      items: [
+        { label: "Recovery Queue", description: "Cases eligible for third-party recovery", href: "/insurer-portal/recovery", icon: Scale },
+        { label: "Under Investigation", description: "Cases pending liability determination", href: "/insurer-portal/recovery?status=under_investigation", icon: Search },
+      ],
+    },
   ],
 
   claims_processor: [

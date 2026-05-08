@@ -292,6 +292,22 @@ export async function transition(request: TransitionRequest): Promise<Transition
   }
 
   // ============================================
+  // SUBROGATION RECOVERY TRIGGER
+  // ============================================
+  // When a claim reaches 'payment_authorized' or 'closed', evaluate it for
+  // subrogation recovery potential and create a recovery_case record if RPS >= 30.
+  // Fire-and-forget — never blocks the workflow transition.
+  if (toState === "closed" || toState === "payment_authorized") {
+    import("./recovery/recoveryTrigger")
+      .then(({ triggerRecoveryEvaluation }) =>
+        triggerRecoveryEvaluation(claimId)
+      )
+      .catch((err) =>
+        console.error("[WorkflowEngine] Recovery trigger error:", err)
+      );
+  }
+
+  // ============================================
   // RETURN RESULT
   // ============================================
   
