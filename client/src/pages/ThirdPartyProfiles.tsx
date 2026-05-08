@@ -43,12 +43,12 @@ const STATUS_COLOR: Record<string, string> = {
   archived: "text-slate-400",
 };
 
-function formatCurrency(cents: number, currency = "ZAR") {
+function formatCurrency(amount: number, currency = "ZAR") {
   return new Intl.NumberFormat("en-ZA", {
     style: "currency",
     currency,
     maximumFractionDigits: 0,
-  }).format(cents / 100);
+  }).format(amount);
 }
 
 export default function ThirdPartyProfiles() {

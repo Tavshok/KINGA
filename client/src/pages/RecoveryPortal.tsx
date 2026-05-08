@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 
 // Maps each status card tab to the DB status value(s) used in getCases
 const STATUS_CARDS = [
-  { label: "Pending Review",       tab: "pending",           dbStatus: "pending",           icon: ClipboardList, color: "text-blue-400",    bg: "bg-blue-500/10",    description: "New cases awaiting officer assessment" },
+  { label: "Pending Review",       tab: "pending",           dbStatus: "pending_review",    icon: ClipboardList, color: "text-blue-400",    bg: "bg-blue-500/10",    description: "New cases awaiting officer assessment" },
   { label: "Under Investigation",  tab: "investigation",     dbStatus: "under_investigation",icon: Search,        color: "text-amber-400",   bg: "bg-amber-500/10",   description: "Liability not yet determined" },
   { label: "Open Cases",           tab: "open",              dbStatus: "open",               icon: Activity,      color: "text-teal-400",    bg: "bg-teal-500/10",    description: "Ready for demand action" },
   { label: "Demand Sent",          tab: "demand-sent",       dbStatus: "demand_sent",        icon: Send,          color: "text-violet-400",  bg: "bg-violet-500/10",  description: "Awaiting third-party response" },
@@ -36,7 +36,11 @@ function deadlineChip(deadline: string | null | undefined) {
 export default function RecoveryPortal() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<string | null>(null);
+  // Read ?tab= from URL so sidebar nav links pre-select the correct queue
+  const initialTab = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('tab')
+    : null;
+  const [activeTab, setActiveTab] = useState<string | null>(initialTab);
   const [repeatOffendersOnly, setRepeatOffendersOnly] = useState(false);
 
   // Live KPI data

@@ -11682,3 +11682,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Created InsurerAdminDashboard.tsx: live KPI cards, 6 quick-action tiles, recent claims table, admin profile card, role directory
 - [x] Rewrote InsurerRoleSelection with dark slate design matching portal aesthetic — 4-column responsive grid
 - [x] Build clean: InsurerAdminDashboard-BwWOk0ZQ.js + InsurerRoleSelection-DiKWRZFp.js in dist
+
+## Phase 20 — Recovery Officer Portal Audit & Fix
+- [x] Audit RecoveryPortal.tsx: all tabs present, tRPC calls correct, STATUS_CARDS verified
+- [x] Audit backend recovery procedures: getCases, getCase, updateCase, assignCase, generateDemandLetter, getKPIs, getInsurerIntelligence, getThirdPartyProfiles, getPriorCases, getCorrespondenceLog, addCorrespondenceEntry, exportCorrespondenceLog — all present
+- [x] Audit App.tsx recovery routes: /insurer-portal/recovery, /insurer-portal/recovery/:id, /insurer-portal/recovery/third-party-profiles — all registered and correct
+- [x] Audit InsurerPortalLayout recovery nav items: 9 nav items across 4 sections — all correct
+- [x] Fix: STATUS_CARDS dbStatus "pending" → "pending_review" (mismatch with backend enum)
+- [x] Fix: RecoveryPortal reads ?tab= from URL so sidebar nav links pre-select the correct queue
+- [x] Fix: ThirdPartyProfiles formatCurrency was dividing by 100 (ZAR stored as whole amounts, not cents)
+- [x] Fix: RecoveryCaseDetail fmt() was dividing by 100 for approvedSettlementAmount/recoveredAmount (same issue)
+- [x] Fix: RecoveryCaseDetail prior cases recoveredAmount display was dividing by 100
+- [x] Build clean: pnpm build ✔

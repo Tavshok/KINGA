@@ -308,8 +308,9 @@ export default function RecoveryCaseDetail() {
   const StatusIcon = statusMeta.icon;
   const wrongedMeta = WRONGED_PARTY_META[caseData.wrongedParty] ?? WRONGED_PARTY_META.unknown;
   const currency = caseData.currencyCode ?? "USD";
-  const fmt = (cents?: number | null) =>
-    cents != null ? `${currency} ${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}` : "—";
+  // approvedSettlementAmount and recoveredAmount are stored as whole ZAR in the DB (not cents)
+  const fmt = (amount?: number | null) =>
+    amount != null ? `${currency} ${amount.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}` : "—";
 
   const rpsColor = caseData.recoveryPotentialScore >= 70 ? "text-emerald-400"
     : caseData.recoveryPotentialScore >= 40 ? "text-amber-400"
@@ -830,7 +831,7 @@ export default function RecoveryCaseDetail() {
                               <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${sm.color} ${sm.bg}`}>{sm.label}</span>
                             </td>
                             <td className="py-2 text-right text-foreground">
-                              {pc.recoveredAmount != null ? `${pc.currencyCode ?? 'USD'} ${(pc.recoveredAmount / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}` : '—'}
+                              {pc.recoveredAmount != null ? `${pc.currencyCode ?? 'ZAR'} ${pc.recoveredAmount.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}` : '—'}
                             </td>
                           </tr>
                         );
