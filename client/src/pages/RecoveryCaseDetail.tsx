@@ -30,6 +30,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; ic
   under_investigation:  { label: "Under Investigation",  color: "text-amber-400",   bg: "bg-amber-500/10",   icon: Search },
   open:                 { label: "Open",                  color: "text-teal-400",    bg: "bg-teal-500/10",    icon: Activity },
   demand_sent:          { label: "Demand Sent",           color: "text-violet-400",  bg: "bg-violet-500/10",  icon: Send },
+  liability_denied:     { label: "Liability Denied",      color: "text-orange-400",  bg: "bg-orange-500/10",  icon: Gavel },
   disputed_legal:       { label: "Disputed / Legal",      color: "text-rose-400",    bg: "bg-rose-500/10",    icon: Gavel },
   settled_full:         { label: "Settled (Full)",        color: "text-emerald-400", bg: "bg-emerald-500/10", icon: CheckSquare },
   settled_partial:      { label: "Settled (Partial)",     color: "text-emerald-400", bg: "bg-emerald-500/10", icon: CheckSquare },
@@ -899,6 +900,7 @@ export default function RecoveryCaseDetail() {
                       <SelectItem value="under_investigation">Under Investigation</SelectItem>
                       <SelectItem value="open">Open</SelectItem>
                       <SelectItem value="demand_sent">Demand Sent</SelectItem>
+                      <SelectItem value="liability_denied">Liability Denied</SelectItem>
                       <SelectItem value="disputed_legal">Disputed / Legal</SelectItem>
                       <SelectItem value="settled_full">Settled (Full)</SelectItem>
                       <SelectItem value="settled_partial">Settled (Partial)</SelectItem>

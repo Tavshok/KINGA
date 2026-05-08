@@ -248,7 +248,7 @@ const navByRole: Record<string, NavSection[]> = {
     {
       title: "Intelligence",
       items: [
-        { label: "Third-Party Profiles", description: "Repeat third-party intelligence", href: "/insurer/vehicle-registry?filter=third-party", icon: Car },
+        { label: "Third-Party Profiles", description: "Repeat third-party intelligence", href: "/insurer-portal/recovery/third-party-profiles", icon: Car },
         { label: "Relationship Intelligence", description: "Entity network analysis", href: "/insurer-portal/relationship-intelligence", icon: Network },
       ],
     },

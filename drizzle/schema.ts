@@ -509,6 +509,7 @@ export const automationPolicies = mysqlTable("automation_policies", {
 	effectiveUntil: timestamp("effective_until", { mode: 'string' }),
 	supersededByPolicyId: int("superseded_by_policy_id"),
 	fraudSensitivityMultiplier: decimal("fraud_sensitivity_multiplier", { precision: 3, scale: 2 }).default('1.00').notNull(),
+	demandLetterResponseDays: int("demand_letter_response_days").default(21).notNull(),
 },
 (table) => [
 	index("idx_tenant_active").on(table.tenantId, table.isActive),
@@ -4836,6 +4837,7 @@ export const recoveryCases = mysqlTable("recovery_cases", {
     'under_investigation',
     'open',
     'demand_sent',
+    'liability_denied',
     'disputed_legal',
     'settled_full',
     'settled_partial',

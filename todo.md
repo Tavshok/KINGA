@@ -11630,3 +11630,23 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add Response Received button to quick-action bar in RecoveryCaseDetail.tsx
 - [x] Add exportCorrespondenceLog tRPC procedure (generates PDF via jsPDF)
 - [x] Add Export PDF button to Correspondence Log panel
+
+## Phase 15 — High-Severity QA Fixes
+- [x] Add fraud score re-check guard in approveClaim procedure (block critical fraud at approval point)
+- [x] Add DB-level UNIQUE constraint on recovery_cases.claimId
+- [x] Fix Third-Party Profiles nav link in InsurerPortalLayout (wrong href)
+
+## Phase 16 — Medium-Severity QA Fixes
+- [ ] Add subrogation summary section to Stage 10 claim report
+- [ ] Add liability_denied status to recovery workflow
+- [ ] Make demand letter response deadline configurable per tenant
+- [ ] Add recovery KPI summary card to Claims Manager dashboard
+
+## Phase 17 — QA Report Enhancement
+- [ ] Rebuild QA report with status scorecard, validation tables, AI governance section, and roadmap
+
+## Phase 16 — QA Medium-Severity Fixes (Revised)
+- [ ] Ensure recovery recommendation from stage-10 renders in claim PDF report when third-party liability is identified
+- [x] Add liability_denied status to recovery case workflow (post-demand, pre-legal escalation)
+- [ ] Add demandLetterResponseDays to automationPolicies schema and wire into demand letter generator
+- [x] Add recovery KPIs to Claims Manager dashboard (open cases, recovered amount, recovery rate)

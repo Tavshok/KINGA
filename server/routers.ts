@@ -2983,7 +2983,19 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         if (!selectedQuote) throw new TRPCError({ code: "NOT_FOUND", message: "Selected quote not found" });
         
         const approvedAmount = selectedQuote.quotedAmount || 0;
-        
+
+        // ── Fraud re-check at approval point (QA Finding 4.1) ──────────────────
+        // Block technical approval if the current fraud risk level is 'critical',
+        // regardless of how the claim was routed. This guards against fraud flags
+        // added after initial routing (e.g., manual fraud escalation by risk_manager).
+        if (claim.fraudRiskLevel === 'critical') {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'This claim has a critical fraud risk level and cannot be technically approved. Please refer it to the fraud investigation team before proceeding.',
+          });
+        }
+        // ───────────────────────────────────────────────────────────────────────
+
         // Get active automation policy to determine approval threshold
         const { getActiveAutomationPolicy } = await import("./automation-policy-manager");
         const policy = await getActiveAutomationPolicy(tenantId);
@@ -8248,7 +8260,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
     updateCase: protectedProcedure
       .input(z.object({
         id: z.number(),
-        status: z.enum(['pending_review','under_investigation','open','demand_sent','disputed_legal','settled_full','settled_partial','closed_no_recovery','archived']).optional(),
+        status: z.enum(['pending_review','under_investigation','open','demand_sent','liability_denied','disputed_legal','settled_full','settled_partial','closed_no_recovery','archived']).optional(),
         officerNotes: z.string().optional(),
         recoveredAmount: z.number().optional(),
         investigationReason: z.string().optional(),

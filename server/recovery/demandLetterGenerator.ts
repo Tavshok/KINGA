@@ -14,7 +14,7 @@
  */
 
 import { getDb } from "../db";
-import { recoveryCases, claims, aiAssessments, insurerTenants } from "../../drizzle/schema";
+import { recoveryCases, claims, aiAssessments, insurerTenants, automationPolicies } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { invokeLLM } from "../_core/llm";
 import { storagePut } from "../storage";
@@ -83,6 +83,7 @@ interface DemandLetterContext {
   // Recovery case
   recoveryCaseId: number;
   recoveryDeadline?: string | null;
+  responseDays?: number | null;
 }
 
 // ─── LLM letter drafting ─────────────────────────────────────────────────────
@@ -100,7 +101,7 @@ async function draftLetterContent(ctx: DemandLetterContext): Promise<{
 }> {
   const today = new Date();
   const letterDate = today.toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" });
-  const responseDeadline = new Date(today.getTime() + 21 * 24 * 60 * 60 * 1000)
+  const responseDeadline = new Date(today.getTime() + (ctx.responseDays ?? 21) * 24 * 60 * 60 * 1000)
     .toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" });
 
   const approvedAmount = ctx.approvedSettlementAmountCents
@@ -506,6 +507,14 @@ export async function generateDemandLetter(recoveryCaseId: number): Promise<{
     .where(eq(insurerTenants.id, rcRow.tenantId))
     .limit(1);
 
+  // 1b. Load active automation policy for configurable response deadline
+  const [policyRow] = await db
+    .select({ demandLetterResponseDays: automationPolicies.demandLetterResponseDays })
+    .from(automationPolicies)
+    .where(and(eq(automationPolicies.tenantId, rcRow.tenantId), eq(automationPolicies.isActive, 1)))
+    .orderBy(automationPolicies.id)
+    .limit(1);
+  const responseDays = policyRow?.demandLetterResponseDays ?? 21;
   // 2. Parse causal verdict for summary
   let causalVerdictSummary: string | null = null;
   if (assessmentRow?.causalVerdictJson) {
@@ -564,6 +573,7 @@ export async function generateDemandLetter(recoveryCaseId: number): Promise<{
 
     recoveryCaseId,
     recoveryDeadline: rcRow.recoveryDeadline,
+    responseDays,
   };
 
   // 4. Draft letter content via LLM

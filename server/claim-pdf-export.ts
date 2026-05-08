@@ -302,6 +302,51 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
     ${mismatchWarning}
   </div>`;
 
+  // ── Post-Settlement Recovery Advisory section (QA Finding 5.1) ─────────────
+  // Parse causalVerdictJson from aiAssessment to determine if third-party
+  // liability was identified. If so, render a recovery advisory.
+  let recoveryAdvisorySection = '';
+  if (aiAssessment?.causalVerdictJson) {
+    try {
+      const verdict = typeof aiAssessment.causalVerdictJson === 'string'
+        ? JSON.parse(aiAssessment.causalVerdictJson as string)
+        : (aiAssessment.causalVerdictJson as Record<string, unknown>);
+      const liabilityPct: number = (verdict?.thirdPartyLiabilityPct as number) ?? 0;
+      const wrongedParty: string = (verdict?.wrongedParty as string) ?? '';
+      const isInsuredWronged = wrongedParty === 'insured' || liabilityPct >= 50;
+      if (isInsuredWronged && liabilityPct > 0) {
+        const liabilityLabel =
+          liabilityPct >= 100 ? 'Full' :
+          liabilityPct >= 75  ? 'Substantial' :
+          liabilityPct >= 50  ? 'Majority' : 'Partial';
+        recoveryAdvisorySection = `
+  <div class="section no-break" style="border-left:4px solid #0d9488;padding-left:12px;">
+    <h2 class="section-title" style="color:#0d9488;">Post-Settlement Recovery Advisory</h2>
+    <p style="font-size:9pt;color:#374151;margin-bottom:8px;">
+      The AI causal analysis identified <strong>${liabilityLabel} third-party liability (${liabilityPct}%)</strong>.
+      Upon settlement of this claim, subrogation recovery proceedings against the at-fault third party
+      and/or their insurer are recommended.
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:9pt;">
+      <tr style="background:#f0fdfa;">
+        <td style="padding:6px 8px;font-weight:600;width:40%;">Third-Party Liability</td>
+        <td style="padding:6px 8px;">${liabilityPct}% &#8212; ${liabilityLabel}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 8px;font-weight:600;">Wronged Party</td>
+        <td style="padding:6px 8px;">${wrongedParty === 'insured' ? 'Insured (our client)' : wrongedParty || 'Not determined'}</td>
+      </tr>
+      <tr style="background:#f0fdfa;">
+        <td style="padding:6px 8px;font-weight:600;">Recommended Action</td>
+        <td style="padding:6px 8px;">Initiate subrogation recovery case after settlement. Serve demand letter on third-party insurer within 21 days of settlement date.</td>
+      </tr>
+    </table>
+    <p style="font-size:8pt;color:#6b7280;margin-top:6px;">This advisory is generated automatically from AI causal reasoning. Final recovery decision rests with the assigned recovery officer.</p>
+  </div>`;
+      }
+    } catch { /* malformed JSON — skip section */ }
+  }
+
   // ── AI Optimisation Summary section ──────────────────────────────────────
   let optimisationSection: string;
 
@@ -796,8 +841,11 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
     </table>` : `<p style="color:#6b7280;font-size:9pt;">No quotes have been submitted for this claim.</p>`}
   </div>
 
-  <!-- ── AI Quote Optimisation Summary ──────────────────────────────────── -->
+  <!-- ── AI Quote Optimisation Summary ────────────────────────────────── -->
   ${optimisationSection}
+
+  <!-- ── Post-Settlement Recovery Advisory ────────────────────────── -->
+  ${recoveryAdvisorySection}
 
   <!-- ── Footer ─────────────────────────────────────────────────────────── -->
   <div class="report-footer">
