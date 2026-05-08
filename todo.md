@@ -11593,3 +11593,18 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add /api/scheduled/recovery-deadline-sweep POST endpoint (user-role auth, calls checkRecoveryDeadlines)
 - [x] Register scheduled daily task via Manus schedule tool
 - [x] Fix Recovery Queue badge: show for claims_manager only, remove from insurer_admin
+
+## Phase 11 — Insurer-as-Recovery-Target & Third-Party Intelligence
+
+- [x] Extended recovery_cases schema: thirdPartyAddress, thirdPartyIdNumber, thirdPartyPhone, thirdPartyInsurerAddress, thirdPartyInsurerPhone, thirdPartyInsurerContact, policeReportNumber, policeStation, recoveryTarget (insurer/individual/unknown)
+- [x] DB migration applied via SQL ALTER TABLE
+- [x] Stage-3 extraction schema: added thirdPartyAddress, thirdPartyIdNumber, thirdPartyPhone, thirdPartyInsurerAddress, thirdPartyInsurerPhone to LLM extraction from police report and documents
+- [x] ExtractedClaimFields and ThirdPartyRecord types updated with new fields
+- [x] Stage-4 validation defaults updated for new fields
+- [x] Stage-5 assembly updated to pass new fields through to ThirdPartyRecord
+- [x] orchestrator.ts buildMinimalStage4 updated with new fields
+- [x] recoveryTrigger.ts: both insert blocks updated to populate new fields; recoveryTarget set based on whether thirdPartyInsurer is known
+- [x] Recovery Case Detail page: Third-Party Details section expanded with recovery target badge, ID/passport, address, insurer address/phone, police report/station sub-sections
+- [x] demandLetterGenerator.ts: DemandLetterContext extended; LLM prompt updated to distinguish insurer vs individual recovery target with full contact details
+- [x] getInsurerIntelligence tRPC procedure: aggregates settlement rate, dispute rate, avg settlement days, recovery efficiency per third-party insurer
+- [x] RecoveryPortal.tsx: InsurerIntelligencePanel component added below case list

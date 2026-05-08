@@ -4812,6 +4812,22 @@ export const recoveryCases = mysqlTable("recovery_cases", {
   thirdPartyInsurer: varchar("third_party_insurer", { length: 255 }),
   thirdPartyPolicyNumber: varchar("third_party_policy_number", { length: 100 }),
   thirdPartyContactDetails: text("third_party_contact_details"),
+  // Third-party insurer details (for demand letter addressing)
+  thirdPartyInsurerAddress: text("third_party_insurer_address"),
+  thirdPartyInsurerContact: varchar("third_party_insurer_contact", { length: 255 }),
+  thirdPartyInsurerPolicyRef: varchar("third_party_insurer_policy_ref", { length: 100 }),
+  thirdPartyInsurerIsOnKinga: tinyint("third_party_insurer_is_on_kinga").default(0),
+  // Third-party individual details (from police report)
+  thirdPartyAddress: text("third_party_address"),
+  thirdPartyIdNumber: varchar("third_party_id_number", { length: 50 }),
+  thirdPartyPhone: varchar("third_party_phone", { length: 50 }),
+  thirdPartyInsurerPhone: varchar("third_party_insurer_phone", { length: 50 }),
+  // Police report extraction tracking
+  policeReportNumber: varchar("police_report_number", { length: 100 }),
+  policeStation: varchar("police_station", { length: 255 }),
+  policeReportExtractedAt: varchar("police_report_extracted_at", { length: 50 }),
+  // Recovery target: who the demand letter is addressed to
+  recoveryTarget: mysqlEnum("recovery_target", ['insurer','individual','unknown']).default('unknown'),
   approvedSettlementAmount: int("approved_settlement_amount"),
   recoveredAmount: int("recovered_amount"),
   currencyCode: varchar("currency_code", { length: 10 }).default('ZAR'),

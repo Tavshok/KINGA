@@ -253,6 +253,8 @@ function buildDefaultCausalVerdict(claimRecord: ClaimRecord): CausalVerdict {
     constraintValidation: null,
     constraintNarrative: null,
     generatedAt: new Date().toISOString(),
+    wrongedParty: 'unknown' as const,
+    thirdPartyLiabilityPct: 0,
   };
 }
 

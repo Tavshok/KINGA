@@ -8234,7 +8234,8 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           claimNumber: row.claims?.claimNumber ?? null,
           vehicleRegistration: row.claims?.vehicleRegistration ?? null,
           incidentDate: row.claims?.incidentDate ?? null,
-          policeReportNumber: row.claims?.policeReportNumber ?? null,
+          policeReportNumber: row.recovery_cases.policeReportNumber ?? row.claims?.policeReportNumber ?? null,
+          policeStation: row.recovery_cases.policeStation ?? null,
           thirdPartyNameFromClaim: row.claims?.thirdPartyName ?? null,
           thirdPartyRegistrationFromClaim: row.claims?.thirdPartyRegistration ?? null,
           thirdPartyInsurerFromClaim: row.claims?.thirdPartyInsurer ?? null,
@@ -8382,6 +8383,98 @@ If any value is not found, use null or 0. Line items category must be one of: pa
     /**
      * Fetch prior recovery cases by an array of IDs (for the repeat offender panel).
      */
+
+    /**
+     * Get inter-insurer intelligence — settlement rate, dispute rate, avg settlement time
+     * per third-party insurer across all recovery cases for this tenant.
+     * Accessible by: recovery_officer, claims_manager
+     */
+    getInsurerIntelligence: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        const allowedRoles = ['recovery_officer','claims_manager','executive','insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access denied' });
+        }
+        // Load all closed/settled/disputed recovery cases with a third-party insurer
+        const rows = await db
+          .select({
+            thirdPartyInsurer: recoveryCases.thirdPartyInsurer,
+            status: recoveryCases.status,
+            approvedSettlementAmount: recoveryCases.approvedSettlementAmount,
+            recoveredAmount: recoveryCases.recoveredAmount,
+            createdAt: recoveryCases.createdAt,
+            demandLetterSentAt: recoveryCases.demandLetterSentAt,
+            settlementAgreementDate: recoveryCases.settlementAgreementDate,
+          })
+          .from(recoveryCases)
+          .where(
+            and(
+              eq(recoveryCases.tenantId, tenantId),
+              isNotNull(recoveryCases.thirdPartyInsurer)
+            )
+          )
+          .orderBy(recoveryCases.createdAt);
+
+        // Aggregate per insurer
+        const map: Record<string, {
+          insurer: string;
+          total: number;
+          settled: number;
+          disputed: number;
+          noRecovery: number;
+          totalApprovedCents: number;
+          totalRecoveredCents: number;
+          settlementDays: number[];
+        }> = {};
+
+        for (const row of rows) {
+          const ins = row.thirdPartyInsurer!;
+          if (!map[ins]) {
+            map[ins] = { insurer: ins, total: 0, settled: 0, disputed: 0, noRecovery: 0, totalApprovedCents: 0, totalRecoveredCents: 0, settlementDays: [] };
+          }
+          const entry = map[ins];
+          entry.total++;
+          if (row.status === 'settled_full' || row.status === 'settled_partial') {
+            entry.settled++;
+            // Days from demand sent to settlement
+            if (row.demandLetterSentAt && row.settlementAgreementDate) {
+              const days = Math.round((new Date(row.settlementAgreementDate).getTime() - new Date(row.demandLetterSentAt).getTime()) / (1000 * 60 * 60 * 24));
+              if (days >= 0 && days < 3650) entry.settlementDays.push(days);
+            }
+          } else if (row.status === 'disputed_legal') {
+            entry.disputed++;
+          } else if (row.status === 'closed_no_recovery') {
+            entry.noRecovery++;
+          }
+          if (row.approvedSettlementAmount) entry.totalApprovedCents += row.approvedSettlementAmount;
+          if (row.recoveredAmount) entry.totalRecoveredCents += row.recoveredAmount;
+        }
+
+        return Object.values(map)
+          .filter(e => e.total >= 1)
+          .map(e => ({
+            insurer: e.insurer,
+            totalCases: e.total,
+            settledCases: e.settled,
+            disputedCases: e.disputed,
+            noRecoveryCases: e.noRecovery,
+            settlementRate: e.total > 0 ? Math.round((e.settled / e.total) * 100) : 0,
+            disputeRate: e.total > 0 ? Math.round((e.disputed / e.total) * 100) : 0,
+            avgSettlementDays: e.settlementDays.length > 0
+              ? Math.round(e.settlementDays.reduce((a, b) => a + b, 0) / e.settlementDays.length)
+              : null,
+            totalApprovedCents: e.totalApprovedCents,
+            totalRecoveredCents: e.totalRecoveredCents,
+            recoveryEfficiency: e.totalApprovedCents > 0
+              ? Math.round((e.totalRecoveredCents / e.totalApprovedCents) * 100)
+              : 0,
+          }))
+          .sort((a, b) => b.totalCases - a.totalCases);
+      }),
     getPriorCases: protectedProcedure
       .input(z.object({ ids: z.array(z.number()).min(1).max(20) }))
       .query(async ({ ctx, input }) => {

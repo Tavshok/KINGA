@@ -23,6 +23,7 @@ import {
 } from "../../drizzle/schema";
 import { eq, and, or, desc } from "drizzle-orm";
 import type { CausalVerdict } from "../pipeline-v2/stage-7b-causal-reasoning";
+import type { ThirdPartyRecord } from "../pipeline-v2/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Recovery Potential Score (RPS) — 0 to 100
@@ -165,6 +166,16 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
       }
     }
 
+    // 4b. Parse the claimRecord JSON for enriched third-party details (from police report extraction)
+    let tpRecord: ThirdPartyRecord | null = null;
+    if (assessment?.claimRecordJson) {
+      try {
+        const claimRecord = JSON.parse(assessment.claimRecordJson);
+        tpRecord = claimRecord?.thirdParty ?? null;
+      } catch {
+        console.warn(`[RecoveryTrigger] Could not parse claimRecordJson for claim ${claimId}`);
+      }
+    }
     // 5. Load third-party vehicle data for completeness scoring
     const [tpVehicle] = await db
       .select()
@@ -180,7 +191,7 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
       hasThirdPartyName: !!(claim.thirdPartyName || tpVehicle?.ownerName || tpVehicle?.driverName),
       hasThirdPartyRegistration: !!(claim.thirdPartyRegistration || tpVehicle?.registration),
       hasThirdPartyInsurer: !!(claim.thirdPartyInsurer || tpVehicle?.insuranceCompany),
-      hasThirdPartyContact: !!(tpVehicle?.ownerContact || tpVehicle?.ownerAddress),
+      hasThirdPartyContact: !!(tpVehicle?.ownerContact || tpVehicle?.ownerAddress || tpRecord?.contactPhone || tpRecord?.address),
       hasPoliceReport: !!(claim.policeReportNumber),
       fraudScore: assessment?.fraudScore ?? null,
       approvedAmount: claim.finalApprovedAmount ? Number(claim.finalApprovedAmount) : null,
@@ -218,6 +229,13 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
       }
     }
 
+    // 6b. Determine recovery target: insurer if third-party insurer is known, individual otherwise
+    const recoveryTarget: 'insurer' | 'individual' | 'unknown' =
+      (claim.thirdPartyInsurer || tpVehicle?.insuranceCompany || tpRecord?.insurerName)
+        ? 'insurer'
+        : (claim.thirdPartyName || tpVehicle?.ownerName || tpRecord?.driverName)
+          ? 'individual'
+          : 'unknown';
     // 7. Only create a case if RPS meets the threshold
     if (rps < RPS_THRESHOLD) {
       console.log(`[RecoveryTrigger] RPS ${rps} below threshold ${RPS_THRESHOLD} — archiving without case`);
@@ -233,11 +251,20 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
         thirdPartyInsurer: claim.thirdPartyInsurer ?? tpVehicle?.insuranceCompany ?? null,
         thirdPartyPolicyNumber: tpVehicle?.policyNumber ?? null,
         thirdPartyContactDetails: tpVehicle?.ownerContact ? `Tel: ${tpVehicle.ownerContact}${tpVehicle.ownerAddress ? `, Address: ${tpVehicle.ownerAddress}` : ""}` : null,
+        thirdPartyInsurerAddress: tpRecord?.insurerAddress ?? null,
+        thirdPartyInsurerContact: tpRecord?.insurerPhone ?? null,
+        thirdPartyAddress: tpRecord?.address ?? tpVehicle?.ownerAddress ?? null,
+        thirdPartyIdNumber: tpRecord?.idNumber ?? null,
+        thirdPartyPhone: tpRecord?.contactPhone ?? tpVehicle?.ownerContact ?? null,
+        thirdPartyInsurerPhone: tpRecord?.insurerPhone ?? null,
+        policeReportNumber: claim.policeReportNumber ?? null,
+        policeStation: claim.policeStation ?? null,
+        recoveryTarget,
         approvedSettlementAmount: claim.finalApprovedAmount ? Math.round(Number(claim.finalApprovedAmount)) : null,
         currencyCode: claim.currencyCode ?? "ZAR",
         status: "archived",
         recoveryDeadline: computeRecoveryDeadline(claim.incidentDate),
-        isRepeatOffender,
+        isRepeatOffender: isRepeatOffender ? 1 : 0,
         priorCaseCount,
         priorCaseIds: priorCaseIds.length > 0 ? JSON.stringify(priorCaseIds) : null,
         createdAt: new Date().toISOString().replace("T", " ").substring(0, 19),
@@ -265,12 +292,21 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
       thirdPartyInsurer: claim.thirdPartyInsurer ?? tpVehicle?.insuranceCompany ?? null,
       thirdPartyPolicyNumber: tpVehicle?.policyNumber ?? null,
       thirdPartyContactDetails: tpVehicle?.ownerContact ? `Tel: ${tpVehicle.ownerContact}${tpVehicle.ownerAddress ? `, Address: ${tpVehicle.ownerAddress}` : ""}` : null,
+      thirdPartyInsurerAddress: tpRecord?.insurerAddress ?? null,
+      thirdPartyInsurerContact: tpRecord?.insurerPhone ?? null,
+      thirdPartyAddress: tpRecord?.address ?? tpVehicle?.ownerAddress ?? null,
+      thirdPartyIdNumber: tpRecord?.idNumber ?? null,
+      thirdPartyPhone: tpRecord?.contactPhone ?? tpVehicle?.ownerContact ?? null,
+      thirdPartyInsurerPhone: tpRecord?.insurerPhone ?? null,
+      policeReportNumber: claim.policeReportNumber ?? null,
+      policeStation: claim.policeStation ?? null,
+      recoveryTarget,
       approvedSettlementAmount: claim.finalApprovedAmount ? Math.round(Number(claim.finalApprovedAmount)) : null,
       currencyCode: claim.currencyCode ?? "ZAR",
       status: initialStatus as any,
       investigationReason,
       recoveryDeadline: computeRecoveryDeadline(claim.incidentDate),
-      isRepeatOffender,
+      isRepeatOffender: isRepeatOffender ? 1 : 0,
       priorCaseCount,
       priorCaseIds: priorCaseIds.length > 0 ? JSON.stringify(priorCaseIds) : null,
       createdAt: new Date().toISOString().replace("T", " ").substring(0, 19),

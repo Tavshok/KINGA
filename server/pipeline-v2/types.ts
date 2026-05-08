@@ -301,7 +301,12 @@ export interface ExtractedClaimFields {
   thirdPartyVehicle: string | null;
   thirdPartyRegistration: string | null;
   thirdPartyName: string | null;          // Name of third-party driver/owner
+  thirdPartyIdNumber: string | null;      // Third party's national ID / passport number (from police report)
+  thirdPartyAddress: string | null;       // Third party's residential address (from police report)
+  thirdPartyPhone: string | null;         // Third party's phone number (from police report)
   thirdPartyInsurerName: string | null;   // Third party's insurer name
+  thirdPartyInsurerAddress: string | null; // Third party insurer's address (for demand letters)
+  thirdPartyInsurerPhone: string | null;  // Third party insurer's phone number
   thirdPartyPolicyNumber: string | null;  // Third party's policy number
   // Insurance / Policy
   insurerName: string | null;
@@ -479,12 +484,15 @@ export interface ThirdPartyRecord {
   driverName: string | null;
   vehicleDescription: string | null;   // make, model, colour
   registration: string | null;
-  insurerName: string | null;
-  policyNumber: string | null;
+  idNumber: string | null;             // national ID / passport number (from police report)
+  address: string | null;             // residential address (from police report)
   contactPhone: string | null;
-  idNumber: string | null;
+  insurerName: string | null;
+  insurerAddress: string | null;      // insurer's address for demand letters
+  insurerPhone: string | null;
+  policyNumber: string | null;
   liabilityAdmitted: boolean | null;
-  accountSummary: string | null;       // third party's own version of events
+  accountSummary: string | null;      // third party's own version of events
 }
 
 /** Vehicle market valuation — populated by Stage 5b valuation step */

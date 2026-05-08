@@ -60,10 +60,16 @@ interface DemandLetterContext {
 
   // Third party (recipient)
   thirdPartyName?: string | null;
+  thirdPartyIdNumber?: string | null;
+  thirdPartyAddress?: string | null;
+  thirdPartyPhone?: string | null;
   thirdPartyRegistration?: string | null;
   thirdPartyInsurer?: string | null;
+  thirdPartyInsurerAddress?: string | null;
+  thirdPartyInsurerPhone?: string | null;
   thirdPartyPolicyNumber?: string | null;
   thirdPartyContactDetails?: string | null;
+  recoveryTarget?: 'insurer' | 'individual' | 'unknown' | null;
 
   // Financial
   approvedSettlementAmountCents?: number | null;
@@ -538,10 +544,16 @@ export async function generateDemandLetter(recoveryCaseId: number): Promise<{
     insuredAddress: claimRow.claimantAddress,
 
     thirdPartyName: rcRow.thirdPartyName ?? claimRow.thirdPartyName,
+    thirdPartyIdNumber: (rcRow as any).thirdPartyIdNumber ?? null,
+    thirdPartyAddress: (rcRow as any).thirdPartyAddress ?? null,
+    thirdPartyPhone: (rcRow as any).thirdPartyPhone ?? null,
     thirdPartyRegistration: rcRow.thirdPartyRegistration ?? claimRow.thirdPartyRegistration,
     thirdPartyInsurer: rcRow.thirdPartyInsurer ?? claimRow.thirdPartyInsurer,
+    thirdPartyInsurerAddress: (rcRow as any).thirdPartyInsurerAddress ?? null,
+    thirdPartyInsurerPhone: (rcRow as any).thirdPartyInsurerPhone ?? null,
     thirdPartyPolicyNumber: rcRow.thirdPartyPolicyNumber,
     thirdPartyContactDetails: rcRow.thirdPartyContactDetails,
+    recoveryTarget: (rcRow as any).recoveryTarget ?? null,
 
     approvedSettlementAmountCents: rcRow.approvedSettlementAmount,
     thirdPartyLiabilityPct: rcRow.thirdPartyLiabilityPct,

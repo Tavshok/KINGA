@@ -1,7 +1,7 @@
 import InsurerPortalLayout from "@/components/InsurerPortalLayout";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { Scale, ClipboardList, Search, Activity, Send, Gavel, CheckSquare, Archive, AlertCircle, TrendingUp, Clock, DollarSign, AlertTriangle, ChevronRight, RefreshCw } from "lucide-react";
+import { Scale, ClipboardList, Search, Activity, Send, Gavel, CheckSquare, Archive, AlertCircle, TrendingUp, Clock, DollarSign, AlertTriangle, ChevronRight, RefreshCw, Building2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -287,7 +287,68 @@ export default function RecoveryPortal() {
             </div>
           )}
         </div>
+
+        {/* Inter-Insurer Intelligence Panel */}
+        <InsurerIntelligencePanel />
       </div>
     </InsurerPortalLayout>
+  );
+}
+
+function InsurerIntelligencePanel() {
+  const { data, isLoading } = trpc.recovery.getInsurerIntelligence.useQuery();
+  if (isLoading || !data || data.length === 0) return null;
+  return (
+    <div className="rounded-lg border border-border bg-card p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Building2 className="h-4 w-4 text-violet-400" />
+        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Third-Party Insurer Intelligence</h3>
+        <span className="text-xs text-muted-foreground ml-1">— settlement &amp; dispute patterns across all cases</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/50">
+              <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Insurer</th>
+              <th className="text-center py-2 px-3 text-xs text-muted-foreground font-medium">Cases</th>
+              <th className="text-center py-2 px-3 text-xs text-muted-foreground font-medium">Settlement Rate</th>
+              <th className="text-center py-2 px-3 text-xs text-muted-foreground font-medium">Dispute Rate</th>
+              <th className="text-center py-2 px-3 text-xs text-muted-foreground font-medium">Avg Days to Settle</th>
+              <th className="text-center py-2 px-3 text-xs text-muted-foreground font-medium">Recovery Efficiency</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row) => (
+              <tr key={row.insurer} className="border-b border-border/30 last:border-0 hover:bg-muted/20 transition-colors">
+                <td className="py-2.5 pr-4 font-medium text-foreground">{row.insurer}</td>
+                <td className="py-2.5 px-3 text-center text-muted-foreground">{row.totalCases}</td>
+                <td className="py-2.5 px-3 text-center">
+                  <span className={`font-semibold ${
+                    row.settlementRate >= 70 ? 'text-emerald-400' :
+                    row.settlementRate >= 40 ? 'text-amber-400' : 'text-rose-400'
+                  }`}>{row.settlementRate}%</span>
+                </td>
+                <td className="py-2.5 px-3 text-center">
+                  <span className={`font-semibold ${
+                    row.disputeRate >= 40 ? 'text-rose-400' :
+                    row.disputeRate >= 20 ? 'text-amber-400' : 'text-emerald-400'
+                  }`}>{row.disputeRate}%</span>
+                </td>
+                <td className="py-2.5 px-3 text-center text-muted-foreground">
+                  {row.avgSettlementDays != null ? `${row.avgSettlementDays}d` : '—'}
+                </td>
+                <td className="py-2.5 px-3 text-center">
+                  <span className={`font-semibold ${
+                    row.recoveryEfficiency >= 80 ? 'text-emerald-400' :
+                    row.recoveryEfficiency >= 50 ? 'text-amber-400' : 'text-rose-400'
+                  }`}>{row.recoveryEfficiency}%</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground mt-3">Based on all closed recovery cases. Settlement rate = settled ÷ total. Recovery efficiency = recovered amount ÷ approved settlement amount.</p>
+    </div>
   );
 }

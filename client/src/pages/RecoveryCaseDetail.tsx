@@ -517,19 +517,57 @@ export default function RecoveryCaseDetail() {
 
             {/* Third-party details */}
             <Section title="Third-Party Details">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <span className="text-xs text-muted-foreground">Wronged Party:</span>
                 <span className={`text-sm font-semibold ${wrongedMeta.color}`}>{wrongedMeta.label}</span>
                 {caseData.thirdPartyLiabilityPct != null && caseData.thirdPartyLiabilityPct > 0 && (
                   <span className="text-xs text-muted-foreground ml-1">({caseData.thirdPartyLiabilityPct}% third-party liability)</span>
                 )}
+                {(caseData as any).recoveryTarget && (caseData as any).recoveryTarget !== 'unknown' && (
+                  <span className={`ml-2 text-xs font-medium px-2 py-0.5 rounded-full ${
+                    (caseData as any).recoveryTarget === 'insurer'
+                      ? 'bg-violet-500/15 text-violet-300'
+                      : 'bg-amber-500/15 text-amber-300'
+                  }`}>
+                    {(caseData as any).recoveryTarget === 'insurer' ? '🏢 Pursue Insurer' : '👤 Pursue Individual'}
+                  </span>
+                )}
               </div>
+              {/* Individual / driver details */}
               <InfoRow label="Third-Party Name" value={caseData.thirdPartyName ?? caseData.thirdPartyNameFromClaim} icon={User} />
-              <InfoRow label="Third-Party Vehicle Registration" value={caseData.thirdPartyRegistration ?? caseData.thirdPartyRegistrationFromClaim} icon={Car} />
-              <InfoRow label="Third-Party Insurer" value={caseData.thirdPartyInsurer ?? caseData.thirdPartyInsurerFromClaim} icon={Building2} />
-              <InfoRow label="Third-Party Policy Number" value={caseData.thirdPartyPolicyNumber} icon={Hash} />
-              {caseData.thirdPartyContactDetails && (
-                <InfoRow label="Contact Details" value={caseData.thirdPartyContactDetails} icon={Phone} />
+              {(caseData as any).thirdPartyIdNumber && (
+                <InfoRow label="ID / Passport Number" value={(caseData as any).thirdPartyIdNumber} icon={CreditCard} />
+              )}
+              <InfoRow label="Vehicle Registration" value={caseData.thirdPartyRegistration ?? caseData.thirdPartyRegistrationFromClaim} icon={Car} />
+              {((caseData as any).thirdPartyPhone || caseData.thirdPartyContactDetails) && (
+                <InfoRow label="Phone" value={(caseData as any).thirdPartyPhone ?? caseData.thirdPartyContactDetails} icon={Phone} />
+              )}
+              {(caseData as any).thirdPartyAddress && (
+                <InfoRow label="Address" value={(caseData as any).thirdPartyAddress} icon={MapPin} />
+              )}
+              {/* Insurer details — primary recovery target when available */}
+              <div className="mt-3 pt-3 border-t border-border/30">
+                <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Insurer (Recovery Target)</p>
+                <InfoRow label="Insurer Name" value={caseData.thirdPartyInsurer ?? caseData.thirdPartyInsurerFromClaim} icon={Building2} />
+                <InfoRow label="Policy Number" value={caseData.thirdPartyPolicyNumber} icon={Hash} />
+                {(caseData as any).thirdPartyInsurerPhone && (
+                  <InfoRow label="Insurer Phone" value={(caseData as any).thirdPartyInsurerPhone} icon={Phone} />
+                )}
+                {(caseData as any).thirdPartyInsurerAddress && (
+                  <InfoRow label="Insurer Address" value={(caseData as any).thirdPartyInsurerAddress} icon={MapPin} />
+                )}
+              </div>
+              {/* Police report reference */}
+              {((caseData as any).policeReportNumber || (caseData as any).policeStation) && (
+                <div className="mt-3 pt-3 border-t border-border/30">
+                  <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Police Report</p>
+                  {(caseData as any).policeReportNumber && (
+                    <InfoRow label="Report Number" value={(caseData as any).policeReportNumber} icon={FileText} />
+                  )}
+                  {(caseData as any).policeStation && (
+                    <InfoRow label="Police Station" value={(caseData as any).policeStation} icon={Shield} />
+                  )}
+                </div>
               )}
             </Section>
 
