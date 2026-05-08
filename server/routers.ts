@@ -8378,6 +8378,48 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         ).length;
         return { total, pendingReview, open, underInvestigation, demandSent, disputedLegal, settled, archived, totalRecovered, totalSettlementAmount, recoveryRate, avgRPS, approachingDeadlines };
       }),
+
+    /**
+     * Fetch prior recovery cases by an array of IDs (for the repeat offender panel).
+     */
+    getPriorCases: protectedProcedure
+      .input(z.object({ ids: z.array(z.number()).min(1).max(20) }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        const allowedRoles = ['recovery_officer','claims_manager','executive','insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access denied' });
+        }
+        const rows = await db
+          .select({
+            id: recoveryCases.id,
+            status: recoveryCases.status,
+            recoveryPotentialScore: recoveryCases.recoveryPotentialScore,
+            approvedSettlementAmount: recoveryCases.approvedSettlementAmount,
+            recoveredAmount: recoveryCases.recoveredAmount,
+            currencyCode: recoveryCases.currencyCode,
+            wrongedParty: recoveryCases.wrongedParty,
+            thirdPartyLiabilityPct: recoveryCases.thirdPartyLiabilityPct,
+            recoveryDeadline: recoveryCases.recoveryDeadline,
+            createdAt: recoveryCases.createdAt,
+            claimNumber: claims.claimNumber,
+            vehicleRegistration: claims.vehicleRegistration,
+            incidentDate: claims.incidentDate,
+          })
+          .from(recoveryCases)
+          .leftJoin(claims, eq(recoveryCases.claimId, claims.id))
+          .where(
+            and(
+              eq(recoveryCases.tenantId, tenantId),
+              inArray(recoveryCases.id, input.ids)
+            )
+          )
+          .orderBy(recoveryCases.createdAt);
+        return rows;
+      }),
   }),
 });
 

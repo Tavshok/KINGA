@@ -22,6 +22,17 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR", maximumFractionDigits: 0 }).format(amount);
 }
 
+function deadlineChip(deadline: string | null | undefined) {
+  if (!deadline) return null;
+  const today = new Date();
+  const dl = new Date(deadline);
+  const days = Math.round((dl.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (days < 0) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">OVERDUE</span>;
+  if (days <= 14) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">{days}d</span>;
+  if (days <= 60) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">{days}d</span>;
+  return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-teal-500/20 text-teal-400 border border-teal-500/30">{days}d</span>;
+}
+
 export default function RecoveryPortal() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -257,6 +268,7 @@ export default function RecoveryPortal() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4 flex-shrink-0">
+                      {deadlineChip(rc.recoveryDeadline)}
                       <div className="text-right">
                         <div className={`text-sm font-bold ${rpsColor}`}>{rc.recoveryPotentialScore}</div>
                         <div className="text-xs text-muted-foreground">RPS</div>

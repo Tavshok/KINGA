@@ -11576,3 +11576,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] getCases tRPC procedure extended with repeatOffendersOnly filter
 - [x] Fixed boolean() -> tinyint() in schema.ts for is_repeat_offender column (MySQL compatibility)
 - [x] Fixed eq(isRepeatOffender, true) -> eq(isRepeatOffender, 1) in routers.ts
+
+## Phase 9 — Prior Cases Panel & Deadline Countdown
+
+- [ ] Prior Cases inline panel on Recovery Case Detail page (compact table of prior recovery cases for repeat offenders)
+- [ ] Recovery deadline countdown chip on each case card in Recovery Portal queue (green/amber/red based on days remaining)
+
+## Phase 9 — Prior Cases Panel & Deadline Countdown Chip
+- [x] Add getPriorCases tRPC procedure to recovery router
+- [x] Add Prior Cases inline panel to Recovery Case Detail page (shows prior cases table when isRepeatOffender=true)
+- [x] Add deadline countdown chip helper (green/amber/red/OVERDUE based on days remaining)
+- [x] Wire deadline chip into Recovery Case Detail page header
+- [x] Wire deadline chip into each case card in Recovery Portal queue

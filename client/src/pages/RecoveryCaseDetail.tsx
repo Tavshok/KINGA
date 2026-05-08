@@ -117,6 +117,28 @@ export default function RecoveryCaseDetail() {
     },
   });
 
+  // Prior cases query — only fires when the current case is a repeat offender
+  const priorCaseIds: number[] = (() => {
+    try { return caseData?.priorCaseIds ? JSON.parse(caseData.priorCaseIds as string) : []; }
+    catch { return []; }
+  })();
+  const { data: priorCases } = trpc.recovery.getPriorCases.useQuery(
+    { ids: priorCaseIds },
+    { enabled: priorCaseIds.length > 0 }
+  );
+
+  // Deadline countdown chip helper
+  function deadlineChip(deadline: string | null | undefined) {
+    if (!deadline) return null;
+    const today = new Date();
+    const dl = new Date(deadline);
+    const days = Math.round((dl.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (days < 0) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">OVERDUE</span>;
+    if (days <= 14) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">{days}d left</span>;
+    if (days <= 60) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">{days}d left</span>;
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-teal-500/20 text-teal-400 border border-teal-500/30">{days}d left</span>;
+  }
+
   const handleSave = () => {
     if (!editStatus && !editNotes && !recoveredAmount && !investigationReason) {
       toast({ title: "Nothing to save", description: "Make a change before saving.", variant: "destructive" });
@@ -249,6 +271,7 @@ export default function RecoveryCaseDetail() {
             <StatusIcon className="h-3.5 w-3.5" />
             {statusMeta.label}
           </div>
+          {deadlineChip(caseData.recoveryDeadline)}
           <Button variant="ghost" size="icon" onClick={() => refetch()} title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -590,6 +613,48 @@ export default function RecoveryCaseDetail() {
                 {caseData.settlementNotes && (
                   <p className="text-sm text-muted-foreground mt-2">{caseData.settlementNotes}</p>
                 )}
+              </Section>
+            )}
+
+            {/* Prior Cases panel — shown only for repeat offenders */}
+            {caseData.isRepeatOffender && priorCases && priorCases.length > 0 && (
+              <Section title={`Prior Recovery Cases (${priorCases.length})`}>
+                <p className="text-xs text-muted-foreground mb-3">
+                  The third party in this case has been involved in {priorCases.length} previous recovery {priorCases.length === 1 ? 'case' : 'cases'} under this insurer.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Case #</th>
+                        <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Claim</th>
+                        <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Vehicle</th>
+                        <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Incident</th>
+                        <th className="text-left py-2 pr-3 text-muted-foreground font-medium">Status</th>
+                        <th className="text-right py-2 text-muted-foreground font-medium">Recovered</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {priorCases.map((pc) => {
+                        const sm = STATUS_META[pc.status] ?? STATUS_META.pending_review;
+                        return (
+                          <tr key={pc.id} className="border-b border-border/40 hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/insurer-portal/recovery/${pc.id}`)}>
+                            <td className="py-2 pr-3 font-mono text-teal-400">#{pc.id}</td>
+                            <td className="py-2 pr-3 text-foreground">{pc.claimNumber ?? '—'}</td>
+                            <td className="py-2 pr-3 text-foreground">{pc.vehicleRegistration ?? '—'}</td>
+                            <td className="py-2 pr-3 text-muted-foreground">{pc.incidentDate ? new Date(pc.incidentDate).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                            <td className="py-2 pr-3">
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${sm.color} ${sm.bg}`}>{sm.label}</span>
+                            </td>
+                            <td className="py-2 text-right text-foreground">
+                              {pc.recoveredAmount != null ? `${pc.currencyCode ?? 'USD'} ${(pc.recoveredAmount / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}` : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </Section>
             )}
           </div>
