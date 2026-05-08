@@ -7,7 +7,7 @@
  * Responsibilities:
  *   1. Compute the Recovery Potential Score (RPS) for the claim
  *   2. If RPS >= 30, create a recovery_case record
- *   3. Set the prescription deadline (3 years from incident date per SA Prescription Act)
+ *   3. Set the recovery deadline (3 years from incident date per applicable limitation period)
  *   4. Skip if a recovery case already exists for this claim
  *
  * The trigger is fire-and-forget — it logs errors but never throws,
@@ -91,10 +91,10 @@ export function computeRPS(input: RPSInput): number {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Prescription Deadline Calculation
+// Recovery Deadline Calculation
 // ─────────────────────────────────────────────────────────────────────────────
-// South African Prescription Act 68 of 1969: 3 years from date of loss
-function computePrescriptionDeadline(incidentDate: string | null | undefined): string | null {
+// South African limitation period (3 years from date of loss): 3 years from date of loss
+function computeRecoveryDeadline(incidentDate: string | null | undefined): string | null {
   if (!incidentDate) return null;
   try {
     const date = new Date(incidentDate);
@@ -208,7 +208,7 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
         approvedSettlementAmount: claim.finalApprovedAmount ? Math.round(Number(claim.finalApprovedAmount)) : null,
         currencyCode: claim.currencyCode ?? "ZAR",
         status: "archived",
-        prescriptionDeadline: computePrescriptionDeadline(claim.incidentDate),
+        recoveryDeadline: computeRecoveryDeadline(claim.incidentDate),
         createdAt: new Date().toISOString().replace("T", " ").substring(0, 19),
       });
       return;
@@ -238,7 +238,7 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
       currencyCode: claim.currencyCode ?? "ZAR",
       status: initialStatus as any,
       investigationReason,
-      prescriptionDeadline: computePrescriptionDeadline(claim.incidentDate),
+      recoveryDeadline: computeRecoveryDeadline(claim.incidentDate),
       createdAt: new Date().toISOString().replace("T", " ").substring(0, 19),
     });
 

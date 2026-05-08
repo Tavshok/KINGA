@@ -76,7 +76,7 @@ interface DemandLetterContext {
 
   // Recovery case
   recoveryCaseId: number;
-  prescriptionDeadline?: string | null;
+  recoveryDeadline?: string | null;
 }
 
 // ─── LLM letter drafting ─────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ THIRD-PARTY LIABILITY: ${ctx.thirdPartyLiabilityPct ?? 100}%
 APPROVED SETTLEMENT AMOUNT: ${approvedAmount}
 RECOVERY AMOUNT CLAIMED: ${recoveryAmount}
 
-PRESCRIPTION DEADLINE: ${ctx.prescriptionDeadline ?? "3 years from incident date"}
+RECOVERY DEADLINE: ${ctx.recoveryDeadline ?? "3 years from incident date"}
 
 Draft the letter sections now. Return only the JSON object.`;
 
@@ -551,7 +551,7 @@ export async function generateDemandLetter(recoveryCaseId: number): Promise<{
     wrongedParty: rcRow.wrongedParty,
 
     recoveryCaseId,
-    prescriptionDeadline: rcRow.prescriptionDeadline,
+    recoveryDeadline: rcRow.recoveryDeadline,
   };
 
   // 4. Draft letter content via LLM

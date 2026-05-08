@@ -1,8 +1,8 @@
 // @ts-nocheck
 /**
- * KINGA Subrogation — Prescription Deadline Alert Checker
+ * KINGA Subrogation — Recovery Deadline Alert Checker
  *
- * Runs on server startup and checks for recovery cases where the prescription
+ * Runs on server startup and checks for recovery cases where the recovery
  * deadline is approaching. Sends notifications to the assigned recovery officer
  * (or the insurer admin if no officer is assigned) at:
  *   - 90 days before deadline
@@ -12,7 +12,7 @@
  *   - 7 days before deadline
  *
  * Notifications are sent via the Manus built-in notification system.
- * The last_prescription_alert_sent_at field prevents duplicate alerts within
+ * The last_recovery_deadline_alert_sent_at field prevents duplicate alerts within
  * the same threshold window.
  */
 
@@ -55,7 +55,7 @@ function urgencyEmoji(daysLeft: number): string {
   return "📅";
 }
 
-export async function checkPrescriptionDeadlines(): Promise<void> {
+export async function checkRecoveryDeadlines(): Promise<void> {
   let db: any;
   try {
     db = await getDb();
@@ -68,7 +68,7 @@ export async function checkPrescriptionDeadlines(): Promise<void> {
   const in90Days = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000)
     .toISOString().split("T")[0];
 
-  // Fetch all active recovery cases with a prescription deadline within 90 days
+  // Fetch all active recovery cases with a recovery deadline within 90 days
   const terminalStatuses = ["settled_full", "settled_partial", "closed_no_recovery", "archived"];
 
   let activeCases: any[] = [];
@@ -78,26 +78,26 @@ export async function checkPrescriptionDeadlines(): Promise<void> {
       .from(recoveryCases)
       .where(
         and(
-          lte(recoveryCases.prescriptionDeadline, in90Days),
+          lte(recoveryCases.recoveryDeadline, in90Days),
           notInArray(recoveryCases.status, terminalStatuses)
         )
       );
   } catch (err) {
-    console.error("[PrescriptionAlerts] Failed to query recovery cases:", err);
+    console.error("[RecoveryDeadlineAlerts] Failed to query recovery cases:", err);
     return;
   }
 
   if (activeCases.length === 0) return;
 
-  console.log(`[PrescriptionAlerts] Checking ${activeCases.length} case(s) with approaching prescription deadlines`);
+  console.log(`[RecoveryDeadlineAlerts] Checking ${activeCases.length} case(s) with approaching recovery deadlines`);
 
   for (const rc of activeCases) {
-    if (!rc.prescriptionDeadline) continue;
+    if (!rc.recoveryDeadline) continue;
 
-    const daysLeft = daysUntil(rc.prescriptionDeadline);
+    const daysLeft = daysUntil(rc.recoveryDeadline);
     if (daysLeft < 0) {
       // Already past deadline — send a lapsed alert if not already sent
-      if (!rc.prescriptionWarningIssuedAt) {
+      if (!rc.recoveryDeadlineAlertSentAt) {
         await sendAlert(rc, daysLeft, "LAPSED");
       }
       continue;
@@ -107,13 +107,13 @@ export async function checkPrescriptionDeadlines(): Promise<void> {
     if (!threshold) continue;
 
     // Check if we already sent an alert recently
-    if (rc.prescriptionWarningIssuedAt) {
-      const lastAlertDate = new Date(rc.prescriptionWarningIssuedAt);
+    if (rc.recoveryDeadlineAlertSentAt) {
+      const lastAlertDate = new Date(rc.recoveryDeadlineAlertSentAt);
       const daysSinceLastAlert = Math.floor((today.getTime() - lastAlertDate.getTime()) / (1000 * 60 * 60 * 24));
       if (daysSinceLastAlert < MIN_DAYS_BETWEEN_ALERTS) continue;
 
       // Also skip if the last alert was sent when we were at the same or lower threshold
-      const lastDaysLeft = daysUntil(rc.prescriptionDeadline) + daysSinceLastAlert;
+      const lastDaysLeft = daysUntil(rc.recoveryDeadline) + daysSinceLastAlert;
       const lastThreshold = shouldAlert(lastDaysLeft);
       if (lastThreshold === threshold) continue;
     }
@@ -127,17 +127,17 @@ async function sendAlert(rc: any, daysLeft: number, urgency: string): Promise<vo
   if (!db) return;
 
   const emoji = daysLeft < 0 ? "🔴" : urgencyEmoji(daysLeft);
-  const deadlineStr = new Date(rc.prescriptionDeadline).toLocaleDateString("en-ZA", {
+  const deadlineStr = new Date(rc.recoveryDeadline).toLocaleDateString("en-ZA", {
     day: "2-digit", month: "long", year: "numeric",
   });
 
-  const title = `${emoji} [${urgency}] Prescription Deadline — Recovery Case RC-${rc.id}`;
+  const title = `${emoji} [${urgency}] Recovery Deadline — Recovery Case RC-${rc.id}`;
   const content = [
     `Recovery Case RC-${rc.id} (Claim: ${rc.claimNumber ?? "N/A"}) requires immediate attention.`,
     "",
     daysLeft < 0
-      ? `⚠️ The prescription deadline of ${deadlineStr} has PASSED. Legal action may no longer be possible. Please consult your legal team immediately.`
-      : `The prescription deadline is ${deadlineStr} — ${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining.`,
+      ? `⚠️ The recovery deadline of ${deadlineStr} has PASSED. Legal action may no longer be possible. Please consult your legal team immediately.`
+      : `The recovery deadline is ${deadlineStr} — ${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining.`,
     "",
     `Third Party: ${rc.thirdPartyName ?? "Unknown"}`,
     `Third-Party Insurer: ${rc.thirdPartyInsurer ?? "Unknown"}`,
@@ -154,11 +154,11 @@ async function sendAlert(rc: any, daysLeft: number, urgency: string): Promise<vo
 
     // Update the last alert timestamp
     await db.update(recoveryCases)
-      .set({ prescriptionWarningIssuedAt: new Date().toISOString().replace("T", " ").substring(0, 19) })
+      .set({ recoveryDeadlineAlertSentAt: new Date().toISOString().replace("T", " ").substring(0, 19) })
       .where(eq(recoveryCases.id, rc.id));
 
-    console.log(`[PrescriptionAlerts] Alert sent for RC-${rc.id} (${daysLeft} days left, urgency: ${urgency})`);
+    console.log(`[RecoveryDeadlineAlerts] Alert sent for RC-${rc.id} (${daysLeft} days left, urgency: ${urgency})`);
   } catch (err) {
-    console.error(`[PrescriptionAlerts] Failed to send alert for RC-${rc.id}:`, err);
+    console.error(`[RecoveryDeadlineAlerts] Failed to send alert for RC-${rc.id}:`, err);
   }
 }

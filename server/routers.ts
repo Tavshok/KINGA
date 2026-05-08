@@ -8360,14 +8360,14 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         const totalSettlementAmount = rows.reduce((sum, r) => sum + (r.approvedSettlementAmount ?? 0), 0);
         const recoveryRate = totalSettlementAmount > 0 ? Math.round((totalRecovered / totalSettlementAmount) * 100) : 0;
         const avgRPS = total > 0 ? Math.round(rows.reduce((sum, r) => sum + r.recoveryPotentialScore, 0) / total) : 0;
-        // Prescription warnings: cases with deadline within 90 days
+        // Recovery deadline warnings: cases with deadline within 90 days
         const today = new Date();
         const in90Days = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const prescriptionWarnings = rows.filter(r =>
-          r.prescriptionDeadline && r.prescriptionDeadline <= in90Days &&
+        const approachingDeadlines = rows.filter(r =>
+          r.recoveryDeadline && r.recoveryDeadline <= in90Days &&
           !['settled_full','settled_partial','closed_no_recovery','archived'].includes(r.status)
         ).length;
-        return { total, open, underInvestigation, demandSent, settled, totalRecovered, totalSettlementAmount, recoveryRate, avgRPS, prescriptionWarnings };
+        return { total, open, underInvestigation, demandSent, settled, totalRecovered, totalSettlementAmount, recoveryRate, avgRPS, approachingDeadlines };
       }),
   }),
 });

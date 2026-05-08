@@ -11529,3 +11529,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] generateDemandLetter tRPC procedure added to recovery router
 - [x] prescriptionAlerts.ts — checks approaching prescription deadlines (90/60/30/14/7 days) and sends notifyOwner alerts
 - [x] Prescription alert checker hooked into server startup (15s delay after boot)
+
+
+## Phase 4 — Recovery Portal Live Data and Terminology Cleanup
+- [x] Rename all prescription terminology to Recovery Deadline Tracking across codebase (8 files)
+- [x] Rename prescriptionAlerts.ts to recoveryDeadlineAlerts.ts
+- [x] Rename DB columns prescription_deadline -> recovery_deadline, prescription_warning_issued_at -> recovery_deadline_alert_sent_at
+- [x] Wire Recovery Portal KPI tiles with live trpc.recovery.getKPIs data
+- [x] Wire Recovery Portal case queue cards with live case counts per status
+- [x] Add case list table to Recovery Portal with filters per status tab

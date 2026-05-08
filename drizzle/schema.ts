@@ -4828,8 +4828,8 @@ export const recoveryCases = mysqlTable("recovery_cases", {
   ]).notNull().default('pending_review'),
   investigationReason: text("investigation_reason"),
   investigationExpectedResolutionDate: varchar("investigation_expected_resolution_date", { length: 20 }),
-  prescriptionDeadline: varchar("prescription_deadline", { length: 20 }),
-  prescriptionWarningIssuedAt: varchar("prescription_warning_issued_at", { length: 50 }),
+  recoveryDeadline: varchar("recovery_deadline", { length: 20 }),
+  recoveryDeadlineAlertSentAt: varchar("recovery_deadline_alert_sent_at", { length: 50 }),
   demandLetterSentAt: varchar("demand_letter_sent_at", { length: 50 }),
   demandLetterS3Key: varchar("demand_letter_s3_key", { length: 500 }),
   demandLetterUrl: varchar("demand_letter_url", { length: 1000 }),
@@ -4851,7 +4851,7 @@ export const recoveryCases = mysqlTable("recovery_cases", {
   index("idx_rc_tenant_status").on(table.tenantId, table.status),
   index("idx_rc_assigned_officer").on(table.assignedOfficerUserId),
   index("idx_rc_rps").on(table.recoveryPotentialScore),
-  index("idx_rc_prescription").on(table.prescriptionDeadline),
+  index("idx_rc_recovery_deadline").on(table.recoveryDeadline),
 ]);
 
 export type RecoveryCaseRow = typeof recoveryCases.$inferSelect;

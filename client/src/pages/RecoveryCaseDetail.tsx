@@ -198,16 +198,16 @@ export default function RecoveryCaseDetail() {
           </Button>
         </div>
 
-        {/* Prescription warning */}
-        {caseData.prescriptionDeadline && (() => {
-          const daysLeft = Math.ceil((new Date(caseData.prescriptionDeadline).getTime() - Date.now()) / 86400000);
+        {/* Recovery Deadline warning */}
+        {caseData.recoveryDeadline && (() => {
+          const daysLeft = Math.ceil((new Date(caseData.recoveryDeadline).getTime() - Date.now()) / 86400000);
           if (daysLeft > 90) return null;
           return (
             <div className={`rounded-lg border p-4 flex gap-3 ${daysLeft <= 30 ? "border-rose-500/30 bg-rose-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
               <AlertTriangle className={`h-5 w-5 flex-shrink-0 mt-0.5 ${daysLeft <= 30 ? "text-rose-400" : "text-amber-400"}`} />
               <div className="text-sm">
                 <span className={`font-semibold ${daysLeft <= 30 ? "text-rose-400" : "text-amber-400"}`}>
-                  Prescription deadline: {new Date(caseData.prescriptionDeadline).toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" })}
+                  Recovery deadline: {new Date(caseData.recoveryDeadline).toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" })}
                 </span>
                 <span className="text-muted-foreground ml-2">({daysLeft} day{daysLeft !== 1 ? "s" : ""} remaining)</span>
               </div>
@@ -254,7 +254,7 @@ export default function RecoveryCaseDetail() {
                 <InfoRow label="Expected Resolution Date" value={caseData.investigationExpectedResolutionDate} icon={Calendar} />
                 <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
                   This case is on hold pending liability determination. Update the status to "Open" once liability is confirmed
-                  and third-party details are verified. The prescription clock is still running.
+                  and third-party details are verified. The recovery deadline clock is still running.
                 </div>
               </Section>
             )}
@@ -440,7 +440,7 @@ export default function RecoveryCaseDetail() {
             <div className="rounded-lg border border-border bg-card p-5">
               <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3">Key Dates</h3>
               <InfoRow label="Case Opened" value={new Date(caseData.createdAt).toLocaleDateString("en-ZA")} icon={Calendar} />
-              <InfoRow label="Prescription Deadline" value={caseData.prescriptionDeadline} icon={AlertTriangle} />
+              <InfoRow label="Recovery Deadline" value={caseData.recoveryDeadline} icon={AlertTriangle} />
               <InfoRow label="Demand Sent" value={caseData.demandLetterSentAt} icon={Send} />
               <InfoRow label="Response Due" value={caseData.demandResponseDueDate} icon={Calendar} />
               <InfoRow label="Case Closed" value={caseData.closedAt} icon={Archive} />

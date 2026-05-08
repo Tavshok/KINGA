@@ -17,7 +17,7 @@ import { setupWebSocketServer } from "../websocket";
 import { execSync } from "child_process";
 import { startIntakeEscalationJob } from "../intake-escalation-job";
 import { startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
-import { checkPrescriptionDeadlines } from "../recovery/prescriptionAlerts";
+import { checkRecoveryDeadlines } from "../recovery/recoveryDeadlineAlerts";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -170,10 +170,10 @@ async function startServer() {
     startIntakeEscalationJob();
     // Start stuck assessment recovery job (clears claims stuck in assessment_in_progress)
     startStuckAssessmentRecoveryJob();
-    // Prescription deadline alerts for recovery cases (runs 15s after startup, then daily)
+    // Recovery deadline alerts for recovery cases (runs 15s after startup, then daily)
     setTimeout(() => {
-      checkPrescriptionDeadlines().catch(err =>
-        console.error('[PrescriptionAlerts] Startup check failed:', err)
+      checkRecoveryDeadlines().catch(err =>
+        console.error('[RecoveryDeadlineAlerts] Startup check failed:', err)
       );
     }, 15000);
   });
