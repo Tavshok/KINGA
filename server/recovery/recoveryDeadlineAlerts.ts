@@ -55,6 +55,68 @@ function urgencyEmoji(daysLeft: number): string {
   return "📅";
 }
 
+/**
+ * Event-driven check for a single recovery case.
+ * Call this after any status change or update to a recovery case
+ * so deadline alerts are sent immediately rather than waiting for the next startup.
+ */
+export async function checkSingleCaseDeadline(caseId: number): Promise<void> {
+  let db: any;
+  try {
+    db = await getDb();
+    if (!db) return;
+  } catch {
+    return;
+  }
+
+  const terminalStatuses = ["settled_full", "settled_partial", "closed_no_recovery", "archived"];
+
+  let rows: any[] = [];
+  try {
+    rows = await db
+      .select()
+      .from(recoveryCases)
+      .where(eq(recoveryCases.id, caseId))
+      .limit(1);
+  } catch (err) {
+    console.error(`[RecoveryDeadlineAlerts] Failed to query case ${caseId}:`, err);
+    return;
+  }
+
+  if (rows.length === 0) return;
+  const rc = rows[0];
+
+  // Skip terminal cases — no point alerting on closed/settled/archived
+  if (terminalStatuses.includes(rc.status)) return;
+  if (!rc.recoveryDeadline) return;
+
+  const today = new Date();
+  const daysLeft = daysUntil(rc.recoveryDeadline);
+
+  // Lapsed deadline
+  if (daysLeft < 0) {
+    if (!rc.recoveryDeadlineAlertSentAt) {
+      await sendAlert(rc, daysLeft, "LAPSED");
+    }
+    return;
+  }
+
+  const threshold = shouldAlert(daysLeft);
+  if (!threshold) return;
+
+  // Avoid duplicate alerts within the same threshold window
+  if (rc.recoveryDeadlineAlertSentAt) {
+    const lastAlertDate = new Date(rc.recoveryDeadlineAlertSentAt);
+    const daysSinceLastAlert = Math.floor((today.getTime() - lastAlertDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysSinceLastAlert < MIN_DAYS_BETWEEN_ALERTS) return;
+    const lastDaysLeft = daysLeft + daysSinceLastAlert;
+    const lastThreshold = shouldAlert(lastDaysLeft);
+    if (lastThreshold === threshold) return;
+  }
+
+  await sendAlert(rc, daysLeft, urgencyLabel(daysLeft));
+}
+
 export async function checkRecoveryDeadlines(): Promise<void> {
   let db: any;
   try {

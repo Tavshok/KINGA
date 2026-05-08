@@ -1,0 +1,26 @@
+{
+  "query": "SHOW COLUMNS FROM recovery_cases WHERE Field LIKE '%deadline%' OR Field LIKE '%prescription%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW COLUMNS FROM recovery_cases WHERE Field LIKE '%deadline%' OR Field LIKE '%prescription%';",
+  "rows": [
+    {
+      "Field": "recovery_deadline",
+      "Type": "varchar(20)",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "recovery_deadline_alert_sent_at",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nrecovery_deadline\tvarchar(20)\tYES\tMUL\tNULL\t\nrecovery_deadline_alert_sent_at\tvarchar(50)\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 302
+}

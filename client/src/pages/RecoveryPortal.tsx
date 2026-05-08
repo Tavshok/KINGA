@@ -13,7 +13,7 @@ const STATUS_CARDS = [
   { label: "Under Investigation",  tab: "investigation",     dbStatus: "under_investigation",icon: Search,        color: "text-amber-400",   bg: "bg-amber-500/10",   description: "Liability not yet determined" },
   { label: "Open Cases",           tab: "open",              dbStatus: "open",               icon: Activity,      color: "text-teal-400",    bg: "bg-teal-500/10",    description: "Ready for demand action" },
   { label: "Demand Sent",          tab: "demand-sent",       dbStatus: "demand_sent",        icon: Send,          color: "text-violet-400",  bg: "bg-violet-500/10",  description: "Awaiting third-party response" },
-  { label: "Disputed / Legal",     tab: "legal",             dbStatus: "legal",              icon: Gavel,         color: "text-rose-400",    bg: "bg-rose-500/10",    description: "In dispute or referred to attorneys" },
+  { label: "Disputed / Legal",     tab: "legal",             dbStatus: "disputed_legal",     icon: Gavel,         color: "text-rose-400",    bg: "bg-rose-500/10",    description: "In dispute or referred to attorneys" },
   { label: "Settled",              tab: "settled",           dbStatus: "settled_full",       icon: CheckSquare,   color: "text-emerald-400", bg: "bg-emerald-500/10", description: "Full or partial recovery achieved" },
   { label: "Archived",             tab: "archived",          dbStatus: "archived",           icon: Archive,       color: "text-slate-400",   bg: "bg-slate-500/10",   description: "Low-RPS cases not actioned" },
 ];
@@ -40,13 +40,13 @@ export default function RecoveryPortal() {
 
   // Per-status counts derived from KPIs
   const statusCounts: Record<string, number> = {
-    pending:       kpis ? (kpis.total - kpis.open - kpis.underInvestigation - kpis.demandSent - kpis.settled) : 0,
+    pending:       kpis?.pendingReview ?? 0,
     investigation: kpis?.underInvestigation ?? 0,
     open:          kpis?.open ?? 0,
     "demand-sent": kpis?.demandSent ?? 0,
-    legal:         0, // not separately tracked in KPIs yet
+    legal:         kpis?.disputedLegal ?? 0,
     settled:       kpis?.settled ?? 0,
-    archived:      0,
+    archived:      kpis?.archived ?? 0,
   };
 
   const cases = casesData ?? [];

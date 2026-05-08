@@ -8287,6 +8287,10 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           updateData.closedAt = new Date().toISOString().replace('T',' ').substring(0,19);
         }
         await db.update(recoveryCases).set(updateData).where(eq(recoveryCases.id, input.id));
+        // Event-driven deadline check: fire immediately after any case update
+        checkSingleCaseDeadline(input.id).catch(err =>
+          console.error(`[RecoveryDeadlineAlerts] Event-driven check failed for RC-${input.id}:`, err)
+        );
         return { success: true };
       }),
 
@@ -8352,10 +8356,13 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           .from(recoveryCases)
           .where(eq(recoveryCases.tenantId, tenantId));
         const total = rows.length;
+        const pendingReview = rows.filter(r => r.status === 'pending_review').length;
         const open = rows.filter(r => r.status === 'open').length;
         const underInvestigation = rows.filter(r => r.status === 'under_investigation').length;
         const demandSent = rows.filter(r => r.status === 'demand_sent').length;
+        const disputedLegal = rows.filter(r => r.status === 'disputed_legal').length;
         const settled = rows.filter(r => r.status === 'settled_full' || r.status === 'settled_partial').length;
+        const archived = rows.filter(r => r.status === 'archived').length;
         const totalRecovered = rows.reduce((sum, r) => sum + (r.recoveredAmount ?? 0), 0);
         const totalSettlementAmount = rows.reduce((sum, r) => sum + (r.approvedSettlementAmount ?? 0), 0);
         const recoveryRate = totalSettlementAmount > 0 ? Math.round((totalRecovered / totalSettlementAmount) * 100) : 0;
@@ -8367,7 +8374,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           r.recoveryDeadline && r.recoveryDeadline <= in90Days &&
           !['settled_full','settled_partial','closed_no_recovery','archived'].includes(r.status)
         ).length;
-        return { total, open, underInvestigation, demandSent, settled, totalRecovered, totalSettlementAmount, recoveryRate, avgRPS, approachingDeadlines };
+        return { total, pendingReview, open, underInvestigation, demandSent, disputedLegal, settled, archived, totalRecovered, totalSettlementAmount, recoveryRate, avgRPS, approachingDeadlines };
       }),
   }),
 });

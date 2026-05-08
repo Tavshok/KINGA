@@ -11538,3 +11538,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Wire Recovery Portal KPI tiles with live trpc.recovery.getKPIs data
 - [x] Wire Recovery Portal case queue cards with live case counts per status
 - [x] Add case list table to Recovery Portal with filters per status tab
+
+## Phase 5 — Legal Status & Event-Driven Deadline Tracking
+- [x] Fix Disputed/Legal queue card dbStatus mapping (legal -> disputed_legal)
+- [x] Add pendingReview, disputedLegal, archived counts to getKPIs return
+- [x] Add checkSingleCaseDeadline() export to recoveryDeadlineAlerts.ts
+- [x] Wire event-driven deadline check into updateCase mutation (fires on every case update)
+- [x] Import checkSingleCaseDeadline in routers.ts
