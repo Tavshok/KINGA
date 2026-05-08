@@ -432,6 +432,52 @@ export default function RecoveryCaseDetail() {
           );
         })()}
 
+        {/* Repeat Offender Warning Banner */}
+        {caseData.isRepeatOffender && (
+          <div className="flex items-start gap-4 p-4 rounded-lg border border-rose-500/40 bg-rose-500/10">
+            <div className="p-2 rounded-lg bg-rose-500/20 flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-rose-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-semibold text-rose-400 uppercase tracking-wide">Repeat Offender Detected</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  {caseData.priorCaseCount} prior {caseData.priorCaseCount === 1 ? 'case' : 'cases'}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                The third party in this recovery case — 
+                <span className="font-medium text-foreground">
+                  {caseData.thirdPartyName ?? caseData.thirdPartyRegistration ?? "Unknown"}
+                </span>
+                 — has been identified in 
+                <span className="font-medium text-rose-300">{caseData.priorCaseCount} previous recovery {caseData.priorCaseCount === 1 ? 'case' : 'cases'}</span> 
+                under this insurer. This pattern may indicate a high-risk or fraudulent third party.
+                Recovery officers should review prior cases and consider escalating to legal if a pattern of non-cooperation is established.
+              </p>
+              {caseData.priorCaseIds && (() => {
+                try {
+                  const ids: number[] = JSON.parse(caseData.priorCaseIds as string);
+                  if (!ids.length) return null;
+                  return (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Prior case IDs:</span>
+                      {ids.map((pid) => (
+                        <button
+                          key={pid}
+                          onClick={() => navigate(`/insurer-portal/recovery/${pid}`)}
+                          className="text-xs font-mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 transition-colors cursor-pointer"
+                        >
+                          #{pid}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                } catch { return null; }
+              })()}
+            </div>
+          </div>
+        )}
         {/* Main grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Left column — claim & third-party details */}

@@ -11567,3 +11567,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Repeat offender detection logic added to recoveryTrigger.ts (checks by registration + name)
 - [x] Both archived and main case inserts include repeat offender fields
 - [x] Console log updated to flag REPEAT OFFENDER cases
+
+## Phase 8 — Repeat Offender UI & Recovery Portal Filter
+
+- [x] Repeat offender warning banner on Recovery Case Detail page (rose-coloured, shows prior case count, links to prior cases)
+- [x] Repeat Offenders filter chip on Recovery Portal case queue (toggleable, rose-coloured when active)
+- [x] Repeat offender badge on each case card in the queue list
+- [x] getCases tRPC procedure extended with repeatOffendersOnly filter
+- [x] Fixed boolean() -> tinyint() in schema.ts for is_repeat_offender column (MySQL compatibility)
+- [x] Fixed eq(isRepeatOffender, true) -> eq(isRepeatOffender, 1) in routers.ts

@@ -8171,6 +8171,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
       .input(z.object({
         status: z.string().optional(),
         assignedToMe: z.boolean().optional(),
+        repeatOffendersOnly: z.boolean().optional(),
         page: z.number().min(1).default(1),
         pageSize: z.number().min(1).max(100).default(20),
       }).optional())
@@ -8190,6 +8191,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         const conditions = [eq(recoveryCases.tenantId, tenantId)];
         if (input?.status) conditions.push(eq(recoveryCases.status, input.status as any));
         if (input?.assignedToMe) conditions.push(eq(recoveryCases.assignedOfficerUserId, user.id));
+        if (input?.repeatOffendersOnly) conditions.push(eq(recoveryCases.isRepeatOffender, 1));
         const rows = await db
           .select()
           .from(recoveryCases)

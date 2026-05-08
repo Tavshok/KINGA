@@ -4845,7 +4845,7 @@ export const recoveryCases = mysqlTable("recovery_cases", {
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
   closedAt: varchar("closed_at", { length: 50 }),
   // Repeat offender detection
-  isRepeatOffender: boolean("is_repeat_offender").default(false).notNull(),
+  isRepeatOffender: tinyint("is_repeat_offender").default(0).notNull(),
   priorCaseCount: int("prior_case_count").default(0).notNull(),
   priorCaseIds: text("prior_case_ids"), // JSON array of prior recovery_cases IDs
 }, (table) => [

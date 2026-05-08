@@ -26,6 +26,7 @@ export default function RecoveryPortal() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [repeatOffendersOnly, setRepeatOffendersOnly] = useState(false);
 
   // Live KPI data
   const { data: kpis, isLoading: kpisLoading, refetch: refetchKPIs } = trpc.recovery.getKPIs.useQuery(undefined, {
@@ -34,7 +35,12 @@ export default function RecoveryPortal() {
 
   // Live case list for the selected status tab
   const { data: casesData, isLoading: casesLoading } = trpc.recovery.getCases.useQuery(
-    activeTab ? { status: STATUS_CARDS.find(c => c.tab === activeTab)?.dbStatus, page: 1, pageSize: 10 } : { page: 1, pageSize: 10 },
+    {
+      ...(activeTab ? { status: STATUS_CARDS.find(c => c.tab === activeTab)?.dbStatus } : {}),
+      ...(repeatOffendersOnly ? { repeatOffendersOnly: true } : {}),
+      page: 1,
+      pageSize: 20,
+    },
     { enabled: true, refetchInterval: 60_000 }
   );
 
@@ -175,11 +181,26 @@ export default function RecoveryPortal() {
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               {activeTab ? `${STATUS_CARDS.find(c => c.tab === activeTab)?.label} Cases` : "Recent Cases"}
             </h2>
-            {activeTab && (
-              <button onClick={() => setActiveTab(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                Clear filter
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Repeat Offenders filter chip */}
+              <button
+                onClick={() => setRepeatOffendersOnly(v => !v)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  repeatOffendersOnly
+                    ? "bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30"
+                    : "bg-transparent text-muted-foreground border-border hover:border-rose-500/40 hover:text-rose-300"
+                }`}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Repeat Offenders
+                {repeatOffendersOnly && <span className="ml-0.5">×</span>}
               </button>
-            )}
+              {activeTab && (
+                <button onClick={() => setActiveTab(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  Clear queue filter
+                </button>
+              )}
+            </div>
           </div>
 
           {casesLoading ? (
@@ -220,6 +241,12 @@ export default function RecoveryPortal() {
                         {rc.wrongedParty === "insured" && (
                           <Badge variant="outline" className="text-xs text-emerald-400 border-emerald-500/30">
                             Insured wronged
+                          </Badge>
+                        )}
+                        {rc.isRepeatOffender && (
+                          <Badge variant="outline" className="text-xs text-rose-400 border-rose-500/30 gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Repeat offender
                           </Badge>
                         )}
                       </div>
