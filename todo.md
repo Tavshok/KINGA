@@ -11616,3 +11616,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] getThirdPartyProfiles tRPC procedure: aggregate third-party individuals/insurers with case counts, total quantum, status breakdown
 - [x] Third-Party Profiles page: searchable directory with case history and insurer associations
 - [x] Register /insurer-portal/recovery/third-party-profiles route in App.tsx
+
+## Phase 13 — Correspondence Log Tab
+- [x] Add recovery_correspondence_log table to drizzle/schema.ts
+- [x] Push DB migration via webdev_execute_sql
+- [x] Add getCorrespondenceLog and addCorrespondenceEntry tRPC procedures
+- [x] Auto-log entries when demand letter is generated and when status changes to demand_sent
+- [x] Build Correspondence Log tab on Recovery Case Detail page

@@ -22,6 +22,7 @@ import {
   Search, Activity, ClipboardList, AlertTriangle, Car, Phone,
   Building2, Hash, Calendar, DollarSign, User, MapPin, FileDown,
   Loader2, RefreshCw, Shield, TrendingUp, CreditCard, XCircle,
+  MessageSquare, PlusCircle, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
@@ -87,6 +88,13 @@ export default function RecoveryCaseDetail() {
   const [settlementNotes, setSettlementNotes] = useState("");
   const [demandSentModal, setDemandSentModal] = useState(false);
   const [demandResponseDue, setDemandResponseDue] = useState("");
+  // Correspondence log
+  const [showCorrespondenceLog, setShowCorrespondenceLog] = useState(false);
+  const [newNoteType, setNewNoteType] = useState<string>("case_note");
+  const [newNoteSubject, setNewNoteSubject] = useState("");
+  const [newNoteBody, setNewNoteBody] = useState("");
+  const [newNoteAmount, setNewNoteAmount] = useState("");
+  const [isAddingNote, setIsAddingNote] = useState(false);
 
   const { data: caseData, isLoading, refetch } = trpc.recovery.getCase.useQuery(
     { id: caseId },
@@ -115,6 +123,27 @@ export default function RecoveryCaseDetail() {
     onError: (err) => {
       toast({ title: "Generation failed", description: err.message, variant: "destructive" });
       setIsGeneratingLetter(false);
+    },
+  });
+
+  // Correspondence log query and mutation
+  const { data: correspondenceLog, refetch: refetchLog } = trpc.recovery.getCorrespondenceLog.useQuery(
+    { caseId },
+    { enabled: caseId > 0 && showCorrespondenceLog }
+  );
+  const addCorrespondenceEntry = trpc.recovery.addCorrespondenceEntry.useMutation({
+    onSuccess: () => {
+      toast({ title: "Entry added", description: "Correspondence log updated." });
+      setIsAddingNote(false);
+      setNewNoteSubject("");
+      setNewNoteBody("");
+      setNewNoteAmount("");
+      setNewNoteType("case_note");
+      refetchLog();
+    },
+    onError: (err) => {
+      toast({ title: "Failed to add entry", description: err.message, variant: "destructive" });
+      setIsAddingNote(false);
     },
   });
 
@@ -827,6 +856,168 @@ export default function RecoveryCaseDetail() {
               <InfoRow label="Response Due" value={caseData.demandResponseDueDate} icon={Calendar} />
               <InfoRow label="Case Closed" value={caseData.closedAt} icon={Archive} />
             </div>
+          </div>
+        </div>
+
+        {/* ── Correspondence Log ─────────────────────────────────────── */}
+        <div className="mx-6 mb-6">
+          <div className="rounded-lg border border-border bg-card">
+            <button
+              className="w-full flex items-center justify-between px-5 py-4 text-left"
+              onClick={() => setShowCorrespondenceLog(v => !v)}
+            >
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold text-foreground uppercase tracking-wider">Correspondence Log</span>
+                {correspondenceLog && correspondenceLog.length > 0 && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                    {correspondenceLog.length}
+                  </span>
+                )}
+              </div>
+              {showCorrespondenceLog ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </button>
+
+            {showCorrespondenceLog && (
+              <div className="px-5 pb-5 space-y-4 border-t border-border">
+                {/* Add new entry form */}
+                <div className="pt-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <PlusCircle className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Add Entry</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Entry Type</label>
+                      <Select value={newNoteType} onValueChange={setNewNoteType}>
+                        <SelectTrigger className="text-xs h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="case_note">Case Note</SelectItem>
+                          <SelectItem value="demand_letter_sent">Demand Letter Sent</SelectItem>
+                          <SelectItem value="response_received">Response Received</SelectItem>
+                          <SelectItem value="follow_up_sent">Follow-up Sent</SelectItem>
+                          <SelectItem value="legal_escalation">Legal Escalation</SelectItem>
+                          <SelectItem value="settlement_offer">Settlement Offer</SelectItem>
+                          <SelectItem value="settlement_accepted">Settlement Accepted</SelectItem>
+                          <SelectItem value="settlement_rejected">Settlement Rejected</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Subject</label>
+                      <Input
+                        value={newNoteSubject}
+                        onChange={(e) => setNewNoteSubject(e.target.value)}
+                        placeholder="Brief subject…"
+                        className="text-xs h-8"
+                      />
+                    </div>
+                  </div>
+                  {(newNoteType === "settlement_offer" || newNoteType === "settlement_accepted") && (
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Amount ({caseData.currencyCode ?? "ZAR"})</label>
+                      <Input
+                        type="number"
+                        value={newNoteAmount}
+                        onChange={(e) => setNewNoteAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="text-xs h-8"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Notes</label>
+                    <Textarea
+                      value={newNoteBody}
+                      onChange={(e) => setNewNoteBody(e.target.value)}
+                      placeholder="Describe what happened, what was said, or any relevant details…"
+                      rows={3}
+                      className="text-xs resize-none"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="gap-2"
+                    disabled={isAddingNote || (!newNoteSubject && !newNoteBody)}
+                    onClick={() => {
+                      setIsAddingNote(true);
+                      addCorrespondenceEntry.mutate({
+                        caseId,
+                        entryType: newNoteType as any,
+                        subject: newNoteSubject || undefined,
+                        body: newNoteBody || undefined,
+                        amountCents: newNoteAmount ? Math.round(parseFloat(newNoteAmount) * 100) : undefined,
+                        currencyCode: caseData.currencyCode ?? "ZAR",
+                      });
+                    }}
+                  >
+                    {isAddingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlusCircle className="h-3.5 w-3.5" />}
+                    Add Entry
+                  </Button>
+                </div>
+
+                {/* Log entries */}
+                {!correspondenceLog || correspondenceLog.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground">
+                    No correspondence entries yet. Add the first entry above.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {correspondenceLog.map((entry) => {
+                      const ENTRY_TYPE_META: Record<string, { label: string; color: string; bg: string }> = {
+                        demand_letter_generated: { label: "Letter Generated", color: "text-violet-400", bg: "bg-violet-500/10" },
+                        demand_letter_sent:      { label: "Letter Sent",      color: "text-violet-400", bg: "bg-violet-500/10" },
+                        response_received:       { label: "Response Received",color: "text-teal-400",   bg: "bg-teal-500/10" },
+                        follow_up_sent:          { label: "Follow-up Sent",   color: "text-blue-400",   bg: "bg-blue-500/10" },
+                        legal_escalation:        { label: "Legal Escalation", color: "text-rose-400",   bg: "bg-rose-500/10" },
+                        settlement_offer:        { label: "Settlement Offer", color: "text-amber-400",  bg: "bg-amber-500/10" },
+                        settlement_accepted:     { label: "Settled",          color: "text-emerald-400",bg: "bg-emerald-500/10" },
+                        settlement_rejected:     { label: "Rejected",         color: "text-rose-400",   bg: "bg-rose-500/10" },
+                        case_note:               { label: "Note",             color: "text-slate-400",  bg: "bg-slate-500/10" },
+                        status_change:           { label: "Status Change",    color: "text-blue-400",   bg: "bg-blue-500/10" },
+                        recovery_target_changed: { label: "Target Changed",   color: "text-amber-400",  bg: "bg-amber-500/10" },
+                        system_event:            { label: "System",           color: "text-slate-400",  bg: "bg-slate-500/10" },
+                      };
+                      const meta = ENTRY_TYPE_META[entry.entryType] ?? { label: entry.entryType, color: "text-slate-400", bg: "bg-slate-500/10" };
+                      return (
+                        <div key={entry.id} className="flex gap-3 py-3 border-b border-border/50 last:border-0">
+                          <div className="flex-shrink-0 mt-0.5">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${meta.bg} ${meta.color}`}>
+                              {meta.label}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            {entry.subject && <div className="text-sm font-medium text-foreground">{entry.subject}</div>}
+                            {entry.body && <div className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">{entry.body}</div>}
+                            {entry.amountCents && (
+                              <div className="text-xs text-emerald-400 mt-0.5 font-medium">
+                                {entry.currencyCode} {(entry.amountCents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}
+                              </div>
+                            )}
+                            {entry.attachmentUrl && (
+                              <a href={entry.attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-violet-400 hover:underline mt-0.5">
+                                <FileDown className="h-3 w-3" /> View attachment
+                              </a>
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-muted-foreground">{entry.createdAt}</span>
+                              {entry.actorName && (
+                                <span className="text-xs text-muted-foreground">· {entry.actorName}</span>
+                              )}
+                              {entry.actorRole && (
+                                <span className="text-xs text-muted-foreground/60">({entry.actorRole.replace(/_/g, ' ')})</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

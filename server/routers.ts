@@ -27,7 +27,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
 import { parsePhysicsAnalysis } from "./types/physics-validation";
-import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments, recoveryCases } from "../drizzle/schema";
+import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments, recoveryCases, recoveryCorrespondenceLog } from "../drizzle/schema";
 import { eq, and, desc, asc, inArray, notInArray, gt, gte, lte, or, sql, count, avg, isNotNull } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
@@ -8291,14 +8291,38 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         if (input.status && ['settled_full','settled_partial','closed_no_recovery','archived'].includes(input.status)) {
           updateData.closedAt = new Date().toISOString().replace('T',' ').substring(0,19);
         }
-        await db.update(recoveryCases).set(updateData).where(eq(recoveryCases.id, input.id));
+         await db.update(recoveryCases).set(updateData).where(eq(recoveryCases.id, input.id));
+        // Auto-log status change
+        const now = new Date().toISOString().replace('T',' ').substring(0,19);
+        const actorName = (user as any).name ?? (user as any).email ?? 'Unknown';
+        const actorRole = (user as any).insurerRole ?? user.role ?? 'user';
+        if (input.status) {
+          db.insert(recoveryCorrespondenceLog).values({
+            recoveryCaseId: input.id, tenantId,
+            entryType: 'status_change',
+            actorId: user.id.toString(), actorName, actorRole,
+            subject: `Status changed to ${input.status.replace(/_/g,' ')}`,
+            body: input.officerNotes ?? null,
+            toStatus: input.status,
+            createdAt: now,
+          }).catch(() => {});
+        }
+        if (input.recoveryTarget) {
+          db.insert(recoveryCorrespondenceLog).values({
+            recoveryCaseId: input.id, tenantId,
+            entryType: 'recovery_target_changed',
+            actorId: user.id.toString(), actorName, actorRole,
+            subject: `Recovery target changed to ${input.recoveryTarget}`,
+            toTarget: input.recoveryTarget,
+            createdAt: now,
+          }).catch(() => {});
+        }
         // Event-driven deadline check: fire immediately after any case update
         checkSingleCaseDeadline(input.id).catch(err =>
           console.error(`[RecoveryDeadlineAlerts] Event-driven check failed for RC-${input.id}:`, err)
         );
         return { success: true };
       }),
-
     /**
      * Assign a recovery case to a recovery officer.
      */
@@ -8341,6 +8365,18 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           throw new TRPCError({ code: 'BAD_REQUEST', message: `Cannot generate demand letter for a case in '${rcRow.status}' status. Move the case to 'Open' first.` });
         }
         const result = await generateDemandLetter(input.id);
+        // Auto-log demand letter generation
+        const now = new Date().toISOString().replace('T',' ').substring(0,19);
+        db.insert(recoveryCorrespondenceLog).values({
+          recoveryCaseId: input.id, tenantId,
+          entryType: 'demand_letter_generated',
+          actorId: user.id.toString(),
+          actorName: (user as any).name ?? (user as any).email ?? 'Unknown',
+          actorRole: (user as any).insurerRole ?? user.role ?? 'user',
+          subject: 'Demand letter generated',
+          attachmentUrl: result.downloadUrl,
+          createdAt: now,
+        }).catch(() => {});
         return { downloadUrl: result.downloadUrl, s3Key: result.s3Key };
       }),
     /**
@@ -8673,10 +8709,72 @@ If any value is not found, use null or 0. Line items category must be one of: pa
               inArray(recoveryCases.id, input.ids)
             )
           )
-          .orderBy(recoveryCases.createdAt);
+           .orderBy(recoveryCases.createdAt);
         return rows;
+      }),
+
+    // ── Correspondence Log ──────────────────────────────────────────────────
+    getCorrespondenceLog: protectedProcedure
+      .input(z.object({ caseId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        const tenantId = (ctx.user as any).tenantId ?? ctx.user.id.toString();
+        const rows = await db
+          .select()
+          .from(recoveryCorrespondenceLog)
+          .where(
+            and(
+              eq(recoveryCorrespondenceLog.recoveryCaseId, input.caseId),
+              eq(recoveryCorrespondenceLog.tenantId, tenantId)
+            )
+          )
+          .orderBy(desc(recoveryCorrespondenceLog.createdAt));
+        return rows;
+      }),
+
+    addCorrespondenceEntry: protectedProcedure
+      .input(z.object({
+        caseId:        z.number(),
+        entryType:     z.enum([
+          "demand_letter_generated", "demand_letter_sent", "response_received",
+          "follow_up_sent", "legal_escalation", "settlement_offer",
+          "settlement_accepted", "settlement_rejected", "case_note",
+          "status_change", "recovery_target_changed", "system_event",
+        ]).default("case_note"),
+        subject:       z.string().max(255).optional(),
+        body:          z.string().optional(),
+        attachmentUrl: z.string().max(1024).optional(),
+        fromStatus:    z.string().optional(),
+        toStatus:      z.string().optional(),
+        fromTarget:    z.string().optional(),
+        toTarget:      z.string().optional(),
+        amountCents:   z.number().int().optional(),
+        currencyCode:  z.string().max(8).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        const tenantId = (ctx.user as any).tenantId ?? ctx.user.id.toString();
+        const now = new Date().toISOString().replace("T", " ").substring(0, 19);
+        await db.insert(recoveryCorrespondenceLog).values({
+          recoveryCaseId: input.caseId,
+          tenantId,
+          entryType:     input.entryType,
+          actorId:       ctx.user.id.toString(),
+          actorName:     ctx.user.name ?? ctx.user.email ?? "Unknown",
+          actorRole:     (ctx.user as any).insurerRole ?? ctx.user.role ?? "user",
+          subject:       input.subject ?? null,
+          body:          input.body ?? null,
+          attachmentUrl: input.attachmentUrl ?? null,
+          fromStatus:    input.fromStatus ?? null,
+          toStatus:      input.toStatus ?? null,
+          fromTarget:    input.fromTarget ?? null,
+          toTarget:      input.toTarget ?? null,
+          amountCents:   input.amountCents ?? null,
+          currencyCode:  input.currencyCode ?? "ZAR",
+          createdAt:     now,
+        });
+        return { success: true };
       }),
   }),
 });
-
 export type AppRouter = typeof appRouter;

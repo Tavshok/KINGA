@@ -4876,3 +4876,57 @@ export const recoveryCases = mysqlTable("recovery_cases", {
 
 export type RecoveryCaseRow = typeof recoveryCases.$inferSelect;
 export type InsertRecoveryCase = typeof recoveryCases.$inferInsert;
+
+// ─── Recovery Correspondence Log ──────────────────────────────────────────────
+export const recoveryCorrespondenceLog = mysqlTable("recovery_correspondence_log", {
+  id:             int("id").autoincrement().primaryKey(),
+  recoveryCaseId: int("recovery_case_id").notNull(),
+  tenantId:       varchar("tenant_id", { length: 64 }).notNull(),
+
+  // Entry classification
+  entryType: mysqlEnum("entry_type", [
+    "demand_letter_generated",
+    "demand_letter_sent",
+    "response_received",
+    "follow_up_sent",
+    "legal_escalation",
+    "settlement_offer",
+    "settlement_accepted",
+    "settlement_rejected",
+    "case_note",
+    "status_change",
+    "recovery_target_changed",
+    "system_event",
+  ]).notNull().default("case_note"),
+
+  // Who did it
+  actorId:   varchar("actor_id", { length: 64 }),
+  actorName: varchar("actor_name", { length: 128 }),
+  actorRole: varchar("actor_role", { length: 64 }),
+
+  // Content
+  subject:       varchar("subject", { length: 255 }),
+  body:          text("body"),
+  attachmentUrl: varchar("attachment_url", { length: 1024 }),
+
+  // For status-change entries
+  fromStatus: varchar("from_status", { length: 64 }),
+  toStatus:   varchar("to_status", { length: 64 }),
+
+  // For recovery-target-changed entries
+  fromTarget: varchar("from_target", { length: 32 }),
+  toTarget:   varchar("to_target", { length: 32 }),
+
+  // For monetary entries (settlement offers etc.)
+  amountCents:  int("amount_cents"),
+  currencyCode: varchar("currency_code", { length: 8 }).default("ZAR"),
+
+  createdAt: varchar("created_at", { length: 32 }).notNull(),
+}, (table) => [
+  index("idx_rcl_case_id").on(table.recoveryCaseId),
+  index("idx_rcl_tenant_id").on(table.tenantId),
+  index("idx_rcl_created_at").on(table.createdAt),
+]);
+
+export type RecoveryCorrespondenceLogRow = typeof recoveryCorrespondenceLog.$inferSelect;
+export type InsertRecoveryCorrespondenceLog = typeof recoveryCorrespondenceLog.$inferInsert;
