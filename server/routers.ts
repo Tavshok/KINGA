@@ -67,6 +67,7 @@ import {
 } from "./db";
 import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
+import { generateDemandLetter } from "./recovery/demandLetterGenerator";
 import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted, notifyFraudDetected } from "./notifications";
 import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
@@ -8309,6 +8310,30 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         return { success: true };
       }),
 
+    /**
+     * Generate an AI demand letter on insurer letterhead for a recovery case.
+     * Returns a presigned S3 URL to the draft PDF.
+     */
+    generateDemandLetter: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        const allowedRoles = ['recovery_officer','claims_manager','insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only recovery officers, claims managers, or admins can generate demand letters' });
+        }
+        const [rcRow] = await db.select().from(recoveryCases).where(and(eq(recoveryCases.id, input.id), eq(recoveryCases.tenantId, tenantId))).limit(1);
+        if (!rcRow) throw new TRPCError({ code: 'NOT_FOUND', message: 'Recovery case not found' });
+        const allowedStatuses = ['open','demand_sent','pending_review'];
+        if (!allowedStatuses.includes(rcRow.status)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `Cannot generate demand letter for a case in '${rcRow.status}' status. Move the case to 'Open' first.` });
+        }
+        const result = await generateDemandLetter(input.id);
+        return { downloadUrl: result.downloadUrl, s3Key: result.s3Key };
+      }),
     /**
      * Get recovery KPIs for the current insurer tenant.
      */

@@ -11521,3 +11521,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] recovery router added to appRouter with getCases, getCase, updateCase, assignCase, getKPIs
 - [x] recoveryCases imported into routers.ts
 - [x] Subrogation Recovery section added to Claims Manager navigation
+
+## Phase 3 — Recovery Case Detail, Demand Letter, Prescription Alerts
+- [x] RecoveryCaseDetail page (/insurer-portal/recovery/:id) with full case view, status update, and demand letter button
+- [x] RecoveryCaseDetail route added to App.tsx
+- [x] demandLetterGenerator.ts — LLM drafts letter sections, rendered as HTML-to-PDF on insurer letterhead, stored in S3
+- [x] generateDemandLetter tRPC procedure added to recovery router
+- [x] prescriptionAlerts.ts — checks approaching prescription deadlines (90/60/30/14/7 days) and sends notifyOwner alerts
+- [x] Prescription alert checker hooked into server startup (15s delay after boot)
