@@ -11545,3 +11545,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add checkSingleCaseDeadline() export to recoveryDeadlineAlerts.ts
 - [x] Wire event-driven deadline check into updateCase mutation (fires on every case update)
 - [x] Import checkSingleCaseDeadline in routers.ts
+
+## Phase 6 — Recovery Action Buttons & Sidebar Badge
+- [x] Quick-action buttons bar on Recovery Case Detail page (Mark Demand Sent, Record Settlement, Escalate to Legal, Close No Recovery)
+- [x] Live count badge on Recovery Queue and Recovery Dashboard sidebar nav items
+- [x] Badge shows open + pending review count (teal) from getKPIs query
+- [x] Badge only shown for recovery_officer, claims_manager, insurer_admin roles
+- [x] Badge auto-refreshes every 5 minutes

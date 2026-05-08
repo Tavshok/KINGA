@@ -8,6 +8,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -44,6 +45,7 @@ type NavItem = {
   href: string;
   icon: React.ElementType;
   description: string;
+  badgeKey?: "recoveryOpen" | "recoveryDeadline";
 };
 
 type NavSection = {
@@ -87,7 +89,7 @@ const navByRole: Record<string, NavSection[]> = {
     {
       title: "Subrogation Recovery",
       items: [
-        { label: "Recovery Queue", description: "Cases eligible for third-party recovery", href: "/insurer-portal/recovery", icon: Scale },
+        { label: "Recovery Queue", description: "Cases eligible for third-party recovery", href: "/insurer-portal/recovery", icon: Scale, badgeKey: "recoveryOpen" as const },
         { label: "Under Investigation", description: "Cases pending liability determination", href: "/insurer-portal/recovery?status=under_investigation", icon: Search },
       ],
     },
@@ -223,7 +225,7 @@ const navByRole: Record<string, NavSection[]> = {
     {
       title: "Overview",
       items: [
-        { label: "Recovery Dashboard", description: "Queue overview and KPIs", href: "/insurer-portal/recovery", icon: LayoutDashboard },
+        { label: "Recovery Dashboard", description: "Queue overview and KPIs", href: "/insurer-portal/recovery", icon: LayoutDashboard, badgeKey: "recoveryOpen" as const },
       ],
     },
     {
@@ -345,6 +347,18 @@ export default function InsurerPortalLayout({
   const visibleSections: NavSection[] = (derivedRole ? navByRole[derivedRole] : undefined) ?? defaultNav;
   const badge = ROLE_BADGE[derivedRole];
 
+  // Live recovery badge — only fetch for roles with recovery access
+  const hasRecoveryAccess = ["recovery_officer", "claims_manager", "insurer_admin"].includes(derivedRole);
+  const { data: recoveryKpis } = trpc.recovery.getKPIs.useQuery(undefined, {
+    enabled: hasRecoveryAccess,
+    refetchInterval: 5 * 60 * 1000,
+    staleTime: 4 * 60 * 1000,
+  });
+  const recoveryBadgeCounts: Record<string, number> = {
+    recoveryOpen: recoveryKpis ? ((recoveryKpis as any).open ?? 0) + ((recoveryKpis as any).pendingReview ?? 0) : 0,
+    recoveryDeadline: (recoveryKpis as any)?.approachingDeadline ?? 0,
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-background">
       {/* ── Persistent sidebar — dark slate, single teal accent ── */}
@@ -428,14 +442,21 @@ export default function InsurerPortalLayout({
                           )}
                         />
                         <div className="flex-1 min-w-0">
-                          <p
-                            className={cn(
-                              "text-[13px] leading-none truncate font-medium",
-                              active ? "text-white" : "text-slate-300 group-hover:text-white"
+                          <div className="flex items-center gap-1.5">
+                            <p
+                              className={cn(
+                                "text-[13px] leading-none truncate font-medium",
+                                active ? "text-white" : "text-slate-300 group-hover:text-white"
+                              )}
+                            >
+                              {item.label}
+                            </p>
+                            {item.badgeKey && hasRecoveryAccess && (recoveryBadgeCounts[item.badgeKey] ?? 0) > 0 && (
+                              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-none flex-shrink-0 bg-teal-500 text-white">
+                                {(recoveryBadgeCounts[item.badgeKey] ?? 0) > 99 ? "99+" : recoveryBadgeCounts[item.badgeKey]}
+                              </span>
                             )}
-                          >
-                            {item.label}
-                          </p>
+                          </div>
                           <p className="text-[10px] mt-0.5 truncate text-slate-500 group-hover:text-slate-400">
                             {item.description}
                           </p>

@@ -15,11 +15,13 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Scale, ArrowLeft, FileText, Send, CheckSquare, Gavel, Archive,
   Search, Activity, ClipboardList, AlertTriangle, Car, Phone,
   Building2, Hash, Calendar, DollarSign, User, MapPin, FileDown,
-  Loader2, RefreshCw, Shield, TrendingUp,
+  Loader2, RefreshCw, Shield, TrendingUp, CreditCard, XCircle,
 } from "lucide-react";
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
@@ -77,6 +79,14 @@ export default function RecoveryCaseDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingLetter, setIsGeneratingLetter] = useState(false);
 
+  // Quick-action modal state
+  const [settlementModal, setSettlementModal] = useState(false);
+  const [settlementType, setSettlementType] = useState<"settled_full" | "settled_partial">("settled_full");
+  const [settlementAmount, setSettlementAmount] = useState("");
+  const [settlementNotes, setSettlementNotes] = useState("");
+  const [demandSentModal, setDemandSentModal] = useState(false);
+  const [demandResponseDue, setDemandResponseDue] = useState("");
+
   const { data: caseData, isLoading, refetch } = trpc.recovery.getCase.useQuery(
     { id: caseId },
     { enabled: caseId > 0 }
@@ -125,6 +135,52 @@ export default function RecoveryCaseDetail() {
   const handleGenerateLetter = () => {
     setIsGeneratingLetter(true);
     generateDemandLetter.mutate({ id: caseId });
+  };
+
+  // Quick-action: Mark Demand Sent
+  const handleMarkDemandSent = () => {
+    if (!demandResponseDue) {
+      toast({ title: "Response due date required", description: "Enter the date by which the third party must respond.", variant: "destructive" });
+      return;
+    }
+    setIsSaving(true);
+    updateCase.mutate({
+      id: caseId,
+      status: "demand_sent",
+      demandLetterSentAt: new Date().toISOString().replace("T", " ").substring(0, 19),
+      demandResponseDueDate: demandResponseDue,
+    }, {
+      onSuccess: () => { setDemandSentModal(false); setDemandResponseDue(""); },
+    });
+  };
+
+  // Quick-action: Record Settlement
+  const handleRecordSettlement = () => {
+    if (settlementType === "settled_partial" && !settlementAmount) {
+      toast({ title: "Amount required", description: "Enter the partial settlement amount.", variant: "destructive" });
+      return;
+    }
+    setIsSaving(true);
+    updateCase.mutate({
+      id: caseId,
+      status: settlementType,
+      ...(settlementAmount ? { recoveredAmount: Math.round(parseFloat(settlementAmount) * 100) } : {}),
+      settlementAgreementDate: new Date().toISOString().split("T")[0],
+      settlementNotes: settlementNotes || undefined,
+    }, {
+      onSuccess: () => { setSettlementModal(false); setSettlementAmount(""); setSettlementNotes(""); },
+    });
+  };
+
+  // Quick-action: Escalate to Legal
+  const handleEscalateToLegal = () => {
+    setIsSaving(true);
+    updateCase.mutate({
+      id: caseId,
+      status: "disputed_legal",
+      officerNotes: (caseData?.officerNotes ? caseData.officerNotes + "\n" : "") +
+        `[${new Date().toLocaleDateString("en-ZA")}] Case escalated to legal / attorney.`,
+    });
   };
 
   if (isLoading) {
@@ -197,6 +253,167 @@ export default function RecoveryCaseDetail() {
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* Quick Action Bar — contextual buttons based on current status */}
+        {canEdit && caseData && !['settled_full','settled_partial','closed_no_recovery','archived'].includes(caseData.status) && (
+          <div className="flex flex-wrap gap-2 p-4 rounded-lg border border-border bg-card">
+            <span className="text-xs text-muted-foreground self-center mr-1 font-medium uppercase tracking-wider">Quick Actions:</span>
+
+            {/* Mark Demand Sent — available when open or demand already sent (resend) */}
+            {['open','pending_review'].includes(caseData.status) && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 border-violet-500/40 text-violet-400 hover:bg-violet-500/10"
+                onClick={() => setDemandSentModal(true)}
+                disabled={isSaving}
+              >
+                <Send className="h-3.5 w-3.5" /> Mark Demand Sent
+              </Button>
+            )}
+
+            {/* Record Settlement — available when demand sent or disputed */}
+            {['demand_sent','disputed_legal','open'].includes(caseData.status) && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                onClick={() => setSettlementModal(true)}
+                disabled={isSaving}
+              >
+                <CreditCard className="h-3.5 w-3.5" /> Record Settlement
+              </Button>
+            )}
+
+            {/* Escalate to Legal — available when open or demand sent */}
+            {['open','demand_sent','pending_review'].includes(caseData.status) && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 border-rose-500/40 text-rose-400 hover:bg-rose-500/10"
+                onClick={handleEscalateToLegal}
+                disabled={isSaving}
+              >
+                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Gavel className="h-3.5 w-3.5" />}
+                Escalate to Legal
+              </Button>
+            )}
+
+            {/* Close No Recovery */}
+            {['under_investigation','open','pending_review'].includes(caseData.status) && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 border-slate-500/40 text-slate-400 hover:bg-slate-500/10"
+                onClick={() => {
+                  if (!window.confirm("Close this case with no recovery? This cannot be undone.")) return;
+                  setIsSaving(true);
+                  updateCase.mutate({ id: caseId, status: "closed_no_recovery" });
+                }}
+                disabled={isSaving}
+              >
+                <XCircle className="h-3.5 w-3.5" /> Close — No Recovery
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Mark Demand Sent Modal */}
+        <Dialog open={demandSentModal} onOpenChange={setDemandSentModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5 text-violet-400" /> Mark Demand Sent
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                Confirm that the demand letter has been sent to the third party or their insurer.
+                Enter the date by which a response is required.
+              </p>
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">Response Due Date <span className="text-rose-400">*</span></label>
+                <Input
+                  type="date"
+                  value={demandResponseDue}
+                  onChange={(e) => setDemandResponseDue(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setDemandSentModal(false)}>Cancel</Button>
+              <Button
+                size="sm"
+                className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                onClick={handleMarkDemandSent}
+                disabled={isSaving}
+              >
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Confirm Demand Sent
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Record Settlement Modal */}
+        <Dialog open={settlementModal} onOpenChange={setSettlementModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-emerald-400" /> Record Settlement
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">Settlement Type</label>
+                <Select value={settlementType} onValueChange={(v) => setSettlementType(v as any)}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="settled_full">Full Recovery — 100% of claim amount recovered</SelectItem>
+                    <SelectItem value="settled_partial">Partial Recovery — portion of claim amount recovered</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {settlementType === "settled_partial" && (
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground">Recovered Amount ({currency}) <span className="text-rose-400">*</span></label>
+                  <Input
+                    type="number"
+                    value={settlementAmount}
+                    onChange={(e) => setSettlementAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="text-sm"
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">Settlement Notes (optional)</label>
+                <Textarea
+                  value={settlementNotes}
+                  onChange={(e) => setSettlementNotes(e.target.value)}
+                  placeholder="Reference number, payment method, any conditions…"
+                  rows={3}
+                  className="text-sm resize-none"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setSettlementModal(false)}>Cancel</Button>
+              <Button
+                size="sm"
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={handleRecordSettlement}
+                disabled={isSaving}
+              >
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckSquare className="h-4 w-4" />}
+                Record Settlement
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Recovery Deadline warning */}
         {caseData.recoveryDeadline && (() => {

@@ -1,0 +1,274 @@
+{
+  "query": "SHOW COLUMNS FROM recovery_cases;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW COLUMNS FROM recovery_cases;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "tenant_id",
+      "Type": "varchar(64)",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "claim_id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "recovery_potential_score",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "wronged_party",
+      "Type": "enum('insured','third_party','shared','unknown')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "unknown",
+      "Extra": ""
+    },
+    {
+      "Field": "third_party_liability_pct",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "third_party_name",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "third_party_registration",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "third_party_insurer",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "third_party_policy_number",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "third_party_contact_details",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "approved_settlement_amount",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "recovered_amount",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "currency_code",
+      "Type": "varchar(10)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "ZAR",
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "enum('pending_review','under_investigation','open','demand_sent','disputed_legal','settled_full','settled_partial','closed_no_recovery','archived')",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "pending_review",
+      "Extra": ""
+    },
+    {
+      "Field": "investigation_reason",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "investigation_expected_resolution_date",
+      "Type": "varchar(20)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "recovery_deadline",
+      "Type": "varchar(20)",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "recovery_deadline_alert_sent_at",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "demand_letter_sent_at",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "demand_letter_s3_key",
+      "Type": "varchar(500)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "demand_letter_url",
+      "Type": "varchar(1000)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "demand_response_due_date",
+      "Type": "varchar(20)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "demand_response_received_at",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "settlement_agreement_date",
+      "Type": "varchar(20)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "settlement_notes",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "assigned_officer_user_id",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "assigned_at",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "officer_notes",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "ai_demand_letter_json",
+      "Type": "longtext",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "created_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updated_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "closed_at",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\ntenant_id\tvarchar(64)\tNO\tMUL\tNULL\t\nclaim_id\tint\tNO\tMUL\tNULL\t\nrecovery_potential_score\tint\tNO\tMUL\t0\t\nwronged_party\tenum('insured','third_party','shared','unknown')\tNO\t\tunknown\t\nthird_party_liability_pct\tint\tYES\t\t0\t\nthird_party_name\tvarchar(255)\tYES\t\tNULL\t\nthird_party_registration\tvarchar(50)\tYES\t\tNULL\t\nthird_party_insurer\tvarchar(255)\tYES\t\tNULL\t\nthird_party_policy_number\tvarchar(100)\tYES\t\tNULL\t\nthird_party_contact_details\ttext\tYES\t\tNULL\t\napproved_settlement_amount\tint\tYES\t\tNULL\t\nrecovered_amount\tint\tYES\t\tNULL\t\ncurrency_code\tvarchar(10)\tYES\t\tZAR\t\nstatus\tenum('pending_review','under_investigation','open','demand_sent','disputed_legal','settled_full','settled_partial','closed_no_recovery','archived')\tNO\tMUL\tpending_review\t\ninvestigation_reason\ttext\tYES\t\tNULL\t\ninvestigation_expected_resolution_date\tvarchar(20)\tYES\t\tNULL\t\nrecovery_deadline\tvarchar(20)\tYES\tMUL\tNULL\t\nrecovery_deadline_alert_sent_at\tvarchar(50)\tYES\t\tNULL\t\ndemand_letter_sent_at\tvarchar(50)\tYES\t\tNULL\t\ndemand_letter_s3_key\tvarchar(500)\tYES\t\tNULL\t\ndemand_letter_url\tvarchar(1000)\tYES\t\tNULL\t\ndemand_response_due_date\tvarchar(20)\tYES\t\tNULL\t\ndemand_response_received_at\tvarchar(50)\tYES\t\tNULL\t\nsettlement_agreement_date\tvarchar(20)\tYES\t\tNULL\t\nsettlement_notes\ttext\tYES\t\tNULL\t\nassigned_officer_user_id\tint\tYES\tMUL\tNULL\t\nassigned_at\tvarchar(50)\tYES\t\tNULL\t\nofficer_notes\ttext\tYES\t\tNULL\t\nai_demand_letter_json\tlongtext\tYES\t\tNULL\t\ncreated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nclosed_at\tvarchar(50)\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 1081
+}
