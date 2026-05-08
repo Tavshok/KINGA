@@ -347,8 +347,9 @@ export default function InsurerPortalLayout({
   const visibleSections: NavSection[] = (derivedRole ? navByRole[derivedRole] : undefined) ?? defaultNav;
   const badge = ROLE_BADGE[derivedRole];
 
-  // Live recovery badge — only fetch for roles with recovery access
-  const hasRecoveryAccess = ["recovery_officer", "claims_manager", "insurer_admin"].includes(derivedRole);
+  // Live recovery badge — only fetch for roles that actively work recovery cases.
+  // insurer_admin is intentionally excluded (they have no recovery queue in their nav).
+  const hasRecoveryAccess = ["recovery_officer", "claims_manager"].includes(derivedRole);
   const { data: recoveryKpis } = trpc.recovery.getKPIs.useQuery(undefined, {
     enabled: hasRecoveryAccess,
     refetchInterval: 5 * 60 * 1000,

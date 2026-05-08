@@ -11588,3 +11588,8 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add deadline countdown chip helper (green/amber/red/OVERDUE based on days remaining)
 - [x] Wire deadline chip into Recovery Case Detail page header
 - [x] Wire deadline chip into each case card in Recovery Portal queue
+
+## Phase 10 — Scheduled Deadline Sweep & Badge Fix
+- [x] Add /api/scheduled/recovery-deadline-sweep POST endpoint (user-role auth, calls checkRecoveryDeadlines)
+- [x] Register scheduled daily task via Manus schedule tool
+- [x] Fix Recovery Queue badge: show for claims_manager only, remove from insurer_admin

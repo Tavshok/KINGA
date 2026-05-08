@@ -18,6 +18,7 @@ import { execSync } from "child_process";
 import { startIntakeEscalationJob } from "../intake-escalation-job";
 import { startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
 import { checkRecoveryDeadlines } from "../recovery/recoveryDeadlineAlerts";
+import { sdk } from "./sdk";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -110,6 +111,31 @@ async function startServer() {
     } catch (err) {
       console.error('[AuditExport] Error generating export:', err);
       res.status(500).json({ error: 'Failed to generate audit export' });
+    }
+  });
+
+  // ── Scheduled task endpoint: recovery deadline sweep ────────────────────
+  // Called daily by the Manus scheduled task agent:
+  //   POST /api/scheduled/recovery-deadline-sweep
+  //   Cookie: app_session_id=$SCHEDULED_TASK_COOKIE
+  // The platform injects a "user" role session cookie — any valid session is
+  // sufficient to authenticate. insurer_admin is excluded from the live badge
+  // but this sweep endpoint is accessible to any authenticated session.
+  app.post("/api/scheduled/recovery-deadline-sweep", async (req: express.Request, res: express.Response) => {
+    try {
+      // Require a valid session cookie (scheduled task cookie counts)
+      try {
+        await sdk.authenticateRequest(req);
+      } catch {
+        return res.status(401).json({ error: 'Unauthorized — valid session cookie required' });
+      }
+      console.log('[ScheduledSweep] Running recovery deadline sweep...');
+      await checkRecoveryDeadlines();
+      console.log('[ScheduledSweep] Recovery deadline sweep complete.');
+      return res.status(200).json({ ok: true, message: 'Recovery deadline sweep complete' });
+    } catch (err: any) {
+      console.error('[ScheduledSweep] Recovery deadline sweep failed:', err);
+      return res.status(500).json({ error: 'Sweep failed', detail: err?.message ?? String(err) });
     }
   });
 
