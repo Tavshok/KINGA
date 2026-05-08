@@ -30,6 +30,11 @@ import {
   Target,
   CheckSquare,
   Eye,
+  Scale,
+  Search,
+  Send,
+  Gavel,
+  Archive,
 } from "lucide-react";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
@@ -207,6 +212,45 @@ const navByRole: Record<string, NavSection[]> = {
     },
   ],
 
+  recovery_officer: [
+    {
+      title: "Overview",
+      items: [
+        { label: "Recovery Dashboard", description: "Queue overview and KPIs", href: "/insurer-portal/recovery", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Active Cases",
+      items: [
+        { label: "Pending Review", description: "New cases awaiting assessment", href: "/insurer-portal/recovery?tab=pending", icon: ClipboardList },
+        { label: "Under Investigation", description: "Cases with unresolved liability", href: "/insurer-portal/recovery?tab=investigation", icon: Search },
+        { label: "Open Cases", description: "Cases ready for demand action", href: "/insurer-portal/recovery?tab=open", icon: Activity },
+        { label: "Demand Sent", description: "Outstanding demand responses", href: "/insurer-portal/recovery?tab=demand-sent", icon: Send },
+        { label: "Disputed / Legal", description: "Cases in dispute or legal referral", href: "/insurer-portal/recovery?tab=legal", icon: Gavel },
+      ],
+    },
+    {
+      title: "Closed Cases",
+      items: [
+        { label: "Settled Cases", description: "Fully and partially recovered", href: "/insurer-portal/recovery?tab=settled", icon: CheckSquare },
+        { label: "Archived", description: "Low-RPS cases not actioned", href: "/insurer-portal/recovery?tab=archived", icon: Archive },
+      ],
+    },
+    {
+      title: "Intelligence",
+      items: [
+        { label: "Third-Party Profiles", description: "Repeat third-party intelligence", href: "/insurer/vehicle-registry?filter=third-party", icon: Car },
+        { label: "Relationship Intelligence", description: "Entity network analysis", href: "/insurer-portal/relationship-intelligence", icon: Network },
+      ],
+    },
+    {
+      title: "Reports",
+      items: [
+        { label: "Recovery Reports", description: "Generate recovery performance reports", href: "/insurer-portal/reports-centre?tab=recovery", icon: FileBarChart },
+      ],
+    },
+  ],
+
   insurer_admin: [
     {
       title: "Overview",
@@ -250,6 +294,7 @@ const pathToRole: Array<{ prefix: string; role: string; label: string }> = [
   { prefix: "/insurer-portal/internal-assessor",       role: "assessor_internal", label: "Internal Assessor" },
   { prefix: "/insurer-portal/external-assessor",       role: "assessor_external", label: "External Assessor" },
   { prefix: "/insurer-portal/insurer-admin",            role: "insurer_admin",     label: "Insurer Admin" },
+  { prefix: "/insurer-portal/recovery",                 role: "recovery_officer",  label: "Recovery Officer" },
   { prefix: "/insurer/fraud-analytics",                role: "",                  label: "Fraud Analytics" },
   { prefix: "/insurer-portal/workflow-analytics",      role: "",                  label: "Workflow Analytics" },
   { prefix: "/insurer-portal/exception-intelligence",  role: "",                  label: "Exception Intelligence" },
@@ -275,6 +320,7 @@ const ROLE_BADGE: Record<string, { bg: string; text: string; label: string }> = 
   assessor_internal:{ bg: "bg-teal-500/15",   text: "text-teal-300",   label: "Internal Assessor" },
   assessor_external:{ bg: "bg-cyan-500/15",   text: "text-cyan-300",   label: "External Assessor" },
   insurer_admin:    { bg: "bg-rose-500/15",   text: "text-rose-300",   label: "Insurer Admin" },
+  recovery_officer: { bg: "bg-emerald-500/15", text: "text-emerald-300", label: "Recovery Officer" },
 };
 
 // ─── Component ─────────────────────────────────────────────────────────────

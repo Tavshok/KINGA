@@ -41,6 +41,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 
 // Insurer pages
 const InsurerDashboard = lazy(() => import("./pages/InsurerDashboard"));
+const RecoveryPortal = lazy(() => import("./pages/RecoveryPortal"));
 const InsurerClaimsTriage = lazy(() => import("./pages/InsurerClaimsTriage"));
 const InsurerClaimDetails = lazy(() => import("./pages/InsurerClaimDetails"));
 const InsurerComparisonView = lazy(() => import("./pages/InsurerComparisonView"));
@@ -346,6 +347,13 @@ function Router() {
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["insurer_admin"]}>
               <InsurerPortalLayout><InsurerDashboard /></InsurerPortalLayout>
+            </RoleGuard>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/insurer-portal/recovery">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <RoleGuard allowedRoles={["recovery_officer", "claims_manager", "insurer_admin"]}>
+              <RecoveryPortal />
             </RoleGuard>
           </ProtectedRoute>
         </Route>

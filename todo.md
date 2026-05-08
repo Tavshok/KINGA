@@ -11487,3 +11487,14 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Injected KINGA_FORENSIC_SYSTEM_PROMPT into stage-7b-causal-reasoning.ts (all 3 LLM calls: constraint definition, constraint narrative, main causal verdict)
 - [x] OCR/extraction engines (stage-2, stage-3, quoteExtraction, escalationReasoning, claimsNotification) intentionally NOT modified — pure JSON output engines must not receive narrative quality rules
 - [x] Build passes cleanly (0 TypeScript errors)
+
+- [x] Subrogation strategy document written (kinga-subrogation-strategy.md)
+- [x] recovery_officer added to InsurerRole type in shared/role-permissions.ts
+- [x] recovery_officer permissions matrix added to ROLE_PERMISSIONS
+- [x] recovery_officer added to all schema.ts mysqlEnum definitions (6 columns)
+- [x] Database ALTER TABLE executed for users, role_assignment_audit, tenant_role_configs
+- [x] setInsurerRole z.enum in routers.ts updated to include recovery_officer
+- [x] Recovery Officer navigation section added to InsurerPortalLayout.tsx
+- [x] recovery_officer path mapping and role badge added to InsurerPortalLayout.tsx
+- [x] RecoveryPortal.tsx page created with queue cards and KPI placeholders
+- [x] /insurer-portal/recovery route registered in App.tsx

@@ -14,6 +14,7 @@
  *   claims_manager     — head of claims dept
  *   executive          — C-suite / board
  *   insurer_admin      — insurer-level administrator
+ *   recovery_officer   — subrogation & third-party recovery (optional role)
  *
  * Top-level role values (users.role):
  *   admin        — platform super-admin (cross-insurer)
@@ -31,7 +32,8 @@ export type InsurerRole =
   | "risk_manager"
   | "claims_manager"
   | "executive"
-  | "insurer_admin";
+  | "insurer_admin"
+  | "recovery_officer";
 
 export type TopLevelRole = "admin" | "insurer" | "assessor" | "panel_beater";
 
@@ -364,6 +366,46 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     accessibleQueues: ["intake_queue", "created", "assigned", "disputed", "closed", "fraud_flagged"],
     dashboardRoute: "/insurer-portal/insurer-admin",
     roleLabel: "Insurer Admin",
+  },
+
+  recovery_officer: {
+    // Recovery officers work on settled claims — they need read access to claims
+    // and AI assessments but do not participate in the live claims workflow.
+    canUploadClaim: false,
+    canViewClaim: true,
+    canEditClaim: false,
+    canDeleteClaim: false,
+    canViewIntakeQueue: false,
+    canAssignProcessor: false,
+    canTriggerAIAssessment: false,
+    canViewAIAssessment: true,
+    canOverrideAIAssessment: false,
+    canPerformManualAssessment: false,
+    canAssignAssessor: false,
+    canAssignToSelf: false,
+    canReassignClaim: false,
+    canApprovePayment: false,
+    canApproveLowValue: false,
+    canApproveModerateValue: false,
+    canApproveHighValue: false,
+    canOverrideAutomation: false,
+    canChangeWorkflowState: false,
+    canEscalateClaim: false,
+    canCloseClaim: false,
+    canReopenClaim: false,
+    canFlagFraud: true,
+    canInvestigateFraud: true,
+    canApproveFraudCase: false,
+    canViewAnalytics: true,
+    canViewExecutiveDashboard: false,
+    canViewGovernanceDashboard: false,
+    canExportReports: true,
+    canManageUsers: false,
+    canManageWorkflowSettings: false,
+    canManageAutomationPolicies: false,
+    accessibleQueues: ["settled"],
+    dashboardRoute: "/insurer-portal/recovery",
+    roleLabel: "Recovery Officer",
   },
 };
 

@@ -759,7 +759,7 @@ export const appRouter = router({
      */
     setInsurerRole: protectedProcedure
       .input(z.object({
-        insurerRole: z.enum(["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]),
+        insurerRole: z.enum(["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin", "recovery_officer"]),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();

@@ -1,0 +1,18 @@
+{
+  "query": "\nSHOW COLUMNS FROM users LIKE 'insurer_role';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSHOW COLUMNS FROM users LIKE 'insurer_role';\n",
+  "rows": [
+    {
+      "Field": "insurer_role",
+      "Type": "enum('claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\ninsurer_role\tenum('claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin')\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 3014
+}
