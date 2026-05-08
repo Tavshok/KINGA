@@ -13,9 +13,11 @@ import {
   FileText, Download, RefreshCw, Clock, CheckCircle, XCircle,
   AlertTriangle, Play, Calendar, Shield, BarChart3, Search,
   FileBarChart, RotateCcw, Info, ChevronRight, Car, X as XIcon,
-  Share2, Users, ExternalLink
+  Share2, Users, ExternalLink, Scale, TrendingUp, DollarSign,
+  Target, Award, AlertOctagon
 } from "lucide-react";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
+import { RecoveryPerformanceTab } from "@/components/RecoveryPerformanceTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ReportJob {
@@ -706,6 +708,10 @@ export default function ReportsCentre() {
             <TabsTrigger value="shared" className="text-xs data-[state=active]:bg-white data-[state=active]:text-gray-900">
               <Share2 className="h-3.5 w-3.5 mr-1.5" />
               Shared With Me {sharedClaims.length > 0 && <span className="ml-1 bg-indigo-100 text-indigo-700 rounded-full px-1.5 py-0.5 text-xs">{sharedClaims.length}</span>}
+            </TabsTrigger>
+            <TabsTrigger value="recovery" className="text-xs data-[state=active]:bg-white data-[state=active]:text-gray-900">
+              <Scale className="h-3.5 w-3.5 mr-1.5" />
+              Recovery Performance
             </TabsTrigger>
           </TabsList>
 

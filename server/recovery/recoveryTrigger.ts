@@ -21,7 +21,7 @@ import {
   recoveryCases,
   thirdPartyVehicles,
 } from "../../drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, desc } from "drizzle-orm";
 import type { CausalVerdict } from "../pipeline-v2/stage-7b-causal-reasoning";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -190,6 +190,34 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
 
     console.log(`[RecoveryTrigger] Claim ${claimId} RPS: ${rps} (wrongedParty: ${wrongedParty}, threshold: ${RPS_THRESHOLD})`);
 
+    // 7a. Repeat offender detection
+    const thirdPartyName = claim.thirdPartyName ?? tpVehicle?.ownerName ?? null;
+    const thirdPartyReg = claim.thirdPartyRegistration ?? tpVehicle?.registration ?? null;
+    let isRepeatOffender = false;
+    let priorCaseCount = 0;
+    let priorCaseIds: number[] = [];
+    if (thirdPartyName || thirdPartyReg) {
+      const matchConditions: any[] = [];
+      if (thirdPartyReg) matchConditions.push(eq(recoveryCases.thirdPartyRegistration, thirdPartyReg));
+      if (thirdPartyName) matchConditions.push(eq(recoveryCases.thirdPartyName, thirdPartyName));
+      const priorCases = await db
+        .select({ id: recoveryCases.id, claimId: recoveryCases.claimId })
+        .from(recoveryCases)
+        .where(and(
+          eq(recoveryCases.tenantId, claim.tenantId ?? ""),
+          or(...matchConditions)
+        ))
+        .orderBy(desc(recoveryCases.id))
+        .limit(20);
+      const filtered = priorCases.filter(p => p.claimId !== claimId);
+      if (filtered.length > 0) {
+        isRepeatOffender = true;
+        priorCaseCount = filtered.length;
+        priorCaseIds = filtered.map(p => p.id);
+        console.log(`[RecoveryTrigger] Repeat offender detected for claim ${claimId}: ${priorCaseCount} prior case(s)`);
+      }
+    }
+
     // 7. Only create a case if RPS meets the threshold
     if (rps < RPS_THRESHOLD) {
       console.log(`[RecoveryTrigger] RPS ${rps} below threshold ${RPS_THRESHOLD} — archiving without case`);
@@ -209,6 +237,9 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
         currencyCode: claim.currencyCode ?? "ZAR",
         status: "archived",
         recoveryDeadline: computeRecoveryDeadline(claim.incidentDate),
+        isRepeatOffender,
+        priorCaseCount,
+        priorCaseIds: priorCaseIds.length > 0 ? JSON.stringify(priorCaseIds) : null,
         createdAt: new Date().toISOString().replace("T", " ").substring(0, 19),
       });
       return;
@@ -239,10 +270,13 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
       status: initialStatus as any,
       investigationReason,
       recoveryDeadline: computeRecoveryDeadline(claim.incidentDate),
+      isRepeatOffender,
+      priorCaseCount,
+      priorCaseIds: priorCaseIds.length > 0 ? JSON.stringify(priorCaseIds) : null,
       createdAt: new Date().toISOString().replace("T", " ").substring(0, 19),
     });
 
-    console.log(`[RecoveryTrigger] Recovery case created for claim ${claimId} — status: ${initialStatus}, RPS: ${rps}`);
+    console.log(`[RecoveryTrigger] Recovery case created for claim ${claimId} — status: ${initialStatus}, RPS: ${rps}${isRepeatOffender ? ` [REPEAT OFFENDER: ${priorCaseCount} prior case(s)]` : ""}`);
 
   } catch (err) {
     // Never throw — recovery trigger failure must not block the workflow

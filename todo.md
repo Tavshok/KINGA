@@ -11552,3 +11552,18 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Badge shows open + pending review count (teal) from getKPIs query
 - [x] Badge only shown for recovery_officer, claims_manager, insurer_admin roles
 - [x] Badge auto-refreshes every 5 minutes
+
+## Phase 7 — Recovery Report & Repeat Offender Detection
+- [ ] Recovery Performance Report tab in Reports Centre (PDF, recovered amounts, rates, approaching deadlines)
+- [ ] Third-party repeat offender detection in recoveryTrigger
+- [ ] Repeat offender flag surfaced in Recovery Case Detail page
+
+## Phase 7 — Recovery Performance Report & Repeat Offender Detection
+
+- [x] Recovery Performance Report tab added to Reports Centre (RecoveryPerformanceTab component)
+- [x] RecoveryPerformanceTab imported in ReportsCentre.tsx
+- [x] isRepeatOffender, priorCaseCount, priorCaseIds fields added to recovery_cases schema
+- [x] DB columns added: is_repeat_offender, prior_case_count, prior_case_ids
+- [x] Repeat offender detection logic added to recoveryTrigger.ts (checks by registration + name)
+- [x] Both archived and main case inserts include repeat offender fields
+- [x] Console log updated to flag REPEAT OFFENDER cases
