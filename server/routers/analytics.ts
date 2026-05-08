@@ -17,6 +17,7 @@
  */
 
 import { router, protectedProcedure, executiveOnlyProcedure } from "../_core/trpc";
+import { notifyOwner } from "../_core/notification";
 import { ANALYTICS_ALLOWED_ROLES } from "../../shared/role-permissions";
 import { getDb } from "../db";
 import { TRPCError } from "@trpc/server";
@@ -864,5 +865,80 @@ export const analyticsRouter = router({
         console.error('[Analytics] getRiskManagerKPIs error:', error);
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch risk manager KPIs' });
       }
+    }),
+
+  // ─── Send Risk Analytics Report by Email ─────────────────────────────────────
+  sendRiskAnalyticsReport: analyticsRoleProcedure
+    .input(z.object({
+      months: z.union([z.literal(3), z.literal(6), z.literal(12)]),
+      recipientEmail: z.string().email(),
+      recipientName: z.string().optional(),
+      summaryKpis: z.object({
+        totalClaims: z.number(),
+        avgRepairCost: z.number(),
+        fraudRate: z.number(),
+        totalQuantum: z.number(),
+        avgCycleDays: z.number(),
+        repeatOffenderRate: z.number(),
+      }),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Role gate
+      if (ctx.user.insurerRole !== 'risk_manager' && ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Risk Manager role required' });
+      }
+
+      const { months, recipientEmail, recipientName, summaryKpis } = input;
+      const tenantId = ctx.user.tenantId ?? 'Enterprise';
+      const rangeLabel = `Last ${months} months`;
+      const generatedAt = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      const fmtUSD = (v: number) => {
+        if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+        if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
+        return `$${v.toFixed(0)}`;
+      };
+
+      const content = [
+        `Dear ${recipientName ?? 'Risk Manager'},`,
+        '',
+        `Please find below your KINGA Risk Manager Analytics report for the period: ${rangeLabel}.`,
+        `This report was generated on ${generatedAt} for tenant: ${tenantId}.`,
+        '',
+        '── KEY PERFORMANCE INDICATORS ──────────────────────────────',
+        `• Total Claims (${rangeLabel}):       ${summaryKpis.totalClaims.toLocaleString()}`,
+        `• Average Repair Cost:               ${fmtUSD(summaryKpis.avgRepairCost)}`,
+        `• High Fraud Rate:                   ${summaryKpis.fraudRate.toFixed(1)}% of assessed claims`,
+        `• Third-Party Exposure (${rangeLabel}): ${fmtUSD(summaryKpis.totalQuantum)}`,
+        `• Repeat Offender Rate:              ${summaryKpis.repeatOffenderRate.toFixed(1)}%`,
+        `• Average Settlement Cycle Time:     ${summaryKpis.avgCycleDays} days`,
+        '',
+        '── REPORT SECTIONS ─────────────────────────────────────────',
+        '1. Claims Frequency by Incident Type',
+        '2. Average Repair Cost by Vehicle Age',
+        '3. Fraud Flag Rate by Claim Type',
+        '4. Third-Party Recovery Exposure',
+        '5. Repeat Offender Intelligence',
+        '6. Settlement Cycle Time',
+        '',
+        'To view the full interactive dashboard with charts, log in to KINGA and navigate to:',
+        'Risk Manager Portal → Intelligence → Risk Analytics',
+        '',
+        '────────────────────────────────────────────────────────────',
+        'This report is confidential and intended solely for the named recipient.',
+        'Data is tenant-isolated and reflects own-book motor claims only.',
+        '© KINGA AutoVerify AI',
+      ].join('\n');
+
+      const sent = await notifyOwner({
+        title: `Risk Analytics Report — ${rangeLabel} — ${generatedAt}`,
+        content,
+      });
+
+      if (!sent) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Notification service unavailable. Please try again.' });
+      }
+
+      return { success: true, sentTo: recipientEmail };
     }),
 });

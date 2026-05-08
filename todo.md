@@ -11663,3 +11663,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add date-range selector (Last 3M / 6M / 12M) to RiskManagerAnalytics.tsx header
 - [x] Add "Download Report" PDF export button using jsPDF + html2canvas (lazy-loaded)
 - [x] PDF includes: KINGA brand header bar, title, date range, tenant, all charts + KPI cards captured via html2canvas
+
+## Phase 18c — Risk Analytics: Multi-Page PDF Report + Email Delivery
+- [x] Rebuild PDF export: cover page (KPI summary grid + TOC) + 6 chart pages = 7 pages total
+- [x] Each chart page: full-width chart image (canvas.toDataURL) + INSIGHT narrative box at bottom
+- [x] Add sendRiskAnalyticsReport tRPC mutation: sends KPI summary via notifyOwner notification service
+- [x] Add "Send by Email" button in page header — opens dialog with recipient name/email + KPI preview
+- [x] Show success/error toast after email send (sonner)
