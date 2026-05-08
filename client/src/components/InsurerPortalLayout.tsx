@@ -140,6 +140,7 @@ const navByRole: Record<string, NavSection[]> = {
         { label: "Fraud Analytics", description: "Risk patterns and FCDI flags", href: "/insurer/fraud-analytics", icon: ShieldAlert },
         { label: "Exception Hub", description: "Anomalies requiring review", href: "/insurer-portal/exception-intelligence", icon: Zap },
         { label: "Workflow Analytics", description: "Decision times and outcomes", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
+        { label: "Risk Analytics", description: "Own-book motor intelligence (Enterprise)", href: "/insurer-portal/risk-analytics", icon: TrendingUp },
       ],
     },
     {

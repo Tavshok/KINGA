@@ -11650,3 +11650,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add liability_denied status to recovery case workflow (post-demand, pre-legal escalation)
 - [ ] Add demandLetterResponseDays to automationPolicies schema and wire into demand letter generator
 - [x] Add recovery KPIs to Claims Manager dashboard (open cases, recovered amount, recovery rate)
+
+## Phase 18 — Risk Manager Analytics (Top-Tier Gated)
+- [x] Add subscriptionTier field to tenants schema and DB (tenants.tier already exists: tier-basic/tier-professional/tier-enterprise)
+- [x] Add getRiskManagerKPIs tRPC procedure (6 aggregation queries) — added to analytics.ts before closing brace
+- [x] Build RiskManagerAnalytics.tsx page with KPI cards and Chart.js trend charts
+- [x] Gate page by risk_manager role AND tier-enterprise (FORBIDDEN with TIER_UPGRADE_REQUIRED message)
+- [x] Wire nav link in InsurerPortalLayout for risk_manager role (Intelligence section)

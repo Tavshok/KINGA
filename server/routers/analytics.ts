@@ -24,7 +24,8 @@ import { z } from "zod";
 import { 
   claims, users, aiAssessments, assessorEvaluations, 
   panelBeaterQuotes, panelBeaters, workflowAuditTrail,
-  claimInvolvementTracking, roleAssignmentAudit 
+  claimInvolvementTracking, roleAssignmentAudit,
+  recoveryCases, tenants
 } from "../../drizzle/schema";
 import { eq, and, or, desc, sql, count, avg, sum, gte, lte, gt, lt } from "drizzle-orm";
 import { 
@@ -706,4 +707,157 @@ export const analyticsRouter = router({
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch financial overview' });
     }
   }),
+
+  // ─── Risk Manager Analytics (Top-Tier Gated) ─────────────────────────────────
+  getRiskManagerKPIs: analyticsRoleProcedure
+    .query(async ({ ctx }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+
+        // Role gate
+        if (ctx.user.insurerRole !== 'risk_manager' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Risk Manager role required' });
+        }
+
+        const tenantId = ctx.user.tenantId;
+
+        // Tier gate — query tenants table
+        if (tenantId) {
+          const tenantRows = await db.select({ tier: tenants.tier }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+          const tier = tenantRows[0]?.tier;
+          if (tier !== 'tier-enterprise') {
+            throw new TRPCError({ code: 'FORBIDDEN', message: 'TIER_UPGRADE_REQUIRED' });
+          }
+        }
+
+        const tenantFilter = tenantId ? `tenant_id = '${tenantId}'` : '1=1';
+        const tenantFilterRC = tenantId ? `rc.tenant_id = '${tenantId}'` : '1=1';
+
+        // KPI 1: Claims frequency by incident type, last 6 months
+        const freqResult = await db.execute(sql`
+          SELECT incident_type,
+            DATE_FORMAT(created_at, '%Y-%m') as month,
+            COUNT(*) as claim_count
+          FROM claims
+          WHERE ${sql.raw(tenantFilter)}
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            AND incident_type IS NOT NULL
+          GROUP BY incident_type, month
+          ORDER BY month ASC, claim_count DESC
+        `);
+        const freqRows = Array.isArray((freqResult as any)[0]) ? (freqResult as any)[0] : [];
+
+        // KPI 2: Avg repair cost by vehicle age bucket
+        const repairCostResult = await db.execute(sql`
+          SELECT
+            CASE
+              WHEN (YEAR(NOW()) - vehicle_year) < 3 THEN 'Under 3 years'
+              WHEN (YEAR(NOW()) - vehicle_year) BETWEEN 3 AND 7 THEN '3-7 years'
+              ELSE 'Over 7 years'
+            END as age_bucket,
+            AVG(COALESCE(final_approved_amount, approved_amount)) as avg_cost,
+            COUNT(*) as claim_count
+          FROM claims
+          WHERE ${sql.raw(tenantFilter)}
+            AND vehicle_year IS NOT NULL
+            AND COALESCE(final_approved_amount, approved_amount) IS NOT NULL
+          GROUP BY age_bucket
+        `);
+        const repairCostRows = Array.isArray((repairCostResult as any)[0]) ? (repairCostResult as any)[0] : [];
+
+        // KPI 3: Fraud flag rate by incident type
+        const fraudRateResult = await db.execute(sql`
+          SELECT incident_type, fraud_risk_level, COUNT(*) as cnt
+          FROM claims
+          WHERE ${sql.raw(tenantFilter)}
+            AND incident_type IS NOT NULL
+            AND fraud_risk_level IS NOT NULL
+          GROUP BY incident_type, fraud_risk_level
+          ORDER BY incident_type, fraud_risk_level
+        `);
+        const fraudRateRows = Array.isArray((fraudRateResult as any)[0]) ? (fraudRateResult as any)[0] : [];
+
+        // KPI 4: TP recovery exposure by month (last 6 months)
+        const recoveryExposureResult = await db.execute(sql`
+          SELECT
+            DATE_FORMAT(rc.created_at, '%Y-%m') as month,
+            SUM(rc.quantum_claimed) as total_quantum,
+            SUM(rc.recovered_amount) as total_recovered,
+            COUNT(*) as case_count
+          FROM recovery_cases rc
+          WHERE ${sql.raw(tenantFilterRC)}
+            AND rc.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+          GROUP BY month
+          ORDER BY month ASC
+        `);
+        const recoveryExposureRows = Array.isArray((recoveryExposureResult as any)[0]) ? (recoveryExposureResult as any)[0] : [];
+
+        // KPI 5: Repeat offender rate
+        const repeatOffenderResult = await db.execute(sql`
+          SELECT
+            SUM(CASE WHEN is_repeat_offender = 1 THEN 1 ELSE 0 END) as repeat_count,
+            COUNT(*) as total_count
+          FROM recovery_cases rc
+          WHERE ${sql.raw(tenantFilterRC)}
+        `);
+        const repeatRows = Array.isArray((repeatOffenderResult as any)[0]) ? (repeatOffenderResult as any)[0] : [];
+        const repeatData = repeatRows[0] || {};
+
+        // KPI 6: Settlement cycle time by month (last 6 months)
+        const cycleTimeResult = await db.execute(sql`
+          SELECT
+            DATE_FORMAT(closed_at, '%Y-%m') as month,
+            AVG(TIMESTAMPDIFF(DAY, created_at, closed_at)) as avg_days,
+            COUNT(*) as closed_count
+          FROM claims
+          WHERE ${sql.raw(tenantFilter)}
+            AND closed_at IS NOT NULL
+            AND closed_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+          GROUP BY month
+          ORDER BY month ASC
+        `);
+        const cycleTimeRows = Array.isArray((cycleTimeResult as any)[0]) ? (cycleTimeResult as any)[0] : [];
+
+        return {
+          claimsFrequency: freqRows.map((r: any) => ({
+            incidentType: r.incident_type,
+            month: r.month,
+            claimCount: safeNumber(r.claim_count, 0),
+          })),
+          repairCostByAge: repairCostRows.map((r: any) => ({
+            ageBucket: r.age_bucket,
+            avgCost: safeNumber(r.avg_cost, 0),
+            claimCount: safeNumber(r.claim_count, 0),
+          })),
+          fraudRateByType: fraudRateRows.map((r: any) => ({
+            incidentType: r.incident_type,
+            fraudRiskLevel: r.fraud_risk_level,
+            count: safeNumber(r.cnt, 0),
+          })),
+          recoveryExposure: recoveryExposureRows.map((r: any) => ({
+            month: r.month,
+            totalQuantum: safeNumber(r.total_quantum, 0),
+            totalRecovered: safeNumber(r.total_recovered, 0),
+            caseCount: safeNumber(r.case_count, 0),
+          })),
+          repeatOffender: {
+            repeatCount: safeNumber(repeatData.repeat_count, 0),
+            totalCount: safeNumber(repeatData.total_count, 0),
+            rate: safeNumber(repeatData.total_count, 0) > 0
+              ? Math.round((safeNumber(repeatData.repeat_count, 0) / safeNumber(repeatData.total_count, 0)) * 1000) / 10
+              : 0,
+          },
+          settlementCycleTime: cycleTimeRows.map((r: any) => ({
+            month: r.month,
+            avgDays: safeNumber(r.avg_days, 0),
+            closedCount: safeNumber(r.closed_count, 0),
+          })),
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error('[Analytics] getRiskManagerKPIs error:', error);
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch risk manager KPIs' });
+      }
+    }),
 });
