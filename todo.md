@@ -11608,3 +11608,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] demandLetterGenerator.ts: DemandLetterContext extended; LLM prompt updated to distinguish insurer vs individual recovery target with full contact details
 - [x] getInsurerIntelligence tRPC procedure: aggregates settlement rate, dispute rate, avg settlement days, recovery efficiency per third-party insurer
 - [x] RecoveryPortal.tsx: InsurerIntelligencePanel component added below case list
+
+## Phase 12 — Manual Recovery Target Override + Third-Party Profiles Page
+
+- [x] updateCase procedure: add recoveryTarget field to the updateCase mutation input
+- [x] Recovery Case Detail page: add recoveryTarget override dropdown in the edit panel
+- [x] getThirdPartyProfiles tRPC procedure: aggregate third-party individuals/insurers with case counts, total quantum, status breakdown
+- [x] Third-Party Profiles page: searchable directory with case history and insurer associations
+- [x] Register /insurer-portal/recovery/third-party-profiles route in App.tsx

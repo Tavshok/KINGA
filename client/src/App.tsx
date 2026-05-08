@@ -43,6 +43,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 const InsurerDashboard = lazy(() => import("./pages/InsurerDashboard"));
 const RecoveryPortal = lazy(() => import("./pages/RecoveryPortal"));
 const RecoveryCaseDetail = lazy(() => import("./pages/RecoveryCaseDetail"));
+const ThirdPartyProfiles = lazy(() => import("./pages/ThirdPartyProfiles"));
 const InsurerClaimsTriage = lazy(() => import("./pages/InsurerClaimsTriage"));
 const InsurerClaimDetails = lazy(() => import("./pages/InsurerClaimDetails"));
 const InsurerComparisonView = lazy(() => import("./pages/InsurerComparisonView"));
@@ -348,6 +349,13 @@ function Router() {
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["insurer_admin"]}>
               <InsurerPortalLayout><InsurerDashboard /></InsurerPortalLayout>
+            </RoleGuard>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/insurer-portal/recovery/third-party-profiles">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <RoleGuard allowedRoles={["recovery_officer", "claims_manager", "insurer_admin", "executive"]}>
+              <ThirdPartyProfiles />
             </RoleGuard>
           </ProtectedRoute>
         </Route>

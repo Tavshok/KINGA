@@ -8258,6 +8258,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         demandResponseReceivedAt: z.string().optional(),
         settlementAgreementDate: z.string().optional(),
         settlementNotes: z.string().optional(),
+        recoveryTarget: z.enum(['insurer','individual','unknown']).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -8285,6 +8286,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         if (input.demandResponseReceivedAt !== undefined) updateData.demandResponseReceivedAt = input.demandResponseReceivedAt;
         if (input.settlementAgreementDate !== undefined) updateData.settlementAgreementDate = input.settlementAgreementDate;
         if (input.settlementNotes !== undefined) updateData.settlementNotes = input.settlementNotes;
+        if (input.recoveryTarget !== undefined) updateData.recoveryTarget = input.recoveryTarget;
         // Auto-set closedAt when terminal status is set
         if (input.status && ['settled_full','settled_partial','closed_no_recovery','archived'].includes(input.status)) {
           updateData.closedAt = new Date().toISOString().replace('T',' ').substring(0,19);
@@ -8474,6 +8476,167 @@ If any value is not found, use null or 0. Line items category must be one of: pa
               : 0,
           }))
           .sort((a, b) => b.totalCases - a.totalCases);
+      }),
+
+    /**
+     * Get aggregated third-party profiles — individuals and insurers with case history.
+     * Groups by thirdPartyName + thirdPartyRegistration, with insurer associations.
+     */
+    getThirdPartyProfiles: protectedProcedure
+      .input(z.object({
+        search: z.string().optional(),
+        page: z.number().min(1).default(1),
+        pageSize: z.number().min(1).max(50).default(20),
+      }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        const allowedRoles = ['recovery_officer','claims_manager','executive','insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access denied' });
+        }
+        // Load all cases for this tenant with third-party info
+        const rows = await db
+          .select({
+            id: recoveryCases.id,
+            thirdPartyName: recoveryCases.thirdPartyName,
+            thirdPartyRegistration: recoveryCases.thirdPartyRegistration,
+            thirdPartyInsurer: recoveryCases.thirdPartyInsurer,
+            thirdPartyPolicyNumber: recoveryCases.thirdPartyPolicyNumber,
+            thirdPartyIdNumber: sql<string | null>`${recoveryCases}.third_party_id_number`,
+            thirdPartyPhone: sql<string | null>`${recoveryCases}.third_party_phone`,
+            thirdPartyAddress: sql<string | null>`${recoveryCases}.third_party_address`,
+            thirdPartyInsurerPhone: sql<string | null>`${recoveryCases}.third_party_insurer_phone`,
+            thirdPartyInsurerAddress: sql<string | null>`${recoveryCases}.third_party_insurer_address`,
+            recoveryTarget: sql<string | null>`${recoveryCases}.recovery_target`,
+            status: recoveryCases.status,
+            approvedSettlementAmount: recoveryCases.approvedSettlementAmount,
+            recoveredAmount: recoveryCases.recoveredAmount,
+            currencyCode: recoveryCases.currencyCode,
+            recoveryPotentialScore: recoveryCases.recoveryPotentialScore,
+            isRepeatOffender: recoveryCases.isRepeatOffender,
+            createdAt: recoveryCases.createdAt,
+            claimNumber: claims.claimNumber,
+            incidentDate: claims.incidentDate,
+          })
+          .from(recoveryCases)
+          .leftJoin(claims, eq(recoveryCases.claimId, claims.id))
+          .where(eq(recoveryCases.tenantId, tenantId))
+          .orderBy(desc(recoveryCases.createdAt));
+
+        // Group by third-party identity key (name + registration)
+        const profileMap: Record<string, {
+          key: string;
+          thirdPartyName: string | null;
+          thirdPartyRegistration: string | null;
+          thirdPartyIdNumber: string | null;
+          thirdPartyPhone: string | null;
+          thirdPartyAddress: string | null;
+          insurers: Set<string>;
+          insurerPhone: string | null;
+          insurerAddress: string | null;
+          cases: Array<{
+            id: number;
+            claimNumber: string | null;
+            status: string;
+            approvedSettlementAmount: number | null;
+            recoveredAmount: number | null;
+            currencyCode: string | null;
+            recoveryPotentialScore: number | null;
+            incidentDate: string | null;
+            createdAt: string | null;
+          }>;
+          totalApprovedCents: number;
+          totalRecoveredCents: number;
+          settled: number;
+          disputed: number;
+        }> = {};
+
+        for (const row of rows) {
+          const nameKey = (row.thirdPartyName ?? '').toLowerCase().trim();
+          const regKey = (row.thirdPartyRegistration ?? '').toLowerCase().trim();
+          const key = nameKey || regKey ? `${nameKey}|${regKey}` : `unknown-${row.id}`;
+
+          if (!profileMap[key]) {
+            profileMap[key] = {
+              key,
+              thirdPartyName: row.thirdPartyName,
+              thirdPartyRegistration: row.thirdPartyRegistration,
+              thirdPartyIdNumber: row.thirdPartyIdNumber,
+              thirdPartyPhone: row.thirdPartyPhone,
+              thirdPartyAddress: row.thirdPartyAddress,
+              insurers: new Set(),
+              insurerPhone: row.thirdPartyInsurerPhone,
+              insurerAddress: row.thirdPartyInsurerAddress,
+              cases: [],
+              totalApprovedCents: 0,
+              totalRecoveredCents: 0,
+              settled: 0,
+              disputed: 0,
+            };
+          }
+          const p = profileMap[key];
+          if (row.thirdPartyInsurer) p.insurers.add(row.thirdPartyInsurer);
+          if (!p.insurerPhone && row.thirdPartyInsurerPhone) p.insurerPhone = row.thirdPartyInsurerPhone;
+          if (!p.insurerAddress && row.thirdPartyInsurerAddress) p.insurerAddress = row.thirdPartyInsurerAddress;
+          p.cases.push({
+            id: row.id,
+            claimNumber: row.claimNumber ?? null,
+            status: row.status,
+            approvedSettlementAmount: row.approvedSettlementAmount,
+            recoveredAmount: row.recoveredAmount,
+            currencyCode: row.currencyCode,
+            recoveryPotentialScore: row.recoveryPotentialScore,
+            incidentDate: row.incidentDate ?? null,
+            createdAt: row.createdAt ?? null,
+          });
+          if (row.approvedSettlementAmount) p.totalApprovedCents += row.approvedSettlementAmount;
+          if (row.recoveredAmount) p.totalRecoveredCents += row.recoveredAmount;
+          if (row.status === 'settled_full' || row.status === 'settled_partial') p.settled++;
+          if (row.status === 'disputed_legal') p.disputed++;
+        }
+
+        let profiles = Object.values(profileMap).map(p => ({
+          key: p.key,
+          thirdPartyName: p.thirdPartyName,
+          thirdPartyRegistration: p.thirdPartyRegistration,
+          thirdPartyIdNumber: p.thirdPartyIdNumber,
+          thirdPartyPhone: p.thirdPartyPhone,
+          thirdPartyAddress: p.thirdPartyAddress,
+          insurers: Array.from(p.insurers),
+          insurerPhone: p.insurerPhone,
+          insurerAddress: p.insurerAddress,
+          totalCases: p.cases.length,
+          settledCases: p.settled,
+          disputedCases: p.disputed,
+          totalApprovedCents: p.totalApprovedCents,
+          totalRecoveredCents: p.totalRecoveredCents,
+          isRepeatOffender: p.cases.length > 1,
+          latestIncidentDate: p.cases[0]?.incidentDate ?? null,
+          cases: p.cases.slice(0, 10), // return up to 10 most recent cases per profile
+        })).sort((a, b) => b.totalCases - a.totalCases);
+
+        // Apply search filter
+        if (input.search && input.search.trim()) {
+          const q = input.search.toLowerCase().trim();
+          profiles = profiles.filter(p =>
+            (p.thirdPartyName ?? '').toLowerCase().includes(q) ||
+            (p.thirdPartyRegistration ?? '').toLowerCase().includes(q) ||
+            (p.thirdPartyIdNumber ?? '').toLowerCase().includes(q) ||
+            p.insurers.some(ins => ins.toLowerCase().includes(q))
+          );
+        }
+
+        const total = profiles.length;
+        const offset = (input.page - 1) * input.pageSize;
+        return {
+          profiles: profiles.slice(offset, offset + input.pageSize),
+          total,
+          page: input.page,
+          pageSize: input.pageSize,
+        };
       }),
     getPriorCases: protectedProcedure
       .input(z.object({ ids: z.array(z.number()).min(1).max(20) }))

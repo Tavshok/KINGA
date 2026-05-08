@@ -76,6 +76,7 @@ export default function RecoveryCaseDetail() {
   const [editNotes, setEditNotes] = useState<string>("");
   const [recoveredAmount, setRecoveredAmount] = useState<string>("");
   const [investigationReason, setInvestigationReason] = useState<string>("");
+  const [editRecoveryTarget, setEditRecoveryTarget] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingLetter, setIsGeneratingLetter] = useState(false);
 
@@ -140,7 +141,7 @@ export default function RecoveryCaseDetail() {
   }
 
   const handleSave = () => {
-    if (!editStatus && !editNotes && !recoveredAmount && !investigationReason) {
+    if (!editStatus && !editNotes && !recoveredAmount && !investigationReason && !editRecoveryTarget) {
       toast({ title: "Nothing to save", description: "Make a change before saving.", variant: "destructive" });
       return;
     }
@@ -151,6 +152,7 @@ export default function RecoveryCaseDetail() {
       ...(editNotes ? { officerNotes: editNotes } : {}),
       ...(recoveredAmount ? { recoveredAmount: Math.round(parseFloat(recoveredAmount) * 100) } : {}),
       ...(investigationReason ? { investigationReason } : {}),
+      ...(editRecoveryTarget ? { recoveryTarget: editRecoveryTarget as any } : {}),
     });
   };
 
@@ -730,6 +732,20 @@ export default function RecoveryCaseDetail() {
             {canEdit && (
               <div className="rounded-lg border border-border bg-card p-5 space-y-4">
                 <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Update Case</h3>
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground">Recovery Target Override</label>
+                  <Select value={editRecoveryTarget} onValueChange={setEditRecoveryTarget}>
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder={`Current: ${caseData.recoveryTarget ?? 'unknown'}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="insurer">🏢 Pursue Insurer</SelectItem>
+                      <SelectItem value="individual">👤 Pursue Individual Directly</SelectItem>
+                      <SelectItem value="unknown">❓ Unknown / Not Yet Determined</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Override the AI-determined recovery target. Use when the insurer repudiates or the individual must be pursued directly.</p>
+                </div>
                 <div className="space-y-2">
                   <label className="text-xs text-muted-foreground">Change Status</label>
                   <Select value={editStatus} onValueChange={setEditStatus}>
