@@ -67,7 +67,7 @@ export default function ThirdPartyProfiles() {
 
   const { data, isLoading } = trpc.recovery.getThirdPartyProfiles.useQuery(
     { search: debouncedSearch || undefined, page, pageSize: 20 },
-    { keepPreviousData: true }
+    { placeholderData: (prev: any) => prev }
   );
 
   const profiles = data?.profiles ?? [];

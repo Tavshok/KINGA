@@ -148,7 +148,6 @@ export default function ClaimsManagerDashboard() {
   // Recovery KPIs — for claims_manager role
   const { data: recoveryKPIs } = trpc.recovery.getKPIs.useQuery(undefined, {
     retry: false,
-    onError: () => { /* claims_manager may not have recovery access — silently ignore */ },
   });
   // Processed Claims: completed + closed + rejected
   const { data: completedClaims, isLoading: completedLoading } = 

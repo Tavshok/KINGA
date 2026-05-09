@@ -6,7 +6,7 @@
  * for executive decision-making.
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

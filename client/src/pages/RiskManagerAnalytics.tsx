@@ -190,7 +190,7 @@ function RepairCostChart({
       },
       options: {
         indexAxis: "y", responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${fmtUSD(ctx.parsed.x)}` } } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${fmtUSD(ctx.parsed.x ?? 0)}` } } },
         scales: {
           x: { ticks: { color: "#64748B", callback: (v) => fmtUSD(Number(v)) }, grid: { color: "#1E293B" } },
           y: { ticks: { color: "#94A3B8" }, grid: { display: false } },
@@ -267,7 +267,7 @@ function RecoveryExposureChart({
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: "#94A3B8", font: { size: 11 } } }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtUSD(ctx.parsed.y)}` } } },
+        plugins: { legend: { labels: { color: "#94A3B8", font: { size: 11 } } }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtUSD(ctx.parsed.y ?? 0)}` } } },
         scales: {
           x: { ticks: { color: "#64748B" }, grid: { color: "#1E293B" } },
           y: { ticks: { color: "#64748B", callback: (v) => fmtUSD(Number(v)) }, grid: { color: "#1E293B" } },
@@ -831,16 +831,16 @@ export default function RiskManagerAnalytics() {
 
   const summaryKpis = useMemo(() => {
     if (!data) return null;
-    const totalClaims   = data.claimsFrequency.reduce((s, r) => s + r.claimCount, 0);
-    const totalCost     = data.repairCostByAge.reduce((s, r) => s + r.avgCost * r.claimCount, 0);
-    const totalCount    = data.repairCostByAge.reduce((s, r) => s + r.claimCount, 0);
+    const totalClaims   = data.claimsFrequency.reduce((s: number, r: any) => s + r.claimCount, 0);
+    const totalCost     = data.repairCostByAge.reduce((s: number, r: any) => s + r.avgCost * r.claimCount, 0);
+    const totalCount    = data.repairCostByAge.reduce((s: number, r: any) => s + r.claimCount, 0);
     const avgRepairCost = totalCount > 0 ? totalCost / totalCount : 0;
-    const highFraud     = data.fraudRateByType.filter((r) => r.fraudRiskLevel === "high").reduce((s, r) => s + r.count, 0);
-    const allFraud      = data.fraudRateByType.reduce((s, r) => s + r.count, 0);
+    const highFraud     = data.fraudRateByType.filter((r: any) => r.fraudRiskLevel === "high").reduce((s: number, r: any) => s + r.count, 0);
+    const allFraud      = data.fraudRateByType.reduce((s: number, r: any) => s + r.count, 0);
     const fraudRate     = allFraud > 0 ? Math.round((highFraud / allFraud) * 1000) / 10 : 0;
-    const totalQuantum  = data.recoveryExposure.reduce((s, r) => s + r.totalQuantum, 0);
-    const totalDays     = data.settlementCycleTime.reduce((s, r) => s + r.avgDays * r.closedCount, 0);
-    const totalClosed   = data.settlementCycleTime.reduce((s, r) => s + r.closedCount, 0);
+    const totalQuantum  = data.recoveryExposure.reduce((s: number, r: any) => s + r.totalQuantum, 0);
+    const totalDays     = data.settlementCycleTime.reduce((s: number, r: any) => s + r.avgDays * r.closedCount, 0);
+    const totalClosed   = data.settlementCycleTime.reduce((s: number, r: any) => s + r.closedCount, 0);
     const avgCycleDays  = totalClosed > 0 ? Math.round(totalDays / totalClosed) : 0;
     return {
       totalClaims,

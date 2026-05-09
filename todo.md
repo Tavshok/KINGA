@@ -11721,3 +11721,9 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Wired currencyCode into createClaim call: input.currencyCode ?? 'USD'
 - [x] Confirmed claims table already has currencyCode column (varchar 10, default 'USD')
 - [x] Build clean: pnpm build ✔ (20.97s), SubmitClaim-C_5Fyqpy.js in dist
+
+## Phase 23 — Executive Dashboard Error Fix
+- [x] Diagnosed: useEffect was used in ExecutiveDashboard.tsx but not imported (only useState and useMemo were imported)
+- [x] Fixed: added useEffect to the React import on line 9
+- [x] Bonus fix: ThirdPartyProfiles.tsx used keepPreviousData (tRPC v10 API) — replaced with placeholderData: (prev) => prev (tRPC v11 API), eliminating 25 TypeScript errors
+- [x] Build clean: pnpm build ✓ (1m 10s), ExecutiveDashboard-DLNS9L2z.js in dist

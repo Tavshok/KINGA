@@ -547,7 +547,7 @@ export default function RecoveryCaseDetail() {
               </div>
               {settlementType === "settled_partial" && (
                 <div className="space-y-2">
-                  <label className="text-xs text-muted-foreground">Recovered Amount ({currency}) <span className="text-rose-400">*</span></label>
+                  <label className="text-xs text-muted-foreground">Recovered Amount ({caseData?.currencyCode ?? "USD"}) <span className="text-rose-400">*</span></label>
                   <Input
                     type="number"
                     value={settlementAmount}
@@ -923,7 +923,7 @@ export default function RecoveryCaseDetail() {
                 )}
                 {(editStatus === "settled_full" || editStatus === "settled_partial") && (
                   <div className="space-y-2">
-                    <label className="text-xs text-muted-foreground">Recovered Amount ({currency})</label>
+                    <label className="text-xs text-muted-foreground">Recovered Amount ({caseData?.currencyCode ?? "USD"})</label>
                     <input
                       type="number"
                       value={recoveredAmount}
@@ -995,9 +995,9 @@ export default function RecoveryCaseDetail() {
                   <button
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border border-violet-500/30 text-violet-400 hover:bg-violet-500/10 transition-colors"
                     onClick={(e) => { e.stopPropagation(); exportCorrespondenceLog.mutate({ caseId }); }}
-                    disabled={exportCorrespondenceLog.isLoading}
+                    disabled={exportCorrespondenceLog.isPending}
                   >
-                    {exportCorrespondenceLog.isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileDown className="h-3 w-3" />}
+                    {exportCorrespondenceLog.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileDown className="h-3 w-3" />}
                     Export PDF
                   </button>
                 )}
