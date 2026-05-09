@@ -11747,3 +11747,9 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Removed /insurer-portal/external-assessor Route block from App.tsx
 - [x] External Assessor tile already removed from InsurerRoleSelection.tsx
 - [x] Build clean: pnpm build ✔ (27.35s) — zero references to assessor_external remain in insurer portal
+
+## Phase 26 — Design Alignment: New Pages to Match Original Insurer Portal Style
+- [x] Read original dashboard pages (ClaimsManagerDashboard, RiskManagerDashboard) to extract design pattern
+- [x] Rewrite InsurerAdminDashboard to match original design (light bg, white cards, consistent tokens)
+- [x] Rewrite RiskManagerAnalytics to match original design
+- [x] Build clean after all changes

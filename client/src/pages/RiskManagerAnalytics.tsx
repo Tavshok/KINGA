@@ -15,6 +15,7 @@
 import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import InsurerPortalLayout from "@/components/InsurerPortalLayout";
 import {
   Dialog,
@@ -23,6 +24,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   TrendingUp,
@@ -37,16 +40,15 @@ import {
   Download,
   Loader2,
   Mail,
-  X,
 } from "lucide-react";
 import Chart from "chart.js/auto";
 
 // ─── Colour palette ───────────────────────────────────────────────────────────
-const TEAL    = "#14B8A6";
-const AMBER   = "#F59E0B";
-const RED     = "#EF4444";
-const INDIGO  = "#6366F1";
-const EMERALD = "#10B981";
+const TEAL    = "#0D9488";
+const AMBER   = "#D97706";
+const RED     = "#DC2626";
+const INDIGO  = "#4F46E5";
+const EMERALD = "#059669";
 const SLATE   = "#64748B";
 
 const INCIDENT_COLORS: Record<string, string> = {
@@ -54,9 +56,9 @@ const INCIDENT_COLORS: Record<string, string> = {
   theft:      AMBER,
   hail:       INDIGO,
   fire:       RED,
-  vandalism:  "#EC4899",
-  flood:      "#3B82F6",
-  hijacking:  "#F97316",
+  vandalism:  "#DB2777",
+  flood:      "#2563EB",
+  hijacking:  "#EA580C",
   other:      SLATE,
 };
 
@@ -73,36 +75,36 @@ const RANGE_OPTIONS = [
   { label: "Last 12M", value: 12 as const },
 ];
 
+// ─── Light chart options shared across charts ─────────────────────────────────
+const LIGHT_GRID  = "#E2E8F0";
+const LIGHT_TICKS = "#64748B";
+const LIGHT_LEGEND = "#374151";
+
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KpiCard({
   icon: Icon,
   label,
   value,
   sub,
-  accent,
+  color,
 }: {
   icon: React.ElementType;
   label: string;
   value: string;
   sub?: string;
-  accent?: string;
+  color: string;
 }) {
   return (
-    <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5 flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: `${accent ?? TEAL}22` }}
-        >
-          <Icon size={16} style={{ color: accent ?? TEAL }} />
+    <Card className="border-0 shadow-sm">
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className={color}><Icon className="h-4 w-4" /></span>
         </div>
-        <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{label}</span>
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-white">{value}</p>
-        {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
-      </div>
-    </div>
+        <p className="text-xl font-bold">{value}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+        {sub && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{sub}</p>}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -119,13 +121,15 @@ function ChartBox({
   children: React.ReactNode;
 }) {
   return (
-    <div id={id} className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5 flex flex-col gap-3">
-      <div>
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
-        {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
-      </div>
-      {children}
-    </div>
+    <Card id={id} className="border-0 shadow-sm">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        {children}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -154,17 +158,17 @@ function ClaimsFrequencyChart({
       data: { labels: months, datasets },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: "#94A3B8", font: { size: 11 } } } },
+        plugins: { legend: { labels: { color: LIGHT_LEGEND, font: { size: 11 } } } },
         scales: {
-          x: { stacked: true, ticks: { color: "#64748B" }, grid: { color: "#1E293B" } },
-          y: { stacked: true, ticks: { color: "#64748B" }, grid: { color: "#1E293B" } },
+          x: { stacked: true, ticks: { color: LIGHT_TICKS }, grid: { color: LIGHT_GRID } },
+          y: { stacked: true, ticks: { color: LIGHT_TICKS }, grid: { color: LIGHT_GRID } },
         },
       },
     });
     return () => { chartRef.current?.destroy(); };
   }, [data]);
 
-  if (!data.length) return <p className="text-slate-500 text-sm py-8 text-center">No data yet</p>;
+  if (!data.length) return <p className="text-muted-foreground text-sm py-8 text-center">No data yet</p>;
   return <div style={{ height: 260 }}><canvas ref={canvasRef} /></div>;
 }
 
@@ -192,15 +196,15 @@ function RepairCostChart({
         indexAxis: "y", responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${fmtUSD(ctx.parsed.x ?? 0)}` } } },
         scales: {
-          x: { ticks: { color: "#64748B", callback: (v) => fmtUSD(Number(v)) }, grid: { color: "#1E293B" } },
-          y: { ticks: { color: "#94A3B8" }, grid: { display: false } },
+          x: { ticks: { color: LIGHT_TICKS, callback: (v) => fmtUSD(Number(v)) }, grid: { color: LIGHT_GRID } },
+          y: { ticks: { color: LIGHT_TICKS }, grid: { display: false } },
         },
       },
     });
     return () => { chartRef.current?.destroy(); };
   }, [data]);
 
-  if (!data.length) return <p className="text-slate-500 text-sm py-8 text-center">No data yet</p>;
+  if (!data.length) return <p className="text-muted-foreground text-sm py-8 text-center">No data yet</p>;
   return <div style={{ height: 220 }}><canvas ref={canvasRef} /></div>;
 }
 
@@ -230,17 +234,17 @@ function FraudRateChart({
       data: { labels: types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)), datasets },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: "#94A3B8", font: { size: 11 } } } },
+        plugins: { legend: { labels: { color: LIGHT_LEGEND, font: { size: 11 } } } },
         scales: {
-          x: { ticks: { color: "#64748B" }, grid: { color: "#1E293B" } },
-          y: { ticks: { color: "#64748B" }, grid: { color: "#1E293B" } },
+          x: { ticks: { color: LIGHT_TICKS }, grid: { color: LIGHT_GRID } },
+          y: { ticks: { color: LIGHT_TICKS }, grid: { color: LIGHT_GRID } },
         },
       },
     });
     return () => { chartRef.current?.destroy(); };
   }, [data]);
 
-  if (!data.length) return <p className="text-slate-500 text-sm py-8 text-center">No data yet</p>;
+  if (!data.length) return <p className="text-muted-foreground text-sm py-8 text-center">No data yet</p>;
   return <div style={{ height: 260 }}><canvas ref={canvasRef} /></div>;
 }
 
@@ -267,17 +271,17 @@ function RecoveryExposureChart({
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: "#94A3B8", font: { size: 11 } } }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtUSD(ctx.parsed.y ?? 0)}` } } },
+        plugins: { legend: { labels: { color: LIGHT_LEGEND, font: { size: 11 } } }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtUSD(ctx.parsed.y ?? 0)}` } } },
         scales: {
-          x: { ticks: { color: "#64748B" }, grid: { color: "#1E293B" } },
-          y: { ticks: { color: "#64748B", callback: (v) => fmtUSD(Number(v)) }, grid: { color: "#1E293B" } },
+          x: { ticks: { color: LIGHT_TICKS }, grid: { color: LIGHT_GRID } },
+          y: { ticks: { color: LIGHT_TICKS, callback: (v) => fmtUSD(Number(v)) }, grid: { color: LIGHT_GRID } },
         },
       },
     });
     return () => { chartRef.current?.destroy(); };
   }, [data]);
 
-  if (!data.length) return <p className="text-slate-500 text-sm py-8 text-center">No data yet</p>;
+  if (!data.length) return <p className="text-muted-foreground text-sm py-8 text-center">No data yet</p>;
   return <div style={{ height: 260 }}><canvas ref={canvasRef} /></div>;
 }
 
@@ -301,9 +305,9 @@ function RepeatOffenderChart({
       type: "doughnut",
       data: {
         labels: ["Repeat Offenders", "First-Time"],
-        datasets: [{ data: [repeatCount, Math.max(0, totalCount - repeatCount)], backgroundColor: [RED, "#1E293B"], borderColor: ["#0F172A", "#0F172A"], borderWidth: 3 }],
+        datasets: [{ data: [repeatCount, Math.max(0, totalCount - repeatCount)], backgroundColor: [RED, "#E2E8F0"], borderColor: ["#fff", "#fff"], borderWidth: 3 }],
       },
-      options: { responsive: true, maintainAspectRatio: false, cutout: "72%", plugins: { legend: { labels: { color: "#94A3B8", font: { size: 11 } } } } },
+      options: { responsive: true, maintainAspectRatio: false, cutout: "72%", plugins: { legend: { labels: { color: LIGHT_LEGEND, font: { size: 11 } } } } },
     });
     return () => { chartRef.current?.destroy(); };
   }, [repeatCount, totalCount]);
@@ -312,12 +316,12 @@ function RepeatOffenderChart({
     <div className="flex items-center gap-8">
       <div style={{ height: 200, width: 200, flexShrink: 0 }}><canvas ref={canvasRef} /></div>
       <div className="flex flex-col gap-2">
-        <p className="text-4xl font-bold text-white">{rate.toFixed(1)}%</p>
-        <p className="text-sm text-slate-400">Repeat offender rate</p>
-        <p className="text-xs text-slate-500">{repeatCount} of {totalCount} TP cases</p>
+        <p className="text-4xl font-bold">{rate.toFixed(1)}%</p>
+        <p className="text-sm text-muted-foreground">Repeat offender rate</p>
+        <p className="text-xs text-muted-foreground">{repeatCount} of {totalCount} TP cases</p>
         <div className="mt-2 flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
-          <span className="text-xs text-slate-400">Known repeat third-parties</span>
+          <span className="text-xs text-muted-foreground">Known repeat third-parties</span>
         </div>
       </div>
     </div>
@@ -346,15 +350,15 @@ function CycleTimeChart({
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.parsed.y} days` } } },
         scales: {
-          x: { ticks: { color: "#64748B" }, grid: { color: "#1E293B" } },
-          y: { ticks: { color: "#64748B", callback: (v) => `${v}d` }, grid: { color: "#1E293B" } },
+          x: { ticks: { color: LIGHT_TICKS }, grid: { color: LIGHT_GRID } },
+          y: { ticks: { color: LIGHT_TICKS, callback: (v) => `${v}d` }, grid: { color: LIGHT_GRID } },
         },
       },
     });
     return () => { chartRef.current?.destroy(); };
   }, [data]);
 
-  if (!data.length) return <p className="text-slate-500 text-sm py-8 text-center">No data yet</p>;
+  if (!data.length) return <p className="text-muted-foreground text-sm py-8 text-center">No data yet</p>;
   return <div style={{ height: 260 }}><canvas ref={canvasRef} /></div>;
 }
 
@@ -362,27 +366,27 @@ function CycleTimeChart({
 function TierUpgradeGate() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[40vh] gap-6 text-center px-4">
-      <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-        <Lock size={28} className="text-amber-400" />
+      <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center">
+        <Lock size={28} className="text-amber-500" />
       </div>
       <div>
-        <h2 className="text-xl font-bold text-white mb-2">Enterprise Feature</h2>
-        <p className="text-slate-400 text-sm max-w-md">
-          Risk Manager Analytics is available on the <strong className="text-amber-400">Enterprise tier</strong>.
+        <h2 className="text-xl font-bold mb-2">Enterprise Feature</h2>
+        <p className="text-muted-foreground text-sm max-w-md">
+          Risk Manager Analytics is available on the <strong className="text-amber-600">Enterprise tier</strong>.
           Upgrade to unlock own-book motor intelligence, fraud benchmarking, and recovery exposure reporting.
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-3 text-sm text-slate-400 max-w-sm">
-        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Claims frequency trends</p>
-        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Repair cost benchmarking</p>
-        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Fraud flag rate by type</p>
-        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> TP recovery exposure</p>
-        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Repeat offender intelligence</p>
-        <p className="flex items-center gap-2"><span className="text-teal-400">✓</span> Settlement cycle time benchmarking</p>
+      <div className="grid grid-cols-2 gap-3 text-sm text-muted-foreground max-w-sm">
+        <p className="flex items-center gap-2"><span className="text-teal-600">✓</span> Claims frequency trends</p>
+        <p className="flex items-center gap-2"><span className="text-teal-600">✓</span> Repair cost benchmarking</p>
+        <p className="flex items-center gap-2"><span className="text-teal-600">✓</span> Fraud flag rate by type</p>
+        <p className="flex items-center gap-2"><span className="text-teal-600">✓</span> TP recovery exposure</p>
+        <p className="flex items-center gap-2"><span className="text-teal-600">✓</span> Repeat offender intelligence</p>
+        <p className="flex items-center gap-2"><span className="text-teal-600">✓</span> Settlement cycle time benchmarking</p>
       </div>
       <a
         href="mailto:sales@kinga.ai?subject=Enterprise%20Tier%20Upgrade%20Request"
-        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg text-sm transition-colors"
+        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-white font-semibold rounded-lg text-sm transition-colors"
       >
         Contact Sales to Upgrade
       </a>
@@ -432,7 +436,7 @@ async function exportMultiPagePDF(
   const CONTENT_H = CONTENT_BOTTOM - CONTENT_TOP;
 
   const rangeLabel = `Last ${months} months`;
-  const dateStr = new Date().toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" });
+  const dateStr = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
 
   // Load KINGA logo
   let logoBase64 = "";
@@ -511,7 +515,7 @@ async function exportMultiPagePDF(
   // ── Page 1: Cover / KPI Summary ──────────────────────────────────────────────
   drawHeader("Risk Manager Analytics Report");
 
-  // Dark background panel
+  // Dark background panel on cover page only
   doc.setFillColor(15, 23, 42);
   doc.rect(0, HEADER_H, W, H - HEADER_H, "F");
 
@@ -552,21 +556,14 @@ async function exportMultiPagePDF(
     const x = M + col * (cardW + cardGap);
     const y = cardStartY + row * (cardH + cardGap);
 
-    // Card background
     doc.setFillColor(30, 41, 59);
     doc.roundedRect(x, y, cardW, cardH, 3, 3, "F");
-
-    // Accent left bar
     doc.setFillColor(...kpi.color);
     doc.roundedRect(x, y, 3, cardH, 1.5, 1.5, "F");
-
-    // Label
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
     doc.text(kpi.label.toUpperCase(), x + 7, y + 9);
-
-    // Value
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(255, 255, 255);
@@ -644,20 +641,18 @@ async function exportMultiPagePDF(
   chartPages.forEach(({ key, title, subtitle, insight }, idx) => {
     doc.addPage();
 
-    // Dark background
+    // Dark background on chart pages for contrast
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, W, H, "F");
 
     drawHeader("Risk Manager Analytics Report");
     drawSectionTitle(title, subtitle);
 
-    // Chart image — full width, generous height
     const chartY = CONTENT_TOP + 20;
     const chartH = CONTENT_H - 40;
     const chartW = W - M * 2;
     addChartImage(chartCanvases[key] ?? null, M, chartY, chartW, chartH);
 
-    // Insight box at the bottom
     const insightY = chartY + chartH + 4;
     doc.setFillColor(30, 41, 59);
     doc.roundedRect(M, insightY, chartW, 16, 2, 2, "F");
@@ -731,45 +726,45 @@ function SendEmailDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="bg-slate-900 border border-slate-700 text-white max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-white">
-            <Mail size={18} className="text-teal-400" />
+          <DialogTitle className="flex items-center gap-2">
+            <Mail size={18} className="text-teal-600" />
             Send Report by Email
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <p className="text-sm text-slate-400">
-            The KPI summary for the <strong className="text-white">Last {months} months</strong> will be delivered to the recipient's inbox via the KINGA notification service.
+          <p className="text-sm text-muted-foreground">
+            The KPI summary for the <strong>Last {months} months</strong> will be delivered to the recipient's inbox via the KINGA notification service.
           </p>
 
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Recipient Name</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Recipient Name</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Jane Smith"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
+                className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Recipient Email <span className="text-red-400">*</span></label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Recipient Email <span className="text-red-500">*</span></label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="e.g. jane@insurer.com"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
+                className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
           </div>
 
           {/* KPI preview */}
-          <div className="bg-slate-800/60 border border-slate-700/50 rounded-lg p-3 space-y-1.5">
-            <p className="text-xs font-semibold text-slate-300 mb-2">KPIs included in this report</p>
+          <div className="bg-muted/40 border border-border rounded-lg p-3 space-y-1.5">
+            <p className="text-xs font-semibold mb-2">KPIs included in this report</p>
             {[
               [`Total Claims (Last ${months}M)`, summaryKpis.totalClaims.toLocaleString()],
               ["Avg Repair Cost",                fmtUSD(summaryKpis.avgRepairCost)],
@@ -779,28 +774,26 @@ function SendEmailDialog({
               ["Avg Cycle Time",                 `${summaryKpis.avgCycleDays} days`],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between text-xs">
-                <span className="text-slate-400">{label}</span>
-                <span className="text-white font-medium">{value}</span>
+                <span className="text-muted-foreground">{label}</span>
+                <span className="font-medium">{value}</span>
               </div>
             ))}
           </div>
         </div>
 
         <DialogFooter className="gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-slate-400 hover:text-white border border-slate-700 rounded-lg transition-colors"
-          >
+          <Button variant="outline" onClick={onClose} size="sm">
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleSend}
             disabled={sendMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-700 hover:bg-teal-600 rounded-lg transition-colors disabled:opacity-60"
+            size="sm"
+            className="bg-teal-600 hover:bg-teal-700 text-white"
           >
-            {sendMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+            {sendMutation.isPending ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Mail size={14} className="mr-1.5" />}
             {sendMutation.isPending ? "Sending…" : "Send Report"}
-          </button>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -810,6 +803,7 @@ function SendEmailDialog({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function RiskManagerAnalytics() {
   const { user } = useAuth();
+  const { fmt } = useTenantCurrency();
   const [months, setMonths] = useState<3 | 6 | 12>(6);
   const [exporting, setExporting] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
@@ -880,18 +874,18 @@ export default function RiskManagerAnalytics() {
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <TrendingUp size={20} className="text-teal-400" />
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <TrendingUp size={20} className="text-teal-600" />
               Risk Manager Analytics
             </h1>
-            <p className="text-slate-400 text-sm mt-0.5">
+            <p className="text-muted-foreground text-sm mt-0.5">
               Own-book motor intelligence · {user?.tenantId ?? "Enterprise"} · {rangeLabel}
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             {/* Date-range selector */}
-            <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+            <div className="flex items-center bg-muted border border-border rounded-lg overflow-hidden">
               {RANGE_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
@@ -899,7 +893,7 @@ export default function RiskManagerAnalytics() {
                   className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                     months === opt.value
                       ? "bg-teal-600 text-white"
-                      : "text-slate-400 hover:text-white hover:bg-slate-700"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   }`}
                 >
                   {opt.label}
@@ -908,34 +902,38 @@ export default function RiskManagerAnalytics() {
             </div>
 
             {/* Refresh */}
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => refetch()}
               disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 rounded-lg transition-colors disabled:opacity-50"
+              className="h-8 px-3 text-xs"
             >
-              <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} />
+              <RefreshCw size={12} className={`mr-1.5 ${isLoading ? "animate-spin" : ""}`} />
               Refresh
-            </button>
+            </Button>
 
             {/* Export controls — only when data is loaded */}
             {data && !isTierGated && (
               <>
-                <button
+                <Button
+                  size="sm"
                   onClick={handleExport}
                   disabled={exporting}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-teal-700 hover:bg-teal-600 border border-teal-600 rounded-lg transition-colors disabled:opacity-60"
+                  className="h-8 px-3 text-xs bg-teal-600 hover:bg-teal-700 text-white"
                 >
-                  {exporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                  {exporting ? <Loader2 size={12} className="animate-spin mr-1.5" /> : <Download size={12} className="mr-1.5" />}
                   {exporting ? "Exporting…" : "Download PDF"}
-                </button>
+                </Button>
 
-                <button
+                <Button
+                  size="sm"
                   onClick={() => setEmailOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-700 hover:bg-indigo-600 border border-indigo-600 rounded-lg transition-colors"
+                  className="h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
                 >
-                  <Mail size={12} />
+                  <Mail size={12} className="mr-1.5" />
                   Send by Email
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -945,9 +943,9 @@ export default function RiskManagerAnalytics() {
         {isTierGated && <TierUpgradeGate />}
         {isRoleGated && (
           <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 text-center">
-            <AlertTriangle size={32} className="text-amber-400" />
-            <p className="text-white font-semibold">Risk Manager role required</p>
-            <p className="text-slate-400 text-sm">This page is only accessible to users with the Risk Manager role.</p>
+            <AlertTriangle size={32} className="text-amber-500" />
+            <p className="font-semibold">Risk Manager role required</p>
+            <p className="text-muted-foreground text-sm">This page is only accessible to users with the Risk Manager role.</p>
           </div>
         )}
 
@@ -955,7 +953,7 @@ export default function RiskManagerAnalytics() {
         {isLoading && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5 h-28 animate-pulse" />
+              <div key={i} className="h-28 rounded-xl bg-muted animate-pulse" />
             ))}
           </div>
         )}
@@ -965,13 +963,13 @@ export default function RiskManagerAnalytics() {
           <div className="space-y-6">
 
             {/* KPI Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-              <KpiCard icon={Car}        label={`Claims (${rangeLabel})`}      value={summaryKpis.totalClaims.toLocaleString()}                sub="Across all incident types"         accent={TEAL}    />
-              <KpiCard icon={TrendingUp} label="Avg Repair Cost"               value={fmtUSD(summaryKpis.avgRepairCost)}                       sub="Weighted across age buckets"       accent={EMERALD} />
-              <KpiCard icon={ShieldAlert} label="High Fraud Rate"              value={`${summaryKpis.fraudRate}%`}                             sub="Of assessed claims"                accent={RED}     />
-              <KpiCard icon={Target}     label={`TP Exposure (${rangeLabel})`} value={fmtUSD(summaryKpis.totalQuantum)}                        sub="Total quantum claimed"             accent={AMBER}   />
-              <KpiCard icon={Users}      label="Repeat Offenders"              value={`${data.repeatOffender.rate.toFixed(1)}%`}               sub={`${data.repeatOffender.repeatCount} of ${data.repeatOffender.totalCount} TP cases`} accent={RED}     />
-              <KpiCard icon={Clock}      label="Avg Cycle Time"                value={`${summaryKpis.avgCycleDays}d`}                          sub="Submission to settlement"          accent={INDIGO}  />
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+              <KpiCard icon={Car}        label={`Claims (${rangeLabel})`}      value={summaryKpis.totalClaims.toLocaleString()}                sub="Across all incident types"         color="text-teal-600"   />
+              <KpiCard icon={TrendingUp} label="Avg Repair Cost"               value={fmtUSD(summaryKpis.avgRepairCost)}                       sub="Weighted across age buckets"       color="text-green-600"  />
+              <KpiCard icon={ShieldAlert} label="High Fraud Rate"              value={`${summaryKpis.fraudRate}%`}                             sub="Of assessed claims"                color="text-red-600"    />
+              <KpiCard icon={Target}     label={`TP Exposure (${rangeLabel})`} value={fmtUSD(summaryKpis.totalQuantum)}                        sub="Total quantum claimed"             color="text-orange-600" />
+              <KpiCard icon={Users}      label="Repeat Offenders"              value={`${data.repeatOffender.rate.toFixed(1)}%`}               sub={`${data.repeatOffender.repeatCount} of ${data.repeatOffender.totalCount} TP cases`} color="text-red-600"    />
+              <KpiCard icon={Clock}      label="Avg Cycle Time"                value={`${summaryKpis.avgCycleDays}d`}                          sub="Submission to settlement"          color="text-purple-600" />
             </div>
 
             {/* Row 1 */}
@@ -1008,15 +1006,13 @@ export default function RiskManagerAnalytics() {
               </ChartBox>
             </div>
 
-            <p className="text-xs text-slate-600 text-right">
+            <p className="text-xs text-muted-foreground text-right">
               Data is tenant-isolated · Own-book only · Refreshed on demand
             </p>
           </div>
         )}
 
         {/* ── Hidden canvas capture layer for PDF ─────────────────────────── */}
-        {/* Chart.js renders into canvas elements inside the chart components.
-            We capture them by querying the DOM after mount. */}
         {data && !isTierGated && (
           <ChartCanvasCapture
             chartRefs={chartRefs}

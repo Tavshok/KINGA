@@ -6,18 +6,20 @@
  *
  * Sections:
  *  1. KPI Overview — live claims, fraud, processing metrics
- *  2. Team Members — list of all insurer users in this tenant with their roles
- *  3. Quick Actions — links to workflow settings, reports, fraud analytics
- *  4. Recent Activity — latest claims activity across the tenant
+ *  2. Quick Actions — links to workflow settings, reports, fraud analytics
+ *  3. Recent Activity — latest claims activity across the tenant
+ *  4. Admin Profile + Portal Roles directory
  */
 
 import InsurerPortalLayout from "@/components/InsurerPortalLayout";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Users,
   Settings,
@@ -39,18 +41,17 @@ import {
 
 // ─── Role display helpers ─────────────────────────────────────────────────────
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
-  executive:         { label: "Executive",          color: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30" },
-  claims_manager:    { label: "Claims Manager",     color: "bg-teal-500/15 text-teal-300 border-teal-500/30" },
-  claims_processor:  { label: "Claims Processor",   color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
-  assessor_internal: { label: "Internal Assessor",  color: "bg-orange-500/15 text-orange-300 border-orange-500/30" },
-  assessor_external: { label: "External Assessor",  color: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
-  risk_manager:      { label: "Risk Manager",       color: "bg-red-500/15 text-red-300 border-red-500/30" },
-  recovery_officer:  { label: "Recovery Officer",   color: "bg-lime-500/15 text-lime-300 border-lime-500/30" },
-  insurer_admin:     { label: "Insurer Admin",      color: "bg-slate-500/15 text-slate-300 border-slate-500/30" },
+  executive:         { label: "Executive",          color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  claims_manager:    { label: "Claims Manager",     color: "bg-teal-100 text-teal-700 border-teal-200" },
+  claims_processor:  { label: "Claims Processor",   color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  assessor_internal: { label: "Internal Assessor",  color: "bg-orange-100 text-orange-700 border-orange-200" },
+  risk_manager:      { label: "Risk Manager",       color: "bg-red-100 text-red-700 border-red-200" },
+  recovery_officer:  { label: "Recovery Officer",   color: "bg-lime-100 text-lime-700 border-lime-200" },
+  insurer_admin:     { label: "Insurer Admin",      color: "bg-slate-100 text-slate-700 border-slate-200" },
 };
 
 function RoleBadge({ role }: { role: string }) {
-  const cfg = ROLE_LABELS[role] ?? { label: role, color: "bg-slate-500/15 text-slate-300 border-slate-500/30" };
+  const cfg = ROLE_LABELS[role] ?? { label: role, color: "bg-slate-100 text-slate-700 border-slate-200" };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${cfg.color}`}>
       {cfg.label}
@@ -65,64 +66,64 @@ const QUICK_ACTIONS = [
     description: "Configure automation rules and escalation policies",
     icon: Settings,
     href: "/admin/workflows",
-    color: "text-violet-400",
-    bg: "bg-violet-500/10",
+    color: "text-violet-600",
+    bg: "bg-violet-50",
   },
   {
     label: "Workflow Analytics",
     description: "Processing times, throughput, and bottlenecks",
     icon: BarChart3,
     href: "/insurer-portal/workflow-analytics",
-    color: "text-teal-400",
-    bg: "bg-teal-500/10",
+    color: "text-teal-600",
+    bg: "bg-teal-50",
   },
   {
     label: "Fraud Analytics",
     description: "Fraud detection overview and FCDI flags",
     icon: ShieldAlert,
     href: "/insurer/fraud-analytics",
-    color: "text-rose-400",
-    bg: "bg-rose-500/10",
+    color: "text-rose-600",
+    bg: "bg-rose-50",
   },
   {
     label: "Reports Centre",
     description: "Generate and download all report types",
     icon: FileBarChart,
     href: "/insurer-portal/reports-centre",
-    color: "text-amber-400",
-    bg: "bg-amber-500/10",
+    color: "text-amber-600",
+    bg: "bg-amber-50",
   },
   {
     label: "Claims Triage",
     description: "Review and action incoming claims",
     icon: ClipboardList,
     href: "/insurer/claims/triage",
-    color: "text-blue-400",
-    bg: "bg-blue-500/10",
+    color: "text-blue-600",
+    bg: "bg-blue-50",
   },
   {
     label: "Recovery Cases",
     description: "Monitor third-party recovery queue",
     icon: Layers,
     href: "/insurer-portal/recovery",
-    color: "text-lime-400",
-    bg: "bg-lime-500/10",
+    color: "text-lime-600",
+    bg: "bg-lime-50",
   },
 ];
 
 // ─── Status chip ──────────────────────────────────────────────────────────────
 function StatusChip({ status }: { status: string }) {
   const map: Record<string, string> = {
-    submitted:             "bg-blue-500/15 text-blue-300",
-    triage:                "bg-yellow-500/15 text-yellow-300",
-    assessment_in_progress:"bg-amber-500/15 text-amber-300",
-    comparison:            "bg-violet-500/15 text-violet-300",
-    completed:             "bg-emerald-500/15 text-emerald-300",
-    fraud_flagged:         "bg-rose-500/15 text-rose-300",
-    rejected:              "bg-red-500/15 text-red-300",
+    submitted:              "bg-blue-100 text-blue-700",
+    triage:                 "bg-yellow-100 text-yellow-700",
+    assessment_in_progress: "bg-amber-100 text-amber-700",
+    comparison:             "bg-violet-100 text-violet-700",
+    completed:              "bg-emerald-100 text-emerald-700",
+    fraud_flagged:          "bg-rose-100 text-rose-700",
+    rejected:               "bg-red-100 text-red-700",
   };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${map[status] ?? "bg-slate-500/15 text-slate-300"}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${map[status] ?? "bg-slate-100 text-slate-600"}`}>
       {status.replace(/_/g, " ")}
     </span>
   );
@@ -131,6 +132,7 @@ function StatusChip({ status }: { status: string }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function InsurerAdminDashboard() {
   const { user } = useAuth();
+  const { fmt } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -156,76 +158,69 @@ export default function InsurerAdminDashboard() {
       label: "Total Claims",
       value: kpiSummary?.totalClaims ?? "—",
       icon: ClipboardList,
-      color: "text-blue-400",
-      bg: "bg-blue-500/10",
+      color: "text-blue-600",
       sub: `${kpiSummary?.activeClaims ?? 0} active`,
     },
     {
       label: "Completion Rate",
       value: kpiSummary?.completionRate != null ? `${kpiSummary.completionRate}%` : "—",
       icon: CheckCircle2,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
+      color: "text-green-600",
       sub: `${kpiSummary?.completedClaims ?? 0} completed`,
     },
     {
       label: "Fraud Detected",
       value: kpiSummary?.fraudDetected ?? "—",
       icon: AlertTriangle,
-      color: "text-rose-400",
-      bg: "bg-rose-500/10",
+      color: "text-red-600",
       sub: "flagged cases",
     },
     {
       label: "Avg Processing",
       value: kpiSummary?.avgProcessingTime != null ? `${kpiSummary.avgProcessingTime}d` : "—",
       icon: Clock,
-      color: "text-amber-400",
-      bg: "bg-amber-500/10",
+      color: "text-orange-600",
       sub: "days per claim",
     },
     {
       label: "AI Savings",
       value: kpiSummary?.totalSavings != null
-        ? `R ${Number(kpiSummary.totalSavings).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`
+        ? fmt(Number(kpiSummary.totalSavings))
         : "—",
       icon: TrendingUp,
-      color: "text-teal-400",
-      bg: "bg-teal-500/10",
+      color: "text-teal-600",
       sub: "total AI-driven savings",
     },
     {
       label: "High-Value Claims",
       value: kpiSummary?.highValueClaims ?? "—",
       icon: Activity,
-      color: "text-violet-400",
-      bg: "bg-violet-500/10",
+      color: "text-purple-600",
       sub: "above threshold",
     },
   ];
 
   return (
     <InsurerPortalLayout>
-      <div className="p-6 space-y-8">
+      <div className="p-6 space-y-6">
         {/* ── Page header ── */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Insurer Administration</h1>
-            <p className="text-sm text-slate-400 mt-1">
+            <h1 className="text-2xl font-bold">Insurer Administration</h1>
+            <p className="text-sm text-muted-foreground mt-1">
               Company-wide overview, team management, and portal configuration
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">
-              <Building2 className="h-3.5 w-3.5 text-slate-400" />
-              <span className="text-xs text-slate-300 font-medium">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted border border-border">
+              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-foreground font-medium">
                 {(user as any)?.tenantName ?? "Your Organisation"}
               </span>
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
               onClick={() => setRefreshKey(k => k + 1)}
             >
               <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
@@ -236,33 +231,30 @@ export default function InsurerAdminDashboard() {
 
         {/* ── KPI cards ── */}
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
             Live KPIs
           </h2>
           {kpisLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-24 rounded-xl bg-slate-800/60 animate-pulse" />
+                <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {kpiCards.map((card) => {
                 const Icon = card.icon;
                 return (
-                  <div
-                    key={card.label}
-                    className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-2"
-                  >
-                    <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center`}>
-                      <Icon className={`h-4 w-4 ${card.color}`} />
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-white leading-none">{card.value}</p>
-                      <p className="text-[11px] text-slate-400 mt-1">{card.label}</p>
-                      <p className="text-[10px] text-slate-600 mt-0.5">{card.sub}</p>
-                    </div>
-                  </div>
+                  <Card key={card.label} className="border-0 shadow-sm">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={card.color}><Icon className="h-4 w-4" /></span>
+                      </div>
+                      <p className="text-xl font-bold">{card.value}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{card.label}</p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">{card.sub}</p>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
@@ -271,30 +263,32 @@ export default function InsurerAdminDashboard() {
 
         {/* ── Quick actions ── */}
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
             Quick Actions
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {QUICK_ACTIONS.map((action) => {
               const Icon = action.icon;
               return (
-                <button
+                <Card
                   key={action.label}
+                  className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                   onClick={() => setLocation(action.href)}
-                  className="group bg-slate-900 border border-slate-800 rounded-xl p-4 text-left hover:bg-slate-800/80 hover:border-slate-700 transition-all duration-150 flex flex-col gap-3"
                 >
-                  <div className={`w-9 h-9 rounded-lg ${action.bg} flex items-center justify-center group-hover:scale-105 transition-transform`}>
-                    <Icon className={`h-4 w-4 ${action.color}`} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-white leading-tight">{action.label}</p>
-                    <p className="text-[10px] text-slate-500 mt-1 leading-relaxed line-clamp-2">{action.description}</p>
-                  </div>
-                  <div className="flex items-center gap-1 mt-auto">
-                    <span className={`text-[10px] font-medium ${action.color}`}>Open</span>
-                    <ArrowRight className={`h-3 w-3 ${action.color} group-hover:translate-x-0.5 transition-transform`} />
-                  </div>
-                </button>
+                  <CardContent className="p-4 flex flex-col gap-3">
+                    <div className={`w-9 h-9 rounded-lg ${action.bg} flex items-center justify-center`}>
+                      <Icon className={`h-4 w-4 ${action.color}`} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold leading-tight">{action.label}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed line-clamp-2">{action.description}</p>
+                    </div>
+                    <div className="flex items-center gap-1 mt-auto">
+                      <span className={`text-[10px] font-medium ${action.color}`}>Open</span>
+                      <ArrowRight className={`h-3 w-3 ${action.color}`} />
+                    </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
@@ -303,118 +297,129 @@ export default function InsurerAdminDashboard() {
         {/* ── Bottom grid: recent claims + role summary ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent claims */}
-          <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Recent Claims Activity</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-slate-400 hover:text-white h-7 px-2"
-                onClick={() => setLocation("/insurer/claims/triage")}
-              >
-                View all <ChevronRight className="h-3.5 w-3.5 ml-1" />
-              </Button>
-            </div>
-            <div className="divide-y divide-slate-800">
-              {recentClaims.length === 0 ? (
-                <div className="px-5 py-8 text-center text-slate-500 text-sm">
-                  No recent claims activity
-                </div>
-              ) : (
-                recentClaims.map((claim: any) => (
-                  <div
-                    key={claim.id}
-                    className="px-5 py-3 flex items-center gap-4 hover:bg-slate-800/40 cursor-pointer transition-colors"
-                    onClick={() => setLocation(`/insurer/claims/${claim.id}`)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
-                        {claim.claimNumber ?? `CLM-${claim.id.slice(0, 8).toUpperCase()}`}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        {claim.vehicleRegistration ?? "—"} · {claim.incidentType ?? "Motor"}
-                      </p>
-                    </div>
-                    <StatusChip status={claim.status} />
-                    <p className="text-xs text-slate-500 flex-shrink-0 hidden sm:block">
-                      {claim.createdAt
-                        ? new Date(claim.createdAt).toLocaleDateString("en-ZA", { day: "2-digit", month: "short" })
-                        : "—"}
-                    </p>
-                    <ChevronRight className="h-3.5 w-3.5 text-slate-600 flex-shrink-0" />
+          <Card className="lg:col-span-2 border-0 shadow-sm">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold">Recent Claims Activity</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground hover:text-foreground h-7 px-2"
+                  onClick={() => setLocation("/insurer/claims/triage")}
+                >
+                  View all <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="px-0 pb-0">
+              <div className="divide-y divide-border">
+                {recentClaims.length === 0 ? (
+                  <div className="px-5 py-8 text-center text-muted-foreground text-sm">
+                    No recent claims activity
                   </div>
-                ))
-              )}
-            </div>
-          </div>
+                ) : (
+                  recentClaims.map((claim: any) => (
+                    <div
+                      key={claim.id}
+                      className="px-5 py-3 flex items-center gap-4 hover:bg-muted/40 cursor-pointer transition-colors"
+                      onClick={() => setLocation(`/insurer/claims/${claim.id}`)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {claim.claimNumber ?? `CLM-${claim.id.slice(0, 8).toUpperCase()}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {claim.vehicleRegistration ?? "—"} · {claim.incidentType ?? "Motor"}
+                        </p>
+                      </div>
+                      <StatusChip status={claim.status} />
+                      <p className="text-xs text-muted-foreground flex-shrink-0 hidden sm:block">
+                        {claim.createdAt
+                          ? new Date(claim.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
+                          : "—"}
+                      </p>
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Role summary + admin info */}
+          {/* Admin profile + role directory */}
           <div className="space-y-4">
             {/* Admin profile card */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-              <h2 className="text-sm font-semibold text-white mb-4">Your Admin Profile</h2>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-white">
-                      {(user?.name ?? user?.email ?? "A").charAt(0).toUpperCase()}
-                    </span>
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold">Your Admin Profile</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-bold text-teal-700">
+                        {(user?.name ?? user?.email ?? "A").charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{user?.name ?? "Admin User"}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user?.email ?? ""}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{user?.name ?? "Admin User"}</p>
-                    <p className="text-xs text-slate-400 truncate">{user?.email ?? ""}</p>
+                  <div className="pt-2 border-t border-border space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Role</span>
+                      <RoleBadge role="insurer_admin" />
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Access Level</span>
+                      <span className="font-medium">Full Admin</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Permissions</span>
+                      <span className="text-teal-600 font-medium">All modules</span>
+                    </div>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Role</span>
-                    <RoleBadge role="insurer_admin" />
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Access Level</span>
-                    <span className="text-white font-medium">Full Admin</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Permissions</span>
-                    <span className="text-teal-400 font-medium">All modules</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* Role summary */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-              <h2 className="text-sm font-semibold text-white mb-4">Portal Roles</h2>
-              <div className="space-y-2">
-                {Object.entries(ROLE_LABELS).map(([roleKey, cfg]) => (
-                  <div key={roleKey} className="flex items-center justify-between">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${cfg.color}`}>
-                      {cfg.label}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-[10px] text-slate-500 hover:text-white"
-                      onClick={() => {
-                        const paths: Record<string, string> = {
-                          executive:         "/insurer-portal/executive",
-                          claims_manager:    "/insurer-portal/claims-manager",
-                          claims_processor:  "/insurer-portal/claims-processor",
-                          assessor_internal: "/insurer-portal/internal-assessor",
-                          assessor_external: "/insurer-portal/external-assessor",
-                          risk_manager:      "/insurer-portal/risk-manager",
-                          recovery_officer:  "/insurer-portal/recovery",
-                          insurer_admin:     "/insurer-portal/insurer-admin",
-                        };
-                        setLocation(paths[roleKey] ?? "/insurer-portal");
-                      }}
-                    >
-                      View
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Role directory */}
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold">Portal Roles</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="space-y-2">
+                  {Object.entries(ROLE_LABELS).map(([roleKey, cfg]) => (
+                    <div key={roleKey} className="flex items-center justify-between">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${cfg.color}`}>
+                        {cfg.label}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          const paths: Record<string, string> = {
+                            executive:         "/insurer-portal/executive",
+                            claims_manager:    "/insurer-portal/claims-manager",
+                            claims_processor:  "/insurer-portal/claims-processor",
+                            assessor_internal: "/insurer-portal/internal-assessor",
+                            risk_manager:      "/insurer-portal/risk-manager",
+                            recovery_officer:  "/insurer-portal/recovery",
+                            insurer_admin:     "/insurer-portal/insurer-admin",
+                          };
+                          setLocation(paths[roleKey] ?? "/insurer-portal");
+                        }}
+                      >
+                        View
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
