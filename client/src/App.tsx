@@ -61,6 +61,7 @@ const RiskManagerDashboard = lazy(() => import("./pages/RiskManagerDashboard"));
 const RiskManagerAnalytics = lazy(() => import("./pages/RiskManagerAnalytics"));
 const ClaimsManagerDashboard = lazy(() => import("./pages/ClaimsManagerDashboard"));
 const InsurerAdminDashboard = lazy(() => import("./pages/InsurerAdminDashboard"));
+const TeamMembers = lazy(() => import("./pages/TeamMembers"));
 const ClaimsManagerComparisonView = lazy(() => import("./pages/ClaimsManagerComparisonView"));
 const WorkflowSettings = lazy(() => import("./pages/WorkflowSettings"));
 const MonetizationDashboard = lazy(() => import("./pages/MonetizationDashboard"));
@@ -175,14 +176,27 @@ function Router() {
 
         <Route path="/insurer-portal/exception-intelligence">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <InsurerPortalLayout><ExceptionIntelligenceHub /></InsurerPortalLayout>
+            <RoleGuard allowedRoles={["risk_manager", "claims_manager", "executive", "insurer_admin"]}>
+              <InsurerPortalLayout><ExceptionIntelligenceHub /></InsurerPortalLayout>
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
 
         {/* Relationship Intelligence — entity web, hotspots, watchlists */}
         <Route path="/insurer-portal/relationship-intelligence">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <InsurerPortalLayout><RelationshipIntelligence /></InsurerPortalLayout>
+            <RoleGuard allowedRoles={["risk_manager", "claims_manager", "executive", "recovery_officer", "insurer_admin"]}>
+              <InsurerPortalLayout><RelationshipIntelligence /></InsurerPortalLayout>
+            </RoleGuard>
+          </ProtectedRoute>
+        </Route>
+
+        {/* Team Members — insurer admin manages tenant users */}
+        <Route path="/insurer-portal/team-members">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <RoleGuard allowedRoles={["insurer_admin"]}>
+              <InsurerPortalLayout><TeamMembers /></InsurerPortalLayout>
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
 

@@ -242,21 +242,22 @@ const navByRole: Record<string, NavSection[]> = {
     {
       title: "Overview",
       items: [
-        { label: "Portal Home", description: "Role selection and overview", href: "/insurer-portal", icon: LayoutDashboard },
+        { label: "Admin Dashboard", description: "Company overview and KPIs", href: "/insurer-portal/insurer-admin", icon: LayoutDashboard },
       ],
     },
     {
       title: "Administration",
       items: [
-        { label: "Workflow Settings", description: "Automation rules", href: "/admin/workflows", icon: Settings },
-        { label: "Assessors", description: "Manage assessor network", href: "/assessors", icon: Users },
+        { label: "Team Members", description: "Invite users and manage roles", href: "/insurer-portal/team-members", icon: Users },
+        { label: "Assessor Network", description: "Manage approved assessors", href: "/assessors", icon: UserCog },
+        { label: "Workflow Settings", description: "Automation rules and escalation policies", href: "/admin/workflows", icon: Settings },
       ],
     },
     {
       title: "Analytics & Reports",
       items: [
-        { label: "Workflow Analytics", description: "Processing metrics", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
-        { label: "Fraud Analytics", description: "Fraud detection overview", href: "/insurer/fraud-analytics", icon: ShieldAlert },
+        { label: "Fraud Analytics", description: "Fraud detection overview and FCDI flags", href: "/insurer/fraud-analytics", icon: ShieldAlert },
+        { label: "Workflow Analytics", description: "Processing times and throughput", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
         { label: "Reports Centre", description: "Full report catalogue", href: "/insurer-portal/reports-centre", icon: FileBarChart },
       ],
     },

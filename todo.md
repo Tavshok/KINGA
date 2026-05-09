@@ -11753,3 +11753,29 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Rewrite InsurerAdminDashboard to match original design (light bg, white cards, consistent tokens)
 - [x] Rewrite RiskManagerAnalytics to match original design
 - [x] Build clean after all changes
+
+## Phase 27 — Role Nav Audit & Team Member Management
+
+### Audit Findings — Issues to Fix
+- [x] insurer_admin sidebar: missing own dashboard link (/insurer-portal/insurer-admin); "Portal Home" is wrong landing
+- [x] insurer_admin sidebar: "Workflow Settings" and "Workflow Analytics" should NOT be in sidebar (admin configures via dashboard quick-actions only)
+- [x] insurer_admin sidebar: "Assessors" link goes to /assessors (no InsurerPortalLayout wrapper) — replace with /insurer-portal/team-members
+- [x] insurer_admin quick-actions: add "Team Members" tile; remove "Workflow Analytics" tile (keep in sidebar analytics section)
+- [x] claims_processor sidebar: no issues found — tabs (Pending/Review/AI Complete/Completed/Notifications) are correct
+- [x] claims_manager sidebar: "Workflow Analytics" tab — acceptable (manager needs throughput visibility)
+- [x] risk_manager sidebar: "Workflow Analytics" tab — acceptable (decision time visibility)
+- [x] executive sidebar: "Workflow Analytics" tab — acceptable (efficiency metrics)
+- [x] assessor_internal sidebar: "Performance" tab in dashboard — acceptable (own performance only)
+- [x] recovery_officer sidebar: no issues found
+- [x] ExceptionIntelligenceHub route: no RoleGuard — accessible to all insurer roles; restrict to risk_manager, claims_manager, executive, insurer_admin
+- [x] RelationshipIntelligence route: no RoleGuard — restrict to risk_manager, claims_manager, executive, recovery_officer, insurer_admin
+- [x] ReportsCentre route: no RoleGuard — all insurer roles should see it (correct, keep open)
+
+### Team Member Management
+- [x] Create /insurer-portal/team-members route (insurer_admin only)
+- [x] Create TeamMembers.tsx page: list tenant users, invite by email, assign insurer_role, deactivate
+- [x] Add tRPC procedures: teamMembers.list, teamMembers.invite, teamMembers.updateRole, teamMembers.deactivate
+- [x] KINGA admin override: platform_super_admin can manage any tenant's users via existing /admin/tenants/:id/roles
+- [x] Add "Team Members" to insurer_admin sidebar under Administration section
+- [x] Add "Team Members" quick-action tile to InsurerAdminDashboard
+- [x] Update insurer_admin sidebar: fix Overview link to /insurer-portal/insurer-admin (not /insurer-portal)
