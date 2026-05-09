@@ -58,6 +58,7 @@ import {
   ShieldCheck,
   AlertTriangle,
   RefreshCw,
+  RotateCcw,
   Trash2,
   Pencil,
   Send,
@@ -193,6 +194,16 @@ export default function TeamMembers() {
     onSuccess: () => {
       utils.teamMembers.listInvitations.invalidate();
       toast.success("Invitation cancelled.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  // ── Resend invitation ──
+  const resendInviteMutation = trpc.teamMembers.resendInvitation.useMutation({
+    onSuccess: (data) => {
+      utils.teamMembers.listInvitations.invalidate();
+      toast.success(`New invitation sent to ${data.email}. Link copied to clipboard.`);
+      const acceptUrl = `${window.location.origin}/invite/accept/${data.token}`;
+      navigator.clipboard.writeText(acceptUrl).catch(() => {});
     },
     onError: (err) => toast.error(err.message),
   });
@@ -417,16 +428,34 @@ export default function TeamMembers() {
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{fmtDate(inv.createdAt)}</TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                              onClick={() => cancelInviteMutation.mutate({ invitationId: inv.id })}
-                              disabled={cancelInviteMutation.isPending}
-                            >
-                              <Trash2 className="h-3 w-3 mr-1" />
-                              Cancel
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-teal-600 hover:text-teal-700"
+                                onClick={() =>
+                                  resendInviteMutation.mutate({
+                                    invitationId: inv.id,
+                                    origin: window.location.origin,
+                                  })
+                                }
+                                disabled={resendInviteMutation.isPending}
+                                title="Cancel this invitation and send a fresh one"
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" />
+                                Resend
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                                onClick={() => cancelInviteMutation.mutate({ invitationId: inv.id })}
+                                disabled={cancelInviteMutation.isPending}
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Cancel
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

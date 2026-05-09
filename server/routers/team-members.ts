@@ -357,4 +357,67 @@ export const teamMembersRouter = router({
       timestamp: r.timestamp,
     }));
   }),
+
+  /**
+   * Resend an invitation: cancel the existing pending token and create a
+   * fresh one (new token, new 7-day expiry). A new invitation email is fired
+   * automatically by sendInvitation.
+   */
+  resendInvitation: insurerDomainProcedure
+    .input(
+      z.object({
+        invitationId: z.number().int().positive(),
+        origin: z.string().url().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      requireInsurerAdmin(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      // Fetch the existing invitation
+      const [inv] = await db
+        .select({
+          id: tenantInvitations.id,
+          tenantId: tenantInvitations.tenantId,
+          email: tenantInvitations.email,
+          role: tenantInvitations.role,
+          insurerRole: tenantInvitations.insurerRole,
+          acceptedAt: tenantInvitations.acceptedAt,
+        })
+        .from(tenantInvitations)
+        .where(eq(tenantInvitations.id, input.invitationId))
+        .limit(1);
+
+      if (!inv || inv.tenantId !== ctx.insurerTenantId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Invitation not found." });
+      }
+      if (inv.acceptedAt) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This invitation has already been accepted." });
+      }
+
+      // Cancel the old token by expiring it immediately
+      await db
+        .update(tenantInvitations)
+        .set({ expiresAt: new Date() } as any)
+        .where(eq(tenantInvitations.id, input.invitationId));
+
+      // Create a fresh invitation (fires email automatically)
+      const result = await sendInvitation({
+        tenantId: ctx.insurerTenantId,
+        email: inv.email,
+        role: inv.role as any,
+        insurerRole: inv.insurerRole as any,
+        createdBy: ctx.user.id,
+        expirationDays: 7,
+        origin: input.origin,
+      });
+
+      return {
+        success: true,
+        email: result.email,
+        expiresAt: result.expiresAt,
+        token: result.token,
+      };
+    }),
 });

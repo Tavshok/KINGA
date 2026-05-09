@@ -11800,3 +11800,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 
 ### Verification
 - [x] Build clean after all changes
+
+## Phase 29 — Invitation Resend & Role Welcome Guide (Backlog)
+
+### Invitation Resend
+- [x] Add teamMembers.resendInvitation tRPC procedure (cancel old token, create new one, fire email)
+- [x] Add "Resend" button to pending invitations tab in TeamMembers.tsx
+- [x] Show success toast with new invite link on resend
+
+### Role Welcome Guide (BACKLOG — strategise before implementing)
+- [ ] BACKLOG: Design role-specific "Getting Started" guide document (simple graphics + what you can do)
+- [ ] BACKLOG: Show guide on InviteAccept page after account provisioning
+- [ ] BACKLOG: Show guide as dismissible panel on first dashboard load for each role
