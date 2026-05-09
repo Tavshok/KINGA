@@ -77,21 +77,6 @@ const ROLES = [
     ],
   },
   {
-    id: "assessor_external",
-    title: "External Assessor",
-    description: "Independent damage assessment, report submission, and panel beater coordination.",
-    icon: Search,
-    path: "/insurer-portal/external-assessor",
-    gradient: "from-sky-600 to-blue-600",
-    accent: "border-sky-500/40 hover:border-sky-400",
-    responsibilities: [
-      "Accept assigned assessments",
-      "Submit assessment reports",
-      "Coordinate with panel beaters",
-      "Track assessment status",
-    ],
-  },
-  {
     id: "risk_manager",
     title: "Risk Manager",
     description: "Fraud investigation, technical approval, risk register management, and analytics.",

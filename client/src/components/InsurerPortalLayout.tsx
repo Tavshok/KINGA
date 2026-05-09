@@ -199,29 +199,6 @@ const navByRole: Record<string, NavSection[]> = {
     },
   ],
 
-  assessor_external: [
-    {
-      title: "Overview",
-      items: [
-        { label: "My Dashboard", description: "Assigned claims and queue", href: "/insurer-portal/external-assessor", icon: LayoutDashboard },
-      ],
-    },
-    {
-      title: "Assessments",
-      items: [
-        { label: "My Queue", description: "Claims assigned to me", href: "/insurer-portal/external-assessor?tab=queue", icon: ClipboardList },
-        { label: "In Progress", description: "Assessments being written", href: "/insurer-portal/external-assessor?tab=in-progress", icon: Activity },
-        { label: "Completed", description: "Submitted assessments", href: "/insurer-portal/external-assessor?tab=completed", icon: CheckSquare },
-      ],
-    },
-    {
-      title: "Reports",
-      items: [
-        { label: "Reports Centre", description: "Assessment report archive", href: "/insurer-portal/reports-centre", icon: FileBarChart },
-      ],
-    },
-  ],
-
   recovery_officer: [
     {
       title: "Overview",
@@ -302,7 +279,6 @@ const pathToRole: Array<{ prefix: string; role: string; label: string }> = [
   { prefix: "/insurer-portal/claims-processor",        role: "claims_processor",  label: "Claims Processor" },
   { prefix: "/insurer-portal/risk-manager",            role: "risk_manager",      label: "Risk Manager" },
   { prefix: "/insurer-portal/internal-assessor",       role: "assessor_internal", label: "Internal Assessor" },
-  { prefix: "/insurer-portal/external-assessor",       role: "assessor_external", label: "External Assessor" },
   { prefix: "/insurer-portal/insurer-admin",            role: "insurer_admin",     label: "Insurer Admin" },
   { prefix: "/insurer-portal/recovery",                 role: "recovery_officer",  label: "Recovery Officer" },
   { prefix: "/insurer/fraud-analytics",                role: "",                  label: "Fraud Analytics" },
@@ -328,7 +304,6 @@ const ROLE_BADGE: Record<string, { bg: string; text: string; label: string }> = 
   risk_manager:     { bg: "bg-amber-500/15",  text: "text-amber-300",  label: "Risk Manager" },
   executive:        { bg: "bg-violet-500/15", text: "text-violet-300", label: "Executive" },
   assessor_internal:{ bg: "bg-teal-500/15",   text: "text-teal-300",   label: "Internal Assessor" },
-  assessor_external:{ bg: "bg-cyan-500/15",   text: "text-cyan-300",   label: "External Assessor" },
   insurer_admin:    { bg: "bg-rose-500/15",   text: "text-rose-300",   label: "Insurer Admin" },
   recovery_officer: { bg: "bg-emerald-500/15", text: "text-emerald-300", label: "Recovery Officer" },
 };

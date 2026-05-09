@@ -11733,3 +11733,17 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fixed: stabilised casesQueryInput with useMemo([activeTab, repeatOffendersOnly]) so the object reference is only recreated when the actual filter values change
 - [x] Added useMemo to imports in RecoveryPortal.tsx
 - [x] Build clean: pnpm build ✓ (34.53s)
+
+## Phase 25 — Remove External Assessor from Insurer Portal
+- [ ] Remove External Assessor tile from InsurerRoleSelection.tsx
+- [ ] Audit InsurerPortalLayout nav for any external_assessor nav sections that should not be there
+- [ ] Build clean after fix
+
+## Phase 25 — Remove External Assessor Completely from Insurer Portal
+- [x] Removed assessor_external nav section (Overview, Assessments, Reports) from InsurerPortalLayout.tsx navByRole
+- [x] Removed assessor_external from pathToRole mapping in InsurerPortalLayout.tsx
+- [x] Removed assessor_external from ROLE_BADGE in InsurerPortalLayout.tsx
+- [x] Removed ExternalAssessorDashboard lazy import from App.tsx
+- [x] Removed /insurer-portal/external-assessor Route block from App.tsx
+- [x] External Assessor tile already removed from InsurerRoleSelection.tsx
+- [x] Build clean: pnpm build ✔ (27.35s) — zero references to assessor_external remain in insurer portal
