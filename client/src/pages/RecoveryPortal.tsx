@@ -3,7 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Scale, ClipboardList, Search, Activity, Send, Gavel, CheckSquare, Archive, AlertCircle, TrendingUp, Clock, DollarSign, AlertTriangle, ChevronRight, RefreshCw, Building2 } from "lucide-react";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
@@ -48,14 +48,18 @@ export default function RecoveryPortal() {
     refetchInterval: 60_000, // refresh every 60s
   });
 
+  // Stabilise query input with useMemo — spread operators in render create new
+  // object references every render, causing tRPC to re-fetch infinitely.
+  const casesQueryInput = useMemo(() => ({
+    ...(activeTab ? { status: STATUS_CARDS.find(c => c.tab === activeTab)?.dbStatus } : {}),
+    ...(repeatOffendersOnly ? { repeatOffendersOnly: true } : {}),
+    page: 1 as const,
+    pageSize: 20 as const,
+  }), [activeTab, repeatOffendersOnly]);
+
   // Live case list for the selected status tab
   const { data: casesData, isLoading: casesLoading } = trpc.recovery.getCases.useQuery(
-    {
-      ...(activeTab ? { status: STATUS_CARDS.find(c => c.tab === activeTab)?.dbStatus } : {}),
-      ...(repeatOffendersOnly ? { repeatOffendersOnly: true } : {}),
-      page: 1,
-      pageSize: 20,
-    },
+    casesQueryInput,
     { enabled: true, refetchInterval: 60_000 }
   );
 

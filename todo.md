@@ -11727,3 +11727,9 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fixed: added useEffect to the React import on line 9
 - [x] Bonus fix: ThirdPartyProfiles.tsx used keepPreviousData (tRPC v10 API) — replaced with placeholderData: (prev) => prev (tRPC v11 API), eliminating 25 TypeScript errors
 - [x] Build clean: pnpm build ✓ (1m 10s), ExecutiveDashboard-DLNS9L2z.js in dist
+
+## Phase 24 — Recovery Dashboard Blank Screen Fix
+- [x] Diagnosed: getCases query input used spread operators in render body, creating new object references every render — tRPC treated each render as a changed input and re-fetched infinitely, causing a perpetual loading loop
+- [x] Fixed: stabilised casesQueryInput with useMemo([activeTab, repeatOffendersOnly]) so the object reference is only recreated when the actual filter values change
+- [x] Added useMemo to imports in RecoveryPortal.tsx
+- [x] Build clean: pnpm build ✓ (34.53s)
