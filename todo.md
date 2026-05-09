@@ -11711,3 +11711,13 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix backend: final-claim-report-pdf.ts — currencySymbol resolver updated (ZIG/ZWL/USD/ZAR all handled)
 - [x] Confirmed: shared/currency.ts already correctly defaults to USD; useTenantCurrency hook already defaults to USD
 - [x] Build clean: pnpm build ✔ (20.82s)
+
+## Phase 22 — Currency Selector on Claim Submission Form
+- [x] Located claim submission form: client/src/pages/SubmitClaim.tsx
+- [x] Added currencyCode to form state (default: USD)
+- [x] Added currency selector UI in Step 2 next to Policy Number: 14 currencies with flag emojis (USD, ZWG, ZWL, ZAR, ZMW, BWP, NAD, MZN, MWK, TZS, KES, UGX, GBP, EUR)
+- [x] Passed currencyCode to the backend submit mutation
+- [x] Added currencyCode to backend submit procedure input schema (z.enum, optional, defaults to USD)
+- [x] Wired currencyCode into createClaim call: input.currencyCode ?? 'USD'
+- [x] Confirmed claims table already has currencyCode column (varchar 10, default 'USD')
+- [x] Build clean: pnpm build ✔ (20.97s), SubmitClaim-C_5Fyqpy.js in dist

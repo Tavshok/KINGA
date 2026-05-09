@@ -1217,6 +1217,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           { message: "Odometer reading must be a positive integer in km (e.g. 85000) or left blank." }
         ),
         // Structured 3-choice panel beater selection — all must be insurer-approved
+        /** ISO 4217 currency code for repair quotes and damage costs. Defaults to USD. */
+        currencyCode: z.enum(["USD","ZWG","ZWL","ZAR","ZMW","BWP","NAD","MZN","MWK","TZS","KES","UGX","GBP","EUR"]).optional(),
         panelBeaterChoice1: z.string().uuid(),
         panelBeaterChoice2: z.string().uuid(),
         panelBeaterChoice3: z.string().uuid(),
@@ -1284,6 +1286,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           panelBeaterChoice3: input.panelBeaterChoice3,
           // Persist validated mileage string (e.g. "85000") for pipeline use
           vehicleMileage: input.vehicleMileage?.trim() || null,
+          // ISO 4217 currency for repair quotes and damage costs; defaults to USD
+          currencyCode: input.currencyCode ?? "USD",
           status: "submitted",
         });
 

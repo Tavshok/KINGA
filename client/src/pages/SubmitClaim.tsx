@@ -111,6 +111,7 @@ export default function SubmitClaim() {
 
     // Policy
     policyNumber: "",
+    currencyCode: "USD",  // ISO 4217 currency for repair costs
 
     // Incident
     incidentDate: "",
@@ -449,6 +450,7 @@ export default function SubmitClaim() {
       policyNumber: formData.policyNumber,
       damagePhotos: formData.damagePhotos,
       vehicleMileage: formData.vehicleMileage.trim() || undefined,
+      currencyCode: formData.currencyCode as "USD" | "ZWG" | "ZWL" | "ZAR" | "ZMW" | "BWP" | "NAD" | "MZN" | "MWK" | "TZS" | "KES" | "UGX" | "GBP" | "EUR",
       panelBeaterChoice1: formData.panelBeaterChoice1,
       panelBeaterChoice2: formData.panelBeaterChoice2,
       panelBeaterChoice3: formData.panelBeaterChoice3,
@@ -875,6 +877,43 @@ export default function SubmitClaim() {
                     onChange={(e) => updateField("policyNumber", e.target.value)}
                     placeholder="Insurance policy number"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    Claim Currency *
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 ml-1">Repair costs &amp; quotes</Badge>
+                  </Label>
+                  <Select
+                    value={formData.currencyCode}
+                    onValueChange={(v) => updateField("currencyCode", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        { code: "USD",  label: "USD — US Dollar",                flag: "🇺🇸" },
+                        { code: "ZWG",  label: "ZWG — Zimbabwe Gold (ZiG)",      flag: "🇿🇼" },
+                        { code: "ZWL",  label: "ZWL — Zimbabwe Dollar (legacy)", flag: "🇿🇼" },
+                        { code: "ZAR",  label: "ZAR — South African Rand",       flag: "🇿🇦" },
+                        { code: "ZMW",  label: "ZMW — Zambian Kwacha",           flag: "🇿🇲" },
+                        { code: "BWP",  label: "BWP — Botswana Pula",            flag: "🇧🇼" },
+                        { code: "NAD",  label: "NAD — Namibian Dollar",          flag: "🇳🇦" },
+                        { code: "MZN",  label: "MZN — Mozambican Metical",       flag: "🇲🇿" },
+                        { code: "MWK",  label: "MWK — Malawian Kwacha",          flag: "🇲🇼" },
+                        { code: "TZS",  label: "TZS — Tanzanian Shilling",       flag: "🇹🇿" },
+                        { code: "KES",  label: "KES — Kenyan Shilling",          flag: "🇰🇪" },
+                        { code: "UGX",  label: "UGX — Ugandan Shilling",         flag: "🇺🇬" },
+                        { code: "GBP",  label: "GBP — British Pound",            flag: "🇬🇧" },
+                        { code: "EUR",  label: "EUR — Euro",                     flag: "🇪🇺" },
+                      ].map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          <span className="mr-1">{c.flag}</span>{c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Select the currency your repair quotes and damage costs are in.</p>
                 </div>
               </div>
 
