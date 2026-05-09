@@ -249,7 +249,7 @@ const navByRole: Record<string, NavSection[]> = {
       title: "Administration",
       items: [
         { label: "Team Members", description: "Invite users and manage roles", href: "/insurer-portal/team-members", icon: Users },
-        { label: "Assessor Network", description: "Manage approved assessors", href: "/assessors", icon: UserCog },
+        { label: "Assessor Network", description: "Manage approved assessors", href: "/insurer-portal/assessors", icon: UserCog },
         { label: "Workflow Settings", description: "Automation rules and escalation policies", href: "/admin/workflows", icon: Settings },
       ],
     },

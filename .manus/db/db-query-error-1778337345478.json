@@ -1,0 +1,8 @@
+{
+  "query": "\n-- Check dangling records in each table\nSELECT 'claim_approvals' as tbl, COUNT(*) as dangling \nFROM claim_approvals ca LEFT JOIN claims c ON ca.claim_id = c.id WHERE c.id IS NULL\nUNION ALL\nSELECT 'final_approval_records', COUNT(*) \nFROM final_approval_records far LEFT JOIN claims c ON far.claim_id = c.id WHERE c.id IS NULL\nUNION ALL\nSELECT 'approval_workflow', COUNT(*) \nFROM approval_workflow aw LEFT JOIN claims c ON aw.claim_id = c.id WHERE c.id IS NULL;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \n-- Check dangling records in each table\nSELECT 'claim_approvals' as tbl, COUNT(*) as dangling \nFROM claim_approvals ca LEFT JOIN claims c ON ca.claim_id = c.id WHERE c.id IS NULL\nUNION ALL\nSELECT 'final_approval_records', COUNT(*) \nFROM final_approval_records far LEFT JOIN claims c ON far.claim_id = c.id WHERE c.id IS NULL\nUNION ALL\nSELECT 'approval_workflow', COUNT(*) \nFROM approval_workflow aw LEFT JOIN claims c ON aw.claim_id = c.id WHERE c.id IS NULL;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 3: Unknown column 'far.claim_id' in 'on clause'"
+  ]
+}

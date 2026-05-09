@@ -1,0 +1,34 @@
+{
+  "query": "\nSELECT status, COUNT(*) as count FROM claims GROUP BY status ORDER BY count DESC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT status, COUNT(*) as count FROM claims GROUP BY status ORDER BY count DESC;\n",
+  "rows": [
+    {
+      "status": "submitted",
+      "count": "51"
+    },
+    {
+      "status": "comparison",
+      "count": "37"
+    },
+    {
+      "status": "repair_assigned",
+      "count": "15"
+    },
+    {
+      "status": "completed",
+      "count": "12"
+    },
+    {
+      "status": "assessment_pending",
+      "count": "2"
+    },
+    {
+      "status": "assessment_complete",
+      "count": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "status\tcount\nsubmitted\t51\ncomparison\t37\nrepair_assigned\t15\ncompleted\t12\nassessment_pending\t2\nassessment_complete\t1\n",
+  "stderr": "",
+  "execution_time_ms": 267
+}

@@ -1,0 +1,21 @@
+{
+  "query": "\nSELECT \n  (SELECT COUNT(*) FROM claims WHERE claim_number IS NULL OR claim_number = '') as claims_missing_number,\n  (SELECT COUNT(*) FROM claims WHERE tenant_id IS NULL) as claims_missing_tenant,\n  (SELECT COUNT(*) FROM ai_assessments a LEFT JOIN claims c ON c.id = a.claim_id WHERE c.id IS NULL) as orphan_assessments,\n  (SELECT COUNT(*) FROM claim_approvals ca LEFT JOIN claims c ON c.id = ca.claim_id WHERE c.id IS NULL) as orphan_approvals,\n  (SELECT COUNT(*) FROM claim_documents cd LEFT JOIN claims c ON c.id = cd.claim_id WHERE c.id IS NULL) as orphan_documents,\n  (SELECT COUNT(DISTINCT tenant_id) FROM claims WHERE tenant_id IS NOT NULL) as distinct_tenants_in_claims,\n  (SELECT COUNT(*) FROM claims WHERE status = 'submitted' AND TIMESTAMPDIFF(HOUR, updated_at, NOW()) > 24) as stuck_submitted_24h,\n  (SELECT COUNT(*) FROM claims WHERE status = 'assessment_pending' AND TIMESTAMPDIFF(HOUR, updated_at, NOW()) > 2) as stuck_assessment_2h,\n  (SELECT COUNT(*) FROM claims WHERE status = 'comparison' AND TIMESTAMPDIFF(HOUR, updated_at, NOW()) > 24) as stuck_comparison_24h;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  (SELECT COUNT(*) FROM claims WHERE claim_number IS NULL OR claim_number = '') as claims_missing_number,\n  (SELECT COUNT(*) FROM claims WHERE tenant_id IS NULL) as claims_missing_tenant,\n  (SELECT COUNT(*) FROM ai_assessments a LEFT JOIN claims c ON c.id = a.claim_id WHERE c.id IS NULL) as orphan_assessments,\n  (SELECT COUNT(*) FROM claim_approvals ca LEFT JOIN claims c ON c.id = ca.claim_id WHERE c.id IS NULL) as orphan_approvals,\n  (SELECT COUNT(*) FROM claim_documents cd LEFT JOIN claims c ON c.id = cd.claim_id WHERE c.id IS NULL) as orphan_documents,\n  (SELECT COUNT(DISTINCT tenant_id) FROM claims WHERE tenant_id IS NOT NULL) as distinct_tenants_in_claims,\n  (SELECT COUNT(*) FROM claims WHERE status = 'submitted' AND TIMESTAMPDIFF(HOUR, updated_at, NOW()) > 24) as stuck_submitted_24h,\n  (SELECT COUNT(*) FROM claims WHERE status = 'assessment_pending' AND TIMESTAMPDIFF(HOUR, updated_at, NOW()) > 2) as stuck_assessment_2h,\n  (SELECT COUNT(*) FROM claims WHERE status = 'comparison' AND TIMESTAMPDIFF(HOUR, updated_at, NOW()) > 24) as stuck_comparison_24h;\n",
+  "rows": [
+    {
+      "claims_missing_number": "0",
+      "claims_missing_tenant": "8",
+      "orphan_assessments": "0",
+      "orphan_approvals": "3",
+      "orphan_documents": "0",
+      "distinct_tenants_in_claims": "37",
+      "stuck_submitted_24h": "51",
+      "stuck_assessment_2h": "2",
+      "stuck_comparison_24h": "37"
+    }
+  ],
+  "messages": [],
+  "stdout": "claims_missing_number\tclaims_missing_tenant\torphan_assessments\torphan_approvals\torphan_documents\tdistinct_tenants_in_claims\tstuck_submitted_24h\tstuck_assessment_2h\tstuck_comparison_24h\n0\t8\t0\t3\t0\t37\t51\t2\t37\n",
+  "stderr": "",
+  "execution_time_ms": 340
+}

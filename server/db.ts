@@ -1477,6 +1477,27 @@ export async function triggerAiAssessment(claimId: number) {
         return unresolved.length > 0 ? JSON.stringify(unresolved) : null;
       } catch { return null; }
     })(),
+    // AI Governance Tracking (F-14, F-15)
+    // ocrFallbackUsed: 1 when stage 3 (structured_extraction) ran in degraded/skipped mode,
+    // meaning the pipeline fell back to raw OCR text. Lower confidence — may need manual review.
+    ocrFallbackUsed: (() => {
+      try {
+        const stages = summary.stages as Record<string, any>;
+        const s3 = stages?.['3_structured_extraction'] ?? stages?.['structured_extraction'];
+        return (s3?.degraded === true || s3?.status === 'skipped') ? 1 : 0;
+      } catch { return 0; }
+    })(),
+    // pipelineDegradedStagesJson: JSON array of stage keys that ran in degraded/skipped mode.
+    // Enables targeted alerting and quality tracking without parsing the full pipelineRunSummary.
+    pipelineDegradedStagesJson: (() => {
+      try {
+        const stages = summary.stages as Record<string, any>;
+        const degraded = Object.entries(stages)
+          .filter(([, v]) => (v as any)?.degraded === true || (v as any)?.status === 'skipped')
+          .map(([k]) => k);
+        return degraded.length > 0 ? JSON.stringify(degraded) : null;
+      } catch { return null; }
+    })(),
   };
   // Apply the global NaN sanitizer before passing to Drizzle.
   // This catches any numeric field that slipped through safeInt/safeFloat guards.

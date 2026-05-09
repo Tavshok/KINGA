@@ -1,0 +1,50 @@
+{
+  "query": "\nSELECT 'claims_no_tenant' as metric, COUNT(*) as count FROM claims WHERE tenant_id IS NULL OR tenant_id = ''\nUNION ALL\nSELECT 'claims_no_claim_number', COUNT(*) FROM claims WHERE claim_number IS NULL OR claim_number = ''\nUNION ALL\nSELECT 'orphan_approvals', COUNT(*) FROM claim_approvals WHERE claim_id NOT IN (SELECT id FROM claims)\nUNION ALL\nSELECT 'orphan_assessments', COUNT(*) FROM ai_assessments WHERE claim_id NOT IN (SELECT id FROM claims)\nUNION ALL\nSELECT 'orphan_documents', COUNT(*) FROM claim_documents WHERE claim_id NOT IN (SELECT id FROM claims)\nUNION ALL\nSELECT 'claims_no_assessment', COUNT(*) FROM claims c WHERE NOT EXISTS (SELECT 1 FROM ai_assessments a WHERE a.claim_id = c.id) AND c.status NOT IN ('submitted','assessment_pending')\nUNION ALL\nSELECT 'duplicate_assessments', COUNT(*) FROM (SELECT claim_id, COUNT(*) as cnt FROM ai_assessments GROUP BY claim_id HAVING cnt > 1) t\nUNION ALL\nSELECT 'total_claims', COUNT(*) FROM claims\nUNION ALL\nSELECT 'total_assessments', COUNT(*) FROM ai_assessments\nUNION ALL\nSELECT 'total_tenants', COUNT(*) FROM insurer_tenants;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT 'claims_no_tenant' as metric, COUNT(*) as count FROM claims WHERE tenant_id IS NULL OR tenant_id = ''\nUNION ALL\nSELECT 'claims_no_claim_number', COUNT(*) FROM claims WHERE claim_number IS NULL OR claim_number = ''\nUNION ALL\nSELECT 'orphan_approvals', COUNT(*) FROM claim_approvals WHERE claim_id NOT IN (SELECT id FROM claims)\nUNION ALL\nSELECT 'orphan_assessments', COUNT(*) FROM ai_assessments WHERE claim_id NOT IN (SELECT id FROM claims)\nUNION ALL\nSELECT 'orphan_documents', COUNT(*) FROM claim_documents WHERE claim_id NOT IN (SELECT id FROM claims)\nUNION ALL\nSELECT 'claims_no_assessment', COUNT(*) FROM claims c WHERE NOT EXISTS (SELECT 1 FROM ai_assessments a WHERE a.claim_id = c.id) AND c.status NOT IN ('submitted','assessment_pending')\nUNION ALL\nSELECT 'duplicate_assessments', COUNT(*) FROM (SELECT claim_id, COUNT(*) as cnt FROM ai_assessments GROUP BY claim_id HAVING cnt > 1) t\nUNION ALL\nSELECT 'total_claims', COUNT(*) FROM claims\nUNION ALL\nSELECT 'total_assessments', COUNT(*) FROM ai_assessments\nUNION ALL\nSELECT 'total_tenants', COUNT(*) FROM insurer_tenants;\n",
+  "rows": [
+    {
+      "metric": "claims_no_claim_number",
+      "count": "0"
+    },
+    {
+      "metric": "claims_no_tenant",
+      "count": "8"
+    },
+    {
+      "metric": "orphan_approvals",
+      "count": "3"
+    },
+    {
+      "metric": "duplicate_assessments",
+      "count": "0"
+    },
+    {
+      "metric": "total_assessments",
+      "count": "7"
+    },
+    {
+      "metric": "orphan_assessments",
+      "count": "0"
+    },
+    {
+      "metric": "orphan_documents",
+      "count": "0"
+    },
+    {
+      "metric": "claims_no_assessment",
+      "count": "60"
+    },
+    {
+      "metric": "total_claims",
+      "count": "118"
+    },
+    {
+      "metric": "total_tenants",
+      "count": "1314"
+    }
+  ],
+  "messages": [],
+  "stdout": "metric\tcount\nclaims_no_claim_number\t0\nclaims_no_tenant\t8\norphan_approvals\t3\nduplicate_assessments\t0\ntotal_assessments\t7\norphan_assessments\t0\norphan_documents\t0\nclaims_no_assessment\t60\ntotal_claims\t118\ntotal_tenants\t1314\n",
+  "stderr": "",
+  "execution_time_ms": 292
+}

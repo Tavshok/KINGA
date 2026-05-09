@@ -549,6 +549,62 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
+    // ── CASE 8: status='submitted' OR workflowState='created', >2 hours, no ai_assessment_triggered ──
+    // Claims that were submitted but never picked up by the intake pipeline.
+    // The intake escalation job only looks for workflowState='intake_queue', so 'created'
+    // claims are completely invisible to it. This case re-triggers the AI pipeline for them.
+    const stuckSubmitted = await withDbRetry(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db
+        .select({ id: claims.id, claimNumber: claims.claimNumber, status: claims.status })
+        .from(claims)
+        .where(
+          and(
+            inArray(claims.status, ["submitted"] as any[]),
+            eq(claims.aiAssessmentTriggered, 0),
+            olderThanMinutes(claims.createdAt, 120)
+          )
+        )
+        .limit(20);
+    }, 3, 2000, 'StuckRecovery case-8 query');
+
+    if (stuckSubmitted.length > 0) {
+      console.log(
+        `[StuckRecovery] CASE 8: Found ${stuckSubmitted.length} claim(s) stuck in 'submitted' ` +
+        `for >2 hours without AI pipeline trigger — re-triggering`
+      );
+      for (const claim of stuckSubmitted) {
+        if (!canRetrigger(claim.id)) {
+          await markAsFailedAfterMaxRetries(claim.id, 'Case8');
+          totalFixed++;
+          continue;
+        }
+        try {
+          await withDbRetry(async () => {
+            const db = await getDb();
+            if (!db) return;
+            return db.update(claims).set({
+              status: "assessment_in_progress",
+              workflowState: "under_assessment",
+              documentProcessingStatus: "pending",
+              aiAssessmentTriggered: 0,
+              aiAssessmentCompleted: 0,
+              updatedAt: new Date().toISOString(),
+            }).where(eq(claims.id, claim.id));
+          }, 3, 2000, `StuckRecovery case-8 reset claim ${claim.id}`);
+          recordRetrigger(claim.id);
+          triggerAiAssessment(claim.id).catch((err: unknown) => {
+            console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
+          });
+          console.log(`[StuckRecovery] CASE 8: Re-triggered claim ${claim.claimNumber} (id=${claim.id}) [stuck submitted >2h]`);
+          totalFixed++;
+        } catch (err) {
+          console.error(`[StuckRecovery] Failed to re-trigger claim ${claim.id}:`, err);
+        }
+      }
+    }
+
     if (totalFixed === 0) {
       console.log("[StuckRecovery] No stuck claims found.");
     } else {

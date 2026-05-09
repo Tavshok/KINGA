@@ -177,6 +177,20 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Report sharing: JSON array of insurer sub-role strings that this report has been pushed to.
   // e.g. ["risk_manager", "executive"] means those roles can see this report in their Reports Centre.
   sharedWithRolesJson: longtext("shared_with_roles_json"),
+  // AI Governance Tracking (F-14, F-15)
+  // humanOverride: set to true when a human adjuster manually overrides any AI decision on this claim.
+  // Records the overriding user's ID and a brief reason for the override for audit trail purposes.
+  humanOverride: tinyint("human_override").default(0),
+  humanOverrideUserId: int("human_override_user_id"),
+  humanOverrideReason: text("human_override_reason"),
+  humanOverrideAt: bigint("human_override_at", { mode: "number" }),
+  // ocrFallbackUsed: set to true when the pipeline fell back to OCR text extraction
+  // because the primary document parsing (structured PDF extraction) failed or returned
+  // insufficient content. Indicates lower-confidence extraction that may need manual review.
+  ocrFallbackUsed: tinyint("ocr_fallback_used").default(0),
+  // pipelineDegradedStages: JSON array of stage names that ran in degraded mode
+  // e.g. ["3_structured_extraction", "4_validation"] for audit and quality tracking.
+  pipelineDegradedStagesJson: text("pipeline_degraded_stages_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

@@ -1,0 +1,19 @@
+{
+  "query": "\nSELECT \n  (SELECT COUNT(*) FROM tenant_invitations) as total_invitations,\n  (SELECT COUNT(*) FROM tenant_invitations WHERE accepted_at IS NULL AND expires_at > NOW()) as pending_invitations,\n  (SELECT COUNT(*) FROM tenant_invitations WHERE accepted_at IS NULL AND expires_at < NOW()) as expired_invitations,\n  (SELECT COUNT(*) FROM claim_approvals WHERE claim_id NOT IN (SELECT id FROM claims)) as dangling_approvals,\n  (SELECT COUNT(*) FROM claims c WHERE c.status = 'completed' AND NOT EXISTS (SELECT 1 FROM ai_assessments a WHERE a.claim_id = c.id)) as completed_without_assessment,\n  (SELECT COUNT(*) FROM claims c WHERE c.status IN ('comparison','repair_assigned') AND NOT EXISTS (SELECT 1 FROM ai_assessments a WHERE a.claim_id = c.id)) as advanced_without_assessment,\n  (SELECT COUNT(*) FROM claims WHERE damage_photos IS NULL OR damage_photos = '' OR damage_photos = '[]') as claims_without_photos;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  (SELECT COUNT(*) FROM tenant_invitations) as total_invitations,\n  (SELECT COUNT(*) FROM tenant_invitations WHERE accepted_at IS NULL AND expires_at > NOW()) as pending_invitations,\n  (SELECT COUNT(*) FROM tenant_invitations WHERE accepted_at IS NULL AND expires_at < NOW()) as expired_invitations,\n  (SELECT COUNT(*) FROM claim_approvals WHERE claim_id NOT IN (SELECT id FROM claims)) as dangling_approvals,\n  (SELECT COUNT(*) FROM claims c WHERE c.status = 'completed' AND NOT EXISTS (SELECT 1 FROM ai_assessments a WHERE a.claim_id = c.id)) as completed_without_assessment,\n  (SELECT COUNT(*) FROM claims c WHERE c.status IN ('comparison','repair_assigned') AND NOT EXISTS (SELECT 1 FROM ai_assessments a WHERE a.claim_id = c.id)) as advanced_without_assessment,\n  (SELECT COUNT(*) FROM claims WHERE damage_photos IS NULL OR damage_photos = '' OR damage_photos = '[]') as claims_without_photos;\n",
+  "rows": [
+    {
+      "total_invitations": "0",
+      "pending_invitations": "0",
+      "expired_invitations": "0",
+      "dangling_approvals": "3",
+      "completed_without_assessment": "8",
+      "advanced_without_assessment": "52",
+      "claims_without_photos": "116"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_invitations\tpending_invitations\texpired_invitations\tdangling_approvals\tcompleted_without_assessment\tadvanced_without_assessment\tclaims_without_photos\n0\t0\t0\t3\t8\t52\t116\n",
+  "stderr": "",
+  "execution_time_ms": 283
+}

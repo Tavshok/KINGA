@@ -1,0 +1,64 @@
+{
+  "query": "\nSELECT \n  status,\n  COUNT(*) as count,\n  ROUND(AVG(TIMESTAMPDIFF(HOUR, created_at, COALESCE(updated_at, NOW()))), 1) as avg_hours_in_status,\n  MIN(TIMESTAMPDIFF(HOUR, created_at, COALESCE(updated_at, NOW()))) as min_hours,\n  MAX(TIMESTAMPDIFF(HOUR, created_at, COALESCE(updated_at, NOW()))) as max_hours,\n  SUM(CASE WHEN TIMESTAMPDIFF(HOUR, created_at, NOW()) > 24 THEN 1 ELSE 0 END) as stalled_24h,\n  SUM(CASE WHEN TIMESTAMPDIFF(HOUR, created_at, NOW()) > 72 THEN 1 ELSE 0 END) as stalled_72h\nFROM claims\nGROUP BY status\nORDER BY count DESC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  status,\n  COUNT(*) as count,\n  ROUND(AVG(TIMESTAMPDIFF(HOUR, created_at, COALESCE(updated_at, NOW()))), 1) as avg_hours_in_status,\n  MIN(TIMESTAMPDIFF(HOUR, created_at, COALESCE(updated_at, NOW()))) as min_hours,\n  MAX(TIMESTAMPDIFF(HOUR, created_at, COALESCE(updated_at, NOW()))) as max_hours,\n  SUM(CASE WHEN TIMESTAMPDIFF(HOUR, created_at, NOW()) > 24 THEN 1 ELSE 0 END) as stalled_24h,\n  SUM(CASE WHEN TIMESTAMPDIFF(HOUR, created_at, NOW()) > 72 THEN 1 ELSE 0 END) as stalled_72h\nFROM claims\nGROUP BY status\nORDER BY count DESC;\n",
+  "rows": [
+    {
+      "status": "submitted",
+      "count": "51",
+      "avg_hours_in_status": "2.0",
+      "min_hours": "0",
+      "max_hours": "4",
+      "stalled_24h": "51",
+      "stalled_72h": "0"
+    },
+    {
+      "status": "comparison",
+      "count": "37",
+      "avg_hours_in_status": "-0.1",
+      "min_hours": "-3",
+      "max_hours": "0",
+      "stalled_24h": "37",
+      "stalled_72h": "0"
+    },
+    {
+      "status": "repair_assigned",
+      "count": "15",
+      "avg_hours_in_status": "-0.2",
+      "min_hours": "-3",
+      "max_hours": "0",
+      "stalled_24h": "15",
+      "stalled_72h": "0"
+    },
+    {
+      "status": "completed",
+      "count": "12",
+      "avg_hours_in_status": "-1.7",
+      "min_hours": "-4",
+      "max_hours": "0",
+      "stalled_24h": "12",
+      "stalled_72h": "0"
+    },
+    {
+      "status": "assessment_pending",
+      "count": "2",
+      "avg_hours_in_status": "-3.0",
+      "min_hours": "-3",
+      "max_hours": "-3",
+      "stalled_24h": "2",
+      "stalled_72h": "0"
+    },
+    {
+      "status": "assessment_complete",
+      "count": "1",
+      "avg_hours_in_status": "0.0",
+      "min_hours": "0",
+      "max_hours": "0",
+      "stalled_24h": "0",
+      "stalled_72h": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "status\tcount\tavg_hours_in_status\tmin_hours\tmax_hours\tstalled_24h\tstalled_72h\nsubmitted\t51\t2.0\t0\t4\t51\t0\ncomparison\t37\t-0.1\t-3\t0\t37\t0\nrepair_assigned\t15\t-0.2\t-3\t0\t15\t0\ncompleted\t12\t-1.7\t-4\t0\t12\t0\nassessment_pending\t2\t-3.0\t-3\t-3\t2\t0\nassessment_complete\t1\t0.0\t0\t0\t0\t0\n",
+  "stderr": "",
+  "execution_time_ms": 333
+}

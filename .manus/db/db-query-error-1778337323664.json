@@ -1,0 +1,8 @@
+{
+  "query": "\n-- 1. Archive claims with no tenant_id (set status to 'archived', mark as orphaned)\nUPDATE claims \nSET status = 'archived', \n    workflowState = 'closed',\n    updatedAt = NOW()\nWHERE tenantId IS NULL \n  AND status NOT IN ('archived', 'closed');\n\n-- 2. Clean up dangling approval records (approvals referencing non-existent claims)\nDELETE FROM approval_chain_records \nWHERE claimId NOT IN (SELECT id FROM claims);\n\n-- 3. Verify results\nSELECT \n  (SELECT COUNT(*) FROM claims WHERE tenantId IS NULL) as orphan_claims_remaining,\n  (SELECT COUNT(*) FROM approval_chain_records acr LEFT JOIN claims c ON acr.claimId = c.id WHERE c.id IS NULL) as dangling_approvals_remaining;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \n-- 1. Archive claims with no tenant_id (set status to 'archived', mark as orphaned)\nUPDATE claims \nSET status = 'archived', \n    workflowState = 'closed',\n    updatedAt = NOW()\nWHERE tenantId IS NULL \n  AND status NOT IN ('archived', 'closed');\n\n-- 2. Clean up dangling approval records (approvals referencing non-existent claims)\nDELETE FROM approval_chain_records \nWHERE claimId NOT IN (SELECT id FROM claims);\n\n-- 3. Verify results\nSELECT \n  (SELECT COUNT(*) FROM claims WHERE tenantId IS NULL) as orphan_claims_remaining,\n  (SELECT COUNT(*) FROM approval_chain_records acr LEFT JOIN claims c ON acr.claimId = c.id WHERE c.id IS NULL) as dangling_approvals_remaining;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 3: Unknown column 'tenantid' in 'where clause'"
+  ]
+}

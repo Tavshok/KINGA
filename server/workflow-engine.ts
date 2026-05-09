@@ -13,7 +13,7 @@
  */
 
 import { getDb } from "./db";
-import { claims, workflowAuditTrail, claimInvolvementTracking, workflowConfiguration } from "../drizzle/schema";
+import { claims, workflowAuditTrail, claimInvolvementTracking, workflowConfiguration, aiAssessments } from "../drizzle/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import type { InsurerRole, WorkflowState } from "./rbac";
@@ -219,6 +219,36 @@ export async function transition(request: TransitionRequest): Promise<Transition
           message: "Risk manager role is disabled for this tenant. Technical approval must be handled by executive.",
         });
       }
+    }
+  }
+
+  // ============================================
+  // VALIDATION LAYER 4.5: AI Assessment Prerequisite Guard
+  // ============================================
+  // Claims MUST have a completed AI assessment before advancing past under_assessment.
+  // This prevents repairs being authorised without fraud scores or validated cost estimates.
+  // Executive override bypasses this guard for exceptional manual progressions.
+  const AI_ASSESSMENT_REQUIRED_STATES: WorkflowState[] = [
+    "internal_review",
+    "technical_approval",
+    "financial_decision",
+    "payment_authorized",
+    "closed",
+  ];
+  if (AI_ASSESSMENT_REQUIRED_STATES.includes(toState) && !executiveOverride) {
+    const [existingAssessment] = await db
+      .select({ id: aiAssessments.id })
+      .from(aiAssessments)
+      .where(eq(aiAssessments.claimId, claimId))
+      .limit(1);
+    if (!existingAssessment) {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message:
+          `Cannot advance claim ${claimId} to "${toState}": no AI assessment record found. ` +
+          `The claim must complete AI processing before progressing to this stage. ` +
+          `Use an executive override if manual progression is required.`,
+      });
     }
   }
 

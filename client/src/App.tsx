@@ -201,6 +201,14 @@ function Router() {
             </RoleGuard>
           </ProtectedRoute>
         </Route>
+        {/* Assessor Network — insurer_admin view of approved assessors within portal layout */}
+        <Route path="/insurer-portal/assessors">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <RoleGuard allowedRoles={["insurer_admin", "claims_manager", "executive"]}>
+              <InsurerPortalLayout><AssessorList /></InsurerPortalLayout>
+            </RoleGuard>
+          </ProtectedRoute>
+        </Route>
 
         {/* Reports Centre — report catalogue, job tracker, admin regeneration */}
         <Route path="/insurer-portal/reports-centre">
@@ -468,19 +476,25 @@ function Router() {
         
         <Route path="/insurer/batch-export">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <BatchExport />
+            <RoleGuard allowedRoles={["insurer_admin", "claims_manager", "executive"]}>
+              <BatchExport />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         
         <Route path="/insurer/external-assessment">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <InsurerExternalAssessmentUpload />
+            <RoleGuard allowedRoles={["insurer_admin", "risk_manager", "claims_manager", "executive"]}>
+              <InsurerExternalAssessmentUpload />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         
         <Route path="/insurer/automation-policies">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <AutomationPolicies />
+            <RoleGuard allowedRoles={["insurer_admin", "executive"]}>
+              <AutomationPolicies />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         
@@ -492,12 +506,16 @@ function Router() {
 
         <Route path="/insurer/vehicle-registry/:id">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <VehicleRegistry />
+            <RoleGuard allowedRoles={["insurer_admin", "risk_manager", "claims_manager", "executive", "claims_processor"]}>
+              <VehicleRegistry />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         <Route path="/insurer/vehicle-registry">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <VehicleRegistry />
+            <RoleGuard allowedRoles={["insurer_admin", "risk_manager", "claims_manager", "executive", "claims_processor"]}>
+              <VehicleRegistry />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         
@@ -540,7 +558,9 @@ function Router() {
         {/* Insurer portal: fleet policy RFQs from KINGA Agency */}
         <Route path="/insurer-portal/fleet-rfqs">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <InsurerFleetRFQs />
+            <RoleGuard allowedRoles={["insurer_admin", "executive", "claims_manager"]}>
+              <InsurerFleetRFQs />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         

@@ -11855,3 +11855,31 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add 1px #e2e8f0 top-border section dividers between report section cards
 - [x] Enforce consistent font (Inter/system-ui, 12px body, 10px labels) across approval panel and table headers
 - [x] Build clean after all changes
+
+## Phase 32 — Audit Findings Fix (All 17 Items)
+
+### Critical — Pipeline (F-01, F-02, F-08)
+- [ ] F-01: Add pipeline guard in workflow state-transition logic to block advancement past assessment_pending without ai_assessments record
+- [ ] F-02: Investigate and fix intake job not triggering for submitted claims
+- [ ] F-08: Extend StuckRecovery scheduler to detect submitted claims stalled > 2 hours
+
+### High — Route Security (F-03 to F-06)
+- [ ] F-03: Add RoleGuard to /insurer/automation-policies (insurer_admin only)
+- [ ] F-04: Add RoleGuard to /insurer/batch-export (insurer_admin, executive, claims_manager)
+- [ ] F-05: Add RoleGuard to /insurer/external-assessment (insurer_admin, claims_manager, assessor_internal)
+- [ ] F-06: Verify and fix /admin/workflow-settings protection
+
+### High — Data Integrity (F-07, F-12, F-13)
+- [ ] F-07: Archive/assign 8 claims with no tenant_id; add NOT NULL guard on intake
+- [ ] F-12: Clean up 3 dangling approval records
+- [ ] F-13: Fix Assessor Network sidebar link to stay within portal layout
+
+### Medium — Route Security (F-09, F-10, F-11)
+- [ ] F-09: Add RoleGuard to /insurer/vehicle-registry
+- [ ] F-10: Add RoleGuard to /insurer/quote-optimization/:id
+- [ ] F-11: Add RoleGuard to /insurer-portal/fleet-rfqs
+
+### Low — AI Governance (F-14, F-15, F-16)
+- [ ] F-14: Add human_override boolean column to ai_assessments table
+- [ ] F-15: Add ocr_fallback_used boolean column to ai_assessments table
+- [ ] F-16: Expand expandShorthand dictionary with A/C, S/R, T/G, W/S, B/P, Q/P, C/M, E/C

@@ -1,0 +1,19 @@
+{
+  "query": "SHOW TABLES LIKE '%approv%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW TABLES LIKE '%approv%';",
+  "rows": [
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%approv%)": "approval_workflow"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%approv%)": "claim_approvals"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%approv%)": "final_approval_records"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_YbS42LwGroxbVepAMjk4bS (%approv%)\napproval_workflow\nclaim_approvals\nfinal_approval_records\n",
+  "stderr": "",
+  "execution_time_ms": 271
+}

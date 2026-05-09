@@ -1,0 +1,21 @@
+{
+  "query": "\nSELECT \n  (SELECT COUNT(*) FROM claims) as total_claims,\n  (SELECT COUNT(*) FROM ai_assessments) as total_assessments,\n  (SELECT COUNT(*) FROM ai_assessments WHERE fraud_score IS NOT NULL) as with_fraud_score,\n  (SELECT COUNT(*) FROM ai_assessments WHERE estimated_cost IS NOT NULL) as with_cost_estimate,\n  (SELECT COUNT(*) FROM claim_approvals) as total_approvals,\n  (SELECT COUNT(*) FROM claim_review_queue) as review_queue_items,\n  (SELECT COUNT(DISTINCT claim_id) FROM claim_documents) as claims_with_docs,\n  (SELECT COUNT(*) FROM insurer_tenants) as tenants,\n  (SELECT COUNT(*) FROM users) as total_users;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  (SELECT COUNT(*) FROM claims) as total_claims,\n  (SELECT COUNT(*) FROM ai_assessments) as total_assessments,\n  (SELECT COUNT(*) FROM ai_assessments WHERE fraud_score IS NOT NULL) as with_fraud_score,\n  (SELECT COUNT(*) FROM ai_assessments WHERE estimated_cost IS NOT NULL) as with_cost_estimate,\n  (SELECT COUNT(*) FROM claim_approvals) as total_approvals,\n  (SELECT COUNT(*) FROM claim_review_queue) as review_queue_items,\n  (SELECT COUNT(DISTINCT claim_id) FROM claim_documents) as claims_with_docs,\n  (SELECT COUNT(*) FROM insurer_tenants) as tenants,\n  (SELECT COUNT(*) FROM users) as total_users;\n",
+  "rows": [
+    {
+      "total_claims": "118",
+      "total_assessments": "7",
+      "with_fraud_score": "1",
+      "with_cost_estimate": "7",
+      "total_approvals": "3",
+      "review_queue_items": "0",
+      "claims_with_docs": "2",
+      "tenants": "1314",
+      "total_users": "25136"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_claims\ttotal_assessments\twith_fraud_score\twith_cost_estimate\ttotal_approvals\treview_queue_items\tclaims_with_docs\ttenants\ttotal_users\n118\t7\t1\t7\t3\t0\t2\t1314\t25136\n",
+  "stderr": "",
+  "execution_time_ms": 328
+}
