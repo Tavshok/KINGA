@@ -20,6 +20,7 @@ import React from "react";
 import { currencySymbol } from "@/lib/currency";
 import { ReportSectionThread } from "./ReportSectionThread";
 import { ConfidenceImprovementChecklist } from "./ConfidenceImprovementChecklist";
+import { expandShorthand } from "../../../shared/expandShorthand";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,6 +106,7 @@ const S = {
     background: C.cardBg,
     borderRadius: "8px",
     overflow: "hidden",
+    marginBottom: "16px",
   } as React.CSSProperties,
   cardHeader: {
     padding: "10px 16px",
@@ -142,8 +144,9 @@ const S = {
     textTransform: "uppercase" as const,
     letterSpacing: "0.05em",
     color: C.textMuted,
+    fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
     padding: "6px 10px",
-    background: C.headerBg,
+    background: "#ffffff",
     borderBottom: `1px solid ${C.border}`,
     textAlign: "left" as const,
     whiteSpace: "nowrap" as const,
@@ -426,7 +429,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
   // Build unified quote rows
   const allDescriptions: string[] = (() => {
     const set = new Set<string>();
-    quotes.forEach((q: any) => (q.lineItems ?? []).forEach((li: any) => set.add((li.description ?? "").trim())));
+    quotes.forEach((q: any) => (q.lineItems ?? []).forEach((li: any) => set.add(expandShorthand((li.description ?? "").trim()))));
     return Array.from(set).filter(Boolean);
   })();
 
@@ -615,11 +618,11 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                     // Falls back to positional matching only when enrichedPhotosJson is absent.
                     const enriched = displayPhotos[i];
                     const caption = enriched
-                      ? enriched.caption
+                      ? expandShorthand(enriched.caption)
                       : (() => {
                           const part = damagedParts[i];
                           return part
-                            ? `${part.name ?? ""} — ${toTitleCase(part.severity ?? "")} ${toTitleCase(part.damageType ?? "")}`
+                            ? `${expandShorthand(part.name ?? "")} — ${toTitleCase(part.severity ?? "")} ${toTitleCase(part.damageType ?? "")}`
                             : damageZones[i]
                               ? toTitleCase(damageZones[i])
                               : `Photo ${i + 1}`;
@@ -739,7 +742,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
                       return (
                         <tr key={ri} style={{ background: ri % 2 === 0 ? "transparent" : "#f1f5f9" }}>
-                          <td style={S.td}>{desc}</td>
+                          <td style={S.td}>{expandShorthand(desc)}</td>
                           {quotes.map((q: any, qi: number) => {
                             const li = (q.lineItems ?? []).find(
                               (l: any) => (l.description ?? "").trim().toLowerCase() === desc.toLowerCase()

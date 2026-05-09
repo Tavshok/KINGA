@@ -11846,3 +11846,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] ForensicAuditReport: fix approval/audit trail section — black text, white bg, grey borders
 - [ ] ForensicAuditReport: ensure print CSS overrides all colour leaks
 - [ ] Both reports: image-damage mismatch fix (enrichedPhotosJson) — DONE in Phase 30a
+
+## Phase 31 — Professional Report Quality: No Shorthand, Section Dividers, Font Consistency
+- [x] Build expandShorthand() utility in shared/ to expand automotive part abbreviations to full professional text
+- [x] Wire expandShorthand() into quote line item rendering in KingaClaimsReport
+- [x] Wire expandShorthand() into quote line item rendering in ForensicAuditReport
+- [x] Wire expandShorthand() into damage part names in both reports
+- [x] Add 1px #e2e8f0 top-border section dividers between report section cards
+- [x] Enforce consistent font (Inter/system-ui, 12px body, 10px labels) across approval panel and table headers
+- [x] Build clean after all changes
