@@ -37,6 +37,8 @@ import {
   ClipboardList,
   RefreshCw,
   ArrowRight,
+  History,
+  UserCog,
 } from "lucide-react";
 
 // ─── Role display helpers ─────────────────────────────────────────────────────
@@ -150,6 +152,11 @@ export default function InsurerAdminDashboard() {
   const recentClaims = [...submittedClaims, ...triageClaims, ...fraudClaims]
     .sort((a: any, b: any) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
     .slice(0, 8);
+  // Audit log
+  const { data: auditLog = [], isLoading: auditLoading } = trpc.teamMembers.getAuditLog.useQuery(
+    undefined,
+    { staleTime: 2 * 60 * 1000 }
+  );
 
   // KPI card data
   const kpiSummary = (kpis as any)?.summaryMetrics;
@@ -422,6 +429,62 @@ export default function InsurerAdminDashboard() {
             </Card>
           </div>
         </div>
+
+        {/* ── Audit Log ── */}
+        <section className="mt-2">
+          <div className="flex items-center gap-2 mb-3">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Recent Governance Activity</h2>
+          </div>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="px-0 pb-0">
+              {auditLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : auditLog.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
+                  <History className="h-8 w-8 opacity-30" />
+                  <p className="text-sm">No role changes recorded yet.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {auditLog.map((entry: any) => {
+                    const prevRole = entry.previousInsurerRole ?? entry.previousRole ?? "—";
+                    const newRole  = entry.newInsurerRole  ?? entry.newRole  ?? "—";
+                    const isDeactivation = !entry.newInsurerRole && entry.newRole === "user";
+                    return (
+                      <div key={entry.id} className="flex items-start gap-3 px-4 py-3">
+                        <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isDeactivation ? "bg-red-50" : "bg-teal-50"}`}>
+                          <UserCog className={`h-3.5 w-3.5 ${isDeactivation ? "text-red-500" : "text-teal-600"}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium">
+                            <span className="text-foreground">{entry.actorName}</span>
+                            {isDeactivation ? (
+                              <span className="text-muted-foreground"> deactivated </span>
+                            ) : (
+                              <span className="text-muted-foreground"> changed role of </span>
+                            )}
+                            <span className="text-foreground">{entry.subjectName}</span>
+                          </p>
+                          {!isDeactivation && (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              {prevRole.replace(/_/g, " ")} → {newRole.replace(/_/g, " ")}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0 pt-0.5">
+                          {new Date(entry.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
       </div>
     </InsurerPortalLayout>
   );

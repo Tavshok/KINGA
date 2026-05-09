@@ -11779,3 +11779,24 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add "Team Members" to insurer_admin sidebar under Administration section
 - [x] Add "Team Members" quick-action tile to InsurerAdminDashboard
 - [x] Update insurer_admin sidebar: fix Overview link to /insurer-portal/insurer-admin (not /insurer-portal)
+
+## Phase 28 — Invitation Email, Accept Page & Audit Log Panel
+
+### Email Delivery
+- [x] Check Forge notification API / email capability
+- [x] Add sendInvitationEmail helper using Forge email API
+- [x] Wire sendInvitationEmail into invitation-service.ts createInvitation flow
+- [x] Graceful fallback: log warning if email fails, still return inviteUrl
+
+### Invitation Acceptance Page
+- [x] Create /invite/accept/:token public route in App.tsx
+- [x] Create InviteAccept.tsx page: fetch invitation details, show role/tenant, OAuth sign-in CTA
+- [x] Handle already-accepted and expired states gracefully
+- [x] On OAuth callback with invite token, call admin.acceptInvitation to provision user
+
+### Audit Log Panel on InsurerAdminDashboard
+- [x] Add tRPC procedure: teamMembers.getAuditLog — last 20 role_assignment_audit entries for tenant
+- [x] Add AuditLog section to InsurerAdminDashboard showing actor, user, role change, timestamp
+
+### Verification
+- [x] Build clean after all changes

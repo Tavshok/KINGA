@@ -305,4 +305,56 @@ export const teamMembersRouter = router({
 
       return { success: true };
     }),
+
+  /**
+   * Get the last 20 role-assignment audit entries for this tenant.
+   * Used by the InsurerAdminDashboard audit log panel.
+   */
+  getAuditLog: insurerDomainProcedure.query(async ({ ctx }) => {
+    requireInsurerAdmin(ctx);
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+    const rows = await db
+      .select({
+        id: roleAssignmentAudit.id,
+        userId: roleAssignmentAudit.userId,
+        changedByUserId: roleAssignmentAudit.changedByUserId,
+        previousInsurerRole: roleAssignmentAudit.previousInsurerRole,
+        newInsurerRole: roleAssignmentAudit.newInsurerRole,
+        previousRole: roleAssignmentAudit.previousRole,
+        newRole: roleAssignmentAudit.newRole,
+        justification: roleAssignmentAudit.justification,
+        timestamp: roleAssignmentAudit.timestamp,
+      })
+      .from(roleAssignmentAudit)
+      .where(eq(roleAssignmentAudit.tenantId, ctx.insurerTenantId))
+      .orderBy(sql`${roleAssignmentAudit.timestamp} DESC`)
+      .limit(20);
+
+    if (rows.length === 0) return [];
+
+    // Resolve user names in a single query
+    const userIds = [...new Set(rows.flatMap((r) => [r.userId, r.changedByUserId]).filter(Boolean))];
+    const userRows = await db
+      .select({ id: users.id, name: users.name, email: users.email })
+      .from(users)
+      .where(sql`${users.id} IN (${sql.join(userIds.map((id) => sql`${id}`), sql`, `)})`);
+
+    const userMap = Object.fromEntries(
+      userRows.map((u) => [u.id, u.name ?? u.email ?? `User #${u.id}`])
+    );
+
+    return rows.map((r) => ({
+      id: r.id,
+      subjectName: userMap[r.userId] ?? `User #${r.userId}`,
+      actorName: userMap[r.changedByUserId] ?? `User #${r.changedByUserId}`,
+      previousInsurerRole: r.previousInsurerRole,
+      newInsurerRole: r.newInsurerRole,
+      previousRole: r.previousRole,
+      newRole: r.newRole,
+      justification: r.justification,
+      timestamp: r.timestamp,
+    }));
+  }),
 });

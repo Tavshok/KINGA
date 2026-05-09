@@ -62,6 +62,7 @@ const RiskManagerAnalytics = lazy(() => import("./pages/RiskManagerAnalytics"));
 const ClaimsManagerDashboard = lazy(() => import("./pages/ClaimsManagerDashboard"));
 const InsurerAdminDashboard = lazy(() => import("./pages/InsurerAdminDashboard"));
 const TeamMembers = lazy(() => import("./pages/TeamMembers"));
+const InviteAccept = lazy(() => import("./pages/InviteAccept"));
 const ClaimsManagerComparisonView = lazy(() => import("./pages/ClaimsManagerComparisonView"));
 const WorkflowSettings = lazy(() => import("./pages/WorkflowSettings"));
 const MonetizationDashboard = lazy(() => import("./pages/MonetizationDashboard"));
@@ -151,6 +152,7 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/login" component={Login} />
         <Route path="/onboarding" component={Onboarding} />
+        <Route path="/invite/accept/:token" component={InviteAccept} />
         <Route path="/unauthorized" component={Unauthorized} />
         
         {/* Analytics Dashboards */}
