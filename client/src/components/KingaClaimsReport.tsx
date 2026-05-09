@@ -87,9 +87,9 @@ function parseJson(raw: any): any {
 // ── Explicit hex tokens — always black-on-white regardless of theme ──
 const C = {
   white:      "#ffffff",
-  pageBg:     "#f8fafc",
+  pageBg:     "#ffffff",
   cardBg:     "#ffffff",
-  headerBg:   "#f1f5f9",
+  headerBg:   "#ffffff",
   border:     "#e2e8f0",
   borderDark: "#cbd5e1",
   text:       "#0f172a",
@@ -272,12 +272,15 @@ const ROLE_LABELS_KCR: Record<string, string> = {
   underwriter: "Underwriter",
 };
 
+// Decision badge styles — strict B&W to match the rest of the report format.
+// No colour: all badges use white background, black text, grey border.
+// The decision label alone conveys the outcome.
 const DECISION_STYLES_KCR: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  approved:          { label: "Approved",      bg: "#e6f4e6", color: "#2a7a2a", border: "#2a7a2a" },
-  rejected:          { label: "Rejected",      bg: "#fce8e8", color: "#a32d2d", border: "#a32d2d" },
-  returned:          { label: "Returned",      bg: "#fef3e2", color: "#8a5c00", border: "#8a5c00" },
-  escalated:         { label: "Escalated",     bg: "#eff6ff", color: "#1e40af", border: "#1e40af" },
-  external_received: { label: "Ext. Received", bg: "#f5f3ff", color: "#5b21b6", border: "#5b21b6" },
+  approved:          { label: "Approved",      bg: "#ffffff", color: "#0f172a", border: "#334155" },
+  rejected:          { label: "Rejected",      bg: "#ffffff", color: "#0f172a", border: "#334155" },
+  returned:          { label: "Returned",      bg: "#ffffff", color: "#0f172a", border: "#334155" },
+  escalated:         { label: "Escalated",     bg: "#ffffff", color: "#0f172a", border: "#334155" },
+  external_received: { label: "Ext. Received", bg: "#ffffff", color: "#0f172a", border: "#334155" },
 };
 
 export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [], approvalHistory = [], workflowStages = [], claimId, pipelineRunId }: KingaClaimsReportProps) {
@@ -351,10 +354,51 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
   const overallSeverity: string = aiAssessment?.structuralDamageSeverity ?? aiAssessment?.overallSeverity ?? "unknown";
   const structuralDamage: boolean = !!(aiAssessment?.structuralDamageSeverity && aiAssessment.structuralDamageSeverity !== "none");
 
-  // Photos — parse from damagePhotosJson (array of URL strings stored by pipeline),
-  // with fallback to enforcement damagePhotoUrls and legacy photoUrls fields.
+  // ── Photo parsing ──────────────────────────────────────────────────────────
+  // CRITICAL FIX: Use enrichedPhotosJson (per-photo AI vision metadata) as the
+  // primary source. Each entry has { url, caption, detectedComponents,
+  // impactZone, severity } derived from what the AI actually SAW in that
+  // specific image. This prevents the false caption problem where photo[i]
+  // was labelled with damagedParts[i] purely by array index.
+  //
+  // Fallback chain:
+  //   1. enrichedPhotosJson  — richest: url + AI-verified caption per photo
+  //   2. damagePhotosJson    — may contain DamagePhoto objects or plain URLs
+  //   3. enforcement damagePhotoUrls — plain URL array
+  //   4. legacy photoUrls / processedPhotoUrls
+  interface EnrichedPhoto {
+    url: string;
+    caption: string;
+    detectedComponents: string[];
+    impactZone: string;
+    severity: string;
+  }
+  const enrichedPhotos: EnrichedPhoto[] = (() => {
+    const raw = aiAssessment?.enrichedPhotosJson;
+    if (raw) {
+      try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed
+            .filter((p: any) => p?.url)
+            .map((p: any) => ({
+              url: p.url,
+              caption: p.caption ?? (Array.isArray(p.detectedComponents) && p.detectedComponents.length > 0
+                ? p.detectedComponents.slice(0, 3).join(', ')
+                : `Photo ${(p.index ?? 0) + 1}`),
+              detectedComponents: Array.isArray(p.detectedComponents) ? p.detectedComponents : [],
+              impactZone: p.impactZone ?? 'unknown',
+              severity: p.severity ?? 'unknown',
+            }));
+        }
+      } catch { /* fall through */ }
+    }
+    return [];
+  })();
+  // Build allPhotoUrls — needed for the count display
   const allPhotoUrls: string[] = (() => {
-    // Primary: damagePhotosJson is a JSON-encoded array of URL strings on the byClaim response
+    if (enrichedPhotos.length > 0) return enrichedPhotos.map(p => p.url);
+    // Fallback: damagePhotosJson
     const raw = aiAssessment?.damagePhotosJson;
     if (raw) {
       try {
@@ -364,14 +408,15 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
         }
       } catch { /* fall through */ }
     }
-    // Fallback: enforcement response damagePhotoUrls (from getEnforcement)
     if (Array.isArray(aiAssessment?.damagePhotoUrls) && aiAssessment.damagePhotoUrls.length > 0) {
       return aiAssessment.damagePhotoUrls;
     }
-    // Legacy fallbacks
     return aiAssessment?.photoUrls ?? aiAssessment?.processedPhotoUrls ?? [];
   })();
+  // Limit to 4 for the report grid
   const photoUrls: string[] = allPhotoUrls.slice(0, 4);
+  // Slice enrichedPhotos to match (empty array if no enriched data available)
+  const displayPhotos = enrichedPhotos.length > 0 ? enrichedPhotos.slice(0, 4) : [];
 
   // Quote comparison
   const quoteSimilarity = fraudBd?.quoteSimilarity ?? null;
@@ -565,13 +610,23 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 <p style={{ ...S.label, marginBottom: 8 }}>Damage Photographs ({photoUrls.length} of {allPhotoUrls.length} shown)</p>
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(photoUrls.length, 4)}, 1fr)`, gap: 10 }}>
                   {photoUrls.map((url: string, i: number) => {
-                    // Match photo to a damaged component for caption
-                    const part = damagedParts[i];
-                    const caption = part
-                      ? `${part.name ?? ""} — ${toTitleCase(part.severity ?? "")} ${toTitleCase(part.damageType ?? "")}`
-                      : damageZones[i]
-                        ? toTitleCase(damageZones[i])
-                        : `Photo ${i + 1}`;
+                    // Use enriched photo metadata when available — AI-verified caption
+                    // for what was actually detected in THIS specific image.
+                    // Falls back to positional matching only when enrichedPhotosJson is absent.
+                    const enriched = displayPhotos[i];
+                    const caption = enriched
+                      ? enriched.caption
+                      : (() => {
+                          const part = damagedParts[i];
+                          return part
+                            ? `${part.name ?? ""} — ${toTitleCase(part.severity ?? "")} ${toTitleCase(part.damageType ?? "")}`
+                            : damageZones[i]
+                              ? toTitleCase(damageZones[i])
+                              : `Photo ${i + 1}`;
+                        })();
+                    const subCaption = enriched
+                      ? `${toTitleCase(enriched.impactZone)} · ${toTitleCase(enriched.severity)} severity`
+                      : `Photo ${i + 1}`;
                     return (
                       <div key={i} style={{ borderRadius: 6, overflow: "hidden", border: "1px solid #e2e8f0" }}>
                         <div style={{ aspectRatio: "4/3", overflow: "hidden", background: "#f1f5f9" }}>
@@ -584,7 +639,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                         </div>
                         <div style={{ padding: "5px 8px", background: "#f1f5f9", borderTop: "1px solid #e2e8f0" }}>
                           <p style={{ fontSize: 10, color: "#0f172a", fontWeight: 600, margin: 0, lineHeight: 1.3 }}>{caption}</p>
-                          <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>Photo {i + 1}</p>
+                          <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>{subCaption}</p>
                         </div>
                       </div>
                     );
@@ -911,7 +966,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                     <tbody>
                       {stages.map((stage) => {
                         const completed = completedByOrder.get(stage.order);
-                        const ds = completed ? (DECISION_STYLES_KCR[completed.decision] ?? { label: completed.decision, bg: "#f1f5f9", color: "#334155", border: "#cbd5e1" }) : null;
+                        const ds = completed ? (DECISION_STYLES_KCR[completed.decision] ?? { label: completed.decision, bg: "#ffffff", color: "#0f172a", border: "#334155" }) : null;
                         const dateStr = completed?.actedAt
                           ? new Date(completed.actedAt).toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
                           : null;
@@ -956,7 +1011,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                       {approvalHistory
                         .filter((e) => e.notes)
                         .map((e) => (
-                          <div key={e.id} style={{ marginBottom: 8, paddingLeft: 12, borderLeft: `3px solid ${C.accent}` }}>
+                          <div key={e.id} style={{ marginBottom: 8, paddingLeft: 12, borderLeft: `3px solid ${C.borderDark}` }}>
                             <p style={{ ...S.label, marginBottom: 2 }}>
                               {ROLE_LABELS_KCR[e.roleKey ?? ""] ?? e.roleKey} — Stage {e.stageOrder} — {e.actorName ?? "Unknown"}
                             </p>

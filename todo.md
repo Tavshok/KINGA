@@ -11812,3 +11812,37 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] BACKLOG: Design role-specific "Getting Started" guide document (simple graphics + what you can do)
 - [ ] BACKLOG: Show guide on InviteAccept page after account provisioning
 - [ ] BACKLOG: Show guide as dismissible panel on first dashboard load for each role
+
+## Phase 30 — Critical Fixes: Image-Damage Mismatch, Report Restoration, Admin Activity, Backlog
+
+### CRITICAL: Image-to-damage-part mismatch in claims report
+- [ ] Audit image assignment logic in KingaClaimsReport and report generation pipeline
+- [ ] Fix: each damage image must be strictly bound to its specific damage part (no cross-part image bleed)
+- [ ] Fix: images must only appear under the exact damage section they were uploaded for
+- [ ] Add server-side guard: validate image-to-part mapping before report generation
+- [ ] Test: verify correct image appears under correct damage section end-to-end
+
+### Claims Report & Forensic Report restoration
+- [ ] Audit current state of claims report changes (what regressed)
+- [ ] Audit current state of forensic report changes (what regressed)
+- [ ] Restore/re-apply all intended changes to claims report
+- [ ] Restore/re-apply all intended changes to forensic report
+
+### KINGA Admin: Team Activity Indicator
+- [ ] Add "Last Active" column to KINGA admin tenant users table
+- [ ] Source from lastLoginAt timestamp on users table
+- [ ] Show dormant indicator (e.g. >30 days) with visual badge
+
+### Backlog
+- [ ] BACKLOG: Role Welcome Guide — per-role "Getting Started" card (icon + 3-4 capabilities + CTA)
+- [ ] BACKLOG: Show on InviteAccept page post-provisioning
+- [ ] BACKLOG: Show as dismissible banner on first dashboard load per role
+
+## Phase 30b — Report B&W Format + Font Consistency Fix
+- [ ] KingaClaimsReport: audit all colour tokens and replace CSS variables with explicit B&W hex values
+- [ ] KingaClaimsReport: fix approval/sign-off panel — force black text, white bg, grey borders, no coloured badges
+- [ ] KingaClaimsReport: fix fonts — consistent sans-serif throughout, no monospace in data cells
+- [ ] ForensicAuditReport: audit all CSS variable colour references and force explicit B&W hex in all sections
+- [ ] ForensicAuditReport: fix approval/audit trail section — black text, white bg, grey borders
+- [ ] ForensicAuditReport: ensure print CSS overrides all colour leaks
+- [ ] Both reports: image-damage mismatch fix (enrichedPhotosJson) — DONE in Phase 30a
