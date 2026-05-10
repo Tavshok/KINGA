@@ -3048,7 +3048,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
 function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: any | null }) {
   if (!severityConsensus) return null;
   const sc = severityConsensus;
-  const verdict: string = sc.final_severity ?? 'unknown';
+  const _rawVerdict: string = sc.final_severity ?? 'unknown';
   const alignment: string = sc.source_alignment ?? 'UNKNOWN';
   const confidence: number = sc.confidence ?? 0;
   const reasoning: string = sc.reasoning ?? '';
@@ -3062,10 +3062,22 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
     ? { bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)', label: 'PARTIAL ALIGNMENT' }
     : { bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', text: 'var(--fp-critical-text)', label: 'CONFLICTED' };
 
+  // isConflicted covers both 'CONFLICT' (legacy) and 'CONFLICTED' (current pipeline value)
+  const isAligned = alignment === 'FULL' || alignment === 'FULLY_ALIGNED' || alignment === 'ALIGNED';
+  const isPartial = alignment === 'PARTIAL';
+  const isConflicted = alignment === 'CONFLICTED' || alignment === 'CONFLICT' || (!isAligned && !isPartial);
+
+  // When sources conflict, display INCONCLUSIVE rather than the conservative fallback severity.
+  // The conservative severity is still shown in the source table for context.
+  const verdict: string = isConflicted ? 'INCONCLUSIVE' : _rawVerdict;
+  const conservativeFallback: string | null = isConflicted ? _rawVerdict : null;
+
   // Verdict colour — used only on the verdict badge
-  const verdictColour = verdict === 'severe' || verdict === 'catastrophic'
+  const verdictColour = isConflicted
     ? { bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', text: 'var(--fp-critical-text)' }
-    : verdict === 'moderate'
+    : _rawVerdict === 'severe' || _rawVerdict === 'catastrophic'
+    ? { bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', text: 'var(--fp-critical-text)' }
+    : _rawVerdict === 'moderate'
     ? { bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)' }
     : { bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'var(--fp-success-text)' };
 
@@ -3085,17 +3097,11 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
   };
 
   // Action instruction — plain English for adjuster/insurer
-  // Note: source_alignment values from pipeline are 'FULL', 'PARTIAL', 'CONFLICTED'
-  const isAligned = alignment === 'FULL' || alignment === 'FULLY_ALIGNED' || alignment === 'ALIGNED';
-  const isPartial = alignment === 'PARTIAL';
-  // isConflicted covers both 'CONFLICT' (legacy) and 'CONFLICTED' (current pipeline value)
-  const isConflicted = alignment === 'CONFLICTED' || alignment === 'CONFLICT' || (!isAligned && !isPartial);
-
   const actionInstruction = isAligned
-    ? `All ${sourcesAvailable} available source${sourcesAvailable !== 1 ? 's' : ''} are in agreement. Severity finding is ${verdict}. Recommended action: proceed to settlement subject to standard reserve and liability checks.`
+    ? `All ${sourcesAvailable} available source${sourcesAvailable !== 1 ? 's' : ''} are in agreement. Severity finding is ${_rawVerdict}. Recommended action: proceed to settlement subject to standard reserve and liability checks.`
     : isPartial
-    ? `The majority of sources indicate ${verdict} severity, but one signal is not aligned. Recommended action: refer for physical inspection or senior assessor review before finalising the reserve, particularly if the severity classification affects the settlement amount.`
-    : `The available signals produce conflicting severity assessments. Conservative verdict (${verdict}) has been adopted. Recommended action: do not settle until a senior assessor has reviewed the conflicting signals and confirmed the severity classification in writing.`;
+    ? `The majority of sources indicate ${_rawVerdict} severity, but one signal is not aligned. Recommended action: refer for physical inspection or senior assessor review before finalising the reserve, particularly if the severity classification affects the settlement amount.`
+    : `The available signals produce conflicting severity assessments. Severity is INCONCLUSIVE — do not treat any single source as definitive. Conservative fallback (${conservativeFallback ?? _rawVerdict}) has been recorded for reserve purposes only. Recommended action: do not settle until a senior assessor has reviewed the conflicting signals and confirmed the severity classification in writing.`;
 
   return (
     <div className="mb-4">
@@ -3112,6 +3118,9 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
               <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Final Verdict</p>
               <p className="text-lg font-bold capitalize" style={{ color: 'var(--foreground)' }}>{verdict}</p>
               <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 uppercase" style={{ background: verdictColour.bg, color: verdictColour.text, border: `1px solid ${verdictColour.border}` }}>{verdict}</span>
+              {conservativeFallback && (
+                <p className="text-[9px] mt-1" style={{ color: 'var(--muted-foreground)' }}>Conservative fallback: <span className="font-semibold capitalize">{conservativeFallback}</span></p>
+              )}
             </div>
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
               <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Confidence</p>
@@ -4200,7 +4209,10 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
   const valuationMethod = llmValuation?.valuationMethod ?? null;
   const verdictReason = llmValuation?.verdictReason ?? null;
   const llmVerdict = llmValuation?.verdict ?? null; // REPAIRABLE | WRITE_OFF | BORDERLINE
-  const llmRepairToValue = llmValuation?.repairToValueRatio ?? null;
+  // Guard: treat 0 as null — a zero ratio means the LLM had no data, not that repair is free
+  const llmRepairToValue = (llmValuation?.repairToValueRatio != null && llmValuation.repairToValueRatio > 0)
+    ? llmValuation.repairToValueRatio
+    : null;
   const excessUsd = claimRecord0?.insuranceContext?.excessAmountUsd ?? null;
   const bettermentUsd = claimRecord0?.insuranceContext?.bettermentUsd ?? null;
   const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
@@ -5321,7 +5333,19 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   const corrections: string[] = (aiAssessment as any)?._phase1?.allCorrections ?? [];
   const engineVersion = aiAssessment?.engineVersion ?? "4.2";
 
-  const fraudScore = e?.weightedFraud?.score ?? 0;
+  // Canonical fraud score — same priority chain as Section 1 (cover) and Section 5 (fraud panel):
+  // 1. fraudScoreBreakdownJson.overallScore  (Stage 8 pipeline output, stored in DB)
+  // 2. aiAssessment.fraudScore               (same Stage 8 score via normalised bridge)
+  // 3. weightedFraud.score                   (supplementary enforcement-time engine — fallback only)
+  const _fraudBreakdown6 = aiAssessment?.fraudScoreBreakdownJson
+    ? (typeof aiAssessment.fraudScoreBreakdownJson === 'string'
+        ? (() => { try { return JSON.parse(aiAssessment.fraudScoreBreakdownJson); } catch { return null; } })()
+        : aiAssessment.fraudScoreBreakdownJson)
+    : null;
+  const _canonicalFraudScore6 = _fraudBreakdown6?.overallScore ?? (aiAssessment as any)?.fraudScore ?? null;
+  const fraudScore = (_canonicalFraudScore6 != null && _canonicalFraudScore6 > 0)
+    ? Number(_canonicalFraudScore6)
+    : (wf?.score ?? 0);
   const physicsScore = phase2?.physicsConsistency ?? e?.consistencyFlag?.score ?? 0;
   const dataCompleteness = phase2?.dataCompleteness ?? 0;
 

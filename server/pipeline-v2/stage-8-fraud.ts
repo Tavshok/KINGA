@@ -636,6 +636,8 @@ export async function runFraudAnalysisStage(
       accidentDateCrossCheckResult = runAccidentDateCrossCheck({
         accidentDate: claimRecord.accidentDetails?.date ?? (claimRecord as any).accidentDate ?? null,
         policeReportDate: (claimRecord as any).policeReportDate ?? claimRecord.policeReport?.reportDate ?? null,
+        // Submission date: use claim's createdAt (when it was lodged in the system)
+        claimSubmissionDate: ctx.claim?.createdAt ?? null,
         photoForensicsResults: photoForensicsPhotos.map((p: any) => ({
           url: p.url,
           analysisResult: p.analysisResult ? {

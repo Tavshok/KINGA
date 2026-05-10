@@ -68,6 +68,22 @@ export interface DateCrossCheckResult {
   photosWithExifDate: number;
   /** Human-readable summary for the fraud indicator table */
   summary: string;
+  /**
+   * Late-submission check results.
+   * null when claimSubmissionDate was not provided.
+   */
+  lateSubmission: {
+    /** Days between incident and claim submission (positive = submitted after incident) */
+    daysBetween: number;
+    /** Whether the gap exceeds the CRITICAL threshold (> 365 days) */
+    isCritical: boolean;
+    /** Whether the gap exceeds the WARNING threshold (> 90 days) */
+    isLate: boolean;
+    /** Fraud score contribution from late submission alone (0–10) */
+    fraudScoreContribution: number;
+    /** Human-readable explanation */
+    explanation: string;
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,6 +175,12 @@ export interface DateCrossCheckInput {
   /** Date from police report (any parseable format) */
   policeReportDate: string | null | undefined;
   /**
+   * The date the claim was submitted / lodged with the insurer.
+   * Used to detect abnormally late submissions (> 90 days after incident).
+   * If omitted, late-submission check is skipped.
+   */
+  claimSubmissionDate?: string | null | undefined;
+  /**
    * Per-photo results from Stage 8 photoForensics.
    * Only vehicle damage photos with a parseable capture_datetime are used.
    */
@@ -174,6 +196,7 @@ export interface DateCrossCheckInput {
 export function runAccidentDateCrossCheck(input: DateCrossCheckInput): DateCrossCheckResult {
   const claimDate = parseDate(input.accidentDate);
   const policeDate = parseDate(input.policeReportDate);
+  const submissionDate = parseDate(input.claimSubmissionDate);
 
   const claimFormDate = claimDate ? toIso(claimDate) : null;
   const policeReportDate = policeDate ? toIso(policeDate) : null;
@@ -266,6 +289,50 @@ export function runAccidentDateCrossCheck(input: DateCrossCheckInput): DateCross
     summaryParts.push('Insufficient date data available for cross-check.');
   }
 
+  // ── Check C: Late submission ───────────────────────────────────────────────────────────────────────────────────
+  // Thresholds:
+  //   > 90 days  → LATE (warning, +5 fraud points)
+  //   > 365 days → CRITICAL (strong indicator, +10 fraud points)
+  let lateSubmission: DateCrossCheckResult['lateSubmission'] = null;
+  let lateSubmissionFraudScore = 0;
+
+  if (claimDate && submissionDate) {
+    const gapDays = dayDiff(claimDate, submissionDate);
+    // Only flag if submission is AFTER the incident (not before)
+    const isAfterIncident = submissionDate.getTime() >= claimDate.getTime();
+
+    if (isAfterIncident && gapDays > 90) {
+      const isCritical = gapDays > 365;
+      lateSubmissionFraudScore = isCritical ? 10 : 5;
+      const months = Math.round(gapDays / 30.44);
+      lateSubmission = {
+        daysBetween: gapDays,
+        isCritical,
+        isLate: true,
+        fraudScoreContribution: lateSubmissionFraudScore,
+        explanation: isCritical
+          ? `Claim submitted ${gapDays} days (approx. ${months} months) after the incident — a ${gapDays}-day gap is a strong fraud indicator. Insurers typically require submission within 30–90 days. This gap warrants explicit escalation and a written explanation from the claimant.`
+          : `Claim submitted ${gapDays} days (approx. ${months} months) after the incident. This exceeds the standard 90-day lodgement window and should be noted in the adjuster’s review.`,
+      };
+      summaryParts.push(
+        isCritical
+          ? `CRITICAL: Claim submitted ${gapDays} days after incident (${months} months) — far exceeds standard lodgement window.`
+          : `Late submission: claim lodged ${gapDays} days after incident.`
+      );
+    } else if (isAfterIncident) {
+      lateSubmission = {
+        daysBetween: gapDays,
+        isCritical: false,
+        isLate: false,
+        fraudScoreContribution: 0,
+        explanation: `Claim submitted ${gapDays} days after the incident — within the standard lodgement window.`,
+      };
+    }
+  }
+
+  // Incorporate late-submission fraud score into overall score (capped at 20 per indicator)
+  fraudScore = Math.min(20, fraudScore + lateSubmissionFraudScore);
+
   const summary = summaryParts.join(' ') || 'Date cross-check completed.';
 
   return {
@@ -278,5 +345,6 @@ export function runAccidentDateCrossCheck(input: DateCrossCheckInput): DateCross
     preIncidentImages,
     photosWithExifDate,
     summary,
+    lateSubmission,
   };
 }

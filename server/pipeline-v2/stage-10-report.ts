@@ -27,6 +27,7 @@ import type {
 } from "./types";
 import type { CausalChainOutput } from "./causalChainBuilder";
 import { evaluateDecisionReadiness } from "./decisionReadinessEngine";
+import { runPrePublicationValidation } from "./prePublicationValidator";
 import {
   buildDamageNarrative,
   buildPhysicsNarrative,
@@ -673,6 +674,58 @@ export async function runReportGenerationStage(
       consistencyCheck,
       claimQuality,
       degradationReasons,
+    };
+
+    // ── Pre-Publication Validation ───────────────────────────────────────────────────────────────────────────────
+    // Runs after full output assembly. CRITICAL blockers prevent delivery.
+    // HIGH/MEDIUM blockers are logged and surfaced in the report audit trail.
+    const prePublicationResult = runPrePublicationValidation({
+      claim: {
+        claimNumber: ctx.claim?.claimNumber ?? null,
+        id: ctx.claimId ?? null,
+        incidentDate: claimRecord.accidentDetails?.date ?? (ctx.claim as any)?.incidentDate ?? null,
+        createdAt: (ctx.claim as any)?.createdAt ?? null,
+      },
+      aiAssessment: {
+        fraudScore: (fraudAnalysis as any)?.fraudRiskScore ?? null,
+        fraudScoreBreakdownJson: (fraudAnalysis as any)?.fraudScoreBreakdown ?? null,
+        photosDetected: claimRecord.damage.imageUrls?.length ?? null,
+      },
+      enforcement: null, // Enforcement runs post-pipeline; not available here
+      valuation: {
+        repairToValueRatio: (costAnalysis as any)?.valuation?.repairToValueRatio ?? null,
+        marketValueUsd: (costAnalysis as any)?.valuation?.marketValueUsd ?? null,
+      },
+      accidentDateCrossCheck: (fraudAnalysis as any)?.accidentDateCrossCheck ?? null,
+      severityConsensus: physicsAnalysis?.severityConsensus ?? null,
+      decisionReadiness,
+    });
+
+    if (!prePublicationResult.valid) {
+      const criticalCount = prePublicationResult.blockers.filter(b => b.severity === "CRITICAL").length;
+      const highCount = prePublicationResult.blockers.filter(b => b.severity === "HIGH").length;
+      ctx.log(
+        "Stage 10 [PrePublicationValidator]",
+        `Validation ${prePublicationResult.blocked ? "BLOCKED" : "WARNED"}: ${criticalCount} CRITICAL, ${highCount} HIGH blockers. ` +
+        prePublicationResult.blockers.map(b => `[${b.checkId}] ${b.description}`).join(" | ")
+      );
+      if (prePublicationResult.blocked) {
+        isDegraded = true;
+        degradationReasons.push(
+          ...prePublicationResult.blockers
+            .filter(b => b.severity === "CRITICAL")
+            .map(b => `[${b.checkId}] ${b.description}`)
+        );
+      }
+    }
+
+    // Attach validation result to fullReport for audit trail
+    fullReport.sections.prePublicationValidation = {
+      valid: prePublicationResult.valid,
+      blocked: prePublicationResult.blocked,
+      blockerCount: prePublicationResult.blockers.length,
+      blockers: prePublicationResult.blockers,
+      validatedAt: prePublicationResult.validatedAt,
     };
 
     ctx.log("Stage 10", `Report generation complete. ${Object.keys(fullReport.sections).length} sections, confidence: ${overallConfidence}%, assumptions: ${allAssumptions.length}, missing docs: ${missingDocuments.length}`);

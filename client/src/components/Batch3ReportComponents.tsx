@@ -125,10 +125,15 @@ export function ReportPageHeader({
     enforcement?.finalDecision?.recommendation ??
     "REVIEW";
 
-  const fraudScore: number =
-    enforcement?.weightedFraud?.score ??
-    aiAssessment?._normalised?.fraud?.score ??
-    0;
+  // Canonical fraud score — same priority chain used throughout the report:
+  // 1. fraudScoreBreakdownJson.overallScore  (Stage 8 pipeline output)
+  // 2. aiAssessment.fraudScore               (normalised bridge)
+  // 3. weightedFraud.score                   (enforcement-time fallback)
+  const _hdrBreakdown = aiAssessment?.fraudScoreBreakdownJson
+    ? (() => { try { const r = typeof aiAssessment.fraudScoreBreakdownJson === 'string' ? JSON.parse(aiAssessment.fraudScoreBreakdownJson) : aiAssessment.fraudScoreBreakdownJson; return r; } catch { return null; } })()
+    : null;
+  const _hdrCanonical = _hdrBreakdown?.overallScore ?? (aiAssessment as any)?.fraudScore ?? null;
+  const fraudScore: number = (_hdrCanonical != null && _hdrCanonical > 0) ? Number(_hdrCanonical) : (enforcement?.weightedFraud?.score ?? aiAssessment?._normalised?.fraud?.score ?? 0);
 
   const totalCost: number =
     aiAssessment?._normalised?.costs?.totalUsd ??
@@ -331,10 +336,15 @@ export function ReportIntegritySeal({ claim, aiAssessment, enforcement }: Report
     enforcement?.finalDecision?.recommendation ??
     "REVIEW";
 
-  const fraudScore: number =
-    enforcement?.weightedFraud?.score ??
-    aiAssessment?._normalised?.fraud?.score ??
-    0;
+  // Canonical fraud score — same priority chain used throughout the report:
+  // 1. fraudScoreBreakdownJson.overallScore  (Stage 8 pipeline output)
+  // 2. aiAssessment.fraudScore               (normalised bridge)
+  // 3. weightedFraud.score                   (enforcement-time fallback)
+  const _sealBreakdown = aiAssessment?.fraudScoreBreakdownJson
+    ? (() => { try { const r = typeof aiAssessment.fraudScoreBreakdownJson === 'string' ? JSON.parse(aiAssessment.fraudScoreBreakdownJson) : aiAssessment.fraudScoreBreakdownJson; return r; } catch { return null; } })()
+    : null;
+  const _sealCanonical = _sealBreakdown?.overallScore ?? (aiAssessment as any)?.fraudScore ?? null;
+  const fraudScore: number = (_sealCanonical != null && _sealCanonical > 0) ? Number(_sealCanonical) : (enforcement?.weightedFraud?.score ?? aiAssessment?._normalised?.fraud?.score ?? 0);
 
   const totalCost: number =
     aiAssessment?._normalised?.costs?.totalUsd ??
