@@ -6569,31 +6569,33 @@ const REPORT_CSS = `
   --muted-foreground:#666;
   --primary:#111;
   --primary-foreground:#fff;
-  --fp-success:#2e7d32;
-  --fp-success-bg:#e8f5e9;
-  --fp-success-border:#a5d6a7;
-  --fp-success-text:#2e7d32;
-  --fp-warning-bg:#fff8e1;
-  --fp-warning-border:#ffe082;
-  --fp-warning-text:#c8a000;
-  --fp-critical-bg:#ffebee;
-  --fp-critical-border:#ef9a9a;
-  --fp-critical-text:#c00;
-  --fp-info:#1565c0;
-  --fp-info-bg:#f0f4ff;
-  --fp-info-border:#90caf9;
-  --fp-info-text:#1565c0;
-  --fp-danger:#c00;
-  --fp-warn:#c8a000;
-  --status-approve-bg:#e8f5e9;
-  --status-approve-border:#a5d6a7;
-  --status-approve-text:#2e7d32;
-  --status-review-bg:#fff8e1;
-  --status-review-border:#ffe082;
-  --status-review-text:#c8a000;
-  --status-reject-bg:#ffebee;
-  --status-reject-border:#ef9a9a;
-  --status-reject-text:#c00;
+  /* ── B&W semantic tokens (FAR-01 Format Consistency Sprint) ── */
+  /* All colour replaced with typographic weight/style hierarchy */
+  --fp-success:#111111;
+  --fp-success-bg:#ffffff;
+  --fp-success-border:#aaaaaa;
+  --fp-success-text:#111111;
+  --fp-warning-bg:#f8f8f8;
+  --fp-warning-border:#555555;
+  --fp-warning-text:#111111;
+  --fp-critical-bg:#f0f0f0;
+  --fp-critical-border:#111111;
+  --fp-critical-text:#111111;
+  --fp-info:#444444;
+  --fp-info-bg:#f8f8f8;
+  --fp-info-border:#aaaaaa;
+  --fp-info-text:#444444;
+  --fp-danger:#111111;
+  --fp-warn:#111111;
+  --status-approve-bg:#ffffff;
+  --status-approve-border:#aaaaaa;
+  --status-approve-text:#111111;
+  --status-review-bg:#f8f8f8;
+  --status-review-border:#555555;
+  --status-review-text:#111111;
+  --status-reject-bg:#f0f0f0;
+  --status-reject-border:#111111;
+  --status-reject-text:#111111;
   --fp-section-bg:#f8fafc;
   --fp-border:#e5e7eb;
   /* ── KINGA Brand Tokens ── */
@@ -6646,29 +6648,29 @@ const REPORT_CSS = `
 .kinga-report [class*="p-3"][class*="rounded"]{background:#fff !important;border:1px solid #ddd !important;border-radius:0 !important;color:#333 !important}
 /* Section sub-headings */
 .kinga-report [class*="text-xs"][class*="font-bold"][class*="uppercase"]{color:#888 !important;font-size:10px !important}
-/* Badges */
-.kinga-report .bg-green-100{background:#e8f5e9 !important;color:#2e7d32 !important}
-.kinga-report .bg-yellow-100{background:#fff8e1 !important;color:#c8a000 !important}
-.kinga-report .bg-red-100{background:#ffebee !important;color:#c00 !important}
-.kinga-report .bg-orange-100{background:#fff3e0 !important;color:#e65100 !important}
-.kinga-report .dark\:bg-green-950{background:#e8f5e9 !important}
-.kinga-report .dark\:bg-yellow-950{background:#fff8e1 !important}
-.kinga-report .dark\:bg-red-950{background:#ffebee !important}
-.kinga-report .dark\:bg-orange-950{background:#fff3e0 !important}
-.kinga-report .dark\:bg-amber-950{background:#fff8e1 !important}
-.kinga-report .text-green-800{color:#2e7d32 !important}
-.kinga-report .text-yellow-800{color:#c8a000 !important}
-.kinga-report .text-red-800{color:#c00 !important}
-.kinga-report .text-orange-700{color:#e65100 !important}
-.kinga-report .text-amber-900{color:#7a5c00 !important}
-.kinga-report .dark\:text-green-200{color:#2e7d32 !important}
-.kinga-report .dark\:text-yellow-200{color:#c8a000 !important}
-.kinga-report .dark\:text-red-200{color:#c00 !important}
-.kinga-report .dark\:text-orange-200{color:#e65100 !important}
-.kinga-report .dark\:text-amber-300{color:#c8a000 !important}
-/* Override tinted Tailwind utility classes to white */
-.kinga-report .bg-amber-50{background:#fff !important;color:#7a5c00 !important}
-.kinga-report .bg-red-50{background:#fff !important;color:#c00 !important}
+/* Badges — FAR-01: all tinted backgrounds converted to white/light-grey, text to #111 */
+.kinga-report .bg-green-100{background:#fff !important;color:#111 !important;border:1px solid #aaa !important}
+.kinga-report .bg-yellow-100{background:#f8f8f8 !important;color:#111 !important;border:1px solid #555 !important}
+.kinga-report .bg-red-100{background:#f0f0f0 !important;color:#111 !important;border:1px solid #111 !important}
+.kinga-report .bg-orange-100{background:#f8f8f8 !important;color:#111 !important;border:1px solid #555 !important}
+.kinga-report .dark\:bg-green-950{background:#fff !important}
+.kinga-report .dark\:bg-yellow-950{background:#f8f8f8 !important}
+.kinga-report .dark\:bg-red-950{background:#f0f0f0 !important}
+.kinga-report .dark\:bg-orange-950{background:#f8f8f8 !important}
+.kinga-report .dark\:bg-amber-950{background:#f8f8f8 !important}
+.kinga-report .text-green-800{color:#111 !important}
+.kinga-report .text-yellow-800{color:#111 !important}
+.kinga-report .text-red-800{color:#111 !important}
+.kinga-report .text-orange-700{color:#111 !important}
+.kinga-report .text-amber-900{color:#111 !important}
+.kinga-report .dark\:text-green-200{color:#111 !important}
+.kinga-report .dark\:text-yellow-200{color:#111 !important}
+.kinga-report .dark\:text-red-200{color:#111 !important}
+.kinga-report .dark\:text-orange-200{color:#111 !important}
+.kinga-report .dark\:text-amber-300{color:#111 !important}
+/* Override tinted Tailwind utility classes to white — FAR-01 */
+.kinga-report .bg-amber-50{background:#f8f8f8 !important;color:#111 !important}
+.kinga-report .bg-red-50{background:#f0f0f0 !important;color:#111 !important}
 /* CongruencyPanel and DataQualityPanel — only override the outer wrapper, not inner headers */
 .kinga-report [class*="overflow-hidden"]:not([style*="background"]):not([class*="px-4"]){background:#fff !important}
 /* ── Photo overlay dark backgrounds ── */
@@ -6676,8 +6678,8 @@ const REPORT_CSS = `
 /* ── Inline dark backgrounds from Tailwind (bg-gray-900, bg-slate-800, etc.) ── */
 .kinga-report [class*="bg-gray-9"],.kinga-report [class*="bg-slate-9"],.kinga-report [class*="bg-zinc-9"],.kinga-report [class*="bg-neutral-9"]{background:#fff !important;color:#111 !important}
 .kinga-report [class*="bg-gray-8"],.kinga-report [class*="bg-slate-8"],.kinga-report [class*="bg-zinc-8"]{background:#fff !important;color:#111 !important}
-/* ── Status-pass/fail aliases (used by StatusBadge) ── */
-.kinga-report{--status-pass:#2e7d32;--status-pass-bg:#e8f5e9;--status-pass-border:#a5d6a7;--status-fail:#c00;--status-fail-bg:#ffebee;--status-fail-border:#ef9a9a}
+/* ── Status-pass/fail aliases — FAR-01: B&W typographic hierarchy ── */
+.kinga-report{--status-pass:#111111;--status-pass-bg:#ffffff;--status-pass-border:#aaaaaa;--status-fail:#111111;--status-fail-bg:#f0f0f0;--status-fail-border:#111111}
 /* ── Radix Collapsible: force open in report context ── */
 .kinga-report [data-state="closed"]{display:block !important;height:auto !important;overflow:visible !important}
 /* ── Chart.js canvas: ensure white background ── */
@@ -6686,27 +6688,27 @@ const REPORT_CSS = `
 @media print{
   /* Pure white document — no backgrounds anywhere except charts/SVGs */
   .kinga-report,.kinga-report *{background:#fff !important;color:#111 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
-  /* Restore semantic text colours for flags and badges (text only, no backgrounds) */
-  .kinga-report .flag-red,.kinga-report [style*="color:#c00"]{color:#c00 !important}
-  .kinga-report .flag-amber,.kinga-report [style*="color:#c8a000"]{color:#c8a000 !important}
-  .kinga-report .flag-green,.kinga-report [style*="color:#2e7d32"]{color:#2e7d32 !important}
-  /* Dimension and ML badges: white background, coloured text and border only */
-  .kinga-report .dim-badge.pass{background:#fff !important;color:#2e7d32 !important;border:1px solid #2e7d32 !important}
-  .kinga-report .dim-badge.warn{background:#fff !important;color:#c8a000 !important;border:1px solid #c8a000 !important}
-  .kinga-report .dim-badge.fail{background:#fff !important;color:#c00 !important;border:1px solid #c00 !important}
-  .kinga-report .ml-badge.normal{background:#fff !important;color:#2e7d32 !important;border:1px solid #2e7d32 !important}
-  .kinga-report .ml-badge.anomaly{background:#fff !important;color:#c8a000 !important;border:1px solid #c8a000 !important}
-  .kinga-report .ml-badge.cluster{background:#fff !important;color:#283593 !important;border:1px solid #283593 !important}
-  /* Stage tiles: white background, coloured text and border only */
-  .kinga-report .stage-tile.green{background:#fff !important;color:#2e7d32 !important;border:1px solid #2e7d32 !important}
-  .kinga-report .stage-tile.amber{background:#fff !important;color:#c8a000 !important;border:1px solid #c8a000 !important}
-  /* Lifecycle steps: white background, coloured bottom border for active/done */
-  .kinga-report .lc-step.active{background:#fff !important;color:#c8a000 !important;border-bottom:3px solid #c8a000 !important}
-  .kinga-report .lc-step.done{background:#fff !important;color:#2e7d32 !important;border-bottom:3px solid #2e7d32 !important}
-  /* Alert banners: white background, coloured left border only */
-  .kinga-report .alert-banner{background:#fff !important;border-left:4px solid #c8a000 !important}
-  .kinga-report .alert-banner.critical{background:#fff !important;border-left-color:#c00 !important}
-  .kinga-report .alert-banner.info{background:#fff !important;border-left-color:#111 !important}
+  /* FAR-01: B&W typographic hierarchy for flags, badges, tiles, and banners */
+  .kinga-report .flag-red,.kinga-report [style*="color:#c00"]{color:#111 !important;font-weight:700}
+  .kinga-report .flag-amber,.kinga-report [style*="color:#c8a000"]{color:#111 !important;font-weight:600}
+  .kinga-report .flag-green,.kinga-report [style*="color:#2e7d32"]{color:#111 !important;font-weight:500}
+  /* Dimension badges: B&W — PASS=light border, WARN=medium border, FAIL=heavy border */
+  .kinga-report .dim-badge.pass{background:#fff !important;color:#111 !important;border:1px solid #aaa !important;font-weight:500 !important}
+  .kinga-report .dim-badge.warn{background:#f8f8f8 !important;color:#111 !important;border:1px solid #555 !important;font-weight:600 !important}
+  .kinga-report .dim-badge.fail{background:#f0f0f0 !important;color:#111 !important;border:2px solid #111 !important;font-weight:700 !important}
+  .kinga-report .ml-badge.normal{background:#fff !important;color:#111 !important;border:1px solid #aaa !important;font-weight:500 !important}
+  .kinga-report .ml-badge.anomaly{background:#f8f8f8 !important;color:#111 !important;border:1px solid #555 !important;font-weight:600 !important}
+  .kinga-report .ml-badge.cluster{background:#f0f0f0 !important;color:#111 !important;border:1px solid #111 !important;font-weight:700 !important}
+  /* Stage tiles: B&W */
+  .kinga-report .stage-tile.green{background:#fff !important;color:#111 !important;border:1px solid #aaa !important}
+  .kinga-report .stage-tile.amber{background:#f8f8f8 !important;color:#111 !important;border:1px solid #555 !important}
+  /* Lifecycle steps: B&W bottom border */
+  .kinga-report .lc-step.active{background:#fff !important;color:#111 !important;border-bottom:3px solid #555 !important;font-weight:600 !important}
+  .kinga-report .lc-step.done{background:#fff !important;color:#111 !important;border-bottom:3px solid #aaa !important;font-weight:500 !important}
+  /* Alert banners: B&W left border weight hierarchy */
+  .kinga-report .alert-banner{background:#f8f8f8 !important;border-left:4px solid #555 !important}
+  .kinga-report .alert-banner.critical{background:#f0f0f0 !important;border-left:4px solid #111 !important}
+  .kinga-report .alert-banner.info{background:#fff !important;border-left:4px solid #aaa !important}
   /* Table borders visible in print */
   .kinga-report table,.kinga-report table td,.kinga-report table th{border-color:#ddd !important;background:#fff !important}
   /* Section 2.5 Quote Coverage table */
@@ -6721,12 +6723,11 @@ const REPORT_CSS = `
   .kinga-report .flowchart,.kinga-report .chart-container,.kinga-report canvas{page-break-inside:avoid}
   /* SVG damage map: keep together */
   .kinga-report svg{page-break-inside:avoid}
-  /* SVG zone severity fills — CSS variables are not resolved by PDF renderers, so we override with hardcoded print-safe colours */
-  /* These selectors target SVG rect elements that carry inline style fill values set via SEVERITY_FILL */
-  .kinga-report svg rect[fill="var(--fp-warning-bg)"]{fill:#fff9c4 !important}
-  .kinga-report svg rect[stroke="var(--fp-warning-text)"]{stroke:#b45309 !important}
-  .kinga-report svg rect[fill="var(--fp-critical-bg)"]{fill:#fee2e2 !important}
-  .kinga-report svg rect[stroke="var(--fp-critical-text)"]{stroke:#b91c1c !important}
+  /* SVG zone severity fills — FAR-01: B&W typographic hierarchy for print */
+  .kinga-report svg rect[fill="var(--fp-warning-bg)"]{fill:#f8f8f8 !important}
+  .kinga-report svg rect[stroke="var(--fp-warning-text)"]{stroke:#555555 !important}
+  .kinga-report svg rect[fill="var(--fp-critical-bg)"]{fill:#f0f0f0 !important}
+  .kinga-report svg rect[stroke="var(--fp-critical-text)"]{stroke:#111111 !important}
   .kinga-report svg rect[fill="var(--muted)"]{fill:#f3f4f6 !important}
   .kinga-report svg rect[stroke="var(--border)"]{stroke:#d1d5db !important}
   .kinga-report svg text[fill="var(--muted-foreground)"]{fill:#6b7280 !important}

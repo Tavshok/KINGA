@@ -11952,3 +11952,14 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] C-07: Fix broken text wrapping artefacts in generated narrative ("threshold.ered", "recommende ed") — add text sanitisation pass before report render
 - [x] C-08: Fix checklist numbering — items jump from 2 to 3,4,5 with item 1 missing
 - [x] C-10: Map repair instructions (e.g. "Respray To Match") to ACTION column, not COMPONENT column
+
+## Format Consistency Sprint (FAR-01 / FAR-02)
+
+- [x] FAR-01: Convert all fp-* CSS colour tokens to B&W typographic hierarchy in ForensicAuditReport — success/warning/critical/info now use greyscale backgrounds and black text with border weight as the only differentiator
+- [x] FAR-01: Convert Tailwind badge overrides (bg-green-100, bg-yellow-100, bg-red-100, etc.) to B&W in kinga-report CSS
+- [x] FAR-01: Convert status-pass/fail aliases to B&W
+- [x] FAR-01: Convert @media print flag/badge/tile/banner colour overrides to B&W typographic hierarchy
+- [x] FAR-01: Convert SVG zone severity fill overrides in @media print to B&W
+- [x] FAR-01: Update ConfidenceImprovementChecklist forensic mode — priority badges (CRITICAL/RECOMMENDED/OPTIONAL) now use border weight + background shade instead of colour; impact delta text now black bold instead of green
+- [x] FAR-02: Convert VerdictBadge, FraudBadge, CostVerdictBadge, FraudScoreBar in KingaClaimsReport to B&W typographic hierarchy
+- [x] FAR-02: Convert inline colour values (physics consistency, date check verdict, similarity flag) in KingaClaimsReport to B&W

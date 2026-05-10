@@ -198,15 +198,15 @@ function KVRow({ label, value, wide }: { label: string; value: React.ReactNode; 
 
 // ─── Verdict badge ────────────────────────────────────────────────────────────
 
+/* FAR-02: VerdictBadge — B&W typographic hierarchy (border weight + background shade) */
 function VerdictBadge({ decision }: { decision: string }) {
   const d = (decision ?? "").toUpperCase();
-  let bg = "#f1f5f9";
-  let color = "#0f172a";
-  if (d === "FINALISE_CLAIM" || d === "APPROVE") { bg = "#166534"; color = "#fff"; }
-  else if (d === "REVIEW_REQUIRED" || d === "REVIEW") { bg = "#92400e"; color = "#fff"; }
-  else if (d === "ESCALATE_INVESTIGATION" || d === "ESCALATE") { bg = "#7f1d1d"; color = "#fff"; }
+  let bg = "#f8f8f8"; let border = "1px solid #aaa"; let weight = 500;
+  if (d === "FINALISE_CLAIM" || d === "APPROVE") { bg = "#fff"; border = "1px solid #aaa"; weight = 600; }
+  else if (d === "REVIEW_REQUIRED" || d === "REVIEW") { bg = "#f8f8f8"; border = "1px solid #555"; weight = 700; }
+  else if (d === "ESCALATE_INVESTIGATION" || d === "ESCALATE") { bg = "#f0f0f0"; border = "2px solid #111"; weight = 800; }
   return (
-    <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: bg, color, letterSpacing: "0.05em" }}>
+    <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 0, fontSize: 11, fontWeight: weight, background: bg, color: "#111", letterSpacing: "0.05em", border }}>
       {toTitleCase(d.replace(/_/g, " "))}
     </span>
   );
@@ -214,16 +214,16 @@ function VerdictBadge({ decision }: { decision: string }) {
 
 // ─── Fraud level badge ────────────────────────────────────────────────────────
 
+/* FAR-02: FraudBadge — B&W typographic hierarchy */
 function FraudBadge({ level }: { level: string }) {
   const l = (level ?? "").toUpperCase();
-  let bg = "#f1f5f9";
-  let color = "#0f172a";
-  if (l === "MINIMAL" || l === "LOW") { bg = "#14532d"; color = "#fff"; }
-  else if (l === "MODERATE") { bg = "#713f12"; color = "#fff"; }
-  else if (l === "HIGH") { bg = "#7c2d12"; color = "#fff"; }
-  else if (l === "CRITICAL") { bg = "#450a0a"; color = "#fff"; }
+  let bg = "#fff"; let border = "1px solid #aaa"; let weight = 500;
+  if (l === "MINIMAL" || l === "LOW") { bg = "#fff"; border = "1px solid #aaa"; weight = 500; }
+  else if (l === "MODERATE") { bg = "#f8f8f8"; border = "1px solid #555"; weight = 600; }
+  else if (l === "HIGH") { bg = "#f0f0f0"; border = "2px solid #111"; weight = 700; }
+  else if (l === "CRITICAL") { bg = "#e8e8e8"; border = "2px solid #111"; weight = 800; }
   return (
-    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: bg, color }}>
+    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 0, fontSize: 11, fontWeight: weight, background: bg, color: "#111", border }}>
       {toTitleCase(l)}
     </span>
   );
@@ -231,15 +231,15 @@ function FraudBadge({ level }: { level: string }) {
 
 // ─── Cost verdict badge ───────────────────────────────────────────────────────
 
+/* FAR-02: CostVerdictBadge — B&W typographic hierarchy */
 function CostVerdictBadge({ verdict }: { verdict: string }) {
   const v = (verdict ?? "").toUpperCase();
-  let bg = "#f1f5f9";
-  let color = "#0f172a";
-  if (v === "FAIR") { bg = "#14532d"; color = "#fff"; }
-  else if (v === "OVERPRICED") { bg = "#7c2d12"; color = "#fff"; }
-  else if (v === "UNDERPRICED") { bg = "#1e3a5f"; color = "#fff"; }
+  let bg = "#fff"; let border = "1px solid #aaa"; let weight = 500;
+  if (v === "FAIR") { bg = "#fff"; border = "1px solid #aaa"; weight = 500; }
+  else if (v === "OVERPRICED") { bg = "#f0f0f0"; border = "2px solid #111"; weight = 700; }
+  else if (v === "UNDERPRICED") { bg = "#f8f8f8"; border = "1px solid #555"; weight = 600; }
   return (
-    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: bg, color }}>
+    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 0, fontSize: 11, fontWeight: weight, background: bg, color: "#111", border }}>
       {toTitleCase(v)}
     </span>
   );
@@ -247,11 +247,13 @@ function CostVerdictBadge({ verdict }: { verdict: string }) {
 
 // ─── Fraud score bar ──────────────────────────────────────────────────────────
 
+/* FAR-02: FraudScoreBar — B&W bar using greyscale fill intensity */
 function FraudScoreBar({ score }: { score: number }) {
   const pct = Math.min(100, Math.max(0, score));
-  let barColor = "#166534";
-  if (pct >= 40) barColor = "#92400e";
-  if (pct >= 65) barColor = "#7f1d1d";
+  /* Low risk = light grey fill, high risk = dark grey/black fill */
+  let barColor = "#aaaaaa";
+  if (pct >= 40) barColor = "#555555";
+  if (pct >= 65) barColor = "#111111";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div style={{ flex: 1, height: 6, background: "#e5e7eb", borderRadius: 0, overflow: "hidden" }}>
@@ -707,7 +709,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                           {isCopyQuote && quoteSimilarity?.pairs?.some((p: any) =>
                             p.quoteA_index === qi || p.quoteB_index === qi
                           ) && (
-                            <div style={{ fontSize: 9, fontWeight: 600, color: "#92400e", marginTop: 1 }}>⚠ Similarity flagged</div>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: "#111", marginTop: 1 }}>⚠ Similarity flagged</div>
                           )}
                         </th>
                       ))}
@@ -818,7 +820,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               return (
                 <div style={{ marginTop: 10, padding: "8px 12px", background: "#ffffff", borderRadius: 0, border: "1px solid #e2e8f0" }}>
                   <p style={{ ...S.label, marginBottom: 4 }}>Date Consistency</p>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: dateCheck.verdict === "consistent" ? "#0f172a" : "#7c2d12" }}>
+                  <p style={{ fontSize: 12, fontWeight: dateCheck.verdict === "consistent" ? 600 : 800, color: "#111" }}>
                     {toTitleCase(dateCheck.verdict.replace(/_/g, " "))}
                   </p>
                   {dateCheck.verdict === "mismatch" && (
@@ -844,7 +846,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 {
                   label: "Consistency",
                   value: (
-                    <span style={{ fontWeight: 700, fontSize: 13, color: physicsConsistent ? "#166534" : "#7c2d12" }}>
+                    <span style={{ fontWeight: physicsConsistent ? 600 : 800, fontSize: 13, color: "#111" }}>
                       {physicsConsistent ? "Consistent" : "Inconsistent"}
                     </span>
                   ),

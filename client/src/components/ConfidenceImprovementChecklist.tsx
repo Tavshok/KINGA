@@ -427,24 +427,24 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
         Actionable gaps identified by the KINGA AI pipeline. Address CRITICAL items before the claim proceeds to Claims Manager approval.
       </div>
 
-      {/* Summary */}
+      {/* Summary — FAR-01: B&W typographic hierarchy */}
       <div style={{ display: "flex", gap: "10px", margin: "16px 0" }}>
         {criticalItems.length > 0 && (
-          <div style={{ background: "#ffffff", border: "1px solid var(--fp-critical, #dc2626)", borderRadius: "0", padding: "6px 12px", textAlign: "center" }}>
-            <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--fp-critical, #dc2626)" }}>{criticalItems.length}</div>
-            <div style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "1px", color: "var(--fp-critical, #dc2626)", textTransform: "uppercase" }}>Critical</div>
+          <div style={{ background: "#f0f0f0", border: "2px solid #111", borderRadius: "0", padding: "6px 12px", textAlign: "center" }}>
+            <div style={{ fontSize: "16px", fontWeight: 800, color: "#111" }}>{criticalItems.length}</div>
+            <div style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "1px", color: "#111", textTransform: "uppercase" }}>Critical</div>
           </div>
         )}
         {recommendedItems.length > 0 && (
-          <div style={{ background: "#ffffff", border: "1px solid var(--fp-warning, #d97706)", borderRadius: "0", padding: "6px 12px", textAlign: "center" }}>
-            <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--fp-warning, #d97706)" }}>{recommendedItems.length}</div>
-            <div style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "1px", color: "var(--fp-warning, #d97706)", textTransform: "uppercase" }}>Recommended</div>
+          <div style={{ background: "#f8f8f8", border: "1px solid #555", borderRadius: "0", padding: "6px 12px", textAlign: "center" }}>
+            <div style={{ fontSize: "16px", fontWeight: 700, color: "#111" }}>{recommendedItems.length}</div>
+            <div style={{ fontSize: "8px", fontWeight: 600, letterSpacing: "1px", color: "#555", textTransform: "uppercase" }}>Recommended</div>
           </div>
         )}
         {optionalItems.length > 0 && (
-          <div style={{ background: "#ffffff", border: "1px solid var(--fp-info, #0284c7)", borderRadius: "0", padding: "6px 12px", textAlign: "center" }}>
-            <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--fp-info, #0284c7)" }}>{optionalItems.length}</div>
-            <div style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "1px", color: "var(--fp-info, #0284c7)", textTransform: "uppercase" }}>Optional</div>
+          <div style={{ background: "#ffffff", border: "1px solid #aaa", borderRadius: "0", padding: "6px 12px", textAlign: "center" }}>
+            <div style={{ fontSize: "16px", fontWeight: 500, color: "#444" }}>{optionalItems.length}</div>
+            <div style={{ fontSize: "8px", fontWeight: 500, letterSpacing: "1px", color: "#888", textTransform: "uppercase" }}>Optional</div>
           </div>
         )}
       </div>
@@ -462,17 +462,18 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
         </thead>
         <tbody>
           {items.map((item, idx) => {
-            const priorityStyle: Record<ChecklistItem["priority"], { color: string; bg: string }> = {
-              CRITICAL: { color: "var(--fp-critical, #dc2626)", bg: "#ffffff" },
-              RECOMMENDED: { color: "var(--fp-warning, #d97706)", bg: "#ffffff" },
-              OPTIONAL: { color: "var(--fp-info, #0284c7)", bg: "#ffffff" },
+            /* FAR-01: B&W priority badge styles — typographic weight hierarchy */
+            const priorityStyle: Record<ChecklistItem["priority"], { color: string; bg: string; border: string; weight: number; borderWidth: string }> = {
+              CRITICAL: { color: "#111", bg: "#f0f0f0", border: "#111", weight: 700, borderWidth: "2px" },
+              RECOMMENDED: { color: "#111", bg: "#f8f8f8", border: "#555", weight: 600, borderWidth: "1px" },
+              OPTIONAL: { color: "#555", bg: "#ffffff", border: "#aaa", weight: 500, borderWidth: "1px" },
             };
             const ps = priorityStyle[item.priority];
             return (
               <tr key={item.id} style={{ background: "transparent", pageBreakInside: "avoid" }}>
                 <td style={{ padding: "10px", borderBottom: "1px solid var(--fp-border)", color: "var(--fp-text-muted)", fontWeight: 600 }}>{idx + 1}</td>
                 <td style={{ padding: "10px", borderBottom: "1px solid var(--fp-border)" }}>
-                  <span style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "0.5px", color: ps.color, background: ps.bg, border: `1px solid ${ps.color}`, borderRadius: "2px", padding: "2px 5px", textTransform: "uppercase" }}>
+                  <span style={{ fontSize: "8px", fontWeight: ps.weight, letterSpacing: "0.5px", color: ps.color, background: ps.bg, border: `${ps.borderWidth} solid ${ps.border}`, borderRadius: "2px", padding: "2px 5px", textTransform: "uppercase" }}>
                     {PRIORITY_LABELS[item.priority]}
                   </span>
                 </td>
@@ -480,7 +481,8 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
                 <td style={{ padding: "10px", borderBottom: "1px solid var(--fp-border)", color: "var(--fp-text-secondary, #374151)", lineHeight: "1.5" }}>{item.description}</td>
                 <td style={{ padding: "10px", borderBottom: "1px solid var(--fp-border)" }}>
                   <div style={{ color: "var(--fp-text-secondary, #374151)", marginBottom: "3px" }}>{item.impact}</div>
-                  <div style={{ fontSize: "9px", fontWeight: 600, color: "var(--fp-success, #059669)" }}>{item.impactDelta}</div>
+                  {/* FAR-01: impact delta in B&W bold instead of green */}
+                  <div style={{ fontSize: "9px", fontWeight: 700, color: "#111" }}>{item.impactDelta}</div>
                 </td>
               </tr>
             );
