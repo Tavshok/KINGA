@@ -645,21 +645,21 @@ export default function ExecutiveDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="rounded-xl p-4 text-center" style={{ background: 'var(--fp-warning-bg)', border: '1px solid color-mix(in srgb, var(--warning) 20%, transparent)' }}>
                     <p className="text-3xl font-bold" style={{ color: 'var(--warning)' }}>
-                      {governanceMetrics ? `${governanceMetrics.overrideRate ?? 0}%` : '—'}
+                      {governanceMetrics ? `${governanceMetrics.overrideRate?.value ?? governanceMetrics.overrideRate ?? 0}%` : '—'}
                     </p>
                     <p className="text-sm font-medium mt-1" style={{ color: 'var(--foreground)' }}>AI Override Rate</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>AI decisions overridden by staff</p>
                   </div>
                   <div className="rounded-xl p-4 text-center" style={{ background: 'var(--fp-critical-bg)', border: '1px solid color-mix(in srgb, var(--chart-4) 20%, transparent)' }}>
                     <p className="text-3xl font-bold" style={{ color: 'var(--chart-4)' }}>
-                      {governanceMetrics ? (governanceMetrics.segregationViolations ?? 0) : '—'}
+                      {governanceMetrics ? (governanceMetrics.segregationViolations?.value ?? governanceMetrics.segregationViolations ?? 0) : '—'}
                     </p>
                     <p className="text-sm font-medium mt-1" style={{ color: 'var(--foreground)' }}>Segregation Violations</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Duty-of-care conflicts detected</p>
                   </div>
                   <div className="rounded-xl p-4 text-center" style={{ background: 'var(--fp-info-bg)', border: '1px solid color-mix(in srgb, var(--info) 20%, transparent)' }}>
                     <p className="text-3xl font-bold" style={{ color: 'var(--info)' }}>
-                      {governanceMetrics ? (governanceMetrics.roleChanges30d ?? 0) : '—'}
+                      {governanceMetrics ? (governanceMetrics.roleChanges?.value ?? governanceMetrics.roleChanges30d ?? governanceMetrics.roleChanges ?? 0) : '—'}
                     </p>
                     <p className="text-sm font-medium mt-1" style={{ color: 'var(--foreground)' }}>Role Changes (30d)</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>User role modifications this month</p>

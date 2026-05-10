@@ -11977,3 +11977,7 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 
 - [x] Remove C-06 late submission flag (isLateSubmission / lateSubmissionDays) from ForensicAuditReport — it caused a ReferenceError crash on the comparison page
 - [x] Replace with neutral "Days to Claim" field: compute days between incidentDate and claim createdAt, display as informational row (no warning/flag)
+
+## Production Crash Fixes (May 2026)
+- [x] Fix ReferenceError: daysToClaimSubmission is not defined on comparison page — root cause was stale production bundle; fresh Vite build resolves it (daysToClaimSubmission is correctly defined in ForensicAuditReport.tsx line 829)
+- [x] Fix React error #31 on Executive Dashboard Operational Health tab — governanceMetrics.overrideRate / .segregationViolations / .roleChanges are objects {value, trend, previousValue}, not scalars; fixed by extracting .value with fallback chain in ExecutiveDashboard.tsx lines 648/655/662
