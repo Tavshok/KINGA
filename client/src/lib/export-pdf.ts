@@ -112,7 +112,7 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
       ['Fraud Risk Level:', data.aiAssessment.fraudRiskLevel ?? 'Not Assessed'],
       ['Fraud Indicators:', data.aiAssessment.fraudIndicators ?? 'None'],
       ['Damage Types:', data.aiAssessment.detectedDamageTypes ?? 'N/A'],
-      ['AI Estimated Cost:', data.aiAssessment.estimatedCost ? `${currencySymbol}${data.aiAssessment.estimatedCost.toFixed(2)}` : 'N/A'],
+      ['KINGA Estimated Cost:', data.aiAssessment.estimatedCost ? `${currencySymbol}${data.aiAssessment.estimatedCost.toFixed(2)}` : 'N/A'],
     ];
 
     autoTable(doc, {
