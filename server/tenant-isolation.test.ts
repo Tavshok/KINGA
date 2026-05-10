@@ -333,7 +333,7 @@ describe("Tenant Isolation", () => {
     it("should allow tenant A users to access tenant A AI assessments", async () => {
       const { getAiAssessmentByClaimId } = await import("./db");
 
-      // Create AI assessment for tenant A claim
+      // Create KINGA assessment for tenant A claim
       await createAiAssessment({
         claimId: tenantAClaimId,
         damageAnalysis: JSON.stringify({ severity: "moderate" }),
@@ -386,7 +386,7 @@ describe("Tenant Isolation", () => {
       const callerA = appRouter.createCaller({ user: tenantAInsurerUser });
       const callerB = appRouter.createCaller({ user: tenantBInsurerUser });
 
-      // Create AI assessment for tenant B claim
+      // Create KINGA assessment for tenant B claim
       await createAiAssessment({
         claimId: tenantBClaimId,
         damageAnalysis: JSON.stringify({ severity: "high" }),

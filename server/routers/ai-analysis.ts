@@ -5,10 +5,10 @@
  * tRPC procedures for governed AI rerun capability.
  * 
  * Procedures:
- * - triggerRerun: Trigger AI analysis rerun (all insurer roles)
+ * - triggerRerun: Trigger KINGA analysis rerun (all insurer roles)
  * - recalculateConfidence: Recalculate confidence score (claims_manager, executive only)
  * - triggerRoutingReevaluation: Trigger routing reevaluation (claims_manager, executive only)
- * - getVersionHistory: Get AI analysis version history (all insurer roles)
+ * - getVersionHistory: Get KINGA analysis version history (all insurer roles)
  * - getRateLimitStatus: Get current rate limit status (all insurer roles)
  */
 
@@ -31,7 +31,7 @@ import { TRPCError } from "@trpc/server";
 
 export const aiAnalysisRouter = router({
   /**
-   * Trigger AI analysis rerun
+   * Trigger KINGA analysis rerun
    * 
    * All insurer roles can trigger this operation.
    * Rate limited per user per hour (tenant-configurable).
@@ -51,7 +51,7 @@ export const aiAnalysisRouter = router({
       if (!user.insurerRole) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Only insurer users can trigger AI analysis",
+          message: "Only insurer users can trigger KINGA analysis",
         });
       }
 
@@ -67,14 +67,14 @@ export const aiAnalysisRouter = router({
       if (!canTriggerAIAnalysis(user.insurerRole)) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Insufficient permissions to trigger AI analysis",
+          message: "Insufficient permissions to trigger KINGA analysis",
         });
       }
 
       // Rate limit check
       await checkRateLimit(user.id, user.tenantId, "ai_rerun");
 
-      // Trigger AI analysis
+      // Trigger KINGA analysis
       const result = await triggerAIAnalysis(
         claimId,
         user.id,
@@ -204,9 +204,9 @@ export const aiAnalysisRouter = router({
     }),
 
   /**
-   * Get AI analysis version history
+   * Get KINGA analysis version history
    * 
-   * Returns all AI assessment versions for a claim.
+   * Returns all KINGA assessment versions for a claim.
    * All insurer roles can view version history.
    */
   getVersionHistory: protectedProcedure
@@ -223,7 +223,7 @@ export const aiAnalysisRouter = router({
       if (!user.insurerRole) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Only insurer users can view AI analysis version history",
+          message: "Only insurer users can view KINGA analysis version history",
         });
       }
 
@@ -239,7 +239,7 @@ export const aiAnalysisRouter = router({
       if (!canTriggerAIAnalysis(user.insurerRole)) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Insufficient permissions to view AI analysis version history",
+          message: "Insufficient permissions to view KINGA analysis version history",
         });
       }
 

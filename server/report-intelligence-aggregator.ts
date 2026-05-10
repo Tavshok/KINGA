@@ -67,7 +67,7 @@ export async function aggregateClaimIntelligence(
     throw new Error(`Claim ${claimId} not found`);
   }
 
-  // Fetch AI assessment (most recent)
+  // Fetch KINGA assessment (most recent)
   const [aiAssessment] = await db
     .select()
     .from(aiAssessments)
@@ -134,7 +134,7 @@ export async function aggregateClaimIntelligence(
       changedBy: null as string | null,
       changedByName: 'AI System' as string | null,
       changedAt: aiAssessment.createdAt,
-      notes: 'AI assessment completed',
+      notes: 'KINGA assessment completed',
     });
   }
 

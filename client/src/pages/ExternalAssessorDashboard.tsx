@@ -159,7 +159,7 @@ function ExpandableClaimRow({ claim }: { claim: any }) {
               {/* AI Summary */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  AI Assessment
+                  KINGA Assessment
                 </p>
                 {aiData ? (
                   <div className="space-y-1 text-sm">

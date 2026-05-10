@@ -172,7 +172,7 @@ export async function runWorkflowSimulation(tenantId: number, userId: number): P
       data: { confidenceScore },
     });
 
-    // Step 6: Create AI Assessment
+    // Step 6: Create KINGA Assessment
     const [assessment] = await db.insert(aiAssessments).values({
       claimId: claim.id,
       tenantId,
@@ -195,12 +195,12 @@ export async function runWorkflowSimulation(tenantId: number, userId: number): P
     }).returning();
 
     if (!assessment) {
-      failures.push("Failed to create AI assessment");
+      failures.push("Failed to create KINGA assessment");
       return buildFailureResult(traces, failures);
     }
 
     traces.push({
-      step: "6. AI Assessment Created",
+      step: "6. KINGA Assessment Created",
       timestamp: new Date(),
       status: "success",
       data: { assessmentId: assessment.id },

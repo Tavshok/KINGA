@@ -198,7 +198,7 @@ async function simulateConcurrentRouting(claimIds: number[], batchSize: number, 
       const batchStartTime = Date.now();
       
       // Execute routing decisions in parallel
-      // Note: Simplified routing simulation (full routing requires AI assessment)
+      // Note: Simplified routing simulation (full routing requires KINGA assessment)
       const results = await Promise.allSettled(
         batch.map(async (claimId) => {
           // Simulate routing decision

@@ -13,7 +13,7 @@ import { useLocation, useRoute } from "wouter";
 import { useState, useEffect, useRef } from "react";
 import { INSURER_CLAIMS_LIST_PATH } from "@/lib/roleRouting";
 import { toast } from "sonner";
-// PoliceReportForm removed — police reports belong in claim inputs, not AI analysis
+// PoliceReportForm removed — police reports belong in claim inputs, not KINGA analysis
 import { QuoteComparison } from "@/components/QuoteComparison";
 import { generateComparisonPDF, generateDamageReportPDF } from "@/lib/pdfExport";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -105,7 +105,7 @@ export default function InsurerComparisonView() {
     { enabled: !!claimId }
   );
 
-  // Get AI assessment — poll every 5 s while the claim is in assessment_in_progress
+  // Get KINGA assessment — poll every 5 s while the claim is in assessment_in_progress
   // so the panel refreshes automatically after the fire-and-forget job completes.
   const [aiPollInterval, setAiPollInterval] = useState<number | false>(false);
   const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery(
@@ -135,8 +135,8 @@ export default function InsurerComparisonView() {
   useEffect(() => {
     if (aiAssessment && !assessmentToastShown.current) {
       assessmentToastShown.current = true;
-      toast.success("AI assessment ready", {
-        description: "The AI damage assessment for this claim is now available.",
+      toast.success("KINGA assessment ready", {
+        description: "The KINGA assessment for this claim is now available.",
       });
     }
   }, [aiAssessment]);
@@ -145,11 +145,11 @@ export default function InsurerComparisonView() {
   useEffect(() => {
     if (claim) {
       const ref = claim.claimNumber ?? claim.claimReference ?? `Claim ${claimId}`;
-      document.title = `KINGA AI — ${ref}`;
+      document.title = `KINGA — ${ref}`;
     } else {
-      document.title = 'KINGA AI — Forensic Report';
+      document.title = 'KINGA — Forensic Report';
     }
-    return () => { document.title = 'KINGA AI'; };
+    return () => { document.title = 'KINGA'; };
   }, [claim, claimId]);
 
   // Get assessor evaluation
@@ -205,7 +205,7 @@ export default function InsurerComparisonView() {
   const [pushTargetRole, setPushTargetRole] = useState<string>("");
   const [pushMessage, setPushMessage] = useState("");
 
-  // Re-run AI assessment mutation (used in Claim Summary card)
+  // Re-run KINGA assessment mutation (used in Claim Summary card)
   // Push Report to Role mutation
   const pushReportMutation = trpc.aiAssessments.pushReportToRole.useMutation({
     onSuccess: (data) => {
@@ -230,7 +230,7 @@ export default function InsurerComparisonView() {
       utils.aiAssessments.byClaim.invalidate({ claimId });
       utils.quotes.getWithLineItems.invalidate({ claimId });
       utils.panelBeaters.invalidate();
-      toast.success('AI assessment re-triggered', { description: 'Vehicle details will be extracted from the PDF. This may take 30-60 seconds.' });
+      toast.success('KINGA assessment re-triggered', { description: 'Vehicle details will be extracted from the PDF. This may take 30-60 seconds.' });
     },
     onError: (err) => toast.error(`Failed to re-run assessment: ${err.message}`),
   });
@@ -317,7 +317,7 @@ export default function InsurerComparisonView() {
     if (exportHasStructuralDamage) {
       inferredHiddenDamage.push({
         component: "Frame / Unibody Structure",
-        reason: "AI detected structural damage indicators",
+        reason: "KINGA detected structural damage indicators",
         confidence: "High"
       });
     }
@@ -346,7 +346,7 @@ export default function InsurerComparisonView() {
       partsCost: aiAssessment.estimatedPartsCost || 0,
       laborCost: aiAssessment.estimatedLaborCost || 0,
       damageDescription: aiAssessment.damageDescription || "",
-      // Physics analysis from AI assessment
+      // Physics analysis from KINGA assessment
       physicsAnalysis: (() => {
         if (!aiAssessment?.physicsAnalysis) return undefined;
         try {
@@ -362,7 +362,7 @@ export default function InsurerComparisonView() {
           };
         } catch { return undefined; }
       })(),
-      // Forensic analysis from AI assessment
+      // Forensic analysis from KINGA assessment
       forensicAnalysis: (() => {
         if (!(aiAssessment as any)?.forensicAnalysis) return undefined;
         try {
@@ -414,7 +414,7 @@ export default function InsurerComparisonView() {
    * Fraud Detection Algorithm
    * 
    * Detects potential fraud by comparing three independent cost estimates:
-   * 1. AI automated assessment (computer vision analysis)
+   * 1. KINGA automated assessment (computer vision analysis)
    * 2. Human assessor evaluation (independent expert)
    * 3. Panel beater quotes (repair shop estimates)
    * 
@@ -464,8 +464,8 @@ export default function InsurerComparisonView() {
     if (src === 'agreed_cost') return 'Agreed Cost';
     if (src === 'original_quote') return 'Quote Total';
     if (src === 'parts_labour_sum') return 'Parts + Labour';
-    if (src === 'ai_estimate') return 'AI Estimate';
-    return 'AI Estimate'; // fallback
+    if (src === 'ai_estimate') return 'KINGA Estimate';
+    return 'KINGA Estimate'; // fallback
   })();
   const assessorCostCents = assessorEval?.estimatedRepairCost || 0;
   const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100); // cents → dollars
@@ -501,7 +501,7 @@ export default function InsurerComparisonView() {
               </Button>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#374151' }}>KINGA AI</span>
+              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#374151' }}>KINGA</span>
               <div className="h-5 w-px" style={{ background: '#d1d5db' }} />
               {/* Logo image only — no text, to avoid duplicate KINGA text */}
               <KingaLogo showText={false} size="sm" />
@@ -522,7 +522,7 @@ export default function InsurerComparisonView() {
               <h1 className="text-2xl font-bold mb-1" style={{ color: '#111827' }}>
                 {claim.vehicleMake && claim.vehicleModel
                   ? `${claim.vehicleMake} ${claim.vehicleModel}${claim.vehicleYear ? ` · ${claim.vehicleYear}` : ''}`
-                  : 'AI Intelligence Report'}
+                  : 'KINGA Intelligence Report'}
               </h1>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-mono" style={{ color: '#6b7280' }}>{claim.claimNumber}</span>
@@ -607,7 +607,7 @@ export default function InsurerComparisonView() {
               )}
               {confidenceScore > 0 && (
                 <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>AI Confidence</p>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>KINGA Confidence</p>
                   <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>{confidenceScore}%</p>
                 </div>
               )}
@@ -689,7 +689,7 @@ export default function InsurerComparisonView() {
                       incidentLocation: (claim as any).incidentLocation || undefined,
                       incidentType: (claim as any).incidentType || undefined,
                     },
-                    // AI Intelligence Summary — derived from existing AI assessment record and quotes
+                    // KINGA Intelligence Summary — derived from existing KINGA assessment record and quotes
                     aiIntelligence: (() => {
                       const amounts: number[] = quotes.map((q: any) => (q.quotedAmount || 0) / 100); // cents → dollars
                       const sorted = [...amounts].sort((a: number, b: number) => a - b);
@@ -703,7 +703,7 @@ export default function InsurerComparisonView() {
                         ? Math.round(((highestQuote - lowestQuote) / highestQuote) * 100)
                         : 0;
 
-                      // Parse damaged components from AI assessment
+                      // Parse damaged components from KINGA assessment
                       let detectedComponents: string[] = [];
                       if (aiAssessment?.damagedComponentsJson) {
                         try {
@@ -714,7 +714,7 @@ export default function InsurerComparisonView() {
                         } catch { /* ignore parse errors */ }
                       }
 
-                      // Parse risk indicators from AI assessment
+                      // Parse risk indicators from KINGA assessment
                       let fraudRisk = 'low';
                       let repairComplexity = 'medium';
                       if (aiAssessment?.fraudRiskLevel) {
@@ -730,14 +730,14 @@ export default function InsurerComparisonView() {
                         else repairComplexity = 'low';
                       }
 
-                      // Recommended repairer — lowest quote if AI assessment is complete
+                      // Recommended repairer — lowest quote if KINGA assessment is complete
                       let recommendedRepairer: string | undefined;
                       let recommendationReason: string | undefined;
                       if (aiAssessment && amounts.length > 0) {
                         const lowestIdx = amounts.indexOf(lowestQuote);
                         if (lowestIdx >= 0 && quotes[lowestIdx]) {
                           recommendedRepairer = (quotes[lowestIdx] as any).panelBeaterName || `Panel Beater #${(quotes[lowestIdx] as any).panelBeaterId}`;
-                          recommendationReason = 'Lowest quote within AI-assessed fair cost range';
+                          recommendationReason = 'Lowest quote within KINGA-assessed fair cost range';
                         }
                       }
 
@@ -756,7 +756,7 @@ export default function InsurerComparisonView() {
                         aiEstimatedCost: aiAssessment?.estimatedCost ?? 0,
                       };
                     })() || {
-                      // Fallback when no quotes: still show AI data
+                      // Fallback when no quotes: still show KINGA data
                       detectedComponents: (() => {
                         if (!aiAssessment?.damagedComponentsJson) return [];
                         try { return JSON.parse(aiAssessment.damagedComponentsJson); } catch { return []; }
@@ -775,7 +775,7 @@ export default function InsurerComparisonView() {
                       confidenceScore: aiAssessment?.confidenceScore ?? 0,
                       aiEstimatedCost: aiAssessment?.estimatedCost ?? 0,
                     },
-                    // Physics analysis from AI assessment — pass full parsed object
+                    // Physics analysis from KINGA assessment — pass full parsed object
                     physicsAnalysis: (() => {
                       if (!aiAssessment?.physicsAnalysis) return undefined;
                       try {
@@ -784,7 +784,7 @@ export default function InsurerComparisonView() {
                           : aiAssessment.physicsAnalysis;
                       } catch { return undefined; }
                     })(),
-                    // Forensic analysis from AI assessment — pass full parsed object with DB key support
+                    // Forensic analysis from KINGA assessment — pass full parsed object with DB key support
                     forensicAnalysis: (() => {
                       if (!(aiAssessment as any)?.forensicAnalysis) return undefined;
                       try {
@@ -952,7 +952,7 @@ export default function InsurerComparisonView() {
         ) : (
           <div className="comparison-section">
             <div className="comparison-section-body text-center py-12">
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Run AI Assessment to generate the forensic report.</p>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Run KINGA Analysis to generate the forensic report.</p>
             </div>
           </div>
         )}
@@ -1375,7 +1375,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
             })}
           </div>
         </div>
-        {/* AI Damage Description */}
+        {/* KINGA Damage Description */}
         <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
           <h4 className="font-semibold mb-2 text-secondary">AI Damage Analysis Summary</h4>
           <p className="text-sm text-secondary whitespace-pre-wrap">{damageDescription}</p>
@@ -1388,7 +1388,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
               <div>
                 <p className="font-semibold text-red-900 dark:text-red-200">Structural Damage Detected</p>
                 <p className="text-sm text-red-800 dark:text-red-200 mt-1">
-                  AI analysis indicates potential frame or unibody damage. This may affect vehicle safety and resale value. 
+                  KINGA analysis indicates potential frame or unibody damage. This may affect vehicle safety and resale value. 
                   Detailed structural inspection and repair certification required.
                 </p>
               </div>
@@ -1647,7 +1647,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
             <div>
               <p className="font-semibold text-red-900 dark:text-red-200">Structural Damage Detected</p>
               <p className="text-sm text-red-800 dark:text-red-200 mt-1">
-                AI analysis indicates potential frame or unibody damage. This may affect vehicle safety and resale value. 
+                KINGA analysis indicates potential frame or unibody damage. This may affect vehicle safety and resale value. 
                 Detailed structural inspection and repair certification required.
               </p>
             </div>
@@ -1655,7 +1655,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
         </div>
       )}
 
-      {/* AI Damage Description */}
+      {/* KINGA Damage Description */}
       <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
         <h4 className="font-semibold mb-2 text-secondary">AI Damage Analysis Summary</h4>
         <p className="text-sm text-secondary whitespace-pre-wrap">{damageDescription}</p>
@@ -1765,7 +1765,7 @@ function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) 
 // Physics Validation Component
 // mode: 'impact' = Impact Analysis (section 5), 'physics' = Physics Validation (section 6), 'fraud' = Fraud Indicators (section 13), 'all' = everything (legacy)
 function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }: { aiAssessment: any; quotes: any[]; claim: any; mode?: 'impact' | 'physics' | 'fraud' | 'all' }) {
-  // Parse physics analysis from AI assessment
+  // Parse physics analysis from KINGA assessment
   let physicsAnalysis: any = null;
   try {
     const raw = aiAssessment.physicsAnalysis;
@@ -1847,7 +1847,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
       return (
         <div className="text-center py-8 text-muted-foreground">
           <p>Physics analysis not available for this claim</p>
-          <p className="text-xs mt-2">Physics analysis runs automatically with AI assessment. Click \"Re-run AI\" to generate physics data.</p>
+          <p className="text-xs mt-2">Physics analysis runs automatically with KINGA assessment. Click \"Re-run AI\" to generate physics data.</p>
         </div>
       );
     }
@@ -2372,7 +2372,7 @@ function ExecutiveSummaryInline({
 
   const summaryText = aiAssessment.damageDescription
     ? sanitiseField(aiAssessment.damageDescription)
-    : `${vehicle} (Reg: ${reg}) was involved in a ${incidentType.toLowerCase()} incident on ${incidentDate}. AI computer vision analysis identified ${aiAssessment.damagedComponentsJson ? (() => { try { const c = JSON.parse(aiAssessment.damagedComponentsJson); return Array.isArray(c) ? c.length : 0; } catch { return 0; } })() : 0} damaged components with an estimated repair cost of ${currencySymbol(claim?.currencyCode)}${aiCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}. Fraud risk is assessed as ${fraudLevel.toUpperCase()} with ${confidence}% AI confidence.`;
+    : `${vehicle} (Reg: ${reg}) was involved in a ${incidentType.toLowerCase()} incident on ${incidentDate}. AI computer vision analysis identified ${aiAssessment.damagedComponentsJson ? (() => { try { const c = JSON.parse(aiAssessment.damagedComponentsJson); return Array.isArray(c) ? c.length : 0; } catch { return 0; } })() : 0} damaged components with an estimated repair cost of ${currencySymbol(claim?.currencyCode)}${aiCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}. Fraud risk is assessed as ${fraudLevel.toUpperCase()} with ${confidence}% KINGA confidence.`;
 
   const metrics = [
     { label: 'Vehicle', value: vehicle },
@@ -2382,7 +2382,7 @@ function ExecutiveSummaryInline({
     { label: 'AI Estimated Cost', value: `${currencySymbol(claim?.currencyCode)}${aiCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
     { label: 'Avg Quote', value: avgQuote > 0 ? `${currencySymbol(claim?.currencyCode)}${avgQuote.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No quotes' },
     { label: 'Fraud Risk', value: fraudLevel.toUpperCase(), className: fraudColor },
-    { label: 'AI Confidence', value: `${confidence}%` },
+    { label: 'KINGA Confidence', value: `${confidence}%` },
     { label: 'Outcome', value: isTotalLoss ? 'Total Loss' : (fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical') ? 'Investigate' : 'Proceed with Repair', className: isTotalLoss || (fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical') ? 'text-red-400' : 'text-green-400' },
   ];
 

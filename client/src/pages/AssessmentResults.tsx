@@ -397,7 +397,7 @@ function QuoteComparisonChart({ quotes }: { quotes: QuoteFigure[] }) {
   if (!quotes || quotes.length === 0) return null;
   const maxAmount = Math.max(...quotes.map(q => q.amount));
   const colors: Record<string, string> = { original: '#ef4444', agreed: '#22c55e', ai: '#3b82f6', reference: '#a855f7' };
-  const labels: Record<string, string> = { original: 'Original', agreed: 'Agreed', ai: 'AI Estimate', reference: 'Reference' };
+  const labels: Record<string, string> = { original: 'Original', agreed: 'Agreed', ai: 'KINGA Estimate', reference: 'Reference' };
 
   return (
     <Card className="p-6">
@@ -851,11 +851,11 @@ export default function AssessmentResults() {
                 )}
               </Card>
 
-              {/* AI Confidence Score */}
+              {/* KINGA Confidence Score */}
               <Card className="p-6 bg-gradient-to-br from-primary/5 to-secondary/5">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-primary/10 rounded-lg"><Brain className="w-5 h-5 text-primary" /></div>
-                  <h3 className="text-lg font-semibold">AI Analysis</h3>
+                  <h3 className="text-lg font-semibold">KINGA Analysis</h3>
                 </div>
                 <div className="space-y-4">
                   <div>
@@ -1208,7 +1208,7 @@ export default function AssessmentResults() {
               </Card>
             )}
 
-            {/* Component-level AI estimate */}
+            {/* Component-level KINGA estimate */}
             {hasRecommendations && (
               <ComponentRecommendations recommendations={extractedData.componentRecommendations!} />
             )}

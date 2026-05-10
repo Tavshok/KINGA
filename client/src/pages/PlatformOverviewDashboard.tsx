@@ -136,11 +136,11 @@ export default function PlatformOverviewDashboard() {
         </CardContent>
       </Card>
       
-      {/* AI Confidence Distribution */}
+      {/* KINGA Confidence Distribution */}
       <Card>
         <CardHeader>
-          <CardTitle>AI Confidence Distribution</CardTitle>
-          <CardDescription>Confidence levels across all AI assessments</CardDescription>
+          <CardTitle>KINGA Confidence Distribution</CardTitle>
+          <CardDescription>Confidence levels across all KINGA assessments</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">

@@ -2,7 +2,7 @@
 /**
  * Claim Replay AI Re-Assessment Service
  * 
- * Re-runs AI assessment on historical claims using current KINGA models.
+ * Re-runs KINGA assessment on historical claims using current KINGA models.
  * Enables comparison of original decisions with current AI capabilities.
  * 
  * CRITICAL: All operations are read-only simulations (isReplay = true).
@@ -380,7 +380,7 @@ export async function replayConfidenceScore(
 
 /**
  * Complete AI re-assessment for historical claim
- * Orchestrates all AI assessment services
+ * Orchestrates all KINGA assessment services
  */
 export async function replayCompleteAiAssessment(
   historicalClaimId: number

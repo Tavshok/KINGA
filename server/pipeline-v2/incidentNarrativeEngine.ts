@@ -427,7 +427,7 @@ Return ONLY valid JSON matching this exact schema:
       messages: [
         {
           role: "system",
-          content: `${KINGA_FORENSIC_SYSTEM_PROMPT}\n\nYou are operating as a forensic insurance claims analyst for the KINGA AutoVerify AI system. Return only valid JSON. No markdown, no explanation outside the JSON.`,
+          content: `${KINGA_FORENSIC_SYSTEM_PROMPT}\n\nYou are operating as a forensic insurance claims analyst for the KINGA Intelligence system. Return only valid JSON. No markdown, no explanation outside the JSON.`,
         },
         { role: "user", content: prompt },
       ],

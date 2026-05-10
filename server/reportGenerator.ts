@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * KINGA AutoVerify AI — PDF Report Generator
+ * KINGA Intelligence — PDF Report Generator
  *
  * Design spec:
  *   Cover page  : #0f0e0c dark background, KINGA in electric lime, white subtitle
@@ -911,7 +911,7 @@ function DeterminationSection({ claim, reportId, generatedAt }: any) {
     ),
     React.createElement(View, { style: body.disclaimer },
       React.createElement(Text, { style: body.disclaimerText },
-        "KINGA AutoVerify AI provides decision-support intelligence only. The insurer's designated reviewer validates all determinations. The insurer owns the conclusion. This report is generated under the KINGA platform and is confidential to the insurer and its authorised representatives. Report ID: " + reportId
+        "KINGA provides decision-support intelligence only. The insurer's designated reviewer validates all determinations. The insurer owns the conclusion. This report is generated under the KINGA platform and is confidential to the insurer and its authorised representatives. Report ID: " + reportId
       )
     )
   );
@@ -933,7 +933,7 @@ function KingaReport({ data }: { data: ReportData }) {
   const { claim, assessment, evaluation, quotes, reportType, tier, reportId, generatedAt } = data;
 
   return React.createElement(Document,
-    { title: `KINGA Report — ${claim?.claimNumber ?? reportId}`, author: "KINGA AutoVerify AI" },
+    { title: `KINGA Report — ${claim?.claimNumber ?? reportId}`, author: "KINGA Intelligence" },
 
     // Page 1: Cover
     React.createElement(CoverPage, { claim, reportType, tier, reportId, generatedAt }),

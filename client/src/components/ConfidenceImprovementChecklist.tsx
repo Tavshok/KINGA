@@ -69,7 +69,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "evidence",
       title: "No damage photographs attached",
       description:
-        "The AI physics engine and damage consistency model require at least 3 photographs of the damaged vehicle (front, rear, and the primary impact zone) to validate the reported damage pattern against the claimed collision mechanics.",
+        "The KINGA physics engine and damage consistency model require at least 3 photographs of the damaged vehicle (front, rear, and the primary impact zone) to validate the reported damage pattern against the claimed collision mechanics.",
       impact: "Physics Consistency Score, Damage Zone Validation, Fraud Risk Score",
       impactDelta: "+12–18 confidence points",
     });
@@ -80,7 +80,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "evidence",
       title: `Only ${Math.max(photoUrls.length, photosDetected)} damage photograph(s) detected — 3+ recommended`,
       description:
-        "Additional photographs from multiple angles (front, rear, driver side, passenger side, interior if applicable) significantly improve the AI's ability to cross-validate the damage pattern against the reported impact vector.",
+        "Additional photographs from multiple angles (front, rear, driver side, passenger side, interior if applicable) significantly improve KINGA's ability to cross-validate the damage pattern against the reported impact vector.",
       impact: "Damage Zone Validation, Physics Consistency Score",
       impactDelta: "+6–10 confidence points",
     });
@@ -99,7 +99,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "documentation",
       title: "Police accident report not attached",
       description:
-        "A certified police accident report provides an independent third-party account of the incident date, location, and parties involved. It is the single most effective document for reducing the fraud risk score when the AI has flagged date or location inconsistencies.",
+        "A certified police accident report provides an independent third-party account of the incident date, location, and parties involved. It is the single most effective document for reducing the fraud risk score when KINGA has flagged date or location inconsistencies.",
       impact: "Fraud Risk Score, Accident Date Cross-Check, Incident Verification",
       impactDelta: fraudScore >= 40 ? "+15–25 confidence points" : "+8–12 confidence points",
     });
@@ -116,7 +116,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "documentation",
       title: "No witness statements on record",
       description:
-        "Independent witness statements corroborate the reported collision sequence and are weighted by the narrative analysis engine when the AI detects inconsistencies between the claimed impact direction and the observed damage pattern.",
+        "Independent witness statements corroborate the reported collision sequence and are weighted by the narrative analysis engine when KINGA detects inconsistencies between the claimed impact direction and the observed damage pattern.",
       impact: "Narrative Consistency Score, Fraud Risk Score",
       impactDelta: "+5–8 confidence points",
     });
@@ -130,7 +130,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "financial",
       title: "No repair quotes submitted",
       description:
-        "The cost intelligence engine requires at least one itemised repair quote to validate the estimated repair cost against market benchmarks. Without a quote, the AI cannot perform parts reconciliation or detect over-pricing.",
+        "The cost intelligence engine requires at least one itemised repair quote to validate the estimated repair cost against market benchmarks. Without a quote, KINGA cannot perform parts reconciliation or detect over-pricing.",
       impact: "Cost Intelligence Score, Parts Reconciliation, Quote Optimisation",
       impactDelta: "+10–15 confidence points",
     });
@@ -141,7 +141,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "financial",
       title: "Only one repair quote — two or more recommended",
       description:
-        "A second competitive quote enables the AI to perform cross-quote validation, detect anomalous pricing on individual line items, and provide a statistically grounded cost band assessment (FAIR / HIGH / LOW).",
+        "A second competitive quote enables KINGA to perform cross-quote validation, detect anomalous pricing on individual line items, and provide a statistically grounded cost band assessment (FAIR / HIGH / LOW).",
       impact: "Cost Intelligence Score, Quote Optimisation, Fraud Risk Score",
       impactDelta: "+4–7 confidence points",
     });
@@ -169,7 +169,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "financial",
       title: "Repair quote line items have no individual prices",
       description:
-        "The submitted quote contains part descriptions but no per-item pricing. Attach a fully itemised quote (with unit cost and quantity for each part) so the AI can perform parts-level reconciliation against market pricing databases.",
+        "The submitted quote contains part descriptions but no per-item pricing. Attach a fully itemised quote (with unit cost and quantity for each part) so KINGA can perform parts-level reconciliation against market pricing databases.",
       impact: "Parts Reconciliation, Cost Intelligence Score, Over-pricing Detection",
       impactDelta: "+6–10 confidence points",
     });
@@ -191,7 +191,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "financial",
       title: "Vehicle market value not established",
       description:
-        "Without a verified market value, the AI cannot determine whether the repair cost exceeds the economic write-off threshold (typically 70–80% of market value). Provide a current trade or retail valuation from a recognised source (e.g. TransUnion, Mead & McGrouther).",
+        "Without a verified market value, KINGA cannot determine whether the repair cost exceeds the economic write-off threshold (typically 70–80% of market value). Provide a current trade or retail valuation from a recognised source (e.g. TransUnion, Mead & McGrouther).",
       impact: "Write-off Threshold Assessment, Cost Reasonableness Score",
       impactDelta: "+4–6 confidence points",
     });
@@ -206,7 +206,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "financial",
       title: "Policy excess / deductible not recorded",
       description:
-        "Recording the policy excess allows the AI to compute the net claimable amount and flag cases where the repair cost is suspiciously close to the excess threshold — a known indicator of inflated claims.",
+        "Recording the policy excess allows KINGA to compute the net claimable amount and flag cases where the repair cost is suspiciously close to the excess threshold — a known indicator of inflated claims.",
       impact: "Fraud Risk Score (excess-proximity flag)",
       impactDelta: "+2–4 confidence points",
     });
@@ -221,7 +221,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "documentation",
       title: `${missingFields.length} claim field(s) incomplete`,
       description:
-        `The following fields were not populated when the claim was submitted: ${missingFields.slice(0, 5).join(", ")}${missingFields.length > 5 ? `, and ${missingFields.length - 5} more` : ""}. Complete these fields and re-run the AI assessment to improve the data completeness score.`,
+        `The following fields were not populated when the claim was submitted: ${missingFields.slice(0, 5).join(", ")}${missingFields.length > 5 ? `, and ${missingFields.length - 5} more` : ""}. Complete these fields and re-run the KINGA assessment to improve the data completeness score.`,
       impact: "Data Completeness Score, Overall Confidence Score",
       impactDelta: "+3–8 confidence points",
     });
@@ -241,7 +241,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "physics",
       title: "Physics consistency score below 60% — additional evidence recommended",
       description:
-        "The AI's biomechanical model has detected potential inconsistencies between the reported collision speed/direction and the observed damage pattern. Attaching a dashcam recording, telematics data export, or a detailed third-party accident reconstruction report would allow the engine to resolve these inconsistencies.",
+        "KINGA's biomechanical model has detected potential inconsistencies between the reported collision speed/direction and the observed damage pattern. Attaching a dashcam recording, telematics data export, or a detailed third-party accident reconstruction report would allow the engine to resolve these inconsistencies.",
       impact: "Physics Consistency Score, Fraud Risk Score, Structural Damage Assessment",
       impactDelta: "+8–15 confidence points",
     });
@@ -255,7 +255,7 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       category: "identity",
       title: "Elevated fraud risk score — identity verification recommended",
       description:
-        "The AI has flagged this claim with a fraud risk score of " + fraudScore + "/100. To reduce this score, provide: (1) certified copy of the claimant's driver's licence, (2) independent repair assessment from a SAMBRA-accredited assessor, and (3) if the vehicle was financed, a letter from the financier confirming the vehicle was not under a repossession order at the time of the incident.",
+        "KINGA has flagged this claim with a fraud risk score of " + fraudScore + "/100. To reduce this score, provide: (1) certified copy of the claimant's driver's licence, (2) independent repair assessment from a SAMBRA-accredited assessor, and (3) if the vehicle was financed, a letter from the financier confirming the vehicle was not under a repossession order at the time of the incident.",
       impact: "Fraud Risk Score, Recommendation Outcome",
       impactDelta: "May reduce fraud score by 15–30 points",
     });
@@ -335,7 +335,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
             Confidence Improvement Checklist
           </div>
           <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "4px" }}>
-            The following items have been identified by the AI assessment engine as opportunities to improve the confidence score and reduce the fraud risk rating for this claim. Items are ranked by impact.
+            The following items have been identified by the KINGA assessment engine as opportunities to improve the confidence score and reduce the fraud risk rating for this claim. Items are ranked by impact.
           </div>
         </div>
 
@@ -410,7 +410,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
         {/* Footer note */}
         <div style={{ marginTop: "20px", paddingTop: "12px", borderTop: "1px solid #e5e7eb" }}>
           <p style={{ fontSize: "9px", color: "#9ca3af", lineHeight: "1.5", margin: 0 }}>
-            This checklist is generated automatically by the KINGA AI assessment engine based on the data available at the time of the last pipeline run. Re-running the assessment after attaching additional evidence will update this checklist and recalculate the confidence score. Items marked CRITICAL must be resolved before the claim can be approved at the Claims Manager stage.
+            This checklist is generated automatically by the KINGA KINGA assessment engine based on the data available at the time of the last pipeline run. Re-running the assessment after attaching additional evidence will update this checklist and recalculate the confidence score. Items marked CRITICAL must be resolved before the claim can be approved at the Claims Manager stage.
           </p>
         </div>
       </div>
@@ -424,7 +424,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
         Appendix A — Confidence Improvement Checklist
       </div>
       <div style={{ fontSize: "10px", color: "#555", marginBottom: "12px", marginTop: "-8px" }}>
-        Actionable gaps identified by the KINGA AI pipeline. Address CRITICAL items before the claim proceeds to Claims Manager approval.
+        Actionable gaps identified by the KINGA KINGA pipeline. Address CRITICAL items before the claim proceeds to Claims Manager approval.
       </div>
 
       {/* Summary — FAR-01: B&W typographic hierarchy */}
@@ -492,7 +492,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
 
       <div style={{ marginTop: "16px", paddingTop: "10px", borderTop: "1px solid var(--fp-border)" }}>
         <p style={{ fontSize: "9px", color: "var(--fp-text-muted)", lineHeight: "1.5", margin: 0 }}>
-          This checklist is generated automatically by the KINGA AI assessment engine. Re-running the assessment after attaching additional evidence will recalculate all scores and update this checklist. Items marked CRITICAL must be resolved before the claim can proceed to Claims Manager approval.
+          This checklist is generated automatically by the KINGA KINGA assessment engine. Re-running the assessment after attaching additional evidence will recalculate all scores and update this checklist. Items marked CRITICAL must be resolved before the claim can proceed to Claims Manager approval.
         </p>
       </div>
     </div>

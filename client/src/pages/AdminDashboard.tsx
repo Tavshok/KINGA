@@ -32,7 +32,7 @@ import { useState, useMemo } from "react";
  * - Approve/reject panel beater applications
  * - View system analytics
  * - Configure fraud detection thresholds
- * - Manage AI Intelligence Training (ground truth, variance, benchmarks)
+ * - Manage KINGA Intelligence Training (ground truth, variance, benchmarks)
  * - Manage continuous learning loop
  */
 export default function AdminDashboard() {
@@ -260,7 +260,7 @@ export default function AdminDashboard() {
             className={selectedTab === "intelligence" ? "bg-emerald-600 hover:bg-emerald-700" : ""}
           >
             <Brain className="mr-2 h-4 w-4" />
-            AI Intelligence Training
+            KINGA Intelligence Training
           </Button>
           <Button
             variant={selectedTab === "settings" ? "default" : "outline"}
@@ -514,7 +514,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* AI Intelligence Training Tab */}
+        {/* KINGA Intelligence Training Tab */}
         {selectedTab === "intelligence" && (
           <div className="space-y-6">
             {/* Quick Actions */}
@@ -961,7 +961,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold mb-2">AI Assessment Settings</h3>
+                  <h3 className="font-semibold mb-2">KINGA Assessment Settings</h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     Configuration for automated AI damage assessment
                   </p>

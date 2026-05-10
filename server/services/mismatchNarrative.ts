@@ -501,7 +501,7 @@ export async function generateMismatchNarratives(
  *   2. NO scoring or confidence references (score, weight, confidence,
  *      high/medium/low severity, risk level, factor, penalty)
  *   3. NO internal logic references (physics engine, delta-V, impact vector,
- *      consistency check, algorithm, AI analysis, machine learning)
+ *      consistency check, algorithm, KINGA analysis, machine learning)
  *   4. NEVER imply wrongdoing — passive, neutral phrasing only
  *   5. Always include one of:
  *        - "further review required"
@@ -620,7 +620,7 @@ async function llmExternalNarrative(
       `  B) SCORING / INTERNAL LOGIC — NEVER reference:`,
       `       score, weight, confidence, severity level, high/medium/low risk, factor,`,
       `       physics engine, delta-V, impact vector, consistency check, algorithm,`,
-      `       machine learning, AI analysis, fraud score, risk score, penalty.`,
+      `       machine learning, KINGA analysis, fraud score, risk score, penalty.`,
       ``,
       `  C) WRONGDOING — NEVER imply the claimant acted improperly. Use passive voice only.`,
       `     Do NOT write anything that could be read as an accusation or allegation.`,

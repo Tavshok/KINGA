@@ -1,7 +1,7 @@
 /**
- * Reusable Risk Badge and AI Assess Button components
+ * Reusable Risk Badge and KINGA Assess Button components
  * Used across all insurer dashboards to show fraud risk indicators
- * and trigger AI assessments on claims.
+ * and trigger KINGA assessments on claims.
  */
 import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";

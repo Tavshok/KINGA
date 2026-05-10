@@ -65,7 +65,7 @@ export function GovernanceIndicators({
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>AI-powered fraud risk assessment using historical patterns</p>
+                <p>KINGA fraud risk assessment using historical patterns</p>
                 {fraudRiskScore !== undefined && (
                   <p className="text-xs mt-1">Risk Score: {fraudRiskScore}/100</p>
                 )}

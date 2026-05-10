@@ -3,7 +3,7 @@
  * 
  * Allows super-admins to populate the database with test claims and vehicle damage images.
  * Uses the admin.bulkSeedClaims tRPC procedure to upload images to S3 and create claims
- * with automatic AI assessment triggering.
+ * with automatic KINGA assessment triggering.
  */
 
 import { useState } from "react";
@@ -64,7 +64,7 @@ export default function AdminSeedData() {
   };
 
   const handleBulkAiGen = () => {
-    if (confirm("This will generate AI assessments for all claims with damage photos that don't have assessments. Continue?")) {
+    if (confirm("This will generate KINGA assessments for all claims with damage photos that don't have assessments. Continue?")) {
       setIsGeneratingAi(true);
       setAiGenReport(null);
       bulkAiGenMutation.mutate({
@@ -88,7 +88,7 @@ export default function AdminSeedData() {
           <CardTitle>Bulk Seed Claims with Vehicle Damage Images</CardTitle>
           <CardDescription>
             Creates 20 test claims with real vehicle damage photos from /home/ubuntu/upload directory.
-            Each claim will have 1-3 randomly selected damage photos and will automatically trigger AI assessment.
+            Each claim will have 1-3 randomly selected damage photos and will automatically trigger KINGA assessment.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -128,9 +128,9 @@ export default function AdminSeedData() {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Generate AI Assessments for Existing Claims</CardTitle>
+          <CardTitle>Generate KINGA Assessments for Existing Claims</CardTitle>
           <CardDescription>
-            Generates AI assessments for all claims with damage photos that don't have assessments yet.
+            Generates KINGA assessments for all claims with damage photos that don't have assessments yet.
             Useful for backfilling assessments after bulk claim seeding.
           </CardDescription>
         </CardHeader>
@@ -147,12 +147,12 @@ export default function AdminSeedData() {
                 {isGeneratingAi ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating AI Assessments...
+                    Generating KINGA Assessments...
                   </>
                 ) : (
                   <>
                     <Brain className="mr-2 h-4 w-4" />
-                    Generate Missing AI Assessments
+                    Generate Missing KINGA Assessments
                   </>
                 )}
               </Button>
@@ -255,7 +255,7 @@ export default function AdminSeedData() {
               <div className="flex flex-col items-center p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
                 <Brain className="h-8 w-8 text-purple-600 mb-2" />
                 <div className="text-2xl font-bold">{seedReport.aiAssessmentsTriggered}</div>
-                <div className="text-sm text-muted-foreground">AI Assessments</div>
+                <div className="text-sm text-muted-foreground">KINGA Assessments</div>
               </div>
 
               <div className="flex flex-col items-center p-4 bg-red-50 dark:bg-red-950 rounded-lg">

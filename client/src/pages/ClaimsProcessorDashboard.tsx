@@ -44,8 +44,8 @@ import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
  *
  * Organized into 4 sections:
  * 1. Pending Claims - Newly submitted, awaiting initial review
- * 2. In Review - Currently being processed / AI running
- * 3. AI Flagged - AI assessment complete, ready for review
+ * 2. In Review - Currently being processed / KINGA running
+ * 3. KINGA Flagged - KINGA assessment complete, ready for review
  * 4. Completed - Processed and closed
  */
 export default function ClaimsProcessorDashboard() {
@@ -111,12 +111,12 @@ export default function ClaimsProcessorDashboard() {
         offset: 0,
       },
       {
-        // Poll every 5s when AI is actively running (either in this session or detected from DB status)
+        // Poll every 5s when KINGA is actively running (either in this session or detected from DB status)
         // This ensures the page auto-refreshes even after a browser refresh.
         refetchInterval: (data) => {
           const claims = (data as any)?.claims || (data as any)?.items || [];
           const hasInProgress = claims.some((c: any) => c.status === "assessment_in_progress");
-          // Poll every 2s when AI is actively running so stage transitions appear quickly,
+          // Poll every 2s when KINGA is actively running so stage transitions appear quickly,
           // fall back to 30s when idle to reduce server load.
           return (aiProcessingClaimIds.size > 0 || hasInProgress) ? 2_000 : 30_000;
         },
@@ -147,7 +147,7 @@ export default function ClaimsProcessorDashboard() {
   const aiFlaggedClaims = filteredClaims.filter((c: any) => c.status === "assessment_complete");
   const completedClaims = filteredClaims.filter((c: any) => c.status === "closed");
 
-  // Detect when AI processing completes (claim moves from in_review to ai_flagged)
+  // Detect when KINGA processing completes (claim moves from in_review to ai_flagged)
   useEffect(() => { // eslint-disable-line react-hooks/rules-of-hooks
     if (aiProcessingClaimIds.size === 0) return;
 
@@ -189,7 +189,7 @@ export default function ClaimsProcessorDashboard() {
 
       completedIds.forEach(id => {
         const claim = allClaims.find((c: any) => c.id === id);
-        toast.success("AI Assessment Complete", {
+        toast.success("KINGA Assessment Complete", {
           description: `Assessment ready for ${claim?.claimNumber || `Claim #${id}`}`,
           action: {
             label: "View Report",
@@ -201,7 +201,7 @@ export default function ClaimsProcessorDashboard() {
 
       failedIds.forEach(id => {
         const claim = allClaims.find((c: any) => c.id === id);
-        toast.error("AI Assessment Failed", {
+        toast.error("KINGA Assessment Failed", {
           description: `Processing failed for ${claim?.claimNumber || `Claim #${id}`}. Please check that documents are uploaded and try again.`,
           duration: 8000,
         });
@@ -209,21 +209,21 @@ export default function ClaimsProcessorDashboard() {
     }
   }, [allClaims, aiProcessingClaimIds]);
 
-  // Trigger AI Assessment mutation
+  // Trigger KINGA Assessment mutation
   const triggerAiMutation = trpc.claims.triggerAiAssessment.useMutation({ // eslint-disable-line react-hooks/rules-of-hooks
     onSuccess: (_data, variables) => {
       setAiProcessingClaimIds(prev => new Set(prev).add(variables.claimId));
       setTriggeringClaimId(null);
-      toast.info("AI Assessment Started", {
-        description: "The AI is analyzing this claim. You'll be notified when it's complete. The claim has moved to 'In Review'.",
+      toast.info("KINGA Assessment Started", {
+        description: "KINGA is analysing this claim. You'll be notified when it's complete. The claim has moved to 'In Review'.",
         duration: 6000,
       });
       refetchAll();
     },
     onError: (error: any) => {
       setTriggeringClaimId(null);
-      toast.error("AI Assessment Failed", {
-        description: error.message || "Could not trigger AI assessment. Please try again.",
+      toast.error("KINGA Assessment Failed", {
+        description: error.message || "Could not trigger KINGA assessment. Please try again.",
       });
       // Refetch so the UI reflects the server's corrected claim state (safety-net resets to intake_pending)
       setTimeout(() => refetchAll(), 1500);
@@ -240,7 +240,7 @@ export default function ClaimsProcessorDashboard() {
         return next;
       });
       toast.success("Claim Reset", {
-        description: "The claim has been reset to Pending. You can now re-run the AI assessment.",
+        description: "The claim has been reset to Pending. You can now re-run the KINGA assessment.",
       });
       refetchAll();
     },
@@ -318,7 +318,7 @@ export default function ClaimsProcessorDashboard() {
   };
 
   const handleViewDetails = (claimId: number) => {
-    // Navigate to the comparison view which shows full AI assessment details
+    // Navigate to the comparison view which shows full KINGA assessment details
     window.location.href = `/insurer/claims/${claimId}/comparison`;
   };
 
@@ -483,7 +483,7 @@ export default function ClaimsProcessorDashboard() {
                 {claim.aiConfidenceScore > 0 && (
                   <Badge variant="outline" className="text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" />
-                    AI: {claim.aiConfidenceScore}%
+                    KINGA: {claim.aiConfidenceScore}%
                   </Badge>
                 )}
                 {claim.fraudRiskScore > 0 && (
@@ -592,7 +592,7 @@ export default function ClaimsProcessorDashboard() {
                 </div>
                 {(claim as any).aiAssessmentCompletedAt && (
                   <div>
-                    <span className="font-medium text-slate-600 dark:text-muted-foreground">AI Assessed:</span>
+                    <span className="font-medium text-slate-600 dark:text-muted-foreground">KINGA Assessed:</span>
                     <p className="text-slate-900 dark:text-foreground text-xs">
                       {new Date((claim as any).aiAssessmentCompletedAt).toLocaleString()}
                     </p>
@@ -614,7 +614,7 @@ export default function ClaimsProcessorDashboard() {
                       onClick={() => handleResetStuckClaim(claim.id)}
                       disabled={resetStuckClaimMutation.isPending}
                       className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
-                      title="This claim appears stuck in AI processing. Click to reset it to Pending."
+                      title="This claim appears stuck in KINGA processing. Click to reset it to Pending."
                     >
                       <RotateCcw className="h-3 w-3 mr-2" />
                       Reset Stuck Claim
@@ -632,7 +632,7 @@ export default function ClaimsProcessorDashboard() {
                     ) : (
                       <Brain className="h-4 w-4 mr-2" />
                     )}
-                    Run AI Assessment
+                    Run KINGA Analysis
                   </Button>
                   <Button
                     size="sm"
@@ -717,7 +717,7 @@ export default function ClaimsProcessorDashboard() {
                     className="w-full justify-start bg-teal-600 hover:bg-teal-700"
                   >
                     <Eye className="h-4 w-4 mr-2" />
-                    View AI Report
+                    View KINGA Report
                     <ArrowRight className="h-3 w-3 ml-auto" />
                   </Button>
                   <Button
@@ -737,7 +737,7 @@ export default function ClaimsProcessorDashboard() {
                     className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
                   >
                     <Brain className="h-4 w-4 mr-2" />
-                    Re-run AI Assessment
+                    Re-run KINGA Assessment
                   </Button>
                   <Button
                     size="sm"
@@ -1023,11 +1023,11 @@ export default function ClaimsProcessorDashboard() {
           </TabsContent>
           <TabsContent value="ai_complete">
         {renderSection(
-          "AI Assessment Complete",
+          "KINGA Assessment Complete",
           CheckCircle,
           aiFlaggedClaims,
           "ai_flagged",
-          "No claims with completed AI assessment",
+          "No claims with completed KINGA assessment",
           "border-t-teal-500",
           "bg-teal-50/50 dark:bg-teal-950/50"
         )}
@@ -1221,7 +1221,7 @@ export default function ClaimsProcessorDashboard() {
               className="border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
             >
               <Brain className="h-4 w-4 mr-2" />
-              Run AI Instead
+              Run KINGA Instead
             </Button>
             <Button
               variant="default"

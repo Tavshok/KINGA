@@ -1,5 +1,5 @@
 /**
- * Batch 2 Report Components — KINGA AI v4.2
+ * Batch 2 Report Components — KINGA v4.2
  *
  * Components:
  * 1. CostWaterfallChart        — horizontal waterfall: Parts → Labour → Total vs Benchmark
@@ -253,7 +253,7 @@ export function CostWaterfallChart({
         }}
       >
         <div>
-          <div style={{ color: "var(--rpt-muted-text)", marginBottom: "2px" }}>AI Estimate</div>
+          <div style={{ color: "var(--rpt-muted-text)", marginBottom: "2px" }}>KINGA Estimate</div>
           <div style={{ fontWeight: 700, color: "var(--rpt-card-text)", fontFamily: "monospace" }}>
             {fmt$(totalUsd)}
           </div>

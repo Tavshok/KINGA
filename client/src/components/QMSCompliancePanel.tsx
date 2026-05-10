@@ -45,7 +45,7 @@ export function QMSCompliancePanel() {
       title: "Full Audit Replay Capability",
       description: "Complete reconstruction of claim lifecycle from audit logs",
       status: "Enabled",
-      details: "Replay any claim decision with original policy and AI assessment",
+      details: "Replay any claim decision with original policy and KINGA assessment",
       color: "text-teal-600",
     },
   ];

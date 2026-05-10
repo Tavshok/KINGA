@@ -5,7 +5,7 @@
  * Collects and stores daily platform health metrics in platform_observability table.
  * 
  * Metrics tracked:
- * 1. Daily AI Assessment Coverage (%)
+ * 1. Daily KINGA Assessment Coverage (%)
  * 2. Daily Image Upload Success Rate (%)
  * 3. Physics Quantitative Activation (%)
  * 4. Dashboard Query Avg Time (ms)
@@ -89,7 +89,7 @@ export async function storeObservabilityMetric(metric: ObservabilityMetric): Pro
 }
 
 /**
- * Calculate Daily AI Assessment Coverage
+ * Calculate Daily KINGA Assessment Coverage
  * Formula: (claims with AI assessments / total claims with damage photos) * 100
  */
 export async function calculateAiAssessmentCoverage(tenantId?: string): Promise<number> {
@@ -116,7 +116,7 @@ export async function calculateAiAssessmentCoverage(tenantId?: string): Promise<
     
     return total > 0 ? Math.round((assessed / total) * 100 * 10) / 10 : 100;
   } catch (error) {
-    console.error("[Observability] Failed to calculate AI assessment coverage:", error);
+    console.error("[Observability] Failed to calculate KINGA assessment coverage:", error);
     return 0;
   }
 }

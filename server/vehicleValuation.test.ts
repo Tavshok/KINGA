@@ -2,7 +2,7 @@
 /**
  * Unit Tests for Vehicle Market Valuation Service
  * 
- * Tests AI-powered valuation, adjustments, and total loss determination.
+ * Tests KINGA-powered valuation, adjustments, and total loss determination.
  * LLM calls are mocked to ensure deterministic, fast tests.
  */
 

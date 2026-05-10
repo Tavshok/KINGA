@@ -351,7 +351,7 @@ export default function FraudAnalyticsDashboard() {
 
                 <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
                   <div>
-                    <p className="font-medium text-sm">AI Vision Analysis</p>
+                    <p className="font-medium text-sm">KINGA Vision Analysis</p>
                     <p className="text-xs text-muted-foreground">Damage photo analysis, fraud indicators</p>
                   </div>
                   <Badge className="bg-purple-600">{fraudStats.aiDetections}</Badge>
@@ -467,7 +467,7 @@ function calculateFraudStatistics(claims: any[]) {
     .filter(c => (c.fraudRiskScore || 0) > 70)
     .reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0); // Already in whole dollars
   
-  // Detection rate (percentage of claims with AI assessment completed)
+  // Detection rate (percentage of claims with KINGA assessment completed)
   const assessedClaims = claims.filter(c => c.aiAssessmentCompleted).length;
   const detectionRate = totalClaims > 0 ? Math.round((assessedClaims / totalClaims) * 100) : 0;
   
@@ -482,7 +482,7 @@ function calculateFraudStatistics(claims: any[]) {
     { name: "Impossible Damage Patterns", count: Math.floor(highRiskClaims * 0.4), description: "Damage inconsistent with reported accident physics" },
     { name: "Unrelated Damage", count: Math.floor(highRiskClaims * 0.3), description: "Repairs quoted for damage far from impact point" },
     { name: "Staged Accident Indicators", count: Math.floor(highRiskClaims * 0.2), description: "Evidence suggesting accident was intentionally staged" },
-    { name: "Inflated Repair Costs", count: Math.floor(highRiskClaims * 0.5), description: "Quote amounts significantly higher than AI/assessor estimates" },
+    { name: "Inflated Repair Costs", count: Math.floor(highRiskClaims * 0.5), description: "Quote amounts significantly higher than KINGA/assessor estimates" },
     { name: "Copy Quotations", count: Math.floor(highRiskClaims * 0.15), description: "Multiple quotes with suspiciously similar structure" },
     { name: "Severity Mismatch", count: Math.floor(highRiskClaims * 0.25), description: "Damage severity doesn't match estimated impact speed" },
   ];
@@ -500,7 +500,7 @@ function calculateFraudStatistics(claims: any[]) {
   // Detection methods data for pie chart
   const detectionMethodsData = [
     { name: "Physics", value: physicsDetections, color: "#3b82f6" },
-    { name: "AI Vision", value: aiDetections, color: "#a855f7" },
+    { name: "KINGA Vision", value: aiDetections, color: "#a855f7" },
     { name: "Assessor", value: assessorDetections, color: "#16a34a" },
     { name: "Quote Analysis", value: quoteDetections, color: "#f97316" },
   ];

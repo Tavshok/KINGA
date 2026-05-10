@@ -1,7 +1,7 @@
 // @ts-nocheck
 /**
  * Claims Manager Comparison View (with Risk Manager Analytical Overlay)
- * Role-based three-column comparison: AI Assessment | Assessor Report | Panel Beater Quotes
+ * Role-based three-column comparison: KINGA Assessment | Assessor Report | Panel Beater Quotes
  * Risk Manager: Emphasizes fraud risk, technical validation, and analytical intelligence
  * Claims Manager: Emphasizes financial decisions, cost variance, and approval controls
  */
@@ -373,7 +373,7 @@ export default function ClaimsManagerComparisonView() {
                   <ImageIcon className="h-5 w-5 text-blue-600" />
                   Damage Photos ({photos.length})
                 </CardTitle>
-                <CardDescription>Vehicle damage images used for AI analysis</CardDescription>
+                <CardDescription>Vehicle damage images used for KINGA analysis</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -398,12 +398,12 @@ export default function ClaimsManagerComparisonView() {
       {/* Three-Column Comparison Layout */}
       <div className="max-w-[1800px] mx-auto px-8 py-8">
         <div className="grid grid-cols-3 gap-6">
-          {/* Column 1: AI Assessment */}
+          {/* Column 1: KINGA Assessment */}
           <Card className="border-0 shadow-lg border-t-4 border-t-blue-500">
             <CardHeader className="bg-blue-50 dark:bg-blue-950/30">
               <CardTitle className="flex items-center gap-2 text-blue-900 dark:text-blue-200">
                 <Bot className="h-5 w-5" />
-                AI Assessment
+                KINGA Assessment
               </CardTitle>
               <CardDescription>Automated analysis and cost estimation</CardDescription>
             </CardHeader>
@@ -427,7 +427,7 @@ export default function ClaimsManagerComparisonView() {
                   </h3>
                   <FraudRiskMeter score={aiAssessment.fraudRiskScore} size="large" />
                   
-                  {/* AI Confidence Breakdown */}
+                  {/* KINGA Confidence Breakdown */}
                   <div className="mt-6 pt-6 border-t border-red-200 dark:border-red-800">
                     <h4 className="font-semibold text-slate-900 dark:text-foreground mb-3">Confidence Breakdown</h4>
                     <div className="space-y-3">
@@ -566,7 +566,7 @@ export default function ClaimsManagerComparisonView() {
                     </p>
                   </div>
 
-                  {/* Discrepancy vs AI - EMPHASIZED for Risk Manager */}
+                  {/* Discrepancy vs KINGA - EMPHASIZED for Risk Manager */}
                   {aiVsAssessor !== null && (
                     <div className={`p-4 rounded-lg ${
                       isRiskManager 
@@ -598,7 +598,7 @@ export default function ClaimsManagerComparisonView() {
                               ? "⚠️ Significant discrepancy detected. Manual review recommended to validate cost estimation accuracy and identify potential anomalies."
                               : Math.abs(aiVsAssessor) >= 10
                               ? "⚠️ Moderate discrepancy. Review recommended to ensure alignment between AI and human assessment."
-                              : "✓ AI and assessor estimates are well-aligned, indicating consistent damage evaluation."}
+                              : "✓ KINGA and assessor estimates are well-aligned, indicating consistent damage evaluation."}
                           </p>
                         </div>
                       )}
@@ -752,7 +752,7 @@ export default function ClaimsManagerComparisonView() {
 
                             {varianceVsAI !== null && !isRiskManager && (
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-600 dark:text-muted-foreground">vs AI Estimate</span>
+                                <span className="text-xs text-slate-600 dark:text-muted-foreground">vs KINGA Estimate</span>
                                 <VarianceBadge variance={varianceVsAI} />
                               </div>
                             )}

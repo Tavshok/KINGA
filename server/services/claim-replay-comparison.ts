@@ -354,7 +354,7 @@ export async function storeReplayResults(
 }
 
 /**
- * Complete replay workflow: AI assessment + routing + comparison + storage
+ * Complete replay workflow: KINGA assessment + routing + comparison + storage
  */
 export async function replayHistoricalClaim(
   historicalClaimId: number,
@@ -382,7 +382,7 @@ export async function replayHistoricalClaim(
   
   // Step 1: AI re-assessment
   const aiAssessment = await replayCompleteAiAssessment(historicalClaimId);
-  console.log(`[Replay] AI assessment complete: confidence ${aiAssessment.compositeConfidenceScore}%, fraud ${aiAssessment.fraudScore}%`);
+  console.log(`[Replay] KINGA assessment complete: confidence ${aiAssessment.compositeConfidenceScore}%, fraud ${aiAssessment.fraudScore}%`);
   
   // Step 2: Routing decision
   const routingResult = await replayRoutingDecision(historicalClaimId, aiAssessment);

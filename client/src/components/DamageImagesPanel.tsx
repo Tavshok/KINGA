@@ -10,7 +10,7 @@
  *   - Detected component chips with severity colour coding
  *   - Confidence score pill
  *   - Image quality indicator
- *   - AI-generated caption
+ *   - KINGA-generated caption
  *
  * An "Analyse Photos" button triggers Stage 11 enrichment for assessors/
  * insurers/admins. An inconsistency panel shows cross-check findings.
@@ -297,7 +297,7 @@ function EnrichedLightbox({ photo, onClose }: { photo: EnrichedPhoto; onClose: (
             </div>
           )}
           <p className="text-xs text-muted-foreground border-t pt-2">
-            Enriched by vision AI · {new Date(photo.enrichedAt).toLocaleString()}
+            Enriched by KINGA vision · {new Date(photo.enrichedAt).toLocaleString()}
           </p>
         </div>
       </div>

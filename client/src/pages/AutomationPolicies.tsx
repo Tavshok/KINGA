@@ -151,7 +151,7 @@ export default function AutomationPolicies() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Automation Policy Configuration</h1>
         <p className="text-muted-foreground">
-          Configure confidence thresholds and eligibility rules for AI-powered claim automation.
+          Configure confidence thresholds and eligibility rules for KINGA-powered claim automation.
         </p>
       </div>
 
@@ -169,7 +169,7 @@ export default function AutomationPolicies() {
           <CardHeader>
             <CardTitle>Confidence Thresholds</CardTitle>
             <CardDescription>
-              Set minimum AI confidence scores required for automated claim processing
+              Set minimum KINGA confidence scores required for automated claim processing
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

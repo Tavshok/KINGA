@@ -9,7 +9,7 @@
  *  - Configurable vehicle make/model/year
  *  - Damage type and severity selection
  *  - 2–4 repair quotes with deliberate cost variance
- *  - Fires AI assessment in the background
+ *  - Fires KINGA assessment in the background
  *  - Shows a result card with claim number, quote amounts, and a link to the claim
  */
 import { useState } from "react";
@@ -133,7 +133,7 @@ export default function ClaimSimulator() {
     onSuccess: (data) => {
       setResult(data as SimulationResult);
       toast.success(`Claim ${data.claimNumber} created`, {
-        description: `${data.quotesGenerated} quotes generated. AI assessment running in background.`,
+        description: `${data.quotesGenerated} quotes generated. KINGA assessment running in background.`,
       });
     },
     onError: (err) => {
@@ -164,7 +164,7 @@ export default function ClaimSimulator() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Claim Simulation Engine</h1>
           <p className="text-muted-foreground mt-1">
-            Generate synthetic claims to validate the end-to-end workflow — AI assessment,
+            Generate synthetic claims to validate the end-to-end workflow — KINGA assessment,
             quote comparison, and fraud detection — without affecting production data.
           </p>
         </div>

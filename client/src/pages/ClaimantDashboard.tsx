@@ -37,7 +37,7 @@ const STATUS_STEPS: Record<string, number> = {
 const STEPS = [
   { label: "Submitted", icon: FileText, description: "Claim received" },
   { label: "Under Review", icon: Shield, description: "Triage & policy check" },
-  { label: "Assessment", icon: FileCheck, description: "AI & assessor review" },
+  { label: "Assessment", icon: FileCheck, description: "KINGA & assessor review" },
   { label: "Decision", icon: Banknote, description: "Approval & quotes" },
   { label: "Resolved", icon: CheckCircle, description: "Completed or closed" },
 ];

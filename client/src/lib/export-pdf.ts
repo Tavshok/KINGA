@@ -98,11 +98,11 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
 
   yPos = (doc as any).lastAutoTable.finalY + 10;
 
-  // AI Assessment Section
+  // KINGA Assessment Section
   if (data.aiAssessment) {
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('AI Assessment', 14, yPos);
+    doc.text('KINGA Assessment', 14, yPos);
     yPos += 8;
 
     doc.setFontSize(10);
@@ -180,7 +180,7 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
     if (data.assessorEval.disagreesWithAi) {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 100, 0);
-      doc.text('⚠ Assessor Disagrees with AI Assessment', 14, yPos);
+      doc.text('⚠ Assessor Disagrees with KINGA Assessment', 14, yPos);
       yPos += 5;
       doc.setTextColor(0, 0, 0);
       if (data.assessorEval.aiDisagreementReason) {
@@ -248,7 +248,7 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
     doc.setFontSize(8);
     doc.setTextColor(128, 128, 128);
     doc.text(
-      `Page ${i} of ${pageCount} | Generated: ${new Date().toLocaleString()} | KINGA AI`,
+      `Page ${i} of ${pageCount} | Generated: ${new Date().toLocaleString()} | KINGA`,
       pageWidth / 2,
       doc.internal.pageSize.getHeight() - 10,
       { align: 'center' }

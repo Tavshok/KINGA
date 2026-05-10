@@ -72,8 +72,8 @@ export default function ObservabilityDashboard() {
   const metricDefinitions = [
     {
       key: "ai_assessment_coverage",
-      title: "AI Assessment Coverage",
-      description: "Percentage of claims with damage photos that have AI assessments",
+      title: "KINGA Assessment Coverage",
+      description: "Percentage of claims with damage photos that have KINGA assessments",
       unit: "%",
     },
     {
@@ -85,7 +85,7 @@ export default function ObservabilityDashboard() {
     {
       key: "physics_quantitative_activation",
       title: "Physics Quantitative Activation",
-      description: "Percentage of AI assessments using quantitative physics mode",
+      description: "Percentage of KINGA assessments using quantitative physics mode",
       unit: "%",
     },
     {
@@ -96,8 +96,8 @@ export default function ObservabilityDashboard() {
     },
     {
       key: "failed_ai_processing_count",
-      title: "Failed AI Processing Count",
-      description: "Number of claims with photos but no AI assessment",
+      title: "Failed KINGA Processing Count",
+      description: "Number of claims with photos but no KINGA assessment",
       unit: "",
     },
   ];

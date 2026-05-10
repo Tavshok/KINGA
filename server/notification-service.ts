@@ -8,7 +8,7 @@
  * Notification Types:
  * - intake_escalation: Manager inactivity on intake queue
  * - auto_assignment: Claim auto-assigned to processor
- * - ai_rerun: AI analysis triggered
+ * - ai_rerun: KINGA analysis triggered
  * - executive_override: Manual intervention by executive
  * - segregation_violation: Duty separation breach detected
  */
@@ -321,7 +321,7 @@ export function formatNotificationMessage(
     case "auto_assignment":
       return `Claim ${context.claimNumber} has been automatically assigned to ${context.processorName} (workload score: ${context.workloadScore}).`;
     case "ai_rerun":
-      return `AI analysis was rerun for claim ${context.claimNumber} by ${context.triggeredBy} (${context.triggeredRole}). Version ${context.versionNumber} created.`;
+      return `KINGA analysis was rerun for claim ${context.claimNumber} by ${context.triggeredBy} (${context.triggeredRole}). Version ${context.versionNumber} created.`;
     case "executive_override":
       return `${context.executiveName} (Executive) manually overrode the routing decision for claim ${context.claimNumber}. Previous state: ${context.previousState}, New state: ${context.newState}.`;
     case "segregation_violation":

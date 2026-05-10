@@ -115,7 +115,7 @@ export function IntakeQueueTab() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">With AI Score</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">With KINGA Score</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">

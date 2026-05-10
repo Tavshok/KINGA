@@ -321,7 +321,7 @@ function AdminRegenDialog({ onClose }: { onClose: () => void }) {
         <div className="flex items-start gap-2">
           <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
           <div>
-            <strong>Governance Notice:</strong> This action resets the claim to <code>intake_pending</code> and triggers a new AI assessment. The original assessment is preserved as an immutable record. Only claims in <em>intake_pending, failed, or in_review</em> states can be regenerated. This action is fully audited.
+            <strong>Governance Notice:</strong> This action resets the claim to <code>intake_pending</code> and triggers a new KINGA assessment. The original assessment is preserved as an immutable record. Only claims in <em>intake_pending, failed, or in_review</em> states can be regenerated. This action is fully audited.
           </div>
         </div>
       </div>
@@ -915,7 +915,7 @@ export default function ReportsCentre() {
               <div className="mb-4">
                 <h3 className="text-sm font-semibold text-gray-900 mb-1">Reports Shared With You</h3>
                 <p className="text-xs text-gray-500">
-                  Claims whose AI assessment reports have been pushed to your role for review.
+                  Claims whose KINGA assessment reports have been pushed to your role for review.
                 </p>
               </div>
               {sharedClaims.length === 0 ? (

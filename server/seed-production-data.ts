@@ -342,7 +342,7 @@ async function generateAIAssessment(db: any, claimId: number, tenantId: string) 
 
   if (!claim) return;
 
-  // Generate AI assessment based on claim confidence score
+  // Generate KINGA assessment based on claim confidence score
   const confidenceScore = claim.confidenceScore || 0.5;
   let routingRecommendation: string;
 
@@ -402,13 +402,13 @@ async function generateAuditTrail(db: any, claimId: number, tenantId: string, us
     createdAt: claim.createdAt,
   });
 
-  // Entry 2: AI assessment completed
+  // Entry 2: KINGA assessment completed
   entries.push({
     tenantId,
     claimId,
     userId: null,
     actionType: "AI_ASSESSMENT_COMPLETED",
-    actionDescription: `AI assessment completed with confidence score ${claim.confidenceScore?.toFixed(2)}`,
+    actionDescription: `KINGA assessment completed with confidence score ${claim.confidenceScore?.toFixed(2)}`,
     actor: "SYSTEM",
     metadata: JSON.stringify({
       confidence_score: claim.confidenceScore,

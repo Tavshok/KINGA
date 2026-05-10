@@ -72,7 +72,7 @@ function useThemeColors() {
 // ─── 1. COST BENCHMARK DEVIATION ─────────────────────────────────────────────
 
 export interface CostBenchmarkData {
-  /** Learning benchmark (AI estimate) */
+  /** Learning benchmark (KINGA estimate) */
   benchmarkUsd: number;
   /** Reconciled total (agreed / quoted cost) */
   reconciledUsd: number;
@@ -353,8 +353,8 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
   // Filter out non-vehicle images entirely — they are background/document images
   // that contribute nothing to damage analysis and should not appear in the report.
   // Two-layer check:
-  //   1. Explicit flag: r.isNonVehicle (set by AI pipeline when is_non_vehicle === true)
-  //   2. Text-pattern check: AI vision description indicates a document/form/text image
+  //   1. Explicit flag: r.isNonVehicle (set by KINGA pipeline when is_non_vehicle === true)
+  //   2. Text-pattern check: KINGA vision description indicates a document/form/text image
   //      rather than a photograph of vehicle damage
   const isDocumentImage = (text: string): boolean => {
     if (!text) return false;
@@ -393,7 +393,7 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
       {vehicleResults.map((r, i) => {
         const manipPct = Math.round(r.manipulationScore);
 
-        // Bullet 1: Observation — first 2 clean sentences from AI vision description
+        // Bullet 1: Observation — first 2 clean sentences from KINGA vision description
         // Check for non-vehicle image or LLM refusal before processing
         const rawVisionText = r.aiVisionDescription ?? '';
         const isRefusal = false; // non-vehicle images already filtered out above

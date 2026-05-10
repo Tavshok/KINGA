@@ -2,7 +2,7 @@
 /**
  * AI Re-Analysis Router
  *
- * Allows all insurer roles to run AI analysis on accessible claims for review purposes.
+ * Allows all insurer roles to run KINGA analysis on accessible claims for review purposes.
  * Wired to the REAL triggerAiAssessment pipeline (db.ts) — not a mock.
  */
 
@@ -21,7 +21,7 @@ const db = getDb();
  */
 export const aiReanalysisRouter = router({
   /**
-   * Re-run AI analysis on a claim
+   * Re-run KINGA analysis on a claim
    *
    * Access: All insurer roles (claims_processor, assessor_internal, risk_manager, claims_manager, executive)
    * Validation:
@@ -127,7 +127,7 @@ export const aiReanalysisRouter = router({
         });
       }
 
-      // 7. Get original AI assessment (most recent)
+      // 7. Get original KINGA assessment (most recent)
       const [originalAssessment] = await db
         .select()
         .from(aiAssessments)
@@ -201,7 +201,7 @@ export const aiReanalysisRouter = router({
     }),
 
   /**
-   * Get AI assessment version history for a claim
+   * Get KINGA assessment version history for a claim
    */
   getVersionHistory: protectedProcedure
     .input(
@@ -254,7 +254,7 @@ export const aiReanalysisRouter = router({
     }),
 
   /**
-   * Compare two AI assessment versions
+   * Compare two KINGA assessment versions
    */
   compareVersions: protectedProcedure
     .input(

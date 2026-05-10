@@ -169,7 +169,7 @@ export default function InsuranceDashboard() {
             <EmptyState
               icon={Shield}
               title="No Active Policies"
-              description="Get started by requesting a quote for your vehicle. Our AI-powered system will provide instant pricing."
+              description="Get started by requesting a quote for your vehicle. Our KINGA-powered system will provide instant pricing."
               actionLabel="Get a Quote"
               onAction={() => setLocation("/insurance/quote")}
             />

@@ -721,7 +721,7 @@ function RegistryList() {
               <Car className="mx-auto h-12 w-12 mb-3 opacity-30" />
               <p>No vehicles found.</p>
               <p className="text-xs mt-1">
-                Vehicles are automatically registered when AI assessments are completed.
+                Vehicles are automatically registered when KINGA assessments are completed.
               </p>
             </div>
           ) : (

@@ -147,7 +147,7 @@ export function RecoveryPerformanceTab() {
   </style>
 </head>
 <body>
-  <h1>KINGA AutoVerify AI — Subrogation Recovery Performance Report</h1>
+  <h1>KINGA Intelligence — Subrogation Recovery Performance Report</h1>
   <p class="meta">Generated: ${reportDate} &nbsp;|&nbsp; DRAFT — For internal use only</p>
 
   <h2>Portfolio Summary</h2>
@@ -212,7 +212,7 @@ export function RecoveryPerformanceTab() {
   </table>` : ""}
 
   <div class="footer">
-    KINGA AutoVerify AI &nbsp;|&nbsp; Subrogation Recovery Module &nbsp;|&nbsp; DRAFT — Confidential &nbsp;|&nbsp; ${reportDate}
+    KINGA Intelligence &nbsp;|&nbsp; Subrogation Recovery Module &nbsp;|&nbsp; DRAFT — Confidential &nbsp;|&nbsp; ${reportDate}
   </div>
 </body>
 </html>`;

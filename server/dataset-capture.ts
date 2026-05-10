@@ -137,14 +137,14 @@ export async function captureClaimIntelligenceDataset(
     }
     const claim = claimResult[0];
     
-    // 2. Fetch AI assessment
+    // 2. Fetch KINGA assessment
     const aiAssessmentResult = await db.select()
       .from(aiAssessments)
       .where(eq(aiAssessments.claimId, claimId))
       .limit(1);
     
     if (aiAssessmentResult.length === 0) {
-      console.warn(`No AI assessment found for claim ${claimId}, skipping dataset capture`);
+      console.warn(`No KINGA assessment found for claim ${claimId}, skipping dataset capture`);
       return;
     }
     

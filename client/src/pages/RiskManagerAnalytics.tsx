@@ -485,7 +485,7 @@ async function exportMultiPagePDF(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
-    doc.text(`KINGA AutoVerify AI  ·  Risk Manager Analytics  ·  ${rangeLabel}  ·  Tenant: ${tenantId ?? "Enterprise"}  ·  ${dateStr}`, M, y);
+    doc.text(`KINGA Intelligence  ·  Risk Manager Analytics  ·  ${rangeLabel}  ·  Tenant: ${tenantId ?? "Enterprise"}  ·  ${dateStr}`, M, y);
     doc.text(`Page ${pageNum} of ${total}`, W - M, y, { align: "right" });
     doc.setTextColor(0, 0, 0);
   }
@@ -615,7 +615,7 @@ async function exportMultiPagePDF(
     {
       key: "chart-fraud",
       title: "Fraud Flag Rate by Claim Type",
-      subtitle: "Low / Medium / High AI fraud risk level distribution",
+      subtitle: "Low / Medium / High KINGA fraud risk level distribution",
       insight: "A high proportion of 'High' risk flags in any incident category warrants targeted investigation. This data feeds directly into the portfolio fraud exposure score.",
     },
     {

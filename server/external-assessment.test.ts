@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from "fs";
  * 2. PDF pages are extracted as images
  * 3. Images are uploaded to S3
  * 4. Claim is created with damage photos
- * 5. AI assessment is automatically triggered
+ * 5. KINGA assessment is automatically triggered
  *
  * ─── FIXTURE-DEPENDENT TESTS ────────────────────────────────────────────────
  * Two tests below are guarded with `it.skipIf(!pdfExists)`. They are

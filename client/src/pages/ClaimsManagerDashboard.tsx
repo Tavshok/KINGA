@@ -492,7 +492,7 @@ export default function ClaimsManagerDashboard() {
                 <Card className="border-0 shadow-sm">
                   <CardHeader className="pb-2 pt-4 px-4">
                     <CardTitle className="text-sm font-semibold">KINGA Savings Identified</CardTitle>
-                    <p className="text-xs text-muted-foreground">AI estimate vs final approved</p>
+                    <p className="text-xs text-muted-foreground">KINGA estimate vs final approved</p>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
                     {managerOverview?.kpis?.totalSavings !== undefined ? (
@@ -735,7 +735,7 @@ export default function ClaimsManagerDashboard() {
                           <Eye className="h-4 w-4 mr-2" />
                           Review Details
                         </Button>
-                        {/* Per-claim AI Assessment Report — scoped to this specific claim */}
+                        {/* Per-claim KINGA Assessment Report — scoped to this specific claim */}
                         <KingaReportButton
                           reportKey="claim.assessment"
                           params={{ claimId: claim.id }}
@@ -865,7 +865,7 @@ export default function ClaimsManagerDashboard() {
                   </h3>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="bg-white dark:bg-card rounded p-2">
-                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">AI Estimate</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">KINGA Estimate</p>
                       <p className="text-lg font-bold text-teal-700 dark:text-teal-300">
                         {comparisonData.aiCost ? fmt(comparisonData.aiCost * 100) : "N/A"}
                       </p>
@@ -877,7 +877,7 @@ export default function ClaimsManagerDashboard() {
                       </p>
                       {comparisonData.aiVsAssessor !== null && (
                         <p className={`text-xs ${Math.abs(comparisonData.aiVsAssessor) > 15 ? "text-red-600 font-semibold" : "text-green-600"}`}>
-                          {comparisonData.aiVsAssessor > 0 ? "+" : ""}{comparisonData.aiVsAssessor.toFixed(1)}% vs AI
+                          {comparisonData.aiVsAssessor > 0 ? "+" : ""}{comparisonData.aiVsAssessor.toFixed(1)}% vs KINGA
                         </p>
                       )}
                     </div>
@@ -1015,7 +1015,7 @@ export default function ClaimsManagerDashboard() {
                   id="sendBackComments"
                   value={sendBackComments}
                   onChange={(e) => setSendBackComments(e.target.value)}
-                  placeholder="Explain what needs to be reviewed or corrected (e.g., 'Cost estimates have high variance — please verify assessor evaluation against AI analysis')"
+                  placeholder="Explain what needs to be reviewed or corrected (e.g., 'Cost estimates have high variance — please verify assessor evaluation against KINGA analysis')"
                   rows={6}
                 />
               </div>

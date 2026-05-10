@@ -1,13 +1,13 @@
 /**
  * AiIntelligenceSummaryCard
  *
- * A compact, read-only card that surfaces the key AI intelligence signals
+ * A compact, read-only card that surfaces the key KINGA intelligence signals
  * already stored in the database for a given claim.  It is placed above the
  * quotes comparison table in InsurerComparisonView.
  *
  * Data sources consumed (all read-only):
  *   - aiAssessment.damagedComponentsJson   — detected components
- *   - aiAssessment.confidenceScore         — AI confidence %
+ *   - aiAssessment.confidenceScore         — KINGA confidence %
  *   - aiAssessment.fraudRiskLevel          — fraud risk indicator
  *   - aiAssessment.structuralDamageSeverity — repair complexity proxy
  *   - panel beater quotes array            — quote spread + median
@@ -241,7 +241,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <Brain className="h-5 w-5 text-primary" />
-          AI Intelligence Summary
+          KINGA Intelligence Summary
           {aiAssessment.totalLossIndicated === 1 && (
             <Badge variant="destructive" className="ml-2 text-xs">TOTAL LOSS INDICATED</Badge>
           )}
@@ -271,7 +271,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
                 return (
                   <>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">{hasBenchmark ? 'Document Quote' : 'AI Estimated Total'}</span>
+                      <span className="text-muted-foreground">{hasBenchmark ? 'Document Quote' : 'KINGA Estimated Total'}</span>
                       <span className="font-semibold text-primary">{formatAmount(docCost)}</span>
                     </div>
                     {hasBenchmark && (
@@ -310,7 +310,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
                   <span className="font-medium">{formatAmount(laborCost)}</span>
                 </div>
               )}
-              {/* AI estimate source badge */}
+              {/* KINGA estimate source badge */}
               {(() => {
                 const ci2 = (() => { try { return aiAssessment.costIntelligenceJson ? JSON.parse(aiAssessment.costIntelligenceJson) : null; } catch { return null; } })();
                 const src = ci2?.aiEstimateSource as string | undefined;
@@ -385,10 +385,10 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
             </div>
           </div>
 
-          {/* Section 3: AI Confidence — full breakdown panel */}
+          {/* Section 3: KINGA Confidence — full breakdown panel */}
           <div className="space-y-2 col-span-full lg:col-span-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              AI Confidence
+              KINGA Confidence
             </p>
             <ConfidenceScorePanel
               confidenceScore={aiAssessment.confidenceScore ?? 0}

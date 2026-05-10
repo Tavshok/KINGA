@@ -191,7 +191,7 @@ export default function IntelligenceEnforcementPanel({ claimId }: Props) {
   if (!enforcement) {
     return (
       <div className="py-4 px-3 rounded-lg text-sm" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
-        No AI assessment available — run the AI pipeline first to generate enforcement analysis.
+        No KINGA assessment available — run the KINGA pipeline first to generate enforcement analysis.
       </div>
     );
   }

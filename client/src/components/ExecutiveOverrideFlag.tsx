@@ -17,7 +17,7 @@ interface ExecutiveOverrideInfo {
   overriddenByRole: string; // Executive role
   justification: string; // Override justification
   overriddenAt: Date | string; // Override timestamp
-  originalDecision: string; // Original AI decision
+  originalDecision: string; // Original KINGA decision
   newDecision: string; // New decision after override
 }
 

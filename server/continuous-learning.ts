@@ -8,7 +8,7 @@
  * 
  * This module:
  * 1. Monitors claim status changes (completed/approved)
- * 2. Extracts relevant data from the live claim + AI assessment
+ * 2. Extracts relevant data from the live claim + KINGA assessment
  * 3. Creates a historical claim record with all extracted data
  * 4. Generates variance datasets for benchmarking
  * 5. Logs AI predictions for accuracy tracking
@@ -55,7 +55,7 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
       return { success: false, message: `Claim ${claimId} has no tenant` };
     }
 
-    // Fetch AI assessment data if available
+    // Fetch KINGA assessment data if available
     let aiAssessment: any = null;
     try {
       const [assessment] = await db
@@ -64,10 +64,10 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
         .where(eq(aiAssessments.claimId, claimId));
       aiAssessment = assessment;
     } catch {
-      // No AI assessment — continue without it
+      // No KINGA assessment — continue without it
     }
 
-    // Parse extended data from AI assessment
+    // Parse extended data from KINGA assessment
     let extendedData: any = {};
     try {
       if (aiAssessment?.rawResponse) {
@@ -105,7 +105,7 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
 
     const hcId = historicalClaim.id;
 
-    // Extract repair items from AI assessment extended data
+    // Extract repair items from KINGA assessment extended data
     const components = extendedData?.components || extendedData?.damagedComponents || [];
     for (const comp of components) {
       try {
@@ -126,7 +126,7 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
       }
     }
 
-    // Extract cost components from AI assessment
+    // Extract cost components from KINGA assessment
     const breakdown = extendedData?.costBreakdown || extendedData?.costAnalysis || {};
     if (breakdown.partsCost || breakdown.labourCost || breakdown.paintCost) {
       try {

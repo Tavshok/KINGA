@@ -206,7 +206,7 @@ describe("End-to-End System Integrity Test Suite", () => {
       });
       testClaimId = claim.insertId.toString();
       
-      // Store AI assessment
+      // Store KINGA assessment
       const [assessment] = await db.insert(aiAssessments).values({
         claimId: parseInt(testClaimId),
         fraudRiskLevel: extractedData.fraudRiskLevel,
@@ -298,7 +298,7 @@ describe("End-to-End System Integrity Test Suite", () => {
       );
       
       if (missingFields.length > 0) {
-        report.missingPersistence.push(...missingFields.map(f => `AI Assessment: ${f}`));
+        report.missingPersistence.push(...missingFields.map(f => `KINGA Assessment: ${f}`));
       }
       
       expect(true).toBe(true);
@@ -681,7 +681,7 @@ describe("End-to-End System Integrity Test Suite", () => {
       const startTime = performance.now();
       const db = await getDb();
       
-      // Verify AI assessment still exists
+      // Verify KINGA assessment still exists
       const [assessment] = await db
         .select()
         .from(aiAssessments)
@@ -701,7 +701,7 @@ describe("End-to-End System Integrity Test Suite", () => {
       );
       
       if (!passed) {
-        report.missingPersistence.push("AI Assessment data");
+        report.missingPersistence.push("KINGA Assessment data");
       }
       
       expect(passed).toBe(true);

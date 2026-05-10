@@ -160,7 +160,7 @@ function BulkUploadSection() {
             Upload Historical Assessment PDFs
           </CardTitle>
           <CardDescription>
-            Upload panel beater quotes, assessor reports, and police reports. The AI pipeline extracts structured data from each document to build your intelligence database.
+            Upload panel beater quotes, assessor reports, and police reports. The KINGA pipeline extracts structured data from each document to build your intelligence database.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -227,7 +227,7 @@ function BulkUploadSection() {
                 <div className="space-y-2">
                   <Progress value={65} className="h-2" />
                   <p className="text-sm text-muted-foreground text-center">
-                    Processing documents through AI pipeline...
+                    Processing documents through KINGA pipeline...
                   </p>
                 </div>
               )}

@@ -23,7 +23,7 @@ export interface ClaimDossierData {
   maintenanceHistory: any[];
   serviceQuotes: any[];
   damagePhotos: string[];
-  aiAssessment?: any; // AI assessment with physics analysis
+  aiAssessment?: any; // KINGA assessment with physics analysis
 }
 
 /**
@@ -90,7 +90,7 @@ export async function fetchClaimDossierData(claimId: number, tenantId: string): 
     }
   }
 
-  // Fetch AI assessment with physics analysis
+  // Fetch KINGA assessment with physics analysis
   const { aiAssessments } = await import('../drizzle/schema');
   const aiAssessment = await db.query.aiAssessments.findFirst({
     where: and(
@@ -117,7 +117,7 @@ export async function fetchClaimDossierData(claimId: number, tenantId: string): 
 export function generateClaimDossierHTML(data: ClaimDossierData): string {
   const { claim, vehicle, fleet, maintenanceHistory, damagePhotos, aiAssessment } = data;
   
-  // Parse physics analysis from AI assessment
+  // Parse physics analysis from KINGA assessment
   let physicsAnalysis: any = null;
   let forensicMode = 'LEGACY';
   

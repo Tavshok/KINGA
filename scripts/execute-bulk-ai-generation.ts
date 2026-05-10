@@ -143,7 +143,7 @@ async function verifyCoverage(): Promise<{ totalAssessments: number; totalClaims
 async function main() {
   console.log("═══════════════════════════════════════════════════════");
   console.log("  BULK AI ASSESSMENT GENERATION");
-  console.log("  KINGA - AutoVerify AI");
+  console.log("  KINGA Intelligence");
   console.log("═══════════════════════════════════════════════════════\n");
 
   const BATCH_SIZE = 5;

@@ -347,7 +347,7 @@ describe("external_narrative — Stage 22 hardened rules", () => {
     ["fraud score",       /\bfraud score\b/i],
     ["risk score",        /\brisk score\b/i],
     ["penalty",           /\bpenalty\b/i],
-    ["AI analysis",       /\bai analysis\b/i],
+    ["KINGA analysis",       /\bai analysis\b/i],
     ["investigat",        /\binvestigat/i],
   ];
 

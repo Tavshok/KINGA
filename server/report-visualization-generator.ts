@@ -98,7 +98,7 @@ function generateConfidenceGauge(
   return {
     type: "gauge",
     value: confidenceScore,
-    label: "AI Assessment Confidence",
+    label: "KINGA Assessment Confidence",
     thresholds: {
       low: 60,
       medium: 80,
@@ -222,14 +222,14 @@ function generateWorkflowTimeline(
     notes: "Claim submitted",
   });
 
-  // AI assessment
+  // KINGA assessment
   if (intelligence.aiAssessment) {
     events.push({
       id: "2",
       timestamp: intelligence.aiAssessment.createdAt,
       status: "AI Assessed",
       actor: "AI System",
-      notes: "AI assessment completed",
+      notes: "KINGA assessment completed",
     });
   }
 

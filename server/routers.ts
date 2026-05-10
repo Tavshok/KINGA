@@ -568,7 +568,7 @@ export const appRouter = router({
         };
       }),
 
-    // Upload external assessment document for AI analysis
+    // Upload external assessment document for KINGA analysis
     uploadExternalAssessment: protectedProcedure
       .input(z.object({
         fileName: z.string(),
@@ -578,7 +578,7 @@ export const appRouter = router({
         try {
           console.log(`📤 Processing external assessment: ${input.fileName}`);
           
-          // Use enhanced assessment processor with AI analysis
+          // Use enhanced assessment processor with KINGA analysis
           const result = await processExternalAssessment(input.fileName, input.fileData);
           
           console.log(`✅ Assessment processed successfully`);
@@ -1013,7 +1013,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
    * - Retrieval by various filters (status, assessor, claimant)
    * - Policy verification by insurers
    * - Assessor assignment
-   * - AI assessment triggering
+   * - KINGA assessment triggering
    */
   claims: router({
     /**
@@ -1074,7 +1074,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
      * @param incidentLocation - Location where incident occurred
      * @param damagePhotos - Array of S3 URLs for damage photos
      * @param policyNumber - Insurance policy number
-     * @param triggerAI - Whether to immediately trigger AI assessment
+     * @param triggerAI - Whether to immediately trigger KINGA assessment
      * @returns Claim number and ID
      */
     createOnBehalfOf: protectedProcedure
@@ -1159,7 +1159,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           changeDescription: `Claim ${claimNumber} created by processor on behalf of ${input.claimantName}`,
         });
         
-        // Fire-and-forget: trigger AI assessment without blocking the HTTP response
+        // Fire-and-forget: trigger KINGA assessment without blocking the HTTP response
         if (input.triggerAI && input.damagePhotos.length > 0) {
           triggerAiAssessment(newClaim.id).catch((err: unknown) => {
             console.error(`[AI] Background assessment failed for claim ${newClaim.id}:`, err);
@@ -1323,7 +1323,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           userRole: ctx.user.role,
         });
 
-        // Fire-and-forget: trigger AI assessment without blocking the HTTP response
+        // Fire-and-forget: trigger KINGA assessment without blocking the HTTP response
         if (input.damagePhotos && input.damagePhotos.length > 0) {
           triggerAiAssessment(newClaim.id).catch((err: unknown) => {
             console.error(`[AI] Background assessment failed for claim ${newClaim.id}:`, err);
@@ -2669,7 +2669,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     /**
      * Trigger AI Damage Assessment
      * 
-     * Initiates automated AI analysis of damage photos to estimate repair costs
+     * Initiates automated KINGA analysis of damage photos to estimate repair costs
      * and detect potential fraud indicators.
      * 
      * @requires Authentication (Any role can trigger for oversight)
@@ -2741,7 +2741,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           console.warn(`[AI] Pre-flight status update failed for claim ${input.claimId} (non-fatal):`, preflightErr);
         }
 
-        // Fire-and-forget: run the AI assessment asynchronously so the HTTP
+        // Fire-and-forget: run the KINGA assessment asynchronously so the HTTP
         // mutation response returns immediately (avoids 15-45 s LLM timeout).
         // The frontend polls aiAssessments.byClaim every 5 s until a result
         // appears (see InsurerComparisonView / ClaimRiskIndicators).
@@ -2750,12 +2750,12 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         triggerAiAssessment(input.claimId)
           .then(async () => {
             try {
-              // Now the AI assessment record exists — safe to read and notify
+              // Now the KINGA assessment record exists — safe to read and notify
               const claim = await getClaimById(input.claimId, asyncTenantId);
               const aiAssessment = await getAiAssessmentByClaimId(input.claimId, asyncTenantId);
 
               if (claim && aiAssessment) {
-                // Send email notification about AI assessment completion
+                // Send email notification about KINGA assessment completion
                 await notifyAiAssessmentComplete({
                   claimId: input.claimId,
                   recipientEmail: asyncUserEmail,
@@ -2772,7 +2772,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                   await createNotification({
                     userId: asyncUserId,
                     title: "\u26a0\ufe0f High Fraud Risk Detected",
-                    message: `AI assessment flagged claim ${claim.claimNumber} as high fraud risk. Immediate review recommended.`,
+                    message: `KINGA assessment flagged claim ${claim.claimNumber} as high fraud risk. Immediate review recommended.`,
                     type: "fraud_detected",
                     claimId: input.claimId,
                     entityType: "ai_assessment",
@@ -2783,7 +2783,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                 } else {
                   await createNotification({
                     userId: asyncUserId,
-                    title: "AI Assessment Complete",
+                    title: "KINGA Assessment Complete",
                     message: `AI damage assessment completed for claim ${claim.claimNumber}. Estimated cost: $${(aiAssessment.estimatedCost || 0).toFixed(2)}`,
                     type: "assessment_completed",
                     claimId: input.claimId,
@@ -2840,13 +2840,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             }
           });
         
-        // Create audit entry for manual AI assessment trigger (immediate — before async job)
+        // Create audit entry for manual KINGA assessment trigger (immediate — before async job)
         await createAuditEntry({
           claimId: input.claimId,
           userId: ctx.user.id,
           action: "ai_assessment_triggered",
           entityType: "ai_assessment",
-          changeDescription: `AI assessment manually triggered by ${ctx.user.role}${input.reason ? `: ${input.reason}` : ''}`,
+          changeDescription: `KINGA assessment manually triggered by ${ctx.user.role}${input.reason ? `: ${input.reason}` : ''}`,
         });
 
         return { success: true };
@@ -2890,7 +2890,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           changeDescription: `Claim manually reset from stuck AI processing state by ${ctx.user.role}`,
         });
 
-        console.log(`[AI Assessment] Claim ${input.claimId} manually reset to intake_pending by user ${ctx.user.id} (${ctx.user.role})`);
+        console.log(`[KINGA Assessment] Claim ${input.claimId} manually reset to intake_pending by user ${ctx.user.id} (${ctx.user.role})`);
         return { success: true };
       }),
 
@@ -3108,7 +3108,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         // Insert repair intelligence record (non-blocking)
         import('./repair-history').then(({ insertRepairHistory, updateRepairerAggregates }) => {
-          // Parse damaged components from the claim's AI assessment
+          // Parse damaged components from the claim's KINGA assessment
           let componentsRepaired: { name: string; zone?: string | null }[] = [];
           try {
             if (claim.damagedComponentsJson) {
@@ -3471,7 +3471,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Only assessors, insurers, and admins may accept constraints' });
         }
         const assessment = await getAiAssessmentByClaimId(input.claimId);
-        if (!assessment) throw new TRPCError({ code: 'NOT_FOUND', message: 'No AI assessment found for this claim' });
+        if (!assessment) throw new TRPCError({ code: 'NOT_FOUND', message: 'No KINGA assessment found for this claim' });
 
         const existing: Record<string, any> = assessment.constraintOverridesJson
           ? JSON.parse(assessment.constraintOverridesJson)
@@ -3493,7 +3493,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }),
 
     /**
-     * Get all constraint overrides for a claim's AI assessment.
+     * Get all constraint overrides for a claim's KINGA assessment.
      * Returns the full override map keyed by constraintId.
      */
     getConstraintOverrides: protectedProcedure
@@ -3640,7 +3640,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         let finalCosts = 0;
 
         for (const claim of assessments) {
-          // Get AI assessment
+          // Get KINGA assessment
           const aiAssessment = await getAiAssessmentByClaimId(claim.id, tenantId);
           if (aiAssessment) {
             if (aiAssessment.fraudRiskLevel === "high") {
@@ -4414,7 +4414,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const db = await getDb();
         if (!db) throw new Error("Database not available");
 
-        // Load line items and AI assessment
+        // Load line items and KINGA assessment
         const lineItems = await getQuoteLineItemsByQuoteId(input.quoteId);
         if (lineItems.length === 0) return { success: false, reason: "No line items found" };
 
@@ -5195,7 +5195,7 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
         };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
         // Wrapped in try-catch: validation warnings are logged server-side but never block the UI.
-        // A TRPCError here causes the frontend to show "Run AI Assessment" for completed claims.
+        // A TRPCError here causes the frontend to show "Run KINGA Assessment" for completed claims.
         let contractValidated: typeof rawResponse;
         try {
           contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
@@ -6296,7 +6296,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
 
   /**
    * Vehicle Valuation Router
-   * Handles AI-powered vehicle market valuation
+   * Handles KINGA-powered vehicle market valuation
    */
   vehicleValuation: router({
     // Trigger vehicle valuation
@@ -6322,7 +6322,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           throw new Error(
             `Vehicle make and model are required for valuation. ` +
             `This claim has not yet had its vehicle details extracted from the PDF. ` +
-            `Please re-run the AI assessment first to extract vehicle details from the uploaded document.`
+            `Please re-run the KINGA assessment first to extract vehicle details from the uploaded document.`
           );
         }
         // Get assessor evaluation for repair cost
@@ -6463,7 +6463,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
       }),
 
     /**
-     * Stage 11 — Enrich damage photos with vision AI analysis.
+     * Stage 11 — Enrich damage photos with vision KINGA analysis.
      *
      * Runs per-image vision analysis on all uploaded damage photos for a claim,
      * assigns confidence scores, and cross-checks findings against the reported
@@ -6489,7 +6489,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         const db = await getDb();
         if (!db) throw new Error('Database not available');
 
-        // Load the claim and its latest AI assessment
+        // Load the claim and its latest KINGA assessment
         const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
         const { getAiAssessmentByClaimId, getClaimById } = await import('./db');
         const [assessment, claim] = await Promise.all([
@@ -6497,7 +6497,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           getClaimById(input.claimId, tenantId),
         ]);
 
-        if (!assessment) throw new Error('No AI assessment found for this claim');
+        if (!assessment) throw new Error('No KINGA assessment found for this claim');
         if (!claim) throw new Error('Claim not found');
 
         // Extract photo URLs from damagePhotosJson
@@ -6644,7 +6644,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
       .input(z.object({ claimId: z.number() }))
       .mutation(async ({ input, ctx }) => {
         const assessment = await getAiAssessmentByClaimId(input.claimId);
-        if (!assessment) throw new TRPCError({ code: 'NOT_FOUND', message: 'No AI assessment found for this claim' });
+        if (!assessment) throw new TRPCError({ code: 'NOT_FOUND', message: 'No KINGA assessment found for this claim' });
 
         const { runDamageConsistencyCheck } = await import('./services/damageConsistency');
 
@@ -6814,7 +6814,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
 
         const previousType = claim.incidentType;
 
-        // ── 1. Fetch AI assessment for re-validation context ──────────────
+        // ── 1. Fetch KINGA assessment for re-validation context ──────────────
         const aiAssessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
 
         // Extract damage zones from physics analysis if available

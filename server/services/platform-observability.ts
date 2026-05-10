@@ -101,7 +101,7 @@ export async function getClaimTrace(claimId: string) {
     return null;
   }
   
-  // Get AI assessment data
+  // Get KINGA assessment data
   const aiAssessmentData = await db
     .select()
     .from(aiAssessments)
@@ -186,7 +186,7 @@ export async function getClaimTrace(claimId: string) {
 
 /**
  * Get AI confidence score breakdown for a claim
- * Platform super admin only - detailed AI analysis
+ * Platform super admin only - detailed KINGA analysis
  */
 export async function getAIConfidenceBreakdown(claimId: string) {
   const db = await getDb();

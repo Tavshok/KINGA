@@ -223,9 +223,9 @@ export async function transition(request: TransitionRequest): Promise<Transition
   }
 
   // ============================================
-  // VALIDATION LAYER 4.5: AI Assessment Prerequisite Guard
+  // VALIDATION LAYER 4.5: KINGA Assessment Prerequisite Guard
   // ============================================
-  // Claims MUST have a completed AI assessment before advancing past under_assessment.
+  // Claims MUST have a completed KINGA assessment before advancing past under_assessment.
   // This prevents repairs being authorised without fraud scores or validated cost estimates.
   // Executive override bypasses this guard for exceptional manual progressions.
   const AI_ASSESSMENT_REQUIRED_STATES: WorkflowState[] = [
@@ -245,7 +245,7 @@ export async function transition(request: TransitionRequest): Promise<Transition
       throw new TRPCError({
         code: "PRECONDITION_FAILED",
         message:
-          `Cannot advance claim ${claimId} to "${toState}": no AI assessment record found. ` +
+          `Cannot advance claim ${claimId} to "${toState}": no KINGA assessment record found. ` +
           `The claim must complete AI processing before progressing to this stage. ` +
           `Use an executive override if manual progression is required.`,
       });

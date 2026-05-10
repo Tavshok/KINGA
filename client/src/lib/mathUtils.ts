@@ -21,7 +21,7 @@ export function clamp(value: number, min: number, max: number): number {
 }
 
 /**
- * Confidence level thresholds for AI assessments
+ * Confidence level thresholds for KINGA assessments
  */
 export const CONFIDENCE_THRESHOLDS = {
   HIGH: 0.85,
@@ -41,10 +41,10 @@ export interface ConfidenceColorConfig {
 }
 
 /**
- * Returns semantic color configuration based on AI confidence score.
+ * Returns semantic color configuration based on KINGA confidence score.
  * 
  * Confidence Levels:
- * - High (>0.85): Green - High confidence in AI assessment
+ * - High (>0.85): Green - High confidence in KINGA assessment
  * - Medium (0.6-0.85): Amber - Moderate confidence, review recommended
  * - Low (<0.6): Red - Low confidence, manual verification required
  * 

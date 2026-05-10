@@ -119,7 +119,7 @@ export async function replayRoutingDecision(
     isSimulated: true,
   });
   
-  // Step 2: AI assessment
+  // Step 2: KINGA assessment
   simulatedWorkflowSteps.push({
     step: "ai_assessment",
     timestamp: new Date(now.getTime() + 1000),

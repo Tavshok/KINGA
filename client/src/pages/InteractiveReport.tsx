@@ -153,7 +153,7 @@ export default function InteractiveReport() {
                   R{intelligence.costComparison?.aiEstimate?.toLocaleString() || "0"}
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  AI Assessment
+                  KINGA Assessment
                 </p>
               </Card>
               
@@ -214,7 +214,7 @@ export default function InteractiveReport() {
                 <h3 className="font-semibold mb-3">AI vs Assessor Estimate</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="border rounded-lg p-4">
-                    <div className="text-sm text-muted-foreground mb-1">AI Estimate</div>
+                    <div className="text-sm text-muted-foreground mb-1">KINGA Estimate</div>
                     <div className="text-2xl font-bold">
                       R{intelligence.costComparison?.aiEstimate?.toLocaleString() || "0"}
                     </div>

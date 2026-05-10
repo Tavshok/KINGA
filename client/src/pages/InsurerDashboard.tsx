@@ -127,7 +127,7 @@ export default function InsurerDashboard() {
           <CardHeader>
             <CardTitle>Claims Overview</CardTitle>
             <CardDescription>
-              Manage and triage insurance claims with AI-powered fraud detection
+              Manage and triage insurance claims with KINGA-powered fraud detection
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -3,7 +3,7 @@
  *
  * Pipeline Execution State Machine — KINGA Pipeline Integrity Layer
  *
- * Tracks the execution state of a single AI assessment pipeline run.
+ * Tracks the execution state of a single KINGA assessment pipeline run.
  * Enforces allowed state transitions and routes to FLAGGED_EXCEPTION
  * when a critical stage fails.
  *

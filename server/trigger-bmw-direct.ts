@@ -11,7 +11,7 @@ import { triggerAiAssessment } from './db';
 const CLAIM_ID = 4320104;
 
 async function main() {
-  console.log(`[BMW] Triggering AI assessment pipeline for claim ${CLAIM_ID}...`);
+  console.log(`[BMW] Triggering KINGA assessment pipeline for claim ${CLAIM_ID}...`);
   console.log(`[BMW] Started at: ${new Date().toISOString()}`);
   
   try {

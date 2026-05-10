@@ -132,7 +132,7 @@ async function validateDashboard(dashboard: DashboardTest): Promise<{
 async function main() {
   console.log("═══════════════════════════════════════════════════════");
   console.log("  DASHBOARD VALIDATION");
-  console.log("  KINGA - AutoVerify AI");
+  console.log("  KINGA Intelligence");
   console.log("═══════════════════════════════════════════════════════\n");
 
   const results = [];

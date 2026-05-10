@@ -179,7 +179,7 @@ export default function MarketQuotesIngestion() {
   const uploadQuote = trpc.marketQuotes.uploadQuote.useMutation({
     onSuccess: () => {
       toast.success("Quote uploaded successfully", {
-        description: "AI extraction complete. Review the extracted data.",
+        description: "KINGA extraction complete. Review the extracted data.",
       });
       refetch();
       setUploading(false);

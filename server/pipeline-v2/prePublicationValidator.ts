@@ -245,7 +245,7 @@ export interface PrePublicationInput {
     incidentDate?: string | null;
     createdAt?: string | null;
   };
-  /** AI assessment record */
+  /** KINGA assessment record */
   aiAssessment: {
     fraudScore?: number | null;
     fraudScoreBreakdownJson?: any;

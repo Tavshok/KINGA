@@ -5,7 +5,7 @@
  * Governed AI rerun capability with role-based permissions, version control, and audit trail.
  * 
  * Permission Tiers:
- * - All insurer roles: Can trigger AI analysis (view-only, no routing changes)
+ * - All insurer roles: Can trigger KINGA analysis (view-only, no routing changes)
  * - Claims Manager + Executive: Can recalculate confidence scores and trigger routing reevaluation
  * 
  * Features:
@@ -26,7 +26,7 @@ import {
 } from "./notification-service";
 
 /**
- * Permission check: All insurer roles can trigger AI analysis
+ * Permission check: All insurer roles can trigger KINGA analysis
  */
 export function canTriggerAIAnalysis(userRole: string | null): boolean {
   const allowedRoles = [
@@ -49,9 +49,9 @@ export function canRecalculateConfidence(userRole: string | null): boolean {
 }
 
 /**
- * Trigger AI analysis rerun
+ * Trigger KINGA analysis rerun
  * 
- * Creates a new AI assessment version without changing claim routing.
+ * Creates a new KINGA assessment version without changing claim routing.
  * All insurer roles can trigger this operation.
  * 
  * @param claimId - Claim ID to analyze
@@ -59,7 +59,7 @@ export function canRecalculateConfidence(userRole: string | null): boolean {
  * @param userRole - User's insurer role
  * @param tenantId - Tenant ID for isolation
  * @param reason - Optional reason for rerun
- * @returns New AI assessment record
+ * @returns New KINGA assessment record
  */
 export async function triggerAIAnalysis(
   claimId: number,
@@ -75,7 +75,7 @@ export async function triggerAIAnalysis(
   if (!canTriggerAIAnalysis(userRole)) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Insufficient permissions to trigger AI analysis",
+      message: "Insufficient permissions to trigger KINGA analysis",
     });
   }
 
@@ -90,7 +90,7 @@ export async function triggerAIAnalysis(
     throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
   }
 
-  // Get previous AI assessment (if any)
+  // Get previous KINGA assessment (if any)
   const previousAssessments = await db
     .select()
     .from(aiAssessments)
@@ -101,7 +101,7 @@ export async function triggerAIAnalysis(
   const previousAssessment = previousAssessments[0];
   const versionNumber = previousAssessment ? previousAssessment.versionNumber + 1 : 1;
 
-  // TODO: Call actual AI analysis service here
+  // TODO: Call actual KINGA analysis service here
   // For now, create a placeholder assessment record
   const newAssessment = await db.insert(aiAssessments).values({
     claimId,
@@ -126,7 +126,7 @@ export async function triggerAIAnalysis(
     actorRole: userRole,
     previousState: claim[0].workflowState,
     newState: claim[0].workflowState, // No state change
-    reason: reason || `AI analysis rerun triggered by ${userRole}`,
+    reason: reason || `KINGA analysis rerun triggered by ${userRole}`,
     metadata: JSON.stringify({
       versionNumber,
       previousAssessmentId: previousAssessment?.id || null,
@@ -137,7 +137,7 @@ export async function triggerAIAnalysis(
   });
 
   console.log(
-    `[AI Rerun Service] Created AI assessment version ${versionNumber} for claim ${claimId}`
+    `[AI Rerun Service] Created KINGA assessment version ${versionNumber} for claim ${claimId}`
   );
 
   // Send governance notification to claims_manager and executive
@@ -186,7 +186,7 @@ export async function triggerAIAnalysis(
 /**
  * Recalculate confidence score
  * 
- * Recalculates the confidence score for a claim based on the latest AI assessment.
+ * Recalculates the confidence score for a claim based on the latest KINGA assessment.
  * Only claims_manager and executive can trigger this operation.
  * 
  * @param claimId - Claim ID to recalculate
@@ -223,7 +223,7 @@ export async function recalculateConfidenceScore(
     throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
   }
 
-  // Get latest AI assessment
+  // Get latest KINGA assessment
   const latestAssessments = await db
     .select()
     .from(aiAssessments)
@@ -232,7 +232,7 @@ export async function recalculateConfidenceScore(
     .limit(1);
 
   if (latestAssessments.length === 0) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "No AI assessment found for this claim" });
+    throw new TRPCError({ code: "NOT_FOUND", message: "No KINGA assessment found for this claim" });
   }
 
   const latestAssessment = latestAssessments[0];
@@ -403,14 +403,14 @@ export async function triggerRoutingReevaluation(
 }
 
 /**
- * Get AI analysis version history for a claim
+ * Get KINGA analysis version history for a claim
  * 
- * Returns all AI assessment versions for a claim, ordered by version number (descending).
+ * Returns all KINGA assessment versions for a claim, ordered by version number (descending).
  * All insurer roles can view version history.
  * 
  * @param claimId - Claim ID to query
  * @param tenantId - Tenant ID for isolation
- * @returns Array of AI assessment records
+ * @returns Array of KINGA assessment records
  */
 export async function getAIAnalysisVersionHistory(
   claimId: number,

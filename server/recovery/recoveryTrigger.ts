@@ -142,7 +142,7 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
       return;
     }
 
-    // 3. Load the latest AI assessment for this claim
+    // 3. Load the latest KINGA assessment for this claim
     const [assessment] = await db
       .select()
       .from(aiAssessments)

@@ -413,7 +413,7 @@ export default function InsurerQuoteComparison() {
             <CardHeader>
               <CardTitle>System Recommendation</CardTitle>
               <CardDescription>
-                AI-powered decision support based on cost, quality, and risk analysis
+                KINGA-powered decision support based on cost, quality, and risk analysis
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

@@ -156,7 +156,7 @@ export default function RelationshipIntelligence() {
           <div>
             <p className="font-semibold text-white mb-1">Entity registries are building</p>
             <p className="text-gray-400 text-sm">
-              Entity records are created automatically after each AI assessment completes. Run more assessments to populate the registries. Once 5+ entities exist per type, the ML anomaly detection will also activate.
+              Entity records are created automatically after each KINGA assessment completes. Run more assessments to populate the registries. Once 5+ entities exist per type, the ML anomaly detection will also activate.
             </p>
           </div>
         </div>

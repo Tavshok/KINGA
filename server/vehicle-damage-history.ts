@@ -5,7 +5,7 @@
  *   - mapComponentsToZone()   — derive the primary damage zone from a list of components
  *   - extractAffectedZones()  — collect all distinct zones from components
  *   - normaliseSeverity()     — map free-text severity to the enum set
- *   - insertDamageHistory()   — insert one record per AI assessment
+ *   - insertDamageHistory()   — insert one record per KINGA assessment
  *   - backfillRepairer()      — update repairer fields when a panel beater is selected
  *   - getDamageHistoryByVehicle()  — full history for a vehicle
  *   - getDamageHistoryByClaim()    — record(s) for a specific claim
@@ -310,7 +310,7 @@ export async function detectRepeatZone(
 export interface InsertDamageHistoryParams {
   vehicleId: number;
   claimId: number;
-  /** Raw component list from AI assessment. */
+  /** Raw component list from KINGA assessment. */
   damagedComponents: Array<{
     name: string;
     severity?: string | null;
@@ -339,7 +339,7 @@ export interface InsertDamageHistoryParams {
 }
 
 /**
- * Insert a vehicle_damage_history record after an AI assessment completes.
+ * Insert a vehicle_damage_history record after an KINGA assessment completes.
  * Automatically detects repeat zones and derives the primary zone from components.
  * Returns the inserted record's ID.
  */

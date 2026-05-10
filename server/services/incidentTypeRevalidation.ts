@@ -10,7 +10,7 @@
  *        show rear damage, not front-only damage).
  *
  *   2. Damage Consistency Check
- *      - Checks whether the damage components listed in the AI assessment
+ *      - Checks whether the damage components listed in the KINGA assessment
  *        are plausible for the new incident type (e.g. hail damage should
  *        be distributed across the roof/bonnet/boot, not concentrated on
  *        one lateral panel).
@@ -230,7 +230,7 @@ function buildValidationPrompt(
   }
 
   if (input.aiAssessmentSummary) {
-    lines.push(`AI assessment summary: ${input.aiAssessmentSummary}`);
+    lines.push(`KINGA assessment summary: ${input.aiAssessmentSummary}`);
   }
 
   lines.push('');

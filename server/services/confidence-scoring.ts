@@ -139,11 +139,11 @@ async function calculateFraudRiskScore(claimId: number): Promise<number> {
 /**
  * Calculate AI damage detection certainty (0-100)
  * 
- * Uses the AI assessment confidence score directly
+ * Uses the KINGA assessment confidence score directly
  */
 async function calculateAICertainty(claimId: number): Promise<number> {
   const db = await getDb();
-  if (!db) return 0; // No AI assessment = no certainty
+  if (!db) return 0; // No KINGA assessment = no certainty
 
   const [assessment] = await db
     .select()

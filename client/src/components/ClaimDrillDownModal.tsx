@@ -45,7 +45,7 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
       claimId: "CLM-2024-001",
       timestamp: "2024-02-16 14:30",
       user: "Executive User",
-      action: "Override AI Rejection",
+      action: "Override KINGA Rejection",
       reason: "Customer loyalty consideration",
       previousState: "ai_rejected",
       newState: "technical_review",

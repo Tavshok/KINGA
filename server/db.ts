@@ -544,7 +544,7 @@ export async function updateClaimPolicyVerification(claimId: number, verified: b
 }
 
 /**
- * Trigger AI Assessment — Pipeline v2 (10-stage deterministic pipeline)
+ * Trigger KINGA Assessment — Pipeline v2 (10-stage deterministic pipeline)
  *
  * Runs the structured 10-stage pipeline:
  *   1. Document Ingestion
@@ -597,9 +597,9 @@ export async function triggerAiAssessment(claimId: number) {
   // if the new pipeline run fails partway through.
   try {
     const deletedCount = await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId));
-    console.log(`[AI Assessment] Claim ${claimId}: Deleted existing aiAssessments records before re-run.`);
+    console.log(`[KINGA Assessment] Claim ${claimId}: Deleted existing aiAssessments records before re-run.`);
   } catch (deleteErr) {
-    console.warn(`[AI Assessment] Claim ${claimId}: Could not delete existing aiAssessments (non-fatal):`, deleteErr);
+    console.warn(`[KINGA Assessment] Claim ${claimId}: Could not delete existing aiAssessments (non-fatal):`, deleteErr);
   }
 
   // Mark assessment as triggered and transition to 'parsing'.
@@ -610,7 +610,7 @@ export async function triggerAiAssessment(claimId: number) {
     documentProcessingStatus: "parsing",
     updatedAt: new Date().toISOString(),
   }).where(eq(claims.id, claimId));
-  console.log(`[AI Assessment] Claim ${claimId} — Pipeline v2 starting (clean slate).`);
+  console.log(`[KINGA Assessment] Claim ${claimId} — Pipeline v2 starting (clean slate).`);
 
   // This flag is set to true just before the success-path DB write.
   // The finally safety-net checks this flag before resetting the claim to
@@ -628,7 +628,7 @@ export async function triggerAiAssessment(claimId: number) {
   let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
   watchdogTimer = setTimeout(async () => {
     if (!pipelineSucceeded) {
-      console.error(`[AI Assessment] Claim ${claimId}: WATCHDOG TIMEOUT — pipeline hung for ${WATCHDOG_TIMEOUT_MS / 1000}s. Resetting to intake_pending.`);
+      console.error(`[KINGA Assessment] Claim ${claimId}: WATCHDOG TIMEOUT — pipeline hung for ${WATCHDOG_TIMEOUT_MS / 1000}s. Resetting to intake_pending.`);
       try {
         const dbInner = await getDb();
         if (dbInner) {
@@ -640,7 +640,7 @@ export async function triggerAiAssessment(claimId: number) {
           }).where(eq(claims.id, claimId));
         }
       } catch (wdErr: any) {
-        console.error(`[AI Assessment] Claim ${claimId}: Watchdog reset failed: ${wdErr.message}`);
+        console.error(`[KINGA Assessment] Claim ${claimId}: Watchdog reset failed: ${wdErr.message}`);
       }
     }
   }, WATCHDOG_TIMEOUT_MS);
@@ -673,12 +673,12 @@ export async function triggerAiAssessment(claimId: number) {
         // Encode the filename portion of the S3 URL to handle spaces, parentheses,
         // and other special characters that cause HTTP 400/403 errors from the LLM API.
         pdfUrl = encodeS3Filename(sourceDoc.s3Url);
-        console.log(`[AI Assessment] Claim ${claimId}: Using public S3 URL for LLM: ${sourceDoc.originalFilename}`);
+        console.log(`[KINGA Assessment] Claim ${claimId}: Using public S3 URL for LLM: ${sourceDoc.originalFilename}`);
       } else {
-        console.warn(`[AI Assessment] Claim ${claimId}: sourceDocumentId=${claim.sourceDocumentId} but no S3 URL found.`);
+        console.warn(`[KINGA Assessment] Claim ${claimId}: sourceDocumentId=${claim.sourceDocumentId} but no S3 URL found.`);
       }
     } catch (docErr: any) {
-      console.warn(`[AI Assessment] Claim ${claimId}: Failed to look up source document: ${docErr.message}`);
+      console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to look up source document: ${docErr.message}`);
     }
   }
 
@@ -696,7 +696,7 @@ export async function triggerAiAssessment(claimId: number) {
     const extUrl = claim.externalAssessmentUrl;
     if (extUrl.endsWith('.pdf') || extUrl.includes('.pdf?') || extUrl.includes('application/pdf')) {
       pdfUrl = encodeS3Filename(extUrl);
-      console.log(`[AI Assessment] Claim ${claimId}: Using externalAssessmentUrl as PDF source: ${pdfUrl.substring(0, 100)}`);
+      console.log(`[KINGA Assessment] Claim ${claimId}: Using externalAssessmentUrl as PDF source: ${pdfUrl.substring(0, 100)}`);
     }
   }
 
@@ -706,7 +706,7 @@ export async function triggerAiAssessment(claimId: number) {
   // to create a placeholder instead of running. The LLM's 45s per-call timeout is
   // sufficient protection against truly inaccessible URLs.
   if (pdfUrl) {
-    console.log(`[AI Assessment] Claim ${claimId}: PDF URL ready — proceeding with LLM extraction: ${pdfUrl.substring(0, 100)}...`);
+    console.log(`[KINGA Assessment] Claim ${claimId}: PDF URL ready — proceeding with LLM extraction: ${pdfUrl.substring(0, 100)}...`);
   }
 
   // ── PERMANENT FIX: PDF image re-extraction ──────────────────────────
@@ -725,7 +725,7 @@ export async function triggerAiAssessment(claimId: number) {
     let _qualitySummary: any = null;
     let _isScannedPdf = false;
     try {
-      console.log(`[AI Assessment] Claim ${claimId}: No cached photos — extracting images from PDF: ${pdfUrl}`);
+      console.log(`[KINGA Assessment] Claim ${claimId}: No cached photos — extracting images from PDF: ${pdfUrl}`);
       const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
       // Use native fetch with AbortController (node-fetch v3 removed timeout option)
       const pdfAbortController = new AbortController();
@@ -757,7 +757,7 @@ export async function triggerAiAssessment(claimId: number) {
         _extractedImagesWithMetadata = extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200);
         // Also keep flat URL array for backward compatibility
         damagePhotos = _extractedImagesWithMetadata.map((img: any) => img.url);
-        console.log(`[AI Assessment] Claim ${claimId}: Re-extracted ${damagePhotos.length} photo(s) from PDF (${extractedImages.length} total images found, scanned=${_isScannedPdf})`);
+        console.log(`[KINGA Assessment] Claim ${claimId}: Re-extracted ${damagePhotos.length} photo(s) from PDF (${extractedImages.length} total images found, scanned=${_isScannedPdf})`);
         // Persist extracted photos to claim record so future re-runs skip this step
         if (damagePhotos.length > 0) {
           await db.update(claims).set({
@@ -767,11 +767,11 @@ export async function triggerAiAssessment(claimId: number) {
         }
       } else {
         _extractionError = `HTTP ${pdfResponse?.status ?? 'aborted'}`;
-        console.warn(`[AI Assessment] Claim ${claimId}: Failed to download PDF for image extraction: HTTP ${pdfResponse?.status ?? 'aborted'}`);
+        console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to download PDF for image extraction: HTTP ${pdfResponse?.status ?? 'aborted'}`);
       }
     } catch (imgErr: any) {
       _extractionError = imgErr.message;
-      console.warn(`[AI Assessment] Claim ${claimId}: PDF image re-extraction failed (non-fatal): ${imgErr.message}`);
+      console.warn(`[KINGA Assessment] Claim ${claimId}: PDF image re-extraction failed (non-fatal): ${imgErr.message}`);
     }
     // Build structured photo ingestion log for the forensic report
     try {
@@ -813,11 +813,11 @@ export async function triggerAiAssessment(claimId: number) {
       const newUrls = uploadedPhotoUrls.filter((u: any) => !existing.has(u));
       if (newUrls.length > 0) {
         damagePhotos = [...damagePhotos, ...newUrls];
-        console.log(`[AI Assessment] Claim ${claimId}: Merged ${newUrls.length} uploaded damage photo(s) from claim_documents. Total: ${damagePhotos.length}`);
+        console.log(`[KINGA Assessment] Claim ${claimId}: Merged ${newUrls.length} uploaded damage photo(s) from claim_documents. Total: ${damagePhotos.length}`);
       }
     }
   } catch (docPhotoErr: any) {
-    console.warn(`[AI Assessment] Claim ${claimId}: Failed to merge claim_documents photos (non-fatal): ${docPhotoErr.message}`);
+    console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to merge claim_documents photos (non-fatal): ${docPhotoErr.message}`);
   }
   // ── IMAGE NORMALISATION LAYER ────────────────────────────────────────────
   // Guarantees a consistent image state before Stage 2.6 and Stage 6.
@@ -836,18 +836,18 @@ export async function triggerAiAssessment(claimId: number) {
   if (_extractedImagesWithMetadata.length > 0) {
     // Case A: fresh extraction — classifier will run on real metadata
     _imageNormSource = 'fresh_extraction';
-    console.log(`[AI Assessment] Claim ${claimId}: Image normalisation — fresh_extraction (${_extractedImagesWithMetadata.length} images with real metadata)`);
+    console.log(`[KINGA Assessment] Claim ${claimId}: Image normalisation — fresh_extraction (${_extractedImagesWithMetadata.length} images with real metadata)`);
   } else if (damagePhotos.length > 0) {
     // Case B: cache rehydration — bypass classifier, use trusted cached photos directly
     _imageNormSource = 'cache_rehydration';
     // Do NOT populate _extractedImagesWithMetadata — the orchestrator Stage 2.6 checks
     // imageNormSource and skips the classifier when source === 'cache_rehydration'.
-    console.log(`[AI Assessment] Claim ${claimId}: Image normalisation — cache_rehydration (${damagePhotos.length} trusted cached photos, classifier bypassed)`);
+    console.log(`[KINGA Assessment] Claim ${claimId}: Image normalisation — cache_rehydration (${damagePhotos.length} trusted cached photos, classifier bypassed)`);
   }
 
   // If we have neither a PDF nor photos, create a placeholder and return
   if (!pdfUrl && damagePhotos.length === 0) {
-    console.log(`[AI Assessment] Claim ${claimId}: No PDF and no damage photos. Creating placeholder.`);
+    console.log(`[KINGA Assessment] Claim ${claimId}: No PDF and no damage photos. Creating placeholder.`);
     await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch(() => {});
     await db.insert(aiAssessments).values({
       claimId,
@@ -878,11 +878,11 @@ export async function triggerAiAssessment(claimId: number) {
     if (claim.tenantId) {
       tenantRates = await getTenantRates(claim.tenantId);
       if (tenantRates) {
-        console.log(`[AI Assessment] Claim ${claimId}: Tenant rate overrides loaded — labour=$${tenantRates.labourRateUsdPerHour ?? 'default'}/hr, paint=$${tenantRates.paintCostPerPanelUsd ?? 'default'}/panel`);
+        console.log(`[KINGA Assessment] Claim ${claimId}: Tenant rate overrides loaded — labour=$${tenantRates.labourRateUsdPerHour ?? 'default'}/hr, paint=$${tenantRates.paintCostPerPanelUsd ?? 'default'}/panel`);
       }
     }
   } catch (rateErr) {
-    console.warn(`[AI Assessment] Claim ${claimId}: Failed to load tenant rates (non-fatal):`, rateErr);
+    console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to load tenant rates (non-fatal):`, rateErr);
   }
   const pipelineCtx = {
     claimId,
@@ -945,7 +945,7 @@ export async function triggerAiAssessment(claimId: number) {
       // CRITICAL: Must update documentProcessingStatus, status, and workflowState
       // to exit the transient 'parsing' state. Without this, the stuck recovery
       // job re-triggers the pipeline every 20 minutes (infinite loop).
-      console.error(`[AI Assessment] Claim ${claimId}: Pipeline incomplete — ${pipelineErr.message}`);
+      console.error(`[KINGA Assessment] Claim ${claimId}: Pipeline incomplete — ${pipelineErr.message}`);
       await db.update(claims).set({
         documentProcessingStatus: "failed",
         status: "intake_pending",
@@ -986,7 +986,7 @@ export async function triggerAiAssessment(claimId: number) {
   const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome, caseSignature, stage2RawOcrText, decisionAuthority, reportReadiness, forensicAnalysis } = result;
 
   // Diagnostic logging: show which pipeline outputs are populated vs null
-  console.log(`[AI Assessment] Claim ${claimId}: Pipeline result summary — ` +
+  console.log(`[KINGA Assessment] Claim ${claimId}: Pipeline result summary — ` +
     `claimRecord=${claimRecord ? 'YES' : 'NULL'}, ` +
     `damageAnalysis=${damageAnalysis ? 'YES' : 'NULL'}, ` +
     `physicsAnalysis=${physicsAnalysis ? 'YES' : 'NULL'}, ` +
@@ -1225,7 +1225,7 @@ export async function triggerAiAssessment(claimId: number) {
   // Total loss: repair cost ≥ 75% of vehicle market value
   const totalLossIndicated = (repairToValueRatio !== null && repairToValueRatio >= 75) ? 1 : 0;
   if (totalLossIndicated) {
-    console.log(`[AI Assessment] Claim ${claimId}: TOTAL LOSS indicated — repair $${estimatedCost} vs vehicle value $${vehicleMarketValueDollars?.toFixed(0)} (${repairToValueRatio}%)`);
+    console.log(`[KINGA Assessment] Claim ${claimId}: TOTAL LOSS indicated — repair $${estimatedCost} vs vehicle value $${vehicleMarketValueDollars?.toFixed(0)} (${repairToValueRatio}%)`);
   }
 
   // Stage 36: Run Forensic Audit Validator on the completed pipeline result
@@ -1238,10 +1238,10 @@ export async function triggerAiAssessment(claimId: number) {
     const { runForensicAuditValidation } = await import('./pipeline-v2/forensicAuditValidator');
     forensicAuditValidationResult = await runForensicAuditValidation(result as any);
     if (forensicAuditValidationResult) {
-      console.log(`[AI Assessment] Claim ${claimId}: Forensic audit validation complete — status=${forensicAuditValidationResult.overallStatus}, consistencyScore=${forensicAuditValidationResult.consistencyScore}, criticalFailures=${forensicAuditValidationResult.criticalFailures.length}`);
+      console.log(`[KINGA Assessment] Claim ${claimId}: Forensic audit validation complete — status=${forensicAuditValidationResult.overallStatus}, consistencyScore=${forensicAuditValidationResult.consistencyScore}, criticalFailures=${forensicAuditValidationResult.criticalFailures.length}`);
     }
   } catch (validatorErr: any) {
-    console.warn(`[AI Assessment] Claim ${claimId}: Forensic audit validator failed (non-fatal):`, validatorErr?.message ?? validatorErr);
+    console.warn(`[KINGA Assessment] Claim ${claimId}: Forensic audit validator failed (non-fatal):`, validatorErr?.message ?? validatorErr);
   }
 
   // ── NaN SANITIZER ──────────────────────────────────────────────────────────
@@ -1278,9 +1278,9 @@ export async function triggerAiAssessment(claimId: number) {
   }
 
   // Delete any previous assessment for this claim
-  console.log(`[AI Assessment] Claim ${claimId}: Deleting previous assessment and inserting new one...`);
+  console.log(`[KINGA Assessment] Claim ${claimId}: Deleting previous assessment and inserting new one...`);
   await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch((delErr) => {
-    console.warn(`[AI Assessment] Claim ${claimId}: Failed to delete previous assessment (non-fatal):`, delErr);
+    console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to delete previous assessment (non-fatal):`, delErr);
   });
 
   // Insert new assessment — sanitize the entire object to prevent NaN column errors
@@ -1554,7 +1554,7 @@ export async function triggerAiAssessment(claimId: number) {
       source: 'pipeline_extracted',
     }).then(async qid => {
       if (qid) {
-        console.log(`[AI Assessment] Claim ${claimId}: Extracted quote persisted → panel_beater_quotes id=${qid}`);
+        console.log(`[KINGA Assessment] Claim ${claimId}: Extracted quote persisted → panel_beater_quotes id=${qid}`);
         // Patch costIntelligenceJson so the Quote Coverage badge shows correctly
         try {
           const db2 = await getDb();
@@ -1572,15 +1572,15 @@ export async function triggerAiAssessment(claimId: number) {
                 await db2.update(aiAssessments)
                   .set({ costIntelligenceJson: JSON.stringify(ci) })
                   .where(eq(aiAssessments.id, latestRow[0].id));
-                console.log(`[AI Assessment] Claim ${claimId}: Patched costIntelligenceJson → documented_quote`);
+                console.log(`[KINGA Assessment] Claim ${claimId}: Patched costIntelligenceJson → documented_quote`);
               }
             }
           }
         } catch (patchErr) {
-          console.warn(`[AI Assessment] Claim ${claimId}: costIntelligenceJson patch failed (non-fatal):`, (patchErr as any)?.message);
+          console.warn(`[KINGA Assessment] Claim ${claimId}: costIntelligenceJson patch failed (non-fatal):`, (patchErr as any)?.message);
         }
       }
-    }).catch(e => console.warn(`[AI Assessment] Claim ${claimId}: Quote persistence failed (non-fatal):`, e?.message));
+    }).catch(e => console.warn(`[KINGA Assessment] Claim ${claimId}: Quote persistence failed (non-fatal):`, e?.message));
   }
 
   // Update claim status to complete + backfill vehicle info from extraction
@@ -1698,11 +1698,11 @@ export async function triggerAiAssessment(claimId: number) {
   // Clear the watchdog timer — pipeline completed successfully.
   if (watchdogTimer) { clearTimeout(watchdogTimer); watchdogTimer = null; }
 
-  console.log(`[AI Assessment] Claim ${claimId}: claimUpdate keys = ${Object.keys(claimUpdate).join(', ')}`);
+  console.log(`[KINGA Assessment] Claim ${claimId}: claimUpdate keys = ${Object.keys(claimUpdate).join(', ')}`);
   try {
     await db.update(claims).set(claimUpdate).where(eq(claims.id, claimId));
   } catch (claimUpdateErr: any) {
-    console.error(`[AI Assessment] CLAIM UPDATE FAILED for claim ${claimId} — attempting minimal fallback:`, claimUpdateErr?.message ?? claimUpdateErr);
+    console.error(`[KINGA Assessment] CLAIM UPDATE FAILED for claim ${claimId} — attempting minimal fallback:`, claimUpdateErr?.message ?? claimUpdateErr);
     // Fallback: write ONLY the essential status fields that cannot fail
     try {
       await db.update(claims).set({
@@ -1712,15 +1712,15 @@ export async function triggerAiAssessment(claimId: number) {
         pipelineCurrentStage: null,
         updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, claimId));
-      console.log(`[AI Assessment] Claim ${claimId}: Minimal fallback claim update succeeded.`);
+      console.log(`[KINGA Assessment] Claim ${claimId}: Minimal fallback claim update succeeded.`);
     } catch (fallbackErr: any) {
-      console.error(`[AI Assessment] Claim ${claimId}: Even minimal fallback failed:`, fallbackErr?.message ?? fallbackErr);
+      console.error(`[KINGA Assessment] Claim ${claimId}: Even minimal fallback failed:`, fallbackErr?.message ?? fallbackErr);
       // Do NOT throw — pipelineSucceeded is true, assessment is in DB.
       // The stuck-recovery job will eventually fix the claim status.
     }
   }
 
-  console.log(`[AI Assessment] Claim ${claimId}: DB insert + claim update complete. Pipeline v2 finished. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
+  console.log(`[KINGA Assessment] Claim ${claimId}: DB insert + claim update complete. Pipeline v2 finished. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
 
   // ── Entity Registry: fire-and-forget (non-blocking) ──────────────────────
   // Upsert all entities and write relationship graph edges asynchronously.
@@ -1826,7 +1826,7 @@ export async function triggerAiAssessment(claimId: number) {
   // END TOP-LEVEL TRY
   } catch (topLevelError) {
     // LLM call, JSON parse, or other unhandled failure
-    console.error(`[AI Assessment] Fatal error for claim ${claimId}:`, topLevelError);
+    console.error(`[KINGA Assessment] Fatal error for claim ${claimId}:`, topLevelError);
     // Clear watchdog timer on error path
     if (watchdogTimer) { clearTimeout(watchdogTimer); watchdogTimer = null; }
     // CRITICAL FIX: If pipelineSucceeded is already true, the success path already
@@ -1842,13 +1842,13 @@ export async function triggerAiAssessment(claimId: number) {
             workflowState: "intake_queue",  // Reset workflow state so re-run can transition cleanly
             updatedAt: new Date().toISOString(),
           }).where(eq(claims.id, claimId));
-          console.log(`[AI Assessment] Claim ${claimId} marked as failed after AI error. workflowState reset to intake_queue.`);
+          console.log(`[KINGA Assessment] Claim ${claimId} marked as failed after AI error. workflowState reset to intake_queue.`);
         }
       } catch (updateError) {
-        console.error(`[AI Assessment] Could not update failure status for claim ${claimId}:`, updateError);
+        console.error(`[KINGA Assessment] Could not update failure status for claim ${claimId}:`, updateError);
       }
     } else {
-      console.warn(`[AI Assessment] Claim ${claimId}: error thrown AFTER pipelineSucceeded=true — pipeline completed successfully, NOT resetting to intake_pending. Error:`, topLevelError);
+      console.warn(`[KINGA Assessment] Claim ${claimId}: error thrown AFTER pipelineSucceeded=true — pipeline completed successfully, NOT resetting to intake_pending. Error:`, topLevelError);
     }
     throw topLevelError; // Re-throw so the caller's setImmediate catch logs it
   } finally {
@@ -1863,7 +1863,7 @@ export async function triggerAiAssessment(claimId: number) {
             dps: claims.documentProcessingStatus,
           }).from(claims).where(eq(claims.id, claimId)).limit(1);
           if (currentState && (currentState.dps === 'parsing' || currentState.dps === 'extracting' || currentState.dps === 'analysing')) {
-            console.error(`[AI Assessment] SAFETY NET: Claim ${claimId} still in '${currentState.dps}' after pipeline failure — forcing to 'failed'.`);
+            console.error(`[KINGA Assessment] SAFETY NET: Claim ${claimId} still in '${currentState.dps}' after pipeline failure — forcing to 'failed'.`);
             await dbFinally.update(claims).set({
               documentProcessingStatus: "failed",
               status: "intake_pending",
@@ -1874,7 +1874,7 @@ export async function triggerAiAssessment(claimId: number) {
           }
         }
       } catch (finallyErr) {
-        console.error(`[AI Assessment] SAFETY NET DB update failed for claim ${claimId}:`, finallyErr);
+        console.error(`[KINGA Assessment] SAFETY NET DB update failed for claim ${claimId}:`, finallyErr);
       }
     }
   }
@@ -1890,7 +1890,7 @@ export async function createAiAssessment(data: InsertAiAssessment) {
 
   const result = await db.insert(aiAssessments).values(data);
   
-  // Mark claim as AI assessment completed
+  // Mark claim as KINGA assessment completed
   await db.update(claims).set({ 
     aiAssessmentCompleted: 1,
     updatedAt: new Date().toISOString() 

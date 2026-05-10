@@ -4,7 +4,7 @@
  * Renders the QUOTE-FIRST cost optimisation results:
  *   - Which panel beater was selected and why
  *   - All evaluated quotes ranked by composite score
- *   - AI estimate source badge (quote_derived / learning_db / insufficient_data)
+ *   - KINGA estimate source badge (quote_derived / learning_db / insufficient_data)
  *   - Disqualified quotes with reasons
  */
 import { Badge } from "@/components/ui/badge";

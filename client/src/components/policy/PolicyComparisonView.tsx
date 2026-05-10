@@ -147,7 +147,7 @@ export function PolicyComparisonView({ policies }: PolicyComparisonViewProps) {
             <div>
               <h4 className="font-semibold mb-3">Financial Limits</h4>
               {renderComparison(
-                "AI-Only Limit",
+                "KINGA-Only Limit",
                 policy1.maxAiOnlyApprovalAmount,
                 policy2.maxAiOnlyApprovalAmount,
                 (v) => `${currencySymbol}${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

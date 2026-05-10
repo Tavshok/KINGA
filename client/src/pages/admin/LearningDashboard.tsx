@@ -323,7 +323,7 @@ export default function LearningDashboard() {
               <div className="text-center py-12 text-muted-foreground">
                 <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No validated outcomes stored yet.</p>
-                <p className="text-xs mt-1">Process claims through the AI pipeline and have assessors review them to build the learning dataset.</p>
+                <p className="text-xs mt-1">Process claims through the KINGA pipeline and have assessors review them to build the learning dataset.</p>
               </div>
             )}
           </>

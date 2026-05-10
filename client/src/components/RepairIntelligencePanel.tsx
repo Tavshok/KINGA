@@ -5,7 +5,7 @@
  * Advisory only — does not modify any claim data.
  *
  * Sections:
- *   1. AI Repair Intelligence header (confidence score, risk badge)
+ *   1. KINGA Repair Intelligence header (confidence score, risk badge)
  *   2. Garage Comparison (quote amounts, outlier flags)
  *   3. Quote Statistics (median, fair range, spread)
  *   4. Repair-to-Vehicle Value Ratio

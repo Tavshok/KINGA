@@ -1,6 +1,6 @@
 /**
  * Routing Badge Component
- * Displays AI routing decision with confidence explanation popover
+ * Displays KINGA routing decision with confidence explanation popover
  */
 
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +33,7 @@ export function RoutingBadge({
     switch (decision) {
       case "fast_track":
         return {
-          label: "AI Fast-Track Recommended",
+          label: "KINGA Fast-Track Recommended",
           icon: Zap,
           className: "bg-green-600 text-white hover:bg-green-700",
         };
@@ -81,7 +81,7 @@ export function RoutingBadge({
           <div>
             <h4 className="font-semibold text-slate-900 dark:text-foreground mb-1">Routing Decision Breakdown</h4>
             <p className="text-xs text-slate-600 dark:text-muted-foreground">
-              AI confidence components that contributed to this routing decision
+              KINGA confidence components that contributed to this routing decision
             </p>
           </div>
 
@@ -137,10 +137,10 @@ export function RoutingBadge({
               </div>
               <p className="text-xs text-slate-600 dark:text-muted-foreground">
                 {confidenceComponents.quoteVarianceContribution > 70
-                  ? "Significant variance between quotes and AI estimate"
+                  ? "Significant variance between quotes and KINGA estimate"
                   : confidenceComponents.quoteVarianceContribution > 40
                   ? "Moderate variance detected"
-                  : "Quotes align well with AI estimate"}
+                  : "Quotes align well with KINGA estimate"}
               </p>
             </div>
 

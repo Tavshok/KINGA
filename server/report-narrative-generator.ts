@@ -181,7 +181,7 @@ ${fraudData.indicators.length > 0 ? `- Fraud Indicators: ${fraudData.indicators.
 
 Generate a concise executive summary (200-300 words) that:
 1. Frames the claim assessment in a constructive and professional manner
-2. Highlights key findings from AI analysis, assessor evaluation, and panel beater quotes
+2. Highlights key findings from KINGA analysis, assessor evaluation, and panel beater quotes
 3. Summarizes the fraud risk assessment
 4. Provides a clear recommendation for claim approval or further investigation
 5. Uses only the heading "Executive Summary" with no subheadings
@@ -236,7 +236,7 @@ ${damageData.quoteEstimates.length > 0 ? `- Quote Estimates: ${damageData.quoteE
 **Detail Level:** ${template.detailLevel}
 
 Generate a comprehensive damage assessment analysis (300-500 words) that:
-1. Describes the nature and extent of the damage based on AI analysis
+1. Describes the nature and extent of the damage based on KINGA analysis
 2. Lists all damaged components with severity assessments
 3. Compares AI estimates with assessor evaluations and panel beater quotes
 4. Highlights any discrepancies or areas requiring further investigation
@@ -273,7 +273,7 @@ async function generateAIIntelligenceExplanation(
 ): Promise<string> {
   const prompt = `You are generating an AI Intelligence Explanation section for an insurance claim report.
 
-**AI Assessment Confidence:**
+**KINGA Assessment Confidence:**
 - Overall Confidence Score: ${intelligence.aiAssessment?.confidenceScore || 0}%
 - Physics Validation Confidence: ${physicsData.validationConfidence}%
 
@@ -491,8 +491,8 @@ ${i + 1}. ${event.status.toUpperCase()} - ${new Date(event.timestamp).toLocaleSt
 `).join('\n')}
 
 **Processing Time Metrics:**
-- Submission to AI Assessment: ${auditData.processingTime.submissionToAIAssessment ? `${(auditData.processingTime.submissionToAIAssessment / 1000 / 60).toFixed(2)} minutes` : 'N/A'}
-- AI Assessment to Assessor Evaluation: ${auditData.processingTime.aiAssessmentToAssessorEvaluation ? `${(auditData.processingTime.aiAssessmentToAssessorEvaluation / 1000 / 60 / 60).toFixed(2)} hours` : 'N/A'}
+- Submission to KINGA Assessment: ${auditData.processingTime.submissionToAIAssessment ? `${(auditData.processingTime.submissionToAIAssessment / 1000 / 60).toFixed(2)} minutes` : 'N/A'}
+- KINGA Assessment to Assessor Evaluation: ${auditData.processingTime.aiAssessmentToAssessorEvaluation ? `${(auditData.processingTime.aiAssessmentToAssessorEvaluation / 1000 / 60 / 60).toFixed(2)} hours` : 'N/A'}
 - Assessor Evaluation to Quotes: ${auditData.processingTime.assessorEvaluationToQuotes ? `${(auditData.processingTime.assessorEvaluationToQuotes / 1000 / 60 / 60).toFixed(2)} hours` : 'N/A'}
 - Total Processing Time: ${(auditData.processingTime.totalProcessingTime / 1000 / 60 / 60).toFixed(2)} hours
 

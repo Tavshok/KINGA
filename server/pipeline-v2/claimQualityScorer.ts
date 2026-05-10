@@ -5,7 +5,7 @@
  *
  * Computes a multi-dimensional quality score for each processed claim.
  * This score tells the adjuster at a glance how much they can rely on the
- * AI assessment — and where the gaps are.
+ * KINGA assessment — and where the gaps are.
  *
  * Dimensions:
  *   1. Data Completeness   — are the critical fields populated?
@@ -66,9 +66,9 @@ export interface ClaimQualityResult {
   };
   /**
    * Plain-English guidance for the adjuster.
-   * Grade A/B: "AI assessment is reliable. Standard review recommended."
-   * Grade C: "AI assessment is partially reliable. Review flagged dimensions."
-   * Grade D/F: "AI assessment has significant gaps. Manual assessment required."
+   * Grade A/B: "KINGA assessment is reliable. Standard review recommended."
+   * Grade C: "KINGA assessment is partially reliable. Review flagged dimensions."
+   * Grade D/F: "KINGA assessment has significant gaps. Manual assessment required."
    */
   adjusterGuidance: string;
   /** Whether this claim requires mandatory manual review before a decision */
@@ -453,15 +453,15 @@ export function scoreClaimQuality(input: ClaimQualityScorerInput): ClaimQualityR
   // Adjuster guidance
   let adjusterGuidance: string;
   if (grade === "A") {
-    adjusterGuidance = "AI assessment is highly reliable. Standard review is sufficient before making a decision.";
+    adjusterGuidance = "KINGA assessment is highly reliable. Standard review is sufficient before making a decision.";
   } else if (grade === "B") {
-    adjusterGuidance = "AI assessment is reliable. Review the flagged dimensions below before making a decision.";
+    adjusterGuidance = "KINGA assessment is reliable. Review the flagged dimensions below before making a decision.";
   } else if (grade === "C") {
-    adjusterGuidance = "AI assessment is partially reliable. The flagged dimensions require manual verification before a decision can be made.";
+    adjusterGuidance = "KINGA assessment is partially reliable. The flagged dimensions require manual verification before a decision can be made.";
   } else if (grade === "D") {
-    adjusterGuidance = "AI assessment has significant gaps. Manual assessment is required. Do not rely on AI cost or damage estimates without independent verification.";
+    adjusterGuidance = "KINGA assessment has significant gaps. Manual assessment is required. Do not rely on AI cost or damage estimates without independent verification.";
   } else {
-    adjusterGuidance = "AI assessment is unreliable for this claim. A full manual assessment is required. The AI output should be used as a starting point only.";
+    adjusterGuidance = "KINGA assessment is unreliable for this claim. A full manual assessment is required. The AI output should be used as a starting point only.";
   }
 
   return {

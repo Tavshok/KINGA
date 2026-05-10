@@ -245,13 +245,13 @@ export const documentIngestionRouter = router({
               // AI PROCESSING — DEFERRED TO MANUAL TRIGGER
               // Claims now stay in intake_pending so the processor can review
               // the claim in the Pending Claims section first, then manually
-              // trigger AI assessment or assign a human assessor.
-              // The processor triggers AI assessment via the dashboard button.
+              // trigger KINGA assessment or assign a human assessor.
+              // The processor triggers KINGA assessment via the dashboard button.
               // ---------------------------------------------------------------
               console.log(
                 `[Document Upload] Claim ${txResult.claimDbId} created in intake_pending` +
                 `${txResult.isReupload ? ` (re-upload of original claim #${txResult.originalClaimId})` : ''}. ` +
-                `AI assessment deferred \u2014 processor will trigger manually from dashboard.`
+                `KINGA assessment deferred \u2014 processor will trigger manually from dashboard.`
               );
 
               return {

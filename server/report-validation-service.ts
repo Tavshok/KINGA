@@ -51,9 +51,9 @@ export function validateReportData(
     }
   }
 
-  // Check AI assessment
+  // Check KINGA assessment
   if (!intelligence.aiAssessment) {
-    errors.push("Missing AI assessment - cannot generate comprehensive report");
+    errors.push("Missing KINGA assessment - cannot generate comprehensive report");
   } else {
     if (!intelligence.aiAssessment.damageAnalysis) {
       warnings.push("Missing AI damage analysis");
@@ -73,7 +73,7 @@ export function validateReportData(
     }
   } else if (role === "insurer") {
     if (!intelligence.assessorEvaluation) {
-      warnings.push("Missing assessor evaluation - report will rely solely on AI assessment");
+      warnings.push("Missing assessor evaluation - report will rely solely on KINGA assessment");
     }
   }
 
@@ -176,7 +176,7 @@ export function validateAIExplainability(intelligence: ClaimIntelligence): {
   const missingElements: string[] = [];
 
   if (!intelligence.aiAssessment) {
-    missingElements.push("AI assessment");
+    missingElements.push("KINGA assessment");
     return { hasExplanation: false, missingElements };
   }
 
@@ -219,7 +219,7 @@ export function validateAuditTrail(intelligence: ClaimIntelligence): {
   }
 
   if (intelligence.aiAssessment && !statuses.includes("ai_assessed")) {
-    missingEvents.push("AI assessment event");
+    missingEvents.push("KINGA assessment event");
   }
 
   if (intelligence.assessorEvaluation && !statuses.includes("assessor_evaluated")) {
@@ -247,7 +247,7 @@ export function validateTemplateCompliance(
   // Insurer template requirements
   if (role === "insurer") {
     if (!intelligence.aiAssessment) {
-      violations.push("Insurer reports require AI assessment");
+      violations.push("Insurer reports require KINGA assessment");
     }
     if (!intelligence.fraudDetection) {
       violations.push("Insurer reports require fraud detection analysis");
@@ -270,7 +270,7 @@ export function validateTemplateCompliance(
       violations.push("Regulatory reports require complete workflow audit trail");
     }
     if (!intelligence.aiAssessment) {
-      violations.push("Regulatory reports require AI assessment for transparency");
+      violations.push("Regulatory reports require KINGA assessment for transparency");
     }
     if (!intelligence.fraudDetection) {
       violations.push("Regulatory reports require fraud detection analysis");

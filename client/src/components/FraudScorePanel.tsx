@@ -268,7 +268,7 @@ export default function FraudScorePanel({ aiAssessment }: FraudScorePanelProps) 
         <div className="flex flex-col items-center py-4">
           <FraudGauge score={legacyScore} riskLevel={legacyLevel} />
           <p className="text-xs text-muted-foreground mt-3">
-            Detailed 10-indicator breakdown will appear after the next AI assessment re-run.
+            Detailed 10-indicator breakdown will appear after the next KINGA assessment re-run.
           </p>
         </div>
       </div>

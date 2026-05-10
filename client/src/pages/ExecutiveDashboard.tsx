@@ -369,7 +369,7 @@ export default function ExecutiveDashboard() {
                   <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Executive Command Center</h1>
                   <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'var(--success)', color: 'white' }}>LIVE</span>
                 </div>
-                <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Real-time insights · Decision intelligence · AI-powered analytics</p>
+                <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Real-time insights · Decision intelligence · KINGA-powered analytics</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -545,7 +545,7 @@ export default function ExecutiveDashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Gauge className="h-5 w-5" style={{ color: 'var(--info)' }} />
-                    AI Confidence Distribution
+                    KINGA Confidence Distribution
                   </CardTitle>
                   <CardDescription>Risk classification across all assessed claims</CardDescription>
                 </CardHeader>
@@ -647,8 +647,8 @@ export default function ExecutiveDashboard() {
                     <p className="text-3xl font-bold" style={{ color: 'var(--warning)' }}>
                       {governanceMetrics ? `${governanceMetrics.overrideRate?.value ?? governanceMetrics.overrideRate ?? 0}%` : '—'}
                     </p>
-                    <p className="text-sm font-medium mt-1" style={{ color: 'var(--foreground)' }}>AI Override Rate</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>AI decisions overridden by staff</p>
+                    <p className="text-sm font-medium mt-1" style={{ color: 'var(--foreground)' }}>KINGA Override Rate</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>KINGA decisions overridden by staff</p>
                   </div>
                   <div className="rounded-xl p-4 text-center" style={{ background: 'var(--fp-critical-bg)', border: '1px solid color-mix(in srgb, var(--chart-4) 20%, transparent)' }}>
                     <p className="text-3xl font-bold" style={{ color: 'var(--chart-4)' }}>

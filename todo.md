@@ -11981,3 +11981,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 ## Production Crash Fixes (May 2026)
 - [x] Fix ReferenceError: daysToClaimSubmission is not defined on comparison page — root cause was stale production bundle; fresh Vite build resolves it (daysToClaimSubmission is correctly defined in ForensicAuditReport.tsx line 829)
 - [x] Fix React error #31 on Executive Dashboard Operational Health tab — governanceMetrics.overrideRate / .segregationViolations / .roleChanges are objects {value, trend, previousValue}, not scalars; fixed by extracting .value with fallback chain in ExecutiveDashboard.tsx lines 648/655/662
+
+## Branding Cleanup (May 2026)
+- [x] Add KINGA-branded global error boundary (KingaErrorBoundary.tsx) — wraps entire app in main.tsx; shows "Something went wrong — KINGA encountered an unexpected problem" with Reload and Back to dashboard buttons
+- [x] Remove all "AutoVerify" occurrences from client, server, scripts (0 remaining in bundles)
+- [x] Rename all "Run AI" buttons to "Run KINGA Analysis" (and context-aware variants: Run KINGA Audit, Run KINGA Valuation, Run KINGA Re-Analysis)
+- [x] Replace all visible "AI" labels with context-aware KINGA names: KINGA Assessment, KINGA Confidence Score, KINGA Estimate, KINGA Savings, KINGA Override Rate, KINGA Vision, KINGA Flagged, KINGA Intelligence, etc.
+- [x] Replace "KINGA AutoVerify AI" in all server report generators, system prompts, and PDF footers with "KINGA Intelligence"
+- [x] Replace "AutoVerify AI" sidebar subtitle in InsurerPortalLayout with "Claims Intelligence"

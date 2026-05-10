@@ -66,7 +66,7 @@ The interactive report provides drill-down analytics, AI vs assessor comparisons
 
 **Report Features:**
 - Executive summary with key findings
-- AI-powered damage assessment analysis
+- KINGA-powered damage assessment analysis
 - Cost comparison and variance analysis
 - Fraud risk evaluation with ML scoring
 - Physics-based accident validation

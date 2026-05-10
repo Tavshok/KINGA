@@ -156,7 +156,7 @@ function SemiGauge({ score, level }: { score: number; level: string }) {
           {score}%
         </text>
         <text x={cx} y={cy + 10} textAnchor="middle" fontSize="11" fill="#6b7280">
-          AI Confidence
+          KINGA Confidence
         </text>
       </svg>
       <span className={`text-sm font-semibold mt-1 ${getLevelColour(level)}`}>{level}</span>

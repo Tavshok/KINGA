@@ -187,7 +187,7 @@ export function ClaimCard({
               className="w-full justify-start"
             >
               <Download className="h-4 w-4 mr-2" />
-              Download AI Report
+              Download KINGA Report
             </Button>
             
             <Button 

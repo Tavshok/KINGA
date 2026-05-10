@@ -52,7 +52,7 @@ describe("Dataset Capture Activation", () => {
       .limit(1);
     testClaimId = claimResult[0].id;
     
-    // Create AI assessment for the claim
+    // Create KINGA assessment for the claim
     await db.insert(aiAssessments).values({
       claimId: testClaimId,
       assessmentStatus: "completed",
@@ -129,7 +129,7 @@ describe("Dataset Capture Activation", () => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      // Delete AI assessment to cause dataset capture to fail
+      // Delete KINGA assessment to cause dataset capture to fail
       await db.delete(aiAssessments).where(eq(aiAssessments.claimId, testClaimId));
       
       const caller = appRouter.createCaller({

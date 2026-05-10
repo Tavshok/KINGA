@@ -34,7 +34,7 @@ export default function BatchExport() {
     ...completedClaims
   ];
 
-  // Fetch all AI assessments
+  // Fetch all KINGA assessments
   const { data: aiAssessments = [] } = trpc.aiAssessments.all.useQuery();
 
   const toggleClaim = (claimId: number) => {
@@ -146,7 +146,7 @@ export default function BatchExport() {
         if ((aiAssessment as any).structuralDamage) {
           inferredHiddenDamage.push({
             component: "Frame / Unibody Structure",
-            reason: "AI detected structural damage indicators",
+            reason: "KINGA detected structural damage indicators",
             confidence: "High"
           });
         }
@@ -260,7 +260,7 @@ export default function BatchExport() {
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-4 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
                 <p>No claims available for export</p>
-                <p className="text-sm mt-2">Claims with AI assessments will appear here</p>
+                <p className="text-sm mt-2">Claims with KINGA assessments will appear here</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -289,7 +289,7 @@ export default function BatchExport() {
                           {hasAssessment && (
                             <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800">
                               <CheckCircle2 className="h-3 w-3 mr-1" />
-                              AI Assessment Available
+                              KINGA Assessment Available
                             </Badge>
                           )}
                         </div>

@@ -3,7 +3,7 @@
  *
  * KINGA Intelligence Enforcement Layer
  *
- * This module is the final validation pass applied to every AI assessment
+ * This module is the final validation pass applied to every KINGA assessment
  * before it is stored or returned to the frontend. It enforces:
  *
  *   1. Physics Enforcement   — estimates velocity/force/energy from delta-V

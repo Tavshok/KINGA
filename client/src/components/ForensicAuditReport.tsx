@@ -1,5 +1,5 @@
 /**
- * KINGA AI v4.2 — Forensic Audit Report
+ * KINGA v4.2 — Forensic Audit Report
  *
  * 6-section forensic audit format:
  *   Section 0: Cover Page — Executive Authority Card
@@ -198,7 +198,7 @@ function sanitiseTextArtefacts(text: string): string {
 /**
  * Strip assessor-authored conclusion phrases from the raw narrative text.
  * These phrases (e.g. "damages are consistent", "kindly authorise repairs")
- * are written by the assessor/repairer as recommendations, not by the AI engine.
+ * are written by the assessor/repairer as recommendations, not by the KINGA engine.
  * Displaying them verbatim in the forensic report is misleading because they
  * assert conclusions that the engine has not independently verified.
  * The engine's own cross-validation verdict is shown separately below the narrative.
@@ -809,7 +809,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
 
   const ce = e?.costExtraction;
   const normalised = (aiAssessment as any)?._normalised as any;
-  // No AI cost estimate — only document-sourced costs are used
+  // No KINGA cost estimate — only document-sourced costs are used
   const aiEstimate = 0; // Disabled: system uses submitted quote only
   const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
   const photosDetected = aiAssessment?.photosDetected ?? 0;
@@ -884,7 +884,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
       {/* ── Cover title row ── */}
       <div className="cover-title-row">
         <div>
-          <h1>KINGA AI</h1>
+          <h1>KINGA</h1>
           <div className="subtitle">Forensic Claim Decision Report</div>
         </div>
         <div className="cover-meta">
@@ -1215,7 +1215,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
     : _valEngineResult?.valuationMethod === 'document_stated'
       ? 'Stated on claim form'
       : _valEngineResult?.valuationMethod === 'llm_estimate'
-        ? 'KINGA AI estimate'
+        ? 'KINGA estimate'
         : claimRecord0?.vehicle?.marketValueUsd
           ? 'Stated on claim form'
           : null;
@@ -2376,7 +2376,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               <div className="mt-6">
                 <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>2.4b Per-Component Physics Measurements</p>
                 <p className="text-xs mb-3" style={{ color: 'var(--muted-foreground)' }}>
-                  Absolute numeric measurements extracted by AI vision analysis from damage photographs.
+                  Absolute numeric measurements extracted by KINGA vision analysis from damage photographs.
                   All values are SI-unit measurements — no qualitative proxies.
                 </p>
                 <div style={{ overflowX: 'auto' }}>
@@ -2549,7 +2549,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                   </p>
                 )}
                 <p className="text-xs mb-3" style={{ color: "#64748b" }}>
-                  Cross-reference of AI-identified damage components against submitted repair quotation line items.
+                  Cross-reference of KINGA-identified damage components against submitted repair quotation line items.
                   Coverage ratio: <strong style={{ color: coverageRatio >= 0.8 ? 'var(--status-pass-text)' : coverageRatio >= 0.5 ? 'var(--status-review-text)' : 'var(--status-fail-text)' }}>{Math.round(coverageRatio * 100)}%</strong>
                   {" "}({matchedCount} matched, {missingCount} missing{noQuoteCount > 0 ? `, ${noQuoteCount} no quote` : ''}{extraItems.length > 0 ? `, ${extraItems.length} extra in quote` : ''}).
                 </p>
@@ -2660,7 +2660,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               M2: 'Disabled \u2014 repair cost is not a reliable physics proxy across different markets.',
               M3: 'Impulse method: estimates impact force from total damaged panel area and contact duration, then derives speed from momentum change.',
               M4: 'Deployment threshold: airbag or seatbelt pretensioner activation confirms speed exceeded the system trigger threshold.',
-              M5: 'Vision deformation: AI measures crush depth and deformation energy directly from damage photos. Two independent paths (Campbell + energy balance) are cross-validated.',
+              M5: 'Vision deformation: KINGA measures crush depth and deformation energy directly from damage photos. Two independent paths (Campbell + energy balance) are cross-validated.',
             };
             const availableMethods = methods.filter((m: any) => m.available && m.estimateKmh != null);
             if (availableMethods.length === 0 && !(ensemble.consensusSpeedKmh ?? ensemble.consensusKmh)) return null;
@@ -3106,7 +3106,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
 }
 
 // ─── Section 2.8: Severity Consensus Panel ─────────────────────────────────
-// Three-source verdict: physics model, damage analysis, image AI.
+// Three-source verdict: physics model, damage analysis, KINGA vision.
 // Designed to answer three audiences simultaneously:
 //   Engineer: raw source signals + confidence derivation
 //   Investigator: alignment verdict + conflict flag
@@ -3151,7 +3151,7 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
   const sourceRows: { label: string; key: string; icon: string }[] = [
     { label: 'Physics model', key: 'physics', icon: '⚙' },
     { label: 'Damage analysis', key: 'damage', icon: '🔍' },
-    { label: 'Image AI', key: 'image', icon: '📷' },
+    { label: 'KINGA Vision', key: 'image', icon: '📷' },
   ];
 
   // Severity colour for individual source badges
@@ -3485,7 +3485,7 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
             className="text-xs px-3 py-1 rounded"
             style={{ border: "1px solid #e2e8f0", background: "#ffffff", color: "#0f172a", cursor: auditMutation.isPending ? 'wait' : 'pointer' }}
           >
-            {auditMutation.isPending ? 'Running audit…' : 'Run AI audit'}
+            {auditMutation.isPending ? 'Running audit…' : 'Run KINGA Audit'}
           </button>
         )}
       </div>
@@ -3758,7 +3758,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const ce = e?.costExtraction;
   const normalised = (aiAssessment as any)?._normalised as any;
 
-  // Stage 9 no longer produces AI cost estimates. Only document-sourced costs are used.
+  // Stage 9 no longer produces KINGA cost estimates. Only document-sourced costs are used.
   const aiEstimate = 0; // Disabled: system uses submitted quote only
   const aiParts = 0;
   const aiLabour = 0;
@@ -3798,7 +3798,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const quotedParts = primaryQuote?.parts ?? 0;
   const quotedLabour = primaryQuote?.labour ?? 0;
 
-  // No AI estimate to compare against — verdict is purely based on quote presence
+  // No KINGA estimate to compare against — verdict is purely based on quote presence
   const verdict: string = pbQuotes.length > 0 ? "QUOTE_SUBMITTED" : "NO_QUOTE";
   const totalVar = null;
   const partsVar = null;
@@ -4309,7 +4309,7 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
   const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
   const agreedCostUsd = claimRecord0?.costs?.agreedCostUsd ?? null;
   // Repair cost priority: costIntelligenceJson.totalEstimatedCost (validated) → LLM repairCostUsd → agreed cost → quoted total
-  // totalEstimatedCost is the AI-validated repair cost from the cost decision engine
+  // totalEstimatedCost is the KINGA-validated repair cost from the cost decision engine
   const repairCost = costIntel?.totalEstimatedCost ?? llmValuation?.repairCostUsd ?? agreedCostUsd ?? quotedTotal;
   // Repair-to-value ratio: prefer LLM-computed ratio, then compute from costIntelligenceJson values
   const repairToValue = llmRepairToValue ?? (marketValueUsd && marketValueUsd > 0 && repairCost > 0 ? (repairCost / marketValueUsd) * 100 : null);
@@ -4338,9 +4338,9 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
                   : valuationMethod
                     ? ["Valuation Basis", valuationMethod]
                     : null,
-              // Repair cost label: distinguish between AI-validated cost and raw quote
+              // Repair cost label: distinguish between KINGA-validated cost and raw quote
               costIntel?.totalEstimatedCost != null
-                ? ["Repair Cost (AI-Validated)", fmtMoney(costIntel.totalEstimatedCost)]
+                ? ["Repair Cost (KINGA-Validated)", fmtMoney(costIntel.totalEstimatedCost)]
                 : ["Repair Cost (Quoted)", repairCost > 0 ? fmtMoney(repairCost) : "Not available"],
               ["Repair-to-Value Ratio", repairToValue != null ? `${repairToValue.toFixed(1)}%` : "Cannot calculate"],
               ["Excess / Deductible", excessUsd != null ? fmtMoney(excessUsd) : "Not stated"],
@@ -4506,7 +4506,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
   const photosDetected = aiAssessment?.photosDetected ?? 0;
   const photosProcessed = aiAssessment?.photosProcessedCount ?? 0;
-  // CRITICAL FIX: Use enrichedPhotosJson (per-photo AI vision metadata) as the
+  // CRITICAL FIX: Use enrichedPhotosJson (per-photo KINGA vision metadata) as the
   // primary source so each photo is labelled with what the AI actually detected
   // in that specific image, not a positional guess from damagedParts[i].
   interface EnrichedPhotoFAR {
@@ -5788,7 +5788,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
                 ["Corrections applied", corrections.length > 0 ? `${corrections.length} correction(s)` : "None"],
                 ["Report hash", reportHash],
                 ["Report generated", fmtDate(aiAssessment?.createdAt ?? new Date().toISOString())],
-                ["Digital signature", "KINGA AI (engine)"],
+                ["Digital signature", "KINGA (engine)"],
               ].map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--fp-border)' : undefined }}>
                   <td style={{ padding: '7px 16px 7px 0', fontWeight: 600, width: 176, color: '#6b7280', verticalAlign: 'top' }}>{k}</td>
@@ -6757,7 +6757,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
             alt="KINGA"
             style={{ height: 28, width: 28, objectFit: 'contain', flexShrink: 0 }}
           />
-          KINGA AI
+          KINGA
         </span>
       </div>
 
@@ -6971,20 +6971,20 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
         styleMode="forensic"
       />
 
-      {/* ── KINGA AI Engine Block — always at the bottom of the report body ── */}
+      {/* ── KINGA Engine Block — always at the bottom of the report body ── */}
       <div style={{ background: '#ffffff', borderTop: '1px solid #ddd', padding: '14px 0 10px', textAlign: 'center', marginTop: 28, marginBottom: 8 }}>
-        <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#111', margin: 0 }}>KINGA AI</p>
+        <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#111', margin: 0 }}>KINGA</p>
         <p style={{ fontSize: 10, color: '#555', marginTop: 3, marginBottom: 0 }}>
           Engine v{aiAssessment?.engineVersion ?? '4.2'} &nbsp;·&nbsp; Report #{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8, '0').toUpperCase().slice(0, 8)} &nbsp;·&nbsp; {new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
         </p>
         <p style={{ fontSize: 9, color: '#888', marginTop: 5, marginBottom: 0, lineHeight: 1.5 }}>
-          This report is generated by an AI system and is intended to assist human adjusters. All decisions require human review and authorisation. KINGA AI does not constitute legal advice.
+          This report is generated by an AI system and is intended to assist human adjusters. All decisions require human review and authorisation. KINGA does not constitute legal advice.
         </p>
       </div>
 
       <div className="conf-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <span>
-          KINGA AI — Forensic Claim Decision Report — CONFIDENTIAL — For authorised insurer use only.
+          KINGA — Forensic Claim Decision Report — CONFIDENTIAL — For authorised insurer use only.
           This report is generated by an AI system and must be reviewed by a qualified human adjuster before any claim decision is finalised.
         </span>
         <img

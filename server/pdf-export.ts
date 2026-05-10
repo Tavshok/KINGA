@@ -648,7 +648,7 @@ function generateReportHTML(data: any): string {
   <!-- Footer -->
   <div class="footer">
     <p><strong>KINGA AI</strong> - Automated Vehicle Damage Assessment System</p>
-    <p>This report was generated using advanced AI analysis, physics validation, and cross-validation</p>
+    <p>This report was generated using advanced KINGA analysis, physics validation, and cross-validation</p>
     ${claimNumber ? `<p style="margin-top: 5px;">Claim Reference: ${claimNumber}</p>` : ''}
     ${assessorName ? `<p>Assessor: ${assessorName}</p>` : ''}
     <p style="margin-top: 10px; font-size: 8pt;">Confidential - For Insurance Use Only</p>

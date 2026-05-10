@@ -1,6 +1,6 @@
 /**
  * KINGA Assessment Panel Component
- * Shared component for displaying AI assessment results across all roles
+ * Shared component for displaying KINGA assessment results across all roles
  * Used by: Claims Processor, Assessors, Panel Beaters, Claims Managers, Risk Managers
  */
 
@@ -47,7 +47,7 @@ export default function AIAssessmentPanel({
       <Card className="border-l-4 border-l-primary">
         <CardContent className="flex items-center justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-3 text-sm text-slate-600 dark:text-muted-foreground">Loading AI assessment...</span>
+          <span className="ml-3 text-sm text-slate-600 dark:text-muted-foreground">Loading KINGA assessment...</span>
         </CardContent>
       </Card>
     );
@@ -61,7 +61,7 @@ export default function AIAssessmentPanel({
             <Activity className="h-5 w-5 text-slate-700 dark:text-slate-400 dark:text-muted-foreground" />
             KINGA Assessment
           </CardTitle>
-          <CardDescription>No AI assessment available for this claim</CardDescription>
+          <CardDescription>No KINGA assessment available for this claim</CardDescription>
         </CardHeader>
         {showTriggerButton && onTriggerAssessment && (
           <CardContent>
@@ -70,7 +70,7 @@ export default function AIAssessmentPanel({
               Trigger KINGA Assessment
             </Button>
             <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">
-              Generate AI-powered damage analysis, cost estimation, and fraud detection
+              Generate KINGA-powered damage analysis, cost estimation, and fraud detection
             </p>
           </CardContent>
         )}
@@ -90,7 +90,7 @@ export default function AIAssessmentPanel({
               KINGA Assessment Results
             </CardTitle>
             <CardDescription className="text-primary/90">
-              AI-powered analysis • Generated {new Date(aiAssessment.createdAt).toLocaleDateString()}
+              KINGA-powered analysis • Generated {new Date(aiAssessment.createdAt).toLocaleDateString()}
             </CardDescription>
           </div>
           <Badge variant="secondary" className="bg-primary/10 text-primary/90">
@@ -255,7 +255,7 @@ export default function AIAssessmentPanel({
 
         {/* Disclaimer */}
         <div className="bg-primary/10 rounded-lg p-3 text-sm text-secondary">
-          <strong>Note:</strong> This AI assessment is provided as guidance. Professional judgment should be used for final decisions.
+          <strong>Note:</strong> This KINGA assessment is provided as guidance. Professional judgment should be used for final decisions.
         </div>
 
         {/* Re-trigger button */}

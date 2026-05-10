@@ -75,7 +75,7 @@ describe("Policy Verification Logic", () => {
   });
 
   describe("Workflow State Transitions", () => {
-    // Test that AI assessment multi-step transition handles all starting states
+    // Test that KINGA assessment multi-step transition handles all starting states
     type ClaimStatus = "submitted" | "triage" | "assessment_pending" | "assessment_in_progress" | 
       "quotes_pending" | "comparison" | "repair_assigned" | "repair_in_progress" | "completed" | "rejected";
 

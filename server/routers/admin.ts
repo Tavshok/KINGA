@@ -161,7 +161,7 @@ export const adminRouter = router({
    * Bulk Seed Test Claims with Real Vehicle Damage Images
    * 
    * Creates 20 test claims with real vehicle damage photos uploaded to S3.
-   * Automatically triggers AI assessment for each claim.
+   * Automatically triggers KINGA assessment for each claim.
    * 
    * @requires Super-admin access
    * @returns Seed operation report with success/failure details
@@ -321,13 +321,13 @@ export const adminRouter = router({
 
             console.log(`[Bulk Seed] Created claim: ${claimNumber} (${template.make} ${template.model})`);
 
-            // Trigger AI assessment
+            // Trigger KINGA assessment
             try {
               await triggerAiAssessment(claim.id);
               report.aiAssessmentsTriggered++;
-              console.log(`[Bulk Seed] AI assessment triggered for claim ${claimNumber}`);
+              console.log(`[Bulk Seed] KINGA assessment triggered for claim ${claimNumber}`);
             } catch (aiError: any) {
-              report.errors.push(`AI assessment failed (${claimNumber}): ${aiError.message}`);
+              report.errors.push(`KINGA assessment failed (${claimNumber}): ${aiError.message}`);
             }
           } catch (claimError: any) {
             report.errors.push(`Claim creation failed: ${claimError.message}`);
@@ -352,7 +352,7 @@ export const adminRouter = router({
   /**
    * Bulk generate AI assessments for claims with damage photos
    * 
-   * Processes all claims that have damage_photos but no AI assessment
+   * Processes all claims that have damage_photos but no KINGA assessment
    * Useful for backfilling assessments after bulk claim seeding
    */
   bulkGenerateAiAssessments: superAdminProcedure
@@ -366,10 +366,10 @@ export const adminRouter = router({
       const db = await getDb();
       const { batchSize, maxClaims } = input;
 
-      console.log(`[Bulk AI Assessment] Starting batch generation (batch size: ${batchSize})...`);
+      console.log(`[Bulk KINGA Assessment] Starting batch generation (batch size: ${batchSize})...`);
 
       try {
-        // Query claims with damage photos but no AI assessment
+        // Query claims with damage photos but no KINGA assessment
         const missingAssessments = await db.execute(sql`
           SELECT id, claim_number 
           FROM claims 
@@ -385,7 +385,7 @@ export const adminRouter = router({
         const claims = missingAssessments.rows as Array<{ id: number; claim_number: string }>;
         const totalClaims = claims.length;
 
-        console.log(`[Bulk AI Assessment] Found ${totalClaims} claims missing AI assessments`);
+        console.log(`[Bulk KINGA Assessment] Found ${totalClaims} claims missing AI assessments`);
 
         if (totalClaims === 0) {
           return {
@@ -411,21 +411,21 @@ export const adminRouter = router({
           const batchNumber = Math.floor(i / batchSize) + 1;
           const totalBatches = Math.ceil(claims.length / batchSize);
 
-          console.log(`[Bulk AI Assessment] Processing batch ${batchNumber}/${totalBatches} (${batch.length} claims)`);
+          console.log(`[Bulk KINGA Assessment] Processing batch ${batchNumber}/${totalBatches} (${batch.length} claims)`);
 
           for (const claim of batch) {
             results.processed++;
-            console.log(`[Bulk AI Assessment] [${results.processed}/${totalClaims}] Processing Claim #${claim.claim_number} (ID: ${claim.id})`);
+            console.log(`[Bulk KINGA Assessment] [${results.processed}/${totalClaims}] Processing Claim #${claim.claim_number} (ID: ${claim.id})`);
 
             try {
               await triggerAiAssessment(claim.id);
               results.successful++;
-              console.log(`[Bulk AI Assessment] ✓ SUCCESS: Claim #${claim.claim_number}`);
+              console.log(`[Bulk KINGA Assessment] ✓ SUCCESS: Claim #${claim.claim_number}`);
             } catch (error: any) {
               results.failed++;
               const errorMsg = `Claim #${claim.claim_number} (ID: ${claim.id}): ${error.message}`;
               results.errors.push(errorMsg);
-              console.error(`[Bulk AI Assessment] ✗ ERROR: ${errorMsg}`);
+              console.error(`[Bulk KINGA Assessment] ✗ ERROR: ${errorMsg}`);
             }
 
             // Small delay between claims to prevent overload
@@ -434,7 +434,7 @@ export const adminRouter = router({
 
           // Delay between batches
           if (i + batchSize < claims.length) {
-            console.log(`[Bulk AI Assessment] Waiting 2 seconds before next batch...`);
+            console.log(`[Bulk KINGA Assessment] Waiting 2 seconds before next batch...`);
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
         }
@@ -452,8 +452,8 @@ export const adminRouter = router({
         const coverageRow = coverageQuery.rows[0] as any;
         const coveragePercent = parseFloat(coverageRow.coverage_percent || '0');
 
-        console.log(`[Bulk AI Assessment] Complete: ${results.successful}/${totalClaims} successful, ${results.failed} failed`);
-        console.log(`[Bulk AI Assessment] Coverage: ${coveragePercent}%`);
+        console.log(`[Bulk KINGA Assessment] Complete: ${results.successful}/${totalClaims} successful, ${results.failed} failed`);
+        console.log(`[Bulk KINGA Assessment] Coverage: ${coveragePercent}%`);
 
         return {
           success: true,
@@ -469,10 +469,10 @@ export const adminRouter = router({
           },
         };
       } catch (error: any) {
-        console.error(`[Bulk AI Assessment] Fatal error: ${error.message}`);
+        console.error(`[Bulk KINGA Assessment] Fatal error: ${error.message}`);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: `Bulk AI assessment generation failed: ${error.message}`,
+          message: `Bulk KINGA assessment generation failed: ${error.message}`,
         });
       }
     }),

@@ -262,7 +262,7 @@ describe("validateApiResponse — Rule 5: block ONLY on critical missing fields"
   });
 });
 
-// ─── AI Assessment contract tests ────────────────────────────────────────────
+// ─── KINGA Assessment contract tests ────────────────────────────────────────────
 
 describe("AI_ASSESSMENT_CONTRACT — canonical field contract", () => {
   it("has exactly 2 critical fields: claimId and finalDecision.decision", () => {

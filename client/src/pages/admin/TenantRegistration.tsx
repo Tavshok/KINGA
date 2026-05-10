@@ -285,7 +285,7 @@ export default function TenantRegistration() {
                   }
                 />
                 <p className="text-sm text-muted-foreground">
-                  Maximum AI analysis reruns per user per hour (default: 10)
+                  Maximum KINGA analysis reruns per user per hour (default: 10)
                 </p>
               </div>
             </div>

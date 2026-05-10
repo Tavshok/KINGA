@@ -2,8 +2,8 @@
  * Replay Dashboard
  * 
  * Interactive dashboard for historical claim replay engine.
- * Enables re-processing historical claims through current KINGA AI system
- * to compare original decisions with AI-powered routing.
+ * Enables re-processing historical claims through current KINGA system
+ * to compare original decisions with KINGA-powered routing.
  * 
  * Access: insurer_admin, executive, claims_manager only
  */
@@ -44,7 +44,7 @@ export default function ReplayDashboard() {
       <div>
         <h1 className="text-3xl font-bold">Claim Replay Engine</h1>
         <p className="text-muted-foreground mt-2">
-          Re-process historical claims through current KINGA AI to compare original decisions with AI-powered routing
+          Re-process historical claims through current KINGA to compare original decisions with KINGA-powered routing
         </p>
       </div>
       
@@ -83,7 +83,7 @@ export default function ReplayDashboard() {
             <CardHeader>
               <CardTitle>Trigger Claim Replay</CardTitle>
               <CardDescription>
-                Select historical claims to re-process through current KINGA AI system
+                Select historical claims to re-process through current KINGA system
               </CardDescription>
             </CardHeader>
             <CardContent>

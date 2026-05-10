@@ -32,7 +32,7 @@ interface ProcessingResult {
 async function generateMissingAiAssessments() {
   console.log('═══════════════════════════════════════════════════════');
   console.log('  AI ASSESSMENT BATCH GENERATION');
-  console.log('  KINGA - AutoVerify AI');
+  console.log('  KINGA Intelligence');
   console.log('═══════════════════════════════════════════════════════\n');
 
   const startTime = Date.now();

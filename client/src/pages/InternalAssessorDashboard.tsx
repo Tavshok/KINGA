@@ -62,8 +62,8 @@ const WORKFLOW_LABELS: Record<string, string> = {
   payment_authorized: "Payment Authorised",
   closed: "Closed",
   disputed: "Disputed",
-  ai_assessment_pending: "AI Assessment Pending",
-  ai_assessment_completed: "AI Assessment Complete",
+  ai_assessment_pending: "KINGA Assessment Pending",
+  ai_assessment_completed: "KINGA Assessment Complete",
   manual_review: "Manual Review",
 };
 
@@ -202,7 +202,7 @@ function AiContextPanel({ claimId }: { claimId: number }) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 py-3 px-4 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading AI intelligence…
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading KINGA intelligence…
       </div>
     );
   }
@@ -210,7 +210,7 @@ function AiContextPanel({ claimId }: { claimId: number }) {
   if (!ai) {
     return (
       <div className="py-3 px-4 text-sm text-muted-foreground italic">
-        No AI assessment available for this claim yet. Run the AI pipeline to generate intelligence.
+        No KINGA assessment available for this claim yet. Run the KINGA pipeline to generate intelligence.
       </div>
     );
   }
@@ -300,10 +300,10 @@ function AiContextPanel({ claimId }: { claimId: number }) {
         )}
       </div>
 
-      {/* Column 3: AI Verdict & Recommendation */}
+      {/* Column 3: KINGA Verdict & Recommendation */}
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-          <Brain className="h-3.5 w-3.5" /> AI Verdict
+          <Brain className="h-3.5 w-3.5" /> KINGA Verdict
         </p>
         {(ai.recommendation ?? (ai as any).recommendedAction) ? (
           <div className="p-2 rounded-md bg-muted/40 border border-border">
@@ -385,7 +385,7 @@ function AssessmentDialog({
     if (form.partsCost && isNaN(Number(form.partsCost)))
       e.partsCost = "Must be a number";
     if (form.disagreesWithAi && !form.aiDisagreementReason.trim())
-      e.aiDisagreementReason = "Explain why you disagree with the AI assessment";
+      e.aiDisagreementReason = "Explain why you disagree with the KINGA assessment";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -531,7 +531,7 @@ function AssessmentDialog({
                 className="h-4 w-4 rounded border-border"
               />
               <Label htmlFor="disagreesWithAi" className="cursor-pointer">
-                I disagree with the AI assessment
+                I disagree with the KINGA assessment
               </Label>
             </div>
             {form.disagreesWithAi && (

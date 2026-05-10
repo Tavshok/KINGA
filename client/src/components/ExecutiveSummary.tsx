@@ -162,7 +162,7 @@ export function ExecutiveSummary({
             </Badge>
           </div>
           <p className="text-sm text-gray-600 dark:text-muted-foreground">
-            AI-powered assessment of {vehicleYear} {vehicleMake} {vehicleModel} ({vehicleRegistration})
+            KINGA-powered assessment of {vehicleYear} {vehicleMake} {vehicleModel} ({vehicleRegistration})
             {' — '}{incidentLabel.toLowerCase()} incident
           </p>
         </div>

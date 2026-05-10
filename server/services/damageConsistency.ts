@@ -2,7 +2,7 @@
  * Damage Consistency Engine
  *
  * Compares three independent damage evidence sources:
- *   1. Document-extracted damage  (damagedComponentsJson + damageDescription from AI assessment)
+ *   1. Document-extracted damage  (damagedComponentsJson + damageDescription from KINGA assessment)
  *   2. Photo-detected damage      (enrichedPhotosJson from Stage 11 photo enrichment)
  *   3. Physics impact zone        (physicsAnalysis.primaryImpactZone + damageConsistency)
  *
@@ -362,9 +362,9 @@ function scoreToConfidence(score: number, docAvailable: boolean, photoAvailable:
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export interface ConsistencyCheckInput {
-  /** JSON string: array of component objects or strings from AI assessment */
+  /** JSON string: array of component objects or strings from KINGA assessment */
   damagedComponentsJson: string | null;
-  /** Free-text damage description from AI assessment */
+  /** Free-text damage description from KINGA assessment */
   damageDescription: string | null;
   /** JSON string: array of EnrichedPhoto objects from Stage 11 */
   enrichedPhotosJson: string | null;

@@ -31,7 +31,7 @@ interface VehicleImpactVectorDiagramProps {
   // NEW: Quantitative physics data
   physicsValidation?: PhysicsValidation | null;
   
-  // NEW: AI confidence score (0-1)
+  // NEW: KINGA confidence score (0-1)
   confidenceScore?: number;
 }
 
@@ -277,7 +277,7 @@ export function VehicleImpactVectorDiagram({
             <Badge 
               variant="outline" 
               className={`text-xs ${getConfidenceColor(confidenceScore).bg} ${getConfidenceColor(confidenceScore).text} ${getConfidenceColor(confidenceScore).border}`}
-              title={`${getConfidenceColor(confidenceScore).label}: AI assessment reliability`}
+              title={`${getConfidenceColor(confidenceScore).label}: KINGA assessment reliability`}
             >
               {formatConfidenceScore(confidenceScore)} Confidence
             </Badge>

@@ -42,7 +42,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
   // Fetch AI version history
   const { data: versionHistory, isLoading, refetch } = trpc.aiReanalysis.getVersionHistory.useQuery({ claimId });
 
-  // Re-run AI analysis mutation
+  // Re-run KINGA analysis mutation
   const reRunAiAnalysis = trpc.aiReanalysis.reRunAiAnalysis.useMutation({
     onSuccess: (result) => {
       toast.success("AI Re-Analysis Complete", {
@@ -120,14 +120,14 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Run AI Re-Analysis
+                  Run KINGA Re-Analysis
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Run AI Re-Analysis</DialogTitle>
+                  <DialogTitle>Run KINGA Re-Analysis</DialogTitle>
                   <DialogDescription>
-                    Trigger a new AI assessment for this claim. This will not affect the workflow state or overwrite the original assessment.
+                    Trigger a new KINGA assessment for this claim. This will not affect the workflow state or overwrite the original assessment.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -284,7 +284,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
 
             {reanalyses.length === 0 && originalVersion && (
               <div className="text-center py-6 text-sm text-muted-foreground">
-                <p>No re-analyses yet. Click "Run AI Re-Analysis" to create a new version.</p>
+                <p>No re-analyses yet. Click "Run KINGA Re-Analysis" to create a new version.</p>
               </div>
             )}
           </div>

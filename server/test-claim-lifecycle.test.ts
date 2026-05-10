@@ -97,8 +97,8 @@ describe("End-to-End Claim Lifecycle", () => {
   });
 
   describe("1. AI Analysis & Routing", () => {
-    it("should have AI assessment with confidence and fraud scores", async () => {
-      // Verify AI assessment exists for seeded claim
+    it("should have KINGA assessment with confidence and fraud scores", async () => {
+      // Verify KINGA assessment exists for seeded claim
       const assessment = await db
         .select()
         .from(aiAssessments)
@@ -325,7 +325,7 @@ describe("End-to-End Claim Lifecycle", () => {
       expect(claim[0].id).toBe(testClaimId);
       expect(claim[0].claimNumber).toBeDefined();
 
-      // Verify AI assessment exists
+      // Verify KINGA assessment exists
       const aiAssessment = await db
         .select()
         .from(aiAssessments)

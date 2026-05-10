@@ -2,7 +2,7 @@
  * Cross-Claim Intelligence Engine
  * ─────────────────────────────────
  * Detects fraud patterns by querying vehicle, driver, repair, and damage
- * history tables after every AI assessment completes.
+ * history tables after every KINGA assessment completes.
  *
  * Signal types (9 total):
  *   1. repeat_damage_signal              — same component damaged again within 12 months

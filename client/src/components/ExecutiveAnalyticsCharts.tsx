@@ -7,10 +7,10 @@
  *  - Cost breakdown by status (existing)
  *  - Average processing time (existing)
  *  - Fraud risk distribution (existing)
- *  - AI Override Rate KPI (NEW)
+ *  - KINGA Override Rate KPI (NEW)
  *  - Most Overridden Repairers bar chart (NEW)
  *  - Average Cost Delta on Override KPI (NEW)
- *  - Total AI Savings KPI (NEW)
+ *  - Total KINGA Savings KPI (NEW)
  */
 
 import { useMemo, useState } from "react";
@@ -227,10 +227,10 @@ export default function ExecutiveAnalyticsCharts() {
         </Select>
       </div>
 
-      {/* ── AI Quote Optimisation KPIs ─────────────────────────────────────── */}
+      {/* ── KINGA Quote Optimisation KPIs ─────────────────────────────────────── */}
       <section>
         <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          AI Quote Optimisation
+          KINGA Quote Optimisation
         </h4>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Override Rate */}
@@ -243,9 +243,9 @@ export default function ExecutiveAnalyticsCharts() {
             loading={overrideRateLoading}
           />
 
-          {/* Total AI Savings */}
+          {/* Total KINGA Savings */}
           <MiniKPI
-            title="Total AI Savings"
+            title="Total KINGA Savings"
             value={formatRands(totalSavingsRands)}
             subtitle={`Across ${acceptedCount} accepted recommendation${acceptedCount !== 1 ? "s" : ""}`}
             icon={Banknote}

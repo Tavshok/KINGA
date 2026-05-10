@@ -92,7 +92,7 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
                 <DollarSign className="h-5 w-5" />
                 Vehicle Market Valuation
               </CardTitle>
-              <CardDescription>AI-powered market value assessment</CardDescription>
+              <CardDescription>KINGA market value assessment</CardDescription>
             </div>
             {valuation.isTotalLoss && (
               <Badge variant="destructive" className="text-sm">
@@ -292,7 +292,7 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
           Vehicle Market Valuation
         </CardTitle>
         <CardDescription>
-          Trigger AI-powered market valuation to determine total loss status
+          Run KINGA market valuation to determine total loss status
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -366,7 +366,7 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
           ) : (
             <>
               <TrendingUp className="mr-2 h-4 w-4" />
-              Trigger AI Valuation
+              Run KINGA Valuation
             </>
           )}
         </Button>

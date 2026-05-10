@@ -363,7 +363,7 @@ function generateCSVExport(metrics: any[]): string {
   const headers = [
     "Tenant",
     "Claims Processed",
-    "AI-Only",
+    "KINGA-Only",
     "Hybrid",
     "Fast-Track",
     "Avg Time Saved (h)",

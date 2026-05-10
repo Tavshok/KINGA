@@ -1,7 +1,7 @@
 /**
  * AiStatusBadge
  *
- * A small, read-only badge that displays the current AI assessment processing
+ * A small, read-only badge that displays the current KINGA assessment processing
  * state for a claim.  It derives its state purely from data already in scope —
  * the claim's status field and whether an aiAssessment record exists.
  *
@@ -12,7 +12,7 @@
  *     or workflowState = "ai_assessment_pending"      →  "Analysing…" (yellow)
  *   claim.status = "assessment_complete"
  *     or aiAssessment present (any)                   →  "Complete"   (green)
- *   No aiAssessment + none of the above               →  "Waiting for AI" (grey)
+ *   No aiAssessment + none of the above               →  "Waiting for KINGA" (grey)
  *
  * No tRPC calls, no side-effects.
  */
@@ -88,7 +88,7 @@ const CONFIG: Record<AiState, {
   spin?: boolean;
 }> = {
   waiting: {
-    label: "Waiting for AI",
+    label: "Waiting for KINGA",
     containerClass: "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground border-gray-200 dark:border-border",
     Icon: Clock,
     iconClass: "text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70",
@@ -101,13 +101,13 @@ const CONFIG: Record<AiState, {
     spin: true,
   },
   complete: {
-    label: "AI Complete",
+    label: "KINGA Complete",
     containerClass: "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
     Icon: CheckCircle2,
     iconClass: "text-emerald-500",
   },
   failed: {
-    label: "AI Failed",
+    label: "KINGA Failed",
     containerClass: "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800",
     Icon: XCircle,
     iconClass: "text-red-500",

@@ -56,8 +56,8 @@ describe("Confidence Score Calculation", () => {
     expect(totalWeight).toBeCloseTo(1.0, 5);
   });
 
-  it("should handle missing AI assessment gracefully", async () => {
-    // Test with a claim that has no AI assessment
+  it("should handle missing KINGA assessment gracefully", async () => {
+    // Test with a claim that has no KINGA assessment
     const result = await calculateConfidenceScore(999999);
     expect(result.components.aiCertainty).toBe(0);
   });

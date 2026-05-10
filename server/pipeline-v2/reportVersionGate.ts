@@ -9,7 +9,7 @@
  *   - buildVersionGateResult: full governance gate result for UI and audit trail
  *
  * Version history:
- *   v1.x — Basic AI assessment (confidence score, fraud risk, recommendation)
+ *   v1.x — Basic KINGA assessment (confidence score, fraud risk, recommendation)
  *   v2.x — Phase 1: FCDI, physics analysis, cost reconciliation
  *   v3.x — Phase 2-3: Economic context, FEL, multi-quote optimisation
  *   v4.0 — Phase 4-5: IFE attribution, DOE, FEL version snapshot, DRM, DTL

@@ -128,13 +128,13 @@ export default function InsurerClaimsTriage() {
 
   const triggerAiAssessment = trpc.claims.triggerAiAssessment.useMutation({
     onSuccess: (data, variables) => {
-      toast.success("AI assessment completed successfully");
+      toast.success("KINGA assessment completed successfully");
       refetchClaims();
       // Navigate to comparison view to show results
       setLocation(`/insurer/claims/${variables.claimId}/comparison`);
     },
     onError: (error) => {
-      toast.error(`Failed to trigger AI assessment: ${error.message}`);
+      toast.error(`Failed to trigger KINGA assessment: ${error.message}`);
     },
   });
 
@@ -231,7 +231,7 @@ export default function InsurerClaimsTriage() {
                     {claims.length} pending
                   </span>
                 </div>
-                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Review and process submitted claims · Assign assessors · Trigger AI analysis</p>
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Review and process submitted claims · Assign assessors · Trigger KINGA analysis</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

@@ -112,7 +112,7 @@ function createPythonScript(data: GraphGenerationData): string {
   
   // Build cost comparison entries safely
   const costEntries: string[] = [];
-  costEntries.push(`'AI Assessment': ${costComparison.aiAssessment || 0}`);
+  costEntries.push(`'KINGA Assessment': ${costComparison.aiAssessment || 0}`);
   if (costComparison.humanAssessor) {
     costEntries.push(`'Human Assessor': ${costComparison.humanAssessor}`);
   }

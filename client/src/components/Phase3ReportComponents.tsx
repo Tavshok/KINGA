@@ -391,7 +391,7 @@ export function CostComparisonChart({ aiAssessment, enforcement, quotes }: CostC
 
   // Use semantic colours — these work in both light and dark mode
   const bars: Array<{ label: string; value: number | null; color: string }> = [
-    { label: "AI Estimate",    value: aiEstimate,    color: "var(--fp-info-text)" },
+    { label: "KINGA Estimate",    value: aiEstimate,    color: "var(--fp-info-text)" },
     { label: "Repairer Quote", value: repairerQuote, color: "var(--fp-warning-text)" },
     {
       label: "Agreed Cost",
@@ -453,7 +453,7 @@ export function CostComparisonChart({ aiAssessment, enforcement, quotes }: CostC
         })}
       </div>
       <p className="text-xs mt-2" style={{ color: "var(--muted-foreground)" }}>
-        X-axis max: ${maxVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}. Variance % relative to AI Estimate.
+        X-axis max: ${maxVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}. Variance % relative to KINGA Estimate.
       </p>
     </div>
   );
@@ -711,7 +711,7 @@ export function runR7SanityChecks(
     {
       check: "No CONFLICT Dimension strings",
       passed: !JSON.stringify(aiAssessment ?? {}).includes("CONFLICT Dimension"),
-      detail: "Raw AI pipeline markers must not appear in rendered output.",
+      detail: "Raw KINGA pipeline markers must not appear in rendered output.",
     },
     {
       check: "No 'Run Now' or interactive button strings",

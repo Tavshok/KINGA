@@ -45,7 +45,7 @@ export default function AssessorClaimDetails() {
   // Get existing evaluation if any
   const { data: existingEvaluation } = trpc.assessorEvaluations.byClaim.useQuery({ claimId });
 
-  // Get AI assessment for this claim
+  // Get KINGA assessment for this claim
   const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery({ claimId });
 
   // Submit evaluation mutation
@@ -246,7 +246,7 @@ export default function AssessorClaimDetails() {
                         AI Co-Pilot Assessment
                       </CardTitle>
                       <CardDescription className="text-primary/90">
-                        AI-powered pre-assessment to assist your evaluation
+                        KINGA-powered pre-assessment to assist your evaluation
                       </CardDescription>
                     </div>
                     <Badge variant="secondary" className="bg-primary/10 text-primary/90">
@@ -342,7 +342,7 @@ export default function AssessorClaimDetails() {
                   )}
 
                   <div className="bg-primary/10 rounded-lg p-3 text-sm text-secondary">
-                    <strong>Note:</strong> This AI assessment is provided as guidance. You should use your professional judgment and expertise to make the final evaluation.
+                    <strong>Note:</strong> This KINGA assessment is provided as guidance. You should use your professional judgment and expertise to make the final evaluation.
                   </div>
                 </CardContent>
               </Card>
@@ -498,7 +498,7 @@ export default function AssessorClaimDetails() {
                           className="h-4 w-4 rounded border-gray-300 dark:border-border"
                         />
                         <Label htmlFor="disagreesWithAi" className="font-semibold text-amber-900 dark:text-amber-200 cursor-pointer">
-                          I disagree with the AI assessment
+                          I disagree with the KINGA assessment
                         </Label>
                       </div>
                       {evaluation.disagreesWithAi && (

@@ -10,7 +10,7 @@ import type { TrpcContext } from "./_core/context";
  * 1. Claims query by status (triage system)
  * 2. Assessor listing
  * 3. PDF export endpoint
- * 4. AI assessment query
+ * 4. KINGA assessment query
  * 5. Image extraction module
  */
 
@@ -148,8 +148,8 @@ describe("Claim Data Integrity", () => {
   });
 });
 
-describe("AI Assessment Query", () => {
-  it("returns null for claim without AI assessment", async () => {
+describe("KINGA Assessment Query", () => {
+  it("returns null for claim without KINGA assessment", async () => {
     const ctx = createMockContext();
     const caller = appRouter.createCaller(ctx);
 

@@ -200,7 +200,7 @@ function computeCostVerdict(
       Icon: TrendingUp,
       explanation: quotedAmounts.length > 0
         ? `The submitted quote of ${sym}${compareAmount.toLocaleString()} exceeds the fair cost ceiling of ${sym}${fairMax.toLocaleString()} by ${Math.round(((compareAmount - fairMax) / fairMax) * 100)}%.`
-        : `The AI estimate of ${sym}${aiCost.toLocaleString()} is above the expected fair range for this damage profile.`,
+        : `The KINGA estimate of ${sym}${aiCost.toLocaleString()} is above the expected fair range for this damage profile.`,
     };
   }
   if (compareAmount < fairMin * 0.85) {
@@ -210,7 +210,7 @@ function computeCostVerdict(
       Icon: TrendingDown,
       explanation: quotedAmounts.length > 0
         ? `The submitted quote of ${sym}${compareAmount.toLocaleString()} is significantly below the fair cost floor of ${sym}${fairMin.toLocaleString()}. This may indicate incomplete scope of work.`
-        : `The AI estimate is below the expected fair range — verify that all damage components are captured.`,
+        : `The KINGA estimate is below the expected fair range — verify that all damage components are captured.`,
     };
   }
   return {
@@ -219,7 +219,7 @@ function computeCostVerdict(
     Icon: Minus,
     explanation: quotedAmounts.length > 0
       ? `The submitted quote of ${sym}${compareAmount.toLocaleString()} falls within the fair cost range of ${sym}${fairMin.toLocaleString()}–${sym}${fairMax.toLocaleString()}.`
-      : `The AI estimate of ${sym}${aiCost.toLocaleString()} is consistent with the expected cost for this damage profile.`,
+      : `The KINGA estimate of ${sym}${aiCost.toLocaleString()} is consistent with the expected cost for this damage profile.`,
   };
 }
 
@@ -373,7 +373,7 @@ function VerdictBanner({ assessment, enforcement, quotes, claimCurrencyCode }: {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>AI Confidence</p>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>KINGA Confidence</p>
           <p className="text-3xl font-black" style={{ color: "var(--foreground)" }}>{confidence}%</p>
         </div>
       </div>
@@ -492,7 +492,7 @@ function WhatHappened({ assessment, enforcement, claim }: { assessment: any; enf
       <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{narrative}</p>
       {assessment.damageDescription && (
         <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Original AI Description</p>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Original KINGA Description</p>
           <p className="text-xs leading-relaxed italic" style={{ color: "var(--muted-foreground)" }}>{sanitiseField(assessment.damageDescription)}</p>
         </div>
       )}
@@ -657,8 +657,8 @@ function CostDecision({ assessment, enforcement, quotes, claimCurrencyCode }: { 
   const computedTotal = partsCost + labourCost;
   const hasReconciliationGap = computedTotal > 0 && Math.abs(computedTotal - aiCost) > 1;
   const sourceLabel: Record<string, string> = {
-    extracted: "AI Extracted",
-    estimated: "AI + Estimated",
+    extracted: "KINGA Extracted",
+    estimated: "KINGA + Estimated",
     severity_fallback: "Severity Benchmark",
   };
 
@@ -785,7 +785,7 @@ function CostDecision({ assessment, enforcement, quotes, claimCurrencyCode }: { 
 }
 
 function FraudRiskDecision({ assessment, enforcement }: { assessment: any; enforcement: EnforcementResult }) {
-  // Prefer the new deterministic weighted fraud score; fall back to AI pipeline score
+  // Prefer the new deterministic weighted fraud score; fall back to KINGA pipeline score
   const wf = enforcement.weightedFraud;
   const riskLevel = wf?.level ?? enforcement.fraudLevelEnforced;
   const style = RISK_STYLE[riskLevel] ?? RISK_STYLE.moderate;
@@ -1297,7 +1297,7 @@ export default function ClaimDecisionReport() {
       utils.claims.getById.invalidate({ id: claimId });
       utils.aiAssessments.byClaim.invalidate({ claimId });
       utils.aiAssessments.getEnforcement.invalidate({ claimId });
-      toast.info("AI analysis running", {
+      toast.info("KINGA analysis running", {
         description: "The report will update automatically when the pipeline completes. This typically takes 2–4 minutes.",
         duration: 10000,
       });
@@ -1375,11 +1375,11 @@ export default function ClaimDecisionReport() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--background)" }}>
         <div className="text-center max-w-sm">
           <p className="text-lg font-bold mb-2" style={{ color: "var(--foreground)" }}>
-            {!aiAssessment ? "AI Assessment Pending" : "Claim Not Found"}
+            {!aiAssessment ? "KINGA Assessment Pending" : "Claim Not Found"}
           </p>
           <p className="text-sm mb-4" style={{ color: "var(--muted-foreground)" }}>
             {!aiAssessment
-              ? "The AI pipeline has not yet processed this claim. Trigger the assessment to generate the decision report."
+              ? "The KINGA pipeline has not yet processed this claim. Trigger the assessment to generate the decision report."
               : "This claim could not be found or you do not have access."}
           </p>
           {claim && !aiAssessment && (
@@ -1387,7 +1387,7 @@ export default function ClaimDecisionReport() {
               onClick={() => reRunMutation.mutate({ claimId })}
               disabled={reRunMutation.isPending}
             >
-              {reRunMutation.isPending ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Running…</> : "Run AI Assessment"}
+              {reRunMutation.isPending ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Running…</> : "Run KINGA Analysis"}
             </Button>
           )}
           <Button variant="ghost" className="mt-2" onClick={() => setLocation(`/insurer/claims/${claimId}/comparison`)}>
@@ -1419,7 +1419,7 @@ export default function ClaimDecisionReport() {
       <div className="print-report-header" style={{ display: 'none' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0D7377', paddingBottom: '8px', marginBottom: '12px' }}>
           <div>
-            <div style={{ fontSize: '14pt', fontWeight: 700, color: '#0D7377' }}>KINGA AI</div>
+            <div style={{ fontSize: '14pt', fontWeight: 700, color: '#0D7377' }}>KINGA</div>
             <div style={{ fontSize: '9pt', color: '#475569' }}>Forensic Claim Decision Report v4.2</div>
           </div>
           <div style={{ textAlign: 'right', fontSize: '9pt', color: '#475569' }}>
@@ -1439,7 +1439,7 @@ export default function ClaimDecisionReport() {
           <div className="mb-4 rounded-xl border-2 p-4 flex gap-3" style={{ borderColor: "var(--primary)", background: "var(--fp-info-bg)" }}>
             <div style={{ color: "var(--primary)", fontSize: "20px", marginTop: "2px" }}>⟳</div>
             <div>
-              <div className="font-bold text-sm mb-1" style={{ color: "var(--primary)" }}>AI Analysis Running</div>
+              <div className="font-bold text-sm mb-1" style={{ color: "var(--primary)" }}>KINGA Analysis Running</div>
               <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                 The pipeline is processing this claim. All 42 stages are running — extraction, physics analysis, fraud scoring, damage intelligence, and cost validation. The report will update automatically when complete (typically 2–4 minutes).
               </div>
@@ -1461,8 +1461,8 @@ export default function ClaimDecisionReport() {
               <div className="mb-4 rounded-xl border-2 border-red-500 bg-red-50 dark:bg-red-950/30 p-4 flex gap-3 no-print">
                 <div className="text-red-600 text-xl mt-0.5">⛔</div>
                 <div>
-                  <div className="font-bold text-red-700 dark:text-red-400 text-sm mb-1">AI Assessment Incomplete — Manual Review Required</div>
-                  <div className="text-red-600 dark:text-red-300 text-xs">{summary.reason ?? 'The AI pipeline did not complete successfully. This claim cannot be adjudicated using AI-generated data. An assessor must review the claim manually before any decision is recorded.'}</div>
+                  <div className="font-bold text-red-700 dark:text-red-400 text-sm mb-1">KINGA Assessment Incomplete — Manual Review Required</div>
+                  <div className="text-red-600 dark:text-red-300 text-xs">{summary.reason ?? 'The KINGA pipeline did not complete successfully. This claim cannot be adjudicated using AI-generated data. An assessor must review the claim manually before any decision is recorded.'}</div>
                   {summary.missingComponents?.length > 0 && (
                     <div className="text-red-500 dark:text-red-400 text-xs mt-1">Missing: {summary.missingComponents.join(', ')}</div>
                   )}

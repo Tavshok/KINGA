@@ -329,7 +329,7 @@ function scorePhysics(phys: ConfidenceScoringInput["physics"]): { score: number;
       improvements: [{
         field: "Physics Analysis",
         issue: "Physics analysis was not completed for this claim.",
-        action: "Re-run the AI assessment to trigger the physics engine.",
+        action: "Re-run the KINGA assessment to trigger the physics engine.",
         potentialGain: 18,
         severity: "high",
       }],

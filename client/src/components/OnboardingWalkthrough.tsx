@@ -78,7 +78,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         title: "What You Cannot Modify",
         description: "System protections and restrictions",
         items: [
-          "AI assessment results and fraud risk scores",
+          "KINGA assessment results and fraud risk scores",
           "Internal assessor evaluations and notes",
           "Claims processing workflow and approvals",
           "Other claimants' information and claims",
@@ -110,7 +110,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         items: [
           "Queue of claims requiring processing",
           "Claim details, documents, and photos",
-          "AI assessment recommendations",
+          "KINGA assessment recommendations",
           "Communication tools for claimant contact",
           "Workflow status and next actions",
         ],
@@ -120,7 +120,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         title: "What You Cannot Modify",
         description: "System protections and restrictions",
         items: [
-          "AI-generated assessments and confidence scores",
+          "KINGA assessments and confidence scores",
           "Final approval decisions (requires Claims Manager)",
           "Fraud risk scores and override justifications",
           "Assessor evaluations and cost estimates",
@@ -138,10 +138,10 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         title: "What You Do",
         description: "Your primary responsibilities as an internal assessor",
         items: [
-          "Review AI assessments and damage photos",
+          "Review KINGA assessments and damage photos",
           "Conduct detailed damage evaluations",
           "Estimate repair costs and timelines",
-          "Validate or adjust AI cost predictions",
+          "Validate or adjust KINGA cost predictions",
           "Provide professional assessment reports",
         ],
       },
@@ -151,7 +151,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         description: "Your dashboard and available features",
         items: [
           "Assigned claims requiring assessment",
-          "AI assessment with confidence breakdown",
+          "KINGA assessment with confidence breakdown",
           "Damage photos and incident details",
           "Cost estimation tools and historical data",
           "Comparison view: AI vs your assessment",
@@ -162,7 +162,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         title: "What You Cannot Modify",
         description: "System protections and restrictions",
         items: [
-          "AI assessment results (view-only)",
+          "KINGA assessment results (view-only)",
           "Final claim approval decisions",
           "Fraud risk scores and flags",
           "Claims assigned to other assessors",
@@ -204,7 +204,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         title: "What You Cannot Modify",
         description: "System protections and restrictions",
         items: [
-          "Internal AI assessments and scores",
+          "Internal KINGA assessments and scores",
           "Internal assessor evaluations",
           "Claim approval workflows and decisions",
           "Other assessors' reports",
@@ -223,7 +223,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         description: "Your primary responsibilities as a risk manager",
         items: [
           "Monitor fraud risk scores across all claims",
-          "Review high-risk claims flagged by AI",
+          "Review high-risk claims flagged by KINGA",
           "Analyze patterns and trends in fraud indicators",
           "Recommend policy changes to reduce risk",
           "Audit segregation of duties compliance",
@@ -236,7 +236,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         items: [
           "Risk analytics dashboard with fraud metrics",
           "High-risk claims requiring attention",
-          "AI confidence breakdown and discrepancy analysis",
+          "KINGA confidence breakdown and discrepancy analysis",
           "Historical claimant risk profiles",
           "Technical validation panel (damage plausibility, prior claims)",
         ],
@@ -248,7 +248,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         items: [
           "Final payment authorization (requires Claims Manager)",
           "Panel beater selection and quote approval",
-          "AI fraud detection algorithms",
+          "KINGA fraud detection algorithms",
           "Executive override decisions",
           "Claim workflow state transitions",
         ],
@@ -267,7 +267,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
           "Review and approve final claim settlements",
           "Select panel beaters and approve quotes",
           "Manage claims processing team workload",
-          "Override AI recommendations with justification",
+          "Override KINGA recommendations with justification",
           "Monitor team performance and SLA compliance",
         ],
       },
@@ -288,7 +288,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         title: "What You Cannot Modify",
         description: "System protections and restrictions",
         items: [
-          "AI assessment algorithms and confidence scores",
+          "KINGA assessment algorithms and confidence scores",
           "Assessor evaluations (view-only)",
           "Executive-level analytics and reports",
           "System audit logs and timestamps",
@@ -331,7 +331,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         description: "System protections and restrictions",
         items: [
           "Individual claim processing workflows",
-          "AI assessment algorithms",
+          "KINGA assessment algorithms",
           "Assessor evaluations and cost estimates",
           "Claims Manager approval decisions (unless override)",
           "System audit logs (immutable)",
@@ -373,7 +373,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         description: "System protections and restrictions",
         items: [
           "Individual claim assessments and approvals",
-          "AI fraud risk scores",
+          "KINGA fraud risk scores",
           "Claims for vehicles outside your fleet",
           "Internal processing workflows",
           "Executive-level analytics and reports",

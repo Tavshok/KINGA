@@ -23,7 +23,7 @@ export const repairReplaceRouter = router({
   /**
    * Score repair probability for all detected components on a claim.
    *
-   * Reads the repairIntelligenceJson from the claim's latest AI assessment,
+   * Reads the repairIntelligenceJson from the claim's latest KINGA assessment,
    * extracts the component list with severity, and runs the probability engine.
    *
    * Returns an array of RepairProbabilityResult — one per component.
@@ -61,7 +61,7 @@ export const repairReplaceRouter = router({
 
       const claim = claimRows[0];
 
-      // Fetch the latest AI assessment for this claim
+      // Fetch the latest KINGA assessment for this claim
       const assessmentRows = await db
         .select({
           id: aiAssessments.id,
@@ -73,7 +73,7 @@ export const repairReplaceRouter = router({
         .limit(1);
 
       if (!assessmentRows.length) {
-        return { components: [], vehicleContext: {}, message: "No AI assessment found for this claim" };
+        return { components: [], vehicleContext: {}, message: "No KINGA assessment found for this claim" };
       }
 
       const assessment = assessmentRows[0];

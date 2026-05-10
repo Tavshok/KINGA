@@ -228,7 +228,7 @@ export default function InviteAccept() {
           </div>
           <CardTitle className="text-xl">You've Been Invited!</CardTitle>
           <CardDescription className="mt-1">
-            You have been invited to join the KINGA AI Insurance Platform.
+            You have been invited to join the KINGA Insurance Platform.
           </CardDescription>
         </CardHeader>
 

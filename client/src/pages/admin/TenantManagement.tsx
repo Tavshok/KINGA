@@ -56,7 +56,7 @@ export default function TenantManagement() {
     {
       id: "kinga-default",
       name: "KINGA",
-      displayName: "KINGA AI",
+      displayName: "KINGA",
       primaryColor: "#10b981",
       secondaryColor: "#64748b",
       documentRetentionYears: 7,

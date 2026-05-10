@@ -468,7 +468,7 @@ export default function SubmitClaim() {
             <div className="flex items-center gap-3">
               <Shield className="h-8 w-8 text-emerald-600" />
               <div>
-                <h1 className="text-2xl font-bold">KINGA AI</h1>
+                <h1 className="text-2xl font-bold">KINGA</h1>
                 <p className="text-sm text-muted-foreground">Claim Submitted Successfully</p>
               </div>
             </div>
@@ -492,7 +492,7 @@ export default function SubmitClaim() {
 
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>&#10003; Your claim has been submitted to the insurer for triage</p>
-                <p>&#10003; AI fraud detection and physics validation will be performed</p>
+                <p>&#10003; KINGA fraud detection and physics validation will be performed</p>
                 <p>&#10003; Selected panel beaters will be notified for quotes</p>
                 <p>&#10003; You will receive updates on your dashboard</p>
               </div>

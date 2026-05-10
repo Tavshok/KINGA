@@ -153,7 +153,7 @@ function calculateMileageAdjustment(
 }
 
 /**
- * AI-powered vehicle valuation using LLM
+ * KINGA-powered vehicle valuation using LLM
  * 
  * Uses market knowledge and comparable sales to estimate value
  */

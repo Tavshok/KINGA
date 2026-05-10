@@ -104,7 +104,7 @@ const navByRole: Record<string, NavSection[]> = {
       items: [
         { label: "Intake Queue", description: "New claims to process", href: "/insurer-portal/claims-processor#intake-queue", icon: ClipboardList },
         { label: "In Progress", description: "Claims being actively worked", href: "/insurer-portal/claims-processor#in-progress", icon: Activity },
-        { label: "AI Assessment Complete", description: "Ready for review", href: "/insurer-portal/claims-processor#ai-flagged", icon: Eye },
+        { label: "KINGA Assessment Complete", description: "Ready for review", href: "/insurer-portal/claims-processor#ai-flagged", icon: Eye },
         { label: "Completed", description: "Closed claims", href: "/insurer-portal/claims-processor#completed", icon: CheckSquare },
       ],
     },
@@ -355,7 +355,7 @@ export default function InsurerPortalLayout({
           />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white leading-none tracking-wide">KINGA</p>
-            <p className="text-[10px] text-slate-400 leading-none mt-1">AutoVerify AI</p>
+            <p className="text-[10px] text-slate-400 leading-none mt-1">Claims Intelligence</p>
           </div>
         </div>
 

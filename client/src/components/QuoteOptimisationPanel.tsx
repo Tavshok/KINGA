@@ -7,7 +7,7 @@
  *   - Per-quote cost deviation %
  *   - Flags (overpricing, parts inflation, labour inflation)
  *   - Recommended repairer
- *   - AI narrative summary
+ *   - KINGA narrative summary
  *   - Insurer decision buttons (Accept Recommendation / Override)
  *
  * AI assists; insurer decides.
@@ -176,7 +176,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
           </Button>
         </div>
         <CardDescription className="text-xs mt-1">
-          AI analysis compares 3 quotes against historical data, parts pricing benchmarks, and labour hour standards.
+          KINGA analysis compares 3 quotes against historical data, parts pricing benchmarks, and labour hour standards.
           <span className="font-semibold text-foreground"> AI assists — insurer decides.</span>
         </CardDescription>
       </CardHeader>
@@ -271,7 +271,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
         {/* AI Narrative */}
         {result.optimisationSummary && (
           <div className="rounded-lg bg-muted/40 border p-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">AI Analysis</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">KINGA Analysis</p>
             <p className="text-sm leading-relaxed">{result.optimisationSummary}</p>
           </div>
         )}

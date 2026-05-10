@@ -206,7 +206,7 @@ async function checkAiAssessmentConsistency(
       code: "NO_AI_ASSESSMENT",
       severity: "warning",
       field: "aiAssessments",
-      message: `Claim is in status "${claim.status}" but has no AI assessment records.`,
+      message: `Claim is in status "${claim.status}" but has no KINGA assessment records.`,
     });
   }
 }

@@ -3,7 +3,7 @@
  *
  * Generates a comprehensive single-claim PDF report for insurers, including:
  *   - Claim header (vehicle, policy, incident details)
- *   - AI Assessment summary
+ *   - KINGA Assessment summary
  *   - Ranked Panel Beater Choices (1st/2nd/3rd) with Preferred, SLA Signed,
  *     and AI Recommended badges
  *   - Mismatch warning when assigned repairer differs from claimant preference
@@ -537,7 +537,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
       margin: 10px 0 6px;
     }
 
-    /* ── AI Assessment card ──────────────────────────────────────────────── */
+    /* ── KINGA Assessment card ──────────────────────────────────────────────── */
     .ai-card {
       display: flex;
       gap: 20px;
@@ -793,9 +793,9 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
     <p style="font-size:9pt;color:#374151;line-height:1.6;margin:0;">${claim.incidentDescription}</p>
   </div>` : ''}
 
-  <!-- ── AI Assessment Summary ──────────────────────────────────────────── -->
+  <!-- ── KINGA Assessment Summary ──────────────────────────────────────────── -->
   <div class="section no-break">
-    <h2 class="section-title">AI Assessment Summary</h2>
+    <h2 class="section-title">KINGA Assessment Summary</h2>
     ${aiAssessment ? `
     <div class="ai-card">
       <div>
@@ -814,7 +814,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
       </div>
     </div>
     ${aiAssessment.damageDescription ? `<p style="font-size:9pt;color:#374151;">${aiAssessment.damageDescription}</p>` : ""}
-    ` : `<p style="color:#6b7280;font-size:9pt;">No AI assessment has been performed for this claim.</p>`}
+    ` : `<p style="color:#6b7280;font-size:9pt;">No KINGA assessment has been performed for this claim.</p>`}
   </div>
 
   <!-- ── Ranked Panel Beater Choices ────────────────────────────────────── -->
@@ -896,7 +896,7 @@ export const exportClaimPDF = insurerDomainProcedure
       throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
     }
 
-    // ── 2. Fetch AI assessment ─────────────────────────────────────────────
+    // ── 2. Fetch KINGA assessment ─────────────────────────────────────────────
     const aiRows = await db
       .select()
       .from(aiAssessments)

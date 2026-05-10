@@ -62,7 +62,7 @@ export async function notifyFraudDetected(data: NotificationData & { claimId: nu
 }
 
 /**
- * Send notification when AI assessment is completed
+ * Send notification when KINGA assessment is completed
  */
 export async function notifyAiAssessmentComplete(data: NotificationData & { claimId: number; recipientUserId?: number }) {
   await sendEmailSafe({
@@ -70,8 +70,8 @@ export async function notifyAiAssessmentComplete(data: NotificationData & { clai
     entityId: data.claimId,
     recipientUserId: data.recipientUserId ?? 0,
     recipientEmail: data.recipientEmail,
-    subject: `AI Assessment Completed: ${data.claimNumber}`,
-    body: `Hello,\n\nThe AI damage assessment has been completed for claim ${data.claimNumber}.\n\nEstimated Repair Cost: R${data.estimatedCost}\nFraud Risk Level: ${data.fraudRiskLevel}\nConfidence Score: ${data.confidenceScore}%\n\nYou can now proceed with assigning an assessor or reviewing the AI analysis.\n\nKINGA AI Team`,
+    subject: `KINGA Assessment Completed: ${data.claimNumber}`,
+    body: `Hello,\n\nThe AI damage assessment has been completed for claim ${data.claimNumber}.\n\nEstimated Repair Cost: R${data.estimatedCost}\nFraud Risk Level: ${data.fraudRiskLevel}\nConfidence Score: ${data.confidenceScore}%\n\nYou can now proceed with assigning an assessor or reviewing the KINGA analysis.\n\nKINGA AI Team`,
   });
 }
 

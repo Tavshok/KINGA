@@ -111,7 +111,7 @@ export async function trackClaimProcessed(params: {
 }
 
 /**
- * Track AI assessment trigger
+ * Track KINGA assessment trigger
  */
 export async function trackAIAssessment(params: {
   tenantId: string;

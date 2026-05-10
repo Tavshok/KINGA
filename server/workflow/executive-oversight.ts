@@ -131,7 +131,7 @@ export class ExecutiveOversight {
   async getDecisionComparison(
     claimId: number
   ): Promise<DecisionComparison> {
-    // Get AI assessment
+    // Get KINGA assessment
     const db = await getDb();
     if (!db) throw new WorkflowViolationError("Database not available", "DB_UNAVAILABLE");
     

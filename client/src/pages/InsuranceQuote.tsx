@@ -343,7 +343,7 @@ export default function InsuranceQuote() {
           <div className="text-sm text-muted-foreground">Simple, streamlined form</div>
         </div>
         <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
-          <div className="text-3xl font-bold text-purple-600">AI-powered</div>
+          <div className="text-3xl font-bold text-purple-600">KINGA-powered</div>
           <div className="text-sm text-muted-foreground">KINGA intelligence engine</div>
         </div>
       </div>

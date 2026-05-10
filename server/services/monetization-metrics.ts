@@ -18,7 +18,7 @@ import { eq, and, gte, lte, sql, count, avg } from "drizzle-orm";
  */
 const PRICING_MODEL = {
   // Per-claim pricing
-  aiOnlyAssessment: 15.00,        // AI assessment without human review
+  aiOnlyAssessment: 15.00,        // KINGA assessment without human review
   hybridAssessment: 35.00,        // AI + human assessor review
   fastTrackClaim: 5.00,           // Fast-track processing bonus
   
@@ -277,7 +277,7 @@ export async function getTenantMetrics(
     premiumToolUsageCount += premiumToolUsage.length;
     
     // Categorize confidence score
-    // Get confidence from AI assessment if available
+    // Get confidence from KINGA assessment if available
     const aiAssessment = claimAudit.find(
       (entry: typeof auditTrail.$inferSelect) => entry.action === "ai_assessment_completed"
     );

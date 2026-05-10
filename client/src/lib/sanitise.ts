@@ -10,7 +10,7 @@
  */
 
 const SANITISATION_RULES: Array<{ pattern: RegExp; replacement: string }> = [
-  // Internal conflict markers from AI pipeline
+  // Internal conflict markers from KINGA pipeline
   { pattern: /CONFLICT\s+Dimension\s+\d+\s+\d+\s*(?:CONFLICT)?/gi, replacement: '' },
   { pattern: /END_CONFLICT/gi, replacement: '' },
 

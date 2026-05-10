@@ -451,7 +451,7 @@ export const decisionRouter = router({
     }),
 
   /**
-   * Fetch a claim's AI assessment from the DB and generate a full decision trace.
+   * Fetch a claim's KINGA assessment from the DB and generate a full decision trace.
    */
   getDecisionTrace: protectedProcedure
     .input(z.object({ claimId: z.number() }))

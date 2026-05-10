@@ -65,7 +65,7 @@ function rollingMedian(existingMedian: number, existingCount: number, newValue: 
  * Steps:
  *   1. Fetch the completed claim (vehicle make, model, year)
  *   2. Fetch the accepted/lowest panel beater quote as the repair cost
- *   3. Determine damage category from claim metadata or AI assessment
+ *   3. Determine damage category from claim metadata or KINGA assessment
  *   4. Upsert the repair_cost_intelligence row with rolling median update
  *
  * @param claimId    - ID of the completed claim

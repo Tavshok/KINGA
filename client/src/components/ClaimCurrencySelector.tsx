@@ -2,7 +2,7 @@
  * ClaimCurrencySelector
  *
  * Allows a claims manager or processor to set the currency for a specific claim
- * based on the policy insured. Propagates the change to all related AI assessments
+ * based on the policy insured. Propagates the change to all related KINGA assessments
  * and panel beater quotes via the `claims.updateCurrency` tRPC mutation.
  *
  * Supported currencies:

@@ -84,7 +84,7 @@ export async function calculateDamageCertainty(claimId: number): Promise<{
   const db = await getDb();
   if (!db) throw new Error("Database not initialized");
   
-  // Get AI assessment for this claim
+  // Get KINGA assessment for this claim
   const [assessment] = await db
     .select()
     .from(aiAssessments)
@@ -94,7 +94,7 @@ export async function calculateDamageCertainty(claimId: number): Promise<{
   if (!assessment) {
     return {
       score: 0,
-      breakdown: { reason: "No AI assessment found" },
+      breakdown: { reason: "No KINGA assessment found" },
     };
   }
   

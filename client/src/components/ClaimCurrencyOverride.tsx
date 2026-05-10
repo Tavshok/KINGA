@@ -5,7 +5,7 @@
  *
  * Renders as a compact badge showing the current currency code. Clicking it
  * opens a dropdown that lets claims managers / processors override the currency
- * for the claim (and propagates the change to all related AI assessments and
+ * for the claim (and propagates the change to all related KINGA assessments and
  * panel beater quotes via the tRPC mutation).
  *
  * Roles that can edit: claims_manager, claims_processor, insurer, admin

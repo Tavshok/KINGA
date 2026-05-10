@@ -305,7 +305,7 @@ function generateReportHTML(
 
   ${includeVisualizations ? `
   <div class="visualization">
-    <h3>AI Assessment Confidence</h3>
+    <h3>KINGA Assessment Confidence</h3>
     ${generateGaugeSVG(visualizations.confidenceGauge)}
   </div>
   ` : ''}

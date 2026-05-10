@@ -132,7 +132,7 @@ export default function Login() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2 text-center text-sm text-muted-foreground">
-            <p>Streamline your insurance claims with AI-powered damage assessment and fraud detection.</p>
+            <p>Streamline your insurance claims with KINGA-powered damage assessment and fraud detection.</p>
           </div>
           
           <Button 

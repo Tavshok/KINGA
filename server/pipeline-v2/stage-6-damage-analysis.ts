@@ -221,7 +221,7 @@ async function analyseOneImage(
       messages: [
         {
           role: "system",
-          content: `${KINGA_REPORT_SYSTEM_PROMPT}\n\nYou are an expert vehicle damage assessor for insurance claims in South Africa, operating within the KINGA AutoVerify AI system.\nAnalyse the provided vehicle damage photo and identify EVERY visibly damaged component.
+          content: `${KINGA_REPORT_SYSTEM_PROMPT}\n\nYou are an expert vehicle damage assessor for insurance claims in South Africa, operating within the KINGA Intelligence system.\nAnalyse the provided vehicle damage photo and identify EVERY visibly damaged component.
 
 PART NAMING — CRITICAL: You MUST use ONLY the following authorised part names. Never invent, abbreviate, or misspell a part name. If the damaged part is not in this list, choose the CLOSEST match:
 ${CANONICAL_PARTS_PROMPT_LIST}

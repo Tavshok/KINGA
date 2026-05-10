@@ -190,13 +190,13 @@ export default function InsurerAdminDashboard() {
       sub: "days per claim",
     },
     {
-      label: "AI Savings",
+      label: "KINGA Savings",
       value: kpiSummary?.totalSavings != null
         ? fmt(Number(kpiSummary.totalSavings))
         : "—",
       icon: TrendingUp,
       color: "text-teal-600",
-      sub: "total AI-driven savings",
+      sub: "total KINGA-driven savings",
     },
     {
       label: "High-Value Claims",

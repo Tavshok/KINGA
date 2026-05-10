@@ -927,7 +927,7 @@ export const analyticsRouter = router({
         '────────────────────────────────────────────────────────────',
         'This report is confidential and intended solely for the named recipient.',
         'Data is tenant-isolated and reflects own-book motor claims only.',
-        '© KINGA AutoVerify AI',
+        '© KINGA Intelligence',
       ].join('\n');
 
       const sent = await notifyOwner({

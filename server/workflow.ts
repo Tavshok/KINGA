@@ -131,7 +131,7 @@ export async function checkGMConsultationRequired(claimId: number): Promise<bool
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Get claim with AI assessment
+  // Get claim with KINGA assessment
   const [claim] = await db
     .select()
     .from(claims)

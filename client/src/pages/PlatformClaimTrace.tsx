@@ -119,7 +119,7 @@ export default function PlatformClaimTrace() {
               <Brain className="h-5 w-5 text-blue-500" />
               <CardTitle>AI Extraction & Confidence Breakdown</CardTitle>
             </div>
-            <CardDescription>AI assessment and confidence components</CardDescription>
+            <CardDescription>KINGA assessment and confidence components</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Overall Confidence */}
@@ -233,7 +233,7 @@ export default function PlatformClaimTrace() {
               <Route className="h-5 w-5 text-purple-500" />
               <CardTitle>Routing Decision Metadata</CardTitle>
             </div>
-            <CardDescription>AI routing decisions and reasoning</CardDescription>
+            <CardDescription>KINGA routing decisions and reasoning</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

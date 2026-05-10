@@ -70,7 +70,7 @@ export default function InsurerExternalAssessmentUpload() {
             <CardHeader>
               <CardTitle>Upload External Assessment Document</CardTitle>
               <CardDescription>
-                Upload damage assessment reports from external sources to get AI analysis, physics validation, and fraud detection
+                Upload damage assessment reports from external sources to get KINGA analysis, physics validation, and fraud detection
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -90,7 +90,7 @@ export default function InsurerExternalAssessmentUpload() {
                     <li>Automatic damage assessment with component-level analysis</li>
                     <li>Physics-based validation of accident dynamics and forces</li>
                     <li>Fraud detection with impossible damage pattern analysis</li>
-                    <li>Side-by-side comparison: Original Assessment vs KINGA AI Analysis</li>
+                    <li>Side-by-side comparison: Original Assessment vs KINGA KINGA Analysis</li>
                   </ul>
                 </div>
               )}

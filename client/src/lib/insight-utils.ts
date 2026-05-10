@@ -88,9 +88,9 @@ export function calculateAIInsight(kpis: KPIData | undefined): string | null {
   const fastTrackRate = kpis.fastTrackPercentage || 0;
   
   if (confidenceScore > 70) {
-    return `AI confidence at ${confidenceScore}% - high accuracy enabling ${fastTrackRate}% fast-track rate`;
+    return `KINGA confidence at ${confidenceScore}% - high accuracy enabling ${fastTrackRate}% fast-track rate`;
   } else if (confidenceScore < 40) {
-    return `AI confidence at ${confidenceScore}% - model retraining recommended to improve accuracy`;
+    return `KINGA confidence at ${confidenceScore}% - model retraining recommended to improve accuracy`;
   } else if (fastTrackRate > 50) {
     return `${fastTrackRate}% of claims fast-tracked - AI automation delivering efficiency gains`;
   }

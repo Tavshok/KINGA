@@ -294,7 +294,7 @@ async function runAiVisionAnalysis(photoUrl: string): Promise<VisionClassificati
       messages: [
         {
           role: "system",
-          content: `${KINGA_FORENSIC_SYSTEM_PROMPT}\n\nYou are a motor vehicle insurance claims photo analyst for the KINGA AutoVerify AI system. Apply the quality standards above to all image analysis and findings.`,
+          content: `${KINGA_FORENSIC_SYSTEM_PROMPT}\n\nYou are a motor vehicle insurance claims photo analyst for the KINGA Intelligence system. Apply the quality standards above to all image analysis and findings.`,
         },
         {
           role: "user",

@@ -161,7 +161,7 @@ export async function generateIntelligenceReport(
     }
   }
 
-  // ── 2. Fetch detected parts from latest AI assessment ────────────────────
+  // ── 2. Fetch detected parts from latest KINGA assessment ────────────────────
   let detectedParts: DetectedPart[] = [];
 
   if (db) {

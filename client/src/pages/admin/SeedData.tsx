@@ -57,7 +57,7 @@ export default function SeedData() {
             <ul className="list-disc list-inside mt-2 space-y-1">
               <li>Upload 15 vehicle damage images from /home/ubuntu/upload to S3</li>
               <li>Create 20 test claims with populated damage_photos arrays</li>
-              <li>Automatically trigger AI assessments for each claim</li>
+              <li>Automatically trigger KINGA assessments for each claim</li>
               <li>Generate quantitative physics analysis for impact validation</li>
             </ul>
           </CardDescription>
@@ -123,7 +123,7 @@ export default function SeedData() {
                     <Brain className="h-8 w-8 text-purple-600" />
                     <div>
                       <div className="text-2xl font-bold">{seedResult.report.aiAssessmentsTriggered}</div>
-                      <div className="text-sm text-muted-foreground">AI Assessments</div>
+                      <div className="text-sm text-muted-foreground">KINGA Assessments</div>
                     </div>
                   </div>
                 </div>

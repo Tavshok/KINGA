@@ -42,12 +42,12 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 // ─── Report catalogue definition ─────────────────────────────────────────────
 const REPORT_CATALOGUE = [
   // ── Claims Processor ───────────────────────────────────────────────────────────────
-  { key: "claim.assessment",      name: "AI Assessment Report",       category: "Claim Reports",  description: "Full AI assessment output including fraud score, cost analysis, and recommendation.",                   requiresClaimId: true  },
+  { key: "claim.assessment",      name: "KINGA Assessment Report",       category: "Claim Reports",  description: "Full KINGA assessment output including fraud score, cost analysis, and recommendation.",                   requiresClaimId: true  },
   { key: "claim.cost_comparison", name: "Cost Comparison Report",     category: "Claim Reports",  description: "Component-level cost analysis comparing the submitted quote against the AI benchmark estimate.",       requiresClaimId: true  },
   { key: "claim.repair_decision", name: "Repair vs Replace Decision", category: "Claim Reports",  description: "Repair vs replace recommendation with vehicle valuation, repair-to-value ratio, and scoring rationale.", requiresClaimId: true  },
   // ── Claims Manager ────────────────────────────────────────────────────────────────
   { key: "claim.forensic",                    name: "Forensic Analysis Report",         category: "Claim Reports",  description: "Physics analysis, fraud indicators, narrative consistency, and forensic audit validation.",        requiresClaimId: true  },
-  { key: "claim.audit_trail",                 name: "Claim Decision Audit Trail",       category: "Claim Reports",  description: "Immutable log of all workflow events and AI assessment history for a single claim.",              requiresClaimId: true  },
+  { key: "claim.audit_trail",                 name: "Claim Decision Audit Trail",       category: "Claim Reports",  description: "Immutable log of all workflow events and KINGA assessment history for a single claim.",              requiresClaimId: true  },
   { key: "portfolio.claims_summary",          name: "Claims Portfolio Summary",         category: "Portfolio",      description: "Aggregate claims statistics, approval rates, and total value summary for a selected period.",     requiresClaimId: false },
   { key: "portfolio.dwell_time",              name: "Processing Dwell Time Report",     category: "Portfolio",      description: "Average and maximum time claims spend in each workflow stage, highlighting bottlenecks.",        requiresClaimId: false },
   { key: "portfolio.panel_beater_performance",name: "Panel Beater Performance Report",  category: "Portfolio",      description: "Panel beater quote accuracy, structural gap rates, and anomaly scores across the network.",       requiresClaimId: false },

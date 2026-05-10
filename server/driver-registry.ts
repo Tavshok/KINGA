@@ -507,7 +507,7 @@ export interface UpsertDriverFromClaimParams {
 }
 
 /**
- * Main entry point called by the AI assessment pipeline.
+ * Main entry point called by the KINGA assessment pipeline.
  * Upserts driver records for the insured driver, third-party driver, and claimant.
  * Returns the driverRegistryId and thirdPartyDriverRegistryId for FK storage on the claim.
  */

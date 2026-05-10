@@ -222,7 +222,7 @@ function BulkUploadTab() {
           </CardTitle>
           <CardDescription>
             Upload historical claim PDFs, panel beater quotes, police reports, and assessor reports.
-            The AI pipeline will extract structured data from each document.
+            The KINGA pipeline will extract structured data from each document.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -99,7 +99,7 @@ export function ReplayTriggerForm() {
           <CardHeader>
             <CardTitle>Single Claim Replay</CardTitle>
             <CardDescription>
-              Re-process a single historical claim through current KINGA AI system
+              Re-process a single historical claim through current KINGA system
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

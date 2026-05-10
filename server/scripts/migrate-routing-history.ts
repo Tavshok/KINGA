@@ -30,7 +30,7 @@ function generateRoutingId(timestamp: Date | string): string {
  * In production, you may have more sophisticated logic.
  */
 function inferRoutingCategory(claim: any): "HIGH" | "MEDIUM" | "LOW" {
-  // If claim has AI assessment completed, assume HIGH confidence
+  // If claim has KINGA assessment completed, assume HIGH confidence
   if (claim.aiAssessmentCompleted === 1) {
     return "HIGH";
   }

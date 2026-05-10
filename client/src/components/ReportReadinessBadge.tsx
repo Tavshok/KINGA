@@ -1,7 +1,7 @@
 /**
  * ReportReadinessBadge
  *
- * Reusable badge that shows the AI report readiness state for a given claim.
+ * Reusable badge that shows the KINGA report readiness state for a given claim.
  * Queries trpc.reporting.getReportReadiness and renders a colour-coded pill.
  *
  * Variants:
@@ -185,7 +185,7 @@ export function ReportReadinessBadge({ claimId, variant = "inline", onLoad }: Pr
 
         {state === "ready" && (
           <p className="text-xs mt-0.5 opacity-80">
-            All AI assessment fields are complete. Full report suite available.
+            All KINGA assessment fields are complete. Full report suite available.
           </p>
         )}
 
@@ -197,13 +197,13 @@ export function ReportReadinessBadge({ claimId, variant = "inline", onLoad }: Pr
 
         {state === "ai_processing" && (
           <p className="text-xs mt-0.5 opacity-80">
-            AI pipeline is processing this claim. Reports will be available once complete.
+            KINGA pipeline is processing this claim. Reports will be available once complete.
           </p>
         )}
 
         {state === "not_submitted" && (
           <p className="text-xs mt-0.5 opacity-80">
-            No AI assessment has been submitted for this claim yet.
+            No KINGA assessment has been submitted for this claim yet.
           </p>
         )}
 

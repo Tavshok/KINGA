@@ -143,7 +143,7 @@ export class RoutingEngine {
     if (claim.aiAssessment?.fraudRiskLevel === "high") {
       return {
         required: true,
-        reason: "High fraud risk detected by AI assessment",
+        reason: "High fraud risk detected by KINGA assessment",
         targetRole: "risk_manager",
       };
     }

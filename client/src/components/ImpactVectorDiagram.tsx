@@ -86,7 +86,7 @@ export function ImpactVectorDiagram({
         <div className="text-center">
           <p className="text-sm font-semibold text-muted-foreground">Physics Analysis Pending</p>
           <p className="text-xs text-muted-foreground mt-1">Speed, force, and energy calculations are not yet available for this claim.</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Re-run the AI assessment to generate the impact vector diagram.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Re-run the KINGA assessment to generate the impact vector diagram.</p>
         </div>
       </div>
     );

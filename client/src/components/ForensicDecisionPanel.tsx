@@ -293,8 +293,8 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   const costBasisLabel    = normCosts?.source === 'agreed_cost' ? 'Agreed Cost' :
                             normCosts?.source === 'original_quote' ? 'Panel Beater Quote' :
                             normCosts?.source === 'parts_labour_sum' ? 'Parts + Labour' :
-                            normCosts?.source === 'ai_estimate' ? 'AI Estimate' :
-                            costDecision?.cost_basis ?? (agreedCost > 0 ? 'Agreed Cost' : 'AI Estimate');
+                            normCosts?.source === 'ai_estimate' ? 'KINGA Estimate' :
+                            costDecision?.cost_basis ?? (agreedCost > 0 ? 'Agreed Cost' : 'KINGA Estimate');
   const costBasis         = trueCostUsd > 0 ? trueCostUsd : (agreedCost > 0 ? agreedCost : aiCost);
   const costRecommendation = costDecision?.recommendation ?? null;
   const costAnomalies     = Array.isArray(costDecision?.anomalies) ? costDecision.anomalies : [];
@@ -756,7 +756,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
                   <thead className="bg-muted/50">
                     <tr>
                       <TH>Component</TH>
-                      <TH>AI Estimate</TH>
+                      <TH>KINGA Estimate</TH>
                       <TH>Quoted</TH>
                       <TH>Variance</TH>
                       <TH>Status</TH>

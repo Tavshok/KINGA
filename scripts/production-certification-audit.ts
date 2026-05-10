@@ -32,7 +32,7 @@ interface AuditResult {
 async function runProductionCertificationAudit() {
   console.log('═══════════════════════════════════════════════════════');
   console.log('  PRODUCTION CERTIFICATION AUDIT');
-  console.log('  KINGA - AutoVerify AI');
+  console.log('  KINGA Intelligence');
   console.log('═══════════════════════════════════════════════════════\n');
 
   const results: AuditResult[] = [];

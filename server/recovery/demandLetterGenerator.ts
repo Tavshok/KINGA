@@ -429,7 +429,7 @@ function renderLetterHTML(ctx: DemandLetterContext, sections: Awaited<ReturnType
     <p><strong>_____________________________</strong></p>
     <p>Authorised Signatory<br/>${ctx.insurerDisplayName}<br/>Recovery &amp; Subrogation Department</p>
     <p style="margin-top:12px;font-size:9pt;color:#666;">
-      <em>This letter was prepared with the assistance of KINGA AutoVerify AI (Recovery Case RC-${ctx.recoveryCaseId}).
+      <em>This letter was prepared with the assistance of KINGA Intelligence (Recovery Case RC-${ctx.recoveryCaseId}).
       It constitutes a draft only and requires review and authorisation before dispatch.</em>
     </p>
   </div>
@@ -479,7 +479,7 @@ export async function generateDemandLetter(recoveryCaseId: number): Promise<{
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // 1. Load recovery case + claim + AI assessment + insurer tenant
+  // 1. Load recovery case + claim + KINGA assessment + insurer tenant
   const [rcRow] = await db
     .select()
     .from(recoveryCases)

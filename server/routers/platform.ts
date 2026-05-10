@@ -291,9 +291,9 @@ export const platformRouter = router({
 
       await db.insert(panelBeaterQuotes).values(quoteInserts);
 
-      // ── 4. Trigger AI assessment (fire-and-forget) ──────────────────────────
+      // ── 4. Trigger KINGA assessment (fire-and-forget) ──────────────────────────
       triggerAiAssessment(claimId).catch((err: unknown) => {
-        console.error(`[SimulateClaim] AI assessment failed for claim ${claimId}:`, err);
+        console.error(`[SimulateClaim] KINGA assessment failed for claim ${claimId}:`, err);
       });
 
       return {
@@ -311,7 +311,7 @@ export const platformRouter = router({
         quoteAmounts,
         garageNames: GARAGE_NAMES.slice(0, input.numberOfQuotes),
         damageParts: parts,
-        message: `Simulated claim ${claimNumber} created with ${input.numberOfQuotes} quotes. AI assessment triggered in background.`,
+        message: `Simulated claim ${claimNumber} created with ${input.numberOfQuotes} quotes. KINGA assessment triggered in background.`,
       };
     }),
 });

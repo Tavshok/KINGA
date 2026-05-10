@@ -301,10 +301,10 @@ function crossCheck(
           photoIndex: photo.index,
           photoUrl: photo.url,
           type: 'unreported_damage',
-          description: `Photo ${photo.index + 1} shows "${component}" damage that was not reported or extracted by the AI assessment.`,
+          description: `Photo ${photo.index + 1} shows "${component}" damage that was not reported or extracted by the KINGA assessment.`,
           severity: photo.severity === 'critical' || photo.severity === 'severe' ? 'high' : 'medium',
           photoFinding: component,
-          reportedValue: 'Not mentioned in claim or AI assessment',
+          reportedValue: 'Not mentioned in claim or KINGA assessment',
         });
       }
     }
@@ -327,7 +327,7 @@ function crossCheck(
       }
     }
 
-    // 3. Flag critical severity photos that are not reflected in AI assessment
+    // 3. Flag critical severity photos that are not reflected in KINGA assessment
     if (photo.severity === 'critical' && photo.confidenceScore >= 60) {
       const hasCriticalInExtracted = extractedNorm.some(
         e => e.includes('critical') || e.includes('severe') || e.includes('total')
@@ -340,7 +340,7 @@ function crossCheck(
           description: `Photo ${photo.index + 1} indicates critical damage severity, but this is not reflected in the AI-extracted component list.`,
           severity: 'high',
           photoFinding: `Critical severity — ${photo.detectedComponents.join(', ')}`,
-          reportedValue: 'No critical severity components in AI assessment',
+          reportedValue: 'No critical severity components in KINGA assessment',
         });
       }
     }
