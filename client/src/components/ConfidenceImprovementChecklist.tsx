@@ -420,7 +420,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
   // ── Forensic Report style ──────────────────────────────────────────────────
   return (
     <div className="conf-section" style={{ pageBreakBefore: "always" }}>
-      <div className="section-heading" style={{ background: "var(--fp-bg-section)", borderLeft: "4px solid var(--fp-accent)", padding: "12px 20px", marginBottom: "4px" }}>
+      <div className="section-heading" style={{ background: "#ffffff", borderLeft: "4px solid var(--fp-accent, #1A2B4A)", padding: "12px 0", marginBottom: "4px" }}>
         <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "var(--fp-text-muted)", textTransform: "uppercase" }}>Appendix A</span>
         <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--fp-text-primary)", marginTop: "2px" }}>Confidence Improvement Checklist</div>
         <div style={{ fontSize: "10px", color: "var(--fp-text-muted)", marginTop: "4px" }}>
@@ -431,19 +431,19 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
       {/* Summary */}
       <div style={{ display: "flex", gap: "10px", margin: "16px 0" }}>
         {criticalItems.length > 0 && (
-          <div style={{ background: "var(--fp-bg-critical, #fef2f2)", border: "1px solid var(--fp-critical, #dc2626)", borderRadius: "3px", padding: "6px 12px", textAlign: "center" }}>
+          <div style={{ background: "#ffffff", border: "1px solid var(--fp-critical, #dc2626)", borderRadius: "0", padding: "6px 12px", textAlign: "center" }}>
             <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--fp-critical, #dc2626)" }}>{criticalItems.length}</div>
             <div style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "1px", color: "var(--fp-critical, #dc2626)", textTransform: "uppercase" }}>Critical</div>
           </div>
         )}
         {recommendedItems.length > 0 && (
-          <div style={{ background: "var(--fp-bg-warning, #fffbeb)", border: "1px solid var(--fp-warning, #d97706)", borderRadius: "3px", padding: "6px 12px", textAlign: "center" }}>
+          <div style={{ background: "#ffffff", border: "1px solid var(--fp-warning, #d97706)", borderRadius: "0", padding: "6px 12px", textAlign: "center" }}>
             <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--fp-warning, #d97706)" }}>{recommendedItems.length}</div>
             <div style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "1px", color: "var(--fp-warning, #d97706)", textTransform: "uppercase" }}>Recommended</div>
           </div>
         )}
         {optionalItems.length > 0 && (
-          <div style={{ background: "var(--fp-bg-info, #f0f9ff)", border: "1px solid var(--fp-info, #0284c7)", borderRadius: "3px", padding: "6px 12px", textAlign: "center" }}>
+          <div style={{ background: "#ffffff", border: "1px solid var(--fp-info, #0284c7)", borderRadius: "0", padding: "6px 12px", textAlign: "center" }}>
             <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--fp-info, #0284c7)" }}>{optionalItems.length}</div>
             <div style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "1px", color: "var(--fp-info, #0284c7)", textTransform: "uppercase" }}>Optional</div>
           </div>
@@ -453,7 +453,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
       {/* Items table */}
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
         <thead>
-          <tr style={{ background: "var(--fp-bg-section)" }}>
+          <tr style={{ background: "#ffffff" }}>
             <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, fontSize: "9px", letterSpacing: "1px", textTransform: "uppercase", color: "var(--fp-text-muted)", borderBottom: "2px solid var(--fp-border)", width: "3%" }}>#</th>
             <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, fontSize: "9px", letterSpacing: "1px", textTransform: "uppercase", color: "var(--fp-text-muted)", borderBottom: "2px solid var(--fp-border)", width: "10%" }}>Priority</th>
             <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, fontSize: "9px", letterSpacing: "1px", textTransform: "uppercase", color: "var(--fp-text-muted)", borderBottom: "2px solid var(--fp-border)", width: "25%" }}>Gap</th>
@@ -464,13 +464,13 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
         <tbody>
           {items.map((item, idx) => {
             const priorityStyle: Record<ChecklistItem["priority"], { color: string; bg: string }> = {
-              CRITICAL: { color: "var(--fp-critical, #dc2626)", bg: "var(--fp-bg-critical, #fef2f2)" },
-              RECOMMENDED: { color: "var(--fp-warning, #d97706)", bg: "var(--fp-bg-warning, #fffbeb)" },
-              OPTIONAL: { color: "var(--fp-info, #0284c7)", bg: "var(--fp-bg-info, #f0f9ff)" },
+              CRITICAL: { color: "var(--fp-critical, #dc2626)", bg: "#ffffff" },
+              RECOMMENDED: { color: "var(--fp-warning, #d97706)", bg: "#ffffff" },
+              OPTIONAL: { color: "var(--fp-info, #0284c7)", bg: "#ffffff" },
             };
             const ps = priorityStyle[item.priority];
             return (
-              <tr key={item.id} style={{ background: idx % 2 === 0 ? "transparent" : "var(--fp-bg-alt, #f9fafb)", pageBreakInside: "avoid" }}>
+              <tr key={item.id} style={{ background: "transparent", pageBreakInside: "avoid" }}>
                 <td style={{ padding: "10px", borderBottom: "1px solid var(--fp-border)", color: "var(--fp-text-muted)", fontWeight: 600 }}>{idx + 1}</td>
                 <td style={{ padding: "10px", borderBottom: "1px solid var(--fp-border)" }}>
                   <span style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "0.5px", color: ps.color, background: ps.bg, border: `1px solid ${ps.color}`, borderRadius: "2px", padding: "2px 5px", textTransform: "uppercase" }}>

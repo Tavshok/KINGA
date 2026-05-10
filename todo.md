@@ -11883,3 +11883,50 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] F-14: Add human_override boolean column to ai_assessments table
 - [ ] F-15: Add ocr_fallback_used boolean column to ai_assessments table
 - [ ] F-16: Expand expandShorthand dictionary with A/C, S/R, T/G, W/S, B/P, Q/P, C/M, E/C
+
+## Strategic Review Backlog (2026-05-10)
+
+- [ ] Surface pre-publication validation result as a visible banner on the report cover page — show blocker count and severity when `prePublicationValidation.blocked === true` so adjusters see it immediately rather than only in the audit trail
+- [ ] Promote Confidence Improvement Checklist from Appendix A (page 20) to immediately after the Executive Summary (page 2) — reviewer identified it as excellent product thinking that is currently buried
+- [ ] Wire causal chain narrative into Executive Summary — use `causalChainBuilder.ts` output so the "wrong photos → Image AI says Minor → severity conflict → fraud flag" chain is the first sentence of the report, not scattered across three sections
+
+## Design & Format Consistency Audit (2026-05-10)
+
+- [ ] Fix report design inconsistency — align all sections to the defined KINGA report format (colours, typography, spacing, component style) — findings documented in design audit
+
+## Combined Reviewer Fixes — Phased Implementation (2026-05-10)
+
+### Phase A — KINGA Standard Format (Design System)
+- [ ] A-01: Define four-colour design token system in index.css (--kinga-primary navy, --kinga-risk-high red, --kinga-positive green, --kinga-neutral grey) and remove all hardcoded colour values from ForensicAuditReport.tsx
+- [ ] A-02: Add KINGA logo/wordmark to cover page header and brand colour bar to all page tops
+- [ ] A-03: Create unified <StatusBadge> component with variants (escalate, risk-high, risk-medium, approved, pending, overpriced, insufficient-data) — replace all five current badge styles
+- [ ] A-04: Bind Claim Reference and Report Date into the print page header on every page (currently empty on all pages)
+- [ ] A-05: Fix section numbering — apply navy circle badge to Section 12 (page 6) to match sections 1–9
+- [ ] A-06: Apply badge component to FRAUD RISK KPI cell (currently plain text, no badge — inconsistent with DECISION and COST VERDICT)
+- [ ] A-07: Fix Appendix A heading colour — change from unique blue to standard dark navy matching all other section headings
+- [ ] A-08: Fix monospace font on cover page reference label — use standard body sans-serif
+- [ ] A-09: Fix header spacing — "Page 1of 6" (no space) on page 1 vs "Page 2 of 6" on page 2
+- [ ] A-10: Increase section padding and visual separation — report is text-dense with poor whitespace between sections
+
+### Phase B — Data Integrity Fixes
+- [ ] B-01: Fix fraud score in Section 8 Final Recommendation narrative — narrative text currently pulls 68 and 78 in the same paragraph; bind to canonical fraudScoreBreakdownJson.overallScore
+- [ ] B-02: Cost verdict guard — if KINGA ESTIMATE is null/empty, verdict must be "INSUFFICIENT DATA" not "OVERPRICED"; cannot declare overpriced without publishing own benchmark
+- [ ] B-03: Physics narrative cross-validation — if vision AI detects rear damage, physics narrative must not default to "front-end damage"; cross-validate narrative engine against component detection output before generating text
+- [ ] B-04: Approval workflow gating — if fraud score exceeds escalation threshold (60), disable "Approve" button; only allow "Acknowledge & Forward" or "Reject Escalation with Justification"
+- [ ] B-05: STAGE column in approval chain table — populate stage names or remove the column; currently empty for all 5 rows
+
+### Phase C — Content Quality & Regulatory Defensibility
+- [ ] C-01: Pre-flight validation gate — block final report export if VIN, at least one itemised quote, or incident date are missing; generate "Preliminary Memo" instead of full report
+- [ ] C-02: Incident type classification — eliminate "Other" as default; if AI cannot classify, flag as "UNCLASSIFIED — REQUIRES MANUAL INPUT"
+- [ ] C-03: Structured reviewer note input — mandate structured fields (Findings Confirmed/Disputed, Reason for Dispute, Action Required) instead of free-text; "Kindly review" is not an acceptable sign-off
+- [ ] C-04: Empty field display — replace "—" with "Not provided" or "UNCLASSIFIED — REQUIRES MANUAL INPUT" for structurally important fields (VIN, Product Type, Body Type, Police Report #)
+- [ ] C-05: Market value validation — valuation basis must cite an independent benchmark (TransUnion, Mead & McGrouther, or equivalent); "Claim form / vehicle record" is not acceptable as sole basis
+- [ ] C-06: Late submission auto-flag — auto-flag claims where Incident Date > 90 days from Report Date and require "Delay Reason" field (27-month gap in Mimosa claim was not flagged — Phase 2 fix addressed engine but UI display needs verification)
+- [ ] C-07: Fix broken text wrapping artefacts in generated narrative ("threshold.ered", "recommende ed") — add text sanitisation pass before report render
+- [ ] C-08: Fix checklist numbering — checklist items jump from 2 to 3,4,5 with item 1 missing; verify sequential numbering in checklist renderer
+- [ ] C-09: Photo filter — reject document/form images from damage photo gallery; photo 3 in current report is a scanned form, not a damage photograph
+- [ ] C-10: "Respray To Match" listed as component name — map repair instructions to ACTION column, not COMPONENT column
+
+## Format Consistency Sprint (May 2026)
+- [ ] FAR-01: Fix forensic report bottom panel — remove grey/coloured backgrounds from KINGA AI engine block, conf-footer, and ConfidenceImprovementChecklist; convert to black-and-white format matching the rest of the report
+- [ ] FAR-02: Apply forensic report black-and-white design format to KingaClaimsReport — section headings, typography, badges, tables, colour system must match the forensic report standard

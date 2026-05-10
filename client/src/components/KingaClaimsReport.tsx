@@ -91,20 +91,20 @@ const C = {
   pageBg:     "#ffffff",
   cardBg:     "#ffffff",
   headerBg:   "#ffffff",
-  border:     "#e2e8f0",
-  borderDark: "#cbd5e1",
-  text:       "#0f172a",
-  textMid:    "#334155",
-  textMuted:  "#64748b",
-  accent:     "#1e3a5f",
-  accentLight:"#eff6ff",
+  border:     "#ddd",
+  borderDark: "#bbb",
+  text:       "#111",
+  textMid:    "#333",
+  textMuted:  "#666",
+  accent:     "#1A2B4A",
+  accentLight:"#ffffff",
 };
 
 const S = {
   card: {
     border: `1px solid ${C.border}`,
     background: C.cardBg,
-    borderRadius: "8px",
+    borderRadius: "0",
     overflow: "hidden",
     marginBottom: "16px",
   } as React.CSSProperties,
@@ -254,8 +254,8 @@ function FraudScoreBar({ score }: { score: number }) {
   if (pct >= 65) barColor = "#7f1d1d";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{ flex: 1, height: 8, background: "#f1f5f9", borderRadius: 4, overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: barColor, borderRadius: 4, transition: "width 0.3s" }} />
+      <div style={{ flex: 1, height: 6, background: "#e5e7eb", borderRadius: 0, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: barColor, borderRadius: 0, transition: "width 0.3s" }} />
       </div>
       <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", minWidth: 36 }}>{pct}</span>
     </div>
@@ -443,8 +443,8 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
     <div
       style={{
         fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
-        background: "#f8fafc",
-        color: "#0f172a",
+        background: "#ffffff",
+        color: "#111",
         maxWidth: 900,
         margin: "0 auto",
         padding: "24px 16px",
@@ -464,9 +464,9 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               Claim {claim?.claimNumber ?? claim?.claimReference ?? `#${claim?.id}`} &nbsp;·&nbsp; {reportDate}
             </p>
             {e?.kingaRef && (
-              <p style={{ fontSize: 11, fontWeight: 800, fontFamily: 'monospace', color: '#6366f1', letterSpacing: '0.05em', marginTop: 2 }}>
+              <p style={{ fontSize: 11, fontWeight: 800, fontFamily: 'Inter,sans-serif', color: '#1A2B4A', letterSpacing: '0.05em', marginTop: 2 }}>
                 {e.kingaRef}-CL
-                <span style={{ fontFamily: 'sans-serif', fontWeight: 400, color: '#64748b', fontSize: 10, marginLeft: 6 }}>Claims Assessment Report</span>
+                <span style={{ fontFamily: 'Inter,sans-serif', fontWeight: 400, color: '#666', fontSize: 10, marginLeft: 6 }}>Claims Assessment Report</span>
               </p>
             )}
           </div>
@@ -489,7 +489,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 { label: "Fraud Risk", value: <FraudBadge level={fraudLevel} /> },
                 { label: "Cost Verdict", value: <CostVerdictBadge verdict={costVerdict} /> },
               ].map((item, i) => (
-                <div key={i} style={{ padding: "10px 12px", background: "#f1f5f9", borderRadius: 6 }}>
+                <div key={i} style={{ padding: "10px 12px", background: "#ffffff", borderRadius: 0 }}>
                   <p style={S.label}>{item.label}</p>
                   <div style={{ marginTop: 5 }}>{item.value}</div>
                 </div>
@@ -497,7 +497,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
             </div>
 
             {primaryReason && (
-              <div style={{ padding: "10px 12px", background: "#f1f5f9", borderRadius: 6, marginBottom: 10 }}>
+              <div style={{ padding: "10px 12px", background: "#ffffff", borderRadius: 0, marginBottom: 10 }}>
                 <p style={S.label}>Primary Reason</p>
                 <p style={{ ...S.value, marginTop: 4, fontWeight: 500 }}>{primaryReason}</p>
               </div>
@@ -568,7 +568,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 { label: "Structural Damage", value: structuralDamage ? "Detected" : "Not Detected" },
                 { label: "Damage Zones", value: damageZones.length > 0 ? damageZones.map(toTitleCase).join(", ") : "—" },
               ].map((item, i) => (
-                <div key={i} style={{ padding: "8px 12px", background: "#f1f5f9", borderRadius: 6 }}>
+                <div key={i} style={{ padding: "8px 12px", background: "#ffffff", borderRadius: 0 }}>
                   <p style={S.label}>{item.label}</p>
                   <p style={{ ...S.value, marginTop: 3, fontSize: 12 }}>{item.value}</p>
                 </div>
@@ -592,7 +592,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                       const sev = (p.severity ?? "").toLowerCase();
                       const action = sev === "severe" || sev === "catastrophic" ? "Replace" : sev === "moderate" ? "Repair / Replace" : "Repair";
                       return (
-                        <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "#f1f5f9" }}>
+                        <tr key={i} style={{ background: "transparent" }}>
                           <td style={S.td}>{p.name ?? "—"}</td>
                           <td style={S.td}>{toTitleCase(p.location ?? "—")}</td>
                           <td style={S.td}>{toTitleCase(p.damageType ?? "—")}</td>
@@ -632,7 +632,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                       : `Photo ${i + 1}`;
                     return (
                       <div key={i} style={{ borderRadius: 6, overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                        <div style={{ aspectRatio: "4/3", overflow: "hidden", background: "#f1f5f9" }}>
+                        <div style={{ aspectRatio: "4/3", overflow: "hidden", background: "#ffffff" }}>
                           <img
                             src={url}
                             alt={caption}
@@ -640,7 +640,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                             onError={(ev) => { (ev.target as HTMLImageElement).style.display = "none"; }}
                           />
                         </div>
-                        <div style={{ padding: "5px 8px", background: "#f1f5f9", borderTop: "1px solid #e2e8f0" }}>
+                        <div style={{ padding: "5px 8px", background: "#ffffff", borderTop: "1px solid #e2e8f0" }}>
                           <p style={{ fontSize: 10, color: "#0f172a", fontWeight: 600, margin: 0, lineHeight: 1.3 }}>{caption}</p>
                           <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>{subCaption}</p>
                         </div>
@@ -667,7 +667,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
             {/* Copy-quote alert */}
             {isCopyQuote && (
-              <div style={{ padding: "8px 12px", marginBottom: 12, borderRadius: 6, background: "#f1f5f9", border: "1px solid #e2e8f0" }}>
+              <div style={{ padding: "8px 12px", marginBottom: 12, borderRadius: 0, background: "#ffffff", border: "1px solid #ddd" }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: "#0f172a", margin: 0 }}>
                   ⚠ Copy-Quotation Detected
                 </p>
@@ -687,7 +687,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 { label: "Variance", value: deviationPct != null ? `${deviationPct > 0 ? "+" : ""}${fmt(deviationPct, 1)}%` : "—" },
                 { label: "Fair Range", value: fairMin && fairMax ? `${fmtC(fairMin)} – ${fmtC(fairMax)}` : "—" },
               ].map((item, i) => (
-                <div key={i} style={{ padding: "8px 12px", background: "#f1f5f9", borderRadius: 6 }}>
+                <div key={i} style={{ padding: "8px 12px", background: "#ffffff", borderRadius: 0 }}>
                   <p style={S.label}>{item.label}</p>
                   <p style={{ ...S.value, marginTop: 3 }}>{item.value}</p>
                 </div>
@@ -711,7 +711,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                           )}
                         </th>
                       ))}
-                      <th style={{ ...S.th, textAlign: "right" as const, background: "#1e3a5f", color: "#ffffff" }}>
+                      <th style={{ ...S.th, textAlign: "right" as const, background: "#ffffff", color: C.textMuted }}>
                         KINGA Estimate
                       </th>
                     </tr>
@@ -741,7 +741,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                       const kingaVal = bench?.median_usd ?? null;
 
                       return (
-                        <tr key={ri} style={{ background: ri % 2 === 0 ? "transparent" : "#f1f5f9" }}>
+                        <tr key={ri} style={{ background: "transparent" }}>
                           <td style={S.td}>{expandShorthand(desc)}</td>
                           {quotes.map((q: any, qi: number) => {
                             const li = (q.lineItems ?? []).find(
@@ -757,7 +757,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                               </td>
                             );
                           })}
-                          <td style={{ ...S.td, textAlign: "right", background: "#f1f5f9", fontWeight: 600 }}>
+                          <td style={{ ...S.td, textAlign: "right", background: "#ffffff", fontWeight: 600 }}>
                             {kingaVal != null ? fmtC(kingaVal) : <span style={{ color: "#64748b" }}>—</span>}
                           </td>
                         </tr>
@@ -772,7 +772,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                           {fmtC(Number(q.quotedAmount ?? 0) / 100)}
                         </td>
                       ))}
-                      <td style={{ ...S.td, textAlign: "right", background: "#f1f5f9", fontWeight: 700 }}>
+                      <td style={{ ...S.td, textAlign: "right", background: "#ffffff", fontWeight: 700 }}>
                         {fmtC(aiEstimate)}
                       </td>
                     </tr>
@@ -792,13 +792,13 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
           <SectionHeader num={6} title="Fraud & Risk Assessment" sectionKey="fraud_risk" claimId={claimId} pipelineRunId={pipelineRunId} />
           <div style={S.cardBody}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-              <div style={{ padding: "10px 12px", background: "#f1f5f9", borderRadius: 6 }}>
+              <div style={{ padding: "10px 12px", background: "#ffffff", borderRadius: 0 }}>
                 <p style={S.label}>Fraud Score</p>
                 <div style={{ marginTop: 8 }}>
                   <FraudScoreBar score={fraudScore} />
                 </div>
               </div>
-              <div style={{ padding: "10px 12px", background: "#f1f5f9", borderRadius: 6 }}>
+              <div style={{ padding: "10px 12px", background: "#ffffff", borderRadius: 0 }}>
                 <p style={S.label}>Risk Level</p>
                 <div style={{ marginTop: 5 }}>
                   <FraudBadge level={fraudLevel} />
@@ -806,7 +806,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               </div>
             </div>
 
-            <div style={{ padding: "8px 12px", background: "#f1f5f9", borderRadius: 6 }}>
+            <div style={{ padding: "8px 12px", background: "#ffffff", borderRadius: 0 }}>
               <p style={S.label}>Primary Risk Driver</p>
               <p style={{ ...S.value, marginTop: 4, fontWeight: 500, fontSize: 12 }}>{fraudReason || "—"}</p>
             </div>
@@ -816,7 +816,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               const dateCheck = fraudBd?.accidentDateCrossCheck ?? null;
               if (!dateCheck || dateCheck.verdict === "consistent") return null;
               return (
-                <div style={{ marginTop: 10, padding: "8px 12px", background: "#f1f5f9", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                <div style={{ marginTop: 10, padding: "8px 12px", background: "#ffffff", borderRadius: 0, border: "1px solid #e2e8f0" }}>
                   <p style={{ ...S.label, marginBottom: 4 }}>Date Consistency</p>
                   <p style={{ fontSize: 12, fontWeight: 700, color: dateCheck.verdict === "consistent" ? "#0f172a" : "#7c2d12" }}>
                     {toTitleCase(dateCheck.verdict.replace(/_/g, " "))}
@@ -855,7 +855,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                   value: e?._physics?.deltaVKmh ? `${fmt(e._physics.deltaVKmh, 0)} km/h` : "—",
                 },
               ].map((item, i) => (
-                <div key={i} style={{ padding: "8px 12px", background: "#f1f5f9", borderRadius: 6 }}>
+                <div key={i} style={{ padding: "8px 12px", background: "#ffffff", borderRadius: 0 }}>
                   <p style={S.label}>{item.label}</p>
                   <div style={{ marginTop: 4 }}>
                     {typeof item.value === "string" ? (
@@ -974,7 +974,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                           ? new Date(completed.actedAt).toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
                           : null;
                         return (
-                          <tr key={stage.order} style={{ background: completed ? "#fff" : "#fafafa" }}>
+                          <tr key={stage.order} style={{ background: "#ffffff" }}>
                             <td style={{ ...S.td, fontWeight: 700, color: C.accent }}>{stage.order}</td>
                             <td style={{ ...S.td, fontWeight: 600, color: C.textMid }}>{ROLE_LABELS_KCR[stage.roleKey] ?? stage.roleKey}</td>
                             <td style={{ ...S.td, color: C.textMid }}>{stage.name}</td>

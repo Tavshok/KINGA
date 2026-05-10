@@ -1329,9 +1329,11 @@ export default function ClaimDecisionReport() {
   }, [claim, aiAssessment, enforcement]);
 
   // Print header data attributes — MUST be before any early returns (Rules of Hooks)
+  // Priority chain: enforcement.kingaRef (KNG-TENANT...) > claim.claimNumber > claim.id
   useEffect(() => {
     if (!claim) return;
-    const claimNum = claim.claimNumber ?? String(claim.id) ?? "";
+    const kingaRef = (enforcement as any)?.kingaRef ?? null;
+    const claimNum = kingaRef ?? claim.claimNumber ?? String(claim.id) ?? "";
     const reportDate = new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
     document.documentElement.setAttribute("data-claim-number", claimNum);
     document.documentElement.setAttribute("data-report-date", reportDate);
@@ -1343,7 +1345,7 @@ export default function ClaimDecisionReport() {
       document.body.removeAttribute("data-claim-number");
       document.body.removeAttribute("data-report-date");
     };
-  }, [claim]);
+  }, [claim, enforcement]);
 
   // Sync active report view to a data attribute so @media print CSS can hide the inactive report
   useEffect(() => {

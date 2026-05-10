@@ -866,7 +866,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         {(enforcement as any)?.kingaRef && (
           <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 6px', borderBottom: '1.5px solid #6366f1', marginBottom: 4 }}>
             <span className="di-label" style={{ color: '#6366f1', fontWeight: 800, fontSize: 10, letterSpacing: '0.08em' }}>KINGA REF</span>
-            <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: '#1a1a2e', letterSpacing: '0.05em' }}>{(enforcement as any).kingaRef}-FR</span>
+            <span style={{ fontFamily: 'Inter,sans-serif', fontSize: 13, fontWeight: 800, color: '#1A2B4A', letterSpacing: '0.05em' }}>{(enforcement as any).kingaRef}-FR</span>
             <span style={{ marginLeft: 'auto', fontSize: 9, color: '#888', fontStyle: 'italic' }}>Forensic Audit Report</span>
           </div>
         )}
@@ -6217,7 +6217,7 @@ function Section7Learning({
 // ─── Mockup v4.2 scoped CSS─────────────────────────────────────────
 const REPORT_CSS = `
 .kinga-report{font-family:Inter,'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#111;background:#fff;line-height:1.6;padding:24px 20px}
-.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#fff;border-bottom:1px solid #111;font-family:Inter,system-ui,sans-serif;font-size:10px;color:#666;margin:-24px -20px 24px}
+.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#fff;border-top:3px solid #1A2B4A;border-bottom:1px solid #ddd;font-family:Inter,system-ui,sans-serif;font-size:10px;color:#666;margin:-24px -20px 24px}
 .kinga-report .page-header .brand{font-family:sans-serif;font-weight:700;font-size:11px;color:#111;letter-spacing:.05em;border:1.5px solid #111;padding:2px 8px}
 .kinga-report .cover-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #111}
 .kinga-report .cover-title-row h1{font-size:22px;font-weight:700;letter-spacing:-.02em;font-family:Inter,'Helvetica Neue',Arial,sans-serif}
@@ -6267,7 +6267,7 @@ const REPORT_CSS = `
 .kinga-report .ps-item{text-align:center}
 .kinga-report .ps-value{font-size:22px;font-weight:700;color:#111}
 .kinga-report .ps-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.06em}
-.kinga-report .section-heading{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#888;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #ddd}
+.kinga-report .section-heading{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#1A2B4A;margin:36px 0 14px;padding-bottom:7px;border-bottom:2px solid #1A2B4A}
 .kinga-report .sub-heading{font-size:14px;font-weight:700;color:#111;margin:16px 0 10px}
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px}
 .kinga-report .data-table td,.kinga-report .data-table th{padding:7px 12px;font-size:12px !important;border-bottom:1px solid #eee;vertical-align:top}
@@ -6417,8 +6417,19 @@ const REPORT_CSS = `
   --status-reject-bg:#ffebee;
   --status-reject-border:#ef9a9a;
   --status-reject-text:#c00;
-  --fp-section-bg:#ffffff;
+  --fp-section-bg:#f8fafc;
   --fp-border:#e5e7eb;
+  /* ── KINGA Brand Tokens ── */
+  --kinga-primary:#1A2B4A;
+  --kinga-risk-high:#7B2020;
+  --kinga-risk-medium:#C05621;
+  --kinga-positive:#276749;
+  --kinga-neutral:#718096;
+  /* ── ConfidenceImprovementChecklist tokens (forensic mode) ── */
+  --fp-accent:#1A2B4A;
+  --fp-text-primary:#111111;
+  --fp-text-muted:#718096;
+  --fp-bg-section:#f8fafc;
 }
 /* Force white background and serif font on all child elements */
 .kinga-report, .kinga-report *:not(button):not(.no-print),
@@ -6576,7 +6587,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span>
           {(enforcement as any)?.kingaRef && (
-            <><span style={{ fontWeight: 800, color: '#6366f1', fontFamily: 'monospace', letterSpacing: '0.04em' }}>{(enforcement as any).kingaRef}-FR</span> &nbsp;|&nbsp;</>
+            <><span style={{ fontWeight: 800, color: '#1A2B4A', fontFamily: 'Inter,sans-serif', letterSpacing: '0.04em' }}>{(enforcement as any).kingaRef}-FR</span> &nbsp;|&nbsp;</>
           )}
           Claim: {claim?.claimNumber ?? claim?.claimReference ?? '—'} &nbsp;|&nbsp;
           Run: {(aiAssessment as any)?._forensicAnalysis?.pipelineSummary?.runId ?? 'RUN-' + (aiAssessment?.id ?? '?')} &nbsp;|&nbsp;
@@ -6745,12 +6756,12 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       />
 
       {/* ── KINGA AI Engine Block — always at the bottom of the report body ── */}
-      <div style={{ background: '#ffffff', border: '1px solid var(--fp-border)', borderRadius: 8, padding: '16px 20px', textAlign: 'center', marginTop: 24, marginBottom: 8 }}>
-        <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#111827', margin: 0 }}>KINGA AI</p>
-        <p style={{ fontSize: 11, color: '#6b7280', marginTop: 4, marginBottom: 0 }}>
+      <div style={{ background: '#ffffff', borderTop: '1px solid #ddd', padding: '14px 0 10px', textAlign: 'center', marginTop: 28, marginBottom: 8 }}>
+        <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#111', margin: 0 }}>KINGA AI</p>
+        <p style={{ fontSize: 10, color: '#555', marginTop: 3, marginBottom: 0 }}>
           Engine v{aiAssessment?.engineVersion ?? '4.2'} &nbsp;·&nbsp; Report #{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8, '0').toUpperCase().slice(0, 8)} &nbsp;·&nbsp; {new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
         </p>
-        <p style={{ fontSize: 10, color: '#9ca3af', marginTop: 6, marginBottom: 0, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 9, color: '#888', marginTop: 5, marginBottom: 0, lineHeight: 1.5 }}>
           This report is generated by an AI system and is intended to assist human adjusters. All decisions require human review and authorisation. KINGA AI does not constitute legal advice.
         </p>
       </div>
