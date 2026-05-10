@@ -185,7 +185,7 @@ function StageProgressBar({
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
-export default function ClaimApprovalToolbar({ claimId }: { claimId: number }) {
+export default function ClaimApprovalToolbar({ claimId, fraudScore }: { claimId: number; fraudScore?: number | null }) {
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
@@ -327,20 +327,40 @@ export default function ClaimApprovalToolbar({ claimId }: { claimId: number }) {
           </div>
         )}
 
+        {/* B-04: HIGH RISK fraud score warning banner — shown when fraudScore >= 70 */}
+        {(fraudScore ?? 0) >= 70 && canAct && (
+          <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 p-3 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-red-700 dark:text-red-300">HIGH RISK CLAIM — Approval Restricted</p>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
+                This claim has a fraud risk score of {Math.round(fraudScore ?? 0)}/100 (HIGH RISK). The Approve action is disabled. An explicit override note is required to proceed. Use the Return action to request senior review, or add a detailed override justification in the notes field before approving.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Action buttons — only shown to the user whose role matches */}
         {canAct && currentStage && (
           <div className="flex items-center gap-2 pt-1">
             <ActionDialog
               trigger={
-                <Button size="sm" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white font-semibold">
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white font-semibold"
+                  disabled={(fraudScore ?? 0) >= 70}
+                  title={(fraudScore ?? 0) >= 70 ? 'Approval blocked: HIGH RISK fraud score. Add override justification in notes to proceed.' : undefined}
+                >
                   <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
                 </Button>
               }
               title="Approve this stage"
-              description={`You are approving stage ${currentStage.stage_order}: "${currentStage.stage_name}". The claim will advance to the next stage.`}
+              description={(fraudScore ?? 0) >= 70
+                ? `⚠ HIGH RISK OVERRIDE: This claim has a fraud score of ${Math.round(fraudScore ?? 0)}/100. You are approving stage ${currentStage.stage_order}: "${currentStage.stage_name}". Provide a written override justification explaining why approval is appropriate despite the HIGH RISK fraud score.`
+                : `You are approving stage ${currentStage.stage_order}: "${currentStage.stage_name}". The claim will advance to the next stage.`}
               actionLabel="Confirm Approval"
               actionVariant="default"
-              notesRequired={currentStage.notes_required}
+              notesRequired={(fraudScore ?? 0) >= 70 ? true : currentStage.notes_required}
               onConfirm={(notes) => handleDecision("approved", notes)}
               isLoading={submitDecision.isPending}
             />

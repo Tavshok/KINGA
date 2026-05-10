@@ -779,9 +779,10 @@ export async function runCostOptimisationStage(
           }
         : null,
       quoteCount: optimisationInputQuotes.length,
-      // Market value — used by costIntelligenceJson for total-loss threshold display
-      marketValueUsd: claimRecord.valuation?.marketValueUsd
-        ?? (ctx.claim?.vehicleMarketValue != null ? (ctx.claim.vehicleMarketValue as number) / 100 : null),
+      // C-05-ARCH: Market value must be system-determined (Stage 5c valuation engine).
+      // Never fall back to the raw claim form field (ctx.claim.vehicleMarketValue) as it is
+      // the assessor's unverified stated value. If Stage 5c produced no value, leave null.
+      marketValueUsd: claimRecord.valuation?.marketValueUsd ?? null,
     }, isDegraded ? "degraded_estimate" : "success");
 
     // ── Phase 2: Per-component KINGA benchmarks ─────────────────────────────

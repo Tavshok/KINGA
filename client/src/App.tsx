@@ -315,7 +315,7 @@ function Router() {
         {/* Insurer Sub-Role Dashboards */}
         <Route path="/insurer-portal/workflow-analytics">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <RoleGuard allowedRoles={["executive", "risk_manager", "claims_manager"]}>
+            <RoleGuard allowedRoles={["executive", "risk_manager", "insurer_admin"]}>
               <InsurerPortalLayout><WorkflowAnalyticsDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>

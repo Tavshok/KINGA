@@ -410,11 +410,16 @@ export async function runAssemblyStage(
           ? repairQuote.quoteTotalCents / 100
           : null;
 
-      let marketValueUsdFinal = vehicle.marketValueUsd ?? vehicle.valueUsd ?? null;
-      let valuationMethod: VehicleValuation["valuationMethod"] = marketValueUsdFinal ? "document_stated" : "not_available";
-      let dataSource: string | null = marketValueUsdFinal ? "Claim form / vehicle record" : null;
+      // C-05-ARCH: The assessor's document-stated value is NOT the authoritative market value.
+      // We always run the LLM benchmark step when make/model/year are available.
+      // The system benchmark (LLM estimate) takes precedence over the assessor-stated value.
+      const assessorStatedValue = vehicle.marketValueUsd ?? vehicle.valueUsd ?? null;
+      let marketValueUsdFinal: number | null = null;
+      let valuationMethod: VehicleValuation["valuationMethod"] = "not_available";
+      let dataSource: string | null = null;
 
-      if (!marketValueUsdFinal && vehicle.make && vehicle.model && vehicle.year) {
+      // Always attempt LLM benchmark when vehicle details are available
+      if (vehicle.make && vehicle.model && vehicle.year) {
         try {
           const llmResponse = await invokeLLM({
             messages: [
@@ -446,7 +451,11 @@ export async function runAssemblyStage(
             if (parsed.market_value_usd && parsed.market_value_usd > 0) {
               marketValueUsdFinal = parsed.market_value_usd;
               valuationMethod = "llm_estimate";
-              dataSource = `LLM estimate (${parsed.confidence} confidence): ${parsed.data_source}`;
+              // C-05-ARCH: Note when the system benchmark differs significantly from the assessor's stated value
+              const assessorNote = assessorStatedValue && Math.abs(parsed.market_value_usd - assessorStatedValue) / assessorStatedValue > 0.15
+                ? ` (assessor stated: USD ${assessorStatedValue.toLocaleString()} — ${((parsed.market_value_usd - assessorStatedValue) / assessorStatedValue * 100).toFixed(0)}% deviation)`
+                : assessorStatedValue ? ` (assessor stated: USD ${assessorStatedValue.toLocaleString()} — consistent)` : '';
+              dataSource = `KINGA system benchmark (${parsed.confidence} confidence): ${parsed.data_source}${assessorNote}`;
               assumptions.push({
                 field: "valuation.marketValueUsd",
                 assumedValue: marketValueUsdFinal,
@@ -458,8 +467,19 @@ export async function runAssemblyStage(
             }
           }
         } catch (llmErr) {
-          ctx.log("Stage 5c", `LLM valuation failed: ${String(llmErr)}`);
+          ctx.log("Stage 5c", `LLM valuation failed: ${String(llmErr)} — falling back to assessor-stated value`);
+          // C-05-ARCH: Only fall back to assessor-stated value if LLM benchmark fails
+          if (assessorStatedValue) {
+            marketValueUsdFinal = assessorStatedValue;
+            valuationMethod = "document_stated";
+            dataSource = "Assessor document (not independently verified — LLM benchmark unavailable)";
+          }
         }
+      } else if (assessorStatedValue) {
+        // No vehicle details for LLM — use assessor value with explicit warning
+        marketValueUsdFinal = assessorStatedValue;
+        valuationMethod = "document_stated";
+        dataSource = "Assessor document (not independently verified — insufficient vehicle details for benchmark)";
       }
 
       if (marketValueUsdFinal && repairCostUsd) {

@@ -95,14 +95,21 @@ export const REPORT_ACCESS: Record<string, string[]> = {
 
   // ── Governance / Compliance Reports ──────────────────────────────────────
   // Claims manager owns compliance/governance reporting within the insurer
-  "governance.sar":                    ["insurer_admin", "claims_manager"],
-  "governance.regulatory_compliance":  ["insurer_admin", "claims_manager", "executive"],
-  "governance.data_retention":         ["insurer_admin", "claims_manager"],
+  // SAR and data retention are compliance/admin functions — not claims management
+  "governance.sar":                    ["insurer_admin"],
+  "governance.regulatory_compliance":  ["insurer_admin", "executive"],
+  "governance.data_retention":         ["insurer_admin"],
 
   // ── Assessor Reports ──────────────────────────────────────────────────────
   // Assessors see only their own assignment list and personal performance
   "assessor.my_assignments":           ["insurer_admin", "assessor_internal", "assessor_external", "assessor"],
   "assessor.performance_summary":      ["insurer_admin", "assessor_internal", "assessor"],
+
+  // ── Recovery Officer Reports ─────────────────────────────────────────────
+  // Recovery officers see their own case portfolio and recovery performance
+  "recovery.case_summary":             ["insurer_admin", "recovery_officer", "claims_manager"],
+  "recovery.performance":              ["insurer_admin", "recovery_officer", "risk_manager", "executive"],
+  "recovery.third_party_profiles":     ["insurer_admin", "recovery_officer", "risk_manager"],
 
   // ── Panel Beater Reports ──────────────────────────────────────────────────
   "panel_beater.quote_history":        ["insurer_admin", "panel_beater"],

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,6 +11,9 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"];
 
 export default function WorkflowAnalyticsDashboard() {
+  const { user } = useAuth();
+  const insurerRole = (user as any)?.insurerRole;
+  const isExecutive = insurerRole === "executive";
   const [dateRange, setDateRange] = useState("30"); // days
   const [slaThreshold, setSlaThreshold] = useState(48); // hours
 
@@ -245,34 +249,36 @@ export default function WorkflowAnalyticsDashboard() {
             </CardContent>
           </Card>
 
-          {/* User Productivity */}
-          <Card>
-            <CardHeader>
-              <CardTitle>User Productivity</CardTitle>
-              <CardDescription>Workflow transitions performed by each user</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {userProductivity.data?.data?.slice(0, 10).map((user: any, index: number) => (
-                  <div key={user.userId} className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-semibold">
-                        #{index + 1}
+          {/* User Productivity — hidden for executive role (aggregate view only) */}
+          {!isExecutive && (
+            <Card>
+              <CardHeader>
+                <CardTitle>User Productivity</CardTitle>
+                <CardDescription>Workflow transitions performed by each user</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {userProductivity.data?.data?.slice(0, 10).map((user: any, index: number) => (
+                    <div key={user.userId} className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-semibold">
+                          #{index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium">User #{user.userId}</p>
+                          <p className="text-sm text-muted-foreground">{user.userRole}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">User #{user.userId}</p>
-                        <p className="text-sm text-muted-foreground">{user.userRole}</p>
+                      <div className="text-right">
+                        <p className="font-semibold">{user.transitionCount} transitions</p>
+                        <p className="text-sm text-muted-foreground">{user.claimsHandled} claims</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold">{user.transitionCount} transitions</p>
-                      <p className="text-sm text-muted-foreground">{user.claimsHandled} claims</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>

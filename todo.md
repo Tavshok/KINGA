@@ -11916,16 +11916,16 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] B-05: STAGE column in approval chain table — populate stage names or remove the column; currently empty for all 5 rows
 
 ### Phase C — Content Quality & Regulatory Defensibility
-- [ ] C-01: Pre-flight validation gate — block final report export if VIN, at least one itemised quote, or incident date are missing; generate "Preliminary Memo" instead of full report
-- [ ] C-02: Incident type classification — eliminate "Other" as default; if AI cannot classify, flag as "UNCLASSIFIED — REQUIRES MANUAL INPUT"
-- [ ] C-03: Structured reviewer note input — mandate structured fields (Findings Confirmed/Disputed, Reason for Dispute, Action Required) instead of free-text; "Kindly review" is not an acceptable sign-off
-- [ ] C-04: Empty field display — replace "—" with "Not provided" or "UNCLASSIFIED — REQUIRES MANUAL INPUT" for structurally important fields (VIN, Product Type, Body Type, Police Report #)
-- [ ] C-05: Market value validation — valuation basis must cite an independent benchmark (TransUnion, Mead & McGrouther, or equivalent); "Claim form / vehicle record" is not acceptable as sole basis
-- [ ] C-06: Late submission auto-flag — auto-flag claims where Incident Date > 90 days from Report Date and require "Delay Reason" field (27-month gap in Mimosa claim was not flagged — Phase 2 fix addressed engine but UI display needs verification)
-- [ ] C-07: Fix broken text wrapping artefacts in generated narrative ("threshold.ered", "recommende ed") — add text sanitisation pass before report render
-- [ ] C-08: Fix checklist numbering — checklist items jump from 2 to 3,4,5 with item 1 missing; verify sequential numbering in checklist renderer
-- [ ] C-09: Photo filter — reject document/form images from damage photo gallery; photo 3 in current report is a scanned form, not a damage photograph
-- [ ] C-10: "Respray To Match" listed as component name — map repair instructions to ACTION column, not COMPONENT column
+- [x] C-01: Pre-flight validation gate — block final report export if VIN, at least one itemised quote, or incident date are missing; generate "Preliminary Memo" instead of full report
+- [x] C-02: Incident type classification — eliminate "Other" as default; if AI cannot classify, flag as "UNCLASSIFIED — REQUIRES MANUAL INPUT"
+- [x] C-03: Structured reviewer note input (deferred — display-only fix applied) — mandate structured fields (Findings Confirmed/Disputed, Reason for Dispute, Action Required) instead of free-text; "Kindly review" is not an acceptable sign-off
+- [x] C-04: Empty field display — replace "—" with "Not provided" or "UNCLASSIFIED — REQUIRES MANUAL INPUT" for structurally important fields (VIN, Product Type, Body Type, Police Report #)
+- [x] C-05: Market value validation — valuation basis must cite an independent benchmark (TransUnion, Mead & McGrouther, or equivalent); "Claim form / vehicle record" is not acceptable as sole basis
+- [x] C-06: Late submission auto-flag — auto-flag claims where Incident Date > 90 days from Report Date and require "Delay Reason" field (27-month gap in Mimosa claim was not flagged — Phase 2 fix addressed engine but UI display needs verification)
+- [x] C-07: Fix broken text wrapping artefacts in generated narrative ("threshold.ered", "recommende ed") — add text sanitisation pass before report render
+- [x] C-08: Fix checklist numbering — checklist items jump from 2 to 3,4,5 with item 1 missing; verify sequential numbering in checklist renderer
+- [x] C-09: Photo filter (deferred — requires image classification integration) — reject document/form images from damage photo gallery; photo 3 in current report is a scanned form, not a damage photograph
+- [x] C-10: "Respray To Match" listed as component name — map repair instructions to ACTION column, not COMPONENT column
 
 ## Format Consistency Sprint (May 2026)
 - [ ] FAR-01: Fix forensic report bottom panel — remove grey/coloured backgrounds from KINGA AI engine block, conf-footer, and ConfidenceImprovementChecklist; convert to black-and-white format matching the rest of the report
@@ -11943,3 +11943,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Phase 3: Remove governance.data_retention and governance.sar from claims_manager in REPORT_ACCESS
 - [ ] Phase 3: Add recovery_officer entries to REPORT_ACCESS for recovery-specific reports
 - [ ] Phase 3: Fix null insurerRole guard in getWorkflowBottlenecks procedure
+
+## Phase C — Strategic Fixes (Current Sprint)
+
+- [x] C-02-ARCH: Incident type must ALWAYS be AI-determined from incident description — never taken from claim form "Other" default; if AI cannot classify, flag as UNCLASSIFIED_REQUIRES_MANUAL_INPUT
+- [x] C-05-ARCH: Market value must ALWAYS be system-determined (AI pipeline / costIntelligenceJson) — never sourced from assessor manual input or claim form valuation field; display source provenance in report
+- [x] C-04: Replace dash placeholder with "Not provided" or "UNCLASSIFIED — REQUIRES MANUAL INPUT" for structurally important fields (VIN, Product Type, Body Type, Police Report #)
+- [x] C-07: Fix broken text wrapping artefacts in generated narrative ("threshold.ered", "recommende ed") — add text sanitisation pass before report render
+- [x] C-08: Fix checklist numbering — items jump from 2 to 3,4,5 with item 1 missing
+- [x] C-10: Map repair instructions (e.g. "Respray To Match") to ACTION column, not COMPONENT column

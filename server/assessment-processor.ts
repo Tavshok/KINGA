@@ -434,12 +434,18 @@ function classifyIncidentType(
   }
   
   // Default: treat as collision
+  // C-02: If accidentType is 'other' or empty, flag as UNCLASSIFIED instead of silently defaulting
+  const resolvedType = (!accidentType || accidentType.toLowerCase() === 'other')
+    ? 'UNCLASSIFIED_REQUIRES_MANUAL_INPUT'
+    : accidentType;
   return {
     isCollision: true,
-    incidentType: accidentType || 'other',
+    incidentType: resolvedType,
     confidence: bestScore === 0 ? 0.8 : 0.5,
-    reasoning: bestScore === 0 
-      ? 'No non-collision indicators found; treating as collision'
+    reasoning: bestScore === 0
+      ? (resolvedType === 'UNCLASSIFIED_REQUIRES_MANUAL_INPUT'
+          ? 'Incident type could not be classified from available data. Manual input required before report export.'
+          : 'No non-collision indicators found; treating as collision')
       : `Weak non-collision signal (${bestScore} keyword); defaulting to collision analysis`,
     vehicleWasStationary: wasStationary,
   };

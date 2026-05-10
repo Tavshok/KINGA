@@ -281,7 +281,8 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
   claim,
   styleMode,
 }) => {
-  const items = deriveChecklistItems(aiAssessment, claim);
+  // C-08: Filter out any null/undefined items to ensure sequential numbering starting from 1
+  const items = deriveChecklistItems(aiAssessment, claim).filter((item): item is ChecklistItem => !!item && !!item.id);
 
   if (items.length === 0) {
     // All gaps resolved — render a positive completion notice
@@ -308,9 +309,8 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
     }
     return (
       <div className="conf-section" style={{ pageBreakBefore: "always" }}>
-        <div className="section-heading" style={{ background: "var(--fp-bg-section)", borderLeft: "4px solid var(--fp-accent)", padding: "12px 20px", marginBottom: "16px" }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "2px", color: "var(--fp-text-muted)", textTransform: "uppercase" }}>Appendix A</span>
-          <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--fp-text-primary)", marginTop: "2px" }}>Confidence Improvement Checklist</div>
+        <div className="section-heading">
+          Appendix A — Confidence Improvement Checklist
         </div>
         <div style={{ background: "var(--fp-bg-success, #f0fdf4)", border: "1px solid var(--fp-success, #22c55e)", borderRadius: "4px", padding: "16px 20px" }}>
           <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--fp-text-primary)" }}>✓ All evidence requirements satisfied — no gaps detected.</span>
@@ -420,12 +420,11 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
   // ── Forensic Report style ──────────────────────────────────────────────────
   return (
     <div className="conf-section" style={{ pageBreakBefore: "always" }}>
-      <div className="section-heading" style={{ background: "#ffffff", borderLeft: "4px solid var(--fp-accent, #1A2B4A)", padding: "12px 0", marginBottom: "4px" }}>
-        <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: "var(--fp-text-muted)", textTransform: "uppercase" }}>Appendix A</span>
-        <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--fp-text-primary)", marginTop: "2px" }}>Confidence Improvement Checklist</div>
-        <div style={{ fontSize: "10px", color: "var(--fp-text-muted)", marginTop: "4px" }}>
-          Actionable gaps identified by the KINGA AI pipeline. Address CRITICAL items before the claim proceeds to Claims Manager approval.
-        </div>
+      <div className="section-heading">
+        Appendix A — Confidence Improvement Checklist
+      </div>
+      <div style={{ fontSize: "10px", color: "#555", marginBottom: "12px", marginTop: "-8px" }}>
+        Actionable gaps identified by the KINGA AI pipeline. Address CRITICAL items before the claim proceeds to Claims Manager approval.
       </div>
 
       {/* Summary */}

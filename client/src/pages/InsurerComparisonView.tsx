@@ -819,6 +819,19 @@ export default function InsurerComparisonView() {
                     })(),
                   };
                   
+                  // C-01: Pre-flight validation gate — block export if VIN, incident date, or at least one quote are missing
+                  const missingFields: string[] = [];
+                  if (!claim.vehicleVin && !(claim as any).vin) missingFields.push('VIN (Vehicle Identification Number)');
+                  if (!claim.incidentDate) missingFields.push('Incident Date');
+                  if (!quotes || quotes.length === 0) missingFields.push('At least one itemised panel beater quote');
+                  if (missingFields.length > 0) {
+                    toast.error(
+                      `Export blocked — Preliminary Memo only. Missing required fields: ${missingFields.join('; ')}. A full report cannot be exported until all mandatory fields are populated. A Preliminary Memo has been noted for this claim.`,
+                      { duration: 8000 }
+                    );
+                    return;
+                  }
+
                   // Print whichever report is currently active
                   const label = reportView === 'forensic' ? 'Forensic Audit Report' : 'KINGA Claims Report';
                   toast.success(`Opening ${label} for PDF export…`);
@@ -957,7 +970,7 @@ export default function InsurerComparisonView() {
               </div>
             </div>
             <div className="comparison-section-body space-y-4" style={{ background: '#ffffff' }}>
-              <ClaimApprovalToolbar claimId={claimId} />
+              <ClaimApprovalToolbar claimId={claimId} fraudScore={normFraud?.score ?? (aiAssessment as any)?.fraudScore ?? null} />
               <ApprovalHistoryPanel claimId={claimId} />
             </div>
           </div>

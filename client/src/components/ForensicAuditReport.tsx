@@ -158,6 +158,44 @@ function decisionLabel(d: string): string {
 }
 
 /**
+ * C-07: Sanitise text artefacts introduced by LLM word-wrap or OCR processing.
+ * Fixes:
+ *   - Period-inserted mid-word breaks: "threshold.ered" → "thresholded"
+ *   - Double-space word splits: "recommende ed" → "recommended"
+ *   - Hyphenated line-break artefacts: "con-\nfirmed" → "confirmed"
+ *   - Repeated punctuation from OCR: ".." → "."
+ */
+function sanitiseTextArtefacts(text: string): string {
+  if (!text) return text;
+  return text
+    // Fix hyphenated line-break artefacts: "con-\nfirmed" → "confirmed"
+    .replace(/([a-zA-Z])-\n([a-zA-Z])/g, '$1$2')
+    // Fix period-inserted mid-word breaks: "threshold.ered" → "thresholded"
+    // Only when the period is surrounded by lowercase letters (not sentence boundaries)
+    .replace(/([a-z])\.([a-z])/g, '$1$2')
+    // Fix double-space word splits: "recommende ed" → "recommended"
+    // Pattern: lowercase letters, space, lowercase letters where the split looks like a broken word
+    .replace(/([a-z]{3,})\s([a-z]{2,})(?=\s|$)/g, (match, p1, p2) => {
+      // Only merge if it looks like a broken word (second part is a suffix or continuation)
+      const merged = p1 + p2;
+      // Simple heuristic: if the second part starts with a vowel or common suffix, merge
+      const COMMON_SUFFIXES = ['ed', 'ing', 'ion', 'tion', 'ation', 'ness', 'ment', 'er', 'est', 'ly', 'al', 'ful', 'less', 'ous', 'ive'];
+      if (COMMON_SUFFIXES.some(s => p2 === s || p2.startsWith(s)) && p2.length <= 5) {
+        return merged;
+      }
+      return match;
+    })
+    // Fix repeated punctuation from OCR
+    .replace(/\.{2,}/g, '.')
+    .replace(/,{2,}/g, ',')
+    // Fix space before punctuation
+    .replace(/ ([.,;:!?])/g, '$1')
+    // Normalise multiple spaces
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+/**
  * Strip assessor-authored conclusion phrases from the raw narrative text.
  * These phrases (e.g. "damages are consistent", "kindly authorise repairs")
  * are written by the assessor/repairer as recommendations, not by the AI engine.
@@ -786,6 +824,18 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const incidentDate = claim?.incidentDate ?? aiAssessment?.incidentDate;
   const reportDate = aiAssessment?.createdAt ?? new Date().toISOString();
 
+  // C-06: Late submission flag — flag claims submitted > 90 days after the incident date
+  const submissionDate = claim?.createdAt ?? claim?.submittedAt ?? claim?.submissionDate ?? null;
+  const lateSubmissionDays: number | null = (() => {
+    if (!incidentDate || !submissionDate) return null;
+    const incident = new Date(incidentDate).getTime();
+    const submitted = new Date(submissionDate).getTime();
+    if (isNaN(incident) || isNaN(submitted)) return null;
+    const days = Math.round((submitted - incident) / (1000 * 60 * 60 * 24));
+    return days > 0 ? days : null;
+  })();
+  const isLateSubmission = lateSubmissionDays != null && lateSubmissionDays > 90;
+
   const decisionColor = decisionColour(rawDecision);
   const decisionText = decisionLabel(rawDecision);
 
@@ -864,8 +914,8 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
       {/* ── Document identity ── */}
       <div className="doc-identity">
         {(enforcement as any)?.kingaRef && (
-          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 6px', borderBottom: '1.5px solid #6366f1', marginBottom: 4 }}>
-            <span className="di-label" style={{ color: '#6366f1', fontWeight: 800, fontSize: 10, letterSpacing: '0.08em' }}>KINGA REF</span>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 6px', borderBottom: '1.5px solid #1A2B4A', marginBottom: 4 }}>
+            <span className="di-label" style={{ color: '#1A2B4A', fontWeight: 800, fontSize: 10, letterSpacing: '0.08em' }}>KINGA REF</span>
             <span style={{ fontFamily: 'Inter,sans-serif', fontSize: 13, fontWeight: 800, color: '#1A2B4A', letterSpacing: '0.05em' }}>{(enforcement as any).kingaRef}-FR</span>
             <span style={{ marginLeft: 'auto', fontSize: 9, color: '#888', fontStyle: 'italic' }}>Forensic Audit Report</span>
           </div>
@@ -896,7 +946,11 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         <div className="kpi-tile">
           <div className="kpi-label">Fraud Risk</div>
           <div className="kpi-value" style={{ color: fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32' }}>{Math.round(fraudScore)}<span style={{ fontSize: 16, color: '#888' }}>/100</span></div>
-          <div className="kpi-sub">{wfLevel.charAt(0).toUpperCase() + wfLevel.slice(1)}</div>
+          <div className="kpi-sub">
+            <span style={{ display: 'inline-block', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 6px', border: `1px solid ${fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32'}`, color: fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32', background: '#fff' }}>
+              {fraudScore >= 70 ? 'HIGH RISK' : fraudScore >= 40 ? 'MODERATE' : 'LOW RISK'}
+            </span>
+          </div>
         </div>
         <div className="kpi-tile">
           <div className="kpi-label">Quoted Cost</div>
@@ -1198,7 +1252,12 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 ["Incident type", (
                   <span className="flex flex-col gap-1">
                     <span className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold capitalize">{displayIncidentType.replace(/_/g, " ")}</span>
+                      {/* C-02: Show UNCLASSIFIED warning instead of 'Other' or UNCLASSIFIED_REQUIRES_MANUAL_INPUT */}
+                      {(displayIncidentType.toLowerCase() === 'other' || displayIncidentType === 'UNCLASSIFIED_REQUIRES_MANUAL_INPUT' || displayIncidentType === 'N/A') ? (
+                        <span className="font-semibold" style={{ color: 'var(--fp-critical-text)', fontWeight: 700 }}>UNCLASSIFIED — REQUIRES MANUAL INPUT</span>
+                      ) : (
+                        <span className="font-semibold capitalize">{displayIncidentType.replace(/_/g, ' ')}</span>
+                      )}
                       {isClassifiedByLLM && (
                         <span
                           className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
@@ -1261,7 +1320,16 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                   }
                   return 'Not stated';
                 })()],
-                ["Incident date", fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)],
+                ["Incident date", (
+                  <span className="flex flex-col gap-0.5">
+                    <span>{fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)}</span>
+                    {isLateSubmission && (
+                      <span className="text-[10px] font-bold" style={{ color: "#dc2626" }}>
+                        ⚠ LATE SUBMISSION — {lateSubmissionDays} days after incident (threshold: 90 days)
+                      </span>
+                    )}
+                  </span>
+                )],
                 ["Incident time", accidentTime ?? "Not recorded"],
                 ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not recorded"],
                 ["Weather conditions", weatherConditions ? toSentenceCase(weatherConditions) : "Not recorded"],
@@ -1318,7 +1386,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 ) : (
                   <div className="leading-relaxed" style={{ color: "#0f172a", fontFamily: "inherit", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                     {/* Filter out assessor-authored conclusion phrases that are not engine-derived findings */}
-                    {filterAssessorConclusions(description || narrativeAnalysis?.cleaned_incident_narrative || '').split('\n').map((line: string, li: number) => (
+                    {filterAssessorConclusions(sanitiseTextArtefacts(description || narrativeAnalysis?.cleaned_incident_narrative || '')).split('\n').map((line: string, li: number) => (
                       <p key={li} style={{ marginBottom: line.trim() === '' ? '0.5em' : '0', minHeight: line.trim() === '' ? '0.5em' : undefined }}>{line || '\u00a0'}</p>
                     ))}
                   </div>
@@ -1501,11 +1569,20 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
             <tbody>
               {[
                 ["Registration", claim?.vehicleRegistration ?? claimRecord0?.vehicle?.registration ?? "Not recorded"],
-                ["VIN", vehicleVin ?? "Not recorded"],
-                ["Engine number", vehicleEngineNumber ?? "Not recorded"],
-                ["Odometer", vehicleMileage != null ? `${vehicleMileage.toLocaleString()} km` : "Not recorded"],
-                ["Market value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Not stated"],
-                marketValueSource ? ["Valuation basis", marketValueSource] : null,
+                // C-04: VIN is structurally critical — flag absence explicitly
+                ["VIN", vehicleVin ?? "NOT PROVIDED — required for vehicle verification"],
+                ["Engine number", vehicleEngineNumber ?? "Not provided"],
+                ["Odometer", vehicleMileage != null ? `${vehicleMileage.toLocaleString()} km` : "Not provided"],
+                ["Market value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Pending system benchmark"],
+                // C-05: Show valuation basis with explicit warning for assessor-stated values
+                marketValueSource
+                  ? ["Valuation basis",
+                      _valEngineResult?.valuationMethod === "document_stated"
+                        ? "⚠ Assessor document — not independently verified"
+                        : _valEngineResult?.valuationMethod === "llm_estimate"
+                          ? "KINGA system benchmark"
+                          : marketValueSource]
+                  : null,
               ].filter((row): row is string[] => Array.isArray(row)).map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
                   <td className="py-2 pr-4 font-semibold w-40" style={{ color: "#64748b" }}>{k as string}</td>
@@ -2124,6 +2201,8 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                 parts.push(`The physics model and damage analysis indicate ${toSentenceCase(consensusSeverity)} severity; however, one or more signals are not fully aligned. Senior assessor review is recommended before settlement.`);
               } else if (alignment === 'CONFLICTED') {
                 parts.push(`The available signals produce conflicting severity assessments. The physics model indicates ${toSentenceCase(consensusSeverity)} severity, but this is not corroborated by all sources. This claim requires senior assessor review before settlement.`);
+                // B-03: Cross-validation note — severity is INCONCLUSIVE when sources conflict
+                parts.push(`⚠ CROSS-VALIDATION NOTE: Because the severity signals are in conflict, the severity finding is INCONCLUSIVE and must not be used as the sole basis for the cost assessment or settlement decision. The conservative fallback severity (${toSentenceCase(consensusSeverity)}) has been recorded for reserve purposes only. Refer to Section 2.8 Severity Consensus for the full signal breakdown.`);
               } else {
                 parts.push(`The assessed impact severity is ${toSentenceCase(consensusSeverity)}.`);
               }
@@ -2162,8 +2241,15 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                 <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "#64748b" }}>Physics Diagram Summary</p>
                 {parts.map((p, i) => {
                   const isFlag = p === speedDiscrepancyFlag;
+                  const isCrossValidationNote = p.startsWith('\u26a0 CROSS-VALIDATION NOTE:');
                   return (
-                    <p key={i} className={i > 0 ? 'mt-1' : ''} style={isFlag ? { color: 'var(--fp-critical-text)', fontWeight: 600 } : undefined}>{p}</p>
+                    <p key={i} className={i > 0 ? 'mt-1' : ''} style={
+                      isCrossValidationNote
+                        ? { color: 'var(--fp-critical-text)', fontWeight: 700, marginTop: 6, paddingTop: 6, borderTop: '1px dashed var(--fp-critical-border)' }
+                        : isFlag
+                        ? { color: 'var(--fp-critical-text)', fontWeight: 600 }
+                        : undefined
+                    }>{p}</p>
                   );
                 })}
               </div>
@@ -3433,9 +3519,21 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
             </tr>
           </thead>
           <tbody>
-            {lineItems.map((li: any, i: number) => (
-              <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined, background: "#ffffff" }}>
-                <td className="px-3 py-2" style={{ color: "#0f172a" }}>{expandShorthand(toTitleCase(li.description ?? ""))}</td>
+            {lineItems.map((li: any, i: number) => {
+              // C-10: Detect repair instruction phrases that were incorrectly placed in the description/component column
+              // These should be shown as ACTION, not as COMPONENT
+              const REPAIR_INSTRUCTION_PATTERNS = [
+                /^respray\s+to\s+match$/i, /^blend$/i, /^polish$/i, /^feather$/i,
+                /^wet\s+sand$/i, /^buff$/i, /^tint$/i, /^panel\s+wipe$/i, /^prep$/i,
+                /^strip\s+[&and]+\s+fit$/i, /^remove\s+[&and]+\s+refit$/i, /^r\s*[&and]+\s*r$/i,
+              ];
+              const rawDesc = (li.description ?? li.component ?? '').trim();
+              const isRepairInstruction = REPAIR_INSTRUCTION_PATTERNS.some(p => p.test(rawDesc));
+              const displayDesc = isRepairInstruction ? '—' : expandShorthand(toTitleCase(rawDesc));
+              const displayAction = isRepairInstruction ? toTitleCase(rawDesc) : (li.action ? toTitleCase(li.action) : li.aiReview ?? '—');
+              return (
+              <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined, background: isRepairInstruction ? "#f8fafc" : "#ffffff" }}>
+                <td className="px-3 py-2" style={{ color: isRepairInstruction ? "#94a3b8" : "#0f172a", fontStyle: isRepairInstruction ? "italic" : "normal" }}>{displayDesc}</td>
                 <td className="px-3 py-2" style={{ color: "#64748b" }}>{li.category ? toTitleCase(li.category) : '—'}</td>
                 <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a" }}>{li.quantity ?? 1}</td>
                 <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a" }}>{fmtMoney((li.unitPrice ?? 0) / 100)}</td>
@@ -3444,7 +3542,8 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
                   {li.aiReview ?? '—'}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
           <tfoot>
             <tr style={{ borderTop: "2px solid #cbd5e1", background: "#ffffff" }}>
@@ -4117,7 +4216,19 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
 
 
       {/* Cost Decision Engine output — surfaced from costIntelligenceJson (C-3 fix) */}
-      {(costDecision || costNarrative || reconciliationSummary) && (
+      {/* B-02: Always render the Cost Decision Engine block; show INSUFFICIENT DATA when no cost data is available */}
+      {!(costDecision || costNarrative || reconciliationSummary) ? (
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>3.1a Cost Decision Engine</p>
+          </div>
+          <div className="p-4">
+            <p className="text-xs" style={{ color: "#64748b", fontStyle: "italic" }}>
+              INSUFFICIENT DATA — The Cost Decision Engine did not produce a recommendation for this claim. This may indicate that the cost intelligence pipeline did not run, or that the claim lacks sufficient quote or repair data for automated cost analysis. Manual cost review is required.
+            </p>
+          </div>
+        </div>
+      ) : (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>3.1a Cost Decision Engine</p>
@@ -4238,8 +4349,15 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
       <div className="p-4">
         <table className="w-full text-xs report-table">
           <tbody>            {([
-              ["Market Value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Not stated"],
-              valuationMethod ? ["Valuation Method", valuationMethod] : null,
+              ["Market Value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Pending system benchmark"],
+              // C-05: Show valuation source with explicit warning for assessor-stated values
+              valuationMethod === "document_stated"
+                ? ["Valuation Basis", "⚠ Assessor document — not independently verified"]
+                : valuationMethod === "llm_estimate"
+                  ? ["Valuation Basis", "KINGA system benchmark"]
+                  : valuationMethod
+                    ? ["Valuation Basis", valuationMethod]
+                    : null,
               // Repair cost label: distinguish between AI-validated cost and raw quote
               costIntel?.totalEstimatedCost != null
                 ? ["Repair Cost (AI-Validated)", fmtMoney(costIntel.totalEstimatedCost)]
@@ -5581,7 +5699,9 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
                 <tr style={{ borderTop: "2px solid #cbd5e1", background: "#ffffff" }}>
                   <td className="px-3 py-2 font-bold" style={{ color: "#0f172a" }}>Total Score</td>
                   <td className="px-3 py-2 tabular-nums font-bold" style={{ color: fraudScore >= 70 ? "var(--fp-critical-text)" : fraudScore >= 40 ? "var(--fp-warning-text)" : "var(--fp-success-text)" }}>{Math.round(fraudScore)}/100</td>
-                  <td colSpan={2} className="px-3 py-2 font-semibold" style={{ color: "#0f172a" }}>{toTitleCase(wf.level)} — {wf.explanation ?? ""}</td>
+                  <td colSpan={2} className="px-3 py-2 font-semibold" style={{ color: "#0f172a" }}>
+                    {fraudScore >= 70 ? 'High' : fraudScore >= 40 ? 'Moderate' : 'Minimal'} — {fraudScore >= 70 ? 'Elevated fraud risk. Escalate for senior review before any settlement.' : fraudScore >= 40 ? 'Moderate fraud indicators detected. Review required before approval.' : 'Low fraud risk. Standard processing applies.'}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -6656,7 +6776,9 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
         };
         const stages: { order: number; name: string; roleKey: string; required: boolean }[] =
           workflowStages.length > 0
-            ? workflowStages.map((s) => ({ order: s.stage_order, name: s.name, roleKey: s.role_key, required: s.required }))
+            // B-05: Server returns stage_name (snake_case); FARWorkflowStage expects name.
+            // Use (s as any).stage_name as fallback to handle both field name conventions.
+            ? workflowStages.map((s) => ({ order: s.stage_order, name: s.name ?? (s as any).stage_name ?? `Stage ${s.stage_order}`, roleKey: s.role_key ?? (s as any).role_key, required: s.required }))
             : Array.from(
                 new Map(
                   approvalHistory
@@ -6734,14 +6856,70 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
             {approvalHistory.some((e) => e.notes) && (
               <div style={{ marginTop: 14 }}>
                 <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 8 }}>Reviewer Notes</p>
-                {approvalHistory.filter((e) => e.notes).map((e) => (
-                  <div key={e.id} style={{ marginBottom: 8, paddingLeft: 12, borderLeft: '3px solid #1e3a5f' }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 2 }}>
-                      {FAR_ROLE_LABELS[e.roleKey ?? ''] ?? e.roleKey} — Stage {e.stageOrder} — {e.actorName ?? 'Unknown'}
-                    </p>
-                    <p style={{ fontSize: 12, color: '#334155', margin: 0, fontStyle: 'italic' }}>&#8220;{e.notes}&#8221;</p>
-                  </div>
-                ))}
+                {approvalHistory.filter((e) => e.notes).map((e) => {
+                  // C-03: Parse structured fields from notes if present
+                  // Expected format: "Findings: ...|Dispute: ...|Action: ..."
+                  // or JSON: {"findings_confirmed":"...","reason_for_dispute":"...","action_required":"..."}
+                  let structuredNote: { findings?: string; dispute?: string; action?: string } | null = null;
+                  const noteText = e.notes ?? '';
+                  try {
+                    const parsed = JSON.parse(noteText);
+                    if (parsed && typeof parsed === 'object') {
+                      structuredNote = {
+                        findings: parsed.findings_confirmed ?? parsed.findings,
+                        dispute: parsed.reason_for_dispute ?? parsed.dispute,
+                        action: parsed.action_required ?? parsed.action,
+                      };
+                    }
+                  } catch {
+                    // Try pipe-delimited format
+                    if (noteText.includes('Findings:') || noteText.includes('Dispute:') || noteText.includes('Action:')) {
+                      const findingsMatch = noteText.match(/Findings:\s*([^|\n]+)/);
+                      const disputeMatch = noteText.match(/Dispute:\s*([^|\n]+)/);
+                      const actionMatch = noteText.match(/Action:\s*([^|\n]+)/);
+                      if (findingsMatch || disputeMatch || actionMatch) {
+                        structuredNote = {
+                          findings: findingsMatch?.[1]?.trim(),
+                          dispute: disputeMatch?.[1]?.trim(),
+                          action: actionMatch?.[1]?.trim(),
+                        };
+                      }
+                    }
+                  }
+                  // C-03: Detect unacceptable sign-offs
+                  const isUnacceptable = /kindly review|please review|noted|see above|as discussed|ok|approved/i.test(noteText.trim()) && noteText.trim().length < 60;
+                  return (
+                    <div key={e.id} style={{ marginBottom: 8, paddingLeft: 12, borderLeft: `3px solid ${isUnacceptable ? 'var(--fp-critical-border)' : '#1e3a5f'}` }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 2 }}>
+                        {FAR_ROLE_LABELS[e.roleKey ?? ''] ?? e.roleKey} — Stage {e.stageOrder} — {e.actorName ?? 'Unknown'}
+                      </p>
+                      {structuredNote ? (
+                        <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+                          <tbody>
+                            {structuredNote.findings && (
+                              <tr><td style={{ paddingRight: 8, fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap', verticalAlign: 'top', paddingBottom: 2 }}>Findings Confirmed</td><td style={{ color: '#334155' }}>{structuredNote.findings}</td></tr>
+                            )}
+                            {structuredNote.dispute && (
+                              <tr><td style={{ paddingRight: 8, fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap', verticalAlign: 'top', paddingBottom: 2 }}>Reason for Dispute</td><td style={{ color: '#334155' }}>{structuredNote.dispute}</td></tr>
+                            )}
+                            {structuredNote.action && (
+                              <tr><td style={{ paddingRight: 8, fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap', verticalAlign: 'top', paddingBottom: 2 }}>Action Required</td><td style={{ color: '#334155' }}>{structuredNote.action}</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <>
+                          <p style={{ fontSize: 12, color: '#334155', margin: 0, fontStyle: 'italic' }}>&#8220;{noteText}&#8221;</p>
+                          {isUnacceptable && (
+                            <p style={{ fontSize: 10, color: 'var(--fp-critical-text)', fontWeight: 700, marginTop: 3 }}>
+                              ⚠ NON-COMPLIANT NOTE: This reviewer sign-off does not meet the minimum documentation standard. Structured fields (Findings Confirmed / Reason for Dispute / Action Required) are required.
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

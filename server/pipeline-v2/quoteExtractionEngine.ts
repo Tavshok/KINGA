@@ -102,6 +102,12 @@ RULES — follow these exactly:
    - If quantity is not stated, default to 1.
    - If unit_cost is not stated but line_total is, set unit_cost = line_total / quantity.
    - Set action to "replace", "repair", "refinish", or "other" based on the row description.
+   - C-10: If the row description IS a repair instruction phrase (not a component name), it belongs in the action field:
+     * "Respray To Match", "Blend", "Polish", "Feather", "Wet Sand", "Buff", "Tint" → action="refinish", component=null (skip as standalone row)
+     * "Strip & Fit", "Remove & Refit", "R&R" → action="replace", component=null (skip as standalone row)
+     * "Panel Wipe", "Prep" → action="repair", component=null (skip as standalone row)
+     * If a repair instruction appears on the SAME row as a component name, set it as the action for that component.
+     * NEVER set component to a repair instruction phrase — component must always be a physical vehicle part.
    - If no itemised pricing exists (only a total), return an empty array for line_items.
    TWO-COLUMN QUOTE TABLES (very common in African repair shops):
    Many African repair quotes have TWO price columns: "SUPPLY & FIT" (full replacement) and "REPAIR" (repair only).
