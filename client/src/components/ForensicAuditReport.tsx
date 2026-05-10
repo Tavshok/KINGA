@@ -4580,10 +4580,10 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   // On LLM failure, all photos default to 'damage_photo' so gallery degrades gracefully.
   const { data: photoClassification, isLoading: photoClassifying } =
     trpc.photoReextraction.classifyPhotoUrls.useQuery(
-      { urls: photoUrls.slice(0, 12) },
+      { urls: photoUrls.slice(0, 12), assessmentId: aiAssessment?.id ?? undefined },
       {
         enabled: photoUrls.length > 0,
-        staleTime: 1000 * 60 * 30, // 30 min — classification rarely changes
+        staleTime: 1000 * 60 * 60 * 24, // 24 h — cached in DB, no need to re-run LLM
         refetchOnWindowFocus: false,
       }
     );
@@ -6947,7 +6947,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
                   // C-03: Detect unacceptable sign-offs
                   const isUnacceptable = /kindly review|please review|noted|see above|as discussed|ok|approved/i.test(noteText.trim()) && noteText.trim().length < 60;
                   return (
-                    <div key={e.id} style={{ marginBottom: 8, paddingLeft: 12, borderLeft: `3px solid ${isUnacceptable ? 'var(--fp-critical-border)' : '#1e3a5f'}` }}>
+                    <div key={e.id} style={{ marginBottom: 8, paddingLeft: 12, borderLeft: `${isUnacceptable ? '3px solid #111' : '2px solid #555'}` }}>
                       <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 2 }}>
                         {FAR_ROLE_LABELS[e.roleKey ?? ''] ?? e.roleKey} — Stage {e.stageOrder} — {e.actorName ?? 'Unknown'}
                       </p>

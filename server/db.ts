@@ -1498,6 +1498,26 @@ export async function triggerAiAssessment(claimId: number) {
         return degraded.length > 0 ? JSON.stringify(degraded) : null;
       } catch { return null; }
     })(),
+    // C-09: Photo classification cache — persist Stage 2.6 classifier results so the
+    // ForensicAuditReport can load pre-classified photo categories without re-running the LLM.
+    // Format: JSON array of { url: string, category: string, confidence: number }
+    photoClassificationJson: (() => {
+      try {
+        const ci = result.classifiedImages;
+        if (!ci) return null;
+        // Build a flat array of { url, category, confidence } from all classified image groups
+        const entries: Array<{ url: string; category: string; confidence: number }> = [];
+        const addGroup = (urls: string[], category: string, confidence: number) => {
+          for (const url of urls) entries.push({ url, category, confidence });
+        };
+        addGroup(ci.damagePhotos.map((img: any) => img.url), 'damage_photo', 0.9);
+        addGroup(ci.vehicleOverviews.map((img: any) => img.url), 'vehicle_overview', 0.85);
+        addGroup(ci.quotationScans.map((img: any) => img.url), 'quotation_scan', 0.9);
+        addGroup(ci.documentPages.map((img: any) => img.url), 'document_page', 0.9);
+        addGroup(ci.fallbackPool.map((img: any) => img.url), 'other', 0.5);
+        return entries.length > 0 ? JSON.stringify(entries) : null;
+      } catch { return null; }
+    })(),
   };
   // Apply the global NaN sanitizer before passing to Drizzle.
   // This catches any numeric field that slipped through safeInt/safeFloat guards.

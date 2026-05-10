@@ -191,6 +191,11 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // pipelineDegradedStages: JSON array of stage names that ran in degraded mode
   // e.g. ["3_structured_extraction", "4_validation"] for audit and quality tracking.
   pipelineDegradedStagesJson: text("pipeline_degraded_stages_json"),
+  // C-09: Photo classification cache — JSON array of { url, category, confidence } objects
+  // Populated at pipeline ingestion (Stage 2.6) from classifiedImages summary.
+  // Also written by the classifyPhotoUrls tRPC procedure on first call for user-uploaded S3 photos.
+  // Prevents redundant LLM vision calls on every report page open.
+  photoClassificationJson: longtext("photo_classification_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

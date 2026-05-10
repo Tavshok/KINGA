@@ -146,105 +146,97 @@ export const photoReextractionRouter = router({
   classifyPhotoUrls: protectedProcedure
     .input(z.object({
       urls: z.array(z.string().url()).max(12),
+      assessmentId: z.number().int().positive().optional(), // Optional: if provided, check DB cache first
     }))
     .query(async ({ input }) => {
-      const { urls } = input;
-      if (urls.length === 0) return { classifications: [] };
+      const { urls, assessmentId } = input;
+      if (urls.length === 0) return { classifications: [], source: 'empty' as const };
 
       type PhotoCategory = 'damage_photo' | 'vehicle_overview' | 'quotation_scan' | 'document_page' | 'other';
       const validCategories: PhotoCategory[] = ['damage_photo', 'vehicle_overview', 'quotation_scan', 'document_page', 'other'];
 
+      // ── CACHE-FIRST: Check DB for existing classification ─────────────────────
+      if (assessmentId) {
+        try {
+          const db = await getDb();
+          if (db) {
+            const [rows] = await (db as any).execute(
+              `SELECT photo_classification_json FROM ai_assessments WHERE id = ? LIMIT 1`,
+              [assessmentId]
+            );
+            const cached = (rows as any[])[0]?.photo_classification_json;
+            if (cached) {
+              const cachedEntries = JSON.parse(cached) as Array<{ url: string; category: string; confidence: number }>;
+              // Match cached entries to the requested URLs
+              const cachedMap = new Map(cachedEntries.map((e) => [e.url, e]));
+              const allCached = urls.every((url) => cachedMap.has(url));
+              if (allCached) {
+                return {
+                  classifications: urls.map((url) => ({
+                    url,
+                    category: (cachedMap.get(url)?.category ?? 'damage_photo') as PhotoCategory,
+                    confidence: cachedMap.get(url)?.confidence ?? 0.9,
+                    reasoning: 'Loaded from pipeline classification cache',
+                  })),
+                  source: 'cache' as const,
+                };
+              }
+              // Partial cache hit — only classify uncached URLs
+              const uncachedUrls = urls.filter((url) => !cachedMap.has(url));
+              if (uncachedUrls.length < urls.length) {
+                // Run LLM only on uncached URLs, then merge
+                const llmResult = await classifyUrlsWithLLM(uncachedUrls, validCategories);
+                const merged = urls.map((url) => {
+                  if (cachedMap.has(url)) {
+                    return {
+                      url,
+                      category: (cachedMap.get(url)?.category ?? 'damage_photo') as PhotoCategory,
+                      confidence: cachedMap.get(url)?.confidence ?? 0.9,
+                      reasoning: 'Loaded from pipeline classification cache',
+                    };
+                  }
+                  return llmResult.find((r) => r.url === url) ?? {
+                    url,
+                    category: 'damage_photo' as PhotoCategory,
+                    confidence: 0.5,
+                    reasoning: 'Classification unavailable — defaulting to damage_photo',
+                  };
+                });
+                // Persist merged result back to cache
+                await persistClassificationCache(db, assessmentId, [
+                  ...cachedEntries,
+                  ...llmResult.map((r) => ({ url: r.url, category: r.category, confidence: r.confidence })),
+                ]);
+                return { classifications: merged, source: 'partial_cache' as const };
+              }
+            }
+          }
+        } catch (cacheErr) {
+          console.warn('[classifyPhotoUrls] Cache lookup failed (non-fatal):', String(cacheErr));
+        }
+      }
+
       try {
-        // Build image content array for the LLM
-        const imageContent = urls.map((url, idx) => ([
-          { type: "text" as const, text: `Image ${idx} (URL: ${url.substring(url.lastIndexOf('/') + 1).substring(0, 40)}):` },
-          { type: "image_url" as const, image_url: { url, detail: "low" as const } },
-        ])).flat();
+        // Delegate to shared helper (also used in partial-cache path above)
+        const classifications = await classifyUrlsWithLLM(urls, validCategories);
 
-        const response = await invokeLLM({
-          messages: [
-            {
-              role: "system",
-              content: `You are an image classifier for a South African motor insurance claims processing system.
-
-Classify each image into EXACTLY ONE of these categories:
-
-1. **damage_photo** — Shows actual vehicle damage (dents, scratches, broken parts, deformation, impact marks).
-2. **vehicle_overview** — Shows a full or partial vehicle WITHOUT visible damage.
-3. **quotation_scan** — Shows a repair quotation, invoice, or price list with line items and costs.
-4. **document_page** — Shows a form, claim document, police report, ID document, or any text-heavy administrative page.
-5. **other** — Does not fit any of the above.
-
-RULES:
-- If an image shows a vehicle WITH visible damage → "damage_photo"
-- If an image is mostly text, checkboxes, or a form → "document_page"
-- Return confidence 0.0–1.0 where 1.0 = absolutely certain
-
-Return ONLY valid JSON: { "classifications": [ { "index": 0, "category": "...", "confidence": 0.9, "reasoning": "..." } ] }`,
-            },
-            {
-              role: "user",
-              content: [
-                { type: "text" as const, text: `Classify each of the following ${urls.length} image(s). Return one classification per image by its 0-based index.` },
-                ...imageContent,
-              ],
-            },
-          ],
-          response_format: {
-            type: "json_schema" as const,
-            json_schema: {
-              name: "photo_classification",
-              strict: true,
-              schema: {
-                type: "object",
-                properties: {
-                  classifications: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        index: { type: "integer" },
-                        category: { type: "string", enum: validCategories },
-                        confidence: { type: "number" },
-                        reasoning: { type: "string" },
-                      },
-                      required: ["index", "category", "confidence", "reasoning"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["classifications"],
-                additionalProperties: false,
-              },
-            },
-          },
-        });
-
-        const rawContent = response.choices?.[0]?.message?.content || "{}";
-        const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
-        const parsed = JSON.parse(content) as { classifications: Array<{ index: number; category: string; confidence: number; reasoning: string }> };
-
-        // Build result array in input order
-        const resultMap = new Map<number, { category: PhotoCategory; confidence: number; reasoning: string }>();
-        for (const cls of (parsed.classifications ?? [])) {
-          if (cls.index >= 0 && cls.index < urls.length) {
-            const cat = validCategories.includes(cls.category as PhotoCategory) ? cls.category as PhotoCategory : 'other';
-            resultMap.set(cls.index, {
-              category: cat,
-              confidence: Math.max(0, Math.min(1, cls.confidence)),
-              reasoning: cls.reasoning || '',
-            });
+        // Persist LLM result to DB cache for future report loads
+        if (assessmentId) {
+          try {
+            const db = await getDb();
+            if (db) {
+              await persistClassificationCache(
+                db,
+                assessmentId,
+                classifications.map((c) => ({ url: c.url, category: c.category, confidence: c.confidence }))
+              );
+            }
+          } catch (persistErr) {
+            console.warn('[classifyPhotoUrls] Failed to persist classification cache (non-fatal):', String(persistErr));
           }
         }
 
-        const classifications = urls.map((url, idx) => ({
-          url,
-          category: resultMap.get(idx)?.category ?? ('damage_photo' as PhotoCategory),
-          confidence: resultMap.get(idx)?.confidence ?? 0.5,
-          reasoning: resultMap.get(idx)?.reasoning ?? 'Classification unavailable — defaulting to damage_photo',
-        }));
-
-        return { classifications };
+        return { classifications, source: 'llm' as const };
       } catch (err) {
         // On LLM failure, return all as damage_photo so the gallery degrades gracefully
         console.error('[classifyPhotoUrls] LLM classification failed (non-fatal):', String(err));
@@ -255,6 +247,7 @@ Return ONLY valid JSON: { "classifications": [ { "index": 0, "category": "...", 
             confidence: 0.5,
             reasoning: 'LLM classification unavailable — defaulting to damage_photo',
           })),
+          source: 'llm_error' as const,
         };
       }
     }),
@@ -299,3 +292,111 @@ Return ONLY valid JSON: { "classifications": [ { "index": 0, "category": "...", 
       };
     }),
 });
+
+// ── Helper: classify a list of URLs using the LLM vision model ───────────────
+// Extracted so it can be called both from the main procedure and the partial-cache path.
+async function classifyUrlsWithLLM(
+  urls: string[],
+  validCategories: Array<'damage_photo' | 'vehicle_overview' | 'quotation_scan' | 'document_page' | 'other'>
+): Promise<Array<{ url: string; category: 'damage_photo' | 'vehicle_overview' | 'quotation_scan' | 'document_page' | 'other'; confidence: number; reasoning: string }>> {
+  if (urls.length === 0) return [];
+
+  const imageContent = urls.map((url, idx) => ([
+    { type: "text" as const, text: `Image ${idx} (URL: ${url.substring(url.lastIndexOf('/') + 1).substring(0, 40)}):` },
+    { type: "image_url" as const, image_url: { url, detail: "low" as const } },
+  ])).flat();
+
+  const response = await invokeLLM({
+    messages: [
+      {
+        role: "system",
+        content: `You are an image classifier for a South African motor insurance claims processing system.
+
+Classify each image into EXACTLY ONE of these categories:
+
+1. **damage_photo** — Shows actual vehicle damage (dents, scratches, broken parts, deformation, impact marks).
+2. **vehicle_overview** — Shows a full or partial vehicle WITHOUT visible damage.
+3. **quotation_scan** — Shows a repair quotation, invoice, or price list with line items and costs.
+4. **document_page** — Shows a form, claim document, police report, ID document, or any text-heavy administrative page.
+5. **other** — Does not fit any of the above.
+
+RULES:
+- If an image shows a vehicle WITH visible damage → "damage_photo"
+- If an image is mostly text, checkboxes, or a form → "document_page"
+- Return confidence 0.0–1.0 where 1.0 = absolutely certain
+
+Return ONLY valid JSON: { "classifications": [ { "index": 0, "category": "...", "confidence": 0.9, "reasoning": "..." } ] }`,
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text" as const, text: `Classify each of the following ${urls.length} image(s). Return one classification per image by its 0-based index.` },
+          ...imageContent,
+        ],
+      },
+    ],
+    response_format: {
+      type: "json_schema" as const,
+      json_schema: {
+        name: "photo_classification",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            classifications: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  index: { type: "integer" },
+                  category: { type: "string", enum: validCategories },
+                  confidence: { type: "number" },
+                  reasoning: { type: "string" },
+                },
+                required: ["index", "category", "confidence", "reasoning"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["classifications"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+
+  const rawContent = response.choices?.[0]?.message?.content || "{}";
+  const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
+  const parsed = JSON.parse(content) as { classifications: Array<{ index: number; category: string; confidence: number; reasoning: string }> };
+
+  const resultMap = new Map<number, { category: typeof validCategories[number]; confidence: number; reasoning: string }>();
+  for (const cls of (parsed.classifications ?? [])) {
+    if (cls.index >= 0 && cls.index < urls.length) {
+      const cat = validCategories.includes(cls.category as typeof validCategories[number]) ? cls.category as typeof validCategories[number] : 'other';
+      resultMap.set(cls.index, {
+        category: cat,
+        confidence: Math.max(0, Math.min(1, cls.confidence)),
+        reasoning: cls.reasoning || '',
+      });
+    }
+  }
+
+  return urls.map((url, idx) => ({
+    url,
+    category: resultMap.get(idx)?.category ?? 'damage_photo',
+    confidence: resultMap.get(idx)?.confidence ?? 0.5,
+    reasoning: resultMap.get(idx)?.reasoning ?? 'Classification unavailable — defaulting to damage_photo',
+  }));
+}
+
+// ── Helper: persist photo classification result to the DB cache ───────────────
+async function persistClassificationCache(
+  db: any,
+  assessmentId: number,
+  entries: Array<{ url: string; category: string; confidence: number }>
+): Promise<void> {
+  await db.execute(
+    `UPDATE ai_assessments SET photo_classification_json = ? WHERE id = ?`,
+    [JSON.stringify(entries), assessmentId]
+  );
+}
