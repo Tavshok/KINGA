@@ -1,16 +1,19 @@
 /**
  * Photo Re-Extraction Router
  *
- * Exposes three procedures:
- *   - photoReextraction.trigger    — creates a job and starts the worker
- *   - photoReextraction.getStatus  — polls job status and result
- *   - photoReextraction.getLatest  — fetches the most recent job for an assessment
+ * Exposes four procedures:
+ *   - photoReextraction.trigger           — creates a job and starts the worker
+ *   - photoReextraction.getStatus         — polls job status and result
+ *   - photoReextraction.getLatest         — fetches the most recent job for an assessment
+ *   - photoReextraction.classifyPhotoUrls — C-09: LLM-classify S3 photo URLs to filter
+ *                                            document/form images from the damage gallery
  */
 
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import { runPhotoReextraction } from "../photo-reextraction-worker";
+import { invokeLLM } from "../_core/llm";
 
 export const photoReextractionRouter = router({
   /**
@@ -123,6 +126,137 @@ export const photoReextractionRouter = router({
         durationMs: job.duration_ms as number | null,
         result,
       };
+    }),
+
+  /**
+   * C-09: Classify an array of S3 photo URLs using the LLM image classifier.
+   *
+   * Returns a classification for each URL:
+   *   - category: 'damage_photo' | 'vehicle_overview' | 'quotation_scan' | 'document_page' | 'other'
+   *   - confidence: 0.0–1.0
+   *   - reasoning: brief explanation
+   *
+   * The ForensicAuditReport uses this to filter document/form images out of the
+   * damage photo gallery and show them in a separate "Excluded" section.
+   *
+   * Max 12 URLs per call. Results are returned in the same order as the input.
+   * On LLM failure, all URLs are returned with category 'damage_photo' and
+   * confidence 0.5 so the gallery degrades gracefully.
+   */
+  classifyPhotoUrls: protectedProcedure
+    .input(z.object({
+      urls: z.array(z.string().url()).max(12),
+    }))
+    .query(async ({ input }) => {
+      const { urls } = input;
+      if (urls.length === 0) return { classifications: [] };
+
+      type PhotoCategory = 'damage_photo' | 'vehicle_overview' | 'quotation_scan' | 'document_page' | 'other';
+      const validCategories: PhotoCategory[] = ['damage_photo', 'vehicle_overview', 'quotation_scan', 'document_page', 'other'];
+
+      try {
+        // Build image content array for the LLM
+        const imageContent = urls.map((url, idx) => ([
+          { type: "text" as const, text: `Image ${idx} (URL: ${url.substring(url.lastIndexOf('/') + 1).substring(0, 40)}):` },
+          { type: "image_url" as const, image_url: { url, detail: "low" as const } },
+        ])).flat();
+
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `You are an image classifier for a South African motor insurance claims processing system.
+
+Classify each image into EXACTLY ONE of these categories:
+
+1. **damage_photo** — Shows actual vehicle damage (dents, scratches, broken parts, deformation, impact marks).
+2. **vehicle_overview** — Shows a full or partial vehicle WITHOUT visible damage.
+3. **quotation_scan** — Shows a repair quotation, invoice, or price list with line items and costs.
+4. **document_page** — Shows a form, claim document, police report, ID document, or any text-heavy administrative page.
+5. **other** — Does not fit any of the above.
+
+RULES:
+- If an image shows a vehicle WITH visible damage → "damage_photo"
+- If an image is mostly text, checkboxes, or a form → "document_page"
+- Return confidence 0.0–1.0 where 1.0 = absolutely certain
+
+Return ONLY valid JSON: { "classifications": [ { "index": 0, "category": "...", "confidence": 0.9, "reasoning": "..." } ] }`,
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text" as const, text: `Classify each of the following ${urls.length} image(s). Return one classification per image by its 0-based index.` },
+                ...imageContent,
+              ],
+            },
+          ],
+          response_format: {
+            type: "json_schema" as const,
+            json_schema: {
+              name: "photo_classification",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  classifications: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        index: { type: "integer" },
+                        category: { type: "string", enum: validCategories },
+                        confidence: { type: "number" },
+                        reasoning: { type: "string" },
+                      },
+                      required: ["index", "category", "confidence", "reasoning"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["classifications"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const rawContent = response.choices?.[0]?.message?.content || "{}";
+        const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
+        const parsed = JSON.parse(content) as { classifications: Array<{ index: number; category: string; confidence: number; reasoning: string }> };
+
+        // Build result array in input order
+        const resultMap = new Map<number, { category: PhotoCategory; confidence: number; reasoning: string }>();
+        for (const cls of (parsed.classifications ?? [])) {
+          if (cls.index >= 0 && cls.index < urls.length) {
+            const cat = validCategories.includes(cls.category as PhotoCategory) ? cls.category as PhotoCategory : 'other';
+            resultMap.set(cls.index, {
+              category: cat,
+              confidence: Math.max(0, Math.min(1, cls.confidence)),
+              reasoning: cls.reasoning || '',
+            });
+          }
+        }
+
+        const classifications = urls.map((url, idx) => ({
+          url,
+          category: resultMap.get(idx)?.category ?? ('damage_photo' as PhotoCategory),
+          confidence: resultMap.get(idx)?.confidence ?? 0.5,
+          reasoning: resultMap.get(idx)?.reasoning ?? 'Classification unavailable — defaulting to damage_photo',
+        }));
+
+        return { classifications };
+      } catch (err) {
+        // On LLM failure, return all as damage_photo so the gallery degrades gracefully
+        console.error('[classifyPhotoUrls] LLM classification failed (non-fatal):', String(err));
+        return {
+          classifications: urls.map((url) => ({
+            url,
+            category: 'damage_photo' as PhotoCategory,
+            confidence: 0.5,
+            reasoning: 'LLM classification unavailable — defaulting to damage_photo',
+          })),
+        };
+      }
     }),
 
   /**

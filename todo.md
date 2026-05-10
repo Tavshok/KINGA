@@ -11918,13 +11918,13 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 ### Phase C — Content Quality & Regulatory Defensibility
 - [x] C-01: Pre-flight validation gate — block final report export if VIN, at least one itemised quote, or incident date are missing; generate "Preliminary Memo" instead of full report
 - [x] C-02: Incident type classification — eliminate "Other" as default; if AI cannot classify, flag as "UNCLASSIFIED — REQUIRES MANUAL INPUT"
-- [x] C-03: Structured reviewer note input (deferred — display-only fix applied) — mandate structured fields (Findings Confirmed/Disputed, Reason for Dispute, Action Required) instead of free-text; "Kindly review" is not an acceptable sign-off
+- [x] C-03: Structured reviewer note input — FULLY IMPLEMENTED: ClaimApprovalToolbar rewritten with mandatory structured fields (Findings Status: CONFIRMED/PARTIALLY_DISPUTED/FULLY_DISPUTED, Reason for Dispute, Action Required); free-text "Kindly review" no longer accepted; JSON serialization with _structured flag for backward compatibility
 - [x] C-04: Empty field display — replace "—" with "Not provided" or "UNCLASSIFIED — REQUIRES MANUAL INPUT" for structurally important fields (VIN, Product Type, Body Type, Police Report #)
 - [x] C-05: Market value validation — valuation basis must cite an independent benchmark (TransUnion, Mead & McGrouther, or equivalent); "Claim form / vehicle record" is not acceptable as sole basis
 - [x] C-06: Late submission auto-flag — auto-flag claims where Incident Date > 90 days from Report Date and require "Delay Reason" field (27-month gap in Mimosa claim was not flagged — Phase 2 fix addressed engine but UI display needs verification)
 - [x] C-07: Fix broken text wrapping artefacts in generated narrative ("threshold.ered", "recommende ed") — add text sanitisation pass before report render
 - [x] C-08: Fix checklist numbering — checklist items jump from 2 to 3,4,5 with item 1 missing; verify sequential numbering in checklist renderer
-- [x] C-09: Photo filter (deferred — requires image classification integration) — reject document/form images from damage photo gallery; photo 3 in current report is a scanned form, not a damage photograph
+- [x] C-09: Photo filter — FULLY IMPLEMENTED: LLM-based classifyPhotoUrls procedure added to photoReextraction router; classifies S3 photo URLs into damage_photo/vehicle_overview/document_page/quotation_scan/other using vision LLM; ForensicAuditReport splits gallery into damage photos and excluded documents section with amber warning; graceful degradation on LLM failure; 14 unit tests pass
 - [x] C-10: "Respray To Match" listed as component name — map repair instructions to ACTION column, not COMPONENT column
 
 ## Format Consistency Sprint (May 2026)

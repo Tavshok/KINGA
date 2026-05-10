@@ -8,6 +8,9 @@
  * - Only shows action buttons to users whose insurerRole matches the current stage's role_key
  * - Admins can act on any stage
  * - Read-only progress view shown to all other roles
+ *
+ * C-03: Structured reviewer note fields — replaces free-text textarea with
+ *       mandatory structured fields for regulatory defensibility.
  */
 
 import { useState } from "react";
@@ -24,6 +27,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +53,7 @@ import {
   Loader2,
   ShieldCheck,
   User,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -66,59 +77,247 @@ const STATUS_CONFIG = {
   returned:    { label: "Returned",    color: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-700", icon: RotateCcw },
 };
 
+// ─── C-03: Structured Note Builder ────────────────────────────────────────────
+
+/**
+ * Serialises the structured reviewer note fields into a single string for
+ * storage in the existing `notes` column.  Format:
+ *
+ *   [FINDINGS: Confirmed] [DISPUTE_REASON: —] [ACTION: Approve and advance]
+ *   Additional notes: <free text>
+ *
+ * This preserves backward-compatibility with the existing DB schema while
+ * making the note machine-readable and auditor-friendly.
+ */
+function buildStructuredNote(fields: {
+  findingsVerdict: string;
+  disputeReason: string;
+  actionRequired: string;
+  additionalNotes: string;
+}): string {
+  const parts: string[] = [];
+  parts.push(`[FINDINGS: ${fields.findingsVerdict || "Not stated"}]`);
+  if (fields.findingsVerdict === "Disputed" || fields.findingsVerdict === "Partially Disputed") {
+    parts.push(`[DISPUTE_REASON: ${fields.disputeReason.trim() || "Not stated"}]`);
+  }
+  parts.push(`[ACTION: ${fields.actionRequired || "Not stated"}]`);
+  if (fields.additionalNotes.trim()) {
+    parts.push(`Additional notes: ${fields.additionalNotes.trim()}`);
+  }
+  return parts.join(" | ");
+}
+
+/** Parse a structured note string back into its fields (for display in history). */
+export function parseStructuredNote(note: string): {
+  isStructured: boolean;
+  findingsVerdict?: string;
+  disputeReason?: string;
+  actionRequired?: string;
+  additionalNotes?: string;
+  raw: string;
+} {
+  if (!note || !note.includes("[FINDINGS:")) {
+    return { isStructured: false, raw: note };
+  }
+  const findingsMatch = note.match(/\[FINDINGS:\s*([^\]]+)\]/);
+  const disputeMatch = note.match(/\[DISPUTE_REASON:\s*([^\]]+)\]/);
+  const actionMatch = note.match(/\[ACTION:\s*([^\]]+)\]/);
+  const additionalMatch = note.match(/Additional notes:\s*(.+?)(?:\s*\||\s*$)/s);
+  return {
+    isStructured: true,
+    findingsVerdict: findingsMatch?.[1]?.trim(),
+    disputeReason: disputeMatch?.[1]?.trim(),
+    actionRequired: actionMatch?.[1]?.trim(),
+    additionalNotes: additionalMatch?.[1]?.trim(),
+    raw: note,
+  };
+}
+
 // ─── Action Dialog ─────────────────────────────────────────────────────────────
 
+/**
+ * C-03: Structured reviewer note dialog.
+ *
+ * For "approve" decisions: mandates Findings Verdict + Action Required.
+ * For "return" decisions: mandates Findings Verdict + Dispute Reason + Action Required.
+ * For "reject" decisions: mandates Findings Verdict + Dispute Reason + Action Required.
+ * Free-text "Additional notes" is always optional.
+ */
 function ActionDialog({
   trigger,
   title,
   description,
   actionLabel,
   actionVariant,
-  notesRequired,
+  decisionType,
   onConfirm,
   isLoading,
+  fraudScore,
 }: {
   trigger: React.ReactNode;
   title: string;
   description: string;
   actionLabel: string;
   actionVariant: "default" | "destructive" | "outline";
-  notesRequired: boolean;
+  decisionType: "approved" | "rejected" | "returned";
   onConfirm: (notes: string) => void;
   isLoading: boolean;
+  fraudScore?: number | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [notes, setNotes] = useState("");
+  const [findingsVerdict, setFindingsVerdict] = useState("");
+  const [disputeReason, setDisputeReason] = useState("");
+  const [actionRequired, setActionRequired] = useState("");
+  const [additionalNotes, setAdditionalNotes] = useState("");
+
+  const requiresDisputeReason =
+    (decisionType === "returned" || decisionType === "rejected") ||
+    findingsVerdict === "Disputed" ||
+    findingsVerdict === "Partially Disputed";
+
+  const requiresOverrideJustification = (fraudScore ?? 0) >= 70 && decisionType === "approved";
+
+  const isValid = (() => {
+    if (!findingsVerdict) return false;
+    if (!actionRequired) return false;
+    if (requiresDisputeReason && !disputeReason.trim()) return false;
+    if (requiresOverrideJustification && !additionalNotes.trim()) return false;
+    return true;
+  })();
 
   const handleConfirm = () => {
-    if (notesRequired && !notes.trim()) return;
-    onConfirm(notes);
+    if (!isValid) return;
+    const structured = buildStructuredNote({ findingsVerdict, disputeReason, actionRequired, additionalNotes });
+    onConfirm(structured);
     setOpen(false);
-    setNotes("");
+    // Reset fields
+    setFindingsVerdict("");
+    setDisputeReason("");
+    setActionRequired("");
+    setAdditionalNotes("");
   };
+
+  const findingsOptions =
+    decisionType === "approved"
+      ? ["Confirmed", "Partially Confirmed", "Confirmed with conditions"]
+      : ["Disputed", "Partially Disputed", "Confirmed — escalating", "Insufficient evidence"];
+
+  const actionOptions =
+    decisionType === "approved"
+      ? ["Approve and advance", "Approve with conditions noted", "Approve — override applied (HIGH RISK)"]
+      : decisionType === "returned"
+      ? ["Return for additional documentation", "Return for re-assessment", "Return for VIN verification", "Return for police report", "Return for independent market valuation"]
+      : ["Reject — fraudulent indicators confirmed", "Reject — policy exclusion applies", "Reject — insufficient evidence", "Reject — late submission beyond policy limit"];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            {title}
+          </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 py-2">
+
+        <div className="space-y-4 py-2">
+          {/* C-03 Field 1: Findings Verdict */}
           <div>
-            <Label className="text-sm">
-              Notes {notesRequired ? <span className="text-destructive">*</span> : "(optional)"}
+            <Label className="text-sm font-semibold">
+              Findings Verdict <span className="text-destructive">*</span>
             </Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={notesRequired ? "Notes are required for this action..." : "Add any relevant notes..."}
-              rows={3}
-              className="mt-1"
-            />
+            <p className="text-xs text-muted-foreground mb-1.5">
+              Are the findings in the forensic report confirmed or disputed?
+            </p>
+            <Select value={findingsVerdict} onValueChange={setFindingsVerdict}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select verdict…" />
+              </SelectTrigger>
+              <SelectContent>
+                {findingsOptions.map((opt) => (
+                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* C-03 Field 2: Reason for Dispute (conditional) */}
+          {requiresDisputeReason && (
+            <div>
+              <Label className="text-sm font-semibold">
+                Reason for Dispute / Return <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-xs text-muted-foreground mb-1.5">
+                Specify the exact finding, section, or data point being disputed. Generic responses such as "Kindly review" are not acceptable.
+              </p>
+              <Textarea
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                placeholder="e.g. Section 3.2 market value of R 185 000 is not supported by an independent benchmark — TransUnion or Mead & McGrouther valuation required before approval."
+                rows={3}
+                className="mt-1 text-sm"
+              />
+              {disputeReason.trim().length > 0 && disputeReason.trim().length < 20 && (
+                <p className="text-xs text-destructive mt-1">⚠ Dispute reason is too brief — provide specific details.</p>
+              )}
+            </div>
+          )}
+
+          {/* C-03 Field 3: Action Required */}
+          <div>
+            <Label className="text-sm font-semibold">
+              Action Required <span className="text-destructive">*</span>
+            </Label>
+            <p className="text-xs text-muted-foreground mb-1.5">
+              What action is being taken or required?
+            </p>
+            <Select value={actionRequired} onValueChange={setActionRequired}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select action…" />
+              </SelectTrigger>
+              <SelectContent>
+                {actionOptions.map((opt) => (
+                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Override justification for HIGH RISK approvals */}
+          {requiresOverrideJustification && (
+            <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 p-3">
+              <p className="text-xs font-bold text-red-700 dark:text-red-300 mb-1">
+                ⚠ HIGH RISK OVERRIDE REQUIRED
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-400 mb-2">
+                Fraud score: {Math.round(fraudScore ?? 0)}/100. Written override justification is mandatory.
+              </p>
+              <Textarea
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
+                placeholder="Provide a detailed written justification explaining why approval is appropriate despite the HIGH RISK fraud score. Include supporting evidence and authority basis."
+                rows={4}
+                className="text-sm border-red-300 dark:border-red-700"
+              />
+            </div>
+          )}
+
+          {/* Optional additional notes (non-HIGH-RISK) */}
+          {!requiresOverrideJustification && (
+            <div>
+              <Label className="text-sm">Additional notes <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Textarea
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
+                placeholder="Any supplementary observations, conditions, or context…"
+                rows={2}
+                className="mt-1 text-sm"
+              />
+            </div>
+          )}
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
@@ -126,7 +325,8 @@ function ActionDialog({
           <Button
             variant={actionVariant}
             onClick={handleConfirm}
-            disabled={isLoading || (notesRequired && !notes.trim())}
+            disabled={isLoading || !isValid}
+            title={!isValid ? "Complete all required fields before confirming" : undefined}
           >
             {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {actionLabel}
@@ -306,7 +506,7 @@ export default function ClaimApprovalToolbar({ claimId, fraudScore }: { claimId:
               Role required: <strong>{ROLE_LABELS[currentStage.role_key] ?? currentStage.role_key}</strong>
             </div>
             {currentStage.description && (
-              <p className="text-xs text-blue-600 dark:text-blue-300">{currentStage.description}</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400">{currentStage.description}</p>
             )}
           </div>
         )}
@@ -334,9 +534,19 @@ export default function ClaimApprovalToolbar({ claimId, fraudScore }: { claimId:
             <div>
               <p className="text-xs font-bold text-red-700 dark:text-red-300">HIGH RISK CLAIM — Approval Restricted</p>
               <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
-                This claim has a fraud risk score of {Math.round(fraudScore ?? 0)}/100 (HIGH RISK). The Approve action is disabled. An explicit override note is required to proceed. Use the Return action to request senior review, or add a detailed override justification in the notes field before approving.
+                Fraud risk score: {Math.round(fraudScore ?? 0)}/100 (HIGH RISK). The Approve action requires a written override justification. Use Return to request senior review, or provide a detailed override justification in the approval dialog.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* C-03: Structured note requirement notice */}
+        {canAct && currentStage && (
+          <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10 p-2.5 flex items-start gap-2">
+            <FileText className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              <strong>Structured sign-off required.</strong> All approval actions require structured reviewer notes (Findings Verdict, Action Required). Generic responses such as "Kindly review" are not accepted.
+            </p>
           </div>
         )}
 
@@ -349,18 +559,19 @@ export default function ClaimApprovalToolbar({ claimId, fraudScore }: { claimId:
                   size="sm"
                   className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white font-semibold"
                   disabled={(fraudScore ?? 0) >= 70}
-                  title={(fraudScore ?? 0) >= 70 ? 'Approval blocked: HIGH RISK fraud score. Add override justification in notes to proceed.' : undefined}
+                  title={(fraudScore ?? 0) >= 70 ? 'Approval blocked: HIGH RISK fraud score. Complete the override justification in the approval dialog.' : undefined}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
                 </Button>
               }
               title="Approve this stage"
               description={(fraudScore ?? 0) >= 70
-                ? `⚠ HIGH RISK OVERRIDE: This claim has a fraud score of ${Math.round(fraudScore ?? 0)}/100. You are approving stage ${currentStage.stage_order}: "${currentStage.stage_name}". Provide a written override justification explaining why approval is appropriate despite the HIGH RISK fraud score.`
-                : `You are approving stage ${currentStage.stage_order}: "${currentStage.stage_name}". The claim will advance to the next stage.`}
+                ? `⚠ HIGH RISK OVERRIDE: Fraud score ${Math.round(fraudScore ?? 0)}/100. Approving stage ${currentStage.stage_order}: "${currentStage.stage_name}". A written override justification is mandatory.`
+                : `Approving stage ${currentStage.stage_order}: "${currentStage.stage_name}". Complete the structured reviewer note below.`}
               actionLabel="Confirm Approval"
               actionVariant="default"
-              notesRequired={(fraudScore ?? 0) >= 70 ? true : currentStage.notes_required}
+              decisionType="approved"
+              fraudScore={fraudScore}
               onConfirm={(notes) => handleDecision("approved", notes)}
               isLoading={submitDecision.isPending}
             />
@@ -373,10 +584,10 @@ export default function ClaimApprovalToolbar({ claimId, fraudScore }: { claimId:
                   </Button>
                 }
                 title="Return for revision"
-                description="Return the claim to the previous handler for additional information or corrections."
+                description="Return the claim to the previous handler. Specify exactly what information or correction is required."
                 actionLabel="Return Claim"
                 actionVariant="outline"
-                notesRequired={true}
+                decisionType="returned"
                 onConfirm={(notes) => handleDecision("returned", notes)}
                 isLoading={submitDecision.isPending}
               />
@@ -390,10 +601,10 @@ export default function ClaimApprovalToolbar({ claimId, fraudScore }: { claimId:
                   </Button>
                 }
                 title="Reject this claim"
-                description="This will permanently reject the claim at this stage. This action cannot be undone."
+                description="This will permanently reject the claim at this stage. This action cannot be undone. Provide a complete structured sign-off."
                 actionLabel="Confirm Rejection"
                 actionVariant="destructive"
-                notesRequired={true}
+                decisionType="rejected"
                 onConfirm={(notes) => handleDecision("rejected", notes)}
                 isLoading={submitDecision.isPending}
               />

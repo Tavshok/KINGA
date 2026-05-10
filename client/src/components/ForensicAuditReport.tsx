@@ -4575,6 +4575,29 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   const photoFraudPoints = phase2?.photoAnalysis?.fraudPointsAdded ?? 0;
   const isSystemFailure = photoStatus === "SYSTEM_FAILURE";
 
+  // C-09: LLM photo classification — filter document/form images from damage gallery
+  // Only runs when there are photos to classify. Results are cached by tRPC.
+  // On LLM failure, all photos default to 'damage_photo' so gallery degrades gracefully.
+  const { data: photoClassification, isLoading: photoClassifying } =
+    trpc.photoReextraction.classifyPhotoUrls.useQuery(
+      { urls: photoUrls.slice(0, 12) },
+      {
+        enabled: photoUrls.length > 0,
+        staleTime: 1000 * 60 * 30, // 30 min — classification rarely changes
+        refetchOnWindowFocus: false,
+      }
+    );
+
+  // Split photos into damage photos and excluded document/form images
+  const classifiedPhotos = photoClassification?.classifications ?? [];
+  const damagePhotoUrls: string[] = classifiedPhotos.length > 0
+    ? classifiedPhotos
+        .filter(c => c.category === 'damage_photo' || c.category === 'vehicle_overview')
+        .map(c => c.url)
+    : photoUrls; // Before classification completes, show all photos
+  const excludedDocUrls: Array<{ url: string; category: string; confidence: number; reasoning: string }> =
+    classifiedPhotos.filter(c => c.category === 'document_page' || c.category === 'quotation_scan' || c.category === 'other');
+
   const docs = [
     { id: "Claim Form", type: "Primary", extracted: true, note: "Submitted by claimant" },
     { id: "Police Report", type: "Supporting", extracted: !!(aiAssessment?.policeReportNumber), note: aiAssessment?.policeReportNumber ? `Case: ${aiAssessment.policeReportNumber}` : "Not provided" },
@@ -4622,39 +4645,73 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           )}
           {photoUrls.length > 0 && (
             <div className="mt-3">
-              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#64748b" }}>4.1 Photo Grid ({photoUrls.length} images)</p>
-              <div className="grid grid-cols-3 gap-2">
-                {photoUrls.slice(0, 9).map((url, i) => {
-                  // Use enriched photo metadata when available — AI-verified caption
-                  // for what was actually detected in THIS specific image.
-                  const enriched = enrichedPhotosFAR[i];
-                  const zoneLabel = enriched
-                    ? enriched.caption
-                    : (() => {
-                        const damagedZones = (phase2?.damageZones ?? []) as string[];
-                        return damagedZones[i]
-                          ? damagedZones[i].replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
-                          : `View ${i + 1}`;
-                      })();
-                  const subLabel = enriched
-                    ? `${enriched.impactZone.replace(/_/g, " ")} · ${enriched.severity}`
-                    : `Photo ${i + 1}`;
-                  return (
-                    <div key={i} className="rounded overflow-hidden relative" data-photo-card style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-                      <div style={{ aspectRatio: "1", position: "relative" }}>
-                        <img src={url} alt={`Photo ${i + 1} — ${zoneLabel}`} className="w-full h-full object-cover" />
-                        {/* Caption overlay strip */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/55 px-1.5 py-0.5">
-                          <p className="text-xs font-semibold truncate text-white">{zoneLabel}</p>
-                          <p className="text-xs text-white/75">{subLabel}</p>
+              {/* C-09: Classification status indicator */}
+              {photoClassifying && (
+                <p className="text-xs mb-2" style={{ color: "#64748b" }}>⏳ Classifying photos…</p>
+              )}
+              {/* Damage photos gallery */}
+              {damagePhotoUrls.length > 0 && (
+                <>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#64748b" }}>
+                    4.1 Photo Grid ({damagePhotoUrls.length} damage/vehicle image{damagePhotoUrls.length !== 1 ? 's' : ''})
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {damagePhotoUrls.slice(0, 9).map((url, i) => {
+                      // Use enriched photo metadata when available — AI-verified caption
+                      const enrichedIdx = photoUrls.indexOf(url);
+                      const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
+                      const zoneLabel = enriched
+                        ? enriched.caption
+                        : (() => {
+                            const damagedZones = (phase2?.damageZones ?? []) as string[];
+                            return damagedZones[i]
+                              ? damagedZones[i].replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+                              : `View ${i + 1}`;
+                          })();
+                      const subLabel = enriched
+                        ? `${enriched.impactZone.replace(/_/g, " ")} · ${enriched.severity}`
+                        : `Photo ${i + 1}`;
+                      return (
+                        <div key={i} className="rounded overflow-hidden relative" data-photo-card style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
+                          <div style={{ aspectRatio: "1", position: "relative" }}>
+                            <img src={url} alt={`Photo ${i + 1} — ${zoneLabel}`} className="w-full h-full object-cover" />
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/55 px-1.5 py-0.5">
+                              <p className="text-xs font-semibold truncate text-white">{zoneLabel}</p>
+                              <p className="text-xs text-white/75">{subLabel}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {damagePhotoUrls.length > 9 && (
+                    <p className="text-xs mt-2 font-medium" style={{ color: "#64748b" }}>+{damagePhotoUrls.length - 9} more images not shown</p>
+                  )}
+                </>
+              )}
+              {/* C-09: Excluded document/form images section */}
+              {excludedDocUrls.length > 0 && (
+                <div className="mt-3 rounded p-3" style={{ border: "1px solid #fbbf24", background: "#fffbeb" }}>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#92400e" }}>
+                    ⚠ {excludedDocUrls.length} image{excludedDocUrls.length !== 1 ? 's' : ''} excluded from damage gallery
+                  </p>
+                  <p className="text-xs mb-2" style={{ color: "#78350f" }}>
+                    The following image{excludedDocUrls.length !== 1 ? 's were' : ' was'} classified as document pages, quotation scans, or non-damage images and excluded from the damage evidence gallery. They should not be used as damage evidence.
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {excludedDocUrls.map((exc, i) => (
+                      <div key={i} className="rounded overflow-hidden relative" style={{ border: "1px solid #fbbf24", background: "#ffffff" }}>
+                        <div style={{ aspectRatio: "1", position: "relative" }}>
+                          <img src={exc.url} alt={`Excluded ${i + 1}`} className="w-full h-full object-cover opacity-60" />
+                          <div className="absolute bottom-0 left-0 right-0 px-1.5 py-0.5" style={{ background: "rgba(146,64,14,0.8)" }}>
+                            <p className="text-xs font-semibold truncate text-white">{exc.category.replace(/_/g, ' ').toUpperCase()}</p>
+                            <p className="text-xs text-white/80">{Math.round(exc.confidence * 100)}% confidence</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {photoUrls.length > 9 && (
-                <p className="text-xs mt-2 font-medium" style={{ color: "#64748b" }}>+{photoUrls.length - 9} more images not shown</p>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           )}
