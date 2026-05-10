@@ -11968,3 +11968,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 
 - [x] FAR-03: Structured note display in Section 8 Approval Chain — detect _structured flag in notes JSON and render Findings Status, Dispute Reason, Action Required as formatted sub-table; legacy plain-text notes render unchanged; #1e3a5f border colour converted to B&W
 - [x] FAR-04: Photo classification caching — photoClassificationJson column added to ai_assessments table (SQL migration applied); classifyPhotoUrls procedure is now cache-first (full/partial cache hit paths); LLM result persisted back to DB after first call; classifyUrlsWithLLM and persistClassificationCache helpers extracted; ForensicAuditReport passes assessmentId to enable cache-first path; staleTime extended to 24h; 15 tests pass
+
+## Bug Fix: isLateSubmission ReferenceError (2026-05-10)
+
+- [x] BUG FIXED: ReferenceError: isLateSubmission is not defined in KingaClaimsReport — C-06 late submission flag removed entirely; replaced with neutral Days to Claim informational field
+
+## C-06 Removal + Days-to-Claim Fix (2026-05-10)
+
+- [x] Remove C-06 late submission flag (isLateSubmission / lateSubmissionDays) from ForensicAuditReport — it caused a ReferenceError crash on the comparison page
+- [x] Replace with neutral "Days to Claim" field: compute days between incidentDate and claim createdAt, display as informational row (no warning/flag)

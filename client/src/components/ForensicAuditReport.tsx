@@ -824,17 +824,16 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const incidentDate = claim?.incidentDate ?? aiAssessment?.incidentDate;
   const reportDate = aiAssessment?.createdAt ?? new Date().toISOString();
 
-  // C-06: Late submission flag — flag claims submitted > 90 days after the incident date
+  // Days to Claim — neutral informational field: days between incident date and claim submission
   const submissionDate = claim?.createdAt ?? claim?.submittedAt ?? claim?.submissionDate ?? null;
-  const lateSubmissionDays: number | null = (() => {
+  const daysToClaimSubmission: number | null = (() => {
     if (!incidentDate || !submissionDate) return null;
     const incident = new Date(incidentDate).getTime();
     const submitted = new Date(submissionDate).getTime();
     if (isNaN(incident) || isNaN(submitted)) return null;
     const days = Math.round((submitted - incident) / (1000 * 60 * 60 * 24));
-    return days > 0 ? days : null;
+    return days >= 0 ? days : null;
   })();
-  const isLateSubmission = lateSubmissionDays != null && lateSubmissionDays > 90;
 
   const decisionColor = decisionColour(rawDecision);
   const decisionText = decisionLabel(rawDecision);
@@ -1320,16 +1319,8 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                   }
                   return 'Not stated';
                 })()],
-                ["Incident date", (
-                  <span className="flex flex-col gap-0.5">
-                    <span>{fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)}</span>
-                    {isLateSubmission && (
-                      <span className="text-[10px] font-bold" style={{ color: "#dc2626" }}>
-                        ⚠ LATE SUBMISSION — {lateSubmissionDays} days after incident (threshold: 90 days)
-                      </span>
-                    )}
-                  </span>
-                )],
+                ["Incident date", fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)],
+                ["Days to claim submission", daysToClaimSubmission != null ? `${daysToClaimSubmission} day${daysToClaimSubmission === 1 ? '' : 's'}` : "Not available"],
                 ["Incident time", accidentTime ?? "Not recorded"],
                 ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not recorded"],
                 ["Weather conditions", weatherConditions ? toSentenceCase(weatherConditions) : "Not recorded"],
