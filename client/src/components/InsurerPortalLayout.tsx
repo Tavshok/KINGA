@@ -75,14 +75,11 @@ const navByRole: Record<string, NavSection[]> = {
       title: "Intelligence",
       items: [
         { label: "Fraud Alerts", description: "FCDI flags requiring action", href: "/insurer/fraud-analytics", icon: AlertCircle },
-        { label: "Exception Hub", description: "Anomalies and outliers", href: "/insurer-portal/exception-intelligence", icon: Zap },
-        { label: "Relationship Intelligence", description: "Entity web and hotspots", href: "/insurer-portal/relationship-intelligence", icon: Network },
       ],
     },
     {
       title: "Analytics & Reports",
       items: [
-        { label: "Workflow Analytics", description: "Processing times and throughput", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
         { label: "Reports Centre", description: "Generate and download reports", href: "/insurer-portal/reports-centre", icon: FileBarChart },
       ],
     },
@@ -139,6 +136,7 @@ const navByRole: Record<string, NavSection[]> = {
       items: [
         { label: "Fraud Analytics", description: "Risk patterns and FCDI flags", href: "/insurer/fraud-analytics", icon: ShieldAlert },
         { label: "Exception Hub", description: "Anomalies requiring review", href: "/insurer-portal/exception-intelligence", icon: Zap },
+        { label: "Relationship Intelligence", description: "Entity network analysis", href: "/insurer-portal/relationship-intelligence", icon: Network },
         { label: "Workflow Analytics", description: "Decision times and outcomes", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
         { label: "Risk Analytics", description: "Own-book motor intelligence (Enterprise)", href: "/insurer-portal/risk-analytics", icon: TrendingUp },
       ],
@@ -258,6 +256,7 @@ const navByRole: Record<string, NavSection[]> = {
       items: [
         { label: "Fraud Analytics", description: "Fraud detection overview and FCDI flags", href: "/insurer/fraud-analytics", icon: ShieldAlert },
         { label: "Workflow Analytics", description: "Processing times and throughput", href: "/insurer-portal/workflow-analytics", icon: BarChart3 },
+        { label: "Relationship Intelligence", description: "Entity network analysis", href: "/insurer-portal/relationship-intelligence", icon: Network },
         { label: "Reports Centre", description: "Full report catalogue", href: "/insurer-portal/reports-centre", icon: FileBarChart },
       ],
     },

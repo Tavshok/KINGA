@@ -251,22 +251,7 @@ export default function InsurerClaimsTriage() {
                 <LayoutDashboard className="h-3 w-3" />
                 Dashboard
               </button>
-              <button
-                onClick={() => setLocation("/admin/integrity-metrics")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
-              >
-                <ShieldCheck className="h-3 w-3" />
-                Integrity
-              </button>
-              <button
-                onClick={() => setLocation("/admin/pipeline-health")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
-              >
-                <Activity className="h-3 w-3" />
-                Pipeline Health
-              </button>
+
               <div className="w-px h-6 mx-1" style={{ background: 'var(--border)' }} />
               <div className="text-right">
                 <p className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>{user?.name}</p>

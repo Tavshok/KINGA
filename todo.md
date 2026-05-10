@@ -11930,3 +11930,16 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 ## Format Consistency Sprint (May 2026)
 - [ ] FAR-01: Fix forensic report bottom panel — remove grey/coloured backgrounds from KINGA AI engine block, conf-footer, and ConfidenceImprovementChecklist; convert to black-and-white format matching the rest of the report
 - [ ] FAR-02: Apply forensic report black-and-white design format to KingaClaimsReport — section headings, typography, badges, tables, colour system must match the forensic report standard
+
+## Dashboard Role-Access Sprint
+
+- [ ] Phase 1: Remove platform-internal items from Executive Dashboard header (pipeline-health, integrity-metrics buttons, platform_dashboard KingaReportButton, Operational Health tab)
+- [ ] Phase 1: Remove pipeline-health and integrity-metrics links from InsurerClaimsTriage header
+- [ ] Phase 1: Remove executive.platform_dashboard from SCHEDULABLE_REPORTS in ReportsCentre
+- [ ] Phase 2: Remove Workflow Analytics from claims_manager nav in InsurerPortalLayout
+- [ ] Phase 2: Update RoleGuard on /insurer-portal/workflow-analytics route to allow executive, risk_manager, insurer_admin only
+- [ ] Phase 2: Hide User Productivity section in WorkflowAnalyticsDashboard for executive role
+- [ ] Phase 3: Add Relationship Intelligence to risk_manager and insurer_admin nav in InsurerPortalLayout
+- [ ] Phase 3: Remove governance.data_retention and governance.sar from claims_manager in REPORT_ACCESS
+- [ ] Phase 3: Add recovery_officer entries to REPORT_ACCESS for recovery-specific reports
+- [ ] Phase 3: Fix null insurerRole guard in getWorkflowBottlenecks procedure

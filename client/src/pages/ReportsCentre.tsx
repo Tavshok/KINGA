@@ -436,7 +436,6 @@ const SCHEDULABLE_REPORTS = [
   "portfolio.assessor_performance",
   "portfolio.panel_beater_performance",
   "portfolio.dwell_time",
-  "executive.platform_dashboard",
   "governance.regulatory_compliance",
 ];
 

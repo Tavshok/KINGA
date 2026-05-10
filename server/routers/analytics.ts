@@ -56,10 +56,10 @@ const analyticsRoleProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   const hasInsurerRole = ctx.user.insurerRole != null && ANALYTICS_ALLOWED_ROLES.includes(ctx.user.insurerRole as any);
 
   if (!isAdmin && !hasInsurerRole) {
-    throw new TRPCError({ 
-      code: "FORBIDDEN", 
-      message: `Analytics access requires one of: ${ANALYTICS_ALLOWED_ROLES.join(', ')}` 
-    });
+    const msg = ctx.user.insurerRole == null
+      ? "Your account role has not been configured yet. Please contact your administrator."
+      : `Analytics access requires one of: ${ANALYTICS_ALLOWED_ROLES.join(', ')}`;
+    throw new TRPCError({ code: "FORBIDDEN", message: msg });
   }
 
   return next({
