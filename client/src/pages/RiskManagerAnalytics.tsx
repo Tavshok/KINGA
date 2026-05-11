@@ -441,7 +441,7 @@ async function exportMultiPagePDF(
   // Load KINGA logo
   let logoBase64 = "";
   try {
-    const resp = await fetch("https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/YUPlXZZFTuBzTxbq.png");
+    const resp = await fetch("https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png");
     const blob = await resp.blob();
     logoBase64 = await new Promise<string>((res, rej) => {
       const reader = new FileReader();

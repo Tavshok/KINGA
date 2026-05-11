@@ -10,7 +10,7 @@ async function loadPdfLibs() {
 /** Fetch the KINGA logo as a base64 data URL for reliable embedding in jsPDF */
 async function loadKingaLogoBase64(): Promise<string> {
   try {
-    const url = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/YUPlXZZFTuBzTxbq.png';
+    const url = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png';
     const resp = await fetch(url);
     const blob = await resp.blob();
     return await new Promise<string>((resolve, reject) => {
