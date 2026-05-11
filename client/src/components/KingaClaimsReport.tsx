@@ -443,6 +443,8 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
 
   return (
     <div
+      data-claim-number={claim?.claimNumber ?? claim?.claimReference ?? `#${claim?.id ?? ''}`}
+      data-report-date={reportDate}
       style={{
         fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
         background: "#ffffff",
@@ -974,7 +976,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
             {(() => {
               const stages: { order: number; name: string; roleKey: string; required: boolean }[] =
                 workflowStages.length > 0
-                  ? workflowStages.map((s) => ({ order: s.stage_order, name: s.name, roleKey: s.role_key, required: s.required }))
+                  ? workflowStages.map((s) => ({ order: s.stage_order, name: s.stage_name ?? s.name ?? `Stage ${s.stage_order}`, roleKey: s.role_key, required: s.required }))
                   : Array.from(
                       new Map(
                         approvalHistory

@@ -47,7 +47,17 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
   const fraudScore = Number(aiAssessment.fraudScore ?? 0);
   const confidenceScore = Number(aiAssessment.confidenceScore ?? 50);
   const photosDetected = Number(aiAssessment.photosDetected ?? 0);
-  const quoteCount = Number(aiAssessment.quoteCount ?? 0);
+  // quoteCount: prefer the actual quotes array length (passed via claim prop) over the
+  // pipeline-stored quoteCount which may be stale or reflect extraction failures.
+  const quotesFromClaim: any[] = Array.isArray((claim as any)?.quotes) ? (claim as any).quotes
+    : Array.isArray(aiAssessment?._quotes) ? aiAssessment._quotes
+    : [];
+  const quoteCount = quotesFromClaim.length > 0 ? quotesFromClaim.length : Number(aiAssessment.quoteCount ?? 0);
+  // hasQuoteWithNoLineItems: a quote was submitted but line items have zero prices (extraction failure)
+  const hasQuoteWithNoLineItems = quoteCount > 0 && quotesFromClaim.some((q: any) => {
+    const items: any[] = Array.isArray(q.lineItems) ? q.lineItems : [];
+    return items.length === 0 || items.every((li: any) => !Number(li.lineTotal ?? 0) && !Number(li.unitPrice ?? 0));
+  });
 
   // ── 1. Damage Photos ──────────────────────────────────────────────────────
   const photoUrls: string[] = (() => {
@@ -131,6 +141,17 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
       title: "No repair quotes submitted",
       description:
         "The cost intelligence engine requires at least one itemised repair quote to validate the estimated repair cost against market benchmarks. Without a quote, KINGA cannot perform parts reconciliation or detect over-pricing.",
+      impact: "Cost Intelligence Score, Parts Reconciliation, Quote Optimisation",
+      impactDelta: "+10–15 confidence points",
+    });
+  } else if (hasQuoteWithNoLineItems) {
+    items.push({
+      id: "quotes-no-line-items",
+      priority: "CRITICAL",
+      category: "financial",
+      title: "Quote submitted — itemised line items not extracted",
+      description:
+        "A repair quote has been submitted but KINGA could not extract the individual line items and prices from the document. This prevents parts reconciliation and cost benchmarking. Re-run KINGA Analysis to attempt re-extraction, or request the panel beater to resubmit a typed/digital quote.",
       impact: "Cost Intelligence Score, Parts Reconciliation, Quote Optimisation",
       impactDelta: "+10–15 confidence points",
     });
@@ -410,7 +431,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
         {/* Footer note */}
         <div style={{ marginTop: "20px", paddingTop: "12px", borderTop: "1px solid #e5e7eb" }}>
           <p style={{ fontSize: "9px", color: "#9ca3af", lineHeight: "1.5", margin: 0 }}>
-            This checklist is generated automatically by the KINGA KINGA assessment engine based on the data available at the time of the last pipeline run. Re-running the assessment after attaching additional evidence will update this checklist and recalculate the confidence score. Items marked CRITICAL must be resolved before the claim can be approved at the Claims Manager stage.
+            This checklist is generated automatically by the KINGA assessment engine based on the data available at the time of the last pipeline run. Re-running the assessment after attaching additional evidence will update this checklist and recalculate the confidence score. Items marked CRITICAL must be resolved before the claim can be approved at the Claims Manager stage.
           </p>
         </div>
       </div>
@@ -424,7 +445,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
         Appendix A — Confidence Improvement Checklist
       </div>
       <div style={{ fontSize: "10px", color: "#555", marginBottom: "12px", marginTop: "-8px" }}>
-        Actionable gaps identified by the KINGA KINGA pipeline. Address CRITICAL items before the claim proceeds to Claims Manager approval.
+        Actionable gaps identified by the KINGA pipeline. Address CRITICAL items before the claim proceeds to Claims Manager approval.
       </div>
 
       {/* Summary — FAR-01: B&W typographic hierarchy */}
@@ -492,7 +513,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
 
       <div style={{ marginTop: "16px", paddingTop: "10px", borderTop: "1px solid var(--fp-border)" }}>
         <p style={{ fontSize: "9px", color: "var(--fp-text-muted)", lineHeight: "1.5", margin: 0 }}>
-          This checklist is generated automatically by the KINGA KINGA assessment engine. Re-running the assessment after attaching additional evidence will recalculate all scores and update this checklist. Items marked CRITICAL must be resolved before the claim can proceed to Claims Manager approval.
+          This checklist is generated automatically by the KINGA assessment engine. Re-running the assessment after attaching additional evidence will recalculate all scores and update this checklist. Items marked CRITICAL must be resolved before the claim can proceed to Claims Manager approval.
         </p>
       </div>
     </div>

@@ -227,8 +227,13 @@ CRITICAL COST EXTRACTION RULES:
 - Look for repair quotes, parts schedules, and labour breakdowns on ALL pages.
 
 CRITICAL COMPONENT EXTRACTION RULES:
-- damagedComponents: Extract EVERY line item from any repair quotation, damage schedule, or parts list.
-- Include panel beater line items, assessor recommendations, and any itemised repair list.
+- damagedComponents: Extract ONLY physically damaged vehicle components — parts that are dented, cracked, broken, or otherwise damaged.
+  SOURCE: Use damage photographs, assessor inspection reports, damage descriptions, or the assessor's damage schedule.
+  DO NOT include repair quote line items (labour charges, paint, trim, fitting fees, sundries) as damaged components.
+  DO NOT treat the repair quotation as the source for damagedComponents — the quote is for COST extraction only.
+  INCLUDE: Physical vehicle parts with damage (e.g. 'Front Bumper', 'LH Headlamp', 'Bonnet', 'Windscreen', 'LH Wing').
+  EXCLUDE: Labour lines, paint lines, fitting charges, sundry items, sub-totals, totals, or any non-physical-part line.
+  If the ONLY document is a repair quote (no damage photos, no assessor report), extract component names from the quote's itemised parts list ONLY — not labour or paint lines.
 - Do NOT stop extracting components after the first few — capture all of them.
 
 CRITICAL IMAGE DETECTION RULES:

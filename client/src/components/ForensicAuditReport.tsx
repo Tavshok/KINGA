@@ -6738,7 +6738,10 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
   const hasContradictions = contradictions.length > 0;
 
   return (
-    <div className="kinga-report">
+    <div className="kinga-report"
+      data-claim-number={claim?.claimNumber ?? claim?.claimReference ?? `#${(claim as any)?.id ?? ''}`}
+      data-report-date={new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+    >
       <style dangerouslySetInnerHTML={{ __html: REPORT_CSS }} />
       {/* C-5: Contradiction warning banner — hidden from report per design decision */}
       {/* Page header bar */}

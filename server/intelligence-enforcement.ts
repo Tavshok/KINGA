@@ -667,7 +667,7 @@ export function enforceCostVerdict(params: {
 }): CostVerdict {
   const { aiEstimatedCost, quotedAmounts, fairMin, fairMax } = params;
 
-  if (quotedAmounts.length === 0 || aiEstimatedCost <= 0) {
+  if (quotedAmounts.length === 0) {
     return {
       aiEstimatedCost,
       quotedCost: 0,
@@ -676,7 +676,23 @@ export function enforceCostVerdict(params: {
       deviationPercent: null,
       verdict: "NO_QUOTE",
       ruleApplied: "No quotes submitted — verdict deferred",
-      explanation: `AI estimated cost is $${aiEstimatedCost.toLocaleString()}. Fair range: $${fairMin.toLocaleString()}–$${fairMax.toLocaleString()}. No panel beater quotes have been submitted yet.`,
+      explanation: `Fair range: $${fairMin.toLocaleString()}–$${fairMax.toLocaleString()}. No panel beater quotes have been submitted yet.`,
+    };
+  }
+
+  // B-02 guard: if KINGA has no AI estimate, we cannot compute deviation or declare OVERPRICED/UNDERPRICED.
+  // Return INSUFFICIENT_DATA so the report does not show a misleading verdict.
+  if (aiEstimatedCost <= 0) {
+    const quotedCost = Math.max(...quotedAmounts);
+    return {
+      aiEstimatedCost: 0,
+      quotedCost,
+      fairMin,
+      fairMax,
+      deviationPercent: null,
+      verdict: "NO_QUOTE" as CostVerdict["verdict"],
+      ruleApplied: "B-02: No KINGA estimate available — cost verdict deferred",
+      explanation: `A quote of $${quotedCost.toLocaleString()} has been submitted. KINGA cost benchmarks are not yet available for this vehicle/market — cost verdict cannot be determined. Fair range (market-based): $${fairMin.toLocaleString()}–$${fairMax.toLocaleString()}.`,
     };
   }
 
@@ -1041,7 +1057,7 @@ export function applyIntelligenceEnforcement(input: EnforcementInput): Intellige
     hasDirectionMismatch: directionFlag.mismatch,
   });
 
-  // 10. Final decision with rule trace
+  // 10. Final decision with rule trace — use adjustedFraudScore so primaryReason text matches the displayed score
   const finalDecision = computeFinalDecision({
     fraudScore: adjustedFraudScore,
     costVerdict,

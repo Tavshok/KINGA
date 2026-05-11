@@ -12013,3 +12013,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix in db.ts: persistExtractedQuote now prefers costAnalysis.documentedLineItems (real pricing) over repairQuote.lineItems (zero-priced fallback); falls back only when Stage 9 has no documented line items
 - [x] Diagnostic log added: "[KINGA Assessment] Claim X: Line item source = stage9_documented (N items)" for audit trail
 - [ ] Action required: Re-run KINGA Analysis on claim 5790001 (MP Panel Beaters) to repopulate quote_line_items with real pricing
+
+## Report PDF Review Fixes — May 11 2026
+- [x] Fraud score inconsistency (75 narrative vs 85 fraud section) — adjustedFraudScore now passed into computeFinalDecision so primaryReason text matches displayed score
+- [x] Handwritten quote misclassification — Stage 3 prompt now separates damaged components (from damage photos/assessor reports) from quote line items (from repair quotation); quote items no longer treated as damaged components
+- [x] B-02 OVERPRICED guard — when aiEstimatedCost=0 but quote exists, verdict is now NO_QUOTE with explanation "KINGA cost benchmarks not yet available" instead of computing meaningless +606% deviation
+- [x] Checklist quote detection — now shows "Quote submitted — itemised line items not extracted" when quote exists but all prices are zero; uses actual quotes array from claim prop for accurate count
+- [x] Print page header blank (Claim: / Report Date:) — added data-claim-number and data-report-date attributes to root divs in both KingaClaimsReport and ForensicAuditReport
+- [x] KINGA KINGA double-word — fixed all 3 occurrences in ConfidenceImprovementChecklist footer text
+- [x] Approval chain STAGE column blank — fixed field mapping from s.name to s.stage_name (WorkflowStage uses snake_case field names from server)
