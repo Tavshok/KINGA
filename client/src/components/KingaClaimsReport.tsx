@@ -696,6 +696,44 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               ))}
             </div>
 
+            {/* Side-by-side quote table — total-only fallback when no line items */}
+            {quotes.length > 0 && allDescriptions.length === 0 && (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...S.th, minWidth: 180 }}>Item</th>
+                      {quotes.map((q: any, qi: number) => (
+                        <th key={qi} style={{ ...S.th, textAlign: "right" as const }}>
+                          {q.panelBeaterName ?? `Quote ${qi + 1}`}
+                        </th>
+                      ))}
+                      <th style={{ ...S.th, textAlign: "right" as const, background: "#ffffff", color: C.textMuted }}>KINGA Estimate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ background: "transparent" }}>
+                      <td style={{ ...S.td, fontStyle: "italic", color: "#64748b" }}>No itemised line items — total only</td>
+                      {quotes.map((_q: any, qi: number) => (
+                        <td key={qi} style={{ ...S.td, textAlign: "right", color: "#64748b", fontStyle: "italic" }}>—</td>
+                      ))}
+                      <td style={{ ...S.td, textAlign: "right", background: "#ffffff" }}>—</td>
+                    </tr>
+                    <tr style={{ borderTop: "2px solid #e2e8f0", fontWeight: 700 }}>
+                      <td style={{ ...S.td, fontWeight: 700 }}>TOTAL</td>
+                      {quotes.map((q: any, qi: number) => (
+                        <td key={qi} style={{ ...S.td, textAlign: "right", fontWeight: 700 }}>
+                          {fmtC(Number(q.quotedAmount ?? 0) / 100)}
+                        </td>
+                      ))}
+                      <td style={{ ...S.td, textAlign: "right", background: "#ffffff", fontWeight: 700 }}>
+                        {fmtC(aiEstimate)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
             {/* Side-by-side quote table */}
             {quotes.length > 0 && allDescriptions.length > 0 && (
               <div style={{ overflowX: "auto" }}>
@@ -771,7 +809,11 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                       <td style={{ ...S.td, fontWeight: 700 }}>TOTAL</td>
                       {quotes.map((q: any, qi: number) => (
                         <td key={qi} style={{ ...S.td, textAlign: "right", fontWeight: 700 }}>
-                          {fmtC(Number(q.quotedAmount ?? 0) / 100)}
+                          {fmtC(
+                            (q.lineItems ?? []).length > 0
+                              ? (q.lineItems as any[]).reduce((sum: number, li: any) => sum + Number(li.lineTotal ?? 0), 0)
+                              : Number(q.quotedAmount ?? 0) / 100
+                          )}
                         </td>
                       ))}
                       <td style={{ ...S.td, textAlign: "right", background: "#ffffff", fontWeight: 700 }}>

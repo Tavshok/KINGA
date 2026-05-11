@@ -11989,3 +11989,19 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Replace all visible "AI" labels with context-aware KINGA names: KINGA Assessment, KINGA Confidence Score, KINGA Estimate, KINGA Savings, KINGA Override Rate, KINGA Vision, KINGA Flagged, KINGA Intelligence, etc.
 - [x] Replace "KINGA AutoVerify AI" in all server report generators, system prompts, and PDF footers with "KINGA Intelligence"
 - [x] Replace "AutoVerify AI" sidebar subtitle in InsurerPortalLayout with "Claims Intelligence"
+
+## Issues Batch — May 11 2026
+
+- [ ] Fix MP Panel Beater quote line item extraction (all items show — instead of values)
+- [ ] Fix best quote logic: select LOWEST quote, sum line items correctly (not just total field)
+- [ ] Fix grey panel styling inconsistency at bottom section of KingaClaimsReport
+- [ ] Separate two reports (Claims + Forensic) into distinct tabs — not side by side, each accessible independently
+- [ ] Rename "View Reports" button to reflect 2 reports produced (e.g. "2 Reports Ready — View")
+- [ ] Fix Reports Centre role-gating: hide KINGA platform-admin reports from insurer/assessor/processor roles
+
+## Issues Batch — May 11 2026 (COMPLETED)
+- [x] Fix MP Panel Beater quote line item extraction — when no line items exist, show "No itemised line items — total only" row with stored quotedAmount in TOTAL row (KingaClaimsReport.tsx)
+- [x] Fix total row calculation — TOTAL row now sums lineItems when they exist, falls back to quotedAmount/100 when no line items (KingaClaimsReport.tsx line 812)
+- [x] Fix grey panel styling — ConfidenceImprovementChecklist kinga mode: all coloured backgrounds (#fef2f2, #fffbeb, #f0f9ff) replaced with #ffffff; left-border accent preserved; summary bar badges also updated
+- [x] Separate two reports into distinct cards — InsurerComparisonView redesigned: "2 Reports Generated" header bar, "REPORT 1 OF 2 / REPORT 2 OF 2" indicators, navigation buttons between reports ("View Forensic Audit Report →" / "← View Claims Report")
+- [x] Reports Centre role-gating — PLATFORM ADMIN category hidden from all non-platform-admin users; visibleCatalogue filter applied before categories derivation and filtered array

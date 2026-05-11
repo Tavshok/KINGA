@@ -642,9 +642,17 @@ export default function ReportsCentre() {
   // Scheduling is available to managers and above (not processors or assessors)
   const effectiveRole = (user as any)?.insurerRole ?? user?.role ?? "";
   const canSchedule = ["admin", "insurer_admin", "claims_manager", "risk_manager", "executive"].includes(effectiveRole);
-  const categories = [...new Set(catalogue.map((r) => r.category))];
 
-  const filtered = catalogue.filter(
+  // Platform Admin category is only visible to platform super-admins (role === 'admin')
+  // Insurer admins and all other insurer roles must never see platform-internal reports
+  const ADMIN_ONLY_CATEGORIES = ["Platform Admin"];
+  const visibleCatalogue = isAdmin
+    ? catalogue
+    : catalogue.filter((r) => !ADMIN_ONLY_CATEGORIES.includes(r.category));
+
+  const categories = [...new Set(visibleCatalogue.map((r) => r.category))];
+
+  const filtered = visibleCatalogue.filter(
     (r) =>
       r.name.toLowerCase().includes(search.toLowerCase()) ||
       r.description.toLowerCase().includes(search.toLowerCase()) ||

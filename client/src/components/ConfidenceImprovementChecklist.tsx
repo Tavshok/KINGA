@@ -342,19 +342,19 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
         {/* Summary bar */}
         <div style={{ display: "flex", gap: "12px", marginBottom: "24px", marginTop: "16px" }}>
           {criticalItems.length > 0 && (
-            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "8px 14px", textAlign: "center" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #fca5a5", borderLeft: "4px solid #dc2626", borderRadius: "4px", padding: "8px 14px", textAlign: "center" }}>
               <div style={{ fontSize: "18px", fontWeight: 800, color: "#dc2626" }}>{criticalItems.length}</div>
               <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "1px", color: "#dc2626", textTransform: "uppercase" }}>Critical</div>
             </div>
           )}
           {recommendedItems.length > 0 && (
-            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "4px", padding: "8px 14px", textAlign: "center" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #fcd34d", borderLeft: "4px solid #d97706", borderRadius: "4px", padding: "8px 14px", textAlign: "center" }}>
               <div style={{ fontSize: "18px", fontWeight: 800, color: "#d97706" }}>{recommendedItems.length}</div>
               <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "1px", color: "#d97706", textTransform: "uppercase" }}>Recommended</div>
             </div>
           )}
           {optionalItems.length > 0 && (
-            <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: "4px", padding: "8px 14px", textAlign: "center" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #7dd3fc", borderLeft: "4px solid #0284c7", borderRadius: "4px", padding: "8px 14px", textAlign: "center" }}>
               <div style={{ fontSize: "18px", fontWeight: 800, color: "#0284c7" }}>{optionalItems.length}</div>
               <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "1px", color: "#0284c7", textTransform: "uppercase" }}>Optional</div>
             </div>
@@ -364,9 +364,9 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
         {/* Items */}
         {items.map((item, idx) => {
           const priorityColors: Record<ChecklistItem["priority"], { bg: string; border: string; badge: string; badgeText: string }> = {
-            CRITICAL: { bg: "#fef2f2", border: "#fca5a5", badge: "#dc2626", badgeText: "#fff" },
-            RECOMMENDED: { bg: "#fffbeb", border: "#fcd34d", badge: "#d97706", badgeText: "#fff" },
-            OPTIONAL: { bg: "#f0f9ff", border: "#7dd3fc", badge: "#0284c7", badgeText: "#fff" },
+            CRITICAL: { bg: "#ffffff", border: "#fca5a5", badge: "#dc2626", badgeText: "#fff" },
+            RECOMMENDED: { bg: "#ffffff", border: "#fcd34d", badge: "#d97706", badgeText: "#fff" },
+            OPTIONAL: { bg: "#ffffff", border: "#7dd3fc", badge: "#0284c7", badgeText: "#fff" },
           };
           const c = priorityColors[item.priority];
           return (

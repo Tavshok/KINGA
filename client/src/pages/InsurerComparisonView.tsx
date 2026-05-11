@@ -885,31 +885,45 @@ export default function InsurerComparisonView() {
       <main className="container mx-auto px-2 py-4 space-y-5" style={{ background: '#ffffff', color: '#111111' }}>
 
         {/* ═══════════════════════════════════════════════════════════════
-             REPORT VIEW — Claims Report (standard) | Forensic Report
+             REPORT VIEW — Two distinct report cards: Claims + Forensic
         ═══════════════════════════════════════════════════════════════ */}
         {aiAssessment && enforcement ? (
           <>
-            <div className="flex items-center gap-2 mb-3 px-1">
-              {(['standard', 'forensic'] as const).map((v) => (
+            {/* Report selector header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', letterSpacing: '1px', textTransform: 'uppercase' }}>2 Reports Generated</div>
+              <div style={{ flex: 1 }} />
+              {(['standard', 'forensic'] as const).map((v, idx) => (
                 <button
                   key={v}
                   onClick={() => setReportView(v)}
                   style={{
-                    padding: '5px 14px',
+                    padding: '6px 16px',
                     borderRadius: 6,
                     fontSize: 12,
                     fontWeight: 700,
-                    border: '1px solid var(--border)',
-                    background: reportView === v ? 'var(--foreground)' : 'var(--card)',
-                    color: reportView === v ? 'var(--background)' : 'var(--foreground)',
+                    border: reportView === v ? '2px solid #1a3a5c' : '1px solid #d1d5db',
+                    background: reportView === v ? '#1a3a5c' : '#ffffff',
+                    color: reportView === v ? '#ffffff' : '#374151',
                     cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
                   }}
                 >
-                  {v === 'standard' ? 'Claims Report' : 'Forensic Report'}
+                  <span style={{ fontSize: 9, fontWeight: 600, color: reportView === v ? 'rgba(255,255,255,0.7)' : '#9ca3af', letterSpacing: '0.5px' }}>REPORT {idx + 1} OF 2</span>
+                  <span>{v === 'standard' ? 'Claims Report' : 'Forensic Audit Report'}</span>
                 </button>
               ))}
             </div>
+
+            {/* Report 1: KINGA Claims Report */}
             <div data-report-view="standard" style={reportView !== 'standard' ? { display: 'none' } : undefined}>
+              <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1.5px', color: '#6b7280', textTransform: 'uppercase', background: '#f1f5f9', padding: '3px 10px', borderRadius: 4 }}>Report 1 of 2</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#1a3a5c' }}>KINGA Claims Report</span>
+                <span style={{ fontSize: 10, color: '#9ca3af' }}>— Standard assessment and cost analysis</span>
+              </div>
               <KingaClaimsReport
                 claim={claim}
                 aiAssessment={aiAssessment}
@@ -924,8 +938,24 @@ export default function InsurerComparisonView() {
                   ...(approvalStatus?.optional_stages ?? []),
                 ].sort((a: any, b: any) => (a.stage_order ?? 0) - (b.stage_order ?? 0)) as any[]}
               />
+              <div style={{ marginTop: 16, padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, color: '#6b7280' }}>Continue to Report 2 of 2 for the full forensic audit trail</span>
+                <button
+                  onClick={() => setReportView('forensic')}
+                  style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, border: '1px solid #1a3a5c', background: '#1a3a5c', color: '#ffffff', cursor: 'pointer' }}
+                >
+                  View Forensic Audit Report →
+                </button>
+              </div>
             </div>
+
+            {/* Report 2: Forensic Audit Report */}
             <div data-report-view="forensic" style={reportView !== 'forensic' ? { display: 'none' } : undefined}>
+              <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1.5px', color: '#6b7280', textTransform: 'uppercase', background: '#f1f5f9', padding: '3px 10px', borderRadius: 4 }}>Report 2 of 2</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#1a3a5c' }}>Forensic Audit Report</span>
+                <span style={{ fontSize: 10, color: '#9ca3af' }}>— Detailed forensic investigation and evidence trail</span>
+              </div>
               <ForensicAuditReport
                 claim={claim}
                 aiAssessment={aiAssessment}
@@ -940,6 +970,15 @@ export default function InsurerComparisonView() {
                   ...(approvalStatus?.optional_stages ?? []),
                 ].sort((a: any, b: any) => (a.stage_order ?? 0) - (b.stage_order ?? 0)) as any[]}
               />
+              <div style={{ marginTop: 16, padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, color: '#6b7280' }}>Return to Report 1 of 2 — KINGA Claims Report</span>
+                <button
+                  onClick={() => setReportView('standard')}
+                  style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, border: '1px solid #374151', background: '#ffffff', color: '#374151', cursor: 'pointer' }}
+                >
+                  ← View Claims Report
+                </button>
+              </div>
             </div>
           </>
         ) : aiAssessment && !enforcement ? (
