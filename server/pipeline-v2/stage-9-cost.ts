@@ -726,6 +726,32 @@ export async function runCostOptimisationStage(
       ctx.log("Stage 9", `DOE computation failed (non-fatal): ${String(doeErr)}`);
     }
 
+    // Build documentedLineItems from the first extracted quote's line_items.
+    // These carry the actual unit_cost and line_total from the quote document,
+    // unlike repairQuote.lineItems (Stage 5) which are always zero-priced.
+    // db.ts uses this field when calling persistExtractedQuote so the
+    // quote_line_items table gets real pricing instead of zeros.
+    const _firstExtractedQuote = (stage3?.inputRecovery?.extracted_quotes ?? [])[0] ?? null;
+    const documentedLineItems: Array<{
+      description: string;
+      partNumber: string | null;
+      category: string;
+      quantity: number;
+      unitPrice: number;
+      lineTotal: number;
+      isRepair: boolean;
+      isReplacement: boolean;
+    }> = (_firstExtractedQuote?.line_items ?? []).map((li: any) => ({
+      description: li.component ?? li.description ?? 'Item',
+      partNumber: li.part_number ?? null,
+      category: 'parts',
+      quantity: typeof li.quantity === 'number' ? li.quantity : 1,
+      unitPrice: typeof li.unit_cost === 'number' ? li.unit_cost : 0,
+      lineTotal: typeof li.line_total === 'number' ? li.line_total : (typeof li.unit_cost === 'number' ? li.unit_cost : 0),
+      isRepair: li.action === 'repair',
+      isReplacement: li.action === 'replace' || li.action !== 'repair',
+    }));
+
     const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
       reconciliationSummary,
@@ -783,6 +809,9 @@ export async function runCostOptimisationStage(
       // Never fall back to the raw claim form field (ctx.claim.vehicleMarketValue) as it is
       // the assessor's unverified stated value. If Stage 5c produced no value, leave null.
       marketValueUsd: claimRecord.valuation?.marketValueUsd ?? null,
+      // Extracted quote line items with real pricing — used by db.ts for persistExtractedQuote.
+      // These come from quoteExtractionEngine (Stage 3) and carry actual unit_cost / line_total.
+      documentedLineItems: documentedLineItems.length > 0 ? documentedLineItems : undefined,
     }, isDegraded ? "degraded_estimate" : "success");
 
     // ── Phase 2: Per-component KINGA benchmarks ─────────────────────────────

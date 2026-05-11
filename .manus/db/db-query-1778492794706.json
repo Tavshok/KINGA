@@ -1,0 +1,210 @@
+{
+  "query": "\nSELECT q.id, q.claim_id, pb.name as panel_beater_name, pb.business_name,\n       q.quoted_amount, q.status, q.created_at,\n       COUNT(qli.id) as line_item_count\nFROM panel_beater_quotes q\nLEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id\nLEFT JOIN quote_line_items qli ON qli.quote_id = q.id\nGROUP BY q.id, q.claim_id, pb.name, pb.business_name, q.quoted_amount, q.status, q.created_at\nORDER BY q.created_at DESC\nLIMIT 20;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT q.id, q.claim_id, pb.name as panel_beater_name, pb.business_name,\n       q.quoted_amount, q.status, q.created_at,\n       COUNT(qli.id) as line_item_count\nFROM panel_beater_quotes q\nLEFT JOIN panel_beaters pb ON pb.id = q.panel_beater_id\nLEFT JOIN quote_line_items qli ON qli.quote_id = q.id\nGROUP BY q.id, q.claim_id, pb.name, pb.business_name, q.quoted_amount, q.status, q.created_at\nORDER BY q.created_at DESC\nLIMIT 20;\n",
+  "rows": [
+    {
+      "id": "4200001",
+      "claim_id": "5790001",
+      "panel_beater_name": "MP PANEL BEATERS",
+      "business_name": "MP PANEL BEATERS",
+      "quoted_amount": "332050",
+      "status": "submitted",
+      "created_at": "2026-05-11 09:10:56",
+      "line_item_count": "14"
+    },
+    {
+      "id": "4170001",
+      "claim_id": "5760001",
+      "panel_beater_name": "Accelary",
+      "business_name": "Accelary",
+      "quoted_amount": "13860000",
+      "status": "submitted",
+      "created_at": "2026-05-10 16:50:17",
+      "line_item_count": "5"
+    },
+    {
+      "id": "4110042",
+      "claim_id": "5700376",
+      "panel_beater_name": "Accelary",
+      "business_name": "Accelary",
+      "quoted_amount": "13860000",
+      "status": "submitted",
+      "created_at": "2026-05-10 16:32:05",
+      "line_item_count": "5"
+    },
+    {
+      "id": "4110041",
+      "claim_id": "5700375",
+      "panel_beater_name": "Fine Eye",
+      "business_name": "Fine Eye",
+      "quoted_amount": "169265350",
+      "status": "submitted",
+      "created_at": "2026-05-10 16:16:19",
+      "line_item_count": "9"
+    },
+    {
+      "id": "4110038",
+      "claim_id": "5700346",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "5000000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:44",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110040",
+      "claim_id": "5700348",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "5000000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:44",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110037",
+      "claim_id": "5700345",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "1500000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:44",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110039",
+      "claim_id": "5700347",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "1500000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:44",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110035",
+      "claim_id": "5700343",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "1500000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:43",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110036",
+      "claim_id": "5700344",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "5000000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:43",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110033",
+      "claim_id": "5700341",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "1500000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:42",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110034",
+      "claim_id": "5700342",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "5000000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:42",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110031",
+      "claim_id": "5700339",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "1500000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:42",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110032",
+      "claim_id": "5700340",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "5000000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:42",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110029",
+      "claim_id": "5700337",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "1500000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:41",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110030",
+      "claim_id": "5700338",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "5000000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:41",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110028",
+      "claim_id": "5700336",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "5000000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:41",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110027",
+      "claim_id": "5700335",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "1500000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:41",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110026",
+      "claim_id": "5700334",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "5000000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:40",
+      "line_item_count": "0"
+    },
+    {
+      "id": "4110024",
+      "claim_id": "5700332",
+      "panel_beater_name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "quoted_amount": "5000000",
+      "status": "submitted",
+      "created_at": "2026-05-10 14:50:40",
+      "line_item_count": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_id\tpanel_beater_name\tbusiness_name\tquoted_amount\tstatus\tcreated_at\tline_item_count\n4200001\t5790001\tMP PANEL BEATERS\tMP PANEL BEATERS\t332050\tsubmitted\t2026-05-11 09:10:56\t14\n4170001\t5760001\tAccelary\tAccelary\t13860000\tsubmitted\t2026-05-10 16:50:17\t5\n4110042\t5700376\tAccelary\tAccelary\t13860000\tsubmitted\t2026-05-10 16:32:05\t5\n4110041\t5700375\tFine Eye\tFine Eye\t169265350\tsubmitted\t2026-05-10 16:16:19\t9\n4110038\t5700346\tJohn Moyo\tMoyo Auto Body Repairs\t5000000\tsubmitted\t2026-05-10 14:50:44\t0\n4110040\t5700348\tJohn Moyo\tMoyo Auto Body Repairs\t5000000\tsubmitted\t2026-05-10 14:50:44\t0\n4110037\t5700345\tJohn Moyo\tMoyo Auto Body Repairs\t1500000\tsubmitted\t2026-05-10 14:50:44\t0\n4110039\t5700347\tJohn Moyo\tMoyo Auto Body Repairs\t1500000\tsubmitted\t2026-05-10 14:50:44\t0\n4110035\t5700343\tJohn Moyo\tMoyo Auto Body Repairs\t1500000\tsubmitted\t2026-05-10 14:50:43\t0\n4110036\t5700344\tJohn Moyo\tMoyo Auto Body Repairs\t5000000\tsubmitted\t2026-05-10 14:50:43\t0\n4110033\t5700341\tJohn Moyo\tMoyo Auto Body Repairs\t1500000\tsubmitted\t2026-05-10 14:50:42\t0\n4110034\t5700342\tJohn Moyo\tMoyo Auto Body Repairs\t5000000\tsubmitted\t2026-05-10 14:50:42\t0\n4110031\t5700339\tJohn Moyo\tMoyo Auto Body Repairs\t1500000\tsubmitted\t2026-05-10 14:50:42\t0\n4110032\t5700340\tJohn Moyo\tMoyo Auto Body Repairs\t5000000\tsubmitted\t2026-05-10 14:50:42\t0\n4110029\t5700337\tJohn Moyo\tMoyo Auto Body Repairs\t1500000\tsubmitted\t2026-05-10 14:50:41\t0\n4110030\t5700338\tJohn Moyo\tMoyo Auto Body Repairs\t5000000\tsubmitted\t2026-05-10 14:50:41\t0\n4110028\t5700336\tJohn Moyo\tMoyo Auto Body Repairs\t5000000\tsubmitted\t2026-05-10 14:50:41\t0\n4110027\t5700335\tJohn Moyo\tMoyo Auto Body Repairs\t1500000\tsubmitted\t2026-05-10 14:50:41\t0\n4110026\t5700334\tJohn Moyo\tMoyo Auto Body Repairs\t5000000\tsubmitted\t2026-05-10 14:50:40\t0\n4110024\t5700332\tJohn Moyo\tMoyo Auto Body Repairs\t5000000\tsubmitted\t2026-05-10 14:50:40\t0\n",
+  "stderr": "",
+  "execution_time_ms": 672
+}

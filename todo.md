@@ -12005,3 +12005,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix grey panel styling — ConfidenceImprovementChecklist kinga mode: all coloured backgrounds (#fef2f2, #fffbeb, #f0f9ff) replaced with #ffffff; left-border accent preserved; summary bar badges also updated
 - [x] Separate two reports into distinct cards — InsurerComparisonView redesigned: "2 Reports Generated" header bar, "REPORT 1 OF 2 / REPORT 2 OF 2" indicators, navigation buttons between reports ("View Forensic Audit Report →" / "← View Claims Report")
 - [x] Reports Centre role-gating — PLATFORM ADMIN category hidden from all non-platform-admin users; visibleCatalogue filter applied before categories derivation and filtered array
+
+## Line Item Extraction Root Cause Fix — May 11 2026
+
+- [x] Root cause identified: Stage 5 assembly builds repairQuote.lineItems from damagedComponents with unitPriceCents=0 (component names only, no pricing); these zero-priced items were being persisted to quote_line_items
+- [x] Fix in stage-9-cost.ts: Build documentedLineItems from extracted_quotes[0].line_items (Stage 3 quoteExtractionEngine output) which carries real unit_cost and line_total values from the quote document
+- [x] Fix in db.ts: persistExtractedQuote now prefers costAnalysis.documentedLineItems (real pricing) over repairQuote.lineItems (zero-priced fallback); falls back only when Stage 9 has no documented line items
+- [x] Diagnostic log added: "[KINGA Assessment] Claim X: Line item source = stage9_documented (N items)" for audit trail
+- [ ] Action required: Re-run KINGA Analysis on claim 5790001 (MP Panel Beaters) to repopulate quote_line_items with real pricing

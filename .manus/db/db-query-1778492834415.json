@@ -1,0 +1,150 @@
+{
+  "query": "\nSELECT id, quote_id, description, category, quantity, unit_price, line_total, currency\nFROM quote_line_items\nWHERE quote_id = 4200001\nORDER BY item_number\nLIMIT 20;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT id, quote_id, description, category, quantity, unit_price, line_total, currency\nFROM quote_line_items\nWHERE quote_id = 4200001\nORDER BY item_number\nLIMIT 20;\n",
+  "rows": [
+    {
+      "id": "420001",
+      "quote_id": "4200001",
+      "description": "RHS DAIL LIGHT",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420002",
+      "quote_id": "4200001",
+      "description": "RHS REAR BUMPER END Complete",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420003",
+      "quote_id": "4200001",
+      "description": "RHS R/ BUMPER PLASTIC END",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420004",
+      "quote_id": "4200001",
+      "description": "RHS R/ BODY WHEEL ARCH THROUGH CLIPS",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420005",
+      "quote_id": "4200001",
+      "description": "RHS R/ BODY INNER LINER + CLIPS",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420006",
+      "quote_id": "4200001",
+      "description": "RHS REAR/JAB PICLAPE",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420007",
+      "quote_id": "4200001",
+      "description": "SUNDRIES",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420008",
+      "quote_id": "4200001",
+      "description": "RHS L/ BODY PANEL",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420009",
+      "quote_id": "4200001",
+      "description": "JAIS (GASE)",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420010",
+      "quote_id": "4200001",
+      "description": "SPRAY RHS PARTS METALIC",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420011",
+      "quote_id": "4200001",
+      "description": "REDHOLE + FIT RHS PARTS",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420012",
+      "quote_id": "4200001",
+      "description": "rear bumper",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420013",
+      "quote_id": "4200001",
+      "description": "right rear fender",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    },
+    {
+      "id": "420014",
+      "quote_id": "4200001",
+      "description": "right taillight",
+      "category": "parts",
+      "quantity": "1.00",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "currency": "USD"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquote_id\tdescription\tcategory\tquantity\tunit_price\tline_total\tcurrency\n420001\t4200001\tRHS DAIL LIGHT\tparts\t1.00\t0.00\t0.00\tUSD\n420002\t4200001\tRHS REAR BUMPER END Complete\tparts\t1.00\t0.00\t0.00\tUSD\n420003\t4200001\tRHS R/ BUMPER PLASTIC END\tparts\t1.00\t0.00\t0.00\tUSD\n420004\t4200001\tRHS R/ BODY WHEEL ARCH THROUGH CLIPS\tparts\t1.00\t0.00\t0.00\tUSD\n420005\t4200001\tRHS R/ BODY INNER LINER + CLIPS\tparts\t1.00\t0.00\t0.00\tUSD\n420006\t4200001\tRHS REAR/JAB PICLAPE\tparts\t1.00\t0.00\t0.00\tUSD\n420007\t4200001\tSUNDRIES\tparts\t1.00\t0.00\t0.00\tUSD\n420008\t4200001\tRHS L/ BODY PANEL\tparts\t1.00\t0.00\t0.00\tUSD\n420009\t4200001\tJAIS (GASE)\tparts\t1.00\t0.00\t0.00\tUSD\n420010\t4200001\tSPRAY RHS PARTS METALIC\tparts\t1.00\t0.00\t0.00\tUSD\n420011\t4200001\tREDHOLE + FIT RHS PARTS\tparts\t1.00\t0.00\t0.00\tUSD\n420012\t4200001\trear bumper\tparts\t1.00\t0.00\t0.00\tUSD\n420013\t4200001\tright rear fender\tparts\t1.00\t0.00\t0.00\tUSD\n420014\t4200001\tright taillight\tparts\t1.00\t0.00\t0.00\tUSD\n",
+  "stderr": "",
+  "execution_time_ms": 560
+}

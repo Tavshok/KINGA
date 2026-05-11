@@ -1530,18 +1530,33 @@ export async function triggerAiAssessment(claimId: number) {
   // never blocks the main assessment save.
   if (documentedOriginalQuoteUsd && documentedOriginalQuoteUsd > 0) {
     const { persistExtractedQuote } = await import('./persistExtractedQuote');
-    // Build line items from repairQuote.lineItems (Stage 3/4 extraction)
-    const extractedLineItems = (repairQuote?.lineItems ?? []).map((li: any) => ({
-      description: li.description ?? li.partName ?? 'Item',
-      partNumber: li.partNumber ?? null,
-      category: (['parts','labor','paint','diagnostic','sundries','other'].includes(li.category) ? li.category : 'parts') as any,
-      quantity: Number(li.quantity) || 1,
-      unitPrice: li.unitPriceCents ? li.unitPriceCents / 100 : (li.unitPrice ?? 0),
-      lineTotal: li.lineTotalCents ? li.lineTotalCents / 100 : (li.lineTotal ?? 0),
-      isRepair: Boolean(li.isRepair),
-      isReplacement: li.isReplacement !== false,
-      notes: li.notes ?? null,
-    }));
+    // Prefer documentedLineItems from Stage 9 (sourced from quoteExtractionEngine, real pricing)
+    // over repairQuote.lineItems (Stage 5, always zero-priced — component names only).
+    const _stage9LineItems = (costAnalysis as any)?.documentedLineItems;
+    const extractedLineItems = Array.isArray(_stage9LineItems) && _stage9LineItems.length > 0
+      ? _stage9LineItems.map((li: any) => ({
+          description: li.description ?? 'Item',
+          partNumber: li.partNumber ?? null,
+          category: (['parts','labor','paint','diagnostic','sundries','other'].includes(li.category) ? li.category : 'parts') as any,
+          quantity: Number(li.quantity) || 1,
+          unitPrice: Number(li.unitPrice) || 0,
+          lineTotal: Number(li.lineTotal) || 0,
+          isRepair: Boolean(li.isRepair),
+          isReplacement: li.isReplacement !== false,
+          notes: li.notes ?? null,
+        }))
+      : (repairQuote?.lineItems ?? []).map((li: any) => ({
+          description: li.description ?? li.partName ?? 'Item',
+          partNumber: li.partNumber ?? null,
+          category: (['parts','labor','paint','diagnostic','sundries','other'].includes(li.category) ? li.category : 'parts') as any,
+          quantity: Number(li.quantity) || 1,
+          unitPrice: li.unitPriceCents ? li.unitPriceCents / 100 : (li.unitPrice ?? 0),
+          lineTotal: li.lineTotalCents ? li.lineTotalCents / 100 : (li.lineTotal ?? 0),
+          isRepair: Boolean(li.isRepair),
+          isReplacement: li.isReplacement !== false,
+          notes: li.notes ?? null,
+        }));
+    console.log(`[KINGA Assessment] Claim ${claimId}: Line item source = ${Array.isArray(_stage9LineItems) && _stage9LineItems.length > 0 ? `stage9_documented (${_stage9LineItems.length} items)` : `repairQuote_fallback (${(repairQuote?.lineItems ?? []).length} items)`}`);
     persistExtractedQuote({
       claimId,
       tenantId: claim.tenantId ?? null,
