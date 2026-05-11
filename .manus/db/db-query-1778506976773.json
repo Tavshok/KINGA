@@ -1,0 +1,23 @@
+{
+  "query": "\nSELECT c.id, c.claim_number, c.source_document_id, c.damage_photos, c.external_assessment_url,\n       c.document_processing_status, c.ai_assessment_started_at, c.updated_at,\n       d.id as doc_id, d.original_filename, d.s3_url\nFROM claims c\nLEFT JOIN ingestion_documents d ON d.id = c.source_document_id\nWHERE c.id = 5850001;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT c.id, c.claim_number, c.source_document_id, c.damage_photos, c.external_assessment_url,\n       c.document_processing_status, c.ai_assessment_started_at, c.updated_at,\n       d.id as doc_id, d.original_filename, d.s3_url\nFROM claims c\nLEFT JOIN ingestion_documents d ON d.id = c.source_document_id\nWHERE c.id = 5850001;\n",
+  "rows": [
+    {
+      "id": "5850001",
+      "claim_number": "DOC-20260511-F75D99DD",
+      "source_document_id": "2220001",
+      "damage_photos": "NULL",
+      "external_assessment_url": "NULL",
+      "document_processing_status": "parsing",
+      "ai_assessment_started_at": "2026-05-11 13:34:34",
+      "updated_at": "2026-05-11 13:34:35",
+      "doc_id": "2220001",
+      "original_filename": "ARON TEMBO HONDA FIT AFU 0981 ASSESSMENT REPORT.pdf",
+      "s3_url": "https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/tenant-1771335377063/ingestion/a6c47226-7983-4032-a1fe-479208cfe9de/f77fd862-53b6-4cfb-8c12-2ce0f55e692d-ARON TEMBO HONDA FIT AFU 0981 ASSESSMENT REPORT.pdf"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tsource_document_id\tdamage_photos\texternal_assessment_url\tdocument_processing_status\tai_assessment_started_at\tupdated_at\tdoc_id\toriginal_filename\ts3_url\n5850001\tDOC-20260511-F75D99DD\t2220001\tNULL\tNULL\tparsing\t2026-05-11 13:34:34\t2026-05-11 13:34:35\t2220001\tARON TEMBO HONDA FIT AFU 0981 ASSESSMENT REPORT.pdf\thttps://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/tenant-1771335377063/ingestion/a6c47226-7983-4032-a1fe-479208cfe9de/f77fd862-53b6-4cfb-8c12-2ce0f55e692d-ARON TEMBO HONDA FIT AFU 0981 ASSESSMENT REPORT.pdf\n",
+  "stderr": "",
+  "execution_time_ms": 557
+}

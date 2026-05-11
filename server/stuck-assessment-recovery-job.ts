@@ -444,10 +444,13 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
-    // ── CASE 6: assessment_in_progress + dps='extracting'|'analysing' + >10 min ──────────────
+    // ── CASE 6: assessment_in_progress + dps='parsing'|'extracting'|'analysing' + >10 min ─────
     // Pipeline set dps to an active transient state but then died (DB error, OOM, unhandled
-    // promise rejection) without triggering the safety net. Startup cleanup handles this on
-    // server restart, but if the server stays up the claim is stuck forever.
+    // promise rejection, or event-loop block) without triggering the safety net.
+    // 'parsing' is included here because the watchdog timer (8 min) may not fire if the
+    // server process that started the pipeline is no longer running or the event loop is blocked.
+    // Startup cleanup handles this on server restart, but if the server stays up the claim
+    // is stuck forever. This case catches all three transient states.
     const stuckInActiveTransient = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -457,7 +460,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         .where(
           and(
             eq(claims.status, "assessment_in_progress"),
-            inArray(claims.documentProcessingStatus, ["extracting", "analysing"]),
+            inArray(claims.documentProcessingStatus, ["parsing", "extracting", "analysing"]),
             olderThanMinutes(claims.updatedAt, 10)
           )
         )

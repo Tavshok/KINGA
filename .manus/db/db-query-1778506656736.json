@@ -1,0 +1,24 @@
+{
+  "query": "\nSELECT id, claim_number, kinga_ref, status, workflow_state, \n       ai_assessment_triggered, ai_assessment_completed,\n       ai_assessment_started_at, ai_assessment_completed_at,\n       fraud_risk_score, created_at, updated_at\nFROM claims\nWHERE claim_number LIKE '%F75D99DD%'\nORDER BY created_at DESC\nLIMIT 5;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT id, claim_number, kinga_ref, status, workflow_state, \n       ai_assessment_triggered, ai_assessment_completed,\n       ai_assessment_started_at, ai_assessment_completed_at,\n       fraud_risk_score, created_at, updated_at\nFROM claims\nWHERE claim_number LIKE '%F75D99DD%'\nORDER BY created_at DESC\nLIMIT 5;\n",
+  "rows": [
+    {
+      "id": "5850001",
+      "claim_number": "DOC-20260511-F75D99DD",
+      "kinga_ref": "KNG-TENANT17-2026-000010",
+      "status": "assessment_in_progress",
+      "workflow_state": "under_assessment",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "0",
+      "ai_assessment_started_at": "2026-05-11 13:34:34",
+      "ai_assessment_completed_at": "NULL",
+      "fraud_risk_score": "NULL",
+      "created_at": "2026-05-11 13:34:22",
+      "updated_at": "2026-05-11 13:34:35"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tkinga_ref\tstatus\tworkflow_state\tai_assessment_triggered\tai_assessment_completed\tai_assessment_started_at\tai_assessment_completed_at\tfraud_risk_score\tcreated_at\tupdated_at\n5850001\tDOC-20260511-F75D99DD\tKNG-TENANT17-2026-000010\tassessment_in_progress\tunder_assessment\t1\t0\t2026-05-11 13:34:34\tNULL\tNULL\t2026-05-11 13:34:22\t2026-05-11 13:34:35\n",
+  "stderr": "",
+  "execution_time_ms": 601
+}
