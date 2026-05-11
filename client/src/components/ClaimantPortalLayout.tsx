@@ -72,7 +72,7 @@ export default function ClaimantPortalLayout({
         {/* Brand */}
         <div className="px-4 py-4 border-b border-border flex items-center gap-2.5">
           <img
-            src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/fNMYaMBMCPpWOMMQ.png"
+            src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/YUPlXZZFTuBzTxbq.png"
             alt="KINGA"
             className="h-8 w-auto object-contain"
           />
