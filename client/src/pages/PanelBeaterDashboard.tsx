@@ -191,7 +191,7 @@ export default function PanelBeaterDashboard() {
                 <BarChart3 className="h-4 w-4 text-blue-500" />
                 Quote Competitiveness
               </CardTitle>
-              <CardDescription className="text-xs">Your quote (Y) vs KINGA KINGA estimate (X). Dots above the line = over-quoted. Green = accepted.</CardDescription>
+              <CardDescription className="text-xs">Your quote (Y) vs KINGA estimate (X). Dots above the line = over-quoted. Green = accepted.</CardDescription>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div style={{ height: 240 }}>
@@ -212,7 +212,7 @@ export default function PanelBeaterDashboard() {
                         },
                       ],
                     }}
-                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, scales: { x: { title: { display: true, text: 'KINGA KINGA Estimate', font: { size: 10 } } }, y: { title: { display: true, text: 'Your Quote', font: { size: 10 } } } } }}
+                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, scales: { x: { title: { display: true, text: 'KINGA Estimate', font: { size: 10 } } }, y: { title: { display: true, text: 'Your Quote', font: { size: 10 } } } } }}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No quote data with AI estimates yet</div>

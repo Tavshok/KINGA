@@ -319,7 +319,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
     : _valResult?.valuationMethod === 'document_stated'
       ? 'Stated on claim form'
       : _valResult?.valuationMethod === 'llm_estimate'
-        ? 'KINGA KINGA estimate'
+        ? 'KINGA estimate'
         : marketValueUsd
           ? 'Stated on claim form'
           : null;

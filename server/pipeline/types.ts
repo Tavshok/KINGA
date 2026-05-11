@@ -1,7 +1,7 @@
 /**
  * pipeline/types.ts
  *
- * Single source of truth for the KINGA KINGA analysis pipeline.
+ * Single source of truth for the KINGA analysis pipeline.
  *
  * Architecture rules:
  *   1. Every stage imports ONLY from this file and its own direct dependencies.

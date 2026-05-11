@@ -90,7 +90,7 @@ export default function InsurerExternalAssessmentUpload() {
                     <li>Automatic damage assessment with component-level analysis</li>
                     <li>Physics-based validation of accident dynamics and forces</li>
                     <li>Fraud detection with impossible damage pattern analysis</li>
-                    <li>Side-by-side comparison: Original Assessment vs KINGA KINGA Analysis</li>
+                    <li>Side-by-side comparison: Original Assessment vs KINGA Analysis</li>
                   </ul>
                 </div>
               )}

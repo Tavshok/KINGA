@@ -118,7 +118,7 @@ export function ReplayComparisonView({ result }: ReplayComparisonViewProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
               <ThumbsUp className="h-5 w-5" />
-              KINGA KINGA Routing
+              KINGA Routing
             </CardTitle>
             <CardDescription>KINGA routing decision</CardDescription>
           </CardHeader>
