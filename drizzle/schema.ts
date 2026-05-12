@@ -3530,6 +3530,10 @@ export const fleetAccounts = mysqlTable("fleet_accounts", {
   subscriptionTier: mysqlEnum("subscription_tier", ['free','starter','professional','enterprise']).notNull().default('free'),
   vehicleCount: int("vehicle_count").notNull().default(0),
   notes: text(),
+  // Verification status — set to 'approved' once a claims manager approves the fleet manager request
+  verificationStatus: mysqlEnum("verification_status", ['pending','approved','rejected']).notNull().default('pending'),
+  verifiedByUserId: int("verified_by_user_id"),
+  verifiedAt: timestamp("verified_at", { mode: 'string' }),
   createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
@@ -3539,9 +3543,37 @@ export const fleetAccounts = mysqlTable("fleet_accounts", {
   index("idx_fleet_accounts_agency").on(table.linkedAgencyId),
   index("idx_fleet_accounts_status").on(table.status),
 ]);
-
 export type FleetAccount = typeof fleetAccounts.$inferSelect;
 export type InsertFleetAccount = typeof fleetAccounts.$inferInsert;
+// ============================================================================
+// FLEET MANAGER REQUESTS — Self-registration requests awaiting claims manager approval
+// When a claimant registers as fleet manager, a request row is created here.
+// A claims manager reviews and approves/rejects. On approval, the user role
+// is upgraded to fleet_manager and fleet_account.verification_status = 'approved'.
+// ============================================================================
+export const fleetManagerRequests = mysqlTable("fleet_manager_requests", {
+  id: int().autoincrement().notNull(),
+  userId: int("user_id").notNull(),
+  fleetAccountId: int("fleet_account_id"),
+  companyName: varchar("company_name", { length: 255 }).notNull(),
+  companyReg: varchar("company_reg", { length: 100 }),
+  jobTitle: varchar("job_title", { length: 255 }),
+  contactPhone: varchar("contact_phone", { length: 100 }),
+  status: mysqlEnum(["pending","approved","rejected"]).notNull().default("pending"),
+  reviewedByUserId: int("reviewed_by_user_id"),
+  reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
+  reviewNotes: text("review_notes"),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("idx_fmr_user_id").on(table.userId),
+  index("idx_fmr_fleet_account_id").on(table.fleetAccountId),
+  index("idx_fmr_status").on(table.status),
+  index("idx_fmr_created_at").on(table.createdAt),
+]);
+export type FleetManagerRequest = typeof fleetManagerRequests.$inferSelect;
+export type InsertFleetManagerRequest = typeof fleetManagerRequests.$inferInsert;
 
 // ============================================================================
 // MARKETPLACE GOVERNANCE — SLA-based insurer ↔ provider relationships

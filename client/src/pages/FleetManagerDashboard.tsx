@@ -26,6 +26,9 @@ import {
   MapPin,
   FileText,
   Users,
+  ShieldCheck,
+  XCircle,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +50,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FleetVehicleTrackingTab } from "@/components/FleetVehicleTrackingTab";
+import { FleetRiskAnalyticsTab } from "@/components/FleetRiskAnalyticsTab";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -148,6 +153,11 @@ export default function FleetManagerDashboard() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tab, setTab] = useState("active");
+  const [mainTab, setMainTab] = useState("claims");
+
+  // Check registration status first (for pending-approval gate)
+  const { data: regStatus, isLoading: regLoading } =
+    trpc.fleetAccounts.getMyRegistrationStatus.useQuery();
 
   // Fetch fleet account info
   const { data: fleetAccounts, isLoading: accountsLoading } =
@@ -193,10 +203,67 @@ export default function FleetManagerDashboard() {
 
   const now = Date.now();
 
-  if (accountsLoading) {
+  if (accountsLoading || regLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Pending approval gate
+  if (regStatus?.status === "pending") {
+    return (
+      <div className="p-8 max-w-lg mx-auto">
+        <div className="text-center py-12 space-y-5">
+          <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto">
+            <Clock className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold">Awaiting Approval</h2>
+            <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+              Your fleet manager registration for <strong>{regStatus.request?.companyName}</strong> is pending review by a claims manager.
+            </p>
+          </div>
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-left space-y-2">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              Request submitted {regStatus.request?.createdAt ? new Date(regStatus.request.createdAt).toLocaleDateString() : ""}
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400">Once approved, you will have full access to the fleet dashboard, vehicle tracking, and risk analytics.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Rejected gate
+  if (regStatus?.status === "rejected") {
+    return (
+      <div className="p-8 max-w-lg mx-auto">
+        <div className="text-center py-12 space-y-5">
+          <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto">
+            <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold">Registration Rejected</h2>
+            <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+              Your fleet manager registration was not approved.
+            </p>
+          </div>
+          {regStatus.request?.reviewNotes && (
+            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-left">
+              <p className="text-xs text-red-700 dark:text-red-400"><span className="font-medium">Reason: </span>{regStatus.request.reviewNotes}</p>
+            </div>
+          )}
+          <Button
+            className="bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => (window.location.href = "/claimant/fleet-register")}
+          >
+            <Building2 className="mr-2 h-4 w-4" />
+            Re-apply
+          </Button>
+        </div>
       </div>
     );
   }
@@ -311,7 +378,16 @@ export default function FleetManagerDashboard() {
         </Card>
       </div>
 
-      {/* Claims table */}
+      {/* Main navigation tabs */}
+      <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsTrigger value="claims">Claims</TabsTrigger>
+          <TabsTrigger value="vehicles">Vehicle Tracking</TabsTrigger>
+          <TabsTrigger value="risk">Risk Analytics</TabsTrigger>
+        </TabsList>
+
+        {/* Claims Tab */}
+        <TabsContent value="claims">
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -501,6 +577,18 @@ export default function FleetManagerDashboard() {
           Elapsed &gt;72h — escalate
         </div>
       </div>
+        </TabsContent>
+
+        {/* Vehicle Tracking Tab */}
+        <TabsContent value="vehicles">
+          <FleetVehicleTrackingTab claims={allClaims} />
+        </TabsContent>
+
+        {/* Risk Analytics Tab */}
+        <TabsContent value="risk">
+          <FleetRiskAnalyticsTab claims={allClaims} accountName={primaryAccount.accountName} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

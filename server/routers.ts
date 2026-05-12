@@ -1228,6 +1228,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         claimantType: z.enum(["individual", "company"]).optional().default("individual"),
         companyName: z.string().optional(),
         companyRegistration: z.string().optional(),
+        claimantDepartment: z.string().max(255).optional(),
         fleetAccountId: z.number().int().positive().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -1299,6 +1300,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           claimantType: input.claimantType ?? "individual",
           claimantCompanyName: input.companyName ?? null,
           claimantCompanyReg: input.companyRegistration ?? null,
+          claimantDepartment: input.claimantDepartment ?? null,
           fleetAccountId: input.fleetAccountId ?? null,
           status: "submitted",
         });

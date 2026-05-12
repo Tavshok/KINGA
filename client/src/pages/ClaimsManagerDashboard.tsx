@@ -26,6 +26,7 @@ import { IntakeQueueTab } from "@/components/IntakeQueueTab";
 import { AutoAssignmentBadge } from "@/components/AutoAssignmentBadge";
 import { ClaimCurrencySelector } from "@/components/ClaimCurrencySelector";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
+import { FleetManagerApprovalsTab } from "@/components/FleetManagerApprovalsTab";
 import {
   Chart as ChartJS,
   ArcElement,
@@ -526,12 +527,13 @@ export default function ClaimsManagerDashboard() {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="intake">Intake Queue</TabsTrigger>
             <TabsTrigger value="review">Review Queue</TabsTrigger>
             <TabsTrigger value="active">Active Claims</TabsTrigger>
             <TabsTrigger value="fraud">Fraud Alerts</TabsTrigger>
             <TabsTrigger value="processed">Processed</TabsTrigger>
+            <TabsTrigger value="fleet-approvals">Fleet Approvals</TabsTrigger>
             <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
           </TabsList>
 
@@ -1311,6 +1313,11 @@ export default function ClaimsManagerDashboard() {
           </TabsContent>
 
         
+          {/* ── Fleet Manager Approvals Tab ───────────────────────────── */}
+          <TabsContent value="fleet-approvals" className="mt-6">
+            <FleetManagerApprovalsTab />
+          </TabsContent>
+
           {/* ── Notifications Tab ─────────────────────────────────────── */}
           <TabsContent value="notifications" className="mt-6">
             <NotificationsInbox />

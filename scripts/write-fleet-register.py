@@ -1,4 +1,4 @@
-/**
+new_content = r'''/**
  * FleetRegister
  *
  * Allows a claimant to self-register as a fleet manager for their company.
@@ -191,3 +191,8 @@ export default function FleetRegister() {
     </div>
   );
 }
+'''
+
+with open('client/src/pages/FleetRegister.tsx', 'w') as f:
+    f.write(new_content)
+print('FleetRegister.tsx written successfully')

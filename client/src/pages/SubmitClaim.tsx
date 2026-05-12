@@ -75,6 +75,7 @@ export default function SubmitClaim() {
   const [claimantType, setClaimantType] = useState<ClaimantType>("individual");
   const [companyName, setCompanyName] = useState("");
   const [companyRegistration, setCompanyRegistration] = useState("");
+  const [claimantDepartment, setClaimantDepartment] = useState("");
   const [fleetAccountId, setFleetAccountId] = useState<number | null>(null);
   const [linkingCompany, setLinkingCompany] = useState(false);
 
@@ -486,6 +487,7 @@ export default function SubmitClaim() {
       claimantType: claimantType,
       companyName: claimantType === "company" ? companyName.trim() || undefined : undefined,
       companyRegistration: claimantType === "company" ? companyRegistration.trim() || undefined : undefined,
+      claimantDepartment: claimantType === "company" ? claimantDepartment.trim() || undefined : undefined,
       fleetAccountId: fleetAccountId ?? undefined,
     });
   };
@@ -806,6 +808,15 @@ export default function SubmitClaim() {
                         placeholder="e.g., 1234/2005"
                       />
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Department / Branch</Label>
+                    <Input
+                      value={claimantDepartment}
+                      onChange={(e) => setClaimantDepartment(e.target.value)}
+                      placeholder="e.g., Operations, Harare Branch, Finance Dept"
+                    />
+                    <p className="text-xs text-muted-foreground">Optional — helps fleet managers filter claims by department or branch.</p>
                   </div>
                 </div>
               )}

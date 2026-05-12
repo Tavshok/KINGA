@@ -12040,3 +12040,32 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Frontend: fleet manager view on claimant portal — company claims table with time tracking
 - [ ] Frontend: time tracking columns (time at garage, time awaiting authorisation, total elapsed)
 - [ ] Frontend: download reports button (in progress / completed / all claims)
+
+## Fleet Expansion — Phase 2 (May 2026)
+
+- [ ] DB: Add fleet_manager_requests table (id, userId, fleetAccountId, companyName, companyReg, jobTitle, status pending/approved/rejected, reviewedByUserId, reviewedAt, notes, createdAt)
+- [ ] DB: Add verificationStatus column to fleet_accounts table (pending/approved/rejected)
+- [ ] Backend: registerAsFleetManager — set verificationStatus=pending, create fleet_manager_requests row, do NOT upgrade role yet
+- [ ] Backend: fleetAccounts.listPendingRequests — claims manager procedure to list pending fleet manager requests
+- [ ] Backend: fleetAccounts.approveFleetManagerRequest — claims manager approves: upgrade role, set verificationStatus=approved
+- [ ] Backend: fleetAccounts.rejectFleetManagerRequest — claims manager rejects: set verificationStatus=rejected, notify user
+- [ ] UI: FleetRegister.tsx — show "Pending approval" state after submission (not "You are now registered")
+- [ ] UI: FleetManagerDashboard.tsx — gate access: show pending/rejected message if verificationStatus != approved
+- [ ] UI: ClaimsManagerDashboard.tsx — add "Fleet Approvals" tab with pending request list, approve/reject buttons
+- [ ] SubmitClaim.tsx — add Department/Branch text field (shown only when claimantType === 'company')
+- [ ] routers.ts claims.submit — add department field to input schema and pass to createClaim
+- [ ] ClaimantPortalLayout.tsx — add "Fleet Vehicles" nav item (company/fleet users only)
+- [ ] FleetManagerDashboard.tsx — add "Fleet Vehicles" tab grouping claims by fleet_vehicle_ref with status, days off-road, quantum
+- [ ] FleetManagerDashboard.tsx — add "Risk Analytics" tab: top risk drivers, accident time distribution, quantum by vehicle/department
+
+## Fleet Expansion (Phase 2 - May 2026)
+- [x] Fleet manager verification flow with claims manager approval/rejection
+- [x] Pending approval gate on FleetManagerDashboard (amber waiting screen)
+- [x] Rejected gate on FleetManagerDashboard (red rejection screen with reason)
+- [x] Fleet Approvals tab in ClaimsManagerDashboard (approve/reject with notes)
+- [x] Department / Branch field on claim submission (company claims only)
+- [x] claimantDepartment persisted to DB via claims.submit router
+- [x] Vehicle Tracking tab on FleetManagerDashboard (per-vehicle claim history)
+- [x] Risk Analytics tab on FleetManagerDashboard (risk drivers, heatmap, dept breakdown, monthly trend)
+- [x] fleet_manager_requests table created in DB
+- [x] verificationStatus column added to fleet_accounts in schema
