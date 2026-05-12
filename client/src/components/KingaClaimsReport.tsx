@@ -436,9 +436,9 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
     ? filteredEnrichedPhotos.map(p => p.url)
     : allPhotoUrls;
   // Limit to 4 for the report grid
-  const photoUrls: string[] = filteredPhotoUrls.slice(0, 4);
+  const photoUrls: string[] = filteredPhotoUrls.slice(0, 6);
   // Slice enrichedPhotos to match (empty array if no enriched data available)
-  const displayPhotos = filteredEnrichedPhotos.length > 0 ? filteredEnrichedPhotos.slice(0, 4) : [];
+  const displayPhotos = filteredEnrichedPhotos.length > 0 ? filteredEnrichedPhotos.slice(0, 6) : [];
 
   // Quote comparison
   const quoteSimilarity = fraudBd?.quoteSimilarity ?? null;
@@ -632,7 +632,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               <div>
                 <div style={S.divider} />
                 <p style={{ ...S.label, marginBottom: 8 }}>Damage Photographs ({photoUrls.length} of {allPhotoUrls.length} shown)</p>
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(photoUrls.length, 4)}, 1fr)`, gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(photoUrls.length, 3)}, 1fr)`, gap: 10 }}>
                   {photoUrls.map((url: string, i: number) => {
                     // Use enriched photo metadata when available — AI-verified caption
                     // for what was actually detected in THIS specific image.
