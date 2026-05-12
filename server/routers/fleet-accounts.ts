@@ -15,6 +15,7 @@ import { getDb } from "../db";
 import { fleetAccounts, claims, users, fleetManagerRequests } from "../../drizzle/schema";
 import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
 import { notifyOwner } from "../_core/notification";
+import { sendFleetManagerApprovedEmail, sendFleetManagerRejectedEmail } from "../safe-email";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -700,6 +701,25 @@ export const fleetAccountsRouter = router({
           .where(eq(fleetAccounts.id, request.fleetAccountId));
       }
       console.log(`[FleetAccounts] Request ${input.requestId} APPROVED by ${ctx.user.id}. User ${request.userId} upgraded to fleet_manager.`);
+      // Notify the applicant — non-blocking
+      try {
+        const [applicant] = await db
+          .select({ email: users.email, name: users.name })
+          .from(users)
+          .where(eq(users.id, request.userId))
+          .limit(1);
+        if (applicant?.email) {
+          await sendFleetManagerApprovedEmail({
+            requestId: input.requestId,
+            recipientUserId: request.userId,
+            recipientEmail: applicant.email,
+            recipientName: applicant.name ?? "Fleet Manager",
+            companyName: request.companyName,
+          });
+        }
+      } catch (notifyErr) {
+        console.warn("[FleetAccounts] Approval notification failed (non-blocking):", notifyErr);
+      }
       return { success: true, message: `Fleet manager request approved. User granted fleet manager access for ${request.companyName}.` };
     }),
   /**
@@ -738,6 +758,26 @@ export const fleetAccountsRouter = router({
           .where(eq(fleetAccounts.id, request.fleetAccountId));
       }
       console.log(`[FleetAccounts] Request ${input.requestId} REJECTED by ${ctx.user.id}.`);
+      // Notify the applicant — non-blocking
+      try {
+        const [applicant] = await db
+          .select({ email: users.email, name: users.name })
+          .from(users)
+          .where(eq(users.id, request.userId))
+          .limit(1);
+        if (applicant?.email) {
+          await sendFleetManagerRejectedEmail({
+            requestId: input.requestId,
+            recipientUserId: request.userId,
+            recipientEmail: applicant.email,
+            recipientName: applicant.name ?? "Fleet Manager",
+            companyName: request.companyName,
+            reviewNotes: input.notes,
+          });
+        }
+      } catch (notifyErr) {
+        console.warn("[FleetAccounts] Rejection notification failed (non-blocking):", notifyErr);
+      }
       return { success: true, message: `Fleet manager request for ${request.companyName} has been rejected.` };
     }),
 });
