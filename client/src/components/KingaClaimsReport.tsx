@@ -435,7 +435,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
   const filteredPhotoUrls: string[] = filteredEnrichedPhotos.length > 0
     ? filteredEnrichedPhotos.map(p => p.url)
     : allPhotoUrls;
-  // Limit to 4 for the report grid
+  // Show all available damage photos up to 6 — grid adapts to however many are present
   const photoUrls: string[] = filteredPhotoUrls.slice(0, 6);
   // Slice enrichedPhotos to match (empty array if no enriched data available)
   const displayPhotos = filteredEnrichedPhotos.length > 0 ? filteredEnrichedPhotos.slice(0, 6) : [];
@@ -627,12 +627,12 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               </div>
             )}
 
-            {/* Photo grid — max 4 damage photos */}
+            {/* Photo grid — shows all available damage photos (1–6), layout adapts */}
             {photoUrls.length > 0 && (
               <div>
                 <div style={S.divider} />
-                <p style={{ ...S.label, marginBottom: 8 }}>Damage Photographs ({photoUrls.length} of {allPhotoUrls.length} shown)</p>
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(photoUrls.length, 3)}, 1fr)`, gap: 10 }}>
+                <p style={{ ...S.label, marginBottom: 8 }}>Damage Photographs ({photoUrls.length}{allPhotoUrls.length > photoUrls.length ? ` of ${allPhotoUrls.length}` : ''} shown)</p>
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${photoUrls.length === 1 ? 1 : photoUrls.length === 2 ? 2 : 3}, 1fr)`, gap: 10 }}>
                   {photoUrls.map((url: string, i: number) => {
                     // Use enriched photo metadata when available — AI-verified caption
                     // for what was actually detected in THIS specific image.
