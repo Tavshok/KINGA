@@ -42,6 +42,7 @@ import { GovernanceIndicators } from "@/components/GovernanceIndicators";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
 import { GovernanceSummaryWidget } from "@/components/GovernanceSummaryWidget";
 import { QMSCompliancePanel } from "@/components/QMSCompliancePanel";
+import { VehicleStructuralIntelligencePanel } from "@/components/VehicleStructuralIntelligencePanel";
 
 // Confidence Score Meter Component
 function ConfidenceMeter({ score, size = "default" }: { score: number; size?: "default" | "large" }) {
@@ -260,6 +261,15 @@ export default function ClaimsManagerComparisonView() {
         </div>
       )}
 
+      {/* Vehicle Structural Intelligence Panel */}
+      {claim?.vehicleMake && claim?.vehicleModel && (
+        <div className="max-w-[1800px] mx-auto px-8 pt-6">
+          <VehicleStructuralIntelligencePanel
+            claimId={claimId}
+            generateNarrative={isRiskManager || isClaimsManager}
+          />
+        </div>
+      )}
       {/* Risk Manager: Technical Validation Panel (Above Three Columns) */}
       {isRiskManager && (
         <div className="max-w-[1800px] mx-auto px-8 pt-8">

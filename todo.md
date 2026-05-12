@@ -12082,3 +12082,24 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Wire cost prediction into claim intake flow (auto-populate estimated_repair_cost on new claim submission)
 - [ ] Add cost prediction display to assessor and claims manager claim detail views
 - [ ] Schedule monthly model retraining job as new claims accumulate in the DB
+
+## NHTSA Vehicle Structural Intelligence Integration
+- [ ] NHTSA VIN decode service (server-side) — fetch body class, GVWR, plant, model year
+- [ ] NHTSA crash test ratings lookup by make/model/year (fallback when no VIN)
+- [ ] vehicleStructuralProfile tRPC procedure — returns enriched structural data
+- [ ] Wire structural profile into AI assessment LLM context for physics analysis
+- [ ] Surface structural data panel in Forensic Audit Report physics section
+- [ ] CRASH3 vehicle class coefficient table for EBS estimation
+
+## Vehicle Structural Intelligence — COMPLETED
+- [x] ANCAP safety ratings database (Toyota Hilux, Prado, Fortuner, Land Cruiser, RAV4, Yaris, Corolla, Avanza; Ford Ranger; Isuzu D-Max; Nissan Navara, Patrol; Mitsubishi Triton; Mazda BT-50; VW Polo, Tiguan; Hyundai Tucson, i20; BMW X5; Mercedes C-Class; Kia Sportage; Renault Duster; Suzuki Vitara, Swift; Haval H6)
+- [x] Global NCAP Africa ratings database (Polo Vivo, Suzuki S-Presso 0-star, Great Wall Steed 5 0-star, Chery QQ3 0-star, Toyota Avanza 4-star, Mahindra XUV300 5-star, Nissan Magnite 4-star 2025)
+- [x] CRASH3 stiffness coefficient table (8 vehicle classes: Mini/Subcompact, Compact, Mid-size Sedan, Full-size Sedan, Mid-size SUV/Crossover, Full-size SUV/Pickup, Large SUV/4x4, Light Commercial Van)
+- [x] NHTSA VIN decode service (server-side) with graceful fallback and error handling
+- [x] vehicleStructural.getProfile and vehicleStructural.getClaimProfile tRPC procedures
+- [x] Structural compatibility risk assessment (insured vs third-party vehicle)
+- [x] AI-generated structural narrative using LLM
+- [x] VehicleStructuralIntelligencePanel React component (4 tabs: Ratings, CRASH3, VIN, Report)
+- [x] Integration into AssessorClaimDetails page
+- [x] Integration into ClaimsManagerComparisonView page
+- [x] 41 vitest tests — all passing (ANCAP lookup, Global NCAP, CRASH3 coefficients, NHTSA VIN decode, profile builder, data integrity)

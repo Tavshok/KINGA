@@ -18,6 +18,7 @@ import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
 import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
 import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
+import { VehicleStructuralIntelligencePanel } from "@/components/VehicleStructuralIntelligencePanel";
 
 export default function AssessorClaimDetails() {
   const { user, logout } = useAuth();
@@ -230,6 +231,13 @@ export default function AssessorClaimDetails() {
               </CardContent>
             </Card>
 
+            {/* Vehicle Structural Intelligence */}
+            {claim.vehicleMake && claim.vehicleModel && (
+              <VehicleStructuralIntelligencePanel
+                claimId={claimId}
+                generateNarrative={true}
+              />
+            )}
             {/* Panel Beater Choices */}
             <PanelBeaterChoicesCard claimId={claimId} />
 

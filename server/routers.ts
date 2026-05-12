@@ -90,6 +90,7 @@ import { agencyRouter } from "./routers/agency";
 import { agencyBrokerRouter } from "./routers/agency-broker";
 import { fleetAccountsRouter } from "./routers/fleet-accounts";
 import { vehicleRegistryRouter } from "./routers/vehicle-registry";
+import { vehicleStructuralIntelligenceRouter } from "./routers/vehicle-structural-intelligence";
 import { vehicleDamageHistoryRouter } from "./routers/vehicle-damage-history";
 import { repairHistoryRouter } from "./routers/repair-history";
 import { crossClaimIntelligenceRouter } from "./routers/cross-claim-intelligence";
@@ -281,6 +282,7 @@ export const integrityRouter = router({
 export const appRouter = router({
   truthSynthesis: truthSynthesisRouter,
   vehicleRegistry: vehicleRegistryRouter,
+  vehicleStructural: vehicleStructuralIntelligenceRouter,
   vehicleDamageHistory: vehicleDamageHistoryRouter,
   driverRegistry: driverRegistryRouter,
   repairHistory: repairHistoryRouter,
