@@ -14,6 +14,7 @@ import { z } from "zod";
 import { getDb } from "../db";
 import { fleetAccounts, claims, users, fleetManagerRequests } from "../../drizzle/schema";
 import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
+import { notifyOwner } from "../_core/notification";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -561,6 +562,22 @@ export const fleetAccountsRouter = router({
       } as any);
       const requestId = (reqResult as any).insertId as number;
       console.log(`[FleetAccounts] Fleet manager request created: requestId=${requestId} userId=${ctx.user.id} company=${normalised}`);
+      // Notify the platform owner (claims manager) — non-blocking
+      try {
+        await notifyOwner({
+          title: "New Fleet Manager Request",
+          content: [
+            `**${ctx.user.name ?? ctx.user.email ?? "A user"}** has requested fleet manager access for **${normalised}**.`,
+            input.jobTitle ? `Role: ${input.jobTitle}` : null,
+            input.contactPhone ? `Phone: ${input.contactPhone}` : null,
+            input.companyReg ? `Company Reg: ${input.companyReg}` : null,
+            `\nPlease review in **Claims Manager Dashboard → Fleet Approvals** tab.`,
+          ].filter(Boolean).join("  \n"),
+        });
+      } catch (notifyErr) {
+        // Non-blocking — log but do not fail the registration
+        console.warn("[FleetAccounts] notifyOwner failed (non-blocking):", notifyErr);
+      }
       return {
         success: true,
         requestId,
