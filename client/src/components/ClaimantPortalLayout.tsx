@@ -14,6 +14,7 @@ import {
   HelpCircle,
   ChevronRight,
   LogOut,
+  Building2,
 } from "lucide-react";
 
 const sections = [
@@ -31,6 +32,18 @@ const sections = [
         href: "/claimant/submit-claim",
         icon: PlusCircle,
         description: "Start a new claim",
+      },
+    ],
+  },
+  {
+    title: "Fleet Management",
+    fleetOnly: true,
+    items: [
+      {
+        label: "Fleet Dashboard",
+        href: "/claimant/fleet-dashboard",
+        icon: Building2,
+        description: "All company vehicle claims",
       },
     ],
   },
@@ -65,6 +78,7 @@ export default function ClaimantPortalLayout({
 }) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const isFleetRole = ["fleet_manager", "fleet_admin", "fleet_driver"].includes(user?.role ?? "");
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-background">
@@ -86,7 +100,7 @@ export default function ClaimantPortalLayout({
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
-          {sections.map((section) => (
+          {sections.filter((s) => !(s as { fleetOnly?: boolean }).fleetOnly || isFleetRole).map((section) => (
             <div key={section.title}>
               <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {section.title}

@@ -98,6 +98,8 @@ const PanelBeaterPerformanceDashboard = lazy(() => import("./pages/PanelBeaterPe
 // Claimant pages
 const ClaimantDashboard = lazy(() => import("./pages/ClaimantDashboard"));
 const SubmitClaim = lazy(() => import("./pages/SubmitClaim"));
+const FleetManagerDashboard = lazy(() => import("./pages/FleetManagerDashboard"));
+const FleetRegister = lazy(() => import("./pages/FleetRegister"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
@@ -682,6 +684,16 @@ function Router() {
         <Route path="/claimant/submit-claim">
           <ProtectedRoute domain="portal">
             <ClaimantPortalLayout><SubmitClaim /></ClaimantPortalLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/claimant/fleet-dashboard">
+          <ProtectedRoute domain="portal">
+            <ClaimantPortalLayout><FleetManagerDashboard /></ClaimantPortalLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/claimant/fleet-register">
+          <ProtectedRoute domain="portal">
+            <ClaimantPortalLayout><FleetRegister /></ClaimantPortalLayout>
           </ProtectedRoute>
         </Route>
 

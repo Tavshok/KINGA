@@ -1224,6 +1224,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         panelBeaterChoice1: z.string().uuid(),
         panelBeaterChoice2: z.string().uuid(),
         panelBeaterChoice3: z.string().uuid(),
+        // Company / fleet claim fields
+        claimantType: z.enum(["individual", "company"]).optional().default("individual"),
+        companyName: z.string().optional(),
+        companyRegistration: z.string().optional(),
+        fleetAccountId: z.number().int().positive().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
@@ -1290,6 +1295,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           vehicleMileage: input.vehicleMileage?.trim() || null,
           // ISO 4217 currency for repair quotes and damage costs; defaults to USD
           currencyCode: input.currencyCode ?? "USD",
+          // Company / fleet claim fields
+          claimantType: input.claimantType ?? "individual",
+          claimantCompanyName: input.companyName ?? null,
+          claimantCompanyReg: input.companyRegistration ?? null,
+          fleetAccountId: input.fleetAccountId ?? null,
           status: "submitted",
         });
 

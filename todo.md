@@ -12022,3 +12022,21 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Print page header blank (Claim: / Report Date:) — added data-claim-number and data-report-date attributes to root divs in both KingaClaimsReport and ForensicAuditReport
 - [x] KINGA KINGA double-word — fixed all 3 occurrences in ConfidenceImprovementChecklist footer text
 - [x] Approval chain STAGE column blank — fixed field mapping from s.name to s.stage_name (WorkflowStage uses snake_case field names from server)
+
+## Company / Fleet Claimant Feature — May 12 2026
+
+- [ ] Fix blurred/locked fields on claimant submission form
+- [ ] DB: add company_accounts table (id, name, registration_number, verified, created_at)
+- [ ] DB: add company_id FK on claims table
+- [ ] DB: add is_fleet_manager boolean on claimant_users table
+- [ ] Backend: createOrFindCompanyAccount procedure (match by name + reg number)
+- [ ] Backend: auto-link claim to company account on submission when claimant_type = company
+- [ ] Backend: fleet manager self-registration on claimant portal (request to be linked to company)
+- [ ] Backend: fleet manager claim list procedure (all claims for their company)
+- [ ] Backend: fleet manager report download (CSV — in progress, completed, by vehicle, by branch)
+- [ ] Frontend: Individual vs Company toggle on claim submission form
+- [ ] Frontend: company name + registration number fields (shown when Company selected)
+- [ ] Frontend: auto-link confirmation ("Your claim will be linked to [Company] account")
+- [ ] Frontend: fleet manager view on claimant portal — company claims table with time tracking
+- [ ] Frontend: time tracking columns (time at garage, time awaiting authorisation, total elapsed)
+- [ ] Frontend: download reports button (in progress / completed / all claims)

@@ -918,6 +918,19 @@ export const claims = mysqlTable("claims", {
 	// Current pipeline stage label — updated as the AI assessment progresses.
 	// Format: "Stage N — Label" e.g. "Stage 2 — Extracting". Cleared when assessment completes or fails.
 	pipelineCurrentStage: varchar("pipeline_current_stage", { length: 100 }),
+	// Fleet / Company claimant fields ----------------------------------------
+	// FK → fleet_accounts.id — set when claimant_type = 'company' and claim is auto-linked to a fleet account.
+	fleetAccountId: int("fleet_account_id"),
+	// 'individual' (default) or 'company' — set by the claimant on submission.
+	claimantType: mysqlEnum("claimant_type", ['individual','company']).default('individual').notNull(),
+	// Company name as entered by the claimant (used for fleet account matching).
+	claimantCompanyName: varchar("claimant_company_name", { length: 255 }),
+	// Company registration number (used as secondary matching key for fleet accounts).
+	claimantCompanyReg: varchar("claimant_company_reg", { length: 100 }),
+	// Department or branch the claimant belongs to within the company.
+	claimantDepartment: varchar("claimant_department", { length: 255 }),
+	// Vehicle fleet number or asset tag assigned by the company.
+	fleetVehicleRef: varchar("fleet_vehicle_ref", { length: 100 }),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),

@@ -12,8 +12,8 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "../db";
-import { fleetAccounts } from "../../drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { fleetAccounts, claims, users } from "../../drizzle/schema";
+import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -355,5 +355,207 @@ export const fleetAccountsRouter = router({
 
       console.log(`[FleetAccounts] Set account ${input.accountId} status to ${input.status}`);
       return { success: true };
+    }),
+
+  /**
+   * Find an existing fleet account by company name (case-insensitive) or create a new one.
+   * Called during claim submission when claimantType = 'company'.
+   * Returns the fleet account id and whether it was newly created.
+   */
+  createOrFindByCompanyName: protectedProcedure
+    .input(z.object({
+      companyName: z.string().min(2).max(255),
+      companyReg: z.string().max(100).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const normalised = input.companyName.trim();
+
+      // Try to find an existing fleet account with this name (any owner)
+      const [existing] = await db
+        .select({ id: fleetAccounts.id, accountName: fleetAccounts.accountName, ownerUserId: fleetAccounts.ownerUserId })
+        .from(fleetAccounts)
+        .where(sql`LOWER(${fleetAccounts.accountName}) = LOWER(${normalised})`)
+        .limit(1);
+
+      if (existing) {
+        console.log(`[FleetAccounts] Auto-linked claim to existing fleet account: id=${existing.id} name=${existing.accountName}`);
+        return { id: existing.id, accountName: existing.accountName, created: false };
+      }
+
+      // Create a new fleet account owned by the submitting claimant
+      const accountCode = `FLT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+      const insertResult = await db.insert(fleetAccounts).values({
+        ownerUserId: ctx.user.id,
+        accountName: normalised,
+        accountCode,
+        status: "active",
+        subscriptionTier: "free",
+        vehicleCount: 0,
+        notes: input.companyReg ? `Company Reg: ${input.companyReg}` : null,
+        createdAt: now,
+        updatedAt: now,
+      } as any);
+      const newId = (insertResult as any).insertId as number;
+
+      console.log(`[FleetAccounts] Auto-created fleet account: id=${newId} name=${normalised} code=${accountCode}`);
+      return { id: newId, accountName: normalised, created: true };
+    }),
+
+  /**
+   * Get all claims linked to a fleet account.
+   * Accessible by the fleet account owner or any user with fleet_manager/fleet_admin role
+   * whose organizationId matches the fleet account owner's id.
+   */
+  getClaimsForAccount: protectedProcedure
+    .input(z.object({
+      accountId: z.number(),
+      limit: z.number().min(1).max(200).default(50),
+      offset: z.number().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      // Verify access: owner or fleet_manager/fleet_admin linked to this account
+      const [account] = await db
+        .select({ id: fleetAccounts.id, ownerUserId: fleetAccounts.ownerUserId, accountName: fleetAccounts.accountName })
+        .from(fleetAccounts)
+        .where(eq(fleetAccounts.id, input.accountId))
+        .limit(1);
+
+      if (!account) throw new TRPCError({ code: "NOT_FOUND", message: "Fleet account not found" });
+
+      const isOwner = account.ownerUserId === ctx.user.id;
+      const isFleetManager = ["fleet_manager", "fleet_admin"].includes(ctx.user.role) && ctx.user.organizationId === account.ownerUserId;
+      const isAdmin = ctx.user.role === "admin";
+
+      if (!isOwner && !isFleetManager && !isAdmin) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied. You are not associated with this fleet account." });
+      }
+
+      const rows = await db
+        .select({
+          id: claims.id,
+          claimNumber: claims.claimNumber,
+          status: claims.status,
+          workflowState: claims.workflowState,
+          vehicleMake: claims.vehicleMake,
+          vehicleModel: claims.vehicleModel,
+          vehicleRegistration: claims.vehicleRegistration,
+          fleetVehicleRef: claims.fleetVehicleRef,
+          claimantDepartment: claims.claimantDepartment,
+          incidentDate: claims.incidentDate,
+          incidentType: claims.incidentType,
+          estimatedRepairCost: claims.estimatedRepairCost,
+          createdAt: claims.createdAt,
+          updatedAt: claims.updatedAt,
+          aiAssessmentStartedAt: claims.aiAssessmentStartedAt,
+          aiAssessmentCompletedAt: claims.aiAssessmentCompletedAt,
+          documentProcessingStatus: claims.documentProcessingStatus,
+          pipelineCurrentStage: claims.pipelineCurrentStage,
+        })
+        .from(claims)
+        .where(eq(claims.fleetAccountId, input.accountId))
+        .orderBy(desc(claims.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      // Compute time-at-garage and time-awaiting-authorisation for each claim
+      const now = Date.now();
+      const enriched = rows.map(c => {
+        const createdMs = c.createdAt ? new Date(c.createdAt).getTime() : now;
+        const completedMs = c.aiAssessmentCompletedAt ? new Date(c.aiAssessmentCompletedAt).getTime() : null;
+        const elapsedMs = completedMs ? completedMs - createdMs : now - createdMs;
+        const elapsedHours = Math.round(elapsedMs / 3600000 * 10) / 10;
+
+        // Time in KINGA processing (from aiAssessmentStartedAt to aiAssessmentCompletedAt)
+        const processingMs = c.aiAssessmentStartedAt && c.aiAssessmentCompletedAt
+          ? new Date(c.aiAssessmentCompletedAt).getTime() - new Date(c.aiAssessmentStartedAt).getTime()
+          : null;
+        const processingMinutes = processingMs !== null ? Math.round(processingMs / 60000) : null;
+
+        return {
+          ...c,
+          elapsedHours,
+          processingMinutes,
+          isComplete: ["completed", "closed", "settled"].includes(c.status ?? ""),
+          isInProgress: ["intake_pending", "in_review", "ai_complete", "pending_authorisation"].includes(c.status ?? ""),
+        };
+      });
+
+      return { claims: enriched, total: enriched.length, accountName: account.accountName };
+    }),
+
+  /**
+   * Self-register as fleet manager for a company.
+   * The claimant provides the company name; if a matching fleet account exists,
+   * their role is upgraded to fleet_manager and their organizationId is set to the
+   * fleet account owner's userId. A pending verification flag is set.
+   */
+  registerAsFleetManager: protectedProcedure
+    .input(z.object({
+      companyName: z.string().min(2).max(255),
+      companyReg: z.string().max(100).optional(),
+      jobTitle: z.string().max(255).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const normalised = input.companyName.trim();
+
+      // Find matching fleet account
+      const [account] = await db
+        .select({ id: fleetAccounts.id, ownerUserId: fleetAccounts.ownerUserId, accountName: fleetAccounts.accountName })
+        .from(fleetAccounts)
+        .where(sql`LOWER(${fleetAccounts.accountName}) = LOWER(${normalised})`)
+        .limit(1);
+
+      let fleetAccountId: number;
+      let accountName: string;
+
+      if (account) {
+        fleetAccountId = account.id;
+        accountName = account.accountName;
+      } else {
+        // Auto-create fleet account for this company
+        const accountCode = `FLT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+        const insertResult = await db.insert(fleetAccounts).values({
+          ownerUserId: ctx.user.id,
+          accountName: normalised,
+          accountCode,
+          status: "active",
+          subscriptionTier: "free",
+          vehicleCount: 0,
+          notes: input.companyReg ? `Company Reg: ${input.companyReg}` : null,
+          createdAt: now,
+          updatedAt: now,
+        } as any);
+        fleetAccountId = (insertResult as any).insertId as number;
+        accountName = normalised;
+      }
+
+      // Upgrade the user's role to fleet_manager and link to the fleet account owner
+      const fleetOwnerUserId = account?.ownerUserId ?? ctx.user.id;
+      await db.update(users)
+        .set({
+          role: "fleet_manager" as any,
+          organizationId: fleetOwnerUserId,
+          updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+        } as any)
+        .where(eq(users.id, ctx.user.id));
+
+      console.log(`[FleetAccounts] User ${ctx.user.id} registered as fleet_manager for account ${fleetAccountId} (${accountName})`);
+      return {
+        success: true,
+        fleetAccountId,
+        accountName,
+        message: `You are now registered as fleet manager for ${accountName}. You can view all company claims from your dashboard.`,
+      };
     }),
 });

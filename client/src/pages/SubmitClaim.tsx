@@ -21,6 +21,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 
 type LodgerType = "self" | "broker" | "agent" | "company_rep" | "family_member" | "legal_rep" | "other";
+type ClaimantType = "individual" | "company";
 type IncidentType = "collision" | "theft" | "hail" | "fire" | "vandalism" | "flood" | "hijacking" | "other";
 
 interface SupportingDoc {
@@ -71,6 +72,11 @@ export default function SubmitClaim() {
   const [currentStep, setCurrentStep] = useState(1);
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [yearWarning, setYearWarning] = useState<string | null>(null);
+  const [claimantType, setClaimantType] = useState<ClaimantType>("individual");
+  const [companyName, setCompanyName] = useState("");
+  const [companyRegistration, setCompanyRegistration] = useState("");
+  const [fleetAccountId, setFleetAccountId] = useState<number | null>(null);
+  const [linkingCompany, setLinkingCompany] = useState(false);
 
   // Form state - comprehensive
   const [formData, setFormData] = useState({
@@ -156,6 +162,7 @@ export default function SubmitClaim() {
   );
   const panelBeaters = panelBeatersData?.panelBeaters ?? [];
   const uploadImage = trpc.storage.uploadImage.useMutation();
+  const createOrFindFleetAccount = trpc.fleetAccounts.createOrFindByCompanyName.useMutation();
   const extractFromDoc = trpc.claims.extractFromDocument.useMutation();
 
   const submitClaim = trpc.claims.submit.useMutation({
@@ -404,6 +411,28 @@ export default function SubmitClaim() {
     }));
   };
 
+  // When company name loses focus, auto-link to fleet account
+  const handleCompanyNameBlur = async () => {
+    if (claimantType !== "company" || !companyName.trim()) return;
+    setLinkingCompany(true);
+    try {
+      const result = await createOrFindFleetAccount.mutateAsync({
+        companyName: companyName.trim(),
+        companyRegistration: companyRegistration.trim() || undefined,
+      });
+      setFleetAccountId(result.fleetAccountId);
+      if (result.isNew) {
+        toast.success(`New fleet account created for ${companyName}`);
+      } else {
+        toast.info(`Claim will be linked to existing ${companyName} fleet account`);
+      }
+    } catch {
+      // Non-fatal — claim can still be submitted without fleet account
+    } finally {
+      setLinkingCompany(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -454,6 +483,10 @@ export default function SubmitClaim() {
       panelBeaterChoice1: formData.panelBeaterChoice1,
       panelBeaterChoice2: formData.panelBeaterChoice2,
       panelBeaterChoice3: formData.panelBeaterChoice3,
+      claimantType: claimantType,
+      companyName: claimantType === "company" ? companyName.trim() || undefined : undefined,
+      companyRegistration: claimantType === "company" ? companyRegistration.trim() || undefined : undefined,
+      fleetAccountId: fleetAccountId ?? undefined,
     });
   };
 
@@ -602,7 +635,7 @@ export default function SubmitClaim() {
           </Card>
 
           {/* STEP 1: Who is filing? */}
-          <Card className={currentStep >= 1 ? "" : "opacity-50"}>
+          <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <User className="h-5 w-5 text-emerald-600" />
@@ -702,6 +735,81 @@ export default function SubmitClaim() {
 
               <Separator />
 
+              {/* Individual vs Company toggle */}
+              <div className="space-y-3">
+                <Label>Claimant Type *</Label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setClaimantType("individual")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors text-sm font-medium ${
+                      claimantType === "individual"
+                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300"
+                        : "border-muted hover:border-emerald-300 text-muted-foreground"
+                    }`}
+                  >
+                    <User className="h-4 w-4" />
+                    Individual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClaimantType("company")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors text-sm font-medium ${
+                      claimantType === "company"
+                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300"
+                        : "border-muted hover:border-emerald-300 text-muted-foreground"
+                    }`}
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Company / Fleet
+                  </button>
+                </div>
+              </div>
+
+              {claimantType === "company" && (
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg space-y-4">
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Company / Fleet Details
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    This claim will be linked to your company's fleet account. A fleet manager can register on the portal to view all company claims.
+                  </p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Company Name *</Label>
+                      <div className="relative">
+                        <Input
+                          value={companyName}
+                          onChange={(e) => { setCompanyName(e.target.value); setFleetAccountId(null); }}
+                          onBlur={handleCompanyNameBlur}
+                          placeholder="e.g., ZESA Holdings"
+                          required={claimantType === "company"}
+                        />
+                        {linkingCompany && (
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                            <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                          </div>
+                        )}
+                        {fleetAccountId && !linkingCompany && (
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                            <CheckCircle className="h-4 w-4 text-emerald-500" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Company Registration Number</Label>
+                      <Input
+                        value={companyRegistration}
+                        onChange={(e) => setCompanyRegistration(e.target.value)}
+                        placeholder="e.g., 1234/2005"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <p className="text-sm font-medium">Insured Claimant Details</p>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -754,7 +862,7 @@ export default function SubmitClaim() {
           </Card>
 
           {/* STEP 2: Vehicle Information */}
-          <Card className={currentStep >= 2 ? "" : "opacity-50"}>
+          <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Car className="h-5 w-5 text-emerald-600" />
@@ -1011,7 +1119,7 @@ export default function SubmitClaim() {
           </Card>
 
           {/* STEP 3: Incident Details */}
-          <Card className={currentStep >= 3 ? "" : "opacity-50"}>
+          <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-emerald-600" />
@@ -1170,7 +1278,7 @@ export default function SubmitClaim() {
           </Card>
 
           {/* STEP 4: Damage Photos */}
-          <Card className={currentStep >= 4 ? "" : "opacity-50"}>
+          <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Camera className="h-5 w-5 text-emerald-600" />
@@ -1226,7 +1334,7 @@ export default function SubmitClaim() {
           </Card>
 
           {/* STEP 5: Supporting Documents */}
-          <Card className={currentStep >= 4 ? "" : "opacity-50"}>
+          <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-emerald-600" />
@@ -1283,7 +1391,7 @@ export default function SubmitClaim() {
           </Card>
 
           {/* STEP 6: Panel Beater Selection */}
-          <Card className={currentStep >= 4 ? "" : "opacity-50"}>
+          <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-emerald-600" />
