@@ -952,7 +952,7 @@ export default function InternalAssessorDashboard() {
                           {expandedClaimId === claim.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                           AI
                         </Button>
-                        <Link href={`/insurer/comparison/${claim.id}`}>
+                        <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
                           <Button size="sm" variant="ghost" className="w-full">
                             <Eye className="h-4 w-4 mr-1.5" /> View
                           </Button>
@@ -1042,7 +1042,7 @@ export default function InternalAssessorDashboard() {
                               <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Assess
                             </Button>
                           )}
-                          <Link href={`/insurer/comparison/${claim.id}`}>
+                          <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
                             <Button size="sm" variant="ghost">
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
@@ -1122,7 +1122,7 @@ export default function InternalAssessorDashboard() {
                             )}
                           </div>
                           {appt.claimId && (
-                            <Link href={`/insurer/comparison/${appt.claimId}`}>
+                            <Link href={`/insurer/claims/${appt.claimId}/comparison?report=standard`}>
                               <Button size="sm" variant="outline" className="shrink-0">
                                 <Eye className="h-4 w-4 mr-1.5" /> View Claim
                               </Button>
@@ -1186,7 +1186,7 @@ export default function InternalAssessorDashboard() {
                   key={claim.id}
                   claim={claim}
                   actions={
-                    <Link href={`/insurer/comparison/${claim.id}`}>
+                    <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
                       <Button size="sm" variant="outline" className="w-full">
                         <Eye className="h-4 w-4 mr-1.5" /> View Report
                       </Button>

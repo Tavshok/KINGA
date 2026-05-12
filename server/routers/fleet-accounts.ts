@@ -452,7 +452,7 @@ export const fleetAccountsRouter = router({
           claimantDepartment: claims.claimantDepartment,
           incidentDate: claims.incidentDate,
           incidentType: claims.incidentType,
-          estimatedRepairCost: claims.estimatedRepairCost,
+          estimatedCost: claims.estimatedCost,
           createdAt: claims.createdAt,
           updatedAt: claims.updatedAt,
           aiAssessmentStartedAt: claims.aiAssessmentStartedAt,

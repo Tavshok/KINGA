@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
-import { useLocation, useRoute } from "wouter";
+import { useLocation, useRoute, useSearch } from "wouter";
+import { ReportChooser, type ReportView } from "@/components/ReportChooser";
 import { useState, useEffect, useRef } from "react";
 import { INSURER_CLAIMS_LIST_PATH } from "@/lib/roleRouting";
 import { toast } from "sonner";
@@ -196,7 +197,12 @@ export default function InsurerComparisonView() {
 
   // Advanced physics toggle state — must be declared before any early returns
   const [showAdvancedPhysics, setShowAdvancedPhysics] = useState(false);
-  const [reportView, setReportView] = useState<'standard' | 'forensic'>('standard');
+
+  // URL-driven report selection: ?report=standard|forensic
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
+  const initialReport = (searchParams.get('report') === 'forensic' ? 'forensic' : 'standard') as ReportView;
+  const [reportView, setReportView] = useState<ReportView>(initialReport);
 
   // Incident type override dialog state
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
@@ -889,41 +895,16 @@ export default function InsurerComparisonView() {
         ═══════════════════════════════════════════════════════════════ */}
         {aiAssessment && enforcement ? (
           <>
-            {/* Report selector header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', letterSpacing: '1px', textTransform: 'uppercase' }}>2 Reports Generated</div>
-              <div style={{ flex: 1 }} />
-              {(['standard', 'forensic'] as const).map((v, idx) => (
-                <button
-                  key={v}
-                  onClick={() => setReportView(v)}
-                  style={{
-                    padding: '6px 16px',
-                    borderRadius: 6,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    border: reportView === v ? '2px solid #1a3a5c' : '1px solid #d1d5db',
-                    background: reportView === v ? '#1a3a5c' : '#ffffff',
-                    color: reportView === v ? '#ffffff' : '#374151',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ fontSize: 9, fontWeight: 600, color: reportView === v ? 'rgba(255,255,255,0.7)' : '#9ca3af', letterSpacing: '0.5px' }}>REPORT {idx + 1} OF 2</span>
-                  <span>{v === 'standard' ? 'Claims Report' : 'Forensic Audit Report'}</span>
-                </button>
-              ))}
-            </div>
+            {/* Report chooser — two prominent cards */}
+            <ReportChooser
+              active={reportView}
+              onSelect={setReportView}
+              tierLocked={false}
+              claimNumber={(claim as any)?.claimNumber}
+            />
 
             {/* Report 1: KINGA Claims Report */}
             <div data-report-view="standard" style={reportView !== 'standard' ? { display: 'none' } : undefined}>
-              <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1.5px', color: '#6b7280', textTransform: 'uppercase', background: '#f1f5f9', padding: '3px 10px', borderRadius: 4 }}>Report 1 of 2</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#1a3a5c' }}>KINGA Claims Report</span>
-                <span style={{ fontSize: 10, color: '#9ca3af' }}>— Standard assessment and cost analysis</span>
-              </div>
               <KingaClaimsReport
                 claim={claim}
                 aiAssessment={aiAssessment}
@@ -938,24 +919,10 @@ export default function InsurerComparisonView() {
                   ...(approvalStatus?.optional_stages ?? []),
                 ].sort((a: any, b: any) => (a.stage_order ?? 0) - (b.stage_order ?? 0)) as any[]}
               />
-              <div style={{ marginTop: 16, padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, color: '#6b7280' }}>Continue to Report 2 of 2 for the full forensic audit trail</span>
-                <button
-                  onClick={() => setReportView('forensic')}
-                  style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, border: '1px solid #1a3a5c', background: '#1a3a5c', color: '#ffffff', cursor: 'pointer' }}
-                >
-                  View Forensic Audit Report →
-                </button>
-              </div>
             </div>
 
             {/* Report 2: Forensic Audit Report */}
             <div data-report-view="forensic" style={reportView !== 'forensic' ? { display: 'none' } : undefined}>
-              <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1.5px', color: '#6b7280', textTransform: 'uppercase', background: '#f1f5f9', padding: '3px 10px', borderRadius: 4 }}>Report 2 of 2</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#1a3a5c' }}>Forensic Audit Report</span>
-                <span style={{ fontSize: 10, color: '#9ca3af' }}>— Detailed forensic investigation and evidence trail</span>
-              </div>
               <ForensicAuditReport
                 claim={claim}
                 aiAssessment={aiAssessment}
@@ -970,15 +937,6 @@ export default function InsurerComparisonView() {
                   ...(approvalStatus?.optional_stages ?? []),
                 ].sort((a: any, b: any) => (a.stage_order ?? 0) - (b.stage_order ?? 0)) as any[]}
               />
-              <div style={{ marginTop: 16, padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, color: '#6b7280' }}>Return to Report 1 of 2 — KINGA Claims Report</span>
-                <button
-                  onClick={() => setReportView('standard')}
-                  style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, border: '1px solid #374151', background: '#ffffff', color: '#374151', cursor: 'pointer' }}
-                >
-                  ← View Claims Report
-                </button>
-              </div>
             </div>
           </>
         ) : aiAssessment && !enforcement ? (

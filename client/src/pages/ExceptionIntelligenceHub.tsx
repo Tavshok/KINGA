@@ -171,7 +171,7 @@ function ExceptionQueuePanel() {
                 <div
                   key={item.assessmentId}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/insurer/claims/${item.claimId}/verdict`)}
+                  onClick={() => navigate(`/insurer/claims/${item.claimId}/comparison?report=standard`)}
                 >
                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-medium shrink-0 ${meta.bg} ${meta.color}`}>
                     {meta.icon}

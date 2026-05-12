@@ -12069,3 +12069,16 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Risk Analytics tab on FleetManagerDashboard (risk drivers, heatmap, dept breakdown, monthly trend)
 - [x] fleet_manager_requests table created in DB
 - [x] verificationStatus column added to fleet_accounts in schema
+
+## ML Cost Prediction — Training Data Pipeline (Awaiting Data)
+- [ ] Confirm CSV column format with user (vehicle_make, vehicle_model, vehicle_year, claim_type, incident_description, incident_location, claimant_type, claimant_department, incident_date, fraud_risk_score, actual_repair_cost)
+- [ ] Build CSV bulk importer in admin panel (upload up to 50MB, stream-validate, batch-insert 500 rows, progress bar, downloadable error log)
+- [ ] Deduplicate incoming rows against existing claims on import
+- [ ] Train XGBoost / LightGBM regression model on 20k claims dataset (target: actual_repair_cost)
+- [ ] Train Random Forest baseline model for uncertainty / prediction interval estimation
+- [ ] Apply log-transform on target variable to handle right-skewed cost distribution
+- [ ] Generate SHAP feature importance report per claim prediction
+- [ ] Expose trained model via tRPC procedure: claims.predictCost (input: claim features -> output: predicted cost + confidence range + top 3 SHAP drivers)
+- [ ] Wire cost prediction into claim intake flow (auto-populate estimated_repair_cost on new claim submission)
+- [ ] Add cost prediction display to assessor and claims manager claim detail views
+- [ ] Schedule monthly model retraining job as new claims accumulate in the DB

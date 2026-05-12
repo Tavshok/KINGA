@@ -413,7 +413,7 @@ export default function FraudAnalyticsDashboard() {
                   <div 
                     key={claim.id} 
                     className="flex items-center justify-between p-4 border rounded-lg hover:border-primary/50 cursor-pointer transition-colors"
-                    onClick={() => setLocation(`/insurer/claims/${claim.id}/comparison`)}
+                    onClick={() => setLocation(`/insurer/claims/${claim.id}/comparison?report=standard`)}
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-3">

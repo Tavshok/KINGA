@@ -189,13 +189,28 @@ export default function ClaimsProcessorDashboard() {
 
       completedIds.forEach(id => {
         const claim = allClaims.find((c: any) => c.id === id);
+        const claimLabel = claim?.claimNumber || `Claim #${id}`;
         toast.success("KINGA Assessment Complete", {
-          description: `Assessment ready for ${claim?.claimNumber || `Claim #${id}`}`,
-          action: {
-            label: "View Report",
-            onClick: () => window.location.href = `/insurer/claims/${id}/comparison`,
-          },
-          duration: 10000,
+          description: (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+              <span style={{ fontSize: 12, color: '#6b7280' }}>{claimLabel} — 2 reports ready</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => { window.location.href = `/insurer/claims/${id}/comparison?report=standard`; }}
+                  style={{ flex: 1, padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: '1.5px solid #1a3a5c', background: '#1a3a5c', color: '#ffffff', cursor: 'pointer' }}
+                >
+                  Claims Report
+                </button>
+                <button
+                  onClick={() => { window.location.href = `/insurer/claims/${id}/comparison?report=forensic`; }}
+                  style={{ flex: 1, padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: '1.5px solid #92400e', background: '#fffbf5', color: '#92400e', cursor: 'pointer' }}
+                >
+                  Forensic Report
+                </button>
+              </div>
+            </div>
+          ) as any,
+          duration: 12000,
         });
       });
 
@@ -319,12 +334,12 @@ export default function ClaimsProcessorDashboard() {
 
   const handleViewDetails = (claimId: number) => {
     // Navigate to the comparison view which shows full KINGA assessment details
-    window.location.href = `/insurer/claims/${claimId}/comparison`;
+    window.location.href = `/insurer/claims/${claimId}/comparison?report=standard`;
   };
 
   const handleDownloadReport = async (claimId: number) => {
     // Navigate to comparison view where the PDF download button exists
-    window.location.href = `/insurer/claims/${claimId}/comparison`;
+    window.location.href = `/insurer/claims/${claimId}/comparison?report=standard`;
   };
 
   const handleUploadEvidence = (claimId: number) => {

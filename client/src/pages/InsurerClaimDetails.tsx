@@ -8,7 +8,7 @@ export default function InsurerClaimDetails() {
 
   // Redirect to comparison view which has all the detailed information
   useEffect(() => {
-    setLocation(`/insurer/claims/${claimId}/comparison`);
+    setLocation(`/insurer/claims/${claimId}/comparison?report=standard`);
   }, [claimId, setLocation]);
 
   return null; // Redirecting...

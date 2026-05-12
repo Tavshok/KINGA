@@ -820,7 +820,7 @@ export default function ClaimsManagerDashboard() {
                         </Badge>
                       )}
                     </div>
-                    <Link href={`/insurer/claims/${claim.id}/comparison`}>
+                    <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
                       <Button variant="ghost" size="sm" className="text-xs">
                         <Eye className="h-3 w-3 mr-1" /> View
                       </Button>
@@ -900,10 +900,10 @@ export default function ClaimsManagerDashboard() {
                     </div>
                   )}
 
-                  <Link href={`/insurer/claims/${selectedClaim?.id}/comparison`}>
+                  <Link href={`/insurer/claims/${selectedClaim?.id}/comparison?report=standard`}>
                     <Button variant="outline" size="sm" className="w-full text-xs">
                       <Eye className="h-3 w-3 mr-2" />
-                      View Full Comparison Report
+                      View Reports
                     </Button>
                   </Link>
                 </div>

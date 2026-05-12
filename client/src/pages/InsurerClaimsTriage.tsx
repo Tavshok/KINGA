@@ -131,7 +131,7 @@ export default function InsurerClaimsTriage() {
       toast.success("KINGA assessment completed successfully");
       refetchClaims();
       // Navigate to comparison view to show results
-      setLocation(`/insurer/claims/${variables.claimId}/comparison`);
+      setLocation(`/insurer/claims/${variables.claimId}/comparison?report=standard`);
     },
     onError: (error) => {
       toast.error(`Failed to trigger KINGA assessment: ${error.message}`);
@@ -441,7 +441,7 @@ export default function InsurerClaimsTriage() {
                             <button
                               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
                               style={{ background: 'var(--fp-success-bg)', border: '1px solid var(--fp-success-border)', color: 'var(--success)' }}
-                              onClick={() => setLocation(`/insurer/claims/${claim.id}/comparison`)}
+                              onClick={() => setLocation(`/insurer/claims/${claim.id}/comparison?report=standard`)}
                             >
                               <BarChart3 className="h-3 w-3" />
                               Compare

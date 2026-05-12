@@ -216,7 +216,7 @@ export default function RiskManagerDashboard() {
       <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => openDialog(claim, "reject")}>
         <XCircle className="h-4 w-4 mr-1.5" /> Reject
       </Button>
-      <Link href={`/insurer/comparison/${claim.id}`}>
+      <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
         <Button size="sm" variant="ghost" className="w-full"><Eye className="h-4 w-4 mr-1.5" /> Review</Button>
       </Link>
     </>
@@ -225,7 +225,7 @@ export default function RiskManagerDashboard() {
   const OversightActions = ({ claim }: { claim: any }) => (
     <>
       <AiAssessButton claimId={claim.id} currentStatus={claim.status} onSuccess={() => {}} />
-      <Link href={`/insurer/comparison/${claim.id}`}>
+      <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
         <Button size="sm" variant="outline"><Eye className="h-4 w-4 mr-1.5" /> View</Button>
       </Link>
     </>
@@ -554,7 +554,7 @@ export default function RiskManagerDashboard() {
                         <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => openDialog(claim, "reject")}>
                           <XCircle className="h-4 w-4 mr-1.5" /> Dispute
                         </Button>
-                        <Link href={`/insurer/comparison/${claim.id}`}>
+                        <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
                           <Button size="sm" variant="ghost" className="w-full"><Eye className="h-4 w-4 mr-1.5" /> Review</Button>
                         </Link>
                       </>
@@ -590,7 +590,7 @@ export default function RiskManagerDashboard() {
                         <Button size="sm" variant="outline" onClick={() => openDialog(claim, "request_info")}>
                           <MessageSquare className="h-4 w-4 mr-1.5" /> Request Info
                         </Button>
-                        <Link href={`/insurer/comparison/${claim.id}`}>
+                        <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
                           <Button size="sm" variant="ghost" className="w-full"><Eye className="h-4 w-4 mr-1.5" /> Review</Button>
                         </Link>
                       </>

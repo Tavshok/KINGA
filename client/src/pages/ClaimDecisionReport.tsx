@@ -14,7 +14,8 @@
  */
 
 import { useState, useEffect, useRef } from "react";
-import { useRoute, useLocation } from "wouter";
+import { useRoute, useLocation, useSearch } from "wouter";
+import { ReportChooser, type ReportView } from "@/components/ReportChooser";
 import { trpc } from "@/lib/trpc";
 import {
   AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
@@ -1084,7 +1085,11 @@ export default function ClaimDecisionReport() {
     error: '',
   });
   const [showAuditLog, setShowAuditLog] = useState(false);
-  const [reportView, setReportView] = useState<'standard' | 'forensic'>('standard');
+  // URL-driven report selection: ?report=standard|forensic
+  const searchString = useSearch();
+  const _searchParams = new URLSearchParams(searchString);
+  const _initialReport = (_searchParams.get('report') === 'forensic' ? 'forensic' : 'standard') as ReportView;
+  const [reportView, setReportView] = useState<ReportView>(_initialReport);
   const { data: auditLog = [], refetch: refetchAuditLog } = trpc.aiAssessments.getAuditLog.useQuery(
     { claimId: String(claimId) },
     { enabled: !!claimId && showAuditLog }
@@ -1473,38 +1478,14 @@ export default function ClaimDecisionReport() {
           return null;
         })()}
 
-        {/* ── Report view toggle ── */}
-        <div className="no-print flex items-center gap-2 mb-3 px-1">
-          <button
-            onClick={() => setReportView('standard')}
-            style={{
-              padding: '5px 14px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              border: '1px solid var(--border)',
-              background: reportView === 'standard' ? 'var(--foreground)' : 'var(--card)',
-              color: reportView === 'standard' ? 'var(--background)' : 'var(--foreground)',
-              cursor: 'pointer',
-            }}
-          >
-            Claims Report
-          </button>
-          <button
-            onClick={() => setReportView('forensic')}
-            style={{
-              padding: '5px 14px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              border: '1px solid var(--border)',
-              background: reportView === 'forensic' ? 'var(--foreground)' : 'var(--card)',
-              color: reportView === 'forensic' ? 'var(--background)' : 'var(--foreground)',
-              cursor: 'pointer',
-            }}
-          >
-            Forensic Report
-          </button>
+        {/* ── Report chooser — two prominent cards ── */}
+        <div className="no-print">
+          <ReportChooser
+            active={reportView}
+            onSelect={setReportView}
+            tierLocked={false}
+            claimNumber={(claim as any)?.claimNumber}
+          />
         </div>
         <div data-report-view="standard" style={reportView !== 'standard' ? { display: 'none' } : undefined}>
           <KingaClaimsReport
