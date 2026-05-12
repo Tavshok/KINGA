@@ -418,10 +418,27 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
     }
     return aiAssessment?.photoUrls ?? aiAssessment?.processedPhotoUrls ?? [];
   })();
+  // Filter out non-damage photos when enriched data is available.
+  // An enriched photo is considered non-damage when KINGA detected zero components
+  // AND the caption explicitly states no damage was found (e.g. dashboard/odometer shots).
+  // We keep at least 2 photos even if all are non-damage (better than an empty grid).
+  const filteredEnrichedPhotos: typeof enrichedPhotos = (() => {
+    if (enrichedPhotos.length === 0) return [];
+    const damageOnly = enrichedPhotos.filter(p => {
+      const hasComponents = p.detectedComponents.length > 0;
+      const captionNoDamage = /no damage/i.test(p.caption);
+      return hasComponents || !captionNoDamage;
+    });
+    return damageOnly.length >= 2 ? damageOnly : enrichedPhotos;
+  })();
+  // Build filtered URL list — use filtered enriched when available, else all URLs
+  const filteredPhotoUrls: string[] = filteredEnrichedPhotos.length > 0
+    ? filteredEnrichedPhotos.map(p => p.url)
+    : allPhotoUrls;
   // Limit to 4 for the report grid
-  const photoUrls: string[] = allPhotoUrls.slice(0, 4);
+  const photoUrls: string[] = filteredPhotoUrls.slice(0, 4);
   // Slice enrichedPhotos to match (empty array if no enriched data available)
-  const displayPhotos = enrichedPhotos.length > 0 ? enrichedPhotos.slice(0, 4) : [];
+  const displayPhotos = filteredEnrichedPhotos.length > 0 ? filteredEnrichedPhotos.slice(0, 4) : [];
 
   // Quote comparison
   const quoteSimilarity = fraudBd?.quoteSimilarity ?? null;

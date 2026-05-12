@@ -473,6 +473,17 @@ export default function InsurerComparisonView() {
     if (src === 'ai_estimate') return 'KINGA Estimate';
     return 'KINGA Estimate'; // fallback
   })();
+  // Currency sanity guard: flag when the stored cost appears to be in a different
+  // currency unit than the claim's declared currency.
+  // Heuristic: USD/GBP/EUR claims with a raw estimatedCost > 50,000 AND no normalised
+  // cost available are likely stored in a high-inflation currency (e.g. ZWL) and
+  // should be flagged rather than silently displayed as USD.
+  const hardCurrencies = ['USD', 'GBP', 'EUR', 'ZAR'];
+  const currencyMismatchWarning: boolean = (
+    !normCosts &&
+    hardCurrencies.includes((claim?.currencyCode ?? '').toUpperCase()) &&
+    (aiAssessment?.estimatedCost ?? 0) > 50000
+  );
   const assessorCostCents = assessorEval?.estimatedRepairCost || 0;
   const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100); // cents → dollars
   const lowestQuoteCents = quotedAmounts.length > 0 ? Math.min(...quotedAmounts) : 0; // already in dollars
@@ -588,11 +599,16 @@ export default function InsurerComparisonView() {
             {/* Hero KPI strip */}
             <div className="flex flex-wrap gap-3">
               {aiCostDollars > 0 && (
-                <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>{aiCostLabel}</p>
-                  <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
+                <div className="text-center px-4 py-2 rounded-lg" style={{ background: currencyMismatchWarning ? '#fffbeb' : '#ffffff', border: currencyMismatchWarning ? '1px solid #fde68a' : '1px solid #e5e7eb' }}>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>
+                    {aiCostLabel}{currencyMismatchWarning ? ' ⚠️' : ''}
+                  </p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: currencyMismatchWarning ? '#b45309' : '#111827' }}>
                     {csym}{aiCostDollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
+                  {currencyMismatchWarning && (
+                    <p style={{ fontSize: '0.55rem', color: '#92400e', marginTop: 2 }}>Verify currency — re-run KINGA</p>
+                  )}
                 </div>
               )}
               {assessorCostCents > 0 && (
@@ -825,17 +841,22 @@ export default function InsurerComparisonView() {
                     })(),
                   };
                   
-                  // C-01: Pre-flight validation gate — block export if VIN, incident date, or at least one quote are missing
-                  const missingFields: string[] = [];
-                  if (!claim.vehicleVin && !(claim as any).vin) missingFields.push('VIN (Vehicle Identification Number)');
-                  if (!claim.incidentDate) missingFields.push('Incident Date');
-                  if (!quotes || quotes.length === 0) missingFields.push('At least one itemised panel beater quote');
-                  if (missingFields.length > 0) {
-                    toast.error(
-                      `Export blocked — Preliminary Memo only. Missing required fields: ${missingFields.join('; ')}. A full report cannot be exported until all mandatory fields are populated. A Preliminary Memo has been noted for this claim.`,
-                      { duration: 8000 }
-                    );
-                    return;
+                  // C-01: Pre-flight validation gate
+                  // Claims Report: exports freely (no hard block — it is a standard assessment summary).
+                  // Forensic Audit Report: requires VIN + Incident Date + at least one quote because
+                  // the physics engine, evidence chain, and legal audit trail all depend on these fields.
+                  if (reportView === 'forensic') {
+                    const missingFields: string[] = [];
+                    if (!claim.vehicleVin && !(claim as any).vin) missingFields.push('VIN (Vehicle Identification Number)');
+                    if (!claim.incidentDate) missingFields.push('Incident Date');
+                    if (!quotes || quotes.length === 0) missingFields.push('At least one itemised panel beater quote');
+                    if (missingFields.length > 0) {
+                      toast.error(
+                        `Forensic Report export blocked — missing required fields: ${missingFields.join('; ')}. The Forensic Audit Report requires complete vehicle and incident data for physics analysis and legal-grade audit trail generation.`,
+                        { duration: 8000 }
+                      );
+                      return;
+                    }
                   }
 
                   // Print whichever report is currently active
@@ -958,12 +979,24 @@ export default function InsurerComparisonView() {
 
         {/* ── Approval Workflow ── */}
         {aiAssessment && (
-          <div className="comparison-section" style={{ background: '#ffffff', '--bi-bg-elevated': '#ffffff', '--bi-bg-alt': '#ffffff', '--bi-bg': '#ffffff' } as React.CSSProperties}>
-            <div className="comparison-section-header approval-workflow-header" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div
+            className="comparison-section"
+            style={{
+              background: '#ffffff',
+              '--bi-bg-elevated': '#ffffff',
+              '--bi-bg-alt': '#ffffff',
+              '--bi-bg': '#ffffff',
+              // Override shadcn Card background to white so approval cards
+              // match the pure-white report sections above them.
+              '--card': '#ffffff',
+              '--card-foreground': '#0F172A',
+            } as React.CSSProperties}
+          >
+            <div className="comparison-section-header approval-workflow-header" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
               <span className="bi-section-num" style={{ background: 'var(--success)' }}>12</span>
               <div>
-                <p className="font-bold" style={{ color: 'var(--foreground)' }}>Multi-Layer Approval Workflow</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Configurable approval chain — claim must pass all required stages before export</p>
+                <p className="font-bold" style={{ color: '#0F172A' }}>Multi-Layer Approval Workflow</p>
+                <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>Configurable approval chain — claim must pass all required stages before export</p>
               </div>
             </div>
             <div className="comparison-section-body space-y-4" style={{ background: '#ffffff' }}>
