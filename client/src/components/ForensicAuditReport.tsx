@@ -74,6 +74,10 @@ interface ForensicAuditReportProps {
   claimId?: number;
   /** Current pipeline run ID for annotation versioning */
   pipelineRunId?: number;
+  /** When true, renders a DRAFT watermark banner — used when required fields are missing at export time */
+  isDraft?: boolean;
+  /** List of missing fields that caused the draft status */
+  draftMissingFields?: string[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -6722,7 +6726,7 @@ const REPORT_CSS = `
 `;
 
 
-export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, approvalHistory = [], workflowStages = [], claimId, pipelineRunId }: ForensicAuditReportProps) {
+export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, approvalHistory = [], workflowStages = [], claimId, pipelineRunId, isDraft = false, draftMissingFields = [] }: ForensicAuditReportProps) {
   if (!enforcement || !aiAssessment) return null;
 
   // ── Currency-aware formatter ─────────────────────────────────────────────
@@ -6743,6 +6747,18 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       data-report-date={new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
     >
       <style dangerouslySetInnerHTML={{ __html: REPORT_CSS }} />
+      {/* DRAFT Banner */}
+      {isDraft && (
+        <div style={{ background: '#fffbeb', border: '2px solid #f59e0b', borderRadius: 6, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#92400e', letterSpacing: '0.08em', flexShrink: 0 }}>DRAFT</span>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#92400e', margin: 0 }}>This Forensic Audit Report is incomplete and has been exported as a draft.</p>
+            {draftMissingFields.length > 0 && (
+              <p style={{ fontSize: 11, color: '#b45309', margin: '3px 0 0' }}>Missing: {draftMissingFields.join(', ')}. Complete these fields and re-export for the final version.</p>
+            )}
+          </div>
+        </div>
+      )}
       {/* C-5: Contradiction warning banner — hidden from report per design decision */}
       {/* Page header bar */}
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

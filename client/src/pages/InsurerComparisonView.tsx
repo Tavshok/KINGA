@@ -168,6 +168,17 @@ export default function InsurerComparisonView() {
   // Also get basic quotes for backward compatibility
   const quotes = quotesWithItems;
 
+  // Get claim documents to detect quote extraction failures:
+  // if a repair_quote document was uploaded but no quotes were extracted, surface an alert.
+  const { data: claimDocuments = [] } = trpc.documents.byClaim.useQuery(
+    { claimId },
+    { enabled: !!claimId }
+  );
+  const hasUploadedQuoteDoc = claimDocuments.some(
+    (d: any) => d.documentCategory === 'repair_quote' || d.documentCategory === 'invoice'
+  );
+  const quoteExtractionFailed = hasUploadedQuoteDoc && quotes.length === 0;
+
   // Parse costIntelligenceJson once for hero strip badge
   const costIntelligence = (() => {
     try { return JSON.parse((aiAssessment as any)?.costIntelligenceJson ?? 'null'); } catch { return null; }
@@ -484,6 +495,12 @@ export default function InsurerComparisonView() {
     hardCurrencies.includes((claim?.currencyCode ?? '').toUpperCase()) &&
     (aiAssessment?.estimatedCost ?? 0) > 50000
   );
+  // Draft report flag — computed once and passed to both report components.
+  // A report is a draft when required data is missing; it still exports but shows a DRAFT banner.
+  const draftMissingFieldsList: string[] = [];
+  if (!quotes || quotes.length === 0) draftMissingFieldsList.push('panel beater quote');
+  const isDraftReport = draftMissingFieldsList.length > 0;
+
   const assessorCostCents = assessorEval?.estimatedRepairCost || 0;
   const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100); // cents → dollars
   const lowestQuoteCents = quotedAmounts.length > 0 ? Math.min(...quotedAmounts) : 0; // already in dollars
@@ -841,27 +858,24 @@ export default function InsurerComparisonView() {
                     })(),
                   };
                   
-                  // C-01: Pre-flight validation gate
-                  // Claims Report: exports freely (no hard block — it is a standard assessment summary).
-                  // Forensic Audit Report: requires VIN + Incident Date + at least one quote because
-                  // the physics engine, evidence chain, and legal audit trail all depend on these fields.
+                  // C-01: Reports always export — no hard blocks.
+                  // Missing fields produce a DRAFT warning toast and a watermark on the printed output.
+                  const missingForDraft: string[] = [];
+                  if (!quotes || quotes.length === 0) missingForDraft.push('panel beater quote');
                   if (reportView === 'forensic') {
-                    const missingFields: string[] = [];
-                    if (!claim.vehicleVin && !(claim as any).vin) missingFields.push('VIN (Vehicle Identification Number)');
-                    if (!claim.incidentDate) missingFields.push('Incident Date');
-                    if (!quotes || quotes.length === 0) missingFields.push('At least one itemised panel beater quote');
-                    if (missingFields.length > 0) {
-                      toast.error(
-                        `Forensic Report export blocked — missing required fields: ${missingFields.join('; ')}. The Forensic Audit Report requires complete vehicle and incident data for physics analysis and legal-grade audit trail generation.`,
-                        { duration: 8000 }
-                      );
-                      return;
-                    }
+                    if (!claim.vehicleVin && !(claim as any).vin) missingForDraft.push('VIN');
+                    if (!claim.incidentDate) missingForDraft.push('incident date');
                   }
-
-                  // Print whichever report is currently active
+                  const isDraftExport = missingForDraft.length > 0;
                   const label = reportView === 'forensic' ? 'Forensic Audit Report' : 'KINGA Claims Report';
-                  toast.success(`Opening ${label} for PDF export…`);
+                  if (isDraftExport) {
+                    toast.warning(
+                      `Exporting ${label} as DRAFT — incomplete data: ${missingForDraft.join(', ')}. Complete the missing fields and re-export for the final version.`,
+                      { duration: 7000 }
+                    );
+                  } else {
+                    toast.success(`Opening ${label} for PDF export…`);
+                  }
                   setTimeout(() => { window.print(); }, 400);
                 }}
               >
@@ -916,6 +930,16 @@ export default function InsurerComparisonView() {
         ═══════════════════════════════════════════════════════════════ */}
         {aiAssessment && enforcement ? (
           <>
+            {/* Quote extraction failure alert — shown when a quote document was uploaded but no quotes were extracted */}
+            {quoteExtractionFailed && (
+              <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800 px-4 py-3 mb-2">
+                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-red-700 dark:text-red-300">Quote document uploaded but line items were not extracted</p>
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">A repair quote or invoice was uploaded for this claim, but KINGA could not extract the line items. Re-upload a clearer document or manually enter the quote details to enable cost analysis.</p>
+                </div>
+              </div>
+            )}
             {/* Report chooser — two prominent cards */}
             <ReportChooser
               active={reportView}
@@ -933,6 +957,8 @@ export default function InsurerComparisonView() {
                 quotes={quotes}
                 claimId={claimId}
                 pipelineRunId={aiAssessment?.id}
+                isDraft={isDraftReport}
+                draftMissingFields={draftMissingFieldsList}
                 approvalHistory={(approvalStatus?.approval_history ?? []) as any[]}
                 workflowStages={[
                   ...(approvalStatus?.completed_stages ?? []),
@@ -951,6 +977,12 @@ export default function InsurerComparisonView() {
                 quotes={quotes}
                 claimId={claimId}
                 pipelineRunId={aiAssessment?.id}
+                isDraft={isDraftReport || (!claim?.vehicleVin && !(claim as any)?.vin) || !claim?.incidentDate}
+                draftMissingFields={[
+                  ...draftMissingFieldsList,
+                  ...(!claim?.vehicleVin && !(claim as any)?.vin ? ['VIN'] : []),
+                  ...(!claim?.incidentDate ? ['incident date'] : []),
+                ]}
                 approvalHistory={(approvalStatus?.approval_history ?? []) as any[]}
                 workflowStages={[
                   ...(approvalStatus?.completed_stages ?? []),

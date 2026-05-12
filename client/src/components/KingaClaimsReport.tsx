@@ -53,6 +53,10 @@ interface KingaClaimsReportProps {
   claimId?: number;
   /** Current pipeline run ID for annotation versioning */
   pipelineRunId?: number;
+  /** When true, renders a DRAFT watermark banner — used when required fields are missing at export time */
+  isDraft?: boolean;
+  /** List of missing fields that caused the draft status */
+  draftMissingFields?: string[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -288,7 +292,7 @@ const DECISION_STYLES_KCR: Record<string, { label: string; bg: string; color: st
   external_received: { label: "Ext. Received", bg: "#ffffff", color: "#0f172a", border: "#334155" },
 };
 
-export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [], approvalHistory = [], workflowStages = [], claimId, pipelineRunId }: KingaClaimsReportProps) {
+export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [], approvalHistory = [], workflowStages = [], claimId, pipelineRunId, isDraft = false, draftMissingFields = [] }: KingaClaimsReportProps) {
   const e = enforcement as any;
   const phase2 = e?._phase2 as any;
   const ci = parseJson(aiAssessment?.costIntelligenceJson);
@@ -471,6 +475,18 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
         padding: "24px 16px",
       }}
     >
+      {/* ── DRAFT Banner (only shown when isDraft=true) ── */}
+      {isDraft && (
+        <div style={{ background: '#fffbeb', border: '2px solid #f59e0b', borderRadius: 6, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#92400e', letterSpacing: '0.08em', flexShrink: 0 }}>DRAFT</span>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#92400e', margin: 0 }}>This report is incomplete and has been exported as a draft.</p>
+            {draftMissingFields.length > 0 && (
+              <p style={{ fontSize: 11, color: '#b45309', margin: '3px 0 0' }}>Missing: {draftMissingFields.join(', ')}. Complete these fields and re-export for the final version.</p>
+            )}
+          </div>
+        </div>
+      )}
       {/* ── Report Header ── */}
       <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "2px solid #0f172a" }}>
         <div className="flex items-start justify-between">
