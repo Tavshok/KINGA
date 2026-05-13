@@ -459,6 +459,28 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
   // Confidence
   const confidenceScore: number = e?.confidenceBreakdown?.score ?? aiAssessment?.confidenceScore ?? 0;
 
+  // Data completeness — derived from confidence breakdown or photo/document counts
+  const dataCompleteness: number = (() => {
+    const cb = e?.confidenceBreakdown;
+    if (cb?.dataCompleteness != null) return Number(cb.dataCompleteness);
+    // Approximate: photos submitted + quote submitted + incident description present
+    let score = 0;
+    if (allPhotoUrls.length >= 4) score += 40;
+    else if (allPhotoUrls.length >= 1) score += 20;
+    if (quotes.length > 0) score += 30;
+    if (claim?.incidentDescription || aiAssessment?.incidentDescription) score += 20;
+    if (claim?.vehicleRegistration || claim?.vehicleVin) score += 10;
+    return Math.min(100, score);
+  })();
+
+  // Decision colour helper
+  const decisionColor = (() => {
+    const d = (decision ?? '').toUpperCase();
+    if (d === 'DECLINE' || d === 'DECLINED' || d === 'REJECT' || d === 'REJECTED') return '#c00';
+    if (d.includes('REVIEW') || d === 'REFER' || d === 'PENDING') return '#c8a000';
+    return '#2e7d32';
+  })();
+
   // Date
   const reportDate = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
 
@@ -488,10 +510,10 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
         </div>
       )}
       {/* ── Report Header ── */}
-      <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "2px solid #0f172a" }}>
-        <div className="flex items-start justify-between">
+      <div style={{ marginBottom: 0, paddingBottom: 14, borderBottom: "2px solid #1A2B4A" }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
-            <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#64748b" }}>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#64748b", margin: 0 }}>
               KINGA Intelligence
             </p>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "4px 0 2px" }}>
@@ -508,9 +530,58 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
             )}
           </div>
           <div style={{ textAlign: "right" }}>
-            <VerdictBadge decision={decision} />
-            <p style={{ ...S.muted, marginTop: 6 }}>Confidence: {confidenceScore}%</p>
+            <p style={{ ...S.muted, marginBottom: 4 }}>Confidence: {confidenceScore}%</p>
           </div>
+        </div>
+      </div>
+
+      {/* ── Full-width Decision Verdict Banner ── */}
+      <div style={{ margin: '0 0 20px', padding: '14px 20px', background: `${decisionColor}12`, border: `2px solid ${decisionColor}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 22, fontWeight: 900, color: decisionColor, letterSpacing: '0.08em' }}>
+            {(decision ?? '').toUpperCase().replace(/_/g, ' ')}
+          </span>
+          {primaryReason && (
+            <span style={{ fontSize: 11, color: '#555', fontStyle: 'italic', maxWidth: 380 }}>{primaryReason}</span>
+          )}
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', margin: '0 0 2px' }}>AI Confidence</p>
+          <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 16, fontWeight: 700, color: decisionColor }}>{confidenceScore}<span style={{ fontSize: 11, color: '#888', fontWeight: 400 }}>/100</span></span>
+        </div>
+      </div>
+
+      {/* ── Score Summary Bars ── */}
+      <div style={{ margin: '0 0 20px', border: '1px solid #e2e8f0', background: '#ffffff', overflow: 'hidden' }}>
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#0f172a', margin: 0 }}>Assessment Score Summary</p>
+        </div>
+        <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>
+          {[
+            { label: 'Fraud Risk', value: fraudScore, lowGood: true, note: fraudScore >= 70 ? 'HIGH RISK' : fraudScore >= 40 ? 'MODERATE' : 'LOW RISK' },
+            { label: 'Physics Consistency', value: physicsScore, lowGood: false, note: physicsScore >= 70 ? 'CONSISTENT' : physicsScore >= 30 ? 'MINOR ANOMALY' : 'ANOMALY' },
+            { label: 'Data Completeness', value: dataCompleteness, lowGood: false, note: dataCompleteness >= 80 ? 'COMPLETE' : dataCompleteness >= 50 ? 'PARTIAL' : 'INCOMPLETE' },
+          ].map(bar => {
+            const barColor = bar.lowGood
+              ? (bar.value >= 70 ? '#c00' : bar.value >= 40 ? '#c8a000' : '#2e7d32')
+              : (bar.value >= 70 ? '#2e7d32' : bar.value >= 30 ? '#c8a000' : '#c00');
+            return (
+              <div key={bar.label}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888' }}>{bar.label}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: barColor, letterSpacing: '0.06em' }}>{bar.note}</span>
+                </div>
+                <div style={{ height: 10, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: 10, width: `${Math.min(100, Math.round(bar.value))}%`, background: barColor, borderRadius: 4 }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                  <span style={{ fontSize: 9, color: '#aaa' }}>0</span>
+                  <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 13, fontWeight: 700, color: barColor }}>{Math.round(bar.value)}<span style={{ fontSize: 10, color: '#888', fontWeight: 400 }}>/100</span></span>
+                  <span style={{ fontSize: 9, color: '#aaa' }}>100</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -1116,6 +1187,28 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
         claim={claim}
         styleMode="kinga"
       />
+
+      {/* ── KINGA Persistent Footer ── */}
+      <div style={{ background: '#fff', borderTop: '2px solid #1A2B4A', marginTop: 28 }}>
+        <div style={{ background: '#1A2B4A', padding: '8px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style={{ height: 20, width: 20, objectFit: 'contain', opacity: 0.9 }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: '0.08em' }}>KINGA</span>
+            <span style={{ fontSize: 10, color: '#94a3b8' }}>Claims Assessment Report</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ fontSize: 10, color: '#94a3b8' }}>Claim: {claim?.claimNumber ?? claim?.claimReference ?? '—'}</span>
+            <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 10, color: '#94a3b8' }}>#{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8, '0').toUpperCase().slice(0, 8)}</span>
+            <span style={{ fontSize: 10, color: '#94a3b8' }}>{reportDate}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: decisionColor, border: `1px solid ${decisionColor}`, padding: '1px 8px', letterSpacing: '0.06em' }}>{(decision ?? '').toUpperCase().replace(/_/g, ' ')}</span>
+          </div>
+        </div>
+        <div style={{ padding: '8px 20px' }}>
+          <span style={{ fontSize: 9, color: '#888', lineHeight: 1.5 }}>
+            CONFIDENTIAL — For authorised insurer use only. This report is generated by KINGA Intelligence and must be reviewed by a qualified human adjuster before any claim decision is finalised. KINGA does not constitute legal advice.
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

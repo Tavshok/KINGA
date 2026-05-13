@@ -5780,6 +5780,88 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         </div>
       )}
 
+      {/* 5.5 Fraud Signal Contribution — Stacked Bar Chart */}
+      {(() => {
+        // Build signal segments from contributions + derived signals
+        const quoteSim = (() => {
+          const qs = fraudScoreBreakdown5?.quoteSimilarity;
+          if (!qs) return 0;
+          if (qs.overall_verdict === 'confirmed') return 20;
+          if (qs.overall_verdict === 'suspected') return 12;
+          return 0;
+        })();
+        const physicsAnomaly = Math.max(0, Math.round(20 - (physicsScore / 100) * 20));
+        const imageIncon = (() => {
+          const c = contributions.find((c: any) => c.factor?.toLowerCase().includes('photo') || c.factor?.toLowerCase().includes('image') || c.factor?.toLowerCase().includes('damage'));
+          return c ? Math.min(20, c.value ?? 0) : 0;
+        })();
+        const fcdiInverse = (() => {
+          const fcdi = (enforcement as any)?._fcdi?.score ?? (enforcement as any)?.fcdiScore ?? null;
+          if (fcdi == null) return 0;
+          // FCDI is reliability (higher = better) — invert to get risk contribution
+          return Math.max(0, Math.round((1 - fcdi / 100) * 20));
+        })();
+        const costDev = (() => {
+          const c = contributions.find((c: any) => c.factor?.toLowerCase().includes('cost'));
+          return c ? Math.min(20, c.value ?? 0) : 0;
+        })();
+        const missingData = (() => {
+          const c = contributions.find((c: any) => c.factor?.toLowerCase().includes('missing') || c.factor?.toLowerCase().includes('police') || c.factor?.toLowerCase().includes('report'));
+          return c ? Math.min(20, c.value ?? 0) : 0;
+        })();
+        const segments = [
+          { label: 'Quote Similarity',    value: quoteSim,      color: '#c00',    textColor: '#fff' },
+          { label: 'Physics Anomaly',     value: physicsAnomaly, color: '#e65100', textColor: '#fff' },
+          { label: 'Image Inconsistency', value: imageIncon,    color: '#f57c00', textColor: '#fff' },
+          { label: 'FCDI Inverse',        value: fcdiInverse,   color: '#0277bd', textColor: '#fff' },
+          { label: 'Cost Deviation',      value: costDev,       color: '#6a1b9a', textColor: '#fff' },
+          { label: 'Missing Data',        value: missingData,   color: '#37474f', textColor: '#fff' },
+        ].filter(s => s.value > 0);
+        const total = segments.reduce((sum, s) => sum + s.value, 0);
+        if (segments.length === 0 || total === 0) return null;
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>5.5 Fraud Signal Contribution Breakdown</p>
+              <p className="text-[10px] mt-0.5" style={{ color: '#64748b' }}>Proportional contribution of each fraud signal to the overall risk score</p>
+            </div>
+            <div className="p-4">
+              {/* Stacked horizontal bar */}
+              <div style={{ display: 'flex', height: 28, borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
+                {segments.map((s, i) => (
+                  <div
+                    key={i}
+                    style={{ width: `${(s.value / total) * 100}%`, background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: s.value / total > 0.08 ? 0 : 0, overflow: 'hidden' }}
+                    title={`${s.label}: ${s.value} pts`}
+                  >
+                    {s.value / total > 0.1 && (
+                      <span style={{ fontSize: 9, fontWeight: 700, color: s.textColor, whiteSpace: 'nowrap', padding: '0 4px' }}>{Math.round((s.value / total) * 100)}%</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {/* Legend */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 16px' }}>
+                {segments.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                    <div>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: '#0f172a' }}>{s.label}</span>
+                      <span style={{ fontSize: 9, color: '#64748b', marginLeft: 4, fontFamily: "'IBM Plex Mono','Courier New',monospace" }}>{s.value} pts</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Score tally */}
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 10, color: '#64748b' }}>Signal total (pre-normalisation)</span>
+                <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 13, fontWeight: 700, color: fraudColor }}>{total} pts → {Math.round(fraudScore)}/100</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${fraudColor}40`, background: "#ffffff" }}>
         <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Final Risk Statement</p>
