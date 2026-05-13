@@ -12124,3 +12124,7 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Assessor Dashboard: populate assigned claims list with realistic data
 - [ ] Panel Beater Dashboard: populate quote requests with realistic data
 - [ ] Add DEMO_MODE banner so client knows data is illustrative
+
+## Presentation Polish (2026-05-13)
+- [x] Month vs Prior Month KPI comparison strip on Executive Dashboard Overview tab
+- [x] KINGA logo displayed beneath "Welcome" on the portal hub landing page

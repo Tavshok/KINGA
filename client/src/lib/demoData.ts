@@ -232,6 +232,54 @@ export const DEMO_ASSESSOR_CLAIMS = [
   { id: 10031, claimNumber: "CLM-2026-0031", vehicleMake: "Nissan", vehicleModel: "X-Trail",  vehicleYear: 2021, vehicleRegistration: "GP 09 BK 55", incidentDate: "2026-05-05", incidentType: "collision", status: "assessment_complete",    estimatedClaimValue: "52400", createdAt: "2026-05-05T10:00:00Z" },
 ];
 
+// ─── Month vs Prior Month Comparison Strip ───────────────────────────────────
+// Current month = May 2026 (partial), Prior month = April 2026 (full)
+export const DEMO_MONTH_COMPARISON = [
+  {
+    label: "Total Claims",
+    current: 47,
+    prior: 41,
+    unit: "",
+    higherIsBetter: true,
+  },
+  {
+    label: "AI Savings",
+    current: 214_800,
+    prior: 178_400,
+    unit: "R",
+    higherIsBetter: true,
+    isCurrency: true,
+  },
+  {
+    label: "Resolution Rate",
+    current: 89,
+    prior: 83,
+    unit: "%",
+    higherIsBetter: true,
+  },
+  {
+    label: "Avg Cycle Time",
+    current: 4.2,
+    prior: 5.1,
+    unit: "d",
+    higherIsBetter: false,   // lower is better
+  },
+  {
+    label: "Fraud Flags",
+    current: 12,
+    prior: 9,
+    unit: "",
+    higherIsBetter: false,   // more fraud flags = worse
+  },
+  {
+    label: "Fast-Track Rate",
+    current: 74,
+    prior: 68,
+    unit: "%",
+    higherIsBetter: true,
+  },
+];
+
 // ─── Utility: check if data is "empty" (all zeros / empty arrays) ─────────────
 export function isEmptyData(data: any): boolean {
   if (!data) return true;

@@ -43,6 +43,7 @@ import {
   DEMO_ASSESSORS,
   DEMO_PANEL_BEATERS,
   DEMO_BOTTLENECKS,
+  DEMO_MONTH_COMPARISON,
   isEmptyData,
 } from "@/lib/demoData";
 import {
@@ -534,6 +535,62 @@ export default function ExecutiveDashboard() {
 
           {/* ── Tab 1: Overview ── */}
           <TabsContent value="overview" className="space-y-6">
+
+            {/* ── Month vs Prior Month Comparison Strip ── */}
+            <div
+              className="rounded-xl p-4"
+              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold" style={{ color: 'var(--muted-foreground)' }}>
+                  MAY 2026 vs APRIL 2026
+                </p>
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: 'var(--fp-info-bg)', color: 'var(--info)' }}
+                >
+                  Month-on-Month
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {DEMO_MONTH_COMPARISON.map((item) => {
+                  const delta = item.current - item.prior;
+                  const pct = item.prior > 0 ? ((delta / item.prior) * 100).toFixed(1) : "0.0";
+                  const isPositive = item.higherIsBetter ? delta >= 0 : delta <= 0;
+                  const arrowUp = delta > 0;
+                  const displayCurrent = item.isCurrency
+                    ? `R${(item.current / 1000).toFixed(0)}k`
+                    : `${item.unit === 'R' ? 'R' : ''}${item.current}${item.unit !== 'R' ? item.unit : ''}`;
+                  const displayPrior = item.isCurrency
+                    ? `R${(item.prior / 1000).toFixed(0)}k`
+                    : `${item.unit === 'R' ? 'R' : ''}${item.prior}${item.unit !== 'R' ? item.unit : ''}`;
+                  return (
+                    <div
+                      key={item.label}
+                      className="rounded-lg px-3 py-3 flex flex-col gap-1"
+                      style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+                    >
+                      <p className="text-xs font-medium truncate" style={{ color: 'var(--muted-foreground)' }}>{item.label}</p>
+                      <p className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>{displayCurrent}</p>
+                      <div className="flex items-center gap-1">
+                        {arrowUp
+                          ? <TrendingUp className="h-3 w-3" style={{ color: isPositive ? 'var(--success)' : 'var(--chart-4)' }} />
+                          : <TrendingDown className="h-3 w-3" style={{ color: isPositive ? 'var(--success)' : 'var(--chart-4)' }} />
+                        }
+                        <span
+                          className="text-xs font-semibold"
+                          style={{ color: isPositive ? 'var(--success)' : 'var(--chart-4)' }}
+                        >
+                          {arrowUp ? '+' : ''}{pct}%
+                        </span>
+                        <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>vs {displayPrior}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Chart row: Savings Trend + Fast-Track Analytics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card style={{ border: '1px solid var(--border)' }}>

@@ -131,9 +131,16 @@ export default function PortalHub() {
             <div className="inline-block mb-4 px-6 py-2 rounded-full bg-primary/10 border border-primary/20">
               <p className="text-sm font-medium text-primary">Welcome to KINGA</p>
             </div>
-            <h2 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-3">
+            <h2 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-4">
               Welcome back, {user?.name}!
             </h2>
+            {/* KINGA Logo — brand anchor beneath the welcome heading */}
+            <div className="flex justify-center mb-5">
+              <div className="flex flex-col items-center gap-2">
+                <KingaLogo size="lg" showText={true} />
+                <p className="text-xs font-medium tracking-widest uppercase" style={{ color: 'var(--muted-foreground)', letterSpacing: '0.2em' }}>AutoVerify AI Platform</p>
+              </div>
+            </div>
             <p className="text-lg text-secondary/70 mb-4">
               Select a portal to continue your work
             </p>
