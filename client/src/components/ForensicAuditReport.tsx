@@ -914,13 +914,37 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           </div>
         )}
         <div><span className="di-label">Claim Ref</span>{claim?.claimNumber ?? claim?.claimReference ?? '—'}</div>
-        <div><span className="di-label">Run ID</span>{(aiAssessment as any)?._forensicAnalysis?.pipelineSummary?.runId ?? 'RUN-' + (aiAssessment?.id ?? '?')}</div>
-        <div><span className="di-label">Pipeline</span>v2</div>
-        <div><span className="di-label">Report Hash</span>#{((aiAssessment?.id ?? 0) * 31337).toString(16).toUpperCase().slice(0, 8)}</div>
+        <div><span className="di-label">Report Hash</span><span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 10 }}>#{((aiAssessment?.id ?? 0) * 31337).toString(16).toUpperCase().slice(0, 8)}</span></div>
         <div><span className="di-label">Generated</span>{fmtDate(aiAssessment?.createdAt)}</div>
         <div><span className="di-label">Adjuster</span>{claim?.assignedAdjuster ?? (aiAssessment as any)?._claimRecord?.insuranceContext?.adjuster ?? '—'}</div>
       </div>
 
+      {/* ── Verdict Banner — full-width decision above KPI strip ── */}
+      {(() => {
+        const vClass = fraudScore >= 70 ? 'decline' : fraudScore >= 40 ? 'review' : 'approve';
+        const vText = fraudScore >= 70 ? 'DECLINE' : fraudScore >= 40 ? 'REVIEW REQUIRED' : 'APPROVED';
+        const vSub = fraudScore >= 70
+          ? 'High fraud risk — do not settle without senior authorisation'
+          : fraudScore >= 40
+          ? 'Moderate risk — human review required before settlement'
+          : 'Low risk — proceed to standard settlement checks';
+        return (
+          <div className={`verdict-banner ${vClass}`}>
+            <div>
+              <div className="vb-label">KINGA Decision</div>
+              <div className={`vb-decision ${vClass}`}>{vText}</div>
+              <div className="vb-meta">{vSub}</div>
+            </div>
+            <div className="vb-right">
+              <div className="vb-label">Fraud Score</div>
+              <div style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 28, fontWeight: 700, color: fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32', lineHeight: 1 }}>
+                {Math.round(fraudScore)}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>/100</span>
+              </div>
+              <div className="vb-meta">Physics: {Math.round(physicsScore)}/100 · FCDI: {fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}/100</div>
+            </div>
+          </div>
+        );
+      })()}
       {/* ── Alert banner (primary blockers) ── */}
       {keyDrivers.length > 0 && (
         <div className="alert-banner critical">
@@ -956,9 +980,10 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           <div className="kpi-sub">{vehiclePhotosCover.length > 0 ? `${vehiclePhotosCover.length} photo${vehiclePhotosCover.length === 1 ? '' : 's'} analysed` : 'No photos'}</div>
         </div>
         <div className="kpi-tile">
-          <div className="kpi-label">Decision</div>
-          <div className="kpi-value decision" style={{ color: fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32' }}>{decisionText}</div>
-          <div className="kpi-sub">{fraudScore >= 70 ? 'Decline' : fraudScore >= 40 ? 'Required' : 'Approved'}</div>
+          <div className="kpi-label">FCDI Score</div>
+          <div className="kpi-value" style={{ color: fcdiBarColor }}>{fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>/100</span></div>
+          <div className="kpi-sub">{fcdiTileLabel} evidence quality</div>
+          <div className="kpi-polarity">Higher = more reliable</div>
         </div>
       </div>
 
@@ -1004,6 +1029,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginBottom: 4 }}>FCDI Score</div>
           <div><span className="fcdi-score-big" style={{ color: fcdiBarColor }}>{fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}</span><span className="fcdi-score-denom"> / 100</span></div>
           <div style={{ fontSize: 11, color: '#555', marginTop: 4 }}>{fcdiTileLabel} evidence quality</div>
+          <div style={{ fontSize: 9, color: '#aaa', marginTop: 2, fontStyle: 'italic' }}>Higher score = more reliable</div>
         </div>
         <div style={{ fontSize: 12, color: '#444', lineHeight: 1.7, flex: 1, paddingTop: 4 }}>
           {(aiAssessment as any)?._forensicAnalysis?.fcdi?.narrative ??
@@ -1075,7 +1101,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         if (snippets.length === 0) return null;
 
         const alignColour = isConflictedCov ? '#c00' : isPartialCov ? '#c8a000' : '#2e7d32';
-        const alignLabel = isConflictedCov ? 'CONFLICTED' : isPartialCov ? 'PARTIAL' : isAlignedCov ? 'ALIGNED' : null;
+        const alignLabel = isConflictedCov ? 'INCONCLUSIVE' : isPartialCov ? 'PARTIAL' : isAlignedCov ? 'ALIGNED' : null;
 
         return (
           <div style={{ margin: '10px 0', padding: '8px 12px', background: '#f8f8f8', borderLeft: `3px solid ${alignColour}`, fontSize: 11, lineHeight: 1.6 }}>
@@ -3423,7 +3449,7 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
     ? { bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'var(--fp-success-text)', label: 'FULLY ALIGNED' }
     : alignment === 'PARTIAL'
     ? { bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)', label: 'PARTIAL ALIGNMENT' }
-    : { bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', text: 'var(--fp-critical-text)', label: 'CONFLICTED' };
+    : { bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', text: 'var(--fp-critical-text)', label: 'INCONCLUSIVE — MANUAL REVIEW REQUIRED' };
 
   // isConflicted covers both 'CONFLICT' (legacy) and 'CONFLICTED' (current pipeline value)
   const isAligned = alignment === 'FULL' || alignment === 'FULLY_ALIGNED' || alignment === 'ALIGNED';
@@ -4230,6 +4256,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
               <thead>
                 <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
                   <th className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", minWidth: 180 }}>Repair Item</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", whiteSpace: 'nowrap' }}>Zone</th>
                   <th className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", whiteSpace: 'nowrap' }}>Category</th>
                   {pbQuotes.map((q, qi) => {
                     // Per-quote similarity verdict badge
@@ -4263,6 +4290,9 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                       <td className="px-3 py-2 font-medium" style={{ color: isMissedRow ? "var(--muted-foreground)" : "var(--foreground)" }}>
                         {row.description}
                         {isMissedRow && <span className="ml-2 text-xs" style={{ color: "#64748b", fontStyle: 'italic' }}>(not in all quotes)</span>}
+                      </td>
+                      <td className="px-3 py-2" style={{ color: "#64748b", fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        {(row as any).zone ?? (row as any).damageZone ?? '—'}
                       </td>
                       <td className="px-3 py-2" style={{ color: "#64748b" }}>{row.category || '—'}</td>
                       {row.cells.map((cell, ci) => {
@@ -4304,7 +4334,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: "2px solid #cbd5e1", background: "#ffffff" }}>
-                  <td colSpan={2} className="px-3 py-2 font-bold" style={{ color: "#0f172a" }}>TOTAL</td>
+                  <td colSpan={3} className="px-3 py-2 font-bold" style={{ color: "#0f172a" }}>TOTAL</td>
                   {pbQuotes.map((q, qi) => (
                     <td key={qi} className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: "#0f172a" }}>
                       {fmtMoney(q.total)}
@@ -4326,8 +4356,10 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
               </tfoot>
             </table>
           ) : (
-            <div className="p-4 text-xs" style={{ color: "#64748b" }}>
-              No repair quote has been submitted for this claim. Cost assessment cannot be performed until a quotation is received.
+            <div style={{ padding: '24px 20px', textAlign: 'center', borderTop: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>&#9744;</div>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>No Repair Quote Submitted</p>
+              <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>Cost validation cannot be performed until a quotation is received from a panel beater. Once submitted, KINGA will perform itemised analysis and cross-repairer comparison.</p>
             </div>
           )}
         </div>
@@ -4381,7 +4413,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
             <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-                  {["Component", "Benchmark", "Quote Status", "Variance", "Source"].map(h => (
+                  {["Component", "Zone", "Benchmark", "Quote Status", "Variance", "Source"].map(h => (
                     <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>{h}</th>
                   ))}
                 </tr>
@@ -4400,6 +4432,9 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                   return (
                     <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined, background: "#ffffff" }}>
                       <td className="px-3 py-2 font-medium" style={{ color: "#0f172a", fontFamily: "inherit" }}>{expandShorthand(toTitleCase(part.component ?? ""))}</td>
+                      <td className="px-3 py-2" style={{ color: "#64748b", fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        {part.zone ?? part.damageZone ?? part.damage_zone ?? '—'}
+                      </td>
                       <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a", fontFamily: "inherit" }}>
                         {hasBenchmark ? fmtMoney(part.total) : <span style={{ color: "#64748b" }}>Insufficient data</span>}
                       </td>
@@ -4430,6 +4465,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
               <tfoot>
                 <tr style={{ borderTop: "2px solid #cbd5e1", background: "#ffffff" }}>
                   <td className="px-3 py-2 font-bold" style={{ color: "#0f172a" }}>TOTAL</td>
+                  <td />
                   <td className="px-3 py-2 tabular-nums font-bold" style={{ color: "#0f172a" }}>{fmtMoney(itemisedParts.reduce((s: number, p: any) => s + (p.total ?? 0), 0))}</td>
                   <td className="px-3 py-2 text-xs" style={{ color: "#64748b" }}>
                     {partsRecon.length > 0
@@ -5847,8 +5883,50 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   // Y positions for each row
   const rowY = (i: number) => 40 + i * (diamondH + gapY);
 
+  // Score summary bars for the executive panel
+  const scoreBars = [
+    { label: 'Fraud Risk', value: fraudScore, max: 100, lowGood: true, note: fraudScore >= 70 ? 'HIGH RISK' : fraudScore >= 40 ? 'MODERATE' : 'LOW RISK' },
+    { label: 'Physics Consistency', value: physicsScore, max: 100, lowGood: false, note: physicsScore >= 70 ? 'CONSISTENT' : physicsScore >= 30 ? 'MINOR ANOMALY' : 'ANOMALY' },
+    { label: 'Data Completeness', value: dataCompleteness, max: 100, lowGood: false, note: dataCompleteness >= 80 ? 'COMPLETE' : dataCompleteness >= 50 ? 'PARTIAL' : 'INCOMPLETE' },
+  ];
+
   return (
     <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
+      {/* Score Summary Panel */}
+      <div style={{ border: '1px solid #e2e8f0', background: '#ffffff', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#0f172a', margin: 0 }}>6.0 Decision Score Summary</p>
+          <div style={{ padding: '3px 10px', fontWeight: 700, fontSize: 11, border: `1.5px solid ${decisionColor}`, color: decisionColor, background: `${decisionColor}15` }}>{decisionText}</div>
+        </div>
+        <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>
+          {scoreBars.map(bar => {
+            const barColor = bar.lowGood
+              ? (bar.value >= 70 ? '#c00' : bar.value >= 40 ? '#c8a000' : '#2e7d32')
+              : (bar.value >= 70 ? '#2e7d32' : bar.value >= 30 ? '#c8a000' : '#c00');
+            return (
+              <div key={bar.label}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888' }}>{bar.label}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: barColor, letterSpacing: '0.06em' }}>{bar.note}</span>
+                </div>
+                <div style={{ height: 10, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: 10, width: `${Math.min(100, Math.round(bar.value))}%`, background: barColor, borderRadius: 4 }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                  <span style={{ fontSize: 9, color: '#aaa' }}>0</span>
+                  <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 13, fontWeight: 700, color: barColor }}>{Math.round(bar.value)}<span style={{ fontSize: 10, color: '#888', fontWeight: 400 }}>/100</span></span>
+                  <span style={{ fontSize: 9, color: '#aaa' }}>100</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {primaryReason && (
+          <div style={{ padding: '8px 16px', borderTop: '1px solid #e2e8f0', fontSize: 11, color: '#555', fontStyle: 'italic' }}>
+            Primary driver: {primaryReason}
+          </div>
+        )}
+      </div>
       {/* SVG Decision Flowchart */}
       <div className="rounded-xl overflow-hidden" style={{ border: `2px solid ${decisionColor}`, background: "#ffffff" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
@@ -6670,7 +6748,19 @@ function Section7Learning({
 
 // ─── Mockup v4.2 scoped CSS─────────────────────────────────────────
 const REPORT_CSS = `
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
 .kinga-report{font-family:Inter,'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#111;background:#fff;line-height:1.6;padding:24px 20px}
+.kinga-report .verdict-banner{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:14px;border-left:6px solid #111}
+.kinga-report .verdict-banner.approve{border-color:#2e7d32;background:#f1f8f1}
+.kinga-report .verdict-banner.review{border-color:#c8a000;background:#fffde7}
+.kinga-report .verdict-banner.decline{border-color:#c00;background:#fff5f5}
+.kinga-report .verdict-banner .vb-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:4px}
+.kinga-report .verdict-banner .vb-decision{font-size:26px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+.kinga-report .verdict-banner .vb-decision.approve{color:#2e7d32}
+.kinga-report .verdict-banner .vb-decision.review{color:#c8a000}
+.kinga-report .verdict-banner .vb-decision.decline{color:#c00}
+.kinga-report .verdict-banner .vb-meta{font-size:10px;color:#555;margin-top:5px}
+.kinga-report .verdict-banner .vb-right{text-align:right;min-width:120px}
 .kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#fff;border-top:3px solid #1A2B4A;border-bottom:1px solid #ddd;font-family:Inter,system-ui,sans-serif;font-size:10px;color:#666;margin:-24px -20px 24px}
 .kinga-report .page-header .brand{font-family:sans-serif;font-weight:700;font-size:11px;color:#111;letter-spacing:.05em;border:1.5px solid #111;padding:2px 8px}
 .kinga-report .cover-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #111}
@@ -6688,9 +6778,9 @@ const REPORT_CSS = `
 .kinga-report .kpi-tile{padding:14px 16px;border-right:1px solid #ddd;text-align:center}
 .kinga-report .kpi-tile:last-child{border-right:none}
 .kinga-report .kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px}
-.kinga-report .kpi-value{font-size:26px;font-weight:700;color:#111;line-height:1}
+.kinga-report .kpi-value{font-family:'IBM Plex Mono','Courier New',monospace;font-size:26px;font-weight:700;color:#111;line-height:1}
 .kinga-report .kpi-sub{font-size:10px;color:#666;margin-top:4px}
-.kinga-report .kpi-value.decision{font-size:18px}
+.kinga-report .kpi-polarity{font-size:8px;color:#aaa;margin-top:2px;font-style:italic}
 .kinga-report .dim-grid{display:grid;grid-template-columns:repeat(2,1fr);border:1px solid #ddd;margin-bottom:14px}
 .kinga-report .dim-row{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #eee;font-size:11px}
 .kinga-report .dim-row:nth-child(odd){border-right:1px solid #ddd}
@@ -6721,7 +6811,7 @@ const REPORT_CSS = `
 .kinga-report .ps-item{text-align:center}
 .kinga-report .ps-value{font-size:22px;font-weight:700;color:#111}
 .kinga-report .ps-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.06em}
-.kinga-report .section-heading{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#1A2B4A;margin:36px 0 14px;padding-bottom:7px;border-bottom:2px solid #1A2B4A}
+.kinga-report .section-heading{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#1A2B4A;margin:36px 0 14px;padding-bottom:7px;border-bottom:2px solid #1A2B4A}
 .kinga-report .sub-heading{font-size:14px;font-weight:700;color:#111;margin:16px 0 10px}
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px}
 .kinga-report .data-table td,.kinga-report .data-table th{padding:7px 12px;font-size:12px !important;border-bottom:1px solid #eee;vertical-align:top}
@@ -7060,8 +7150,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
             <><span style={{ fontWeight: 800, color: '#1A2B4A', fontFamily: 'Inter,sans-serif', letterSpacing: '0.04em' }}>{(enforcement as any).kingaRef}-FR</span> &nbsp;|&nbsp;</>
           )}
           Claim: {claim?.claimNumber ?? claim?.claimReference ?? '—'} &nbsp;|&nbsp;
-          Run: {(aiAssessment as any)?._forensicAnalysis?.pipelineSummary?.runId ?? 'RUN-' + (aiAssessment?.id ?? '?')} &nbsp;|&nbsp;
-          Hash: #{((aiAssessment?.id ?? 0) * 31337).toString(16).toUpperCase().slice(0, 8)}
+          Hash: <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace" }}>#{((aiAssessment?.id ?? 0) * 31337).toString(16).toUpperCase().slice(0, 8)}</span>
         </span>
         <span className="brand" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <img
@@ -7283,28 +7372,43 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
         styleMode="forensic"
       />
 
-      {/* ── KINGA Engine Block — always at the bottom of the report body ── */}
-      <div style={{ background: '#ffffff', borderTop: '1px solid #ddd', padding: '14px 0 10px', textAlign: 'center', marginTop: 28, marginBottom: 8 }}>
-        <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#111', margin: 0 }}>KINGA</p>
-        <p style={{ fontSize: 10, color: '#555', marginTop: 3, marginBottom: 0 }}>
-          Engine v{aiAssessment?.engineVersion ?? '4.2'} &nbsp;·&nbsp; Report #{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8, '0').toUpperCase().slice(0, 8)} &nbsp;·&nbsp; {new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-        </p>
-        <p style={{ fontSize: 9, color: '#888', marginTop: 5, marginBottom: 0, lineHeight: 1.5 }}>
-          This report is generated by KINGA and is intended to assist human adjusters. All decisions require human review and authorisation. KINGA does not constitute legal advice.
-        </p>
-      </div>
-
-      <div className="conf-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <span>
-          KINGA — Forensic Claim Decision Report — CONFIDENTIAL — For authorised insurer use only.
-          This report is generated by KINGA and must be reviewed by a qualified human adjuster before any claim decision is finalised.
-        </span>
-        <img
-          src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png"
-          alt="KINGA"
-          style={{ height: 24, width: 24, objectFit: 'contain', flexShrink: 0, opacity: 0.7 }}
-        />
-      </div>
+      {/* ── KINGA Persistent Footer — always at the bottom of the report body ── */}
+      {(() => {
+        const footerDecision = (() => {
+          const _fb = aiAssessment?.fraudScoreBreakdownJson
+            ? (typeof aiAssessment.fraudScoreBreakdownJson === 'string'
+                ? (() => { try { return JSON.parse(aiAssessment.fraudScoreBreakdownJson); } catch { return null; } })()
+                : aiAssessment.fraudScoreBreakdownJson)
+            : null;
+          const _fs = _fb?.overallScore ?? (aiAssessment as any)?.fraudScore ?? (enforcement as any)?.weightedFraud?.score ?? 0;
+          return Number(_fs) >= 70 ? 'DECLINE' : Number(_fs) >= 40 ? 'REVIEW REQUIRED' : 'APPROVED';
+        })();
+        const footerColor = footerDecision === 'DECLINE' ? '#c00' : footerDecision === 'REVIEW REQUIRED' ? '#c8a000' : '#2e7d32';
+        return (
+          <div style={{ background: '#fff', borderTop: '2px solid #1A2B4A', marginTop: 28, marginBottom: 0 }}>
+            {/* Decision strip */}
+            <div style={{ background: '#1A2B4A', padding: '8px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style={{ height: 20, width: 20, objectFit: 'contain', opacity: 0.9 }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: '0.08em' }}>KINGA</span>
+                <span style={{ fontSize: 10, color: '#94a3b8' }}>Forensic Claim Decision Report</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <span style={{ fontSize: 10, color: '#94a3b8' }}>Claim: {claim?.claimNumber ?? claim?.claimReference ?? '—'}</span>
+                <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 10, color: '#94a3b8' }}>#{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8, '0').toUpperCase().slice(0, 8)}</span>
+                <span style={{ fontSize: 10, color: '#94a3b8' }}>{new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: footerColor, border: `1px solid ${footerColor}`, padding: '1px 8px', letterSpacing: '0.06em' }}>{footerDecision}</span>
+              </div>
+            </div>
+            {/* Disclaimer */}
+            <div style={{ padding: '8px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 9, color: '#888', lineHeight: 1.5 }}>
+                CONFIDENTIAL — For authorised insurer use only. This report is generated by KINGA Engine v{aiAssessment?.engineVersion ?? '4.2'} and must be reviewed by a qualified human adjuster before any claim decision is finalised. KINGA does not constitute legal advice.
+              </span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
