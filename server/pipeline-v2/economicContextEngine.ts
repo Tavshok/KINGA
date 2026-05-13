@@ -133,6 +133,8 @@ const DEFAULT_EXCHANGE_RATES: Record<string, number> = {
   USD: 1.0,
   ZAR: 18.5,
   ZWG: 25.0,   // Zimbabwe Gold (ZiG) — approximate
+  ZWL: 361.0,  // Zimbabwe Dollar (legacy ZWL/RTGS) — ~361 ZWL per USD (2024 rate)
+  ZWD: 361.0,  // Zimbabwe Dollar alias (ZWD sometimes used in older documents)
   ZMW: 26.5,   // Zambian Kwacha
   MZN: 63.8,   // Mozambican Metical
   BWP: 13.6,   // Botswana Pula

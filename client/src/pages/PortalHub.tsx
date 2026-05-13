@@ -106,7 +106,6 @@ export default function PortalHub() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <KingaLogo />
-              <p className="text-sm text-muted-foreground">Portal Hub</p>
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle />
@@ -128,18 +127,12 @@ export default function PortalHub() {
         <div className="max-w-6xl mx-auto">
           {/* Welcome Section with gradient */}
           <div className="text-center mb-12">
-            <div className="inline-block mb-4 px-6 py-2 rounded-full bg-primary/10 border border-primary/20">
-              <p className="text-sm font-medium text-primary">Welcome to KINGA</p>
-            </div>
-            <h2 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-4">
+            <h2 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-6">
               Welcome back, {user?.name}!
             </h2>
-            {/* KINGA Logo — brand anchor beneath the welcome heading */}
-            <div className="flex justify-center mb-5">
-              <div className="flex flex-col items-center gap-2">
-                <KingaLogo size="lg" showText={true} />
-                <p className="text-xs font-medium tracking-widest uppercase" style={{ color: 'var(--muted-foreground)', letterSpacing: '0.2em' }}>KINGA AI Platform</p>
-              </div>
+            {/* KINGA Logo — scaled up 3x as the sole brand anchor */}
+            <div className="flex justify-center mb-6">
+              <KingaLogo size="xl" showText={true} className="my-8" />
             </div>
             <p className="text-lg text-secondary/70 mb-4">
               Select a portal to continue your work

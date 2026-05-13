@@ -12157,3 +12157,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Restored broken .toISOString().slice(0,19).replace() chains in cross-claim-intelligence.ts, persistExtractedQuote.ts, quote-ai-optimisation.ts, fleet-accounts.ts, vehicle-registry.ts, vehicle-damage-history.ts
 - [x] onStageStart callback now logs errors instead of silently swallowing them
 - [x] All 56 tests passing after fix
+
+## Portal Hub & Currency Fix (2026-05-13)
+- [ ] Portal Hub: remove "Welcome to KINGA", "KINGA AI PLATFORM" tagline, "KINGA" text next to logo — show only scaled-up logo (3x) centred
+- [ ] Portal Hub header: remove "KINGA Portal Hub" text, keep only logo icon
+- [ ] Currency bug: ZWL claim amounts flagged as overpriced because compared against USD benchmarks — fix currency-aware cost validation
+
+## Portal Hub & Currency Fix (2026-05-13)
+- [x] Portal Hub: remove "Welcome to KINGA" pill, "KINGA AI Platform" tagline, "Portal Hub" header text
+- [x] Portal Hub: show only xl KINGA logo (160px shield + 7xl KINGA text) centred beneath welcome
+- [x] KingaLogo component: add xl size (h-40 w-40 shield, text-7xl KINGA wordmark)
+- [x] ZWL exchange rate: add ZWL=361 and ZWD=361 to DEFAULT_EXCHANGE_RATES in economicContextEngine.ts
+- [x] ZWL fix: legacy Zimbabwe Dollar claims no longer compared 1:1 against USD benchmarks

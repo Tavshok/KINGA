@@ -7,7 +7,7 @@
 
 interface KingaLogoProps {
   showText?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }
 
@@ -16,12 +16,14 @@ export default function KingaLogo({ showText = true, size = "md", className = ""
     sm: "h-10 w-10",
     md: "h-14 w-14",
     lg: "h-20 w-20",
+    xl: "h-40 w-40",
   };
 
   const textSizeClasses = {
     sm: "text-xl",
     md: "text-2xl",
     lg: "text-4xl",
+    xl: "text-7xl",
   };
 
   return (
