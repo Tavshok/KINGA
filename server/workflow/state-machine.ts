@@ -286,7 +286,7 @@ export class WorkflowStateMachine {
       await dbInstance.update(claims)
         .set({
           workflowState: to,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(claims.id, claimId));
 

@@ -2748,7 +2748,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
               documentProcessingStatus: "parsing",
               aiAssessmentStartedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
               aiAssessmentCompletedAt: null,
-              updatedAt: new Date().toISOString(),
+              updatedAt: new Date(),
             }).where(eq(claims.id, input.claimId));
           }
         } catch (preflightErr) {
@@ -2837,7 +2837,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                   status: "intake_pending",
                   workflowState: "intake_queue",
                   aiAssessmentTriggered: 0,
-                  updatedAt: new Date().toISOString(),
+                  updatedAt: new Date(),
                 }).where(eq(claims.id, input.claimId));
                 console.log(`[AI] Claim ${input.claimId} marked as failed. Error: ${errMsg.slice(0, 200)}`);
               }
@@ -2893,7 +2893,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           workflowState: "intake_queue",  // Reset workflow state so re-run can transition cleanly
           documentProcessingStatus: "failed",
           aiAssessmentTriggered: 0,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         }).where(eq(claims.id, input.claimId));
 
         await createAuditEntry({
@@ -7420,7 +7420,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
           emergencyContactPhone: input.emergencyContactPhone || null,
           status: "active",
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         }).$returningId();
         return { success: true, driverId: (result as any).id };
       }),

@@ -529,7 +529,7 @@ export async function assignClaimToAssessor(claimId: number, assessorId: number)
   await db.update(claims).set({ 
     assignedAssessorId: assessorId,
     status: "assessment_pending",
-    updatedAt: new Date().toISOString() 
+    updatedAt: new Date() 
   }).where(eq(claims.id, claimId));
 }
 
@@ -539,7 +539,7 @@ export async function updateClaimPolicyVerification(claimId: number, verified: b
 
   await db.update(claims).set({ 
     policyVerified: verified ? 1 : 0,
-    updatedAt: new Date().toISOString() 
+    updatedAt: new Date() 
   }).where(eq(claims.id, claimId));
 }
 
@@ -608,7 +608,7 @@ export async function triggerAiAssessment(claimId: number) {
     aiAssessmentTriggered: 1,
     aiAssessmentCompleted: 0,
     documentProcessingStatus: "parsing",
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date(),
   }).where(eq(claims.id, claimId));
   console.log(`[KINGA Assessment] Claim ${claimId} — Pipeline v2 starting (clean slate).`);
 
@@ -636,7 +636,7 @@ export async function triggerAiAssessment(claimId: number) {
             aiAssessmentTriggered: 0,
             documentProcessingStatus: 'failed',
             pipelineCurrentStage: null,
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date(),
           }).where(eq(claims.id, claimId));
         }
       } catch (wdErr: any) {
@@ -762,7 +762,7 @@ export async function triggerAiAssessment(claimId: number) {
         if (damagePhotos.length > 0) {
           await db.update(claims).set({
             damagePhotos: JSON.stringify(damagePhotos),
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date(),
           }).where(eq(claims.id, claimId)).catch(() => {});
         }
       } else {
@@ -864,7 +864,7 @@ export async function triggerAiAssessment(claimId: number) {
       aiAssessmentCompleted: 1,
       status: "assessment_complete",
       documentProcessingStatus: "extracted",
-      updatedAt: new Date().toISOString() 
+      updatedAt: new Date() 
     }).where(eq(claims.id, claimId));
     return { success: true, message: "Placeholder assessment created. Please upload damage photos or documents for full analysis." };
   }
@@ -913,10 +913,12 @@ export async function triggerAiAssessment(claimId: number) {
         if (dbInst) {
           await dbInst.update(claims).set({
             pipelineCurrentStage: stageLabel,
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date(),
           }).where(eq(claims.id, claimId));
         }
-      } catch (_e) { /* non-fatal */ }
+      } catch (stageErr: any) {
+        console.warn(`[KINGA Assessment] Claim ${claimId}: onStageStart DB write failed (non-fatal): ${stageErr?.message ?? stageErr}`);
+      }
     },
   };
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
@@ -1608,7 +1610,7 @@ export async function triggerAiAssessment(claimId: number) {
     fraudFlags: fraudIndicatorsJson,
     estimatedCost: safeInt(estimatedCost) ?? 0,
     aiAssessmentCompletedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date(),
     pipelineCurrentStage: null, // Clear stage label once assessment is complete
   };
   // Helper: safely truncate a string to a max byte length to avoid MySQL varchar truncation errors
@@ -1725,7 +1727,7 @@ export async function triggerAiAssessment(claimId: number) {
         status: "assessment_complete",
         documentProcessingStatus: "extracted",
         pipelineCurrentStage: null,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       }).where(eq(claims.id, claimId));
       console.log(`[KINGA Assessment] Claim ${claimId}: Minimal fallback claim update succeeded.`);
     } catch (fallbackErr: any) {
@@ -1855,7 +1857,7 @@ export async function triggerAiAssessment(claimId: number) {
             documentProcessingStatus: "failed",
             status: "intake_pending",
             workflowState: "intake_queue",  // Reset workflow state so re-run can transition cleanly
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date(),
           }).where(eq(claims.id, claimId));
           console.log(`[KINGA Assessment] Claim ${claimId} marked as failed after AI error. workflowState reset to intake_queue.`);
         }
@@ -1884,7 +1886,7 @@ export async function triggerAiAssessment(claimId: number) {
               status: "intake_pending",
               workflowState: "intake_queue",
               aiAssessmentTriggered: 0,
-              updatedAt: new Date().toISOString(),
+              updatedAt: new Date(),
             }).where(eq(claims.id, claimId));
           }
         }
@@ -1908,7 +1910,7 @@ export async function createAiAssessment(data: InsertAiAssessment) {
   // Mark claim as KINGA assessment completed
   await db.update(claims).set({ 
     aiAssessmentCompleted: 1,
-    updatedAt: new Date().toISOString() 
+    updatedAt: new Date() 
   }).where(eq(claims.id, data.claimId));
   
   return result;
@@ -1989,7 +1991,7 @@ export async function updateAssessorEvaluation(id: number, data: Partial<InsertA
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(assessorEvaluations).set({ ...data, updatedAt: new Date().toISOString() }).where(eq(assessorEvaluations.id, id));
+  await db.update(assessorEvaluations).set({ ...data, updatedAt: new Date() }).where(eq(assessorEvaluations.id, id));
 }
 
 // ============================================================================
@@ -2032,7 +2034,7 @@ export async function updateQuote(id: number, data: Partial<InsertPanelBeaterQuo
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(panelBeaterQuotes).set({ ...data, updatedAt: new Date().toISOString() }).where(eq(panelBeaterQuotes.id, id));
+  await db.update(panelBeaterQuotes).set({ ...data, updatedAt: new Date() }).where(eq(panelBeaterQuotes.id, id));
 }
 
 export async function getQuotesByPanelBeater(panelBeaterId: number, tenantId?: string) {
@@ -2082,7 +2084,7 @@ export async function updateAppointmentStatus(id: number, status: typeof appoint
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(appointments).set({ status, updatedAt: new Date().toISOString() }).where(eq(appointments.id, id));
+  await db.update(appointments).set({ status, updatedAt: new Date() }).where(eq(appointments.id, id));
 }
 
 // ============================================================================

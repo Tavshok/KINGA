@@ -86,7 +86,7 @@ export class ExecutiveOversight {
     await db.update(claims)
       .set({
         workflowState: targetState,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(claims.id, claimId));
 

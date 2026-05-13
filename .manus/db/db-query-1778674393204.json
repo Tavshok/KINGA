@@ -1,0 +1,17 @@
+{
+  "query": "SELECT c.id, c.source_document_id, c.damage_photos, d.s3_url, d.original_filename FROM claims c LEFT JOIN ingestion_documents d ON d.id = c.source_document_id WHERE c.id = 6000001;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT c.id, c.source_document_id, c.damage_photos, d.s3_url, d.original_filename FROM claims c LEFT JOIN ingestion_documents d ON d.id = c.source_document_id WHERE c.id = 6000001;",
+  "rows": [
+    {
+      "id": "6000001",
+      "source_document_id": "2310001",
+      "damage_photos": "[\"https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/8OehcsAA/aJTjCAd3M1.png\",\"https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/8OehcsAA/nUq6Gn8u8d.png\",\"https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/8OehcsAA/F1dENFVnXp.png\",\"https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/8OehcsAA/9ZVCZVIdga.png\"]",
+      "s3_url": "https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/tenant-1771335377063/ingestion/06556db4-69b2-4cbd-bae8-0751a5ed533f/9e0d1812-3ccc-44d5-b4b4-e2c7e038feee-ARDA TOYOTA FORTUNER AFS 5350 ASSESSMENT REPORT.pdf",
+      "original_filename": "ARDA TOYOTA FORTUNER AFS 5350 ASSESSMENT REPORT.pdf"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tsource_document_id\tdamage_photos\ts3_url\toriginal_filename\n6000001\t2310001\t[\"https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/8OehcsAA/aJTjCAd3M1.png\",\"https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/8OehcsAA/nUq6Gn8u8d.png\",\"https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/8OehcsAA/F1dENFVnXp.png\",\"https://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/extracted-images/8OehcsAA/9ZVCZVIdga.png\"]\thttps://d2xsxph8kpxj0f.cloudfront.net/310419663031527958/YbS42LwGroxbVepAMjk4bS/tenant-1771335377063/ingestion/06556db4-69b2-4cbd-bae8-0751a5ed533f/9e0d1812-3ccc-44d5-b4b4-e2c7e038feee-ARDA TOYOTA FORTUNER AFS 5350 ASSESSMENT REPORT.pdf\tARDA TOYOTA FORTUNER AFS 5350 ASSESSMENT REPORT.pdf\n",
+  "stderr": "",
+  "execution_time_ms": 598
+}

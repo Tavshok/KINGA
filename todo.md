@@ -12149,3 +12149,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] sendFleetManagerSubmittedEmail added to safe-email.ts — fires on successful registration with company name, job title, 1-2 day review timeline
 - [x] registerAsFleetManager procedure calls sendFleetManagerSubmittedEmail non-blocking after notifyOwner
 - [x] "Fleet request pending" amber badge added to ClaimantDashboard header — visible only when fleetRegStatus.status === "pending", hidden once approved or not registered
+
+## Pipeline Reliability Fix (2026-05-13)
+- [x] Root cause analysis: updatedAt: new Date().toISOString() silently failing in MySQL (expects Date object not ISO string)
+- [x] Fixed all 25+ occurrences of updatedAt: new Date().toISOString() → updatedAt: new Date() in server/db.ts and all server files
+- [x] Fixed 4 occurrences in server/routers.ts
+- [x] Restored broken .toISOString().slice(0,19).replace() chains in cross-claim-intelligence.ts, persistExtractedQuote.ts, quote-ai-optimisation.ts, fleet-accounts.ts, vehicle-registry.ts, vehicle-damage-history.ts
+- [x] onStageStart callback now logs errors instead of silently swallowing them
+- [x] All 56 tests passing after fix

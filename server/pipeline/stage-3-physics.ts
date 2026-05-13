@@ -118,7 +118,7 @@ export async function runPhysicsStage(
         .update(aiAssessments)
         .set({
           physicsAnalysis: JSON.stringify(result),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(aiAssessments.claimId, ctx.claimId));
 

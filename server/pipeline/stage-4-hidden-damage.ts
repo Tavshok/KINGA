@@ -69,7 +69,7 @@ export async function runHiddenDamageStage(
         .update(aiAssessments)
         .set({
           inferredHiddenDamagesJson: JSON.stringify(damages),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(aiAssessments.claimId, ctx.claimId));
 

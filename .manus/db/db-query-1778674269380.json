@@ -1,0 +1,16 @@
+{
+  "query": "SELECT NOW() as db_now, UTC_TIMESTAMP() as db_utc, '2026-05-13 12:02:41' as claim_started_at, TIMESTAMPDIFF(MINUTE, '2026-05-13 12:02:41', NOW()) as minutes_since_start;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT NOW() as db_now, UTC_TIMESTAMP() as db_utc, '2026-05-13 12:02:41' as claim_started_at, TIMESTAMPDIFF(MINUTE, '2026-05-13 12:02:41', NOW()) as minutes_since_start;",
+  "rows": [
+    {
+      "db_now": "2026-05-13 12:11:09",
+      "db_utc": "2026-05-13 12:11:09",
+      "claim_started_at": "2026-05-13 12:02:41",
+      "minutes_since_start": "8"
+    }
+  ],
+  "messages": [],
+  "stdout": "db_now\tdb_utc\tclaim_started_at\tminutes_since_start\n2026-05-13 12:11:09\t2026-05-13 12:11:09\t2026-05-13 12:02:41\t8\n",
+  "stderr": "",
+  "execution_time_ms": 571
+}

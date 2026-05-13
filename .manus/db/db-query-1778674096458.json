@@ -1,0 +1,9 @@
+{
+  "query": "SELECT id, claim_reference, status, document_processing_status, ai_assessment_triggered, ai_assessment_completed, updated_at, ai_assessment_started_at FROM claims WHERE claim_reference LIKE '%33DAE618%' OR claim_reference LIKE '%DOC-20260513%' ORDER BY created_at DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_reference, status, document_processing_status, ai_assessment_triggered, ai_assessment_completed, updated_at, ai_assessment_started_at FROM claims WHERE claim_reference LIKE '%33DAE618%' OR claim_reference LIKE '%DOC-20260513%' ORDER BY created_at DESC LIMIT 10;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 587
+}

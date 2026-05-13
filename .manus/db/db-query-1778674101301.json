@@ -1,0 +1,190 @@
+{
+  "query": "SELECT id, claim_reference, status, document_processing_status, ai_assessment_triggered, ai_assessment_completed, updated_at FROM claims ORDER BY created_at DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_reference, status, document_processing_status, ai_assessment_triggered, ai_assessment_completed, updated_at FROM claims ORDER BY created_at DESC LIMIT 20;",
+  "rows": [
+    {
+      "id": "6000001",
+      "claim_reference": "NULL",
+      "status": "assessment_in_progress",
+      "document_processing_status": "parsing",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "0",
+      "updated_at": "2026-05-13 12:02:42"
+    },
+    {
+      "id": "5970001",
+      "claim_reference": "ASSESSOR",
+      "status": "assessment_complete",
+      "document_processing_status": "extracted",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 08:39:49"
+    },
+    {
+      "id": "5940184",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:40"
+    },
+    {
+      "id": "5940183",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940182",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940181",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940180",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940179",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940178",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940177",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940176",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940175",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940174",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940173",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:39"
+    },
+    {
+      "id": "5940172",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:38"
+    },
+    {
+      "id": "5940171",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:38"
+    },
+    {
+      "id": "5940158",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:43:38"
+    },
+    {
+      "id": "5940143",
+      "claim_reference": "NULL",
+      "status": "assessment_complete",
+      "document_processing_status": "failed",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 10:33:41"
+    },
+    {
+      "id": "5940142",
+      "claim_reference": "NULL",
+      "status": "assessment_pending",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "updated_at": "2026-05-13 04:25:33"
+    },
+    {
+      "id": "5940141",
+      "claim_reference": "NULL",
+      "status": "assessment_pending",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "updated_at": "2026-05-13 04:25:32"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_reference\tstatus\tdocument_processing_status\tai_assessment_triggered\tai_assessment_completed\tupdated_at\n6000001\tNULL\tassessment_in_progress\tparsing\t1\t0\t2026-05-13 12:02:42\n5970001\tASSESSOR\tassessment_complete\textracted\t1\t1\t2026-05-13 08:39:49\n5940184\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:40\n5940183\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940182\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940181\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940180\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940179\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940178\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940177\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940176\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940175\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940174\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940173\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:39\n5940172\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:38\n5940171\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:38\n5940158\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:43:38\n5940143\tNULL\tassessment_complete\tfailed\t0\t1\t2026-05-13 10:33:41\n5940142\tNULL\tassessment_pending\tpending\t0\t0\t2026-05-13 04:25:33\n5940141\tNULL\tassessment_pending\tpending\t0\t0\t2026-05-13 04:25:32\n",
+  "stderr": "",
+  "execution_time_ms": 570
+}
