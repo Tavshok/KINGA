@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   FileText, Clock, CheckCircle, Plus, ChevronRight, AlertCircle,
   Car, MapPin, Calendar, RefreshCw, Shield, FileCheck, Banknote,
-  Wrench, Eye, ArrowRight, Search, X
+  Wrench, Eye, ArrowRight, Search, X, Building2, ChevronDown
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
@@ -119,6 +119,14 @@ export default function ClaimantDashboard() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [expandedClaim, setExpandedClaim] = useState<number | null>(null);
+  const [fleetBannerOpen, setFleetBannerOpen] = useState(false);
+
+  // Check if user already has a fleet registration — hides the banner once registered
+  const { data: fleetRegStatus } = trpc.fleetAccounts.getMyRegistrationStatus.useQuery(
+    undefined,
+    { retry: false }
+  );
+  const showFleetBanner = !fleetRegStatus || fleetRegStatus.status === null;
 
   // Real data
   const { data: myClaims = [], isLoading, refetch } = trpc.claims.myClaims.useQuery();
@@ -559,6 +567,52 @@ export default function ClaimantDashboard() {
             </CardContent>
           </Card>
         </div>
+        {/* Fleet Manager CTA — collapsible, hidden once user is already registered */}
+        {showFleetBanner && (
+          <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setFleetBannerOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Building2 className="h-4 w-4 text-gray-400 shrink-0" />
+                <span className="text-sm text-gray-500 truncate">
+                  Managing vehicles for a company?{" "}
+                  <span className="text-emerald-700 font-medium">Register as a Fleet Manager</span>
+                  {" "}to view all company claims in one place.
+                </span>
+              </div>
+              <ChevronDown
+                className={`h-4 w-4 text-gray-400 shrink-0 ml-2 transition-transform duration-200 ${
+                  fleetBannerOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {fleetBannerOpen && (
+              <div className="px-4 pb-4 pt-3 border-t border-gray-100 bg-gray-50">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-800">Fleet Manager Access</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Once approved by a claims manager, you can track all vehicles under your company,
+                      view risk analytics, and manage claims across your entire fleet — without chasing
+                      individual employees for updates.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 shrink-0"
+                    onClick={() => setLocation("/claimant/fleet-register")}
+                  >
+                    <Building2 className="h-3.5 w-3.5 mr-1.5" />
+                    Apply Now
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

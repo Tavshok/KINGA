@@ -12136,3 +12136,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Replace "AI-Powered OCR" → "KINGA OCR" in HistoricalClaimsPipeline
 - [x] Replace "KINGA AutoVerify AI" → "KINGA" in vehicle-structural-intelligence.ts LLM prompt
 - [x] Replace "AI Processing" → "KINGA Processing" in server/routers/reporting.ts status label
+
+## Claimant Fleet CTA & Final Brand Sweep (2026-05-13)
+- [x] Browser title confirmed as "KINGA" — no change needed
+- [x] Final AI-label sweep: zero remaining user-facing "AutoVerify" or "AI *" labels in client/src
+- [x] Collapsible fleet manager CTA banner added to ClaimantDashboard (bottom of page, collapsed by default)
+- [x] Banner queries getMyRegistrationStatus — auto-hides once user is pending/approved fleet manager
+- [x] Banner expands to show Fleet Manager Access description + "Apply Now" → /claimant/fleet-register
+- [x] Fleet registration notification confirmed wired: notifyOwner() fires on registerAsFleetManager with company, role, phone, reg and link to Claims Manager → Fleet Approvals tab
