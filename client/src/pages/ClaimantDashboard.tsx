@@ -182,6 +182,12 @@ export default function ClaimantDashboard() {
           <div className="flex items-center gap-3">
             <RoleSwitcher />
             <NotificationBell />
+            {fleetRegStatus?.status === "pending" && (
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                <Building2 className="h-3 w-3" />
+                Fleet request pending
+              </span>
+            )}
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium text-gray-900">{user?.name}</p>
               <p className="text-xs text-gray-500">Claimant</p>

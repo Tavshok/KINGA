@@ -15,7 +15,7 @@ import { getDb } from "../db";
 import { fleetAccounts, claims, users, fleetManagerRequests } from "../../drizzle/schema";
 import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
 import { notifyOwner } from "../_core/notification";
-import { sendFleetManagerApprovedEmail, sendFleetManagerRejectedEmail } from "../safe-email";
+import { sendFleetManagerApprovedEmail, sendFleetManagerRejectedEmail, sendFleetManagerSubmittedEmail } from "../safe-email";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -578,6 +578,19 @@ export const fleetAccountsRouter = router({
       } catch (notifyErr) {
         // Non-blocking — log but do not fail the registration
         console.warn("[FleetAccounts] notifyOwner failed (non-blocking):", notifyErr);
+      }
+      // Send confirmation email to the claimant — non-blocking
+      if (ctx.user.email) {
+        sendFleetManagerSubmittedEmail({
+          requestId,
+          recipientUserId: ctx.user.id,
+          recipientEmail: ctx.user.email,
+          recipientName: ctx.user.name ?? ctx.user.email,
+          companyName: normalised,
+          jobTitle: input.jobTitle ?? null,
+        }).catch((emailErr) =>
+          console.warn("[FleetAccounts] Confirmation email failed (non-blocking):", emailErr)
+        );
       }
       return {
         success: true,

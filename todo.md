@@ -12144,3 +12144,8 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Banner queries getMyRegistrationStatus — auto-hides once user is pending/approved fleet manager
 - [x] Banner expands to show Fleet Manager Access description + "Apply Now" → /claimant/fleet-register
 - [x] Fleet registration notification confirmed wired: notifyOwner() fires on registerAsFleetManager with company, role, phone, reg and link to Claims Manager → Fleet Approvals tab
+
+## Fleet Registration UX Polish (2026-05-13)
+- [x] sendFleetManagerSubmittedEmail added to safe-email.ts — fires on successful registration with company name, job title, 1-2 day review timeline
+- [x] registerAsFleetManager procedure calls sendFleetManagerSubmittedEmail non-blocking after notifyOwner
+- [x] "Fleet request pending" amber badge added to ClaimantDashboard header — visible only when fleetRegStatus.status === "pending", hidden once approved or not registered

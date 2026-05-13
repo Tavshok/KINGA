@@ -376,6 +376,39 @@ export async function sendFleetManagerApprovedEmail(opts: {
 }
 
 /**
+ * Notify a fleet manager applicant that their registration request was received and is under review.
+ */
+export async function sendFleetManagerSubmittedEmail(opts: {
+  requestId: number;
+  recipientUserId: number;
+  recipientEmail: string;
+  recipientName: string;
+  companyName: string;
+  jobTitle?: string | null;
+}): Promise<SendEmailResult> {
+  return sendEmailSafe({
+    eventType: "fleet_manager_submitted",
+    entityId: opts.requestId,
+    recipientUserId: opts.recipientUserId,
+    recipientEmail: opts.recipientEmail,
+    subject: `Fleet Manager Request Received — ${opts.companyName}`,
+    body: [
+      `Hello ${opts.recipientName},`,
+      ``,
+      `Thank you for submitting your fleet manager registration request for ${opts.companyName}${opts.jobTitle ? ` (${opts.jobTitle})` : ""}.`,
+      ``,
+      `Your request is now under review by a KINGA claims manager. You will receive a follow-up email once a decision has been made — this typically takes 1–2 business days.`,
+      ``,
+      `In the meantime, you can check the status of your request at any time by logging in to your KINGA account and visiting the Fleet Manager section.`,
+      ``,
+      `If you have any questions, please contact your insurer directly.`,
+      ``,
+      `KINGA Team`,
+    ].join("\n"),
+  });
+}
+
+/**
  * Notify a fleet manager applicant that their registration request was rejected.
  */
 export async function sendFleetManagerRejectedEmail(opts: {
