@@ -917,7 +917,7 @@ export default function ClaimsProcessorDashboard() {
           <Card className="bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-teal-700 dark:text-teal-300">{aiFlaggedClaims.length}</p>
-              <p className="text-xs text-teal-600 font-medium">AI Complete</p>
+              <p className="text-xs text-teal-600 font-medium">KINGA Complete</p>
             </CardContent>
           </Card>
           <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
@@ -979,7 +979,7 @@ export default function ClaimsProcessorDashboard() {
                 <div style={{ height: 220 }}>
                   <Bar
                     data={{
-                      labels: ['Pending', 'In Review', 'AI Complete', 'Completed'],
+                      labels: ['Pending', 'In Review', 'KINGA Complete', 'Completed'],
                       datasets: [{
                         label: 'Claims',
                         data: [pendingClaims.length, inReviewClaims.length, aiFlaggedClaims.length, completedClaims.length],
@@ -1006,7 +1006,7 @@ export default function ClaimsProcessorDashboard() {
               {inReviewClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold bg-blue-500 text-white">{inReviewClaims.length}</span>}
             </TabsTrigger>
             <TabsTrigger value="ai_complete" className="flex items-center gap-1.5">
-              AI Complete
+              KINGA Complete
               {aiFlaggedClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold bg-teal-500 text-white">{aiFlaggedClaims.length}</span>}
             </TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>

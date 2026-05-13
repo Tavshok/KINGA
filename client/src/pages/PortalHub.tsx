@@ -138,7 +138,7 @@ export default function PortalHub() {
             <div className="flex justify-center mb-5">
               <div className="flex flex-col items-center gap-2">
                 <KingaLogo size="lg" showText={true} />
-                <p className="text-xs font-medium tracking-widest uppercase" style={{ color: 'var(--muted-foreground)', letterSpacing: '0.2em' }}>AutoVerify AI Platform</p>
+                <p className="text-xs font-medium tracking-widest uppercase" style={{ color: 'var(--muted-foreground)', letterSpacing: '0.2em' }}>KINGA AI Platform</p>
               </div>
             </div>
             <p className="text-lg text-secondary/70 mb-4">

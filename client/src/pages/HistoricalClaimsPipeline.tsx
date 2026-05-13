@@ -410,7 +410,7 @@ function BulkUploadTab() {
                 <Brain className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">AI-Powered OCR</h3>
+                <h3 className="font-semibold text-sm">KINGA OCR</h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   Extracts printed and handwritten content, tables, and itemised costs using LLM vision
                 </p>

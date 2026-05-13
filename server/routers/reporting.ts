@@ -444,7 +444,7 @@ export const reportingRouter = router({
 
         if (!hasAssessment && processingStatuses.includes(claimStatus)) {
           state  = "ai_processing";
-          label  = "AI Processing";
+          label  = "KINGA Processing";
           colour = "blue";
         } else if (!hasAssessment) {
           state  = "not_submitted";

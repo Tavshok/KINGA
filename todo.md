@@ -12128,3 +12128,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 ## Presentation Polish (2026-05-13)
 - [x] Month vs Prior Month KPI comparison strip on Executive Dashboard Overview tab
 - [x] KINGA logo displayed beneath "Welcome" on the portal hub landing page
+
+## Brand Cleanup (2026-05-13)
+- [x] Remove "AutoVerify" from PortalHub tagline → "KINGA AI Platform"
+- [x] Replace "AI Complete" → "KINGA Complete" in FleetVehicleTrackingTab, FleetManagerDashboard, ClaimsProcessorDashboard (badge, chart label, tab trigger)
+- [x] Replace "AI Savings" → "KINGA Savings" in demoData.ts comparison strip
+- [x] Replace "AI-Powered OCR" → "KINGA OCR" in HistoricalClaimsPipeline
+- [x] Replace "KINGA AutoVerify AI" → "KINGA" in vehicle-structural-intelligence.ts LLM prompt
+- [x] Replace "AI Processing" → "KINGA Processing" in server/routers/reporting.ts status label

@@ -243,7 +243,7 @@ export const DEMO_MONTH_COMPARISON = [
     higherIsBetter: true,
   },
   {
-    label: "AI Savings",
+    label: "KINGA Savings",
     current: 214_800,
     prior: 178_400,
     unit: "R",

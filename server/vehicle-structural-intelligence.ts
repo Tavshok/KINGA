@@ -598,7 +598,7 @@ export async function buildVehicleStructuralProfile(params: {
         ? `NHTSA VIN decode: ${nhtsaDecode.make} ${nhtsaDecode.model} ${nhtsaDecode.modelYear}, Body: ${nhtsaDecode.bodyClass || "N/A"}, Drive: ${nhtsaDecode.driveType || "N/A"}, Fuel: ${nhtsaDecode.fuelTypePrimary || "N/A"}.`
         : "";
 
-      const prompt = `You are a forensic vehicle structural analyst for KINGA AutoVerify AI, specialising in the Southern African insurance market.
+      const prompt = `You are a forensic vehicle structural analyst for KINGA, specialising in the Southern African insurance market.
 
 Vehicle under assessment: ${resolvedMake} ${resolvedModel} (${resolvedYear || "year unknown"})${vin ? `, VIN: ${vin}` : ""}.
 
