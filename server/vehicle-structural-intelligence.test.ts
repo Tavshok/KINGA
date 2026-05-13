@@ -471,3 +471,164 @@ describe("Data integrity", () => {
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TIERED CONFIDENCE SYSTEM
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("getCRASH3Class — tiered confidence", () => {
+  it("returns confidenceTier 'verified' for a vehicle in the exact DB map (Toyota Hilux)", () => {
+    const result = getCRASH3Class("Toyota", "Hilux");
+    expect(result).not.toBeNull();
+    expect(result!.confidenceTier).toBe("verified");
+    expect(result!.inferenceReason).toBeUndefined();
+  });
+
+  it("returns confidenceTier 'verified' for a vehicle matched via partial key (Toyota Land Cruiser)", () => {
+    const result = getCRASH3Class("Toyota", "Land Cruiser");
+    expect(result).not.toBeNull();
+    expect(result!.confidenceTier).toBe("verified");
+  });
+
+  it("returns confidenceTier 'inferred' when NHTSA body class is provided for an unknown model", () => {
+    // "Toyota Probox" is not in the VEHICLE_CLASS_MAP; NHTSA body class "Pickup" should trigger inferred
+    const result = getCRASH3Class("Toyota", "Probox", "Pickup");
+    expect(result).not.toBeNull();
+    expect(result!.confidenceTier).toBe("inferred");
+    expect(result!.inferenceReason).toContain("NHTSA body class");
+    expect(result!.vehicleClass).toBe("Full-size SUV/Pickup");
+  });
+
+  it("returns confidenceTier 'inferred' via keyword inference when model name contains a known keyword", () => {
+    // "Acura MDX" is not in the DB but "mdx" doesn't match keywords; use "Acura Pickup" to trigger keyword
+    // Use a model name that contains a keyword pattern: "Double Cab" triggers bakkie/pickup inference
+    const result = getCRASH3Class("Acura", "Double Cab 2.5");
+    expect(result).not.toBeNull();
+    expect(result!.confidenceTier).toBe("inferred");
+    expect(result!.inferenceReason).toContain("bakkie/pickup");
+  });
+
+  it("returns confidenceTier 'inferred' via make-level fallback for a Toyota model not in the map", () => {
+    // "Toyota Probox" is not in VEHICLE_CLASS_MAP; no NHTSA body class; no keyword match
+    // Toyota has many entries in the map → make-level fallback should trigger
+    const result = getCRASH3Class("Toyota", "Probox");
+    expect(result).not.toBeNull();
+    expect(result!.confidenceTier).toBe("inferred");
+    expect(result!.inferenceReason).toContain("Toyota");
+    expect(result!.inferenceReason).toContain("Probox");
+  });
+
+  it("returns null (insufficient) for a completely unknown make with no keyword match", () => {
+    // "Zephyr Phantom" — unknown make, no keyword match, no make entries in DB
+    const result = getCRASH3Class("Zephyr", "Phantom");
+    expect(result).toBeNull();
+  });
+
+  it("returns confidenceTier 'inferred' via keyword inference for a Suzuki Jimny-like model name", () => {
+    // "Suzuki Jimny" is in the map as Compact/Sedan but let's test a model that matches keyword
+    // Use "Haval Jolion" — in map as Mid-size Sedan/SUV → verified
+    // Use "Haval H6" — not in map, but "Haval" has entries → make-level fallback
+    const result = getCRASH3Class("Haval", "H6");
+    expect(result).not.toBeNull();
+    expect(result!.confidenceTier).toBe("inferred");
+    expect(result!.inferenceReason).toContain("Haval");
+  });
+});
+
+describe("buildVehicleStructuralProfile — hasInferredData flag", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    // Mock fetch to avoid real NHTSA calls
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ Results: [{ Variable: "Error Code", Value: "0" }] }),
+    }));
+  });
+
+  it("sets hasInferredData = false for a fully verified vehicle (Toyota Hilux with ANCAP)", async () => {
+    const profile = await buildVehicleStructuralProfile({
+      make: "Toyota",
+      model: "Hilux",
+      year: 2021,
+      generateNarrative: false,
+    });
+    // Toyota Hilux has ANCAP rating (verified) and is in the CRASH3 map (verified)
+    expect(profile.ancapConfidenceTier).toBe("verified");
+    expect(profile.crash3Class!.confidenceTier).toBe("verified");
+    expect(profile.hasInferredData).toBe(false);
+  });
+
+  it("sets hasInferredData = true for a vehicle with no ANCAP/NCAP rating but known CRASH3 class", async () => {
+    // "Toyota Probox" — no ANCAP/NCAP rating, CRASH3 inferred from make-level fallback
+    const profile = await buildVehicleStructuralProfile({
+      make: "Toyota",
+      model: "Probox",
+      year: 2018,
+      generateNarrative: false,
+    });
+    expect(profile.hasInferredData).toBe(true);
+    expect(profile.ancapConfidenceTier).not.toBe("verified");
+  });
+
+  it("sets hasInferredData = true for a completely unknown vehicle", async () => {
+    const profile = await buildVehicleStructuralProfile({
+      make: "Unknown",
+      model: "Vehicle",
+      year: 2020,
+      generateNarrative: false,
+    });
+    expect(profile.hasInferredData).toBe(true);
+    expect(profile.ancapConfidenceTier).toBe("insufficient");
+    expect(profile.crash3Class).toBeNull();
+  });
+
+  it("returns ancapConfidenceTier 'verified' for a known ANCAP vehicle (Toyota Prado)", async () => {
+    const profile = await buildVehicleStructuralProfile({
+      make: "Toyota",
+      model: "Prado",
+      year: 2024,
+      generateNarrative: false,
+    });
+    expect(profile.ancapConfidenceTier).toBe("verified");
+    expect(profile.ancapRating).not.toBeNull();
+    expect(profile.ancapRating!.stars).toBe(5);
+  });
+
+  it("returns ancapConfidenceTier 'insufficient' for a vehicle with no test data at all", async () => {
+    const profile = await buildVehicleStructuralProfile({
+      make: "Zephyr",
+      model: "Phantom",
+      year: 2020,
+      generateNarrative: false,
+    });
+    expect(profile.ancapConfidenceTier).toBe("insufficient");
+    expect(profile.ancapRating).toBeNull();
+    expect(profile.globalNcapAfrica).toBeNull();
+    expect(profile.safetyRiskLevel).toBe("unknown");
+  });
+
+  it("sets compatibilityRisk when counterpart vehicle is provided", async () => {
+    const profile = await buildVehicleStructuralProfile({
+      make: "Toyota",
+      model: "Land Cruiser",
+      year: 2022,
+      counterpartMake: "Volkswagen",
+      counterpartModel: "Polo Vivo",
+      counterpartYear: 2020,
+      generateNarrative: false,
+    });
+    expect(profile.compatibilityRisk).not.toBe("unknown");
+    expect(["low", "medium", "high"]).toContain(profile.compatibilityRisk);
+  });
+
+  it("sets safetyRiskLevel to a known value for a verified vehicle", async () => {
+    const profile = await buildVehicleStructuralProfile({
+      make: "Ford",
+      model: "Ranger",
+      year: 2022,
+      generateNarrative: false,
+    });
+    expect(profile.safetyRiskLevel).not.toBe("unknown");
+    expect(["low", "medium", "high"]).toContain(profile.safetyRiskLevel);
+  });
+});

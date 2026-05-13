@@ -179,6 +179,12 @@ export interface NarrativeEngineInput {
   collision_scenario?: string | null;
   /** Whether the claimant is the struck party (not at fault) */
   is_struck_party?: boolean;
+  /**
+   * Vehicle structural intelligence context (CRASH3 stiffness + ANCAP ratings).
+   * Pre-formatted multi-line string injected from buildVehicleStructuralProfile.
+   * null when no vehicle data is available at all.
+   */
+  structural_context?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -252,6 +258,9 @@ async function runLLMReasoningPass(
   const crushContext = input.crush_depth_m != null
     ? `Crush depth: ${input.crush_depth_m}m. Structural damage: ${input.structural_damage}. Airbag deployment: ${input.airbag_deployment}.`
     : `Structural damage: ${input.structural_damage}. Airbag deployment: ${input.airbag_deployment}.`;
+  const structuralIntelContext = input.structural_context
+    ? `VEHICLE STRUCTURAL INTELLIGENCE (CRASH3/ANCAP):\n${input.structural_context}`
+    : "";
 
   // Build stakeholder context block
   const policeChargeContext = input.police_charged_party
@@ -291,7 +300,7 @@ Incident type: ${input.incident_type}
 Claimed speed: ${input.claimed_speed_kmh != null ? `${input.claimed_speed_kmh} km/h` : "not stated"}
 ${physicsContext}
 ${crushContext}
-${damageContext}
+${structuralIntelContext ? structuralIntelContext + '\n' : ''}${damageContext}
 ${visionContext}
 
 RAW INCIDENT DESCRIPTION (from claim form)

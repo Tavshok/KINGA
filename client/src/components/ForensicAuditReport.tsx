@@ -2891,11 +2891,304 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
           <Section28SeverityConsensus severityConsensus={(_phys as any)?.severityConsensus ?? null} />
           {/* 2.9 Damage Pattern Validation */}
           <Section29DamagePatternValidation damagePatternValidation={(_phys as any)?.damagePatternValidation ?? null} />
+          {/* 2.10 Vehicle Structural Intelligence */}
+          <Section210VehicleStructural claim={claim} />
         </div>
       </div>
     </div>
   );
 }
+// ─── Section 2.10: Vehicle Structural Intelligence ────────────────────────────
+// Renders a compact, print-safe structural intelligence block for the forensic
+// audit report. Uses the same tRPC procedure as the panel but renders in a
+// report-native style (no tabs, no interactive elements).
+// Confidence tiers are shown inline as text labels, not colour badges.
+// Only renders if vehicleMake and vehicleModel are present on the claim.
+function Section210VehicleStructural({ claim }: { claim: any }) {
+  const make = claim?.vehicleMake;
+  const model = claim?.vehicleModel;
+  const year = claim?.vehicleYear;
+  const claimId = claim?.id;
+
+  const { data, isLoading } = trpc.vehicleStructural.getClaimProfile.useQuery(
+    { claimId: claimId!, generateNarrative: true },
+    { enabled: !!claimId && !!make && !!model, staleTime: 10 * 60 * 1000 }
+  );
+
+  // Do not render section at all if no vehicle data on claim
+  if (!make || !model) return null;
+
+  const insured = data?.insuredVehicle;
+  const thirdParty = data?.thirdPartyVehicle;
+
+  const confLabel = (tier?: string) => {
+    if (tier === 'verified') return 'Verified';
+    if (tier === 'inferred') return 'Estimated — class-based';
+    return 'No data';
+  };
+
+  const riskLabel = (r?: string) => {
+    if (r === 'low') return 'Low';
+    if (r === 'medium') return 'Medium';
+    if (r === 'high') return 'High';
+    return 'Undetermined';
+  };
+
+  return (
+    <div style={{ marginTop: '24px', pageBreakInside: 'avoid' }}>
+      {/* Section header — matches existing 2.x sub-section style */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '8px',
+        borderBottom: '1px solid var(--border)', paddingBottom: '6px', marginBottom: '12px'
+      }}>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', letterSpacing: '0.05em' }}>
+          2.10
+        </span>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)' }}>
+          Vehicle Structural Intelligence
+        </span>
+        {insured?.hasInferredData && (
+          <span style={{
+            fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '4px',
+            background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)',
+            border: '1px solid var(--fp-warning-border)', marginLeft: 'auto'
+          }}>
+            Partial estimates
+          </span>
+        )}
+      </div>
+
+      {isLoading ? (
+        <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+          Loading structural intelligence data…
+        </p>
+      ) : !insured ? (
+        <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+          Structural intelligence analysis could not be completed. Ensure vehicle make, model, and year are recorded on the claim.
+        </p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          {/* Left column: insured vehicle */}
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '6px' }}>
+              Insured Vehicle: {insured.make} {insured.model}{insured.year ? ` (${insured.year})` : ''}
+            </p>
+            <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+              <tbody>
+                {insured.ancapRating && (
+                  <>
+                    <tr>
+                      <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px', width: '50%' }}>ANCAP Rating</td>
+                      <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                        {insured.ancapRating.stars}★ ({insured.ancapRating.testYear}, {insured.ancapRating.protocol})
+                        {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel('verified')}]</span>
+                      </td>
+                    </tr>
+                    {insured.ancapRating.adultOccupant > 0 && (
+                      <tr>
+                        <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Adult Occupant</td>
+                        <td style={{ fontWeight: 600, paddingBottom: '3px' }}>{insured.ancapRating.adultOccupant}%</td>
+                      </tr>
+                    )}
+                    {insured.ancapRating.childOccupant > 0 && (
+                      <tr>
+                        <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Child Occupant</td>
+                        <td style={{ fontWeight: 600, paddingBottom: '3px' }}>{insured.ancapRating.childOccupant}%</td>
+                      </tr>
+                    )}
+                  </>
+                )}
+                {!insured.ancapRating && insured.globalNcapAfrica && (
+                  <tr>
+                    <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Global NCAP Africa</td>
+                    <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                      {insured.globalNcapAfrica.adultStars}★ adult ({insured.globalNcapAfrica.testYear})
+                      {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel('verified')}]</span>
+                    </td>
+                  </tr>
+                )}
+                {!insured.ancapRating && !insured.globalNcapAfrica && (
+                  <tr>
+                    <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Safety Rating</td>
+                    <td style={{ fontWeight: 600, paddingBottom: '3px', color: 'var(--fp-warning-text)' }}>
+                      Not tested — risk {riskLabel(insured.safetyRiskLevel)}
+                      {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel(insured.ancapConfidenceTier)}]</span>
+                    </td>
+                  </tr>
+                )}
+                {insured.crash3Class && (
+                  <>
+                    <tr>
+                      <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Structural Class</td>
+                      <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                        {insured.crash3Class.vehicleClass}
+                        {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel(insured.crash3Class.confidenceTier)}]</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>CRASH3 A / B</td>
+                      <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                        {insured.crash3Class.A_kN_m} kN/m / {insured.crash3Class.B_kN_m2} kN/m²
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Typical Mass</td>
+                      <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                        {insured.crash3Class.typicalMassRange_kg[0]}–{insured.crash3Class.typicalMassRange_kg[1]} kg
+                      </td>
+                    </tr>
+                  </>
+                )}
+                {!insured.crash3Class && (
+                  <tr>
+                    <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>CRASH3 Class</td>
+                    <td style={{ fontWeight: 600, paddingBottom: '3px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+                      Undetermined — insufficient data
+                    </td>
+                  </tr>
+                )}
+                <tr>
+                  <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Safety Risk</td>
+                  <td style={{ fontWeight: 600, paddingBottom: '3px' }}>{riskLabel(insured.safetyRiskLevel)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Right column: third-party vehicle or compatibility */}
+          <div>
+            {thirdParty ? (
+              <>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '6px' }}>
+                  Third-Party Vehicle: {thirdParty.make} {thirdParty.model}{thirdParty.year ? ` (${thirdParty.year})` : ''}
+                </p>
+                <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                  <tbody>
+                    {thirdParty.ancapRating && (
+                      <tr>
+                        <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px', width: '50%' }}>ANCAP Rating</td>
+                        <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                          {thirdParty.ancapRating.stars}★ ({thirdParty.ancapRating.testYear})
+                          {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel('verified')}]</span>
+                        </td>
+                      </tr>
+                    )}
+                    {!thirdParty.ancapRating && thirdParty.globalNcapAfrica && (
+                      <tr>
+                        <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Global NCAP Africa</td>
+                        <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                          {thirdParty.globalNcapAfrica.adultStars}★ ({thirdParty.globalNcapAfrica.testYear})
+                          {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel('verified')}]</span>
+                        </td>
+                      </tr>
+                    )}
+                    {!thirdParty.ancapRating && !thirdParty.globalNcapAfrica && (
+                      <tr>
+                        <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Safety Rating</td>
+                        <td style={{ fontWeight: 600, paddingBottom: '3px', color: 'var(--fp-warning-text)' }}>
+                          Not tested — risk {riskLabel(thirdParty.safetyRiskLevel)}
+                          {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel(thirdParty.ancapConfidenceTier)}]</span>
+                        </td>
+                      </tr>
+                    )}
+                    {thirdParty.crash3Class && (
+                      <>
+                        <tr>
+                          <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Structural Class</td>
+                          <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                            {thirdParty.crash3Class.vehicleClass}
+                            {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel(thirdParty.crash3Class.confidenceTier)}]</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>CRASH3 A / B</td>
+                          <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                            {thirdParty.crash3Class.A_kN_m} kN/m / {thirdParty.crash3Class.B_kN_m2} kN/m²
+                          </td>
+                        </tr>
+                      </>
+                    )}
+                    <tr>
+                      <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Safety Risk</td>
+                      <td style={{ fontWeight: 600, paddingBottom: '3px' }}>{riskLabel(thirdParty.safetyRiskLevel)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                {/* Compatibility assessment */}
+                <div style={{
+                  marginTop: '8px', padding: '8px', borderRadius: '6px',
+                  background: insured.compatibilityRisk === 'high' ? 'var(--fp-critical-bg)' :
+                              insured.compatibilityRisk === 'medium' ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)',
+                  border: `1px solid ${insured.compatibilityRisk === 'high' ? 'var(--fp-critical-border)' :
+                           insured.compatibilityRisk === 'medium' ? 'var(--fp-warning-border)' : 'var(--fp-success-border)'}`,
+                }}>
+                  <p style={{ fontSize: '11px', fontWeight: 700, marginBottom: '3px',
+                    color: insured.compatibilityRisk === 'high' ? 'var(--fp-critical-text)' :
+                           insured.compatibilityRisk === 'medium' ? 'var(--fp-warning-text)' : 'var(--fp-success-text)' }}>
+                    Structural Compatibility: {riskLabel(insured.compatibilityRisk)} Risk
+                  </p>
+                  <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
+                    {insured.compatibilityRisk === 'high'
+                      ? 'Significant stiffness/mass mismatch. Disproportionate injury distribution likely. Critical factor in injury severity assessment.'
+                      : insured.compatibilityRisk === 'medium'
+                      ? 'Moderate structural mismatch. Heavier/stiffer vehicle may impose greater deceleration forces on lighter vehicle occupants.'
+                      : insured.compatibilityRisk === 'low'
+                      ? 'Vehicles are structurally compatible. Similar mass and stiffness characteristics reduce disproportionate injury risk.'
+                      : 'Insufficient data to assess structural compatibility.'}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '6px' }}>
+                  Structural Assessment Notes
+                </p>
+                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.6 }}>
+                  {insured.ancapInferenceReason || (
+                    insured.crash3Class?.inferenceReason
+                      ? `CRASH3 class inferred: ${insured.crash3Class.inferenceReason}`
+                      : 'No third-party vehicle data available for compatibility assessment.'
+                  )}
+                </p>
+                {insured.crash3Class?.notes && (
+                  <p style={{ fontSize: '11px', color: 'var(--fp-warning-text)', marginTop: '6px', lineHeight: 1.6 }}>
+                    {insured.crash3Class.notes}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Structural Narrative */}
+      {insured?.structuralNarrative && (
+        <div style={{
+          marginTop: '14px', padding: '10px 12px', borderRadius: '6px',
+          background: 'var(--fp-neutral-bg)', border: '1px solid var(--border)'
+        }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '6px' }}>
+            Structural Intelligence Narrative
+            {insured.hasInferredData && (
+              <span style={{ fontWeight: 400, color: 'var(--fp-warning-text)', marginLeft: '8px', fontSize: '10px' }}>
+                [Contains estimated data — see confidence labels above]
+              </span>
+            )}
+          </p>
+          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+            {insured.structuralNarrative}
+          </p>
+        </div>
+      )}
+
+      {/* Source attribution */}
+      <p style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '8px', fontStyle: 'italic' }}>
+        Sources: ANCAP (ancap.com.au); Global NCAP Africa (globalncap.org); CRASH3 stiffness coefficients — Campbell 1974, Prasad 1990, Nystrom et al. (JSHeld). Coefficients are class averages for frontal impacts. Estimated values are derived from vehicle class characteristics and are not equivalent to formal crash test results.
+      </p>
+    </div>
+  );
+}
+
 // ─── Section 2.7: Speed Forensics Panel ─────────────────────────────────────
 // Objective physics comparison: claimed speed vs physics-inferred speed.
 // A significant deviation is surfaced as a risk indicator in Section 5.

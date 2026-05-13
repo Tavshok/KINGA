@@ -122,6 +122,9 @@ interface CRASH3Class {
   B_kN_m2: number;  // Stiffness coefficient B (kN/m²)
   typicalMassRange_kg: [number, number];
   notes?: string;
+  /** Confidence tier: 'verified' = exact DB match, 'inferred' = class-based estimate */
+  confidenceTier?: 'verified' | 'inferred' | 'insufficient';
+  inferenceReason?: string;
 }
 
 const CRASH3_CLASSES: CRASH3Class[] = [
@@ -323,18 +326,81 @@ export function lookupGlobalNCAP(make: string, model: string): GlobalNCAPAfrica 
   return matches.sort((a, b) => b.testYear - a.testYear)[0];
 }
 
-export function getCRASH3Class(make: string, model: string): CRASH3Class | null {
+/**
+ * Infer CRASH3 class from NHTSA body class string.
+ */
+function inferCrash3ClassFromBodyClass(bodyClass: string): string | null {
+  const bc = bodyClass.toLowerCase();
+  if (bc.includes('pickup') || bc.includes('truck')) return 'Full-size SUV/Pickup';
+  if (bc.includes('sport utility') || bc.includes('suv')) return 'Mid-size Sedan/SUV';
+  if (bc.includes('van') || bc.includes('minivan') || bc.includes('bus')) return 'Light Commercial Van';
+  if (bc.includes('sedan') || bc.includes('hatchback') || bc.includes('coupe') || bc.includes('convertible')) return 'Compact/Sedan';
+  if (bc.includes('wagon') || bc.includes('estate')) return 'Compact/Sedan';
+  return null;
+}
+
+/**
+ * Infer CRASH3 class from model name keywords when make/model is not in the map.
+ */
+function inferCrash3ClassFromKeywords(make: string, model: string): { vehicleClass: string; reason: string } | null {
+  const combined = `${normaliseKey(make)} ${normaliseKey(model)}`;
+  if (/\b(hilux|ranger|navara|amarok|bt-50|bt50|triton|l200|np300|hardbody|dmax|d-max|mux|mu-x|steed|cannon|p-series|bakkie|pickup|double cab|single cab|extra cab)\b/.test(combined))
+    return { vehicleClass: 'Full-size SUV/Pickup', reason: 'Model name indicates bakkie/pickup truck category' };
+  if (/\b(land cruiser|landcruiser|patrol|prado|fortuner|everest|pajero|discovery|defender|wrangler|4runner|highlander)\b/.test(combined))
+    return { vehicleClass: 'Full-size SUV/Pickup', reason: 'Model name indicates full-size SUV/4x4 category' };
+  if (/\b(rav4|rav-4|cx-5|cx5|tucson|sportage|tiguan|qashqai|x-trail|xtrail|duster|kiger|creta|seltos|c-hr|trailblazer|captiva|equinox|compass|renegade|eclipse cross|asx|hr-v|cr-v|t-roc|karoq|kodiaq|koleos|captur|arkana)\b/.test(combined))
+    return { vehicleClass: 'Mid-size Sedan/SUV', reason: 'Model name indicates mid-size crossover/SUV category' };
+  if (/\b(polo|yaris|swift|kwid|s-presso|spresso|i10|i20|picanto|rio|sandero|triber|etios|starlet|micra|march|spark|alto|celerio|baleno|ignis|magnite|tiago|altroz|nexon)\b/.test(combined))
+    return { vehicleClass: 'Mini/Subcompact', reason: 'Model name indicates mini/subcompact category' };
+  if (/\b(corolla|civic|golf|focus|almera|accent|verna|pegas|lancer|camry|accord|sonata|elantra|cerato|fiesta|astra|insignia|cruze|aveo|jetta|passat|vento|rapid|fabia|octavia|superb|3 series|c-class|e-class|a-class|a4|a6|320|330|520|530|c200|c300|e200|e300)\b/.test(combined))
+    return { vehicleClass: 'Compact/Sedan', reason: 'Model name indicates compact/sedan category' };
+  if (/\b(hiace|hi-ace|sprinter|transporter|transit|master|trafic|vivaro|nv200|nv300|caddy|crafter|movano|boxer|ducato|minibus|combi)\b/.test(combined))
+    return { vehicleClass: 'Light Commercial Van', reason: 'Model name indicates light commercial van category' };
+  return null;
+}
+
+export function getCRASH3Class(
+  make: string,
+  model: string,
+  bodyClassFromNHTSA?: string
+): CRASH3Class | null {
   const key = `${normaliseKey(make)} ${normaliseKey(model)}`;
-  // Exact match first
+  // 1. Exact match
   if (VEHICLE_CLASS_MAP[key]) {
     const cls = VEHICLE_CLASS_MAP[key];
-    return CRASH3_CLASSES.find((c) => c.vehicleClass === cls) || null;
+    const found = CRASH3_CLASSES.find((c) => c.vehicleClass === cls);
+    return found ? { ...found, confidenceTier: 'verified' } : null;
   }
-  // Partial match
+  // 2. Partial match
   for (const [k, cls] of Object.entries(VEHICLE_CLASS_MAP)) {
     if (key.includes(k) || k.includes(key)) {
-      return CRASH3_CLASSES.find((c) => c.vehicleClass === cls) || null;
+      const found = CRASH3_CLASSES.find((c) => c.vehicleClass === cls);
+      return found ? { ...found, confidenceTier: 'verified' } : null;
     }
+  }
+  // 3. Infer from NHTSA body class
+  if (bodyClassFromNHTSA) {
+    const inferredClass = inferCrash3ClassFromBodyClass(bodyClassFromNHTSA);
+    if (inferredClass) {
+      const found = CRASH3_CLASSES.find((c) => c.vehicleClass === inferredClass);
+      if (found) return { ...found, confidenceTier: 'inferred', inferenceReason: `Estimated from NHTSA body class: "${bodyClassFromNHTSA}"` };
+    }
+  }
+  // 4. Infer from model name keywords
+  const kwInference = inferCrash3ClassFromKeywords(make, model);
+  if (kwInference) {
+    const found = CRASH3_CLASSES.find((c) => c.vehicleClass === kwInference.vehicleClass);
+    if (found) return { ...found, confidenceTier: 'inferred', inferenceReason: kwInference.reason };
+  }
+  // 5. Make-level fallback
+  const makeKey = normaliseKey(make);
+  const makeEntries = Object.entries(VEHICLE_CLASS_MAP).filter(([k]) => k.startsWith(makeKey + ' '));
+  if (makeEntries.length > 0) {
+    const classCounts: Record<string, number> = {};
+    for (const [, cls] of makeEntries) classCounts[cls] = (classCounts[cls] || 0) + 1;
+    const mostCommon = Object.entries(classCounts).sort((a, b) => b[1] - a[1])[0][0];
+    const found = CRASH3_CLASSES.find((c) => c.vehicleClass === mostCommon);
+    if (found) return { ...found, confidenceTier: 'inferred', inferenceReason: `Estimated from most common ${make} vehicle class in database (model "${model}" not individually mapped)` };
   }
   return null;
 }
@@ -420,6 +486,9 @@ export interface VehicleStructuralProfile {
   nhtsaDecode?: NHTSADecodeResult;
   // ANCAP
   ancapRating?: ANCAPRating | null;
+  /** 'verified' = DB match, 'inferred' = class-based estimate, 'insufficient' = no data at all */
+  ancapConfidenceTier?: 'verified' | 'inferred' | 'insufficient';
+  ancapInferenceReason?: string;
   // Global NCAP Africa
   globalNcapAfrica?: GlobalNCAPAfrica | null;
   // CRASH3
@@ -429,6 +498,8 @@ export interface VehicleStructuralProfile {
   compatibilityRisk: "low" | "medium" | "high" | "unknown";
   // AI narrative
   structuralNarrative?: string;
+  /** True if any data point was inferred rather than directly verified from a test database */
+  hasInferredData?: boolean;
 }
 
 export async function buildVehicleStructuralProfile(params: {
@@ -458,21 +529,36 @@ export async function buildVehicleStructuralProfile(params: {
   const ancapRating = lookupANCAPRating(resolvedMake, resolvedModel, resolvedYear);
   const globalNcapAfrica = lookupGlobalNCAP(resolvedMake, resolvedModel);
 
-  // 3. CRASH3 class
-  const crash3Class = getCRASH3Class(resolvedMake, resolvedModel);
+  // 3. CRASH3 class — pass NHTSA body class for inference fallback
+  const crash3Class = getCRASH3Class(resolvedMake, resolvedModel, nhtsaDecode?.bodyClass);
 
-  // 4. Derive safety risk level
+  // 4. Derive safety risk level and ANCAP confidence tier
   let safetyRiskLevel: VehicleStructuralProfile["safetyRiskLevel"] = "unknown";
+  let ancapConfidenceTier: VehicleStructuralProfile["ancapConfidenceTier"] = 'insufficient';
+  let ancapInferenceReason: string | undefined;
   if (ancapRating) {
+    ancapConfidenceTier = 'verified';
     const adultScore = ancapRating.adultOccupant;
     if (adultScore >= 85) safetyRiskLevel = "low";
     else if (adultScore >= 70) safetyRiskLevel = "medium";
     else if (adultScore > 0) safetyRiskLevel = "high";
-    else safetyRiskLevel = "medium"; // legacy rating
+    else safetyRiskLevel = "medium"; // legacy rating (stars only, no percentage)
   } else if (globalNcapAfrica) {
+    ancapConfidenceTier = 'verified';
     if (globalNcapAfrica.adultStars >= 4) safetyRiskLevel = "low";
     else if (globalNcapAfrica.adultStars >= 3) safetyRiskLevel = "medium";
     else safetyRiskLevel = "high";
+  } else if (crash3Class) {
+    // Infer safety risk from CRASH3 class when no test data exists
+    ancapConfidenceTier = 'inferred';
+    ancapInferenceReason = `No ANCAP or Global NCAP Africa test data found for ${resolvedMake} ${resolvedModel}. Safety risk estimated from vehicle class structural characteristics (${crash3Class.vehicleClass}).`;
+    if (crash3Class.vehicleClass === 'Large SUV/4x4' || crash3Class.vehicleClass === 'Full-size SUV/Pickup') {
+      safetyRiskLevel = "medium"; // structurally robust but unknown airbag/restraint quality
+    } else if (crash3Class.vehicleClass === 'Mini/Subcompact') {
+      safetyRiskLevel = "high"; // lightweight, likely minimal safety tech
+    } else {
+      safetyRiskLevel = "medium";
+    }
   }
 
   // 5. Derive compatibility risk (if counterpart provided)
@@ -493,14 +579,16 @@ export async function buildVehicleStructuralProfile(params: {
   if (generateNarrative) {
     try {
       const ancapSummary = ancapRating
-        ? `ANCAP ${ancapRating.stars}-star (${ancapRating.testYear}, ${ancapRating.protocol} protocol): Adult Occupant ${ancapRating.adultOccupant}%, Child Occupant ${ancapRating.childOccupant}%, VRU ${ancapRating.vruProtection}%, Safety Assist ${ancapRating.safetyAssist}%.`
+        ? `ANCAP ${ancapRating.stars}-star (${ancapRating.testYear}, ${ancapRating.protocol} protocol): Adult Occupant ${ancapRating.adultOccupant}%, Child Occupant ${ancapRating.childOccupant}%, VRU ${ancapRating.vruProtection}%, Safety Assist ${ancapRating.safetyAssist}%. [VERIFIED from ANCAP test database]`
         : globalNcapAfrica
-        ? `Global NCAP Africa (${globalNcapAfrica.testYear}): ${globalNcapAfrica.adultStars} stars adult occupant. ${globalNcapAfrica.notes || ""}`
-        : "No ANCAP or Global NCAP Africa rating found for this vehicle.";
+        ? `Global NCAP Africa (${globalNcapAfrica.testYear}): ${globalNcapAfrica.adultStars} stars adult occupant. ${globalNcapAfrica.notes || ""} [VERIFIED from Global NCAP Africa database]`
+        : ancapConfidenceTier === 'inferred'
+        ? `No formal ANCAP or Global NCAP Africa crash test data available for ${resolvedMake} ${resolvedModel}. Safety risk has been estimated from vehicle class characteristics (${crash3Class?.vehicleClass ?? 'unknown class'}). [ESTIMATED — not from a crash test]`
+        : "No ANCAP or Global NCAP Africa rating found for this vehicle. Safety performance cannot be assessed from available data.";
 
       const crash3Summary = crash3Class
-        ? `CRASH3 class: ${crash3Class.vehicleClass}. Stiffness A=${crash3Class.A_kN_m} kN/m, B=${crash3Class.B_kN_m2} kN/m². Typical mass ${crash3Class.typicalMassRange_kg[0]}–${crash3Class.typicalMassRange_kg[1]} kg.`
-        : "CRASH3 class not determined.";
+        ? `CRASH3 class: ${crash3Class.vehicleClass} [${crash3Class.confidenceTier === 'verified' ? 'VERIFIED' : 'ESTIMATED'}${crash3Class.inferenceReason ? ` — ${crash3Class.inferenceReason}` : ''}]. Stiffness A=${crash3Class.A_kN_m} kN/m, B=${crash3Class.B_kN_m2} kN/m². Typical mass ${crash3Class.typicalMassRange_kg[0]}–${crash3Class.typicalMassRange_kg[1]} kg.`
+        : `CRASH3 structural class could not be determined for ${resolvedMake} ${resolvedModel}. Insufficient data for stiffness coefficient estimation.`;
 
       const counterpartSummary = counterpartMake
         ? `Counterpart vehicle: ${counterpartMake} ${counterpartModel} (${counterpartYear || "year unknown"}).`
@@ -525,13 +613,13 @@ Compatibility risk assessment: ${compatibilityRisk}.
 Safety risk level: ${safetyRiskLevel}.
 
 Write a concise, professional structural intelligence narrative (3–5 paragraphs) for inclusion in a forensic audit report. Cover:
-1. The vehicle's structural classification and CRASH3 stiffness profile.
-2. Its crashworthiness performance based on available safety ratings.
+1. The vehicle's structural classification and CRASH3 stiffness profile (state clearly if estimated vs. verified).
+2. Its crashworthiness performance based on available safety ratings (if no test data exists, state the basis for the estimate).
 3. Any compatibility concerns relative to the counterpart vehicle (if provided).
 4. Implications for injury severity assessment and claim validity.
 5. Any notable safety technology gaps relevant to the Southern African market specification.
 
-Use precise, technical language appropriate for a forensic engineering report. Do not fabricate data — if information is unavailable, state so clearly.`;
+Use precise, technical language appropriate for a forensic engineering report. Where data is estimated rather than verified from a crash test, explicitly state this using phrases such as "based on vehicle class characteristics" or "in the absence of formal crash test data". Never present estimated data as verified. Do not fabricate specific percentage scores or star ratings not present in the provided data.`;
 
       const llmResp = await invokeLLM({
         messages: [
@@ -545,6 +633,9 @@ Use precise, technical language appropriate for a forensic engineering report. D
     }
   }
 
+  const hasInferredData =
+    ancapConfidenceTier !== 'verified' ||
+    (crash3Class?.confidenceTier !== undefined && crash3Class.confidenceTier !== 'verified');
   return {
     vin,
     make: resolvedMake,
@@ -552,10 +643,13 @@ Use precise, technical language appropriate for a forensic engineering report. D
     year: resolvedYear,
     nhtsaDecode,
     ancapRating,
+    ancapConfidenceTier,
+    ancapInferenceReason,
     globalNcapAfrica,
     crash3Class,
     safetyRiskLevel,
     compatibilityRisk,
     structuralNarrative,
+    hasInferredData,
   };
 }

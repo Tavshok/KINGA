@@ -12084,12 +12084,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Schedule monthly model retraining job as new claims accumulate in the DB
 
 ## NHTSA Vehicle Structural Intelligence Integration
-- [ ] NHTSA VIN decode service (server-side) — fetch body class, GVWR, plant, model year
-- [ ] NHTSA crash test ratings lookup by make/model/year (fallback when no VIN)
-- [ ] vehicleStructuralProfile tRPC procedure — returns enriched structural data
-- [ ] Wire structural profile into AI assessment LLM context for physics analysis
-- [ ] Surface structural data panel in Forensic Audit Report physics section
-- [ ] CRASH3 vehicle class coefficient table for EBS estimation
+- [x] NHTSA VIN decode service (server-side) — fetch body class, GVWR, plant, model year
+- [x] NHTSA crash test ratings lookup by make/model/year (fallback when no VIN)
+- [x] vehicleStructuralProfile tRPC procedure — returns enriched structural data
+- [x] Wire structural profile into AI assessment LLM context for physics analysis
+- [x] Surface structural data panel in Forensic Audit Report physics section (Section 2.10)
+- [x] CRASH3 vehicle class coefficient table for EBS estimation
 
 ## Vehicle Structural Intelligence — COMPLETED
 - [x] ANCAP safety ratings database (Toyota Hilux, Prado, Fortuner, Land Cruiser, RAV4, Yaris, Corolla, Avanza; Ford Ranger; Isuzu D-Max; Nissan Navara, Patrol; Mitsubishi Triton; Mazda BT-50; VW Polo, Tiguan; Hyundai Tucson, i20; BMW X5; Mercedes C-Class; Kia Sportage; Renault Duster; Suzuki Vitara, Swift; Haval H6)
@@ -12103,3 +12103,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Integration into AssessorClaimDetails page
 - [x] Integration into ClaimsManagerComparisonView page
 - [x] 41 vitest tests — all passing (ANCAP lookup, Global NCAP, CRASH3 coefficients, NHTSA VIN decode, profile builder, data integrity)
+- [x] Tiered confidence system: verified (DB match) / inferred (class-based estimate) / insufficient (no data) for CRASH3 and ANCAP
+- [x] Unknown-vehicle fallback hardening: 4-tier CRASH3 fallback chain (exact DB → NHTSA body class → keyword → make-level), never shows blank boxes
+- [x] VehicleStructuralIntelligencePanel rewritten with confidence badges (Verified green / Estimated amber), professional wording for all unknown vehicles
+- [x] Section 2.10 Vehicle Structural Profile added to ForensicAuditReport.tsx (insured vs third-party side-by-side, ANCAP stars, CRASH3 A/B coefficients, compatibility risk verdict)
+- [x] LLM structural context enrichment: VEHICLE STRUCTURAL CONTEXT block injected into incidentNarrativeEngine system prompt (CRASH3 class, A/B coefficients, ANCAP stars, compatibility risk)
+- [x] stage-7-unified.ts updated to build and pass structural_context to runIncidentNarrativeEngine
+- [x] 55 vitest tests — all passing (41 original + 14 new tiered confidence tests)

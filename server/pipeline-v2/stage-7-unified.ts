@@ -33,6 +33,7 @@ import { runPhysicsStage } from "./stage-7-physics";
 import { runCausalReasoningEngine } from "./stage-7b-causal-reasoning";
 import { computeSeverityConsensus, buildSeverityConsensusInput } from "./severityConsensusEngine";
 import { runIncidentNarrativeEngine } from "./incidentNarrativeEngine";
+import { buildVehicleStructuralProfile } from "../vehicle-structural-intelligence";
 import type {
   PipelineContext,
   Stage6Output,
@@ -126,6 +127,55 @@ export async function runUnifiedStage7(
   const enrichedPhotosJson: string | null = (ctx as any).enrichedPhotosJson ?? null;
   const rawDescription = claimRecord.accidentDetails?.description ?? "";
 
+  // ── STRUCTURAL INTELLIGENCE CONTEXT ──────────────────────────────────────
+  // Build a concise structural context string for the narrative LLM.
+  // This runs synchronously (no network call unless VIN decode is triggered)
+  // and is always safe — unknown vehicles return an inferred/estimated result.
+  let structuralContextForNarrative: string | null = null;
+  try {
+    const insuredMake = claimRecord.vehicle?.make ?? "";
+    const insuredModel = claimRecord.vehicle?.model ?? "";
+    const insuredYear = claimRecord.vehicle?.year ?? undefined;
+    const insuredVin = claimRecord.vehicle?.vin ?? undefined;
+    const thirdPartyDesc = (claimRecord.thirdParty as any)?.vehicleDescription ?? undefined;
+    if (insuredMake || insuredModel) {
+      // Parse third-party description into make/model if possible (e.g. "Toyota Hilux")
+      const tpParts = thirdPartyDesc ? thirdPartyDesc.trim().split(/\s+/) : [];
+      const tpMake = tpParts[0] ?? undefined;
+      const tpModel = tpParts.slice(1).join(" ") || undefined;
+      const profile = await buildVehicleStructuralProfile({
+        make: insuredMake,
+        model: insuredModel,
+        year: insuredYear,
+        vin: insuredVin,
+        counterpartMake: tpMake,
+        counterpartModel: tpModel,
+        generateNarrative: false, // skip LLM narrative — we only need the structured data
+      });
+      const lines: string[] = [];
+      // Insured vehicle CRASH3 class
+      if (profile.crash3Class) {
+        const c = profile.crash3Class;
+        const tierLabel = c.confidenceTier === "verified" ? "Verified" : c.confidenceTier === "inferred" ? "Estimated (class-based)" : "Insufficient data";
+        lines.push(`Insured vehicle: ${insuredMake} ${insuredModel}${insuredYear ? ` (${insuredYear})` : ""} — class: ${c.vehicleClass} — stiffness A=${c.A_kN_m} kN/m, B=${c.B_kN_m2} kN/m² [${tierLabel}]`);
+      }
+      // ANCAP / Global NCAP rating
+      const rating = profile.ancapRating ?? profile.globalNcapAfrica;
+      if (rating) {
+        lines.push(`Safety rating: ${rating.stars}★ (${rating.testYear}) — adult occupant: ${rating.adultOccupant}%, child: ${rating.childOccupant}%`);
+      }
+      // Compatibility risk
+      if (profile.compatibilityRisk && profile.compatibilityRisk !== "unknown") {
+        lines.push(`Structural compatibility risk: ${profile.compatibilityRisk.toUpperCase()}`);
+      }
+      if (lines.length > 0) {
+        structuralContextForNarrative = lines.join("\n");
+      }
+    }
+  } catch (err) {
+    ctx.log("Stage 7 (StructuralIntel)", `Structural context build failed (non-fatal): ${String(err)}`);
+  }
+
   const causalReasoningTask = async (): Promise<CausalVerdict> => {
     try {
       const verdict = await runCausalReasoningEngine(
@@ -188,6 +238,7 @@ export async function runUnifiedStage7(
           third_party_account: (claimRecord.policeReport as any)?.thirdPartyAccountSummary ?? null,
           collision_scenario: claimRecord.accidentDetails?.collisionScenario ?? null,
           is_struck_party: claimRecord.accidentDetails?.isStruckParty ?? false,
+          structural_context: structuralContextForNarrative,
         });
         ctx.log(
           "Stage 7e (NarrativeReasoning)",
