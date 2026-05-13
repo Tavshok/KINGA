@@ -27,6 +27,17 @@ import {
   TrendingUp, DollarSign, Clock, AlertTriangle,
   RotateCcw, Wrench, TrendingDown, Banknote,
 } from "lucide-react";
+import {
+  DEMO_CLAIMS_VOLUME,
+  DEMO_FRAUD_TRENDS,
+  DEMO_COST_BREAKDOWN,
+  DEMO_PROCESSING_TIME,
+  DEMO_FRAUD_DIST,
+  DEMO_OVERRIDE_RATE,
+  DEMO_OVERRIDDEN_REPAIRERS,
+  DEMO_AI_SAVINGS,
+  DEMO_COST_DELTA,
+} from "@/lib/demoData";
 
 /// ─── Colour palette — KINGA BI Dark Theme ─────────────────────────────────────────
 
@@ -137,77 +148,103 @@ export default function ExecutiveAnalyticsCharts() {
   const { data: aiSavingsData,        isLoading: aiSavingsLoading }         = trpc.executive.getTotalAISavings.useQuery({ days: timeRange });
 
   // ── Transform: volume ───────────────────────────────────────────────────────
+  // Demo mode: use fixture data when DB is empty
+  const isChartDemo = !volumeData?.data || (volumeData.data as any[]).length === 0;
+
   const volumeChartData = useMemo(() => {
+    if (isChartDemo) return DEMO_CLAIMS_VOLUME.map(d => ({
+      date: new Date(d.date).toLocaleDateString("en-ZA", { month: "short", day: "numeric" }),
+      total: d.count, fraudDetected: d.fraudDetected,
+    }));
     return (volumeData?.data ?? []).map((d: any) => ({
       date:          new Date(d.date).toLocaleDateString("en-ZA", { month: "short", day: "numeric" }),
       total:         Number(d.count ?? 0),
-      fraudDetected: 0, // fraud count comes from fraudTrends
+      fraudDetected: 0,
     }));
-  }, [volumeData]);
+  }, [volumeData, isChartDemo]);
 
-  // ── Transform: fraud trends ─────────────────────────────────────────────────
+  // ── Transform: fraud trends ───────────────────────────────────────────────────────────────────────────────────────────
   const fraudRateData = useMemo(() => {
+    if (isChartDemo) return DEMO_FRAUD_TRENDS.map(d => ({ date: d.week, high: d.high, medium: d.medium, low: d.low }));
     return (fraudTrends?.data ?? []).map((d: any) => ({
       date:   new Date(d.date).toLocaleDateString("en-ZA", { month: "short", day: "numeric" }),
       high:   Number(d.high   ?? 0),
       medium: Number(d.medium ?? 0),
       low:    Number(d.low    ?? 0),
     }));
-  }, [fraudTrends]);
+  }, [fraudTrends, isChartDemo]);
 
-  // ── Transform: cost breakdown ───────────────────────────────────────────────
+  // ── Transform: cost breakdown ───────────────────────────────────────────────────────────────────────────────────────────
   const costData = useMemo(() => {
+    if (isChartDemo) return DEMO_COST_BREAKDOWN.map(d => ({
+      status: (d.status ?? "").replace(/_/g, " ").toUpperCase(),
+      count: d.count, avg_amount: d.avg_amount, total_amount: d.total_amount,
+    }));
     return (costBreakdown?.data ?? []).map((d: any) => ({
       status:        (d.status ?? "").replace(/_/g, " ").toUpperCase(),
       count:         Number(d.count       ?? 0),
       avg_amount:    Number(d.avg_amount  ?? 0),
       total_amount:  Number(d.total_amount ?? 0),
     }));
-  }, [costBreakdown]);
+  }, [costBreakdown, isChartDemo]);
 
-  // ── Transform: processing time ──────────────────────────────────────────────
+  // ── Transform: processing time ───────────────────────────────────────────────────────────────────────────────────────────
   const processingData = useMemo(() => {
-    const avgDays = Number((processingTime?.data as any)?.avg_days ?? 0);
+    const avgDays = isChartDemo ? DEMO_PROCESSING_TIME.avg_days : Number((processingTime?.data as any)?.avg_days ?? 0);
     return [
-      { stage: "Completed",          days: avgDays,  fill: COLORS.green  },
-      { stage: "Pending Triage",     days: 0,        fill: COLORS.orange },
-      { stage: "Under Assessment",   days: 0,        fill: COLORS.blue   },
-      { stage: "Awaiting Approval",  days: 0,        fill: COLORS.purple },
+      { stage: "Completed",         days: avgDays,                  fill: COLORS.green  },
+      { stage: "Pending Triage",    days: isChartDemo ? 0.3 : 0,   fill: COLORS.orange },
+      { stage: "Under Assessment",  days: isChartDemo ? 1.8 : 0,   fill: COLORS.blue   },
+      { stage: "Awaiting Approval", days: isChartDemo ? 0.9 : 0,   fill: COLORS.purple },
     ];
-  }, [processingTime]);
+  }, [processingTime, isChartDemo]);
 
-  // ── Transform: fraud distribution ──────────────────────────────────────────
+  // ── Transform: fraud distribution ───────────────────────────────────────────────────────────────────────────────────────────
   const fraudDistData = useMemo(() => {
+    if (isChartDemo) return [
+      { name: "Low Risk",    value: DEMO_FRAUD_DIST.find(x => x.level === "low")?.count    ?? 29, fill: COLORS.green  },
+      { name: "Medium Risk", value: DEMO_FRAUD_DIST.find(x => x.level === "medium")?.count ?? 13, fill: COLORS.orange },
+      { name: "High Risk",   value: DEMO_FRAUD_DIST.find(x => x.level === "high")?.count   ?? 5,  fill: COLORS.red    },
+    ];
     const d = fraudDistribution?.data ?? [];
     return [
       { name: "Low Risk",    value: Number((d as any[]).find(x => x.level === "low")?.count    ?? 0), fill: COLORS.green  },
       { name: "Medium Risk", value: Number((d as any[]).find(x => x.level === "medium")?.count ?? 0), fill: COLORS.orange },
       { name: "High Risk",   value: Number((d as any[]).find(x => x.level === "high")?.count   ?? 0), fill: COLORS.red    },
     ];
-  }, [fraudDistribution]);
+  }, [fraudDistribution, isChartDemo]);
 
-  // ── Transform: most overridden repairers ────────────────────────────────────
+  // ── Transform: most overridden repairers ───────────────────────────────────────────────────────────────────────────────────────────
   const overridedRepairersChart = useMemo(() => {
+    if (isChartDemo) return DEMO_OVERRIDDEN_REPAIRERS.map(r => ({
+      name: r.company_name, overrides: r.total_overrides, recommended: r.total_recommended, override_rate: r.override_rate,
+    }));
     return (overridedRepairers?.data ?? []).map((r: any) => ({
       name:              r.company_name ?? "Unknown",
       overrides:         Number(r.total_overrides   ?? 0),
       recommended:       Number(r.total_recommended ?? 0),
       override_rate:     Number(r.override_rate     ?? 0),
     }));
-  }, [overridedRepairers]);
+  }, [overridedRepairers, isChartDemo]);
 
-  // ── Derived KPI values ──────────────────────────────────────────────────────
-  const overridePercent   = overrideRateData?.override_percentage ?? 0;
-  const totalOptimisations = overrideRateData?.total_optimisations ?? 0;
-  const totalOverrides    = overrideRateData?.total_overrides ?? 0;
+  // ── Derived KPI values ───────────────────────────────────────────────────────────────────────────────────────────
+  const _overrideRaw = overrideRateData;
+  const effectiveOverride = (!_overrideRaw || (_overrideRaw.total_optimisations ?? 0) === 0) ? DEMO_OVERRIDE_RATE : _overrideRaw;
+  const overridePercent    = effectiveOverride.override_percentage;
+  const totalOptimisations = effectiveOverride.total_optimisations;
+  const totalOverrides     = effectiveOverride.total_overrides;
 
-  const avgCostDeltaRands = costDeltaData?.avg_cost_delta_rands ?? 0;
-  const overrideCount     = costDeltaData?.override_count ?? 0;
+  const _costDeltaRaw = costDeltaData;
+  const effectiveCostDelta = (!_costDeltaRaw || (_costDeltaRaw.override_count ?? 0) === 0) ? DEMO_COST_DELTA : _costDeltaRaw;
+  const avgCostDeltaRands = effectiveCostDelta.avg_cost_delta_rands;
+  const overrideCount     = effectiveCostDelta.override_count;
   const deltaPositive     = avgCostDeltaRands >= 0;
 
-  const totalSavingsRands = aiSavingsData?.total_ai_savings_rands ?? 0;
-  const acceptedCount     = aiSavingsData?.accepted_count ?? 0;
-  const avgSavingRands    = aiSavingsData?.avg_saving_per_claim_rands ?? 0;
+  const _aiSavingsRaw = aiSavingsData;
+  const effectiveAISavings = (!_aiSavingsRaw || (_aiSavingsRaw.accepted_count ?? 0) === 0) ? DEMO_AI_SAVINGS : _aiSavingsRaw;
+  const totalSavingsRands = effectiveAISavings.total_ai_savings_rands;
+  const acceptedCount     = effectiveAISavings.accepted_count;
+  const avgSavingRands    = effectiveAISavings.avg_saving_per_claim_rands;
 
   return (
     <div className="space-y-8">

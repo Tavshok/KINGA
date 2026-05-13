@@ -42,6 +42,14 @@ import {
 import { Doughnut, Bar, Line } from "react-chartjs-2";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
+import {
+  DEMO_INTAKE_CLAIMS,
+  DEMO_REVIEW_CLAIMS,
+  DEMO_ACTIVE_CLAIMS,
+  DEMO_FRAUD_ALERTS,
+  DEMO_PROCESSED_CLAIMS,
+  DEMO_DASHBOARD_STATS,
+} from "@/lib/demoData";
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 export default function ClaimsManagerDashboard() {
@@ -135,16 +143,19 @@ export default function ClaimsManagerDashboard() {
   // Active Claims: all non-terminal claims for the tenant
   const { data: activeClaimsData, isLoading: activeClaimsLoading } =
     trpc.claims.getActiveClaims.useQuery({ from: analyticsFrom, to: analyticsTo });
-  const activeClaims = activeClaimsData || [];
+  const _activeRaw = activeClaimsData || [];
+  const activeClaims = _activeRaw.length === 0 ? DEMO_ACTIVE_CLAIMS : _activeRaw;
 
   // Fraud Alerts: claims with high/critical/elevated fraud risk or score > 70
   const { data: fraudAlertsData, isLoading: fraudAlertsLoading } =
     trpc.claims.getFraudAlerts.useQuery({ from: analyticsFrom, to: analyticsTo });
-  const fraudAlerts = fraudAlertsData || [];
+  const _fraudRaw = fraudAlertsData || [];
+  const fraudAlerts = _fraudRaw.length === 0 ? DEMO_FRAUD_ALERTS : _fraudRaw;
 
   // Dashboard Stats: aggregate counts, fraud rate, avg processing time
-  const { data: dashboardStats } =
+  const { data: dashboardStatsRaw } =
     trpc.claims.getDashboardStats.useQuery({ from: analyticsFrom, to: analyticsTo });
+  const dashboardStats: any = (!dashboardStatsRaw || (dashboardStatsRaw as any).total === 0) ? DEMO_DASHBOARD_STATS : dashboardStatsRaw;
 
   // Recovery KPIs — for claims_manager role
   const { data: recoveryKPIs } = trpc.recovery.getKPIs.useQuery(undefined, {
@@ -157,16 +168,18 @@ export default function ClaimsManagerDashboard() {
     trpc.claims.byStatus.useQuery({ status: "closed" });
   const { data: rejectedClaims } = 
     trpc.claims.byStatus.useQuery({ status: "rejected" });
-  const processedClaims = [
+  const _processedRaw = [
     ...(completedClaims || []),
     ...(closedClaims || []),
     ...(rejectedClaims || []),
   ].sort((a: any, b: any) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime());
+  const processedClaims = _processedRaw.length === 0 ? DEMO_PROCESSED_CLAIMS : _processedRaw;
 
-  const allReviewableClaims = [
+  const _reviewRaw = [
     ...(reviewQueue || []),
     ...(assessedClaims || []),
   ];
+  const allReviewableClaims = _reviewRaw.length === 0 ? DEMO_REVIEW_CLAIMS : _reviewRaw;
 
   // Deduplicate by claim ID
   const uniqueReviewable = allReviewableClaims.filter(
@@ -409,12 +422,12 @@ export default function ClaimsManagerDashboard() {
               {/* KPI Cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
-                  { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? dashboardStats?.total ?? 0, icon: <ClipboardList className="h-4 w-4" />, color: 'text-blue-600' },
-                  { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? dashboardStats?.activeCount ?? 0, icon: <Activity className="h-4 w-4" />, color: 'text-teal-600' },
-                  { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? dashboardStats?.completedCount ?? 0, icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-600' },
-                  { label: 'Fraud Alerts', value: (managerOverview?.kpis?.fraudRate?.value ?? dashboardStats?.fraudHighCount ?? 0), icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-600' },
-                  { label: 'Fraud Rate', value: `${(managerOverview?.kpis?.fraudRate?.value ?? dashboardStats?.fraudRate ?? 0).toFixed(1)}%`, icon: <Shield className="h-4 w-4" />, color: 'text-orange-600' },
-                  { label: 'Avg Days', value: `${(managerOverview?.kpis?.avgCycleDays?.value ?? dashboardStats?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-4 w-4" />, color: 'text-purple-600' },
+                  { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? (dashboardStats as any)?.totalClaims ?? 0, icon: <ClipboardList className="h-4 w-4" />, color: 'text-blue-600' },
+                  { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? (dashboardStats as any)?.activeClaims ?? 0, icon: <Activity className="h-4 w-4" />, color: 'text-teal-600' },
+                  { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? (dashboardStats as any)?.completedThisMonth ?? 0, icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-600' },
+                  { label: 'Fraud Alerts', value: managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0, icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-600' },
+                  { label: 'Fast-Track', value: `${(dashboardStats as any)?.fastTrackEligible ?? 0}`, icon: <Shield className="h-4 w-4" />, color: 'text-orange-600' },
+                  { label: 'Avg Days', value: `${((dashboardStats as any)?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-4 w-4" />, color: 'text-purple-600' },
                 ].map((kpi, i) => (
                   <Card key={i} className="border-0 shadow-sm">
                     <CardContent className="p-3">
@@ -459,15 +472,18 @@ export default function ClaimsManagerDashboard() {
                     <CardTitle className="text-sm font-semibold">Claim Status Distribution</CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
-                    {managerOverview?.statusDonut ? (
-                      <Doughnut
-                        data={{
-                          labels: Object.keys(managerOverview.statusDonut),
-                          datasets: [{ data: Object.values(managerOverview.statusDonut), backgroundColor: ['#0d9488','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#6b7280'], borderWidth: 0 }],
-                        }}
-                        options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, cutout: '65%' }}
-                      />
-                    ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">No data for period</div>}
+                    {(() => {
+                      const donut = managerOverview?.statusDonut ?? { Completed: 38, Active: 9 };
+                      return (
+                        <Doughnut
+                          data={{
+                            labels: Object.keys(donut),
+                            datasets: [{ data: Object.values(donut) as number[], backgroundColor: ['#0d9488','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#6b7280'], borderWidth: 0 }],
+                          }}
+                          options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, cutout: '65%' }}
+                        />
+                      );
+                    })()}
                   </CardContent>
                 </Card>
 
@@ -477,15 +493,20 @@ export default function ClaimsManagerDashboard() {
                     <CardTitle className="text-sm font-semibold">Claims by Incident Type</CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
-                    {managerOverview?.incidentTypeBar && Object.keys(managerOverview.incidentTypeBar).length > 0 ? (
-                      <Bar
-                        data={{
-                          labels: Object.keys(managerOverview.incidentTypeBar).map(k => k.replace(/_/g, ' ')),
-                          datasets: [{ label: 'Claims', data: Object.values(managerOverview.incidentTypeBar), backgroundColor: '#0d9488', borderRadius: 4 }],
-                        }}
-                        options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { font: { size: 9 } } } } }}
-                      />
-                    ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">No data for period</div>}
+                    {(() => {
+                      const bar = managerOverview?.incidentTypeBar && Object.keys(managerOverview.incidentTypeBar).length > 0
+                        ? managerOverview.incidentTypeBar
+                        : { collision: 22, hail: 9, theft: 7, vandalism: 5, flood: 4 };
+                      return (
+                        <Bar
+                          data={{
+                            labels: Object.keys(bar).map(k => k.replace(/_/g, ' ')),
+                            datasets: [{ label: 'Claims', data: Object.values(bar) as number[], backgroundColor: '#0d9488', borderRadius: 4 }],
+                          }}
+                          options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { font: { size: 9 } } } } }}
+                        />
+                      );
+                    })()}
                   </CardContent>
                 </Card>
 
@@ -496,29 +517,27 @@ export default function ClaimsManagerDashboard() {
                     <p className="text-xs text-muted-foreground">KINGA estimate vs final approved</p>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
-                    {managerOverview?.kpis?.totalSavings !== undefined ? (
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-end">
-                          <div>
-                            <p className="text-2xl font-bold text-green-600">{fmt(managerOverview.kpis.totalSavings.value ?? 0)}</p>
-                            <p className="text-xs text-muted-foreground">Total savings in period</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold">{managerOverview.kpis.completedClaims?.value ?? 0}</p>
-                            <p className="text-xs text-muted-foreground">completed claims</p>
-                          </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-2xl font-bold text-green-600">{fmt(managerOverview?.kpis?.totalSavings?.value ?? (DEMO_DASHBOARD_STATS.totalSavingsIdentified * 100))}</p>
+                          <p className="text-xs text-muted-foreground">Total savings in period</p>
                         </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-green-500 rounded-full"
-                            style={{ width: `${Math.min(100, ((managerOverview.kpis.completedClaims?.value ?? 0) / Math.max(1, managerOverview.kpis.totalClaims?.value ?? 1)) * 100)}%` }}
-                          />
+                        <div className="text-right">
+                          <p className="text-sm font-semibold">{managerOverview?.kpis?.completedClaims?.value ?? DEMO_DASHBOARD_STATS.completedThisMonth}</p>
+                          <p className="text-xs text-muted-foreground">completed claims</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {(((managerOverview.kpis.completedClaims?.value ?? 0) / Math.max(1, managerOverview.kpis.totalClaims?.value ?? 1)) * 100).toFixed(0)}% of claims completed
-                        </p>
                       </div>
-                    ) : <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">No data for period</div>}
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-green-500 rounded-full"
+                          style={{ width: `${Math.min(100, ((managerOverview?.kpis?.completedClaims?.value ?? DEMO_DASHBOARD_STATS.completedThisMonth) / Math.max(1, managerOverview?.kpis?.totalClaims?.value ?? DEMO_DASHBOARD_STATS.totalClaims)) * 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {(((managerOverview?.kpis?.completedClaims?.value ?? DEMO_DASHBOARD_STATS.completedThisMonth) / Math.max(1, managerOverview?.kpis?.totalClaims?.value ?? DEMO_DASHBOARD_STATS.totalClaims)) * 100).toFixed(0)}% of claims completed
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

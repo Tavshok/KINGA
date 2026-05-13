@@ -12110,3 +12110,17 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] LLM structural context enrichment: VEHICLE STRUCTURAL CONTEXT block injected into incidentNarrativeEngine system prompt (CRASH3 class, A/B coefficients, ANCAP stars, compatibility risk)
 - [x] stage-7-unified.ts updated to build and pass structural_context to runIncidentNarrativeEngine
 - [x] 55 vitest tests — all passing (41 original + 14 new tiered confidence tests)
+
+## Dashboard Demo Data & Tab Improvements (Presentation Ready)
+- [ ] Create DEMO_DATA constant with realistic KPIs, chart series, and claim rows
+- [ ] Executive Dashboard: inject demo KPIs (47 claims, R2.1M savings, 89% resolution, 4.2d cycle, 12 fraud flags, 74% fast-track, 3 overrides)
+- [ ] Executive Dashboard Overview tab: populate Cost Savings Trend (6-month bars), KINGA Confidence Distribution (donut), Claims Volume Trend (daily line), Fraud Detection Trends, Cost Breakdown by Status, Avg Processing Time, Fraud Risk Distribution
+- [ ] Executive Dashboard Operational Health tab: populate Governance Health Snapshot (override rate, segregation violations, role changes), Workflow Bottleneck Analysis
+- [ ] Executive Dashboard ROI Breakdown tab: populate Financial Overview (Total Payouts, Reserves, Fraud Prevented, Net Exposure)
+- [ ] Executive Dashboard: add missing "Assessor Performance" tab with leaderboard and score cards
+- [ ] Claims Manager Dashboard: populate all 7 tabs with realistic claim rows (Intake Queue, Review Queue, Active Claims, Fraud Alerts, Processed, Fleet Approvals, Notifications)
+- [ ] Claims Manager Dashboard: populate 3 summary charts (Claim Status Distribution, Claims by Incident Type, KINGA Savings Identified)
+- [ ] Claims Manager Dashboard: add "Pending Approval" tab for high-value claims awaiting financial decision
+- [ ] Assessor Dashboard: populate assigned claims list with realistic data
+- [ ] Panel Beater Dashboard: populate quote requests with realistic data
+- [ ] Add DEMO_MODE banner so client knows data is illustrative

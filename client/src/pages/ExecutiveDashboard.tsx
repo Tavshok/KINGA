@@ -36,6 +36,16 @@ import { NotificationsInbox, NotificationsTabBadge } from "@/components/Notifica
 
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import {
+  DEMO_EXEC_SUMMARY,
+  DEMO_KPI_SUMMARY,
+  DEMO_FINANCIALS,
+  DEMO_GOVERNANCE,
+  DEMO_ASSESSORS,
+  DEMO_PANEL_BEATERS,
+  DEMO_BOTTLENECKS,
+  isEmptyData,
+} from "@/lib/demoData";
+import {
   exportKPIsToPDF,
   exportAssessorPerformanceToExcel,
   exportPanelBeaterAnalyticsToExcel,
@@ -236,8 +246,16 @@ export default function ExecutiveDashboard() {
   const { data: governanceResponse, isLoading: governanceLoading } = trpc.governance.getGovernanceSummary.useQuery(undefined, { retry: 0 });
   // Governance detail queries removed — executive sees snapshot KPIs only.
   
-  const governanceMetrics = governanceResponse?.data;
+  // ── Demo mode: fall back to realistic fixture data when DB is empty ──
+  const _execRaw = execSummary;
+  const isDemo = !_execRaw || (_execRaw.totalClaims === 0);
+  const effectiveExecSummary = isDemo ? DEMO_EXEC_SUMMARY : _execRaw;
 
+  const _kpisRaw = kpisResponse?.data?.summaryMetrics;
+  const kpisFull = (!_kpisRaw || _kpisRaw.totalClaims === 0) ? DEMO_KPI_SUMMARY : _kpisRaw;
+
+  const _govRaw = governanceResponse?.data;
+  const governanceMetrics = (!_govRaw || isEmptyData(_govRaw)) ? DEMO_GOVERNANCE : _govRaw;
 
   // Search query - only execute when searchQuery has value
   const { data: searchResultsResponse, isLoading: searchLoading, refetch: executeSearch } = trpc.analytics.globalSearch.useQuery(
@@ -246,13 +264,22 @@ export default function ExecutiveDashboard() {
   );
 
   // Adapt new standardized response format to legacy dashboard format
-  const kpis = kpisResponse?.data?.summaryMetrics;
+  const kpis = kpisFull;
 
-  const assessorPerf = assessorPerfResponse?.data?.assessors;
-  const panelBeaterAnalytics = panelBeaterAnalyticsResponse?.data?.panelBeaters;
+  const _assessorRaw = assessorPerfResponse?.data?.assessors;
+  const assessorPerf = (!_assessorRaw || _assessorRaw.length === 0) ? DEMO_ASSESSORS : _assessorRaw;
+
+  const _panelRaw = panelBeaterAnalyticsResponse?.data?.panelBeaters;
+  const panelBeaterAnalytics = (!_panelRaw || _panelRaw.length === 0) ? DEMO_PANEL_BEATERS : _panelRaw;
+
   const savingsTrends = savingsTrendsResponse?.data?.trends?.monthlySavings;
-  const bottlenecks = bottlenecksResponse?.data?.riskIndicators?.bottlenecks;
-  const financials = financialsResponse?.data?.summaryMetrics;
+
+  const _bottlenecksRaw = bottlenecksResponse?.data?.riskIndicators?.bottlenecks;
+  const bottlenecks = (!_bottlenecksRaw || !Array.isArray(_bottlenecksRaw) || _bottlenecksRaw.length === 0) ? DEMO_BOTTLENECKS : _bottlenecksRaw;
+
+  const _financialsRaw = financialsResponse?.data?.summaryMetrics;
+  const financials = (!_financialsRaw || (_financialsRaw.totalPayouts === 0 && _financialsRaw.fraudPrevented === 0)) ? DEMO_FINANCIALS : _financialsRaw;
+
   const searchResults = searchResultsResponse?.data?.results;
 
   const handleSearch = async () => {
@@ -389,6 +416,16 @@ export default function ExecutiveDashboard() {
         </div>
       </div>
 
+      {/* ── Demo Mode Banner ── */}
+      {isDemo && (
+        <div className="max-w-[1600px] mx-auto px-8 pt-4">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--fp-warning-bg)', border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)', color: 'var(--warning)' }}>
+            <Activity className="h-4 w-4 shrink-0" />
+            <span>Demo Mode — Illustrative data shown. Connect live claims to see real figures.</span>
+          </div>
+        </div>
+      )}
+
       {/* ── HERO NUMBERS: Three Large Numbers, Full Width, Always Visible ── */}
           <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
       <div className="max-w-[1600px] mx-auto px-8 pt-8 pb-2">
@@ -396,30 +433,30 @@ export default function ExecutiveDashboard() {
           {[
             {
               label: 'Total Claims (30d)',
-              value: execSummaryLoading ? '…' : (execSummary?.totalClaims ?? kpis?.totalClaims ?? 0).toLocaleString(),
+              value: execSummaryLoading ? '…' : (effectiveExecSummary?.totalClaims ?? kpis?.totalClaims ?? 0).toLocaleString(),
               sub: 'Submitted in period',
               color: 'var(--info)',
               icon: FileText,
             },
             {
               label: 'KINGA Savings',
-              value: execSummaryLoading ? '…' : (() => { const s = execSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100).toLocaleString()}` : '—'; })(),
+              value: execSummaryLoading ? '…' : (() => { const s = effectiveExecSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100).toLocaleString()}` : '—'; })(),
               sub: 'Est. value − approved',
               color: 'var(--success)',
               icon: TrendingUp,
             },
             {
               label: 'Resolution Rate',
-              value: execSummaryLoading ? '…' : `${(execSummary?.resolutionRate ?? 0).toFixed(1)}%`,
+              value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.resolutionRate ?? 0).toFixed(1)}%`,
               sub: 'Closed / total claims',
               color: 'var(--chart-5)',
               icon: CheckCircle,
             },
             {
               label: 'Avg Cycle Days',
-              value: execSummaryLoading ? '…' : `${(execSummary?.avgCycleDays ?? 0).toFixed(1)}d`,
+              value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.avgCycleDays ?? 0).toFixed(1)}d`,
               sub: 'Submission to closure',
-              color: execSummary?.avgCycleDays && execSummary.avgCycleDays > 14 ? 'var(--warning)' : 'var(--success)',
+              color: effectiveExecSummary?.avgCycleDays && effectiveExecSummary.avgCycleDays > 14 ? 'var(--warning)' : 'var(--success)',
               icon: Clock,
             },
           ].map(({ label, value, sub, color, icon: Icon }, i) => (
