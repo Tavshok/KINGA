@@ -856,6 +856,11 @@ export function buildCompositeQuote(
     const coverageRatio = quoteCoverageRatios[qi];
 
     for (const item of (q.lineItems ?? [])) {
+      // Skip zero-priced items — $0 means the price was not extracted from the document,
+      // not that the part is free. Including $0 would cause the optimiser to select
+      // a non-existent price over a real quoted price from another repairer.
+      if (!item.costUsd || item.costUsd <= 0) continue;
+
       const normName = normalise(item.componentName);
       const bm = benchmarks[normName] ?? benchmarks[item.componentName] ?? null;
       const gate = applyCredibilityGate(

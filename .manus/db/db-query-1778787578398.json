@@ -1,0 +1,434 @@
+{
+  "query": "DESCRIBE panel_beater_quotes; DESCRIBE quote_line_items;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute DESCRIBE panel_beater_quotes; DESCRIBE quote_line_items;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "claim_id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "panel_beater_id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "quoted_amount",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "labor_cost",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "parts_cost",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "estimated_duration",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "labor_hours",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "itemized_breakdown",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "notes",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "modified",
+      "Type": "tinyint",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "original_quoted_amount",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "modification_reason",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "modified_by_assessor_id",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "panel_beater_agreed",
+      "Type": "tinyint",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "enum('draft','submitted','modified','accepted','rejected')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "draft",
+      "Extra": ""
+    },
+    {
+      "Field": "created_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updated_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "components_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "parts_quality",
+      "Type": "enum('aftermarket','oem','genuine','used')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "aftermarket",
+      "Extra": ""
+    },
+    {
+      "Field": "warranty_months",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "12",
+      "Extra": ""
+    },
+    {
+      "Field": "tenant_id",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "currency_code",
+      "Type": "varchar(10)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "USD",
+      "Extra": ""
+    },
+    {
+      "Field": "currency",
+      "Type": "varchar(10)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "USD",
+      "Extra": ""
+    },
+    {
+      "Field": "quote_audit_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "quote_congruency_score",
+      "Type": "decimal(5,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "quote_id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "item_number",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "description",
+      "Type": "varchar(500)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "part_number",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "category",
+      "Type": "enum('parts','labor','paint','diagnostic','sundries','other')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "quantity",
+      "Type": "decimal(10,2)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "unit_price",
+      "Type": "decimal(10,2)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "line_total",
+      "Type": "decimal(10,2)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "currency",
+      "Type": "varchar(10)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "USD",
+      "Extra": ""
+    },
+    {
+      "Field": "vat_rate",
+      "Type": "decimal(5,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "15.00",
+      "Extra": ""
+    },
+    {
+      "Field": "vat_amount",
+      "Type": "decimal(10,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "total_with_vat",
+      "Type": "decimal(10,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "is_repair",
+      "Type": "tinyint",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "is_replacement",
+      "Type": "tinyint",
+      "Null": "YES",
+      "Key": "",
+      "Default": "1",
+      "Extra": ""
+    },
+    {
+      "Field": "betterment_amount",
+      "Type": "decimal(10,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "net_cost",
+      "Type": "decimal(10,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "is_price_inflated",
+      "Type": "tinyint",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "is_unrelated_damage",
+      "Type": "tinyint",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "is_missing_in_other_quotes",
+      "Type": "tinyint",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "notes",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "created_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updated_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "ai_review",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "part_origin",
+      "Type": "enum('oem','aftermarket','reconditioned','used','unknown')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "unknown",
+      "Extra": ""
+    },
+    {
+      "Field": "repairer_name",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nclaim_id\tint\tNO\tMUL\tNULL\t\npanel_beater_id\tint\tNO\tMUL\tNULL\t\nquoted_amount\tint\tNO\t\tNULL\t\nlabor_cost\tint\tYES\t\tNULL\t\nparts_cost\tint\tYES\t\tNULL\t\nestimated_duration\tint\tYES\t\tNULL\t\nlabor_hours\tint\tYES\t\tNULL\t\nitemized_breakdown\ttext\tYES\t\tNULL\t\nnotes\ttext\tYES\t\tNULL\t\nmodified\ttinyint\tYES\t\t0\t\noriginal_quoted_amount\tint\tYES\t\tNULL\t\nmodification_reason\ttext\tYES\t\tNULL\t\nmodified_by_assessor_id\tint\tYES\t\tNULL\t\npanel_beater_agreed\ttinyint\tYES\t\tNULL\t\nstatus\tenum('draft','submitted','modified','accepted','rejected')\tNO\t\tdraft\t\ncreated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\ncomponents_json\ttext\tYES\t\tNULL\t\nparts_quality\tenum('aftermarket','oem','genuine','used')\tYES\t\taftermarket\t\nwarranty_months\tint\tYES\t\t12\t\ntenant_id\tvarchar(255)\tYES\t\tNULL\t\ncurrency_code\tvarchar(10)\tYES\t\tUSD\t\ncurrency\tvarchar(10)\tNO\t\tUSD\t\nquote_audit_json\ttext\tYES\t\tNULL\t\nquote_congruency_score\tdecimal(5,2)\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nquote_id\tint\tNO\t\tNULL\t\nitem_number\tint\tYES\t\tNULL\t\ndescription\tvarchar(500)\tNO\t\tNULL\t\npart_number\tvarchar(100)\tYES\t\tNULL\t\ncategory\tenum('parts','labor','paint','diagnostic','sundries','other')\tNO\t\tNULL\t\nquantity\tdecimal(10,2)\tNO\t\tNULL\t\nunit_price\tdecimal(10,2)\tNO\t\tNULL\t\nline_total\tdecimal(10,2)\tNO\t\tNULL\t\ncurrency\tvarchar(10)\tNO\t\tUSD\t\nvat_rate\tdecimal(5,2)\tYES\t\t15.00\t\nvat_amount\tdecimal(10,2)\tYES\t\tNULL\t\ntotal_with_vat\tdecimal(10,2)\tYES\t\tNULL\t\nis_repair\ttinyint\tYES\t\t0\t\nis_replacement\ttinyint\tYES\t\t1\t\nbetterment_amount\tdecimal(10,2)\tYES\t\tNULL\t\nnet_cost\tdecimal(10,2)\tYES\t\tNULL\t\nis_price_inflated\ttinyint\tYES\t\t0\t\nis_unrelated_damage\ttinyint\tYES\t\t0\t\nis_missing_in_other_quotes\ttinyint\tYES\t\t0\t\nnotes\ttext\tYES\t\tNULL\t\ncreated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nai_review\tvarchar(50)\tYES\t\tNULL\t\npart_origin\tenum('oem','aftermarket','reconditioned','used','unknown')\tYES\t\tunknown\t\nrepairer_name\tvarchar(255)\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 607
+}

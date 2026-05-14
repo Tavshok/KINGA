@@ -1,0 +1,25 @@
+{
+  "query": "SELECT COUNT(*) as total FROM claim_documents; SELECT * FROM claim_documents ORDER BY created_at DESC LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT COUNT(*) as total FROM claim_documents; SELECT * FROM claim_documents ORDER BY created_at DESC LIMIT 3;",
+  "rows": [
+    {
+      "total": "54"
+    },
+    {
+      "total": "id\tclaim_id\tuploaded_by\tfile_name\tfile_key\tfile_url\tfile_size\tmime_type\tdocument_title\tdocument_description\tdocument_category\tvisible_to_roles\tcreated_at\tupdated_at"
+    },
+    {
+      "total": "2970002\t6030208\t11550171\ttest-damage_photo.pdf\tclaim-documents/6030208/test-damage_photo.pdf\thttps://cdn.example.com/claim-documents/6030208/test-damage_photo.pdf\t1024\tapplication/pdf\tNULL\tNULL\tdamage_photo\t[\"insurer\"]\t2026-05-14 10:53:20\t2026-05-14 10:53:20"
+    },
+    {
+      "total": "2970001\t6030208\t11550171\ttest-claim-document.pdf\tclaim-documents/6030208/abc123-test-claim-document.pdf\thttps://cdn.example.com/claim-documents/6030208/abc123-test-claim-document.pdf\t102400\tapplication/pdf\tTest Document\tTest document upload\tother\t[\"insurer\",\"assessor\",\"panel_beater\",\"claimant\"]\t2026-05-14 10:53:20\t2026-05-14 10:53:20"
+    },
+    {
+      "total": "2970003\t6030208\t11550171\ttest-repair_quote.pdf\tclaim-documents/6030208/test-repair_quote.pdf\thttps://cdn.example.com/claim-documents/6030208/test-repair_quote.pdf\t1024\tapplication/pdf\tNULL\tNULL\trepair_quote\t[\"insurer\"]\t2026-05-14 10:53:20\t2026-05-14 10:53:20"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\n54\nid\tclaim_id\tuploaded_by\tfile_name\tfile_key\tfile_url\tfile_size\tmime_type\tdocument_title\tdocument_description\tdocument_category\tvisible_to_roles\tcreated_at\tupdated_at\n2970002\t6030208\t11550171\ttest-damage_photo.pdf\tclaim-documents/6030208/test-damage_photo.pdf\thttps://cdn.example.com/claim-documents/6030208/test-damage_photo.pdf\t1024\tapplication/pdf\tNULL\tNULL\tdamage_photo\t[\"insurer\"]\t2026-05-14 10:53:20\t2026-05-14 10:53:20\n2970001\t6030208\t11550171\ttest-claim-document.pdf\tclaim-documents/6030208/abc123-test-claim-document.pdf\thttps://cdn.example.com/claim-documents/6030208/abc123-test-claim-document.pdf\t102400\tapplication/pdf\tTest Document\tTest document upload\tother\t[\"insurer\",\"assessor\",\"panel_beater\",\"claimant\"]\t2026-05-14 10:53:20\t2026-05-14 10:53:20\n2970003\t6030208\t11550171\ttest-repair_quote.pdf\tclaim-documents/6030208/test-repair_quote.pdf\thttps://cdn.example.com/claim-documents/6030208/test-repair_quote.pdf\t1024\tapplication/pdf\tNULL\tNULL\trepair_quote\t[\"insurer\"]\t2026-05-14 10:53:20\t2026-05-14 10:53:20\n",
+  "stderr": "",
+  "execution_time_ms": 661
+}

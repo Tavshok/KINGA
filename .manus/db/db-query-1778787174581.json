@@ -1,0 +1,20 @@
+{
+  "query": "SELECT id, status, pipeline_current_stage, document_processing_status, ai_assessment_triggered, ai_assessment_completed, source_document_id, updated_at FROM claims WHERE id IN ('6270001', '6260001') ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, status, pipeline_current_stage, document_processing_status, ai_assessment_triggered, ai_assessment_completed, source_document_id, updated_at FROM claims WHERE id IN ('6270001', '6260001') ORDER BY id;",
+  "rows": [
+    {
+      "id": "6270001",
+      "status": "assessment_in_progress",
+      "pipeline_current_stage": "Stage 1 — Ingestion",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "source_document_id": "2490001",
+      "updated_at": "2026-05-14 19:28:53"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tstatus\tpipeline_current_stage\tdocument_processing_status\tai_assessment_triggered\tai_assessment_completed\tsource_document_id\tupdated_at\n6270001\tassessment_in_progress\tStage 1 — Ingestion\tpending\t0\t0\t2490001\t2026-05-14 19:28:53\n",
+  "stderr": "",
+  "execution_time_ms": 579
+}

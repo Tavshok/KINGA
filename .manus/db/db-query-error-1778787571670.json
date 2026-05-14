@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT \n  pbq.id as quote_id, pbq.panel_beater_name, pbq.total_amount, pbq.status, pbq.created_at,\n  qli.id as item_id, qli.component_name, qli.description, qli.unit_price, qli.quantity, qli.total_price, qli.repair_type\nFROM panel_beater_quotes pbq\nLEFT JOIN quote_line_items qli ON qli.quote_id = pbq.id\nWHERE pbq.claim_id = '6240003'\nORDER BY pbq.id, qli.id\nLIMIT 100;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  pbq.id as quote_id, pbq.panel_beater_name, pbq.total_amount, pbq.status, pbq.created_at,\n  qli.id as item_id, qli.component_name, qli.description, qli.unit_price, qli.quantity, qli.total_price, qli.repair_type\nFROM panel_beater_quotes pbq\nLEFT JOIN quote_line_items qli ON qli.quote_id = pbq.id\nWHERE pbq.claim_id = '6240003'\nORDER BY pbq.id, qli.id\nLIMIT 100;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'pbq.panel_beater_name' in 'field list'"
+  ]
+}

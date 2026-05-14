@@ -1,0 +1,17 @@
+{
+  "query": "SELECT id, claim_id, fraud_risk_level, confidence_score, estimated_cost FROM ai_assessments WHERE claim_id = 6270001 LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_id, fraud_risk_level, confidence_score, estimated_cost FROM ai_assessments WHERE claim_id = 6270001 LIMIT 1;",
+  "rows": [
+    {
+      "id": "6450001",
+      "claim_id": "6270001",
+      "fraud_risk_level": "medium",
+      "confidence_score": "91",
+      "estimated_cost": "21105"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_id\tfraud_risk_level\tconfidence_score\testimated_cost\n6450001\t6270001\tmedium\t91\t21105\n",
+  "stderr": "",
+  "execution_time_ms": 578
+}

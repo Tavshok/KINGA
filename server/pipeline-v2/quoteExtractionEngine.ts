@@ -521,6 +521,113 @@ function normaliseComponentName(raw: string): string {
 }
 
 /**
+ * extractQuoteFromPdfVision
+ *
+ * Vision-based fallback: sends the PDF directly to the LLM as a file_url so it
+ * can read the pricing table visually. Called when text-based extraction returns
+ * a quote with a non-zero total but all-zero line item prices — which indicates
+ * the OCR missed the price column (common with scanned/image-based PDFs).
+ *
+ * @param pdfUrl     Publicly accessible URL to the PDF document
+ * @param panelBeater Panel beater name already known from text extraction (used as context hint)
+ * @param totalCost  Known total cost from text extraction (used to validate vision result)
+ * @param tenantCountry ISO 3166-1 alpha-2 country code for currency default
+ */
+export async function extractQuoteFromPdfVision(
+  pdfUrl: string,
+  panelBeater: string | null,
+  totalCost: number | null,
+  tenantCountry?: string | null
+): Promise<ExtractedQuote> {
+  try {
+    const contextHint = panelBeater
+      ? `This is a repair quotation from ${panelBeater}. The total cost is approximately ${totalCost ?? 'unknown'}. Extract ALL line items with their individual prices.`
+      : `This is a vehicle repair quotation. The total cost is approximately ${totalCost ?? 'unknown'}. Extract ALL line items with their individual prices.`;
+
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: SYSTEM_PROMPT + `\n\nCRITICAL: This is a VISION extraction pass. The text-based extraction returned zero prices for all line items. You MUST read the pricing columns in the document visually and extract the actual dollar amounts. Do NOT return null or 0 for any line item that has a visible price in the document. If the total is known (${totalCost ?? 'unknown'}), use it to validate your extraction — the sum of line items should be close to the total.`,
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "file_url" as const,
+              file_url: {
+                url: pdfUrl,
+                mime_type: "application/pdf" as const,
+              },
+            },
+            {
+              type: "text" as const,
+              text: contextHint + "\n\nExtract ALL repair quote line items from this PDF with their individual unit costs and line totals. Pay special attention to price columns — they may be in a separate column to the right of the component names. Return the complete structured quote JSON.",
+            },
+          ],
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "extracted_quote",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              panel_beater: { type: ["string", "null"] },
+              total_cost: { type: ["number", "null"] },
+              currency: { type: "string" },
+              components: { type: "array", items: { type: "string" } },
+              line_items: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    component: { type: "string" },
+                    unit_cost: { type: ["number", "null"] },
+                    quantity: { type: "number" },
+                    line_total: { type: ["number", "null"] },
+                    action: { type: ["string", "null"] },
+                    part_origin: { type: "string", enum: ["oem", "aftermarket", "reconditioned", "used", "unknown"] },
+                  },
+                  required: ["component", "unit_cost", "quantity", "line_total", "action", "part_origin"],
+                  additionalProperties: false,
+                },
+              },
+              labour_defined: { type: "boolean" },
+              parts_defined: { type: "boolean" },
+              labour_cost: { type: ["number", "null"] },
+              parts_cost: { type: ["number", "null"] },
+              confidence: { type: "string", enum: ["high", "medium", "low"] },
+              extraction_warnings: { type: "array", items: { type: "string" } },
+            },
+            required: ["panel_beater", "total_cost", "currency", "components", "line_items", "labour_defined", "parts_defined", "labour_cost", "parts_cost", "confidence", "extraction_warnings"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const raw = response?.choices?.[0]?.message?.content;
+    if (!raw) return buildFallback("Vision extraction: LLM returned empty response.");
+
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const result = validateAndNormalise(parsed);
+    if (!result.currency && tenantCountry) {
+      result.currency = getDefaultCurrencyForCountry(tenantCountry);
+    }
+    // Tag this result as vision-extracted
+    result.extraction_warnings.push("vision_extraction_used");
+    console.log(`[QuoteExtractionEngine] Vision extraction complete: ${result.line_items.length} line items, total=${result.total_cost}, confidence=${result.confidence}`);
+    return result;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return buildFallback(`Vision extraction failed: ${msg}`);
+  }
+}
+
+/**
  * buildFallback
  *
  * Returns a safe null-filled ExtractedQuote with the given warning.

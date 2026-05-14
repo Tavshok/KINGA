@@ -741,11 +741,56 @@ async function runInputRecovery(
   // The LLM engine handles multi-quote documents, component lists, and labour/parts disaggregation.
   let extracted_quotes: import('./quoteExtractionEngine').ExtractedQuote[] | undefined;
   try {
-    const { extractMultipleQuotes } = await import('./quoteExtractionEngine');
+    const { extractMultipleQuotes, extractQuoteFromPdfVision } = await import('./quoteExtractionEngine');
     if (allText.trim().length > 50) {
       // Pass tenantCountry so the engine can apply the correct default currency
       // when the document does not explicitly state a currency code.
       extracted_quotes = await extractMultipleQuotes(allText, 'insurance claim document', tenantCountry);
+
+      // VISION FALLBACK: If any quote has a non-zero total but all line items are $0,
+      // the OCR missed the price column. Re-extract using the PDF directly via vision.
+      // We try ALL PDF documents on the claim — a claim form may contain multiple
+      // separate quote documents, and the quote with missing prices may be in a
+      // different document than the first one.
+      const allPdfDocs = (stage1.documents ?? []).filter(d => d.mimeType === 'application/pdf');
+      if (allPdfDocs.length > 0 && extracted_quotes) {
+        const repaired: typeof extracted_quotes = [];
+        for (const q of extracted_quotes) {
+          const hasTotal = q.total_cost !== null && q.total_cost > 0;
+          const allZeroPrices = q.line_items.length > 0 && q.line_items.every(li => (li.line_total ?? 0) === 0 && (li.unit_cost ?? 0) === 0);
+          const noLineItems = q.line_items.length === 0 && hasTotal;
+          if (hasTotal && (allZeroPrices || noLineItems)) {
+            console.log(`[Stage3] Vision fallback triggered for quote from "${q.panel_beater}" (total=${q.total_cost}, line_items=${q.line_items.length}, all_zero=${allZeroPrices}). Will try ${allPdfDocs.length} PDF document(s).`);
+            let visionSucceeded = false;
+            // Try each PDF document in order until we get priced line items
+            for (const pdfDoc of allPdfDocs) {
+              try {
+                console.log(`[Stage3] Trying vision extraction on: ${pdfDoc.fileName}`);
+                const visionResult = await extractQuoteFromPdfVision(pdfDoc.sourceUrl, q.panel_beater, q.total_cost, tenantCountry);
+                const visionHasPrices = visionResult.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
+                if (visionHasPrices) {
+                  console.log(`[Stage3] Vision extraction succeeded on ${pdfDoc.fileName}: ${visionResult.line_items.length} priced line items extracted`);
+                  repaired.push(visionResult);
+                  visionSucceeded = true;
+                  break; // Found prices — no need to try remaining documents
+                } else {
+                  console.log(`[Stage3] Vision extraction on ${pdfDoc.fileName} returned no prices — trying next document`);
+                }
+              } catch (visionErr) {
+                console.error(`[Stage3] Vision fallback failed on ${pdfDoc.fileName}:`, visionErr);
+              }
+            }
+            if (!visionSucceeded) {
+              console.log(`[Stage3] All ${allPdfDocs.length} PDF document(s) exhausted without extracting prices — keeping original quote`);
+              repaired.push(q);
+            }
+          } else {
+            repaired.push(q);
+          }
+        }
+        extracted_quotes = repaired;
+      }
+
       // If LLM found a quote but regex did not, remove the quote_not_mapped flag
       const llmFoundQuote = extracted_quotes.some(q => q.total_cost !== null && q.confidence !== 'low');
       if (!hasQuote && !recovered_quote && llmFoundQuote) {
