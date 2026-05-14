@@ -3,6 +3,39 @@ import "dotenv/config";
 import { initializeSentry } from "./sentry";
 initializeSentry();
 
+// ── PROCESS STABILITY GUARD ──────────────────────────────────────────────────
+// Prevent unhandled errors from crashing the server process.
+// The pipeline runs in-process and can throw unhandled rejections or exceptions
+// that would otherwise terminate the Node.js process, causing 503 on next request.
+process.on('uncaughtException', (err) => {
+  console.error('[PROCESS] Uncaught exception (server NOT crashing):', err?.message ?? err);
+  console.error('[PROCESS] Stack:', err?.stack ?? 'No stack');
+  // Do NOT call process.exit() — keep the server alive
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[PROCESS] Unhandled rejection (server NOT crashing):', reason);
+  // Do NOT call process.exit() — keep the server alive
+});
+
+// ── MEMORY MONITORING ────────────────────────────────────────────────────────
+// Log memory usage every 60s so we can detect leaks before they cause OOM.
+// Also trigger manual GC when heap exceeds 80% of the limit (1.2GB of 1.5GB).
+const HEAP_GC_THRESHOLD = 1.2 * 1024 * 1024 * 1024; // 1.2 GB
+setInterval(() => {
+  const mem = process.memoryUsage();
+  const heapMB = (mem.heapUsed / 1024 / 1024).toFixed(0);
+  const rssMB = (mem.rss / 1024 / 1024).toFixed(0);
+  const externalMB = (mem.external / 1024 / 1024).toFixed(0);
+  console.log(`[MEMORY] heap=${heapMB}MB rss=${rssMB}MB external=${externalMB}MB`);
+  // Trigger GC when heap is high (--expose-gc must be set)
+  if (mem.heapUsed > HEAP_GC_THRESHOLD && typeof globalThis.gc === 'function') {
+    console.log('[MEMORY] Heap exceeds threshold — triggering manual GC');
+    globalThis.gc();
+    const after = process.memoryUsage();
+    console.log(`[MEMORY] Post-GC: heap=${(after.heapUsed / 1024 / 1024).toFixed(0)}MB rss=${(after.rss / 1024 / 1024).toFixed(0)}MB`);
+  }
+}, 60_000);
+
 import express from "express";
 import { createServer } from "http";
 import net from "net";
@@ -49,7 +82,7 @@ async function startServer() {
   // Rate limiters
   const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per window
+    max: 1000, // 1000 requests per window — pipeline polling + normal usage needs headroom
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' },

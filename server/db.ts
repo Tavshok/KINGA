@@ -984,7 +984,10 @@ export async function triggerAiAssessment(claimId: number) {
   }
   if (pipelineTimeoutId) clearTimeout(pipelineTimeoutId);
 
-  // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────
+  // ── GC HINT: Pipeline complete — release intermediate stage buffers before DB write ──
+  if (typeof globalThis.gc === 'function') { globalThis.gc(); }
+
+  // ── PERSIST RESULTS TO DATABASE ──────────────────────────────────────
   const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome, caseSignature, stage2RawOcrText, decisionAuthority, reportReadiness, forensicAnalysis, coherenceResult: pipelineCoherenceResult, costRealismResult: pipelineCostRealismResult, consistencyCheckResult: pipelineConsistencyResult, contradictionGateResult: pipelineContradictionResult, physicsDeviationScoreValue: pipelinePhysicsDeviationScore } = result;
 
   // Diagnostic logging: show which pipeline outputs are populated vs null

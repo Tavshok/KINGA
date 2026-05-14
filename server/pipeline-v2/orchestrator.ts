@@ -731,6 +731,11 @@ export async function runPipelineV2(
     );
   }
 
+  // ── GC HINT: Release memory from extraction stages before heavy vision work ──
+  // Stage 6 (damage analysis) processes images which are memory-intensive.
+  // Releasing garbage from stages 1-5 prevents OOM during concurrent vision calls.
+  if (typeof globalThis.gc === 'function') { globalThis.gc(); }
+
   // ── STAGE 6: Damage Analysis ─────────────────────────────────────────
   ctx.onStageStart?.("Stage 6 — Damage Analysis");
   // claimRecord is guaranteed non-null here: Stage 5 (assembly) either
@@ -1029,7 +1034,10 @@ export async function runPipelineV2(
   stage9Data = s9.data; // Always has data (self-healing)
   ctx.log("Pipeline", `S8 fraud: ${stage8Data?.fraudRiskLevel ?? "N/A"} (score=${stage8Data?.fraudRiskScore ?? "N/A"}). S9 cost: deviation=${stage9Data?.quoteDeviationPct?.toFixed(1) ?? "N/A"}%.`);
 
-  // ── STAGE 7d: Confidence Aggregation ──────────────────────────────────────
+  // ── GC HINT: Release memory from parallel S8+S9 before final aggregation ──
+  if (typeof globalThis.gc === 'function') { globalThis.gc(); }
+
+  // ── STAGE 7d: Confidence Aggregation ──────────────────────────────────────────
   // Run after Stage 8 so all engine outputs (physics, damage, fraud,
   // consistency) are available for the weakest-link calculation.
   try {

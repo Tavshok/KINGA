@@ -12199,3 +12199,20 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix 22 TypeScript errors across 6 files (zero TS errors now)
 - [x] Full pipeline quality audit: 12/12 user claims rated GOOD quality
 - [x] All 574 unit tests passing
+
+## System Reliability: First-Try Upload Success (May 14)
+- [ ] Diagnose root cause of 503 Service Unavailable on file upload
+- [ ] Fix the root cause so uploads work reliably on first attempt
+- [ ] Test upload end-to-end to confirm first-try reliability
+
+## Server Stability — OOM Prevention (May 2026)
+- [x] Root cause: OOM killer terminating Node.js server during pipeline runs (2.1GB RSS, no memory limit)
+- [x] Fix 1: Add --max-old-space-size=1536 and --expose-gc to dev and start scripts
+- [x] Fix 2: Add process crash protection (uncaughtException + unhandledRejection handlers)
+- [x] Fix 3: Add memory monitoring (60s interval, auto-GC at 1.2GB threshold)
+- [x] Fix 4: Streaming PDF extraction — process one page at a time instead of accumulating all buffers
+- [x] Fix 5: sharp.concurrency(1) — limit thread pool to prevent memory explosion
+- [x] Fix 6: DPI_SCANNED reduced from 250 to 200 (36% less memory per page, still readable)
+- [x] Fix 7: GC hints between pipeline stages (before Stage 6, after S8+S9, after pipeline complete)
+- [x] Fix 8: Rate limiter increased from 100 to 1000 requests per 15min (prevents 429 during polling)
+- [x] Fix 9: Combined page render + embedded extraction in single pass (no second getPage call)
