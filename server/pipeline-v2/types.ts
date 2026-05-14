@@ -1031,12 +1031,14 @@ export interface PartsReconciliationItem {
   component: string;
   aiEstimate: number | null;
   quotedAmount: number | null;
-  quotedCurrency?: string | null;
+  quotedCurrency: string | null;
   variance: number | null;
   variancePct: number | null;
   flag: string | null;
-  reconciliation_status?: string;
-  is_structural?: boolean;
+  /** True when the component was found in the quote but its price was not extracted */
+  is_unpriced?: boolean;
+  reconciliation_status: "matched" | "matched_unpriced" | "missing_from_quote" | "unmatched" | "no_quote_available";
+  is_structural: boolean;
 }
 
 // ── Multi-quote composite optimisation types ────────────────────────────────
@@ -1312,7 +1314,35 @@ export interface Stage9Output {
     line_total?: number | null;
     part_origin?: string | null;
     source_quote_index?: number | null;
+    /** True when this row is a non-vehicle-part cost (paint, labour, sundries, VAT etc.) */
+    is_non_part_cost?: boolean;
   }>;
+  /**
+   * Per-quote line item completeness analysis.
+   * Surfaced in the report so adjusters can see which quotes have pricing gaps.
+   */
+  quoteLineItemGapAdvisory?: Array<{
+    quote_index: number;
+    panel_beater: string | null;
+    total_cost: number | null;
+    currency: string | null;
+    line_item_count: number;
+    priced_item_count: number;
+    unpriced_item_count: number;
+    unpriced_items: string[];
+    rejected_items: Array<{ raw_name: string; raw_cost: number | null }>;
+    line_items_sum: number | null;
+    line_items_sum_discrepancy_pct: number | null;
+    completeness_score: number;
+    /** COMPLETE = all items priced and sum matches; PARTIAL = some items unpriced; EMPTY = no line items */
+    status: "COMPLETE" | "PARTIAL" | "EMPTY";
+    warnings: string[];
+  }>;
+  /**
+   * Aggregate completeness across all submitted quotes.
+   * Used to determine if cost optimisation can be performed reliably.
+   */
+  overallLineItemCompletenessScore?: number;
 }
 // ────────────────────────────────────────────────────────────────────────────────
 // STAGE 9b — TURNAROUND TIME ANALYSIS

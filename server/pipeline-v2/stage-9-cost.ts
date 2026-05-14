@@ -238,17 +238,47 @@ export async function runCostOptimisationStage(
 
     // ── Step A: Run Quote Optimisation Engine FIRST ──────────────────────────
     // Build InputQuote[] from all extracted quotes in Stage 3.
-    const optimisationInputQuotes: InputQuote[] = (stage3?.inputRecovery?.extracted_quotes ?? []).map(q => ({
-      panel_beater: q.panel_beater ?? null,
-      total_cost: q.total_cost ?? null,
-      currency: q.currency ?? "USD",
-      components: q.components ?? [],
-      labour_defined: q.labour_defined ?? false,
-      parts_defined: q.parts_defined ?? false,
-      labour_cost: (q as any).labour_cost ?? null,
-      parts_cost: (q as any).parts_cost ?? null,
-      confidence: (q.confidence as "high" | "medium" | "low") ?? "low",
-    }));
+    // CRITICAL: If the quote's `components` list is empty but it has `line_items`,
+    // derive the component list from line_items so the optimisation engine can
+    // compute a meaningful coverage ratio. Non-part cost rows (paint, sundries,
+    // labour, VAT) are excluded from the component list because they are not
+    // vehicle parts and should not affect structural coverage scoring.
+    const optimisationInputQuotes: InputQuote[] = (stage3?.inputRecovery?.extracted_quotes ?? []).map(q => {
+      let components: string[] = q.components ?? [];
+      if (components.length === 0 && Array.isArray((q as any).line_items)) {
+        components = ((q as any).line_items as any[])
+          .filter((li: any) => !li.is_non_part_cost && li.component)
+          .map((li: any) => li.component as string);
+      }
+      // Derive labour_cost and parts_cost from line_items if not already set
+      let labourCost: number | null = (q as any).labour_cost ?? null;
+      let partsCost: number | null = (q as any).parts_cost ?? null;
+      if (labourCost === null && Array.isArray((q as any).line_items)) {
+        const labourItems = ((q as any).line_items as any[])
+          .filter((li: any) => li.is_non_part_cost && /labour|labor/i.test(li.component ?? ''));
+        if (labourItems.length > 0) {
+          labourCost = labourItems.reduce((s: number, li: any) => s + (li.line_total ?? 0), 0) || null;
+        }
+      }
+      if (partsCost === null && Array.isArray((q as any).line_items)) {
+        const partsItems = ((q as any).line_items as any[])
+          .filter((li: any) => !li.is_non_part_cost);
+        if (partsItems.length > 0) {
+          partsCost = partsItems.reduce((s: number, li: any) => s + (li.line_total ?? 0), 0) || null;
+        }
+      }
+      return {
+        panel_beater: q.panel_beater ?? null,
+        total_cost: q.total_cost ?? null,
+        currency: q.currency ?? "USD",
+        components,
+        labour_defined: q.labour_defined ?? (labourCost !== null && labourCost > 0),
+        parts_defined: q.parts_defined ?? (partsCost !== null && partsCost > 0),
+        labour_cost: labourCost,
+        parts_cost: partsCost,
+        confidence: (q.confidence as "high" | "medium" | "low") ?? "low",
+      };
+    });
     // If no extracted quotes but there is a single quoted total from the claim record,
     // synthesise a single InputQuote so the optimisation engine can still run.
     if (optimisationInputQuotes.length === 0 && claimRecord.repairQuote.quoteTotalCents && claimRecord.repairQuote.quoteTotalCents > 0) {
@@ -418,13 +448,20 @@ export async function runCostOptimisationStage(
       .flatMap(q => ((q as any).line_items ?? []).map((li: any) => ({ ...li, quoteCurrency: (q as any).currency ?? currency })));
 
     // Map: normalised component name → { line_total, quoteCurrency }
-    const lineItemMap = new Map<string, { line_total: number; quoteCurrency: string }>();
+    // lineItemMap: normalised component name → { line_total, quoteCurrency, is_unpriced }
+    // CRITICAL: zero-priced items are included with is_unpriced=true so they appear in
+    // partsReconciliation as "quoted but unpriced" rather than being silently dropped.
+    const lineItemMap = new Map<string, { line_total: number; quoteCurrency: string; is_unpriced?: boolean }>();
     for (const li of allLineItems) {
-      if (li.line_total !== null && li.line_total > 0) {
-        const key = (li.component as string).toLowerCase().trim();
-        if (!lineItemMap.has(key)) {
-          lineItemMap.set(key, { line_total: li.line_total, quoteCurrency: li.quoteCurrency });
-        }
+      const key = ((li.component ?? li.description ?? '') as string).toLowerCase().trim();
+      if (!key) continue;
+      if (!lineItemMap.has(key)) {
+        const lineTotal = typeof li.line_total === 'number' ? li.line_total : 0;
+        lineItemMap.set(key, {
+          line_total: lineTotal,
+          quoteCurrency: li.quoteCurrency,
+          is_unpriced: lineTotal <= 0,
+        });
       }
     }
 
@@ -442,15 +479,32 @@ export async function runCostOptimisationStage(
       const matched = reconciliation?.matched.find(m => m.damage_component === comp.name.toLowerCase());
       const isMissing = reconciliation?.missing.some(m => m.component === comp.name.toLowerCase());
 
-      // Look up per-component quoted amount from line_items
-      // Try exact match first, then fuzzy match via the reconciliation engine's matched quote_component
+      // Look up per-component quoted amount from line_items.
+      // Match order:
+      //   1. Exact normalised key match
+      //   2. Reconciliation engine matched quote_component
+      //   3. Token-overlap fuzzy scan across all line item keys
       const compKey = comp.name.toLowerCase().trim();
       let quotedEntry = lineItemMap.get(compKey);
       if (!quotedEntry && matched?.quote_component) {
         quotedEntry = lineItemMap.get(matched.quote_component.toLowerCase().trim());
       }
-      const quotedAmount = quotedEntry?.line_total ?? null;
+      if (!quotedEntry) {
+        // Token-overlap fuzzy scan: find any line item key that shares a meaningful token
+        const compTokens = compKey.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(t => t.length > 2);
+        for (const [liKey, liVal] of lineItemMap.entries()) {
+          const liTokens = liKey.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(t => t.length > 2);
+          const overlap = compTokens.filter(t => liTokens.includes(t)).length;
+          const maxLen = Math.max(compTokens.length, liTokens.length);
+          if (maxLen > 0 && overlap / maxLen >= 0.5) {
+            quotedEntry = liVal;
+            break;
+          }
+        }
+      }
+      const quotedAmount = (quotedEntry && !quotedEntry.is_unpriced) ? quotedEntry.line_total : null;
       const quotedCurrency = quotedEntry?.quoteCurrency ?? null;
+      const isUnpriced = quotedEntry?.is_unpriced ?? false;
 
       return {
         component: comp.name,
@@ -459,13 +513,19 @@ export async function runCostOptimisationStage(
         quotedCurrency,
         variance: null as number | null,
         variancePct: null as number | null,
+        // is_unpriced: component was found in the quote but has no price extracted
+        is_unpriced: isUnpriced,
         flag: isMissing
           ? `missing_from_quote`
+          : isUnpriced
+          ? `unpriced_in_quote`
           : matched
           ? null
           : null,
         reconciliation_status: reconciliation
-          ? (matched ? "matched" : isMissing ? "missing_from_quote" : "unmatched")
+          ? (matched
+              ? (isUnpriced ? "matched_unpriced" : "matched")
+              : isMissing ? "missing_from_quote" : "unmatched")
           : "no_quote_available",
         is_structural: comp.name ? /radiator support|bumper bracket|chassis|sill|diff connector|differential connector/i.test(comp.name) : false,
       };
@@ -727,12 +787,17 @@ export async function runCostOptimisationStage(
       ctx.log("Stage 9", `DOE computation failed (non-fatal): ${String(doeErr)}`);
     }
 
-    // Build documentedLineItems from the first extracted quote's line_items.
-    // These carry the actual unit_cost and line_total from the quote document,
-    // unlike repairQuote.lineItems (Stage 5) which are always zero-priced.
-    // db.ts uses this field when calling persistExtractedQuote so the
-    // quote_line_items table gets real pricing instead of zeros.
-    const _firstExtractedQuote = (stage3?.inputRecovery?.extracted_quotes ?? [])[0] ?? null;
+    // ─────────────────────────────────────────────────────────────────────────
+    // BUILD documentedLineItems FROM ALL EXTRACTED QUOTES
+    //
+    // CRITICAL: We must capture line items from EVERY submitted quote, not just
+    // the first one. Each quote's line items are tagged with source_quote_index
+    // so the UI and db.ts can attribute them correctly.
+    //
+    // Non-vehicle-part cost rows (paint, sundries, labour, VAT) are included
+    // because every cost contributes to the final claim value.
+    // ─────────────────────────────────────────────────────────────────────────
+    const allExtractedQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
     const documentedLineItems: Array<{
       description: string;
       partNumber: string | null;
@@ -742,16 +807,136 @@ export async function runCostOptimisationStage(
       lineTotal: number;
       isRepair: boolean;
       isReplacement: boolean;
-    }> = (_firstExtractedQuote?.line_items ?? []).map((li: any) => ({
-      description: li.component ?? li.description ?? 'Item',
-      partNumber: li.part_number ?? null,
-      category: 'parts',
-      quantity: typeof li.quantity === 'number' ? li.quantity : 1,
-      unitPrice: typeof li.unit_cost === 'number' ? li.unit_cost : 0,
-      lineTotal: typeof li.line_total === 'number' ? li.line_total : (typeof li.unit_cost === 'number' ? li.unit_cost : 0),
-      isRepair: li.action === 'repair',
-      isReplacement: li.action === 'replace' || li.action !== 'repair',
-    }));
+      component?: string;
+      unit_cost?: number | null;
+      line_total?: number | null;
+      part_origin?: string | null;
+      source_quote_index?: number | null;
+      is_non_part_cost?: boolean;
+    }> = [];
+
+    for (let qi = 0; qi < allExtractedQuotes.length; qi++) {
+      const eq = allExtractedQuotes[qi];
+      const lineItems = (eq as any).line_items ?? [];
+      for (const li of lineItems) {
+        const unitPrice = typeof li.unit_cost === 'number' ? li.unit_cost : 0;
+        const lineTotal = typeof li.line_total === 'number' ? li.line_total
+          : (unitPrice > 0 ? unitPrice * (typeof li.quantity === 'number' ? li.quantity : 1) : 0);
+        // Determine category: non-part cost rows get their own category
+        const isNonPart = li.is_non_part_cost === true;
+        let category = 'parts';
+        if (isNonPart) {
+          const desc = (li.component ?? '').toLowerCase();
+          if (/labour|labor/.test(desc)) category = 'labour';
+          else if (/paint|spray|respray|refinish/.test(desc)) category = 'paint';
+          else if (/vat|tax|gst/.test(desc)) category = 'tax';
+          else category = 'other';
+        } else if (li.action === 'repair') {
+          category = 'repair';
+        }
+        documentedLineItems.push({
+          description: li.component ?? li.description ?? 'Item',
+          partNumber: li.part_number ?? null,
+          category,
+          quantity: typeof li.quantity === 'number' ? li.quantity : 1,
+          unitPrice,
+          lineTotal,
+          isRepair: li.action === 'repair',
+          isReplacement: li.action === 'replace' || (li.action !== 'repair' && !isNonPart),
+          component: li.component ?? null,
+          unit_cost: typeof li.unit_cost === 'number' ? li.unit_cost : null,
+          line_total: typeof li.line_total === 'number' ? li.line_total : null,
+          part_origin: li.part_origin ?? null,
+          source_quote_index: qi,
+          is_non_part_cost: isNonPart || undefined,
+        });
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BUILD quoteLineItemGapAdvisory — per-quote completeness analysis
+    //
+    // For each submitted quote, compute:
+    //   - How many line items were extracted
+    //   - How many have a non-zero price
+    //   - Which items are unpriced (adjuster must follow up)
+    //   - Which items were rejected by the hallucination guard
+    //   - Whether the sum of line items matches the quote total
+    //   - A completeness score (0-100)
+    // ─────────────────────────────────────────────────────────────────────────
+    const quoteLineItemGapAdvisory = allExtractedQuotes.map((eq: any, qi: number) => {
+      const lineItems: any[] = eq.line_items ?? [];
+      const pricedItems = lineItems.filter((li: any) => typeof li.line_total === 'number' && li.line_total > 0);
+      const unpricedItems = lineItems.filter((li: any) => !(typeof li.line_total === 'number' && li.line_total > 0));
+      const rejectedItems: Array<{ raw_name: string; raw_cost: number | null }> = eq.rejected_line_items ?? [];
+      const lineItemsSum = pricedItems.length > 0
+        ? pricedItems.reduce((s: number, li: any) => s + (li.line_total as number), 0)
+        : null;
+      const totalCost = eq.total_cost ?? null;
+      let discrepancyPct: number | null = null;
+      if (lineItemsSum !== null && totalCost !== null && totalCost > 0) {
+        discrepancyPct = Math.round(((lineItemsSum - totalCost) / totalCost) * 1000) / 10;
+      }
+      const completenessScore: number = eq.line_item_completeness_score ?? (
+        lineItems.length === 0 ? 0
+        : unpricedItems.length === 0 && pricedItems.length > 0
+          ? (discrepancyPct !== null && Math.abs(discrepancyPct) <= 10 ? 100 : 75)
+          : pricedItems.length > 0 ? Math.round(50 * pricedItems.length / lineItems.length) : 0
+      );
+      let status: 'COMPLETE' | 'PARTIAL' | 'EMPTY';
+      if (lineItems.length === 0) status = 'EMPTY';
+      else if (unpricedItems.length === 0 && pricedItems.length > 0) status = 'COMPLETE';
+      else status = 'PARTIAL';
+      // Surface warnings from extraction engine
+      const warnings: string[] = [...(eq.extraction_warnings ?? [])];
+      if (unpricedItems.length > 0) {
+        warnings.push(`${unpricedItems.length} unpriced item(s): ${unpricedItems.map((li: any) => `"${li.component ?? 'unknown'}"`).join(', ')}`);
+      }
+      if (rejectedItems.length > 0) {
+        warnings.push(`${rejectedItems.length} item(s) rejected by hallucination guard — manual review required: ${rejectedItems.map((r: any) => `"${r.raw_name}"`).join(', ')}`);
+      }
+      if (discrepancyPct !== null && Math.abs(discrepancyPct) > 10) {
+        warnings.push(`Line item sum (${lineItemsSum?.toFixed(2)}) deviates ${discrepancyPct > 0 ? '+' : ''}${discrepancyPct.toFixed(1)}% from quote total (${totalCost?.toFixed(2)})`);
+      }
+      return {
+        quote_index: qi,
+        panel_beater: eq.panel_beater ?? null,
+        total_cost: totalCost,
+        currency: eq.currency ?? null,
+        line_item_count: lineItems.length,
+        priced_item_count: pricedItems.length,
+        unpriced_item_count: unpricedItems.length,
+        unpriced_items: unpricedItems.map((li: any) => li.component ?? 'unknown'),
+        rejected_items: rejectedItems,
+        line_items_sum: lineItemsSum,
+        line_items_sum_discrepancy_pct: discrepancyPct,
+        completeness_score: completenessScore,
+        status,
+        warnings,
+      };
+    });
+
+    // Aggregate completeness score: average across all quotes
+    const overallLineItemCompletenessScore = quoteLineItemGapAdvisory.length > 0
+      ? Math.round(quoteLineItemGapAdvisory.reduce((s: number, q: any) => s + q.completeness_score, 0) / quoteLineItemGapAdvisory.length)
+      : 0;
+
+    // Log completeness summary
+    for (const advisory of quoteLineItemGapAdvisory) {
+      ctx.log('Stage 9',
+        `Quote[${advisory.quote_index}] ${advisory.panel_beater ?? 'Unknown'}: ` +
+        `${advisory.line_item_count} items, ${advisory.priced_item_count} priced, ` +
+        `${advisory.unpriced_item_count} unpriced, score=${advisory.completeness_score}, status=${advisory.status}` +
+        (advisory.line_items_sum_discrepancy_pct !== null ? `, sum_discrepancy=${advisory.line_items_sum_discrepancy_pct.toFixed(1)}%` : '')
+      );
+    }
+    if (quoteLineItemGapAdvisory.some((q: any) => q.status !== 'COMPLETE')) {
+      ctx.log('Stage 9',
+        `⚠️  COST COMPLETENESS WARNING: ${quoteLineItemGapAdvisory.filter((q: any) => q.status !== 'COMPLETE').length} quote(s) have incomplete line item pricing. ` +
+        `Overall completeness score: ${overallLineItemCompletenessScore}/100. ` +
+        `Adjuster review required for unpriced items.`
+      );
+    }
 
     const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
@@ -812,7 +997,13 @@ export async function runCostOptimisationStage(
       marketValueUsd: claimRecord.valuation?.marketValueUsd ?? null,
       // Extracted quote line items with real pricing — used by db.ts for persistExtractedQuote.
       // These come from quoteExtractionEngine (Stage 3) and carry actual unit_cost / line_total.
+      // ALL quotes are included (not just the first), tagged with source_quote_index.
       documentedLineItems: documentedLineItems.length > 0 ? documentedLineItems : undefined,
+      // Per-quote line item completeness advisory — surfaces unpriced items, rejected items,
+      // sum-check discrepancies, and a completeness score for each submitted quote.
+      // This is the primary signal for adjuster follow-up on missing cost data.
+      quoteLineItemGapAdvisory: quoteLineItemGapAdvisory.length > 0 ? quoteLineItemGapAdvisory : undefined,
+      overallLineItemCompletenessScore,
     }, isDegraded ? "degraded_estimate" : "success");
 
     // ── Phase 2: Per-component KINGA benchmarks ─────────────────────────────

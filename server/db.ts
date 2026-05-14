@@ -1566,52 +1566,132 @@ export async function triggerAiAssessment(claimId: number) {
   await db.insert(aiAssessments).values(sanitizeNaNDeep(_rawInsertValues));
 
   // ── ROUTE 1: Pipeline PDF extraction → panel_beater_quotes ─────────────────
-  // Every claim that has an extracted quote must have a panel_beater_quotes row
-  // so Section 3 Financial Validation always has data to render.
+  // CRITICAL: Persist ALL extracted quotes (not just the first) so every submitted
+  // panel beater quote has a panel_beater_quotes row with its full line items.
+  // documentedLineItems from Stage 9 carries source_quote_index so we can group
+  // line items back to their originating quote.
   // This runs non-blocking (fire-and-forget) so a quote persistence failure
   // never blocks the main assessment save.
-  if (documentedOriginalQuoteUsd && documentedOriginalQuoteUsd > 0) {
+  {
     const { persistExtractedQuote } = await import('./persistExtractedQuote');
-    // Prefer documentedLineItems from Stage 9 (sourced from quoteExtractionEngine, real pricing)
-    // over repairQuote.lineItems (Stage 5, always zero-priced — component names only).
-    const _stage9LineItems = (costAnalysis as any)?.documentedLineItems;
-    const extractedLineItems = Array.isArray(_stage9LineItems) && _stage9LineItems.length > 0
-      ? _stage9LineItems.map((li: any) => ({
-          description: li.description ?? 'Item',
-          partNumber: li.partNumber ?? null,
-          category: (['parts','labor','paint','diagnostic','sundries','other'].includes(li.category) ? li.category : 'parts') as any,
-          quantity: Number(li.quantity) || 1,
-          unitPrice: Number(li.unitPrice) || 0,
-          lineTotal: Number(li.lineTotal) || 0,
-          isRepair: Boolean(li.isRepair),
-          isReplacement: li.isReplacement !== false,
-          notes: li.notes ?? null,
-        }))
-      : (repairQuote?.lineItems ?? []).map((li: any) => ({
-          description: li.description ?? li.partName ?? 'Item',
-          partNumber: li.partNumber ?? null,
-          category: (['parts','labor','paint','diagnostic','sundries','other'].includes(li.category) ? li.category : 'parts') as any,
-          quantity: Number(li.quantity) || 1,
-          unitPrice: li.unitPriceCents ? li.unitPriceCents / 100 : (li.unitPrice ?? 0),
-          lineTotal: li.lineTotalCents ? li.lineTotalCents / 100 : (li.lineTotal ?? 0),
-          isRepair: Boolean(li.isRepair),
-          isReplacement: li.isReplacement !== false,
-          notes: li.notes ?? null,
-        }));
-    console.log(`[KINGA Assessment] Claim ${claimId}: Line item source = ${Array.isArray(_stage9LineItems) && _stage9LineItems.length > 0 ? `stage9_documented (${_stage9LineItems.length} items)` : `repairQuote_fallback (${(repairQuote?.lineItems ?? []).length} items)`}`);
-    persistExtractedQuote({
-      claimId,
-      tenantId: claim.tenantId ?? null,
-      repairerName: panelBeaterName ?? 'Extracted Repairer',
-      quotedAmountUnits: documentedOriginalQuoteUsd,
-      labourCostUnits: documentedLabourCostUsd ?? null,
-      partsCostUnits: documentedPartsCostUsd ?? null,
-      currency: costAnalysis?.currency ?? 'USD',
-      lineItems: extractedLineItems,
-      source: 'pipeline_extracted',
-    }).then(async qid => {
-      if (qid) {
-        console.log(`[KINGA Assessment] Claim ${claimId}: Extracted quote persisted → panel_beater_quotes id=${qid}`);
+    const _stage9LineItems: any[] = (costAnalysis as any)?.documentedLineItems ?? [];
+    // quoteLineItemGapAdvisory carries per-quote metadata (panel_beater, total_cost, currency)
+    const _gapAdvisory: any[] = (costAnalysis as any)?.quoteLineItemGapAdvisory ?? [];
+
+    // Helper: normalise a line item to the persistExtractedQuote schema
+    const normaliseLi = (li: any) => ({
+      description: li.description ?? 'Item',
+      partNumber: li.partNumber ?? null,
+      category: (['parts','labor','paint','diagnostic','sundries','other'].includes(li.category)
+        ? li.category : 'parts') as any,
+      quantity: Number(li.quantity) || 1,
+      unitPrice: Number(li.unit_cost ?? li.unitPrice) || 0,
+      lineTotal: Number(li.line_total ?? li.lineTotal) || 0,
+      isRepair: Boolean(li.isRepair),
+      isReplacement: li.isReplacement !== false,
+      notes: li.notes ?? null,
+    });
+
+    // Build a map: quote_index → line items from documentedLineItems
+    const lineItemsByQuoteIndex = new Map<number, any[]>();
+    for (const li of _stage9LineItems) {
+      const idx = typeof li.source_quote_index === 'number' ? li.source_quote_index : 0;
+      if (!lineItemsByQuoteIndex.has(idx)) lineItemsByQuoteIndex.set(idx, []);
+      lineItemsByQuoteIndex.get(idx)!.push(li);
+    }
+
+    // Determine which quotes to persist.
+    // If quoteLineItemGapAdvisory has entries, use it as the authoritative quote list
+    // (it covers all extracted quotes). Otherwise fall back to single-quote path.
+    interface QuoteToPersist {
+      quoteIndex: number;
+      repairerName: string;
+      quotedAmountUnits: number;
+      labourCostUnits: number | null;
+      partsCostUnits: number | null;
+      currency: string;
+      lineItems: ReturnType<typeof normaliseLi>[];
+    }
+    const quotesToPersist: QuoteToPersist[] = [];
+
+    if (_gapAdvisory.length > 0) {
+      for (let qi = 0; qi < _gapAdvisory.length; qi++) {
+        const adv = _gapAdvisory[qi];
+        const totalCost = adv.total_cost ?? null;
+        if (!totalCost || totalCost <= 0) continue;
+        const qLineItems = lineItemsByQuoteIndex.get(qi) ?? [];
+        // If no tagged items for this index and qi=0, use all untagged items
+        const effectiveLineItems = qLineItems.length > 0
+          ? qLineItems.map(normaliseLi)
+          : qi === 0 && _stage9LineItems.length > 0
+            ? _stage9LineItems.map(normaliseLi)
+            : [];
+        // Derive labour/parts from line items if not available from advisory
+        const labourFromItems = effectiveLineItems
+          .filter((li: any) => /labour|labor/i.test(li.description ?? ''))
+          .reduce((s: number, li: any) => s + (li.lineTotal ?? 0), 0) || null;
+        const partsFromItems = effectiveLineItems
+          .filter((li: any) => !/labour|labor|paint|sundries|vat/i.test(li.description ?? ''))
+          .reduce((s: number, li: any) => s + (li.lineTotal ?? 0), 0) || null;
+        quotesToPersist.push({
+          quoteIndex: qi,
+          repairerName: adv.panel_beater ?? `Quote ${qi + 1}`,
+          quotedAmountUnits: totalCost,
+          labourCostUnits: labourFromItems,
+          partsCostUnits: partsFromItems,
+          currency: adv.currency ?? costAnalysis?.currency ?? 'USD',
+          lineItems: effectiveLineItems,
+        });
+      }
+    } else if (documentedOriginalQuoteUsd && documentedOriginalQuoteUsd > 0) {
+      // Single-quote fallback (no gap advisory)
+      const effectiveLineItems = _stage9LineItems.length > 0
+        ? _stage9LineItems.map(normaliseLi)
+        : (repairQuote?.lineItems ?? []).map((li: any) => normaliseLi({
+            description: li.description ?? li.partName,
+            partNumber: li.partNumber,
+            category: li.category,
+            quantity: li.quantity,
+            unit_cost: li.unitPriceCents ? li.unitPriceCents / 100 : li.unitPrice,
+            line_total: li.lineTotalCents ? li.lineTotalCents / 100 : li.lineTotal,
+            isRepair: li.isRepair,
+            isReplacement: li.isReplacement,
+            notes: li.notes,
+          }));
+      quotesToPersist.push({
+        quoteIndex: 0,
+        repairerName: panelBeaterName ?? 'Extracted Repairer',
+        quotedAmountUnits: documentedOriginalQuoteUsd,
+        labourCostUnits: documentedLabourCostUsd ?? null,
+        partsCostUnits: documentedPartsCostUsd ?? null,
+        currency: costAnalysis?.currency ?? 'USD',
+        lineItems: effectiveLineItems,
+      });
+    }
+
+    if (quotesToPersist.length > 0) {
+      console.log(`[KINGA Assessment] Claim ${claimId}: Persisting ${quotesToPersist.length} quote(s) with line items`);
+      const persistAll = quotesToPersist.map((qp) =>
+        persistExtractedQuote({
+          claimId,
+          tenantId: claim.tenantId ?? null,
+          repairerName: qp.repairerName,
+          quotedAmountUnits: qp.quotedAmountUnits,
+          labourCostUnits: qp.labourCostUnits,
+          partsCostUnits: qp.partsCostUnits,
+          currency: qp.currency,
+          lineItems: qp.lineItems,
+          source: 'pipeline_extracted',
+        }).then(qid => {
+          if (qid) {
+            console.log(`[KINGA Assessment] Claim ${claimId}: Quote[${qp.quoteIndex}] "${qp.repairerName}" → panel_beater_quotes id=${qid} (${qp.lineItems.length} line items)`);
+          }
+          return qid;
+        })
+      );
+      Promise.all(persistAll).then(async (qids) => {
+        const firstQid = qids.find(id => id != null) ?? null;
+        if (!firstQid) return;
         // Patch costIntelligenceJson so the Quote Coverage badge shows correctly
         try {
           const db2 = await getDb();
@@ -1625,19 +1705,19 @@ export async function triggerAiAssessment(claimId: number) {
               const ci = (() => { try { return JSON.parse(latestRow[0].costIntelligenceJson ?? '{}'); } catch { return {}; } })();
               if (!ci.aiEstimateSource || ci.aiEstimateSource === 'insufficient_data') {
                 ci.aiEstimateSource = 'documented_quote';
-                ci.quoteCount = Math.max((ci.quoteCount ?? 0), 1);
+                ci.quoteCount = Math.max((ci.quoteCount ?? 0), quotesToPersist.length);
                 await db2.update(aiAssessments)
                   .set({ costIntelligenceJson: JSON.stringify(ci) })
                   .where(eq(aiAssessments.id, latestRow[0].id));
-                console.log(`[KINGA Assessment] Claim ${claimId}: Patched costIntelligenceJson → documented_quote`);
+                console.log(`[KINGA Assessment] Claim ${claimId}: Patched costIntelligenceJson → documented_quote (${quotesToPersist.length} quotes)`);
               }
             }
           }
         } catch (patchErr) {
           console.warn(`[KINGA Assessment] Claim ${claimId}: costIntelligenceJson patch failed (non-fatal):`, (patchErr as any)?.message);
         }
-      }
-    }).catch(e => console.warn(`[KINGA Assessment] Claim ${claimId}: Quote persistence failed (non-fatal):`, e?.message));
+      }).catch(e => console.warn(`[KINGA Assessment] Claim ${claimId}: Quote persistence failed (non-fatal):`, e?.message));
+    }
   }
 
   // Update claim status to complete + backfill vehicle info from extraction

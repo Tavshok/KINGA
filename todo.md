@@ -12238,3 +12238,13 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Fix Stage 1 pdfToImages to gracefully degrade when @napi-rs/canvas fails
 - [ ] Ensure pipeline completes end-to-end in Cloud Run production (512MB / 1 vCPU)
 - [ ] Reset stuck claim DOC-20260514-B915065B and verify full pipeline completion
+
+## Quote Line Item Hardening (Critical — Cost Optimisation)
+- [x] Fix quoteExtractionEngine: allow non-vehicle-part line items (sundries, paint, labour) through hallucination guard with passthrough flag
+- [x] Add line-item sum-check in quoteExtractionEngine: warn when sum(line_items[].line_total) deviates >10% from total_cost
+- [x] Add line_item_completeness_score field to ExtractedQuote (0-100)
+- [x] Fix stage-9-cost: surface zero/null-priced line items as unpriced_components advisory flags
+- [x] Fix stage-9-cost: persist line items from ALL extracted quotes (not just first)
+- [x] Fix stage-9-cost: improve fuzzy match for partsReconciliation (handle SA abbreviations)
+- [x] Add quote_line_item_gap_advisory to Stage9Output for adjuster review
+- [x] Write vitest tests for quote line item completeness (23/23 passing)

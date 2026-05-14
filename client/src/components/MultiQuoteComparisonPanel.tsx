@@ -9,7 +9,7 @@
  */
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { CheckCircle2, XCircle, AlertTriangle, Trophy, BarChart3, Wrench } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Trophy, BarChart3, Wrench, ClipboardList, AlertCircle } from "lucide-react";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 interface SelectedQuote {
@@ -67,6 +67,9 @@ export function MultiQuoteComparisonPanel({ costIntelligenceJson }: MultiQuoteCo
   const aiEstimateSource: string = ci.aiEstimateSource ?? "insufficient_data";
   const quoteCount: number = ci.quoteCount ?? 0;
   const bestSelectedQuote: SelectedQuote | null = ci.bestSelectedQuote ?? null;
+
+  const gapAdvisory: any[] = ci.quoteLineItemGapAdvisory ?? [];
+  const overallCompletenessScore: number | null = ci.overallLineItemCompletenessScore ?? null;
 
   // Nothing to show if no quotes were evaluated
   if (quoteCount === 0 || !optimisation) {
@@ -192,6 +195,101 @@ export function MultiQuoteComparisonPanel({ costIntelligenceJson }: MultiQuoteCo
         <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
           <p>No itemised quotes are available. The AI cost estimate is based on historical learning data or is unavailable. Upload itemised repair quotes to enable quote-derived cost optimisation.</p>
+        </div>
+      )}
+
+      {/* ── Quote Line Item Completeness Advisory ─────────────────────────────
+           Surfaces per-quote pricing gaps so adjusters can follow up on
+           unpriced items, rejected rows, and sum discrepancies.
+           This is the primary signal for incomplete cost extraction. */}
+      {gapAdvisory.length > 0 && (
+        <div className="space-y-2 pt-1 border-t border-border/40">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <ClipboardList className="h-3.5 w-3.5 text-muted-foreground" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Line Item Completeness</p>
+            </div>
+            {overallCompletenessScore !== null && (
+              <Badge
+                variant="outline"
+                className={`text-xs ${
+                  overallCompletenessScore >= 90 ? 'border-emerald-500/40 text-emerald-600' :
+                  overallCompletenessScore >= 70 ? 'border-amber-500/40 text-amber-600' :
+                  'border-red-500/40 text-red-600'
+                }`}
+              >
+                {overallCompletenessScore}/100
+              </Badge>
+            )}
+          </div>
+          <div className="space-y-2">
+            {gapAdvisory.map((adv: any, i: number) => (
+              <div
+                key={i}
+                className={`rounded-lg border p-2.5 text-xs space-y-1.5 ${
+                  adv.status === 'COMPLETE' ? 'border-emerald-500/20 bg-emerald-500/5' :
+                  adv.status === 'PARTIAL' ? 'border-amber-500/20 bg-amber-500/5' :
+                  'border-red-500/20 bg-red-500/5'
+                }`}
+              >
+                {/* Header row */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {adv.status === 'COMPLETE'
+                      ? <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                      : adv.status === 'PARTIAL'
+                      ? <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />
+                      : <AlertCircle className="h-3 w-3 text-red-500 shrink-0" />}
+                    <span className="font-medium truncate">{adv.panel_beater ?? `Quote ${i + 1}`}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-muted-foreground">{adv.priced_item_count}/{adv.line_item_count} priced</span>
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        adv.status === 'COMPLETE' ? 'border-emerald-500/40 text-emerald-600' :
+                        adv.status === 'PARTIAL' ? 'border-amber-500/40 text-amber-600' :
+                        'border-red-500/40 text-red-600'
+                      }`}
+                    >
+                      {adv.status}
+                    </Badge>
+                  </div>
+                </div>
+                {/* Unpriced items */}
+                {adv.unpriced_items?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    <span className="text-muted-foreground shrink-0">Unpriced:</span>
+                    {adv.unpriced_items.map((item: string, j: number) => (
+                      <Badge key={j} variant="outline" className="text-xs border-amber-500/30 text-amber-700 dark:text-amber-400">{item}</Badge>
+                    ))}
+                  </div>
+                )}
+                {/* Rejected items */}
+                {adv.rejected_items?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    <span className="text-muted-foreground shrink-0">Rejected by guard:</span>
+                    {adv.rejected_items.map((r: any, j: number) => (
+                      <Badge key={j} variant="outline" className="text-xs border-red-500/30 text-red-700 dark:text-red-400">
+                        {r.raw_name}{r.raw_cost !== null ? ` (${fmt(r.raw_cost)})` : ''}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {/* Sum discrepancy */}
+                {adv.line_items_sum_discrepancy_pct !== null && Math.abs(adv.line_items_sum_discrepancy_pct) > 2 && (
+                  <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                    <span>Sum discrepancy: {adv.line_items_sum_discrepancy_pct > 0 ? '+' : ''}{adv.line_items_sum_discrepancy_pct.toFixed(1)}% vs total</span>
+                  </div>
+                )}
+                {/* Warnings */}
+                {adv.warnings?.map((w: string, j: number) => (
+                  <p key={j} className="text-muted-foreground leading-snug">{w}</p>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

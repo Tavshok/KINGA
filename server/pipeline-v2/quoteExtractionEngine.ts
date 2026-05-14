@@ -35,6 +35,39 @@ import { getDefaultCurrencyForCountry } from "../../shared/countryCurrency";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
+/**
+ * Categories of line items that are valid in a repair quote but are NOT
+ * vehicle parts (they pass through the hallucination guard unconditionally).
+ */
+const NON_PART_LINE_ITEM_CATEGORIES = new Set([
+  // Cost categories
+  "sundries", "sundry", "consumables", "consumable",
+  "paint", "painting", "spray", "respray", "refinish", "polish",
+  "labour", "labor", "strip & fit", "strip and fit", "s&f", "r&r", "remove & refit",
+  "vat", "tax", "gst", "sub total", "subtotal", "total",
+  "miscellaneous", "misc", "other", "additional",
+  "towing", "storage", "assessment fee", "inspection fee",
+  "alignment", "wheel alignment", "tracking",
+  "wash", "detail", "cleaning",
+  "calibration", "adas calibration",
+  "disposal", "environmental",
+]);
+
+/**
+ * Returns true if the component name is a known non-vehicle-part category
+ * that should pass through the hallucination guard unconditionally.
+ */
+function isNonPartLineItem(name: string): boolean {
+  const lower = name.trim().toLowerCase();
+  // Exact match
+  if (NON_PART_LINE_ITEM_CATEGORIES.has(lower)) return true;
+  // Prefix match (e.g. "paint materials", "labour - panel repair")
+  for (const cat of NON_PART_LINE_ITEM_CATEGORIES) {
+    if (lower.startsWith(cat) || lower.includes(cat)) return true;
+  }
+  return false;
+}
+
 /** A single line item from an itemised repair quotation. */
 export interface QuoteLineItem {
   /** Normalised component name, e.g. "rear bumper", "RHS door" */
@@ -53,6 +86,13 @@ export interface QuoteLineItem {
    * Values: "oem" | "aftermarket" | "reconditioned" | "used" | "unknown"
    */
   part_origin: "oem" | "aftermarket" | "reconditioned" | "used" | "unknown";
+  /**
+   * True when this line item is a non-vehicle-part cost category
+   * (e.g. sundries, paint, labour, VAT). These pass through the
+   * hallucination guard unconditionally and are excluded from
+   * damage-component reconciliation.
+   */
+  is_non_part_cost?: boolean;
 }
 
 export interface ExtractedQuote {
@@ -71,6 +111,29 @@ export interface ExtractedQuote {
   parts_cost: number | null;
   confidence: "high" | "medium" | "low";
   extraction_warnings: string[];
+  /**
+   * Line item completeness score (0–100).
+   * 100 = all line items have a non-zero line_total and their sum matches total_cost within 10%.
+   * 0   = no line items extracted or all prices are zero.
+   * Populated by validateAndNormalise after extraction.
+   */
+  line_item_completeness_score: number;
+  /**
+   * Sum of all line_item.line_total values (excluding null entries).
+   * Used by stage-9 to detect unpriced components.
+   */
+  line_items_sum: number | null;
+  /**
+   * Discrepancy between line_items_sum and total_cost, as a percentage of total_cost.
+   * Positive = line items sum exceeds total; negative = line items sum is less than total.
+   * null when total_cost is null or no line items have prices.
+   */
+  line_items_sum_discrepancy_pct: number | null;
+  /**
+   * Components that were rejected by the hallucination guard during line item extraction.
+   * Surfaced so the adjuster can manually review them.
+   */
+  rejected_line_items: Array<{ raw_name: string; raw_cost: number | null }>;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -388,6 +451,7 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
 
   // Extract and validate line_items
   const line_items: QuoteLineItem[] = [];
+  const rejected_line_items: Array<{ raw_name: string; raw_cost: number | null }> = [];
   if (Array.isArray(raw.line_items)) {
     for (const item of raw.line_items as Record<string, unknown>[]) {
       if (!item || typeof item.component !== 'string') continue;
@@ -395,23 +459,45 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
       const qty = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
       const lineTotal = typeof item.line_total === 'number' ? item.line_total
         : (unitCost !== null ? unitCost * qty : null);
-      const _normalisedComponent = normaliseComponentName(String(item.component));
-      const _resolvedComponent = resolveComponent(_normalisedComponent);
-      if (!_resolvedComponent) {
-        console.warn(`⚠️  Hallucination guard (quote line_items): rejected "${_normalisedComponent}" (raw: "${item.component}")`);
-        continue; // Skip hallucinated line items
+      const rawComponentName = String(item.component);
+      const _normalisedComponent = normaliseComponentName(rawComponentName);
+
+      // ── Hallucination guard with non-part passthrough ─────────────────────
+      // Non-vehicle-part cost categories (sundries, paint, labour, VAT, etc.)
+      // are valid line items in a repair quote. They must NOT be rejected by
+      // the vehicle parts dictionary guard — they pass through unconditionally.
+      const isNonPart = isNonPartLineItem(_normalisedComponent) || isNonPartLineItem(rawComponentName);
+      let resolvedName: string;
+      let isNonPartCost = false;
+
+      if (isNonPart) {
+        // Non-vehicle-part cost category — pass through with original name
+        resolvedName = rawComponentName.trim();
+        isNonPartCost = true;
+      } else {
+        const _resolvedComponent = resolveComponent(_normalisedComponent);
+        if (!_resolvedComponent) {
+          // Genuine hallucination guard rejection — record for adjuster review
+          console.warn(`⚠️  Hallucination guard (quote line_items): rejected "${_normalisedComponent}" (raw: "${rawComponentName}")`);
+          rejected_line_items.push({ raw_name: rawComponentName, raw_cost: lineTotal });
+          warnings.push(`line_item_rejected: "${rawComponentName}" not in vehicle parts catalogue`);
+          continue;
+        }
+        resolvedName = _resolvedComponent.name;
       }
+
       const validOrigins = ["oem", "aftermarket", "reconditioned", "used", "unknown"];
       const partOrigin = validOrigins.includes(item.part_origin as string)
         ? (item.part_origin as "oem" | "aftermarket" | "reconditioned" | "used" | "unknown")
         : "unknown";
       line_items.push({
-        component: _resolvedComponent.name,
+        component: resolvedName,
         unit_cost: unitCost,
         quantity: qty,
         line_total: lineTotal,
         action: typeof item.action === 'string' ? item.action : null,
         part_origin: partOrigin,
+        is_non_part_cost: isNonPartCost || undefined,
       });
     }
   }
@@ -462,6 +548,65 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
     }
   }
 
+  // ── Line item completeness analysis ──────────────────────────────────────
+  // Compute: sum of priced line items, discrepancy vs total, completeness score.
+  // Non-part cost items (sundries, paint, labour) are INCLUDED in the sum because
+  // they are real costs that contribute to the quote total.
+  const pricedLineItems = line_items.filter(li => li.line_total !== null && li.line_total > 0);
+  const unpricedLineItems = line_items.filter(li => li.line_total === null || li.line_total <= 0);
+  const lineItemsSum = pricedLineItems.length > 0
+    ? pricedLineItems.reduce((sum, li) => sum + (li.line_total ?? 0), 0)
+    : null;
+
+  let lineItemsSumDiscrepancyPct: number | null = null;
+  if (lineItemsSum !== null && totalCost !== null && totalCost > 0) {
+    lineItemsSumDiscrepancyPct = Math.round(((lineItemsSum - totalCost) / totalCost) * 1000) / 10;
+    // Warn when discrepancy exceeds ±10%
+    if (Math.abs(lineItemsSumDiscrepancyPct) > 10) {
+      warnings.push(
+        `line_items_sum_discrepancy: sum=${lineItemsSum.toFixed(2)} vs total=${totalCost.toFixed(2)} ` +
+        `(${lineItemsSumDiscrepancyPct > 0 ? '+' : ''}${lineItemsSumDiscrepancyPct.toFixed(1)}%). ` +
+        `${unpricedLineItems.length} unpriced line item(s) may account for the gap.`
+      );
+    }
+  }
+
+  // Completeness score (0–100):
+  //   100 = all items priced AND sum matches total within 10%
+  //    75 = all items priced but sum doesn't match total
+  //    50 = some items priced
+  //     0 = no items or no prices
+  let lineItemCompletenessScore = 0;
+  if (line_items.length === 0) {
+    lineItemCompletenessScore = 0; // No line items extracted
+  } else if (unpricedLineItems.length === 0 && pricedLineItems.length > 0) {
+    // All items priced
+    if (lineItemsSumDiscrepancyPct !== null && Math.abs(lineItemsSumDiscrepancyPct) <= 10) {
+      lineItemCompletenessScore = 100; // All priced + sum matches
+    } else {
+      lineItemCompletenessScore = 75; // All priced but sum doesn't match
+    }
+  } else if (pricedLineItems.length > 0) {
+    // Some items priced
+    const pricedRatio = pricedLineItems.length / line_items.length;
+    lineItemCompletenessScore = Math.round(50 * pricedRatio);
+  }
+
+  if (unpricedLineItems.length > 0) {
+    warnings.push(
+      `${unpricedLineItems.length} line item(s) have no price: ` +
+      unpricedLineItems.map(li => `"${li.component}"`).join(", ")
+    );
+  }
+
+  if (rejected_line_items.length > 0) {
+    warnings.push(
+      `${rejected_line_items.length} line item(s) rejected by hallucination guard: ` +
+      rejected_line_items.map(r => `"${r.raw_name}"${r.raw_cost !== null ? ` (cost: ${r.raw_cost})` : ''}`).join(", ") +
+      `. Manual review recommended.`
+    );
+  }
+
   return {
     panel_beater: typeof raw.panel_beater === "string" ? raw.panel_beater : null,
     total_cost: totalCost,
@@ -476,6 +621,10 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
     parts_cost: partsCost,
     confidence,
     extraction_warnings: warnings,
+    line_item_completeness_score: lineItemCompletenessScore,
+    line_items_sum: lineItemsSum,
+    line_items_sum_discrepancy_pct: lineItemsSumDiscrepancyPct,
+    rejected_line_items,
   };
 }
 
@@ -645,5 +794,9 @@ function buildFallback(warning: string): ExtractedQuote {
     parts_cost: null,
     confidence: "low",
     extraction_warnings: [warning],
+    line_item_completeness_score: 0,
+    line_items_sum: null,
+    line_items_sum_discrepancy_pct: null,
+    rejected_line_items: [],
   };
 }
