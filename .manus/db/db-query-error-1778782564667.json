@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, document_number, status, document_processing_status, ai_assessment_triggered, ai_assessment_completed, pipeline_current_stage, updated_at FROM claims WHERE document_number IN ('DOC-20260514-4DFF4451', 'DOC-20260514-B915065B') ORDER BY id DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, document_number, status, document_processing_status, ai_assessment_triggered, ai_assessment_completed, pipeline_current_stage, updated_at FROM claims WHERE document_number IN ('DOC-20260514-4DFF4451', 'DOC-20260514-B915065B') ORDER BY id DESC;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'document_number' in 'where clause'"
+  ]
+}

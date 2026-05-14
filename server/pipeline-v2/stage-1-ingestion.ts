@@ -61,52 +61,77 @@ export async function runIngestionStage(
 
     // Process the primary PDF document if present
     if (ctx.pdfUrl) {
-      // ── WI-2: Render PDF pages to images for vision analysis ─────────────
+      // ── CLOUD RUN COMPATIBILITY ─────────────────────────────────────────────
+      // Native PDF page rendering (sharp/@napi-rs/canvas) is DISABLED in production.
+      // Cloud Run's container does not ship the Skia native binary required by
+      // @napi-rs/canvas, and sharp's libvips can OOM on large PDFs within the
+      // 512MB RAM limit. The LLM reads PDFs natively via file_url in Stage 2
+      // (OCR/text extraction) and Stage 6 (damage analysis), so page images are
+      // NOT required for the pipeline to produce a complete assessment.
+      //
+      // This is the architecturally correct approach per the analysis:
+      //   Old: PDF → native rendering → image generation → OCR → LLM
+      //   New: PDF → LLM native document understanding → structured extraction
+      // ────────────────────────────────────────────────────────────────────────
       let pdfPageImageUrls: string[] = [];
-      try {
-        ctx.log("Stage 1", "Rendering PDF pages to images for vision analysis...");
-        const renderResult = await renderPdfToImages(ctx.pdfUrl!, {
-          dpi: 150,
-          maxPages: 25, // claim bundles are typically 10–25 pages
-          keyPrefix: `claims/${ctx.claimId}/pdf-pages`,
-          log: (msg) => ctx.log("Stage 1 [PDF Render]", msg),
-        });
-        pdfPageImageUrls = extractImageUrls(renderResult);
-
-        if (renderResult.errors.length > 0) {
-          ctx.log(
-            "Stage 1",
-            `PDF rendering had ${renderResult.errors.length} error(s): ${renderResult.errors.join("; ")}`
-          );
-        }
+      const isProduction = process.env.NODE_ENV === 'production';
+      if (isProduction) {
         ctx.log(
           "Stage 1",
-          `PDF rendered: ${pdfPageImageUrls.length} page image(s) uploaded to S3`
-        );
-
-        if (renderResult.truncated) {
-          ctx.log(
-            "Stage 1",
-            `WARNING: PDF has ${renderResult.totalPagesInDocument} pages but only ${renderResult.totalPagesRendered} were rendered (limit: 25)`
-          );
-          recoveryActions.push({
-            target: "pdf_page_rendering",
-            strategy: "partial_data",
-            success: true,
-            description: `PDF truncated at 25 pages. ${renderResult.totalPagesInDocument - renderResult.totalPagesRendered} pages not rendered.`,
-          });
-        }
-      } catch (renderErr) {
-        ctx.log(
-          "Stage 1",
-          `PDF page rendering failed: ${String(renderErr)} — continuing without page images`
+          "Skipping native PDF page rendering in production (Cloud Run incompatible). LLM will read PDF directly via file_url in Stage 2 and Stage 6."
         );
         recoveryActions.push({
           target: "pdf_page_rendering",
           strategy: "partial_data",
-          success: false,
-          description: `PDF page rendering threw an error: ${String(renderErr)}. Vision analysis will be limited to text extraction.`,
+          success: true,
+          description: "Native PDF rendering skipped in production. LLM reads PDF directly via file_url.",
         });
+      } else {
+        try {
+          ctx.log("Stage 1", "Rendering PDF pages to images for vision analysis...");
+          const renderResult = await renderPdfToImages(ctx.pdfUrl!, {
+            dpi: 150,
+            maxPages: 25,
+            keyPrefix: `claims/${ctx.claimId}/pdf-pages`,
+            log: (msg) => ctx.log("Stage 1 [PDF Render]", msg),
+          });
+          pdfPageImageUrls = extractImageUrls(renderResult);
+
+          if (renderResult.errors.length > 0) {
+            ctx.log(
+              "Stage 1",
+              `PDF rendering had ${renderResult.errors.length} error(s): ${renderResult.errors.join("; ")}`
+            );
+          }
+          ctx.log(
+            "Stage 1",
+            `PDF rendered: ${pdfPageImageUrls.length} page image(s) uploaded to S3`
+          );
+
+          if (renderResult.truncated) {
+            ctx.log(
+              "Stage 1",
+              `WARNING: PDF has ${renderResult.totalPagesInDocument} pages but only ${renderResult.totalPagesRendered} were rendered (limit: 25)`
+            );
+            recoveryActions.push({
+              target: "pdf_page_rendering",
+              strategy: "partial_data",
+              success: true,
+              description: `PDF truncated at 25 pages. ${renderResult.totalPagesInDocument - renderResult.totalPagesRendered} pages not rendered.`,
+            });
+          }
+        } catch (renderErr) {
+          ctx.log(
+            "Stage 1",
+            `PDF page rendering failed: ${String(renderErr)} — continuing without page images`
+          );
+          recoveryActions.push({
+            target: "pdf_page_rendering",
+            strategy: "partial_data",
+            success: false,
+            description: `PDF page rendering threw an error: ${String(renderErr)}. Vision analysis will be limited to text extraction.`,
+          });
+        }
       }
       // ─────────────────────────────────────────────────────────────────────
 

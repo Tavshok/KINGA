@@ -718,15 +718,13 @@ export async function triggerAiAssessment(claimId: number) {
   let _dbPhotoIngestionLog: any = null;
   // Preserve full ExtractedImage metadata for the image classifier
   let _extractedImagesWithMetadata: any[] = [];
-  // ── MEMORY GUARD: Skip native PDF image extraction for large PDFs in Cloud Run ──────────────
-  // Cloud Run has 512MB RAM / 1 vCPU. Rendering a large PDF (>2MB) to canvas images at 150 DPI
-  // can easily consume 300-500MB (20 pages × ~15-25MB canvas buffer each), causing an OOM kill
-  // that cannot be caught by try/catch. The pipeline will use the PDF file_url directly via the
-  // LLM instead — which is more reliable and doesn't require native binaries.
-  //
-  // Only attempt native extraction for small PDFs (<2MB) where memory risk is low.
-  // For larger PDFs, the LLM reads them natively via file_url in Stage 2 and Stage 6.
-  const PDF_EXTRACTION_SIZE_LIMIT_BYTES = 2 * 1024 * 1024; // 2MB
+  // ── CLOUD RUN: Skip native PDF image extraction in production ────────────────────────
+  // Cloud Run's container does not ship the Skia native binary required by @napi-rs/canvas,
+  // and sharp's libvips can OOM on large PDFs within the 512MB RAM limit.
+  // The pipeline uses the PDF file_url directly via the LLM in Stage 2 and Stage 6 instead.
+  // Native extraction is only used in development where native binaries are available.
+  const SKIP_NATIVE_EXTRACTION = process.env.NODE_ENV === 'production';
+  const PDF_EXTRACTION_SIZE_LIMIT_BYTES = 2 * 1024 * 1024; // 2MB (fallback guard for dev)
 
   if (pdfUrl && damagePhotos.length === 0) {
     const _photoIngestionStart = Date.now();
@@ -734,7 +732,11 @@ export async function triggerAiAssessment(claimId: number) {
     let _totalExtracted = 0;
     let _qualitySummary: any = null;
     let _isScannedPdf = false;
-    try {
+    if (SKIP_NATIVE_EXTRACTION) {
+      console.log(`[KINGA Assessment] Claim ${claimId}: Skipping native PDF image extraction in production. LLM will read PDF directly via file_url.`);
+      _extractionError = 'Native extraction skipped in production (Cloud Run incompatible). LLM uses file_url.';
+    } else {
+      try {
       console.log(`[KINGA Assessment] Claim ${claimId}: No cached photos — extracting images from PDF: ${pdfUrl}`);
       const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
       // Use native fetch with AbortController (node-fetch v3 removed timeout option)
@@ -785,10 +787,11 @@ export async function triggerAiAssessment(claimId: number) {
         _extractionError = `HTTP ${pdfResponse?.status ?? 'aborted'}`;
         console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to download PDF for image extraction: HTTP ${pdfResponse?.status ?? 'aborted'}`);
       }
-    } catch (imgErr: any) {
-      _extractionError = imgErr.message;
-      console.warn(`[KINGA Assessment] Claim ${claimId}: PDF image re-extraction failed (non-fatal): ${imgErr.message}`);
-    }
+      } catch (imgErr: any) {
+        _extractionError = imgErr.message;
+        console.warn(`[KINGA Assessment] Claim ${claimId}: PDF image re-extraction failed (non-fatal): ${imgErr.message}`);
+      }
+    } // end SKIP_NATIVE_EXTRACTION else block
     // Build structured photo ingestion log for the forensic report
     try {
       const { buildPhotoIngestionLog } = await import('./pipeline-v2/photo-ingestion-log');
