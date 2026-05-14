@@ -156,6 +156,11 @@ async function startServer() {
   // The platform injects a "user" role session cookie — any valid session is
   // sufficient to authenticate. insurer_admin is excluded from the live badge
   // but this sweep endpoint is accessible to any authenticated session.
+  // Keep-warm endpoint — called every 4 minutes by Heartbeat cron to prevent Cloud Run cold starts
+  app.post("/api/scheduled/keepwarm", (_req: express.Request, res: express.Response) => {
+    res.json({ ok: true, ts: Date.now() });
+  });
+
   app.post("/api/scheduled/recovery-deadline-sweep", async (req: express.Request, res: express.Response) => {
     try {
       // Require a valid session cookie (scheduled task cookie counts)
