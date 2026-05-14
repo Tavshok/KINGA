@@ -165,9 +165,9 @@ async function generateExecutiveSummary(
 - Claim Status: ${intelligence.claim.status}
 
 **Damage Assessment:**
-- AI Estimated Cost: $${costData.aiTotalCost.toFixed(2)}
-${costData.assessorTotalCost ? `- Assessor Estimated Cost: $${costData.assessorTotalCost.toFixed(2)}` : ''}
-${costData.quotes.length > 0 ? `- Panel Beater Quotes: ${costData.quotes.length} received (range: $${Math.min(...costData.quotes.map((q: any) => q.totalCost)).toFixed(2)} - $${Math.max(...costData.quotes.map((q: any) => q.totalCost)).toFixed(2)})` : ''}
+- AI Estimated Cost: $${Number(costData.aiTotalCost ?? 0).toFixed(2)}
+${costData.assessorTotalCost ? `- Assessor Estimated Cost: $${Number(costData.assessorTotalCost ?? 0).toFixed(2)}` : ''}
+${costData.quotes.length > 0 ? `- Panel Beater Quotes: ${costData.quotes.length} received (range: $${Math.min(...costData.quotes.map((q: any) => Number(q.totalCost ?? 0))).toFixed(2)} - $${Math.max(...costData.quotes.map((q: any) => Number(q.totalCost ?? 0))).toFixed(2)})` : ''}
 
 **Fraud Risk Assessment:**
 - Overall Risk Level: ${fraudData.overallRiskLevel.toUpperCase()}
@@ -228,9 +228,9 @@ ${damageData.damageAnalysis}
 ${JSON.stringify(damageData.damagedComponents, null, 2)}
 
 **Cost Estimates:**
-- AI Estimate: $${damageData.aiEstimate.toFixed(2)}
-${damageData.assessorEstimate ? `- Assessor Estimate: $${damageData.assessorEstimate.toFixed(2)}` : ''}
-${damageData.quoteEstimates.length > 0 ? `- Quote Estimates: ${damageData.quoteEstimates.map((q: number) => `$${q.toFixed(2)}`).join(', ')}` : ''}
+- AI Estimate: $${(damageData.aiEstimate ?? 0).toFixed(2)}
+${damageData.assessorEstimate != null ? `- Assessor Estimate: $${Number(damageData.assessorEstimate).toFixed(2)}` : ''}
+${damageData.quoteEstimates.length > 0 ? `- Quote Estimates: ${damageData.quoteEstimates.map((q: any) => `$${Number(q ?? 0).toFixed(2)}`).join(', ')}` : ''}
 
 **Audience:** ${template.audience}
 **Detail Level:** ${template.detailLevel}
@@ -329,21 +329,21 @@ async function generateCostComparisonAnalytics(
   const prompt = `You are generating a Cost Comparison Analytics section for an insurance claim report.
 
 **AI Cost Breakdown:**
-- Parts Cost: $${costData.aiPartsCost.toFixed(2)}
-- Labor Cost: $${costData.aiLaborCost.toFixed(2)}
-- Total Cost: $${costData.aiTotalCost.toFixed(2)}
+- Parts Cost: $${Number(costData.aiPartsCost ?? 0).toFixed(2)}
+- Labor Cost: $${Number(costData.aiLaborCost ?? 0).toFixed(2)}
+- Total Cost: $${Number(costData.aiTotalCost ?? 0).toFixed(2)}
 
 ${costData.assessorTotalCost ? `**Assessor Cost Breakdown:**
 - Parts Cost: $${costData.assessorPartsCost?.toFixed(2) || '0.00'}
 - Labor Cost: $${costData.assessorLaborCost?.toFixed(2) || '0.00'}
-- Total Cost: $${costData.assessorTotalCost.toFixed(2)}` : ''}
+- Total Cost: $${Number(costData.assessorTotalCost ?? 0).toFixed(2)}` : ''}
 
 ${costData.quotes.length > 0 ? `**Panel Beater Quotes:**
 ${costData.quotes.map((q: any, i: number) => `
 Quote ${i + 1} - ${q.panelBeaterName}:
-- Parts Cost: $${q.partsCost.toFixed(2)}
-- Labor Cost: $${q.laborCost.toFixed(2)}
-- Total Cost: $${q.totalCost.toFixed(2)}
+- Parts Cost: $${Number(q.partsCost ?? 0).toFixed(2)}
+- Labor Cost: $${Number(q.laborCost ?? 0).toFixed(2)}
+- Total Cost: $${Number(q.totalCost ?? 0).toFixed(2)}
 `).join('\n')}` : ''}
 
 **Audience:** ${template.audience}
@@ -542,12 +542,12 @@ async function generateRecommendations(
 **Claim Summary:**
 - Claim Number: ${intelligence.claim.claimNumber}
 - Status: ${intelligence.claim.status}
-- AI Estimate: $${costData.aiTotalCost.toFixed(2)}
-${costData.assessorTotalCost ? `- Assessor Estimate: $${costData.assessorTotalCost.toFixed(2)}` : ''}
+- AI Estimate: $${Number(costData.aiTotalCost ?? 0).toFixed(2)}
+${costData.assessorTotalCost ? `- Assessor Estimate: $${Number(costData.assessorTotalCost ?? 0).toFixed(2)}` : ''}
 - Fraud Risk: ${fraudData.overallRiskLevel.toUpperCase()}
 
 **Available Quotes:**
-${costData.quotes.length > 0 ? costData.quotes.map((q: any) => `- ${q.panelBeaterName}: $${q.totalCost.toFixed(2)}`).join('\n') : 'No quotes received yet'}
+${costData.quotes.length > 0 ? costData.quotes.map((q: any) => `- ${q.panelBeaterName}: $${Number(q.totalCost ?? 0).toFixed(2)}`).join('\n') : 'No quotes received yet'}
 
 **Audience:** ${template.audience}
 **Focus:** ${template.focus}

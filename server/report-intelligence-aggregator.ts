@@ -291,12 +291,19 @@ export function buildWorkflowAuditTrail(intelligence: ClaimIntelligence) {
   }));
 
   // Calculate processing times
-  const submittedAt = intelligence.claim.createdAt;
-  const aiAssessmentAt = intelligence.aiAssessment?.createdAt || null;
-  const assessorEvaluationAt = intelligence.assessorEvaluation?.createdAt || null;
+  // DB timestamps may be strings (mode:'string') — normalise to Date
+  const toDate = (v: Date | string | null | undefined): Date | null => {
+    if (!v) return null;
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    const d = new Date(v as string);
+    return isNaN(d.getTime()) ? null : d;
+  };
+  const submittedAt = toDate(intelligence.claim.createdAt) ?? new Date();
+  const aiAssessmentAt = toDate(intelligence.aiAssessment?.createdAt ?? null);
+  const assessorEvaluationAt = toDate(intelligence.assessorEvaluation?.createdAt ?? null);
   const firstQuoteAt =
     intelligence.panelBeaterQuotes.length > 0
-      ? intelligence.panelBeaterQuotes[0].createdAt
+      ? toDate(intelligence.panelBeaterQuotes[0].createdAt)
       : null;
 
   const submissionToAIAssessment = aiAssessmentAt

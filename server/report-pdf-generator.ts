@@ -51,7 +51,7 @@ export async function generateReportPDF(
     let browser;
     try {
       browser = await puppeteer.launch({
-        executablePath: '/usr/bin/chromium-browser',
+        executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
       });
@@ -331,17 +331,17 @@ function generateReportHTML(
         ${intelligence.aiAssessment ? `
           <tr>
             <td>AI Estimate</td>
-            <td>$${(intelligence.aiAssessment.estimatedRepairCost * 0.6).toFixed(2)}</td>
-            <td>$${(intelligence.aiAssessment.estimatedRepairCost * 0.4).toFixed(2)}</td>
-            <td><strong>$${intelligence.aiAssessment.estimatedRepairCost.toFixed(2)}</strong></td>
+            <td>$${(Number(intelligence.aiAssessment.estimatedRepairCost ?? 0) * 0.6).toFixed(2)}</td>
+            <td>$${(Number(intelligence.aiAssessment.estimatedRepairCost ?? 0) * 0.4).toFixed(2)}</td>
+            <td><strong>$${Number(intelligence.aiAssessment.estimatedRepairCost ?? 0).toFixed(2)}</strong></td>
           </tr>
         ` : ''}
         ${intelligence.assessorEvaluation ? `
           <tr>
             <td>Assessor Estimate</td>
-            <td>$${(intelligence.assessorEvaluation.estimatedRepairCost * 0.6).toFixed(2)}</td>
-            <td>$${(intelligence.assessorEvaluation.estimatedRepairCost * 0.4).toFixed(2)}</td>
-            <td><strong>$${intelligence.assessorEvaluation.estimatedRepairCost.toFixed(2)}</strong></td>
+            <td>$${(Number(intelligence.assessorEvaluation.estimatedRepairCost ?? 0) * 0.6).toFixed(2)}</td>
+            <td>$${(Number(intelligence.assessorEvaluation.estimatedRepairCost ?? 0) * 0.4).toFixed(2)}</td>
+            <td><strong>$${Number(intelligence.assessorEvaluation.estimatedRepairCost ?? 0).toFixed(2)}</strong></td>
           </tr>
         ` : ''}
         ${intelligence.panelBeaterQuotes.map((quote: any, index: number) => `
