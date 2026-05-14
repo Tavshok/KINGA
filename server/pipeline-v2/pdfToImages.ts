@@ -138,7 +138,22 @@ export async function renderPdfToImages(
     log = () => {},
   } = options;
 
-  const SCALE = dpi / 72;
+  // ── MEMORY GUARD ──────────────────────────────────────────────────────────
+  // Cloud Run has 512MB RAM. A single page at 150 DPI renders to ~15-25MB in
+  // memory. With 20 pages that's 300-500MB — dangerously close to the limit.
+  // Strategy: cap at 8 pages max and use 100 DPI to keep peak memory under
+  // ~100MB total. The LLM reads the full PDF via file_url in Stage 2 anyway,
+  // so page images are only needed as a vision fallback for Stage 6.
+  const SAFE_MAX_PAGES = 8;
+  const SAFE_DPI = 100;
+  const effectiveMaxPages = Math.min(maxPages, SAFE_MAX_PAGES);
+  const effectiveDpi = Math.min(dpi, SAFE_DPI);
+  log(`[Memory Guard] Capping render to ${effectiveMaxPages} pages at ${effectiveDpi} DPI to stay within Cloud Run memory limits`);
+  // Override with safe values
+  const safeDpi = effectiveDpi;
+  const safeMaxPages = effectiveMaxPages;
+
+  const SCALE = safeDpi / 72;
   const errors: string[] = [];
   const pages: PdfPageImage[] = [];
 
@@ -180,8 +195,8 @@ export async function renderPdfToImages(
   }
 
   const totalPages = pdfDoc.numPages;
-  const pagesToRender = Math.min(totalPages, maxPages);
-  const truncated = totalPages > maxPages;
+  const pagesToRender = Math.min(totalPages, safeMaxPages);
+  const truncated = totalPages > safeMaxPages;
   log(`PDF loaded: ${totalPages} pages, rendering ${pagesToRender} at ${dpi} DPI`);
 
   if (truncated) {

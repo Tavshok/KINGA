@@ -12231,3 +12231,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix 2: Removed --max-old-space-size=1536 from production start script
 - [x] Fix 3: Replaced pdftoppm startup health check with pdfjs-dist availability check
 - [x] Fix 4: Updated stage-10 report message to remove outdated pdftoppm reference
+
+
+## Cloud Run Native Binary Fix (CRITICAL)
+- [ ] Fix pre-pipeline PDF image extraction to handle native binary failures gracefully
+- [ ] Fix Stage 1 pdfToImages to gracefully degrade when @napi-rs/canvas fails
+- [ ] Ensure pipeline completes end-to-end in Cloud Run production (512MB / 1 vCPU)
+- [ ] Reset stuck claim DOC-20260514-B915065B and verify full pipeline completion

@@ -718,6 +718,16 @@ export async function triggerAiAssessment(claimId: number) {
   let _dbPhotoIngestionLog: any = null;
   // Preserve full ExtractedImage metadata for the image classifier
   let _extractedImagesWithMetadata: any[] = [];
+  // ── MEMORY GUARD: Skip native PDF image extraction for large PDFs in Cloud Run ──────────────
+  // Cloud Run has 512MB RAM / 1 vCPU. Rendering a large PDF (>2MB) to canvas images at 150 DPI
+  // can easily consume 300-500MB (20 pages × ~15-25MB canvas buffer each), causing an OOM kill
+  // that cannot be caught by try/catch. The pipeline will use the PDF file_url directly via the
+  // LLM instead — which is more reliable and doesn't require native binaries.
+  //
+  // Only attempt native extraction for small PDFs (<2MB) where memory risk is low.
+  // For larger PDFs, the LLM reads them natively via file_url in Stage 2 and Stage 6.
+  const PDF_EXTRACTION_SIZE_LIMIT_BYTES = 2 * 1024 * 1024; // 2MB
+
   if (pdfUrl && damagePhotos.length === 0) {
     const _photoIngestionStart = Date.now();
     let _extractionError: string | null = null;
@@ -738,32 +748,38 @@ export async function triggerAiAssessment(claimId: number) {
       }
       if (pdfResponse && pdfResponse.ok) {
         const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
-        const extractedImages = await extractImagesFromPDFBuffer(pdfBuffer, `claim-${claimId}.pdf`);
-        _totalExtracted = extractedImages.length;
-        _isScannedPdf = extractedImages.some((img: any) => img.isPageRender === true);
-        // Build quality summary from extractor metadata
-        _qualitySummary = {
-          isScannedPdf: _isScannedPdf,
-          renderDpi: extractedImages.find((img: any) => img.renderDpi)?.renderDpi ?? null,
-          passedDimensionGate: extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200).length,
-          rejectedTooSmall: extractedImages.filter((img: any) => img.width < 200 || img.height < 200).length,
-          blurryCount: extractedImages.filter((img: any) => img.isBlurry === true).length,
-          textHeavyCount: extractedImages.filter((img: any) => img.isTextHeavy === true).length,
-          avgSharpnessScore: extractedImages.length > 0
-            ? Math.round(extractedImages.reduce((s: number, img: any) => s + (img.sharpnessScore ?? 80), 0) / extractedImages.length)
-            : null,
-        };
-        // Preserve FULL metadata for the image classifier (confidence scoring, quality-based selection)
-        _extractedImagesWithMetadata = extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200);
-        // Also keep flat URL array for backward compatibility
-        damagePhotos = _extractedImagesWithMetadata.map((img: any) => img.url);
-        console.log(`[KINGA Assessment] Claim ${claimId}: Re-extracted ${damagePhotos.length} photo(s) from PDF (${extractedImages.length} total images found, scanned=${_isScannedPdf})`);
-        // Persist extracted photos to claim record so future re-runs skip this step
-        if (damagePhotos.length > 0) {
-          await db.update(claims).set({
-            damagePhotos: JSON.stringify(damagePhotos),
-            updatedAt: new Date(),
-          }).where(eq(claims.id, claimId)).catch(() => {});
+        // ── MEMORY GUARD: Skip extraction for large PDFs to prevent OOM kill in Cloud Run ──
+        if (pdfBuffer.length > PDF_EXTRACTION_SIZE_LIMIT_BYTES) {
+          console.log(`[KINGA Assessment] Claim ${claimId}: PDF too large for native extraction (${Math.round(pdfBuffer.length / 1024)}KB > ${PDF_EXTRACTION_SIZE_LIMIT_BYTES / 1024}KB limit). Skipping native extraction — LLM will read PDF directly via file_url.`);
+          _extractionError = `PDF too large for native extraction (${Math.round(pdfBuffer.length / 1024)}KB). LLM will use file_url.`;
+        } else {
+          const extractedImages = await extractImagesFromPDFBuffer(pdfBuffer, `claim-${claimId}.pdf`);
+          _totalExtracted = extractedImages.length;
+          _isScannedPdf = extractedImages.some((img: any) => img.isPageRender === true);
+          // Build quality summary from extractor metadata
+          _qualitySummary = {
+            isScannedPdf: _isScannedPdf,
+            renderDpi: extractedImages.find((img: any) => img.renderDpi)?.renderDpi ?? null,
+            passedDimensionGate: extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200).length,
+            rejectedTooSmall: extractedImages.filter((img: any) => img.width < 200 || img.height < 200).length,
+            blurryCount: extractedImages.filter((img: any) => img.isBlurry === true).length,
+            textHeavyCount: extractedImages.filter((img: any) => img.isTextHeavy === true).length,
+            avgSharpnessScore: extractedImages.length > 0
+              ? Math.round(extractedImages.reduce((s: number, img: any) => s + (img.sharpnessScore ?? 80), 0) / extractedImages.length)
+              : null,
+          };
+          // Preserve FULL metadata for the image classifier (confidence scoring, quality-based selection)
+          _extractedImagesWithMetadata = extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200);
+          // Also keep flat URL array for backward compatibility
+          damagePhotos = _extractedImagesWithMetadata.map((img: any) => img.url);
+          console.log(`[KINGA Assessment] Claim ${claimId}: Re-extracted ${damagePhotos.length} photo(s) from PDF (${extractedImages.length} total images found, scanned=${_isScannedPdf})`);
+          // Persist extracted photos to claim record so future re-runs skip this step
+          if (damagePhotos.length > 0) {
+            await db.update(claims).set({
+              damagePhotos: JSON.stringify(damagePhotos),
+              updatedAt: new Date(),
+            }).where(eq(claims.id, claimId)).catch(() => {});
+          }
         }
       } else {
         _extractionError = `HTTP ${pdfResponse?.status ?? 'aborted'}`;
