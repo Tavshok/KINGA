@@ -7187,6 +7187,26 @@ const REPORT_CSS = `
   .kinga-report [data-state="closed"]{display:block !important;height:auto !important;overflow:visible !important}
   /* Photo overlays: keep dark for readability over images */
   .kinga-report .bg-black\/55{background:rgba(0,0,0,0.55) !important;color:#fff !important}
+  /* ── New elements: verdict banner ── */
+  /* Verdict banner: B&W — use heavy border + uppercase weight to convey decision severity */
+  .kinga-report .verdict-banner{background:#fff !important;border:2px solid #111 !important;color:#111 !important;page-break-inside:avoid}
+  .kinga-report .verdict-banner .verdict-label{color:#111 !important;font-weight:900 !important}
+  .kinga-report .verdict-banner .verdict-reason{color:#555 !important}
+  .kinga-report .verdict-banner .verdict-confidence{color:#111 !important;font-weight:700 !important}
+  /* ── Score summary bars: keep together, B&W bars ── */
+  .kinga-report .score-summary-panel{page-break-inside:avoid;border:1px solid #ddd !important;background:#fff !important}
+  .kinga-report .score-bar-fill{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+  /* ── Section 5.5 stacked fraud signal chart: preserve colours for print ── */
+  .kinga-report .fraud-signal-bar{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;page-break-inside:avoid}
+  .kinga-report .fraud-signal-bar > div{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+  /* ── Persistent footer: always show at bottom, preserve dark background ── */
+  .kinga-report .report-persistent-footer{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;page-break-inside:avoid;margin-top:24px !important}
+  .kinga-report .report-persistent-footer .footer-bar{background:#1A2B4A !important;color:#fff !important}
+  .kinga-report .report-persistent-footer .footer-bar *{color:#fff !important}
+  .kinga-report .report-persistent-footer .footer-bar .footer-decision-badge{border:1px solid #fff !important;color:#fff !important}
+  /* ── Section 6 score summary bars: keep together ── */
+  .kinga-report [data-section="6"]{page-break-before:always}
+  .kinga-report [data-section="5"]{page-break-before:always}
 }
 `;
 

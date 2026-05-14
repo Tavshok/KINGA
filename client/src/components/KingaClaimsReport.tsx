@@ -16,11 +16,53 @@
  *  8. Final Recommendation
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import { currencySymbol } from "@/lib/currency";
 import { ReportSectionThread } from "./ReportSectionThread";
 import { ConfidenceImprovementChecklist } from "./ConfidenceImprovementChecklist";
 import { expandShorthand } from "../../../shared/expandShorthand";
+
+// ─── Print CSS injected once per mount ───────────────────────────────────────
+const CLAIMS_PRINT_CSS = `
+@media print {
+  /* Force white background everywhere except coloured elements */
+  [data-kinga-claims-report] { background: #fff !important; color: #111 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  [data-kinga-claims-report] * { background: #fff !important; color: #111 !important; }
+  /* Verdict banner: B&W — heavy border encodes severity */
+  [data-kinga-claims-report] .cr-verdict-banner { background: #fff !important; border: 2px solid #111 !important; color: #111 !important; page-break-inside: avoid; }
+  [data-kinga-claims-report] .cr-verdict-banner .cr-verdict-label { color: #111 !important; font-weight: 900 !important; }
+  [data-kinga-claims-report] .cr-verdict-banner .cr-verdict-reason { color: #555 !important; }
+  [data-kinga-claims-report] .cr-verdict-banner .cr-verdict-confidence { color: #111 !important; font-weight: 700 !important; }
+  /* Score summary bars: keep together, preserve bar colours */
+  [data-kinga-claims-report] .cr-score-summary { page-break-inside: avoid; border: 1px solid #ddd !important; }
+  [data-kinga-claims-report] .cr-score-bar-fill { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  /* Persistent footer: dark background preserved for print */
+  [data-kinga-claims-report] .cr-footer { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; page-break-inside: avoid; margin-top: 24px !important; }
+  [data-kinga-claims-report] .cr-footer-bar { background: #1A2B4A !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  [data-kinga-claims-report] .cr-footer-bar * { color: #fff !important; }
+  [data-kinga-claims-report] .cr-footer-bar .cr-footer-decision { border: 1px solid #fff !important; color: #fff !important; }
+  /* Tables */
+  [data-kinga-claims-report] table, [data-kinga-claims-report] td, [data-kinga-claims-report] th { border-color: #ddd !important; background: #fff !important; }
+  /* Page breaks */
+  [data-kinga-claims-report] .cr-section { page-break-inside: avoid; }
+  /* Hide print button */
+  [data-kinga-claims-report] .cr-no-print { display: none !important; }
+  /* Photo grid: keep together */
+  [data-kinga-claims-report] .cr-photo-grid { page-break-inside: avoid; }
+}
+`;
+
+function useClaimsPrintCSS() {
+  useEffect(() => {
+    const id = 'kinga-claims-print-css';
+    if (document.getElementById(id)) return;
+    const el = document.createElement('style');
+    el.id = id;
+    el.textContent = CLAIMS_PRINT_CSS;
+    document.head.appendChild(el);
+    return () => { document.getElementById(id)?.remove(); };
+  }, []);
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -484,8 +526,11 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
   // Date
   const reportDate = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
 
+  useClaimsPrintCSS();
+
   return (
     <div
+      data-kinga-claims-report
       data-claim-number={claim?.claimNumber ?? claim?.claimReference ?? `#${claim?.id ?? ''}`}
       data-report-date={reportDate}
       style={{
@@ -536,23 +581,23 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
       </div>
 
       {/* ── Full-width Decision Verdict Banner ── */}
-      <div style={{ margin: '0 0 20px', padding: '14px 20px', background: `${decisionColor}12`, border: `2px solid ${decisionColor}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="cr-verdict-banner" style={{ margin: '0 0 20px', padding: '14px 20px', background: `${decisionColor}12`, border: `2px solid ${decisionColor}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 22, fontWeight: 900, color: decisionColor, letterSpacing: '0.08em' }}>
+          <span className="cr-verdict-label" style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 22, fontWeight: 900, color: decisionColor, letterSpacing: '0.08em' }}>
             {(decision ?? '').toUpperCase().replace(/_/g, ' ')}
           </span>
           {primaryReason && (
-            <span style={{ fontSize: 11, color: '#555', fontStyle: 'italic', maxWidth: 380 }}>{primaryReason}</span>
+            <span className="cr-verdict-reason" style={{ fontSize: 11, color: '#555', fontStyle: 'italic', maxWidth: 380 }}>{primaryReason}</span>
           )}
         </div>
         <div style={{ textAlign: 'right' }}>
           <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', margin: '0 0 2px' }}>AI Confidence</p>
-          <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 16, fontWeight: 700, color: decisionColor }}>{confidenceScore}<span style={{ fontSize: 11, color: '#888', fontWeight: 400 }}>/100</span></span>
+          <span className="cr-verdict-confidence" style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 16, fontWeight: 700, color: decisionColor }}>{confidenceScore}<span style={{ fontSize: 11, color: '#888', fontWeight: 400 }}>/100</span></span>
         </div>
       </div>
 
       {/* ── Score Summary Bars ── */}
-      <div style={{ margin: '0 0 20px', border: '1px solid #e2e8f0', background: '#ffffff', overflow: 'hidden' }}>
+      <div className="cr-score-summary" style={{ margin: '0 0 20px', border: '1px solid #e2e8f0', background: '#ffffff', overflow: 'hidden' }}>
         <div style={{ padding: '8px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#0f172a', margin: 0 }}>Assessment Score Summary</p>
         </div>
@@ -1189,8 +1234,8 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
       />
 
       {/* ── KINGA Persistent Footer ── */}
-      <div style={{ background: '#fff', borderTop: '2px solid #1A2B4A', marginTop: 28 }}>
-        <div style={{ background: '#1A2B4A', padding: '8px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="cr-footer" style={{ background: '#fff', borderTop: '2px solid #1A2B4A', marginTop: 28 }}>
+        <div className="cr-footer-bar" style={{ background: '#1A2B4A', padding: '8px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style={{ height: 20, width: 20, objectFit: 'contain', opacity: 0.9 }} />
             <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: '0.08em' }}>KINGA</span>
@@ -1200,7 +1245,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
             <span style={{ fontSize: 10, color: '#94a3b8' }}>Claim: {claim?.claimNumber ?? claim?.claimReference ?? '—'}</span>
             <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 10, color: '#94a3b8' }}>#{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8, '0').toUpperCase().slice(0, 8)}</span>
             <span style={{ fontSize: 10, color: '#94a3b8' }}>{reportDate}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: decisionColor, border: `1px solid ${decisionColor}`, padding: '1px 8px', letterSpacing: '0.06em' }}>{(decision ?? '').toUpperCase().replace(/_/g, ' ')}</span>
+            <span className="cr-footer-decision" style={{ fontSize: 10, fontWeight: 700, color: decisionColor, border: `1px solid ${decisionColor}`, padding: '1px 8px', letterSpacing: '0.06em' }}>{(decision ?? '').toUpperCase().replace(/_/g, ' ')}</span>
           </div>
         </div>
         <div style={{ padding: '8px 20px' }}>
