@@ -4908,8 +4908,23 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
         } catch { /* ignore */ }
 
         // Derive damage zones from component names and impact direction.
-        const damageZones = damagedComponents.length > 0
-          ? damagedComponents.map((c: string) => c.toLowerCase())
+        // Map component names to standard zone labels (Front, Rear, Left Side, Right Side, Roof, Underbody, Interior)
+        const _compToZone = (comp: string): string | null => {
+          const c = comp.toLowerCase();
+          if (/\bfront\b|\bf\/|\bfr\b|bumper.*front|front.*bumper|windscreen|windshield|bonnet|hood|grille|headlamp|headlight|foglight|fog.lamp/.test(c)) return 'Front';
+          if (/\brear\b|\br\/|\brr\b|tail|boot|trunk|back.*bumper|bumper.*rear|rear.*bumper|reverse|back.light|brake.light/.test(c)) return 'Rear';
+          if (/\bleft\b|\bl\/s\b|\bl\.s\b|\bls\b|driver.side|nearside/.test(c)) return 'Left Side';
+          if (/\bright\b|\br\/s\b|\br\.s\b|\brs\b|passenger.side|offside/.test(c)) return 'Right Side';
+          if (/\broof\b|\bsunroof\b|\bpillar\b/.test(c)) return 'Roof';
+          if (/\bunderbody\b|\bchassis\b|\bsump\b|\baxle\b|\bsuspension\b/.test(c)) return 'Underbody';
+          if (/\binterior\b|\bdashboard\b|\bseat\b|\bairbag\b/.test(c)) return 'Interior';
+          return null;
+        };
+        const _derivedZones = damagedComponents.length > 0
+          ? [...new Set(damagedComponents.map((c: string) => _compToZone(c)).filter(Boolean) as string[])]
+          : [];
+        const damageZones = _derivedZones.length > 0
+          ? _derivedZones
           : impactDirection !== 'unknown' ? [impactDirection] : [];
 
         const result = applyIntelligenceEnforcement({

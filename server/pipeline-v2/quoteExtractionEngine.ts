@@ -127,6 +127,19 @@ RULES — follow these exactly:
    f) Example: "Paint  2040" → component="paint", unit_cost=2040, line_total=2040, action="refinish"
    g) Example: "Sundries  30" → component="sundries", unit_cost=30, line_total=30, action="other"
    h) Example: "LIR door  45058" → this is OCR garble for "L/R door  450 58" → component="LR door", unit_cost=450, line_total=450, action="replace"
+   THREE-COLUMN QUOTE TABLES (common in Southern African panel beaters):
+   Some quotes have SEPARATE columns for Parts, Labour, and Paint/Spray costs per line item.
+   The OCR text will show multiple numbers after a component name, e.g.:
+   "Replace Front Bumper  1  1400.00  280.00  Strip 50.00"
+   "Replace Front Windscreen  1  1300.00  Strip 50.00"
+   Rules for three-column tables:
+   a) The FIRST number after quantity is the Parts price (unit_cost).
+   b) Subsequent numbers are Labour $/c and Paint/Spray $/c — ADD them all together for line_total.
+   c) Example: "Replace Front Bumper  1  1400.00  280.00  50.00" → unit_cost=1400, line_total=1730 (1400+280+50)
+   d) Example: "Replace Front Windscreen  1  1300.00  50.00" → unit_cost=1300, line_total=1350 (1300+50)
+   e) Example: "Replace L/S Headlamp  1  1360.00  25.00" → unit_cost=1360, line_total=1385 (1360+25)
+   f) If only one number appears (parts only, no labour/paint), unit_cost = line_total = that number.
+   g) Words like "Strip", "S&A", "R&R" before a number indicate that number is a labour/strip cost — include it in line_total.
    PROPORTIONAL FALLBACK: If you cannot parse individual line totals but the document total is known and there are N components,
    distribute the total proportionally across components using equal shares as a last resort.
    Set extraction_warnings to include "proportional_fallback_used" in that case.

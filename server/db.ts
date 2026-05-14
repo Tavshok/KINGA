@@ -2001,6 +2001,14 @@ export async function getAiAssessmentByClaimId(claimId: number, tenantId?: strin
     policyNumber: claimRow?.policyNumber ?? null,
     currencyCode: claimRow?.currencyCode ?? null,
     countryCode: claimRow?.countryCode ?? null,
+    // Product type (e.g. COMPREHENSIVE, EXCESS) — stored on claims table
+    productType: (claimRow as any)?.productType ?? null,
+    // Claim reference from claims table (e.g. KNG-TENANT17-2026-000016-CL)
+    claimReference: claimRow?.claimReference ?? null,
+    // Insurer name from claims table
+    insurerName: claimRow?.insurerName ?? null,
+    // Claimant name from claims table
+    claimantName: claimRow?.claimantName ?? null,
   };
 }
 

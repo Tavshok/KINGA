@@ -1064,8 +1064,14 @@ export async function runCostOptimisationStage(
             );
 
             // Component classification: quoted-not-damaged and damaged-not-quoted
+            // Use components[] if populated; fall back to lineItems component names
             const allQuotedComponentNames = compositeInputQuotes
-              .flatMap(q => q.components ?? []);
+              .flatMap(q => {
+                const comps = q.components ?? [];
+                if (comps.length > 0) return comps;
+                // Fall back to lineItems when components[] is not populated
+                return (q.lineItems ?? []).map((li: any) => li.componentName).filter(Boolean);
+              });
             const confirmedDamagedNames = damagedComponentNames;
             const allDamagedNames = [...new Set([...confirmedDamagedNames, ...allQuotedComponentNames])];
 
