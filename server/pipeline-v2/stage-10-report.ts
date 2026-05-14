@@ -492,8 +492,7 @@ export async function runReportGenerationStage(
     if (photoCount === 0) {
       degradationReasons.push(
         "No damage photos were available for vision analysis. " +
-        "If photos were embedded in the claim PDF, the image extraction step may have failed " +
-        "(pdftoppm/poppler-utils unavailable in production). " +
+        "If photos were embedded in the claim PDF, the image extraction step may have failed. " +
         "Upload photos separately via the Evidence Upload button to enable full vision analysis."
       );
     } else if (!damageAnalysis) {

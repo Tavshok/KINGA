@@ -12223,3 +12223,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Frontend updated to use fetch+FormData instead of tRPC base64 mutation
 - [x] Removed retry logic from frontend — upload succeeds on first try
 - [x] Endpoint responds in <10ms (vs 28s timeout before)
+
+## Pipeline Fix — Remove pdftoppm dependency (May 2026)
+- [x] Root cause: pdfToImages.ts used pdftoppm (system binary) — NOT available in Cloud Run production
+- [x] Root cause 2: production start script had --max-old-space-size=1536 — crashes Cloud Run 512MB container
+- [x] Fix 1: Rewrote pdfToImages.ts to use pdfjs-dist + @napi-rs/canvas (pure Node.js, no system binaries)
+- [x] Fix 2: Removed --max-old-space-size=1536 from production start script
+- [x] Fix 3: Replaced pdftoppm startup health check with pdfjs-dist availability check
+- [x] Fix 4: Updated stage-10 report message to remove outdated pdftoppm reference

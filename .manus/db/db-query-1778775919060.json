@@ -1,0 +1,20 @@
+{
+  "query": "SELECT id, claim_number, status, workflow_state, document_processing_status, ai_assessment_triggered, ai_assessment_completed, updated_at FROM claims WHERE claim_number LIKE '%D13ED067%' LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_number, status, workflow_state, document_processing_status, ai_assessment_triggered, ai_assessment_completed, updated_at FROM claims WHERE claim_number LIKE '%D13ED067%' LIMIT 1;",
+  "rows": [
+    {
+      "id": "6210001",
+      "claim_number": "DOC-20260514-D13ED067",
+      "status": "assessment_in_progress",
+      "workflow_state": "under_assessment",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "updated_at": "2026-05-14 16:23:17"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tstatus\tworkflow_state\tdocument_processing_status\tai_assessment_triggered\tai_assessment_completed\tupdated_at\n6210001\tDOC-20260514-D13ED067\tassessment_in_progress\tunder_assessment\tpending\t0\t0\t2026-05-14 16:23:17\n",
+  "stderr": "",
+  "execution_time_ms": 805
+}
