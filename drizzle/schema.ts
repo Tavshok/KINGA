@@ -4996,3 +4996,30 @@ export const recoveryCorrespondenceLog = mysqlTable("recovery_correspondence_log
 
 export type RecoveryCorrespondenceLogRow = typeof recoveryCorrespondenceLog.$inferSelect;
 export type InsertRecoveryCorrespondenceLog = typeof recoveryCorrespondenceLog.$inferInsert;
+
+// ── Component Benchmark Cost Table ────────────────────────────────────────
+// Populated from the KINGA training dataset via the benchmark generation script.
+// Each row represents a p25/median/p75 cost range for a component, optionally
+// segmented by vehicle make. Rows with vehicleMake = NULL are global fallbacks
+// used when no make-specific benchmark exists.
+export const componentBenchmarks = mysqlTable("component_benchmarks", {
+  id: int().autoincrement().notNull(),
+  componentId: varchar("component_id", { length: 100 }).notNull(),
+  vehicleMake: varchar("vehicle_make", { length: 100 }),  // NULL = global fallback
+  category: varchar({ length: 100 }),
+  n: int().notNull(),                    // number of training records
+  p25: double().notNull(),               // 25th percentile cost (USD)
+  median: double().notNull(),            // 50th percentile cost (USD)
+  p75: double().notNull(),               // 75th percentile cost (USD)
+  minCost: double("min_cost"),
+  maxCost: double("max_cost"),
+  confidence: mysqlEnum(['HIGH','MEDIUM','LOW']).default('LOW').notNull(),
+  modelVersion: varchar("model_version", { length: 50 }).default('v1.0').notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("idx_cb_component_make").on(table.componentId, table.vehicleMake),
+  index("idx_cb_component_id").on(table.componentId),
+]);
+export type ComponentBenchmarkRow = typeof componentBenchmarks.$inferSelect;
+export type InsertComponentBenchmark = typeof componentBenchmarks.$inferInsert;

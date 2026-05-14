@@ -1,0 +1,8 @@
+{
+  "query": "SELECT COUNT(*) as total_rows FROM component_benchmarks;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT COUNT(*) as total_rows FROM component_benchmarks;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 1: Table 'ybs42lwgroxbvepamjk4bs.component_benchmarks' doesn't exist"
+  ]
+}

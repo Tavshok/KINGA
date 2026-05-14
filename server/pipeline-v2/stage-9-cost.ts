@@ -13,7 +13,7 @@ import { deriveEconomicContext } from "./economicContextEngine";
 import { computeIFE, type IFEReport } from "./inputFidelityEngine";
 import { buildDOECandidates, runDOE, type DOEResult } from "./decisionOptimisationEngine";
 import { extractCostLearningRecord } from "./costLearningRecorder";
-import { insertCostLearningRecord, getActiveCalibrationMultiplier, getComponentBenchmarks } from "../db";
+import { insertCostLearningRecord, getActiveCalibrationMultiplier, getComponentBenchmarks, getComponentBenchmarksFromTrainingData } from "../db";
 import { sql as drizzleSql } from "drizzle-orm";
 import { optimiseRepairCost, type InputQuote } from "./quoteOptimisationEngine";
 import { runCostDecision } from "./costDecisionEngine";
@@ -822,10 +822,22 @@ export async function runCostOptimisationStage(
         .map((p: any) => p.name)
         .filter((n: any): n is string => typeof n === 'string' && n.length > 0);
       if (damagedComponentNames.length > 0) {
-        const benchmarks = await getComponentBenchmarks(
+        // First try validated historical outcomes; fall back to training-data benchmarks
+        let benchmarks = await getComponentBenchmarks(
           damagedComponentNames,
           claimRecord.vehicle?.make ?? null
         );
+        // Identify components that had no validated outcome data
+        const coveredComponents = new Set(benchmarks.map(b => b.component));
+        const uncoveredComponents = damagedComponentNames.filter(n => !coveredComponents.has(n));
+        if (uncoveredComponents.length > 0) {
+          const trainingBenchmarks = await getComponentBenchmarksFromTrainingData(
+            uncoveredComponents,
+            claimRecord.vehicle?.make ?? null
+          );
+          benchmarks = [...benchmarks, ...trainingBenchmarks];
+          ctx.log('Stage 9', `Training-data benchmarks used for ${trainingBenchmarks.length} components: ${trainingBenchmarks.map(b => b.component).join(', ')}`);
+        }
         const perComponentBenchmarks: Record<string, any> = {};
         for (const b of benchmarks) {
           // Compute per-quote flags for this component

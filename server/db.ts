@@ -3439,3 +3439,62 @@ export async function getComponentBenchmarks(
 
   return results;
 }
+
+// ── getComponentBenchmarksFromTrainingData ──────────────────────────────────
+// Queries the component_benchmarks table (seeded from training parquet) as a
+// fallback when componentRepairOutcomes has no validated historical data.
+export async function getComponentBenchmarksFromTrainingData(
+  componentNames: string[],
+  vehicleMake?: string | null
+): Promise<ComponentBenchmark[]> {
+  if (!componentNames.length) return [];
+  const db = await getDb();
+  if (!db) return [];
+
+  const results: ComponentBenchmark[] = [];
+
+  for (const component of componentNames) {
+    // Normalise component name to component_id format (spaces → underscores, lowercase)
+    const componentId = component.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+
+    // Try make-specific first, then global fallback
+    for (const makeFiltered of [true, false]) {
+      const conditions: any[] = [
+        eq(schema.componentBenchmarks.componentId, componentId),
+      ];
+      if (makeFiltered && vehicleMake) {
+        conditions.push(
+          sql`LOWER(${schema.componentBenchmarks.vehicleMake}) = LOWER(${vehicleMake})`
+        );
+      } else if (!makeFiltered) {
+        // Global fallback: vehicle_make IS NULL
+        conditions.push(sql`${schema.componentBenchmarks.vehicleMake} IS NULL`);
+      }
+
+      const rows = await db
+        .select()
+        .from(schema.componentBenchmarks)
+        .where(and(...conditions))
+        .limit(1);
+
+      if (!rows.length) {
+        if (makeFiltered) continue;
+        break;
+      }
+
+      const row = rows[0];
+      results.push({
+        component,
+        outcome: 'repair',
+        p25Usd: Number(row.p25),
+        medianUsd: Number(row.median),
+        p75Usd: Number(row.p75),
+        sampleSize: row.n,
+        vehicleMakeFiltered: makeFiltered && !!vehicleMake,
+      });
+      break;
+    }
+  }
+
+  return results;
+}
