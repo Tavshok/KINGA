@@ -371,6 +371,8 @@ export interface ExtractedQuoteLineItem {
   quantity: number;
   line_total: number | null;
   action: string | null;
+  /** Part origin inferred from quote text. Defaults to "unknown" when not stated. */
+  part_origin?: "oem" | "aftermarket" | "reconditioned" | "used" | "unknown";
 }
 
 export interface ExtractedQuoteRecord {

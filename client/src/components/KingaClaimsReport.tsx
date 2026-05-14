@@ -929,7 +929,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                         (k) => k.toLowerCase() === desc.toLowerCase() || desc.toLowerCase().includes(k.toLowerCase())
                       );
                       const bench = benchKey ? perComponentBenchmarks[benchKey] : null;
-                      const kingaVal = bench?.median_usd ?? null;
+                      const kingaVal = bench?.medianUsd ?? bench?.median_usd ?? null;
 
                       return (
                         <tr key={ri} style={{ background: "transparent" }}>
@@ -950,6 +950,21 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                           })}
                           <td style={{ ...S.td, textAlign: "right", background: "#ffffff", fontWeight: 600 }}>
                             {kingaVal != null ? fmtC(kingaVal) : <span style={{ color: "#64748b" }}>—</span>}
+                            {bench?.p25Usd != null && bench?.p75Usd != null && (
+                              <div style={{ fontSize: 9, color: "#64748b", fontWeight: 400 }}>{fmtC(bench.p25Usd)}–{fmtC(bench.p75Usd)}</div>
+                            )}
+                            {bench?.modelSource === "ml" && (
+                              <div style={{ fontSize: 9, fontWeight: 700, color: "#1d4ed8", background: "#dbeafe", borderRadius: 3, padding: "1px 3px", display: "inline-block", marginTop: 1 }}>ML • n={bench.sampleSize}</div>
+                            )}
+                            {bench?.modelSource === "statistical" && (
+                              <div style={{ fontSize: 9, fontWeight: 700, color: "#065f46", background: "#d1fae5", borderRadius: 3, padding: "1px 3px", display: "inline-block", marginTop: 1 }}>{bench.confidence ?? "STAT"} • n={bench.sampleSize}</div>
+                            )}
+                            {bench?.verdict === "ABOVE_RANGE" && (
+                              <div style={{ fontSize: 9, fontWeight: 700, color: "#dc2626", marginTop: 1 }}>⚠ Above range</div>
+                            )}
+                            {bench?.verdict === "IN_RANGE" && (
+                              <div style={{ fontSize: 9, fontWeight: 600, color: "#15803d", marginTop: 1 }}>✓ In range</div>
+                            )}
                           </td>
                         </tr>
                       );

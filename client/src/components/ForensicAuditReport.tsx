@@ -4321,11 +4321,46 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                           </td>
                         );
                       })}
-                      {/* KINGA Estimate cell */}
+                      {/* KINGA Estimate cell with hybrid model badge */}
                       <td className="px-3 py-2 tabular-nums text-right font-semibold" style={{ color: "#0f172a", borderLeft: '2px solid var(--border)', background: '#ffffff' }}>
                         {kingaEstimate !== null ? fmtMoney(kingaEstimate) : '—'}
-                        {benchmark?.sampleSize != null && benchmark.sampleSize > 0 && (
-                          <span className="block text-[10px] font-normal" style={{ color: 'var(--muted-foreground)' }}>n={benchmark.sampleSize}</span>
+                        {/* Range band */}
+                        {benchmark?.p25Usd != null && benchmark?.p75Usd != null && (
+                          <span className="block text-[10px] font-normal" style={{ color: 'var(--muted-foreground)' }}>
+                            {fmtMoney(benchmark.p25Usd)}–{fmtMoney(benchmark.p75Usd)}
+                          </span>
+                        )}
+                        {/* Model source badge */}
+                        {benchmark?.modelSource === 'ml' && (
+                          <span className="block text-[10px] font-semibold mt-0.5" style={{
+                            color: '#1d4ed8',
+                            background: '#dbeafe',
+                            borderRadius: 3,
+                            padding: '1px 4px',
+                            display: 'inline-block',
+                          }}>ML • n={benchmark.sampleSize}</span>
+                        )}
+                        {benchmark?.modelSource === 'statistical' && (
+                          <span className="block text-[10px] font-semibold mt-0.5" style={{
+                            color: '#065f46',
+                            background: '#d1fae5',
+                            borderRadius: 3,
+                            padding: '1px 4px',
+                            display: 'inline-block',
+                          }}>{benchmark.confidence ?? 'STAT'} • n={benchmark.sampleSize}</span>
+                        )}
+                        {benchmark?.modelSource === 'db_legacy' && (
+                          <span className="block text-[10px] font-normal mt-0.5" style={{ color: 'var(--muted-foreground)' }}>n={benchmark.sampleSize}</span>
+                        )}
+                        {/* Verdict badge */}
+                        {benchmark?.verdict === 'ABOVE_RANGE' && (
+                          <span className="block text-[10px] font-bold mt-0.5" style={{ color: '#dc2626' }}>⚠ Above range</span>
+                        )}
+                        {benchmark?.verdict === 'BELOW_RANGE' && (
+                          <span className="block text-[10px] font-bold mt-0.5" style={{ color: '#92400e' }}>▼ Below range</span>
+                        )}
+                        {benchmark?.verdict === 'IN_RANGE' && (
+                          <span className="block text-[10px] font-semibold mt-0.5" style={{ color: '#15803d' }}>✓ In range</span>
                         )}
                       </td>
                     </tr>
@@ -4348,9 +4383,19 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                       const est = bm?.medianUsd ?? (va.length > 0 ? Math.min(...va) : 0);
                       return sum + est;
                     }, 0))}
-                    {perComponentBenchmarks && Object.values(perComponentBenchmarks).some(b => b?.sampleSize > 0) && (
-                      <span className="block text-[10px] font-normal" style={{ color: 'var(--muted-foreground)' }}>KINGA model</span>
-                    )}
+                    {(() => {
+                      const mlCount = perComponentBenchmarks ? Object.values(perComponentBenchmarks).filter((b: any) => b?.modelSource === 'ml').length : 0;
+                      const statCount = perComponentBenchmarks ? Object.values(perComponentBenchmarks).filter((b: any) => b?.modelSource === 'statistical').length : 0;
+                      if (mlCount > 0 || statCount > 0) {
+                        return (
+                          <span className="block text-[10px] font-normal" style={{ color: 'var(--muted-foreground)' }}>
+                            {mlCount > 0 && <span style={{ color: '#1d4ed8' }}>ML:{mlCount} </span>}
+                            {statCount > 0 && <span style={{ color: '#065f46' }}>Stat:{statCount} </span>}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </td>
                 </tr>
               </tfoot>

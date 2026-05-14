@@ -47,6 +47,12 @@ export interface QuoteLineItem {
   line_total: number | null;
   /** Repair action: repair | replace | refinish | other */
   action: string | null;
+  /**
+   * Part origin inferred from quote text.
+   * Populated opportunistically — defaults to "unknown" when not stated.
+   * Values: "oem" | "aftermarket" | "reconditioned" | "used" | "unknown"
+   */
+  part_origin: "oem" | "aftermarket" | "reconditioned" | "used" | "unknown";
 }
 
 export interface ExtractedQuote {
@@ -124,15 +130,22 @@ RULES — follow these exactly:
    PROPORTIONAL FALLBACK: If you cannot parse individual line totals but the document total is known and there are N components,
    distribute the total proportionally across components using equal shares as a last resort.
    Set extraction_warnings to include "proportional_fallback_used" in that case.
-6. Do NOT infer or guess missing components.
-7. Do NOT estimate any cost.
-8. If a field cannot be found, return null (for strings/numbers) or false (for booleans).
-9. Set confidence:
-   - "high"   → total cost found, ≥ 3 components found, panel beater name found
-   - "medium" → total cost found but < 3 components, or panel beater missing
-   - "low"    → total cost missing or no components found
-10. List any extraction issues in extraction_warnings (e.g. "total cost not found", "currency ambiguous").
-11. Extract labour_cost and parts_cost as plain numbers when they appear as separate line items:
+6. For each line_item, also extract part_origin from the row description or surrounding text:
+   - "OEM", "genuine", "original", "manufacturer" → "oem"
+   - "aftermarket", "pattern", "non-genuine" → "aftermarket"
+   - "reconditioned", "recon", "refurbished", "rebuilt" → "reconditioned"
+   - "second hand", "used", "S/H", "SH", "secondhand" → "used"
+   - If no part origin keyword is present → "unknown"
+   Do NOT guess part origin — only extract it if explicitly stated in the quote text.
+7. Do NOT infer or guess missing components.
+8. Do NOT estimate any cost.
+9. If a field cannot be found, return null (for strings/numbers) or false (for booleans).
+10. Set confidence:
+    - "high"   → total cost found, ≥ 3 components found, panel beater name found
+    - "medium" → total cost found but < 3 components, or panel beater missing
+    - "low"    → total cost missing or no components found
+11. List any extraction issues in extraction_warnings (e.g. "total cost not found", "currency ambiguous").
+12. Extract labour_cost and parts_cost as plain numbers when they appear as separate line items:
     - "Labour: $1,500" → labour_cost = 1500, labour_defined = true
     - "Parts: $3,200" → parts_cost = 3200, parts_defined = true
     - If only a total is given with no breakdown, set both to null.
@@ -144,7 +157,7 @@ OUTPUT — return ONLY valid JSON matching this schema exactly:
   "total_cost": number | null,
   "currency": string,
   "components": string[],
-  "line_items": [{"component": string, "unit_cost": number|null, "quantity": number, "line_total": number|null, "action": string|null}],
+  "line_items": [{"component": string, "unit_cost": number|null, "quantity": number, "line_total": number|null, "action": string|null, "part_origin": "oem"|"aftermarket"|"reconditioned"|"used"|"unknown"}],
   "labour_defined": boolean,
   "parts_defined": boolean,
   "labour_cost": number | null,
@@ -207,9 +220,14 @@ export async function extractQuoteFromText(
                     unit_cost: { type: ["number", "null"], description: "Unit cost as a plain number. Null if not stated." },
                     quantity: { type: "number", description: "Quantity, default 1 if not stated" },
                     line_total: { type: ["number", "null"], description: "Line total = unit_cost x quantity. Null if unit_cost is null." },
-                    action: { type: ["string", "null"], description: "Repair action: repair, replace, refinish, or other" }
+                    action: { type: ["string", "null"], description: "Repair action: repair, replace, refinish, or other" },
+                    part_origin: {
+                      type: "string",
+                      enum: ["oem", "aftermarket", "reconditioned", "used", "unknown"],
+                      description: "Part origin inferred from quote text. Use 'unknown' when not stated."
+                    }
                   },
-                  required: ["component", "unit_cost", "quantity", "line_total", "action"],
+                  required: ["component", "unit_cost", "quantity", "line_total", "action", "part_origin"],
                   additionalProperties: false
                 }
               },
@@ -370,12 +388,17 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
         console.warn(`⚠️  Hallucination guard (quote line_items): rejected "${_normalisedComponent}" (raw: "${item.component}")`);
         continue; // Skip hallucinated line items
       }
+      const validOrigins = ["oem", "aftermarket", "reconditioned", "used", "unknown"];
+      const partOrigin = validOrigins.includes(item.part_origin as string)
+        ? (item.part_origin as "oem" | "aftermarket" | "reconditioned" | "used" | "unknown")
+        : "unknown";
       line_items.push({
         component: _resolvedComponent.name,
         unit_cost: unitCost,
         quantity: qty,
         line_total: lineTotal,
         action: typeof item.action === 'string' ? item.action : null,
+        part_origin: partOrigin,
       });
     }
   }

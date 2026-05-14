@@ -14,6 +14,8 @@ import { computeIFE, type IFEReport } from "./inputFidelityEngine";
 import { buildDOECandidates, runDOE, type DOEResult } from "./decisionOptimisationEngine";
 import { extractCostLearningRecord } from "./costLearningRecorder";
 import { insertCostLearningRecord, getActiveCalibrationMultiplier, getComponentBenchmarks, getComponentBenchmarksFromTrainingData } from "../db";
+import { assessCost } from "./mlBenchmarkEngine";
+import { resolveComponent } from "../../shared/vehicleParts";
 import { sql as drizzleSql } from "drizzle-orm";
 import { optimiseRepairCost, type InputQuote } from "./quoteOptimisationEngine";
 import { runCostDecision } from "./costDecisionEngine";
@@ -822,60 +824,151 @@ export async function runCostOptimisationStage(
         .map((p: any) => p.name)
         .filter((n: any): n is string => typeof n === 'string' && n.length > 0);
       if (damagedComponentNames.length > 0) {
-        // First try validated historical outcomes; fall back to training-data benchmarks
-        let benchmarks = await getComponentBenchmarks(
-          damagedComponentNames,
-          claimRecord.vehicle?.make ?? null
-        );
-        // Identify components that had no validated outcome data
-        const coveredComponents = new Set(benchmarks.map(b => b.component));
-        const uncoveredComponents = damagedComponentNames.filter(n => !coveredComponents.has(n));
-        if (uncoveredComponents.length > 0) {
-          const trainingBenchmarks = await getComponentBenchmarksFromTrainingData(
-            uncoveredComponents,
-            claimRecord.vehicle?.make ?? null
-          );
-          benchmarks = [...benchmarks, ...trainingBenchmarks];
-          ctx.log('Stage 9', `Training-data benchmarks used for ${trainingBenchmarks.length} components: ${trainingBenchmarks.map(b => b.component).join(', ')}`);
-        }
+        // ── HYBRID BENCHMARK LAYER ────────────────────────────────────────────
+        // Tier 1: ML quantile regression (engine, boot_lid, roof, dashboard,
+        //         left_front_door, right_front_door)
+        // Tier 2: Statistical IQR benchmark (all 33 components)
+        // Tier 3: Legacy DB benchmarks (validated outcomes + training data)
         const perComponentBenchmarks: Record<string, any> = {};
-        for (const b of benchmarks) {
-          // Compute per-quote flags for this component
-          const quoteFlags: Record<string, 'over' | 'fair' | 'under' | 'no_data'> = {};
-          const allQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
-          for (const q of allQuotes) {
-            const pbName = q.panel_beater ?? `Quote ${allQuotes.indexOf(q) + 1}`;
-            // Find matching line item in this quote
-            const lineItem = (q.line_items ?? []).find((li: any) =>
-              (li.description ?? '').toLowerCase().includes(b.component.toLowerCase()) ||
-              b.component.toLowerCase().includes((li.description ?? '').toLowerCase().split(' ')[0])
-            );
-            if (!lineItem) {
-              quoteFlags[pbName] = 'no_data';
-            } else {
-              const itemCostUsd = (lineItem.line_total ?? lineItem.unit_cost ?? 0) / 100;
-              if (itemCostUsd > b.p75Usd * 1.15) quoteFlags[pbName] = 'over';
-              else if (itemCostUsd < b.p25Usd * 0.85) quoteFlags[pbName] = 'under';
-              else quoteFlags[pbName] = 'fair';
+        const allQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+        const vehicleMake = claimRecord.vehicle?.make ?? null;
+        const vehicleYear = claimRecord.vehicle?.year ?? null;
+
+        // Build a flat line_items map for quote flag computation
+        const allLineItemsFlat = allQuotes.flatMap((q: any) =>
+          (q.line_items ?? []).map((li: any) => ({
+            ...li,
+            panel_beater: q.panel_beater ?? null,
+            quoteCurrency: q.currency ?? currency,
+          }))
+        );
+
+        let mlHits = 0;
+        let statHits = 0;
+        let dbHits = 0;
+
+        for (const compName of damagedComponentNames) {
+          // Resolve component name → canonical ID for ML/statistical lookup
+          const resolved = resolveComponent(compName);
+          const componentId = resolved?.id ?? null;
+
+          // Find the quoted amount for this component from line_items
+          const matchedLineItem = allLineItemsFlat.find((li: any) => {
+            const liComp = (li.component ?? li.description ?? '').toLowerCase().trim();
+            const compLower = compName.toLowerCase().trim();
+            return liComp.includes(compLower) || compLower.includes(liComp.split(' ')[0]);
+          });
+          const quotedAmountUsd = matchedLineItem
+            ? (matchedLineItem.line_total ?? matchedLineItem.unit_cost ?? 0)
+            : null;
+
+          if (componentId && quotedAmountUsd !== null && quotedAmountUsd > 0) {
+            // Run hybrid assessment
+            const assessment = assessCost({
+              componentId,
+              quotedCostUsd: quotedAmountUsd,
+              vehicleMake,
+              vehicleYear,
+            });
+
+            if (assessment.modelSource !== 'none') {
+              // Build per-quote flags using the ML/statistical band
+              const quoteFlags: Record<string, 'over' | 'fair' | 'under' | 'no_data'> = {};
+              for (const q of allQuotes) {
+                const pbName = (q as any).panel_beater ?? `Quote ${allQuotes.indexOf(q) + 1}`;
+                const qLineItem = ((q as any).line_items ?? []).find((li: any) => {
+                  const liComp = (li.component ?? li.description ?? '').toLowerCase().trim();
+                  const compLower = compName.toLowerCase().trim();
+                  return liComp.includes(compLower) || compLower.includes(liComp.split(' ')[0]);
+                });
+                if (!qLineItem) {
+                  quoteFlags[pbName] = 'no_data';
+                } else {
+                  const itemCostUsd = qLineItem.line_total ?? qLineItem.unit_cost ?? 0;
+                  const p25 = assessment.p25 ?? 0;
+                  const p75 = assessment.p75 ?? Infinity;
+                  if (itemCostUsd > p75 * 1.15) quoteFlags[pbName] = 'over';
+                  else if (itemCostUsd < p25 * 0.85) quoteFlags[pbName] = 'under';
+                  else quoteFlags[pbName] = 'fair';
+                }
+              }
+
+              perComponentBenchmarks[compName] = {
+                p25Usd: assessment.p25,
+                medianUsd: assessment.p50,
+                p75Usd: assessment.p75,
+                sampleSize: assessment.nTraining,
+                vehicleMakeFiltered: vehicleMake !== null,
+                modelSource: assessment.modelSource,
+                modelDescription: assessment.modelDescription,
+                confidence: assessment.confidence,
+                verdict: assessment.verdict,
+                quoteFlags,
+              };
+
+              if (assessment.modelSource === 'ml') mlHits++;
+              else statHits++;
+              continue; // Skip legacy DB lookup for this component
             }
           }
-          perComponentBenchmarks[b.component] = {
-            p25Usd: b.p25Usd,
-            medianUsd: b.medianUsd,
-            p75Usd: b.p75Usd,
-            sampleSize: b.sampleSize,
-            vehicleMakeFiltered: b.vehicleMakeFiltered,
-            quoteFlags,
-          };
+
+          // ── Legacy DB fallback (validated outcomes + training data) ──────────
+          // Used when: no component ID resolved, or no quoted amount available
+          perComponentBenchmarks[compName] = null; // placeholder — will be filled below
         }
-        // Mark components with no benchmark data
-        for (const name of damagedComponentNames) {
-          if (!(name in perComponentBenchmarks)) {
-            perComponentBenchmarks[name] = null;
+
+        // Fill remaining nulls from legacy DB (components without ML/stat coverage)
+        const needsLegacyLookup = damagedComponentNames.filter(
+          n => perComponentBenchmarks[n] === null
+        );
+        if (needsLegacyLookup.length > 0) {
+          let dbBenchmarks = await getComponentBenchmarks(needsLegacyLookup, vehicleMake);
+          const dbCovered = new Set(dbBenchmarks.map(b => b.component));
+          const stillUncovered = needsLegacyLookup.filter(n => !dbCovered.has(n));
+          if (stillUncovered.length > 0) {
+            const trainingBenchmarks = await getComponentBenchmarksFromTrainingData(
+              stillUncovered, vehicleMake
+            );
+            dbBenchmarks = [...dbBenchmarks, ...trainingBenchmarks];
+          }
+          for (const b of dbBenchmarks) {
+            const allQuotesInner = stage3?.inputRecovery?.extracted_quotes ?? [];
+            const quoteFlags: Record<string, 'over' | 'fair' | 'under' | 'no_data'> = {};
+            for (const q of allQuotesInner) {
+              const pbName = (q as any).panel_beater ?? `Quote ${allQuotesInner.indexOf(q) + 1}`;
+              const lineItem = ((q as any).line_items ?? []).find((li: any) =>
+                (li.description ?? '').toLowerCase().includes(b.component.toLowerCase()) ||
+                b.component.toLowerCase().includes((li.description ?? '').toLowerCase().split(' ')[0])
+              );
+              if (!lineItem) {
+                quoteFlags[pbName] = 'no_data';
+              } else {
+                const itemCostUsd = (lineItem.line_total ?? lineItem.unit_cost ?? 0) / 100;
+                if (itemCostUsd > b.p75Usd * 1.15) quoteFlags[pbName] = 'over';
+                else if (itemCostUsd < b.p25Usd * 0.85) quoteFlags[pbName] = 'under';
+                else quoteFlags[pbName] = 'fair';
+              }
+            }
+            perComponentBenchmarks[b.component] = {
+              p25Usd: b.p25Usd,
+              medianUsd: b.medianUsd,
+              p75Usd: b.p75Usd,
+              sampleSize: b.sampleSize,
+              vehicleMakeFiltered: b.vehicleMakeFiltered,
+              modelSource: 'db_legacy',
+              modelDescription: 'Legacy DB benchmark',
+              confidence: null,
+              verdict: null,
+              quoteFlags,
+            };
+            dbHits++;
           }
         }
+
         (output as any).perComponentBenchmarks = perComponentBenchmarks;
-        ctx.log('Stage 9', `Per-component benchmarks: ${benchmarks.length} components with data, ${damagedComponentNames.length - benchmarks.length} without`);
+        ctx.log('Stage 9',
+          `Hybrid benchmarks: ${mlHits} ML, ${statHits} statistical, ${dbHits} legacy DB, ` +
+          `${damagedComponentNames.length - mlHits - statHits - dbHits} without data`);
       }
     } catch (benchErr) {
       ctx.log('Stage 9', `Per-component benchmark query failed (non-fatal): ${String(benchErr)}`);

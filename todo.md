@@ -12169,3 +12169,16 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] KingaLogo component: add xl size (h-40 w-40 shield, text-7xl KINGA wordmark)
 - [x] ZWL exchange rate: add ZWL=361 and ZWD=361 to DEFAULT_EXCHANGE_RATES in economicContextEngine.ts
 - [x] ZWL fix: legacy Zimbabwe Dollar claims no longer compared 1:1 against USD benchmarks
+
+## ML Production Implementation (Phase 1–4)
+
+- [x] Add part_origin field to cost extraction LLM prompt (OEM/aftermarket/reconditioned/unknown)
+- [x] Add repairer_id/repairer_name capture to cost extraction prompt
+- [x] Update component_repair_outcomes schema to store part_origin and repairer_id
+- [x] Train quantile regression models (P25/P75) for Engine, Boot Lid, Roof, Dashboard, Left Front Door, Right Front Door
+- [x] Serialise trained models to JSON coefficient files (no binary deps)
+- [x] Build hybrid model inference layer in stage-9-cost.ts (ML → statistical → legacy DB fallback chain)
+- [x] Add model_source field to cost intelligence output (ml/statistical/db_legacy/none)
+- [x] Update ForensicAuditReport + KingaClaimsReport financial table to show ML/STAT/legacy badges per line item
+- [x] Write 17 vitest tests for hybrid inference layer (all passing)
+- [x] Save checkpoint after full implementation

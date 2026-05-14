@@ -2513,6 +2513,11 @@ export const quoteLineItems = mysqlTable("quote_line_items", {
 	notes: text(),
 	// AI Review tag: short plain-text verdict (max 30 chars) e.g. "Consistent", "Price high", "Not detected"
 	aiReview: varchar("ai_review", { length: 50 }),
+	// Part origin inferred from quote text by LLM extraction engine.
+	// Populated opportunistically — defaults to 'unknown' when not stated in the quote.
+	partOrigin: mysqlEnum("part_origin", ["oem", "aftermarket", "reconditioned", "used", "unknown"]).default("unknown"),
+	// Repairer/panel beater name extracted from the quote header.
+	repairerName: varchar("repairer_name", { length: 255 }),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
@@ -4812,6 +4817,11 @@ export const componentRepairOutcomes = mysqlTable("component_repair_outcomes", {
   adjusterUserId: int("adjuster_user_id"),
   repairCostUsd: decimal("repair_cost_usd", { precision: 10, scale: 2 }),
   replaceCostUsd: decimal("replace_cost_usd", { precision: 10, scale: 2 }),
+  // Part origin captured from the accepted repair quote for this component.
+  // Populated opportunistically — null when not stated in the quote.
+  partOrigin: mysqlEnum("part_origin", ["oem", "aftermarket", "reconditioned", "used", "unknown"]),
+  // Repairer/panel beater name from the accepted quote header.
+  repairerName: varchar("repairer_name", { length: 255 }),
   decidedAt: varchar("decided_at", { length: 50 }).notNull(),
   createdAt: varchar("created_at", { length: 50 }).notNull(),
 }, (table) => [
