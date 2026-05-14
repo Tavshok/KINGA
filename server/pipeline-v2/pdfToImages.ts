@@ -33,6 +33,7 @@
  */
 
 import { createHash } from "crypto";
+import * as napiCanvas from "@napi-rs/canvas";
 import { storagePut } from "../storage";
 
 export interface PdfToImagesOptions {
@@ -148,14 +149,10 @@ export async function renderPdfToImages(
   }
 
   let pdfjsLib: any;
-  let napiCanvas: any;
   try {
-    [pdfjsLib, napiCanvas] = await Promise.all([
-      getPdfjsLib(),
-      import("@napi-rs/canvas"),
-    ]);
+    pdfjsLib = await getPdfjsLib();
   } catch (err: any) {
-    errors.push(`Failed to load rendering libraries: ${err.message}`);
+    errors.push(`Failed to load pdfjs-dist: ${err.message}`);
     log(`ERROR: ${err.message}`);
     return { pages: [], totalPagesRendered: 0, totalPagesInDocument: 0, truncated: false, errors };
   }
