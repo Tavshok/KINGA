@@ -105,7 +105,7 @@ export default function PortalHub() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <KingaLogo />
+              <KingaLogo showText={false} />
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle />
@@ -132,7 +132,7 @@ export default function PortalHub() {
             </h2>
             {/* KINGA Logo — scaled up 3x as the sole brand anchor */}
             <div className="flex justify-center mb-6">
-              <KingaLogo size="xl" showText={true} className="my-8" />
+              <KingaLogo size="xxl" showText={true} className="my-8" />
             </div>
             <p className="text-lg text-secondary/70 mb-4">
               Select a portal to continue your work

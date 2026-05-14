@@ -12182,3 +12182,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Update ForensicAuditReport + KingaClaimsReport financial table to show ML/STAT/legacy badges per line item
 - [x] Write 17 vitest tests for hybrid inference layer (all passing)
 - [x] Save checkpoint after full implementation
+
+## Pipeline Fix & Branding (2026-05-14)
+- [ ] Diagnose pipeline PROCESSING FAILED regression after ML benchmark changes
+- [ ] Fix root cause of pipeline failure (likely import/module resolution in stage-9-cost.ts)
+- [ ] Remove "KINGA" text label next to logo in the nav strip (DashboardLayout + top nav)
+- [ ] Double logo size on portal hub page only (not the nav strip)
+- [ ] Verify pipeline runs end-to-end on a test claim after fix
+- [ ] Save checkpoint

@@ -1,0 +1,34 @@
+{
+  "query": "SHOW COLUMNS FROM quote_line_items LIKE 'part_origin'; SHOW COLUMNS FROM quote_line_items LIKE 'repairer_name';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW COLUMNS FROM quote_line_items LIKE 'part_origin'; SHOW COLUMNS FROM quote_line_items LIKE 'repairer_name';",
+  "rows": [
+    {
+      "Field": "part_origin",
+      "Type": "enum('oem','aftermarket','reconditioned','used','unknown')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "unknown",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "repairer_name",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\npart_origin\tenum('oem','aftermarket','reconditioned','used','unknown')\tYES\t\tunknown\t\nField\tType\tNull\tKey\tDefault\tExtra\nrepairer_name\tvarchar(255)\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 716
+}

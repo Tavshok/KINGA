@@ -1207,11 +1207,19 @@ export interface Stage9Output {
    * Keyed by canonical component name. null entry = no historical data for that component.
    */
   perComponentBenchmarks?: Record<string, {
-    p25Usd: number;
-    medianUsd: number;
-    p75Usd: number;
+    p25Usd: number | null;
+    medianUsd: number | null;
+    p75Usd: number | null;
     sampleSize: number;
     vehicleMakeFiltered: boolean;
+    /** Source of the benchmark: 'ml' | 'statistical' | 'db_legacy' | 'none' */
+    modelSource?: 'ml' | 'statistical' | 'db_legacy' | 'none';
+    /** Human-readable description of the model/data used */
+    modelDescription?: string;
+    /** Confidence tier from the benchmark model */
+    confidence?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+    /** Verdict comparing quoted cost to the benchmark band */
+    verdict?: 'IN_RANGE' | 'ABOVE_RANGE' | 'BELOW_RANGE' | 'NO_DATA' | null;
     /** Verdict for each submitted quote's line item: over | fair | under | no_data */
     quoteFlags: Record<string, "over" | "fair" | "under" | "no_data">;
   } | null>;
