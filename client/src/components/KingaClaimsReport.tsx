@@ -854,7 +854,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               // Determine row source: prefer compositeLineItems, fall back to allDescriptions
               const useComposite = compositeLineItems.length > 0;
               const rowDescriptions: string[] = useComposite
-                ? compositeLineItems.map((r: any) => r.component ?? r.description ?? "")
+                ? compositeLineItems.map((r: any) => r.componentName ?? r.component ?? r.description ?? "")
                 : allDescriptions;
 
               // Tier badge renderer
@@ -900,7 +900,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                         <tbody>
                           {rowDescriptions.map((desc: string, ri: number) => {
                             const compRow = useComposite ? compositeLineItems[ri] : null;
-                            const zone = compRow?.zone ?? "—";
+                            const zone = compRow?.zone ?? compRow?.impactZone ?? "—";
 
                             return (
                               <tr key={ri} style={{ background: "transparent" }}>
@@ -942,20 +942,20 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                                 <td style={{ ...S.td, textAlign: "right", background: "#f8fafc", fontWeight: 600, borderLeft: "2px solid #1A2B4A" }}>
                                   {compRow ? (
                                     <>
-                                      <span>{fmtC(compRow.kingaOptimisedUsd ?? 0)}</span>
+                                      <span>{fmtC(compRow.selectedCostUsd ?? compRow.kingaOptimisedUsd ?? 0)}</span>
                                       <TierBadge tier={compRow.kingaOptimisedTier ?? "T4"} label={compRow.kingaOptimisedTierLabel ?? compRow.kingaOptimisedTier ?? "Quoted"} />
-                                      {compRow.benchmarkP25Usd != null && compRow.benchmarkP75Usd != null && (
+                                      {(compRow.p25Usd ?? compRow.benchmarkP25Usd) != null && (compRow.p75Usd ?? compRow.benchmarkP75Usd) != null && (
                                         <div style={{ fontSize: 9, color: "#64748b", fontWeight: 400, marginTop: 1 }}>
-                                          Range: {fmtC(compRow.benchmarkP25Usd)}–{fmtC(compRow.benchmarkP75Usd)}
+                                          Range: {fmtC(compRow.p25Usd ?? compRow.benchmarkP25Usd)}–{fmtC(compRow.p75Usd ?? compRow.benchmarkP75Usd)}
                                         </div>
                                       )}
-                                      {compRow.verdict === "ABOVE_RANGE" && (
+                                      {(compRow.benchmarkVerdict === "ABOVE_MARKET" || compRow.verdict === "ABOVE_RANGE") && (
                                         <div style={{ fontSize: 9, fontWeight: 700, color: "#dc2626", marginTop: 1 }}>⚠ Above range</div>
                                       )}
-                                      {compRow.verdict === "IN_RANGE" && (
+                                      {(compRow.benchmarkVerdict === "MARKET_RATE" || compRow.verdict === "IN_RANGE") && (
                                         <div style={{ fontSize: 9, fontWeight: 600, color: "#15803d", marginTop: 1 }}>✓ In range</div>
                                       )}
-                                      {compRow.verdict === "BELOW_RANGE" && (
+                                      {(compRow.benchmarkVerdict === "BELOW_MARKET" || compRow.verdict === "BELOW_RANGE") && (
                                         <div style={{ fontSize: 9, fontWeight: 600, color: "#2563eb", marginTop: 1 }}>↓ Below range</div>
                                       )}
                                     </>
@@ -1082,8 +1082,8 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                             <tbody>
                               {qndFlags.map((f: any, fi: number) => (
                                 <tr key={fi}>
-                                  <td style={S.td}>{f.component ?? "—"}</td>
-                                  <td style={S.td}>{f.repairerName ?? "—"}</td>
+                                  <td style={S.td}>{f.componentName ?? f.component ?? "—"}</td>
+                                  <td style={S.td}>{f.repairerName ?? f.repairer ?? "—"}</td>
                                   <td style={{ ...S.td, textAlign: "right" }}>{f.quotedAmountUsd != null ? fmtC(f.quotedAmountUsd) : "—"}</td>
                                   <td style={{ ...S.td }}>
                                     <span style={{ fontSize: 10, fontWeight: 700, background: "#fef3c7", color: "#92400e", borderRadius: 3, padding: "1px 5px" }}>
@@ -1118,8 +1118,8 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                             <tbody>
                               {dnqFlags.map((f: any, fi: number) => (
                                 <tr key={fi}>
-                                  <td style={S.td}>{f.component ?? "—"}</td>
-                                  <td style={{ ...S.td, textAlign: "right" }}>{f.estimatedCostUsd != null ? fmtC(f.estimatedCostUsd) : "—"}</td>
+                                  <td style={S.td}>{f.componentName ?? f.component ?? "—"}</td>
+                                  <td style={{ ...S.td, textAlign: "right" }}>{f.estimatedCostUsd != null ? fmtC(f.estimatedCostUsd) : (f.estimatedCost != null ? fmtC(f.estimatedCost) : "—")}</td>
                                   <td style={S.td}>{f.source ?? "—"}</td>
                                   <td style={{ ...S.td, textAlign: "right" }}>
                                     {f.probability != null ? (

@@ -1,0 +1,14 @@
+{
+  "query": "SELECT a.id, LEFT(a.cost_intelligence_json, 800) as ci_preview FROM ai_assessments a ORDER BY a.id DESC LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT a.id, LEFT(a.cost_intelligence_json, 800) as ci_preview FROM ai_assessments a ORDER BY a.id DESC LIMIT 1;",
+  "rows": [
+    {
+      "id": "6390001",
+      "ci_preview": "{\"expectedRepairCostCents\":1592500,\"quoteDeviationPct\":127.6,\"recommendedRange\":{\"lowCents\":1274000,\"highCents\":1911000},\"savingsOpportunityCents\":0,\"breakdown\":{\"partsCostCents\":1274000,\"labourCostCents\":318500,\"paintCostCents\":0,\"hiddenDamageCostCents\":0,\"totalCents\":1592500},\"labourRateUsdPerHour\":25,\"marketRegion\":\"ZW\",\"currency\":\"USD\",\"documentedOriginalQuoteUsd\":24782.31,\"documentedAgreedCostUsd\":21105.26,\"panelBeaterName\":\"Grand Auto Premier\",\"lineItems\":[{\"partName\":\"Front Bumper\",\"partNumber\":null,\"quantity\":1,\"unitPriceCents\":0,\"totalPriceCents\":0,\"labourHours\":0,\"labourRateCents\":0,\"isOem\":false,\"isAftermarket\":false,\"isUsed\":false,\"repairAction\":\"replace\"},{\"partName\":\"R/F Slide\",\"partNumber\":null,\"quantity\":1,\"unitPriceCents\":0,\"totalPriceCents\":0,\"labourHours\":0,\"labourRateCe"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tci_preview\n6390001\t{\"expectedRepairCostCents\":1592500,\"quoteDeviationPct\":127.6,\"recommendedRange\":{\"lowCents\":1274000,\"highCents\":1911000},\"savingsOpportunityCents\":0,\"breakdown\":{\"partsCostCents\":1274000,\"labourCostCents\":318500,\"paintCostCents\":0,\"hiddenDamageCostCents\":0,\"totalCents\":1592500},\"labourRateUsdPerHour\":25,\"marketRegion\":\"ZW\",\"currency\":\"USD\",\"documentedOriginalQuoteUsd\":24782.31,\"documentedAgreedCostUsd\":21105.26,\"panelBeaterName\":\"Grand Auto Premier\",\"lineItems\":[{\"partName\":\"Front Bumper\",\"partNumber\":null,\"quantity\":1,\"unitPriceCents\":0,\"totalPriceCents\":0,\"labourHours\":0,\"labourRateCents\":0,\"isOem\":false,\"isAftermarket\":false,\"isUsed\":false,\"repairAction\":\"replace\"},{\"partName\":\"R/F Slide\",\"partNumber\":null,\"quantity\":1,\"unitPriceCents\":0,\"totalPriceCents\":0,\"labourHours\":0,\"labourRateCe\n",
+  "stderr": "",
+  "execution_time_ms": 638
+}

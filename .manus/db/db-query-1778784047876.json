@@ -1,0 +1,28 @@
+{
+  "query": "SELECT a.id, \n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.l1SubmittedCostUsd') as l1,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.l2CompositeOptimisedCostUsd') as l2,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.l3BenchmarkReferenceCostUsd') as l3,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.negotiationFeasibilityScore') as nfs,\n  JSON_LENGTH(JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.compositeLineItems')) as line_item_count,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.compositeLineItems[0]') as first_line_item\nFROM ai_assessments a WHERE id IN (6390001, 6360001);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT a.id, \n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.l1SubmittedCostUsd') as l1,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.l2CompositeOptimisedCostUsd') as l2,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.l3BenchmarkReferenceCostUsd') as l3,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.negotiationFeasibilityScore') as nfs,\n  JSON_LENGTH(JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.compositeLineItems')) as line_item_count,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.compositeLineItems[0]') as first_line_item\nFROM ai_assessments a WHERE id IN (6390001, 6360001);",
+  "rows": [
+    {
+      "id": "6360001",
+      "l1": "NULL",
+      "l2": "NULL",
+      "l3": "NULL",
+      "nfs": "NULL",
+      "line_item_count": "NULL",
+      "first_line_item": "NULL"
+    },
+    {
+      "id": "6390001",
+      "l1": "24782.31",
+      "l2": "7305",
+      "l3": "0",
+      "nfs": "100",
+      "line_item_count": "8",
+      "first_line_item": "{\"allQuotedPrices\": [{\"costUsd\": 1400, \"passedGate\": true, \"quote\": \"EDRIC SPRAY PAINTS JONKER Cedric Jonker Spraypaints Panel Beating, Spraypainting...\"}], \"benchmarkSignal\": \"Insufficient benchmark data for this component.\", \"benchmarkVerdict\": \"NO_DATA\", \"componentName\": \"front bumper assembly\", \"isBenchmarkFill\": false, \"kingaOptimisedTier\": \"T4\", \"kingaOptimisedTierLabel\": \"Quoted · EDRIC SPRAY PAINTS JONKER Cedric Jonker Spraypaints Panel Beating, Spraypainting...\", \"p25Usd\": null, \"p50Usd\": null, \"p75Usd\": null, \"selectedCostUsd\": 1400, \"selectedFromQuote\": \"EDRIC SPRAY PAINTS JONKER Cedric Jonker Spraypaints Panel Beating, Spraypainting...\"}"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tl1\tl2\tl3\tnfs\tline_item_count\tfirst_line_item\n6360001\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n6390001\t24782.31\t7305\t0\t100\t8\t{\"allQuotedPrices\": [{\"costUsd\": 1400, \"passedGate\": true, \"quote\": \"EDRIC SPRAY PAINTS JONKER Cedric Jonker Spraypaints Panel Beating, Spraypainting...\"}], \"benchmarkSignal\": \"Insufficient benchmark data for this component.\", \"benchmarkVerdict\": \"NO_DATA\", \"componentName\": \"front bumper assembly\", \"isBenchmarkFill\": false, \"kingaOptimisedTier\": \"T4\", \"kingaOptimisedTierLabel\": \"Quoted · EDRIC SPRAY PAINTS JONKER Cedric Jonker Spraypaints Panel Beating, Spraypainting...\", \"p25Usd\": null, \"p50Usd\": null, \"p75Usd\": null, \"selectedCostUsd\": 1400, \"selectedFromQuote\": \"EDRIC SPRAY PAINTS JONKER Cedric Jonker Spraypaints Panel Beating, Spraypainting...\"}\n",
+  "stderr": "",
+  "execution_time_ms": 579
+}

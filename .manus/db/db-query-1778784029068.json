@@ -1,0 +1,28 @@
+{
+  "query": "SELECT a.id, \n  JSON_CONTAINS_PATH(a.cost_intelligence_json, 'one', '$.compositeOptimisation') as has_composite,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation') IS NOT NULL as composite_not_null,\n  JSON_LENGTH(JSON_EXTRACT(a.cost_intelligence_json, '$.lineItems')) as line_items_count\nFROM ai_assessments a ORDER BY a.id DESC LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT a.id, \n  JSON_CONTAINS_PATH(a.cost_intelligence_json, 'one', '$.compositeOptimisation') as has_composite,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation') IS NOT NULL as composite_not_null,\n  JSON_LENGTH(JSON_EXTRACT(a.cost_intelligence_json, '$.lineItems')) as line_items_count\nFROM ai_assessments a ORDER BY a.id DESC LIMIT 3;",
+  "rows": [
+    {
+      "id": "6390001",
+      "has_composite": "1",
+      "composite_not_null": "1",
+      "line_items_count": "26"
+    },
+    {
+      "id": "6360001",
+      "has_composite": "1",
+      "composite_not_null": "1",
+      "line_items_count": "28"
+    },
+    {
+      "id": "6330016",
+      "has_composite": "NULL",
+      "composite_not_null": "0",
+      "line_items_count": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\thas_composite\tcomposite_not_null\tline_items_count\n6390001\t1\t1\t26\n6360001\t1\t1\t28\n6330016\tNULL\t0\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 607
+}
