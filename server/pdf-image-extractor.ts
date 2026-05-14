@@ -12,7 +12,15 @@ import sharp from 'sharp';
 // Limit sharp thread pool to 1 thread to prevent memory explosion during batch processing.
 // Default is CPU count (4+), each thread holds its own buffer pool.
 sharp.concurrency(1);
-import * as napiCanvas from '@napi-rs/canvas';
+// @napi-rs/canvas is loaded lazily to prevent server startup crash if the
+// native Skia binary fails to load in the Cloud Run production container.
+let _napiCanvas: typeof import('@napi-rs/canvas') | null = null;
+async function getCanvas() {
+  if (!_napiCanvas) {
+    _napiCanvas = await import('@napi-rs/canvas');
+  }
+  return _napiCanvas;
+}
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 // BATCH_SIZE removed — streaming approach processes one page at a time (no batching needed)
@@ -82,7 +90,8 @@ async function getPdfjsLib() {
 }
 
 class NapiCanvasFactory {
-  create(width: number, height: number) {
+  async create(width: number, height: number) {
+    const napiCanvas = await getCanvas();
     const canvas = napiCanvas.createCanvas(width, height);
     return { canvas, context: canvas.getContext('2d') };
   }
@@ -272,6 +281,7 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
       try {
         const page = await pdfDoc.getPage(pageNum);
         const viewport = page.getViewport({ scale: SCALE });
+        const napiCanvas = await getCanvas();
         const canvas = napiCanvas.createCanvas(Math.round(viewport.width), Math.round(viewport.height));
         const ctx = canvas.getContext('2d');
         await page.render({ canvasContext: ctx as any, viewport }).promise;

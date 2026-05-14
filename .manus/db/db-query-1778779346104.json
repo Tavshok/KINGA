@@ -1,0 +1,80 @@
+{
+  "query": "SELECT id, claim_number, status, ai_assessment_triggered, created_at FROM claims ORDER BY created_at DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_number, status, ai_assessment_triggered, created_at FROM claims ORDER BY created_at DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "6210001",
+      "claim_number": "DOC-20260514-D13ED067",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "created_at": "2026-05-14 16:21:25"
+    },
+    {
+      "id": "6180044",
+      "claim_number": "TEST-1778768165818",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "0",
+      "created_at": "2026-05-14 14:16:05"
+    },
+    {
+      "id": "6180043",
+      "claim_number": "TEST-1778768165497",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "0",
+      "created_at": "2026-05-14 14:16:05"
+    },
+    {
+      "id": "6180042",
+      "claim_number": "TEST-1778768165337",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "0",
+      "created_at": "2026-05-14 14:16:05"
+    },
+    {
+      "id": "6180041",
+      "claim_number": "TEST-1778768165230",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "0",
+      "created_at": "2026-05-14 14:16:05"
+    },
+    {
+      "id": "6180040",
+      "claim_number": "TEST-1778768165116",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "0",
+      "created_at": "2026-05-14 14:16:05"
+    },
+    {
+      "id": "6180039",
+      "claim_number": "TEST-1778768163979",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "0",
+      "created_at": "2026-05-14 14:16:04"
+    },
+    {
+      "id": "6180038",
+      "claim_number": "TEST-1778768163701",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "0",
+      "created_at": "2026-05-14 14:16:03"
+    },
+    {
+      "id": "6180037",
+      "claim_number": "TEST-1778768163593",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "0",
+      "created_at": "2026-05-14 14:16:03"
+    },
+    {
+      "id": "6180036",
+      "claim_number": "TEST-1778768163060",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "0",
+      "created_at": "2026-05-14 14:16:03"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tstatus\tai_assessment_triggered\tcreated_at\n6210001\tDOC-20260514-D13ED067\tassessment_complete\t1\t2026-05-14 16:21:25\n6180044\tTEST-1778768165818\tassessment_complete\t0\t2026-05-14 14:16:05\n6180043\tTEST-1778768165497\tassessment_complete\t0\t2026-05-14 14:16:05\n6180042\tTEST-1778768165337\tassessment_complete\t0\t2026-05-14 14:16:05\n6180041\tTEST-1778768165230\tassessment_complete\t0\t2026-05-14 14:16:05\n6180040\tTEST-1778768165116\tassessment_complete\t0\t2026-05-14 14:16:05\n6180039\tTEST-1778768163979\tassessment_complete\t0\t2026-05-14 14:16:04\n6180038\tTEST-1778768163701\tassessment_complete\t0\t2026-05-14 14:16:03\n6180037\tTEST-1778768163593\tassessment_complete\t0\t2026-05-14 14:16:03\n6180036\tTEST-1778768163060\tassessment_complete\t0\t2026-05-14 14:16:03\n",
+  "stderr": "",
+  "execution_time_ms": 713
+}
