@@ -72,16 +72,36 @@ export default function UploadDocuments() {
         formData.append("files", file, file.name);
       }
 
-      const response = await fetch("/api/upload-documents", {
-        method: "POST",
-        body: formData,
-        // No Content-Type header — browser sets it with the correct boundary
-        credentials: "include",
-      });
+      // Helper: build a fresh FormData each attempt (fetch body can only be consumed once)
+      const buildForm = () => {
+        const fd = new FormData();
+        fd.append("batch_name", batchName || `Batch ${new Date().toISOString()}`);
+        fd.append("ingestion_source", "processor_upload");
+        if (claimNumber.trim()) fd.append("claim_number", claimNumber.trim());
+        if (policyNumber.trim()) fd.append("policy_number", policyNumber.trim());
+        for (const { file } of files) fd.append("files", file, file.name);
+        return fd;
+      };
 
-      if (!response.ok) {
-        const errBody = await response.text().catch(() => response.statusText);
-        throw new Error(`Upload failed (${response.status}): ${errBody}`);
+      // Attempt upload with automatic 503 cold-start retry (Cloud Run may be waking up)
+      let response: Response | null = null;
+      const MAX_COLD_START_RETRIES = 3;
+      for (let attempt = 1; attempt <= MAX_COLD_START_RETRIES; attempt++) {
+        response = await fetch("/api/upload-documents", {
+          method: "POST",
+          body: buildForm(),
+          credentials: "include",
+        });
+        if (response.status !== 503) break;
+        if (attempt < MAX_COLD_START_RETRIES) {
+          toast.info(`Waking up server... retrying (${attempt}/${MAX_COLD_START_RETRIES - 1})`, { duration: 8000 });
+          await new Promise(r => setTimeout(r, 8000));
+        }
+      }
+
+      if (!response || !response.ok) {
+        const errBody = response ? await response.text().catch(() => response!.statusText) : "No response";
+        throw new Error(`Upload failed (${response?.status ?? 0}): ${errBody}`);
       }
 
       const result = await response.json();
