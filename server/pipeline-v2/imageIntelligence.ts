@@ -17,7 +17,15 @@
  *   Architecture spec: pasted_content.txt (user, 2026-04-16)
  */
 
-import sharp from "sharp";
+// sharp is loaded lazily to prevent server startup crash in Cloud Run.
+let _sharp: typeof import('sharp').default | null = null;
+async function getSharp() {
+  if (!_sharp) {
+    const mod = await import('sharp');
+    _sharp = mod.default;
+  }
+  return _sharp;
+}
 import { invokeLLM } from "../_core/llm";
 import type { PipelineContext } from "./types";
 
@@ -58,6 +66,7 @@ async function extractFeatures(url: string): Promise<ImageFeatures | null> {
     if (!response.ok) return null;
     const buffer = Buffer.from(await response.arrayBuffer());
 
+    const sharp = await getSharp();
     const image = sharp(buffer);
     const meta  = await image.metadata();
     const w = meta.width  ?? 1;
@@ -251,6 +260,7 @@ async function computeThumbnailHash(url: string): Promise<string | null> {
     if (!response.ok) return null;
     const buffer = Buffer.from(await response.arrayBuffer());
     // Resize to 8×8 greyscale, get raw pixels → 64-bit hash string
+    const sharp = await getSharp();
     const raw = await sharp(buffer).greyscale().resize(8, 8, { fit: "fill" }).raw().toBuffer();
     const mean = raw.reduce((s, v) => s + v, 0) / raw.length;
     return Array.from(raw).map(v => v >= mean ? "1" : "0").join("");

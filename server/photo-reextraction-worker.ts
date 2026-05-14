@@ -14,8 +14,10 @@
  */
 
 import { getRawPool } from "./db";
-import { extractImagesWithSummary } from "./pdf-image-extractor";
-import { runDamageAnalysisStage } from "./pipeline-v2/stage-6-damage-analysis";
+// LAZY IMPORTS: pdf-image-extractor and stage-6-damage-analysis both import native
+// modules (sharp, @napi-rs/canvas) at top level. Loading them statically here would
+// crash the server on startup in Cloud Run if any native binary fails to load.
+// Dynamic imports ensure the server boots cleanly and failures are request-scoped.
 
 const HIGH_DPI = 300;
 
@@ -81,6 +83,7 @@ export async function runPhotoReextraction(jobId: number): Promise<ReextractionR
 
     // 3. Re-extract at 300 DPI
     const filename = pdfUrl.split('/').pop()?.split('?')[0] || 'document.pdf';
+    const { extractImagesWithSummary } = await import('./pdf-image-extractor');
     const summary = await extractImagesWithSummary(pdfBuffer, filename, { forceDpi: HIGH_DPI });
 
     console.log(
@@ -124,6 +127,7 @@ export async function runPhotoReextraction(jobId: number): Promise<ReextractionR
           },
         };
 
+        const { runDamageAnalysisStage } = await import('./pipeline-v2/stage-6-damage-analysis');
         const stage6Result = await runDamageAnalysisStage(ctx, claimRecord);
 
         if (stage6Result.data) {

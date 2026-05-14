@@ -8,10 +8,17 @@
  */
 import { nanoid } from 'nanoid';
 import { storagePut } from './storage';
-import sharp from 'sharp';
-// Limit sharp thread pool to 1 thread to prevent memory explosion during batch processing.
-// Default is CPU count (4+), each thread holds its own buffer pool.
-sharp.concurrency(1);
+// sharp is loaded lazily to prevent server startup crash if the native binary
+// fails to load in the Cloud Run production container.
+let _sharp: typeof import('sharp').default | null = null;
+async function getSharp() {
+  if (!_sharp) {
+    const mod = await import('sharp');
+    _sharp = mod.default;
+    _sharp.concurrency(1); // Limit to 1 thread to prevent memory explosion
+  }
+  return _sharp;
+}
 // @napi-rs/canvas is loaded lazily to prevent server startup crash if the
 // native Skia binary fails to load in the Cloud Run production container.
 let _napiCanvas: typeof import('@napi-rs/canvas') | null = null;
@@ -116,6 +123,7 @@ async function analyseImageQuality(imageBuffer: Buffer, width: number, height: n
   try {
     const analysisWidth = Math.min(200, width);
     const analysisHeight = Math.round(height * (analysisWidth / width));
+    const sharp = await getSharp();
     const { data: greyData, info: greyInfo } = await sharp(imageBuffer)
       .resize(analysisWidth, analysisHeight, { fit: 'fill' })
       .greyscale().raw().toBuffer({ resolveWithObject: true });
@@ -193,6 +201,7 @@ async function processBuffer(
   fromScannedPdf: boolean, renderDpi?: number
 ): Promise<ExtractedImage | null> {
   try {
+    const sharp = await getSharp();
     const metadata = await sharp(pngBuffer).metadata();
     const w = metadata.width || 0, h = metadata.height || 0;
     if (w < minDimension || h < minDimension) {
@@ -319,7 +328,8 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
                   if (channels >= 3) {
                     embeddedCandidates++;
                     const ch = Math.min(4, Math.round(channels)) as 3 | 4;
-                    const pngBuf = await sharp(rawData, { raw: { width: w, height: h, channels: ch } }).png().toBuffer();
+                    const sharpInst = await getSharp();
+                    const pngBuf = await sharpInst(rawData, { raw: { width: w, height: h, channels: ch } }).png().toBuffer();
                     const embResult = await processBuffer(pngBuf, 'embedded_image', MIN_DIM_EMBEDDED, pageNum, sessionId, isScanned, renderDpi);
                     if (embResult) {
                       extractedImages.push(embResult);
