@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,8 +23,6 @@ export default function UploadDocuments() {
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   // Using sonner toast
-
-  const uploadMutation = trpc.documentIngestion.uploadDocuments.useMutation();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles: UploadFile[] = acceptedFiles.map((file) => ({
@@ -64,57 +61,30 @@ export default function UploadDocuments() {
     setIsUploading(true);
 
     try {
-      // Convert files to base64 for upload
-      const filePromises = files.map(async ({ file }) => {
-        return new Promise<{ filename: string; content: string; mimeType: string }>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const base64 = (reader.result as string).split(",")[1];
-            resolve({
-              filename: file.name,
-              content: base64,
-              mimeType: file.type,
-            });
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+      // Use multipart/form-data upload — streams files directly to the server
+      // without base64 encoding, bypassing Cloud Run's 30s JSON body timeout.
+      const formData = new FormData();
+      formData.append("batch_name", batchName || `Batch ${new Date().toISOString()}`);
+      formData.append("ingestion_source", "processor_upload");
+      if (claimNumber.trim()) formData.append("claim_number", claimNumber.trim());
+      if (policyNumber.trim()) formData.append("policy_number", policyNumber.trim());
+      for (const { file } of files) {
+        formData.append("files", file, file.name);
+      }
+
+      const response = await fetch("/api/upload-documents", {
+        method: "POST",
+        body: formData,
+        // No Content-Type header — browser sets it with the correct boundary
+        credentials: "include",
       });
 
-      const fileData = await Promise.all(filePromises);
-
-      // Upload batch — retry up to 3 times on transient errors (503 / network)
-      const uploadPayload = {
-        batch_name: batchName || `Batch ${new Date().toISOString()}`,
-        ingestion_source: "processor_upload" as const,
-        claimNumber: claimNumber.trim() || undefined,
-        policyNumber: policyNumber.trim() || undefined,
-        documents: fileData.map((f) => ({
-          filename: f.filename,
-          file_data: f.content,
-          mime_type: f.mimeType,
-        })),
-      };
-
-      let result: Awaited<ReturnType<typeof uploadMutation.mutateAsync>> | null = null;
-      let lastError: unknown = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          result = await uploadMutation.mutateAsync(uploadPayload);
-          break; // success
-        } catch (err: any) {
-          lastError = err;
-          const msg = err?.message ?? '';
-          const isTransient = msg.includes('Service Unavailable') || msg.includes('fetch failed') || msg.includes('Failed to fetch') || msg.includes('NetworkError');
-          if (isTransient && attempt < 3) {
-            toast.info(`Upload attempt ${attempt} failed — retrying in ${attempt * 3}s...`);
-            await new Promise(r => setTimeout(r, attempt * 3000));
-            continue;
-          }
-          throw err;
-        }
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => response.statusText);
+        throw new Error(`Upload failed (${response.status}): ${errBody}`);
       }
-      if (!result) throw lastError;
+
+      const result = await response.json();
 
       // Update file statuses
       setFiles((prev) =>

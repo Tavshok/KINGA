@@ -46,6 +46,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { uploadAssessmentRouter } from "../upload-assessment";
+import { uploadDocumentsRouter } from "../upload-documents";
 import { setupWebSocketServer } from "../websocket";
 import { execSync } from "child_process";
 import { startIntakeEscalationJob } from "../intake-escalation-job";
@@ -112,6 +113,8 @@ async function startServer() {
   
   // Assessment upload endpoint (the REAL processor with LLM extraction)
   app.use("/api", uploadAssessmentRouter);
+  // Multipart document upload endpoint — bypasses Cloud Run 30s JSON body timeout
+  app.use("/api", uploadDocumentsRouter);
   
   // Audit Export REST download endpoint
   // GET /api/claims/:claimId/audit-export.json

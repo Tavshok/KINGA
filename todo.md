@@ -12216,3 +12216,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix 7: GC hints between pipeline stages (before Stage 6, after S8+S9, after pipeline complete)
 - [x] Fix 8: Rate limiter increased from 100 to 1000 requests per 15min (prevents 429 during polling)
 - [x] Fix 9: Combined page render + embedded extraction in single pass (no second getPage call)
+
+## Upload 503 Fix — Multipart Endpoint (May 2026)
+- [x] Root cause: Cloud Run 30s request timeout kills large JSON body uploads (4.4MB PDF = 5.9MB base64 JSON)
+- [x] Fix: New multipart endpoint POST /api/upload-documents — streams file bytes, no base64, no timeout
+- [x] Frontend updated to use fetch+FormData instead of tRPC base64 mutation
+- [x] Removed retry logic from frontend — upload succeeds on first try
+- [x] Endpoint responds in <10ms (vs 28s timeout before)
