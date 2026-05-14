@@ -1,0 +1,9 @@
+{
+  "query": "\nUPDATE claims \nSET \n  document_processing_status = 'uploaded',\n  status = 'intake_pending',\n  workflow_state = 'intake_queue',\n  ai_assessment_triggered = 0,\n  ai_assessment_completed = 0,\n  pipeline_current_stage = NULL,\n  updated_at = NOW()\nWHERE id IN (6060001, 5850001)\n  AND claim_number NOT LIKE 'TEST-%';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nUPDATE claims \nSET \n  document_processing_status = 'uploaded',\n  status = 'intake_pending',\n  workflow_state = 'intake_queue',\n  ai_assessment_triggered = 0,\n  ai_assessment_completed = 0,\n  pipeline_current_stage = NULL,\n  updated_at = NOW()\nWHERE id IN (6060001, 5850001)\n  AND claim_number NOT LIKE 'TEST-%';\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 570
+}

@@ -1,0 +1,210 @@
+{
+  "query": "\nSELECT \n  c.id,\n  c.claim_number,\n  c.document_processing_status,\n  c.status,\n  c.pipeline_current_stage,\n  c.ai_assessment_triggered,\n  c.ai_assessment_completed,\n  c.updated_at\nFROM claims c\nWHERE \n  c.document_processing_status IN ('failed', 'processing_failed', 'error', 'uploaded')\n  OR (c.document_processing_status = 'processing' AND c.updated_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE))\n  OR (c.ai_assessment_triggered = 1 AND c.ai_assessment_completed = 0 AND c.updated_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE))\nORDER BY c.updated_at DESC\nLIMIT 20;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  c.id,\n  c.claim_number,\n  c.document_processing_status,\n  c.status,\n  c.pipeline_current_stage,\n  c.ai_assessment_triggered,\n  c.ai_assessment_completed,\n  c.updated_at\nFROM claims c\nWHERE \n  c.document_processing_status IN ('failed', 'processing_failed', 'error', 'uploaded')\n  OR (c.document_processing_status = 'processing' AND c.updated_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE))\n  OR (c.ai_assessment_triggered = 1 AND c.ai_assessment_completed = 0 AND c.updated_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE))\nORDER BY c.updated_at DESC\nLIMIT 20;\n",
+  "rows": [
+    {
+      "id": "6060001",
+      "claim_number": "DOC-20260514-14A74979",
+      "document_processing_status": "uploaded",
+      "status": "intake_pending",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "updated_at": "2026-05-14 11:37:58"
+    },
+    {
+      "id": "6030195",
+      "claim_number": "TEST-WF-TECHNICAL_APPROVAL-1778755984677",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030176",
+      "claim_number": "TEST-1778755980260-05wfzgjj",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030184",
+      "claim_number": "TEST-1778755981871-64w77k",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030177",
+      "claim_number": "TEST-1778755980368-acv3nl",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030179",
+      "claim_number": "TEST-1778755980754-mp1rx9",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030194",
+      "claim_number": "TEST-WF-CREATED-1778755984148",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030198",
+      "claim_number": "TEST-WF-CROSS-TENANT-1778755984850",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030196",
+      "claim_number": "TEST-WF-FINANCIAL_DECISION-1778755984735",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030183",
+      "claim_number": "TEST-1778755981558-a6u75b",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030197",
+      "claim_number": "TEST-WF-PAYMENT_AUTHORIZED-1778755984793",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030178",
+      "claim_number": "TEST-1778755980695-kfwb1",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030186",
+      "claim_number": "TEST-1778755982342-nev88s",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:19"
+    },
+    {
+      "id": "6030182",
+      "claim_number": "TEST-1778755981344-w0sp77",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:18"
+    },
+    {
+      "id": "6030180",
+      "claim_number": "TEST-1778755980861-iq2jq8",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-14 07:01:18"
+    },
+    {
+      "id": "6000225",
+      "claim_number": "TEST-WF-CROSS-TENANT-1778675038892",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 12:38:44"
+    },
+    {
+      "id": "6000224",
+      "claim_number": "TEST-WF-PAYMENT_AUTHORIZED-1778675038837",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 12:38:40"
+    },
+    {
+      "id": "6000223",
+      "claim_number": "TEST-WF-FINANCIAL_DECISION-1778675038782",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 12:38:35"
+    },
+    {
+      "id": "6000222",
+      "claim_number": "TEST-WF-TECHNICAL_APPROVAL-1778675038725",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 12:38:20"
+    },
+    {
+      "id": "6000221",
+      "claim_number": "TEST-WF-CREATED-1778675038217",
+      "document_processing_status": "failed",
+      "status": "assessment_complete",
+      "pipeline_current_stage": "NULL",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 12:37:46"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tdocument_processing_status\tstatus\tpipeline_current_stage\tai_assessment_triggered\tai_assessment_completed\tupdated_at\n6060001\tDOC-20260514-14A74979\tuploaded\tintake_pending\tNULL\t0\t0\t2026-05-14 11:37:58\n6030195\tTEST-WF-TECHNICAL_APPROVAL-1778755984677\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030176\tTEST-1778755980260-05wfzgjj\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030184\tTEST-1778755981871-64w77k\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030177\tTEST-1778755980368-acv3nl\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030179\tTEST-1778755980754-mp1rx9\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030194\tTEST-WF-CREATED-1778755984148\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030198\tTEST-WF-CROSS-TENANT-1778755984850\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030196\tTEST-WF-FINANCIAL_DECISION-1778755984735\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030183\tTEST-1778755981558-a6u75b\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030197\tTEST-WF-PAYMENT_AUTHORIZED-1778755984793\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030178\tTEST-1778755980695-kfwb1\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030186\tTEST-1778755982342-nev88s\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:19\n6030182\tTEST-1778755981344-w0sp77\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:18\n6030180\tTEST-1778755980861-iq2jq8\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-14 07:01:18\n6000225\tTEST-WF-CROSS-TENANT-1778675038892\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-13 12:38:44\n6000224\tTEST-WF-PAYMENT_AUTHORIZED-1778675038837\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-13 12:38:40\n6000223\tTEST-WF-FINANCIAL_DECISION-1778675038782\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-13 12:38:35\n6000222\tTEST-WF-TECHNICAL_APPROVAL-1778675038725\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-13 12:38:20\n6000221\tTEST-WF-CREATED-1778675038217\tfailed\tassessment_complete\tNULL\t0\t1\t2026-05-13 12:37:46\n",
+  "stderr": "",
+  "execution_time_ms": 572
+}

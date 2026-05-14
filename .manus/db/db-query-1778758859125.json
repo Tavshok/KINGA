@@ -1,0 +1,26 @@
+{
+  "query": "\nSELECT \n  document_processing_status,\n  COUNT(*) as count\nFROM claims\nWHERE claim_number NOT LIKE 'TEST-%'\nGROUP BY document_processing_status\nORDER BY count DESC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  document_processing_status,\n  COUNT(*) as count\nFROM claims\nWHERE claim_number NOT LIKE 'TEST-%'\nGROUP BY document_processing_status\nORDER BY count DESC;\n",
+  "rows": [
+    {
+      "document_processing_status": "pending",
+      "count": "287"
+    },
+    {
+      "document_processing_status": "extracted",
+      "count": "19"
+    },
+    {
+      "document_processing_status": "failed",
+      "count": "16"
+    },
+    {
+      "document_processing_status": "uploaded",
+      "count": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "document_processing_status\tcount\npending\t287\nextracted\t19\nfailed\t16\nuploaded\t1\n",
+  "stderr": "",
+  "execution_time_ms": 585
+}

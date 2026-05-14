@@ -1,0 +1,130 @@
+{
+  "query": "\nSELECT \n  c.id,\n  c.claim_number,\n  c.document_processing_status,\n  c.status,\n  c.ai_assessment_triggered,\n  c.ai_assessment_completed,\n  c.updated_at,\n  (SELECT COUNT(*) FROM ai_assessments a WHERE a.claim_id = c.id) as has_assessment\nFROM claims c\nWHERE \n  (c.claim_number LIKE 'DOC-%' OR c.claim_number LIKE 'KNG-%')\nORDER BY c.updated_at DESC\nLIMIT 20;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  c.id,\n  c.claim_number,\n  c.document_processing_status,\n  c.status,\n  c.ai_assessment_triggered,\n  c.ai_assessment_completed,\n  c.updated_at,\n  (SELECT COUNT(*) FROM ai_assessments a WHERE a.claim_id = c.id) as has_assessment\nFROM claims c\nWHERE \n  (c.claim_number LIKE 'DOC-%' OR c.claim_number LIKE 'KNG-%')\nORDER BY c.updated_at DESC\nLIMIT 20;\n",
+  "rows": [
+    {
+      "id": "5850001",
+      "claim_number": "DOC-20260511-F75D99DD",
+      "document_processing_status": "uploaded",
+      "status": "intake_pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "updated_at": "2026-05-14 11:41:17",
+      "has_assessment": "0"
+    },
+    {
+      "id": "6060001",
+      "claim_number": "DOC-20260514-14A74979",
+      "document_processing_status": "uploaded",
+      "status": "intake_pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "updated_at": "2026-05-14 11:41:17",
+      "has_assessment": "0"
+    },
+    {
+      "id": "6000001",
+      "claim_number": "DOC-20260513-33DAE618",
+      "document_processing_status": "extracted",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 12:14:45",
+      "has_assessment": "1"
+    },
+    {
+      "id": "5970001",
+      "claim_number": "DOC-20260513-7BB48719",
+      "document_processing_status": "extracted",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-13 08:39:49",
+      "has_assessment": "1"
+    },
+    {
+      "id": "5910001",
+      "claim_number": "DOC-20260512-D82C979B",
+      "document_processing_status": "extracted",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-12 17:26:22",
+      "has_assessment": "1"
+    },
+    {
+      "id": "5820001",
+      "claim_number": "DOC-20260511-275997B5",
+      "document_processing_status": "extracted",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-11 10:22:29",
+      "has_assessment": "1"
+    },
+    {
+      "id": "5790001",
+      "claim_number": "DOC-20260511-E46DDA5E",
+      "document_processing_status": "extracted",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-11 09:10:56",
+      "has_assessment": "1"
+    },
+    {
+      "id": "5760001",
+      "claim_number": "DOC-20260510-2FB3BEE9",
+      "document_processing_status": "extracted",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-10 16:50:17",
+      "has_assessment": "1"
+    },
+    {
+      "id": "5700376",
+      "claim_number": "DOC-20260510-D0D80B3C",
+      "document_processing_status": "extracted",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-10 16:32:05",
+      "has_assessment": "1"
+    },
+    {
+      "id": "5700375",
+      "claim_number": "DOC-20260510-B05B33B5",
+      "document_processing_status": "extracted",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-10 16:16:19",
+      "has_assessment": "1"
+    },
+    {
+      "id": "5610001",
+      "claim_number": "DOC-20260509-9177FFFB",
+      "document_processing_status": "extracted",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-09 15:39:15",
+      "has_assessment": "1"
+    },
+    {
+      "id": "5580001",
+      "claim_number": "DOC-20260508-1D6546E6",
+      "document_processing_status": "extracted",
+      "status": "assessment_complete",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "updated_at": "2026-05-08 19:40:58",
+      "has_assessment": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tdocument_processing_status\tstatus\tai_assessment_triggered\tai_assessment_completed\tupdated_at\thas_assessment\n5850001\tDOC-20260511-F75D99DD\tuploaded\tintake_pending\t0\t0\t2026-05-14 11:41:17\t0\n6060001\tDOC-20260514-14A74979\tuploaded\tintake_pending\t0\t0\t2026-05-14 11:41:17\t0\n6000001\tDOC-20260513-33DAE618\textracted\tassessment_complete\t1\t1\t2026-05-13 12:14:45\t1\n5970001\tDOC-20260513-7BB48719\textracted\tassessment_complete\t1\t1\t2026-05-13 08:39:49\t1\n5910001\tDOC-20260512-D82C979B\textracted\tassessment_complete\t1\t1\t2026-05-12 17:26:22\t1\n5820001\tDOC-20260511-275997B5\textracted\tassessment_complete\t1\t1\t2026-05-11 10:22:29\t1\n5790001\tDOC-20260511-E46DDA5E\textracted\tassessment_complete\t1\t1\t2026-05-11 09:10:56\t1\n5760001\tDOC-20260510-2FB3BEE9\textracted\tassessment_complete\t1\t1\t2026-05-10 16:50:17\t1\n5700376\tDOC-20260510-D0D80B3C\textracted\tassessment_complete\t1\t1\t2026-05-10 16:32:05\t1\n5700375\tDOC-20260510-B05B33B5\textracted\tassessment_complete\t1\t1\t2026-05-10 16:16:19\t1\n5610001\tDOC-20260509-9177FFFB\textracted\tassessment_complete\t1\t1\t2026-05-09 15:39:15\t1\n5580001\tDOC-20260508-1D6546E6\textracted\tassessment_complete\t1\t1\t2026-05-08 19:40:58\t1\n",
+  "stderr": "",
+  "execution_time_ms": 601
+}

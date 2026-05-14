@@ -38,6 +38,20 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+
+// ESM-compatible __dirname: works in both tsx (ESM) and compiled CJS contexts.
+// In CJS (compiled production build), __filename is defined globally.
+// In ESM (tsx dev mode), we derive it from import.meta.url.
+const _thisFile: string = (() => {
+  try {
+    // CJS context: __filename is a global
+    if (typeof __filename !== "undefined") return __filename;
+  } catch {}
+  // ESM context: derive from import.meta.url
+  return fileURLToPath(new URL(import.meta.url));
+})();
+const _thisDir = path.dirname(_thisFile);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,8 +128,8 @@ export interface CostAssessmentResult {
 
 // ─── Model registry (lazy-loaded, module-level cache) ─────────────────────────
 
-const ML_MODELS_DIR = path.join(__dirname, "ml-models");
-const BENCHMARKS_PATH = path.join(__dirname, "..", "..", "component_benchmarks.json");
+const ML_MODELS_DIR = path.join(_thisDir, "ml-models");
+const BENCHMARKS_PATH = path.join(_thisDir, "..", "..", "component_benchmarks.json");
 
 const _mlModelCache: Map<string, MLModelFile> = new Map();
 let _statisticalBenchmarks: BenchmarkFile | null = null;
@@ -141,7 +155,7 @@ function loadStatisticalBenchmarks(): BenchmarkFile | null {
   // Try project root first, then pipeline-v2 dir
   const candidates = [
     BENCHMARKS_PATH,
-    path.join(__dirname, "component_benchmarks.json"),
+    path.join(_thisDir, "component_benchmarks.json"),
     path.join(process.cwd(), "component_benchmarks.json"),
   ];
   for (const p of candidates) {
