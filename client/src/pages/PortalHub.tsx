@@ -104,8 +104,11 @@ export default function PortalHub() {
       <header className="bg-white/90 dark:bg-card/90 backdrop-blur-md border-b border-primary/10 shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <KingaLogo showText={false} />
+            {/* Left spacer for centering */}
+            <div className="w-40" />
+            {/* Centered logo — no text */}
+            <div className="flex items-center justify-center">
+              <KingaLogo showText={false} size="lg" />
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle />
@@ -127,13 +130,6 @@ export default function PortalHub() {
         <div className="max-w-6xl mx-auto">
           {/* Welcome Section with gradient */}
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-6">
-              Welcome back, {user?.name}!
-            </h2>
-            {/* KINGA Logo — scaled up 3x as the sole brand anchor */}
-            <div className="flex justify-center mb-6">
-              <KingaLogo size="xxl" showText={true} className="my-8" />
-            </div>
             <p className="text-lg text-secondary/70 mb-4">
               Select a portal to continue your work
             </p>
@@ -165,7 +161,7 @@ export default function PortalHub() {
             )}
             
             {/* Quick Role Setup Link for all users */}
-            <div className="flex gap-2 mt-2">
+            <div className="flex justify-center gap-2 mt-2">
               <Button
                 variant="outline"
                 size="sm"

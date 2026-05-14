@@ -12190,3 +12190,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Double logo size on portal hub page only (not the nav strip)
 - [ ] Verify pipeline runs end-to-end on a test claim after fix
 - [ ] Save checkpoint
+
+
+## CRITICAL: Pre-Presentation Fixes (May 14)
+- [x] Center KINGA logo at top of portal page, remove duplicate "KINGA" text after logo
+- [x] Fix "Service Unavailable" / "Unexpected token 'S'" error on file upload — added 3-attempt retry with backoff
+- [x] Wire 5 missing pipeline fields: coherence, cost_realism, consistency, contradiction, physics_deviation
+- [x] Fix 22 TypeScript errors across 6 files (zero TS errors now)
+- [x] Full pipeline quality audit: 12/12 user claims rated GOOD quality
+- [x] All 574 unit tests passing

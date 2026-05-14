@@ -83,8 +83,8 @@ export default function UploadDocuments() {
 
       const fileData = await Promise.all(filePromises);
 
-      // Upload batch
-      const result = await uploadMutation.mutateAsync({
+      // Upload batch — retry up to 3 times on transient errors (503 / network)
+      const uploadPayload = {
         batch_name: batchName || `Batch ${new Date().toISOString()}`,
         ingestion_source: "processor_upload" as const,
         claimNumber: claimNumber.trim() || undefined,
@@ -94,7 +94,27 @@ export default function UploadDocuments() {
           file_data: f.content,
           mime_type: f.mimeType,
         })),
-      });
+      };
+
+      let result: Awaited<ReturnType<typeof uploadMutation.mutateAsync>> | null = null;
+      let lastError: unknown = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          result = await uploadMutation.mutateAsync(uploadPayload);
+          break; // success
+        } catch (err: any) {
+          lastError = err;
+          const msg = err?.message ?? '';
+          const isTransient = msg.includes('Service Unavailable') || msg.includes('fetch failed') || msg.includes('Failed to fetch') || msg.includes('NetworkError');
+          if (isTransient && attempt < 3) {
+            toast.info(`Upload attempt ${attempt} failed — retrying in ${attempt * 3}s...`);
+            await new Promise(r => setTimeout(r, attempt * 3000));
+            continue;
+          }
+          throw err;
+        }
+      }
+      if (!result) throw lastError;
 
       // Update file statuses
       setFiles((prev) =>
