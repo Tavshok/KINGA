@@ -33,7 +33,15 @@
  */
 
 import { createHash } from "crypto";
-import * as napiCanvas from "@napi-rs/canvas";
+// @napi-rs/canvas is loaded lazily inside renderPdfToImages to prevent server startup
+// crash if the native Skia binary fails to load in the production container.
+let _napiCanvas: typeof import("@napi-rs/canvas") | null = null;
+async function getCanvas() {
+  if (!_napiCanvas) {
+    _napiCanvas = await import("@napi-rs/canvas");
+  }
+  return _napiCanvas;
+}
 import { storagePut } from "../storage";
 
 export interface PdfToImagesOptions {
@@ -185,6 +193,7 @@ export async function renderPdfToImages(
     try {
       const page = await pdfDoc.getPage(pageNum);
       const viewport = page.getViewport({ scale: SCALE });
+      const napiCanvas = await getCanvas();
       const canvas = napiCanvas.createCanvas(
         Math.round(viewport.width),
         Math.round(viewport.height)
