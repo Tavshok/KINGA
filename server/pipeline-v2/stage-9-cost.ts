@@ -17,7 +17,7 @@ import { insertCostLearningRecord, getActiveCalibrationMultiplier, getComponentB
 import { assessCost } from "./mlBenchmarkEngine";
 import { resolveComponent } from "../../shared/vehicleParts";
 import { sql as drizzleSql } from "drizzle-orm";
-import { optimiseRepairCost, type InputQuote } from "./quoteOptimisationEngine";
+import { optimiseRepairCost, type InputQuote, buildCompositeQuote, classifyComponents, computeProbableHiddenDamage, type InputQuoteWithLineItems, type BenchmarkMap } from "./quoteOptimisationEngine";
 import { runCostDecision } from "./costDecisionEngine";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
 import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
@@ -350,17 +350,16 @@ export async function runCostOptimisationStage(
       ctx.log("Stage 9", "No submitted quote found. Cost section will show 'No quote submitted'.");
     }
 
-    // No deviation calculation — the AI has no independent cost estimate to compare against.
-    // Deviation figures are meaningless when the quote doesn't cover all identified damage.
+    // Deviation, savings, and recommended range are initially seeded from the learning DB.
+    // They are overwritten in-place by the ML/statistical benchmark aggregates in Phase 2
+    // (after the perComponentBenchmarks block) once per-component P25/P50/P75 are computed.
     let quoteDeviationPct: number | null = null;
-    const savingsOpportunityCents = 0;
-    // Recommended cost range — use learning DB benchmark as AI estimate when available.
-    // rangeBaseCents is always derived from aiEstimatedCents (the AI's independent estimate),
-    // never from the submitted quote, so the range is an independent cross-check.
+    let savingsOpportunityCents = 0;
+    // Recommended cost range — initially from learning DB, overwritten by ML/stat benchmarks.
     const aiEstimatedCents: number | null = learningDbBenchmarkCents ?? null;
     const rangeBaseCents: number = aiEstimatedCents ?? (quotedCents ?? 0);
-    const lowCents = rangeBaseCents > 0 ? Math.round(rangeBaseCents * 0.85) : 0;
-    const highCents = rangeBaseCents > 0 ? Math.round(rangeBaseCents * 1.15) : 0;
+    let lowCents = rangeBaseCents > 0 ? Math.round(rangeBaseCents * 0.85) : 0;
+    let highCents = rangeBaseCents > 0 ? Math.round(rangeBaseCents * 1.15) : 0;
 
     // ── Learning DB: fraud detection signal only ──────────────────────────────
     // The learning DB average is used ONLY to flag suspiciously cheap quotes.
@@ -969,6 +968,157 @@ export async function runCostOptimisationStage(
         ctx.log('Stage 9',
           `Hybrid benchmarks: ${mlHits} ML, ${statHits} statistical, ${dbHits} legacy DB, ` +
           `${damagedComponentNames.length - mlHits - statHits - dbHits} without data`);
+
+        // ── Aggregate benchmark P25/P50/P75 → update savings, range, and deviation in-place ──
+        // Only aggregate components where (a) benchmark data exists AND (b) the submitted
+        // quote has a matching line item with a positive cost. This keeps the comparison
+        // apples-to-apples: we compare the quoted cost for covered components only.
+        let aggP25Cents = 0;
+        let aggP50Cents = 0;
+        let aggP75Cents = 0;
+        let aggCoveredQuotedCents = 0;
+        let aggComponentsWithData = 0;
+        for (const compName of damagedComponentNames) {
+          const bm = perComponentBenchmarks[compName];
+          if (!bm || bm.p25Usd == null || bm.medianUsd == null || bm.p75Usd == null) continue;
+          // Find matching line item in the submitted quote(s)
+          const matchedLI = allLineItemsFlat.find((li: any) => {
+            const liComp = (li.component ?? li.description ?? '').toLowerCase().trim();
+            const compLower = compName.toLowerCase().trim();
+            return liComp.includes(compLower) || compLower.includes(liComp.split(' ')[0]);
+          });
+          if (!matchedLI) continue;
+          const liCostUsd = matchedLI.line_total ?? matchedLI.unit_cost ?? 0;
+          if (liCostUsd <= 0) continue;
+          aggP25Cents += Math.round(bm.p25Usd * 100);
+          aggP50Cents += Math.round(bm.medianUsd * 100);
+          aggP75Cents += Math.round(bm.p75Usd * 100);
+          aggCoveredQuotedCents += Math.round(liCostUsd * 100);
+          aggComponentsWithData++;
+        }
+
+        if (aggComponentsWithData >= 2 && aggP50Cents > 0) {
+          // Savings = amount by which covered quoted components exceed the P75 ceiling.
+          // Positive means the quote is above the top quartile of market prices.
+          savingsOpportunityCents = Math.max(0, aggCoveredQuotedCents - aggP75Cents);
+          // Recommended range = aggregated P25–P75 across covered components.
+          lowCents = aggP25Cents;
+          highCents = aggP75Cents;
+          // Deviation = % difference between covered quoted cost and P50 median.
+          quoteDeviationPct = aggP50Cents > 0
+            ? Math.round(((aggCoveredQuotedCents - aggP50Cents) / aggP50Cents) * 1000) / 10
+            : null;
+          // Update the already-built output object in-place.
+          (output as any).savingsOpportunityCents = savingsOpportunityCents;
+          (output as any).recommendedCostRange = { lowCents, highCents };
+          (output as any).quoteDeviationPct = quoteDeviationPct;
+          (output as any).benchmarkCoverageComponents = aggComponentsWithData;
+          ctx.log('Stage 9',
+            `Benchmark aggregates (${aggComponentsWithData} components): ` +
+            `P25=$${(aggP25Cents/100).toFixed(2)} P50=$${(aggP50Cents/100).toFixed(2)} ` +
+            `P75=$${(aggP75Cents/100).toFixed(2)} QuotedCovered=$${(aggCoveredQuotedCents/100).toFixed(2)} ` +
+            `Savings=$${(savingsOpportunityCents/100).toFixed(2)} Deviation=${quoteDeviationPct?.toFixed(1)}%`);
+        }
+
+        // ── COMPOSITE QUOTE OPTIMISATION (Three-Layer Cost Model) ────────────────
+        // Build L2 (composite optimised cost) and L3 (benchmark reference cost)
+        // using all submitted quotes and the per-component benchmark data.
+        try {
+          // Convert perComponentBenchmarks to BenchmarkMap format
+          const benchmarkMap: BenchmarkMap = {};
+          for (const [compName, bm] of Object.entries(perComponentBenchmarks)) {
+            if (bm && (bm as any).p25Usd != null) {
+              benchmarkMap[compName] = {
+                p25Usd: (bm as any).p25Usd,
+                p50Usd: (bm as any).medianUsd ?? null,
+                p75Usd: (bm as any).p75Usd,
+                sampleSize: (bm as any).sampleSize ?? 0,
+              };
+            }
+          }
+
+          // Build InputQuoteWithLineItems[] from all extracted quotes
+          const compositeInputQuotes: InputQuoteWithLineItems[] = allQuotes.map((q: any) => ({
+            panel_beater: q.panel_beater ?? null,
+            total_cost: q.total_cost ?? null,
+            currency: q.currency ?? currency,
+            components: q.components ?? [],
+            labour_defined: q.labour_defined ?? false,
+            parts_defined: q.parts_defined ?? false,
+            labour_cost: q.labour_cost ?? null,
+            parts_cost: q.parts_cost ?? null,
+            confidence: (q.confidence as 'high' | 'medium' | 'low') ?? 'low',
+            lineItems: (q.line_items ?? []).map((li: any) => ({
+              componentName: li.component ?? li.description ?? '',
+              costUsd: li.line_total ?? li.unit_cost ?? 0,
+            })).filter((li: any) => li.componentName && li.costUsd > 0),
+          }));
+
+          const l1TotalUsd = quotedCents ? quotedCents / 100 : 0;
+
+          if (compositeInputQuotes.length > 0 && l1TotalUsd > 0) {
+            const compositeResult = buildCompositeQuote(
+              compositeInputQuotes,
+              benchmarkMap,
+              l1TotalUsd
+            );
+
+            // Component classification: quoted-not-damaged and damaged-not-quoted
+            const allQuotedComponentNames = compositeInputQuotes
+              .flatMap(q => q.components ?? []);
+            const confirmedDamagedNames = damagedComponentNames;
+            const allDamagedNames = [...new Set([...confirmedDamagedNames, ...allQuotedComponentNames])];
+
+            const { quotedNotDamaged, damagedNotQuoted } = classifyComponents(
+              confirmedDamagedNames,
+              allQuotedComponentNames,
+              benchmarkMap,
+              compositeInputQuotes.map(q => q.panel_beater ?? 'Unknown')
+            );
+
+            // Populate damagedNotQuoted severity from damage analysis
+            for (const dnq of damagedNotQuoted) {
+              const damagePart = damageAnalysis.damagedParts.find(
+                (p: any) => p.name?.toLowerCase().includes(dnq.componentName.toLowerCase())
+              );
+              if (damagePart) dnq.severity = damagePart.severity ?? 'unknown';
+            }
+
+            // Probable hidden damage advisories
+            const hiddenDamageAdvisories = computeProbableHiddenDamage(
+              confirmedDamagedNames,
+              allQuotedComponentNames,
+              allDamagedNames
+            );
+
+            // Attach composite result to output
+            (output as any).compositeOptimisation = {
+              l1SubmittedCostUsd: l1TotalUsd,
+              l2CompositeOptimisedCostUsd: compositeResult.compositeOptimisedCostUsd,
+              l3BenchmarkReferenceCostUsd: compositeResult.benchmarkReferenceCostUsd,
+              negotiationSavingsUsd: compositeResult.negotiationSavingsUsd,
+              marketOverpriceDeltaUsd: compositeResult.marketOverpriceDeltaUsd,
+              totalSavingsOpportunityUsd: compositeResult.totalSavingsOpportunityUsd,
+              benchmarkCoverageComponents: compositeResult.benchmarkCoverageComponents,
+              negotiationFeasibilityScore: compositeResult.negotiationFeasibilityScore,
+              negotiationFeasibilityLabel: compositeResult.negotiationFeasibilityLabel,
+              compositeLineItems: compositeResult.compositeLineItems,
+              quotedNotDamaged,
+              damagedNotQuoted,
+              hiddenDamageAdvisories,
+              quotesEvaluated: compositeInputQuotes.length,
+            };
+
+            ctx.log('Stage 9',
+              `Composite optimisation: L1=$${l1TotalUsd.toFixed(2)} L2=$${compositeResult.compositeOptimisedCostUsd.toFixed(2)} ` +
+              `L3=$${compositeResult.benchmarkReferenceCostUsd.toFixed(2)} ` +
+              `NegotiationSavings=$${compositeResult.negotiationSavingsUsd.toFixed(2)} ` +
+              `NFS=${compositeResult.negotiationFeasibilityScore} (${compositeResult.negotiationFeasibilityLabel}) ` +
+              `HiddenDamageAdvisories=${hiddenDamageAdvisories.length}`);
+          }
+        } catch (compositeErr) {
+          ctx.log('Stage 9', `Composite optimisation failed (non-fatal): ${String(compositeErr)}`);
+        }
       }
     } catch (benchErr) {
       ctx.log('Stage 9', `Per-component benchmark query failed (non-fatal): ${String(benchErr)}`);

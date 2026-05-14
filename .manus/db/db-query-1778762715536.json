@@ -1,0 +1,30 @@
+{
+  "query": "\nSELECT \n  c.claim_number,\n  c.document_processing_status,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.compositeL2TotalUsd') as l2_total,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.l1TotalUsd') as l1_total,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.negotiationFeasibilityScore.score') as nfs_score,\n  JSON_LENGTH(JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.compositeLineItems')) as composite_items,\n  JSON_LENGTH(JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.quotedNotDamagedFlags')) as qnd_flags,\n  JSON_LENGTH(JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.damagedNotQuotedFlags')) as dnq_flags\nFROM claims c\nJOIN ai_assessments a ON a.claim_id = c.id\nWHERE c.claim_number IN ('DOC-20260511-F75D99DD', 'DOC-20260514-14A74979')\nORDER BY c.id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  c.claim_number,\n  c.document_processing_status,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.compositeL2TotalUsd') as l2_total,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.l1TotalUsd') as l1_total,\n  JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.negotiationFeasibilityScore.score') as nfs_score,\n  JSON_LENGTH(JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.compositeLineItems')) as composite_items,\n  JSON_LENGTH(JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.quotedNotDamagedFlags')) as qnd_flags,\n  JSON_LENGTH(JSON_EXTRACT(a.cost_intelligence_json, '$.compositeOptimisation.damagedNotQuotedFlags')) as dnq_flags\nFROM claims c\nJOIN ai_assessments a ON a.claim_id = c.id\nWHERE c.claim_number IN ('DOC-20260511-F75D99DD', 'DOC-20260514-14A74979')\nORDER BY c.id;\n",
+  "rows": [
+    {
+      "claim_number": "DOC-20260511-F75D99DD",
+      "document_processing_status": "extracted",
+      "l2_total": "NULL",
+      "l1_total": "NULL",
+      "nfs_score": "NULL",
+      "composite_items": "2",
+      "qnd_flags": "NULL",
+      "dnq_flags": "NULL"
+    },
+    {
+      "claim_number": "DOC-20260514-14A74979",
+      "document_processing_status": "extracted",
+      "l2_total": "NULL",
+      "l1_total": "NULL",
+      "nfs_score": "NULL",
+      "composite_items": "2",
+      "qnd_flags": "NULL",
+      "dnq_flags": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "claim_number\tdocument_processing_status\tl2_total\tl1_total\tnfs_score\tcomposite_items\tqnd_flags\tdnq_flags\nDOC-20260511-F75D99DD\textracted\tNULL\tNULL\tNULL\t2\tNULL\tNULL\nDOC-20260514-14A74979\textracted\tNULL\tNULL\tNULL\t2\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1136
+}

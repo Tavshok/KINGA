@@ -1139,6 +1139,8 @@ export async function triggerAiAssessment(claimId: number) {
     totalEstimatedCost: costAnalysis.expectedRepairCostCents ? costAnalysis.expectedRepairCostCents / 100 : null,
     // Phase 2: Per-component KINGA benchmark ranges (p25/median/p75 + per-quote over/fair/under flags)
     perComponentBenchmarks: (costAnalysis as any).perComponentBenchmarks ?? null,
+    // Phase 3: Composite quote optimisation — three-layer cost model (L1/L2/L3), NFS, component classification
+    compositeOptimisation: (costAnalysis as any).compositeOptimisation ?? null,
   }) : (
     // Even if costAnalysis is null, still persist the documented quote values
     // so the UI can display the panel beater quote from the extracted document.

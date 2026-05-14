@@ -1039,6 +1039,54 @@ export interface PartsReconciliationItem {
   is_structural?: boolean;
 }
 
+// ── Multi-quote composite optimisation types ────────────────────────────────
+
+export interface CompositeLineItem {
+  componentName: string;
+  selectedCostUsd: number;
+  selectedFromQuote: string;           // Repairer name or 'benchmark_fill'
+  isBenchmarkFill: boolean;
+  /** Four-tier KINGA Optimised source: T1=ML model, T2=Market benchmark, T3=Best quote (multi), T4=Quoted (single) */
+  kingaOptimisedTier: 'T1' | 'T2' | 'T3' | 'T4';
+  /** Human-readable tier label shown in the report */
+  kingaOptimisedTierLabel: string;
+  benchmarkVerdict: 'ABOVE_MARKET' | 'MARKET_RATE' | 'BELOW_MARKET' | 'NO_DATA';
+  benchmarkSignal: string;             // Approved analytical language
+  p25Usd: number | null;
+  p50Usd: number | null;
+  p75Usd: number | null;
+  allQuotedPrices: Array<{
+    quote: string;
+    costUsd: number;
+    passedGate: boolean;
+    gateFailReason?: string;
+  }>;
+}
+
+export interface QuotedNotDamagedFlag {
+  componentName: string;
+  quotedByRepairers: string[];
+  totalQuotedCostUsd: number;
+  isAdjacentToConfirmedDamage: boolean;
+  classification: 'plausible_scope_extension' | 'potential_scope_inflation';
+  reportSignal: string;
+}
+
+export interface DamagedNotQuotedFlag {
+  componentName: string;
+  severity: string;
+  benchmarkP50Usd: number | null;
+  reportSignal: string;
+}
+
+export interface ProbableHiddenDamageAdvisory {
+  componentName: string;
+  probabilityPct: number;              // 0–100
+  confidenceBand: string;              // e.g. '35–55%'
+  basisComponents: string[];           // Confirmed damaged components driving this estimate
+  reportSignal: string;
+}
+
 export interface Stage9Output {
   expectedRepairCostCents: number;
   quoteDeviationPct: number | null;
@@ -1202,6 +1250,32 @@ export interface Stage9Output {
   aiEstimateSource?: "learning_db" | "quote_derived" | "hardcoded_fallback" | "insufficient_data";
   /** Human-readable note explaining the AI estimate source */
   aiEstimateNote?: string | null;
+  // ── Three-layer cost model (L1 / L2 / L3) ──────────────────────────────
+  /** L2: Best credible line item per component drawn from all submitted quotes */
+  compositeOptimisedCostCents?: number;
+  /** L3: Sum of P50 benchmark prices for all confirmed-damaged components */
+  benchmarkReferenceCostCents?: number;
+  /** max(0, L1 - L2): Savings achievable by negotiating across submitted quotes */
+  negotiationSavingsCents?: number;
+  /** L2 - L3: How much even the optimised composite exceeds the statistical market median */
+  marketOverpriceDeltaCents?: number;
+  /** max(0, L1 - L3): Full gap between submitted claim and market evidence */
+  totalSavingsOpportunityCents?: number;
+  /** Per-component composite line items with source attribution and benchmark verdict */
+  compositeLineItems?: CompositeLineItem[];
+  // ── Component classification flags ───────────────────────────────────────
+  /** Components quoted by repairers but NOT confirmed as damaged in the assessment */
+  quotedNotDamagedComponents?: QuotedNotDamagedFlag[];
+  /** Components confirmed damaged in the assessment but absent from all submitted quotes */
+  damagedNotQuotedComponents?: DamagedNotQuotedFlag[];
+  /** Probabilistic advisories for components likely damaged based on collision pattern */
+  probableHiddenDamage?: ProbableHiddenDamageAdvisory[];
+  // ── Negotiation Feasibility Score (internal analytics) ───────────────────
+  /** 0–100 score measuring whether the composite L2 is operationally achievable */
+  negotiationFeasibilityScore?: number;
+  negotiationFeasibilityLabel?: 'achievable' | 'partial' | 'complex';
+  /** How many components have benchmark data coverage */
+  benchmarkCoverageComponents?: number;
   /**
    * Phase 2: Per-component KINGA benchmark ranges derived from componentRepairOutcomes.
    * Keyed by canonical component name. null entry = no historical data for that component.

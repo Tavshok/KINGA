@@ -4215,6 +4215,25 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   }
   const allRows3 = [...matchedRows3, ...missedRows3];
 
+  // ── Composite optimisation data ──────────────────────────────────────────────
+  const co = costIntel?.compositeOptimisation ?? null;
+
+  // Build KINGA optimised column: use compositeLineItems if available, else benchmark median, else min quote
+  const kingaOptimisedMap: Record<string, { amount: number; source: string; verdict: string; p25: number | null; p75: number | null; tier: string; tierLabel: string }> = {};
+  if (co && Array.isArray(co.compositeLineItems)) {
+    for (const item of co.compositeLineItems as any[]) {
+      kingaOptimisedMap[normKey(item.componentName ?? '')] = {
+        amount: item.selectedCostUsd ?? 0,
+        source: item.selectedFromQuote ?? (item.isBenchmarkFill ? 'Benchmark fill' : '—'),
+        verdict: item.benchmarkVerdict ?? 'NO_DATA',
+        p25: item.p25Usd ?? item.benchmarkP25Usd ?? null,
+        p75: item.p75Usd ?? item.benchmarkP75Usd ?? null,
+        tier: item.kingaOptimisedTier ?? 'T4',
+        tierLabel: item.kingaOptimisedTierLabel ?? (item.isBenchmarkFill ? 'Market Benchmark' : `Quoted · ${item.selectedFromQuote ?? '—'}`),
+      };
+    }
+  }
+
   return (
     <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
       {/* ── Negotiation Delta Analysis ── */}
@@ -4244,10 +4263,10 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           </div>
         </div>
       )}
-      {/* ── Cross-repairer itemised quote comparison table ── */}
+      {/* ── UNIFIED COMPONENT COST MATRIX TABLE ── */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Itemised Parts &amp; Labour — Quote Comparison</p>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>3.1 Repair Cost Analysis — Component Matrix</p>
           <span className="text-xs" style={{ color: "#64748b" }}>{pbQuotes.length > 0 ? `${pbQuotes.length} quote${pbQuotes.length !== 1 ? 's' : ''} received` : 'No quotes'}</span>
         </div>
         <div className="overflow-x-auto">
@@ -4274,8 +4293,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                       </th>
                     );
                   })}
-                  {/* KINGA Estimate column — always shown when ≥1 quote; replaces “Optimised” */}
-                  <th className="text-right px-3 py-2 font-semibold" style={{ color: "#64748b", whiteSpace: 'nowrap', borderLeft: '2px solid var(--border)' }}>KINGA Estimate</th>
+                  {/* KINGA Optimised column — best credible price per component */}
+                  <th className="text-right px-3 py-2 font-semibold" style={{ color: "#0f172a", whiteSpace: 'nowrap', borderLeft: '2px solid #0f172a', background: '#f8fafc' }}>KINGA Optimised</th>
                 </tr>
               </thead>
               <tbody>
@@ -4284,7 +4303,14 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                   const validAmounts = row.cells.map(c => c.amount).filter((a): a is number => a !== null);
                   // KINGA estimate: use benchmark median if available, else min of quotes
                   const benchmark = perComponentBenchmarks?.[row.description];
-                  const kingaEstimate = benchmark?.medianUsd ?? (validAmounts.length > 0 ? Math.min(...validAmounts) : null);
+                  // KINGA Optimised: prefer compositeLineItems selection, then benchmark median, then min of quotes
+                  const compKey = normKey(row.description);
+                  const compItem = kingaOptimisedMap[compKey];
+                  const kingaEstimate = compItem?.amount ?? benchmark?.medianUsd ?? (validAmounts.length > 0 ? Math.min(...validAmounts) : null);
+                  const kingaSource = compItem?.source ?? null;
+                  const kingaVerdict = compItem?.verdict ?? benchmark?.verdict ?? null;
+                  const kingaP25 = compItem?.p25 ?? benchmark?.p25Usd ?? null;
+                  const kingaP75 = compItem?.p75 ?? benchmark?.p75Usd ?? null;
                   return (
                     <tr key={ri} style={{ borderTop: "1px solid #e2e8f0", background: isMissedRow ? "var(--muted)" : "var(--background)" }}>
                       <td className="px-3 py-2 font-medium" style={{ color: isMissedRow ? "var(--muted-foreground)" : "var(--foreground)" }}>
@@ -4321,46 +4347,51 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                           </td>
                         );
                       })}
-                      {/* KINGA Estimate cell with hybrid model badge */}
-                      <td className="px-3 py-2 tabular-nums text-right font-semibold" style={{ color: "#0f172a", borderLeft: '2px solid var(--border)', background: '#ffffff' }}>
+                      {/* KINGA Optimised cell — four-tier source hierarchy */}
+                      <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a', borderLeft: '2px solid #0f172a', background: '#f8fafc' }}>
                         {kingaEstimate !== null ? fmtMoney(kingaEstimate) : '—'}
-                        {/* Range band */}
-                        {benchmark?.p25Usd != null && benchmark?.p75Usd != null && (
-                          <span className="block text-[10px] font-normal" style={{ color: 'var(--muted-foreground)' }}>
-                            {fmtMoney(benchmark.p25Usd)}–{fmtMoney(benchmark.p75Usd)}
+                        {/* Tier label — always shown, colour-coded by tier */}
+                        {(() => {
+                          const tier = compItem?.tier ?? null;
+                          const tierLabel = compItem?.tierLabel ?? null;
+                          if (tierLabel) {
+                            const tierStyle: Record<string, React.CSSProperties> = {
+                              T1: { color: '#1d4ed8', background: '#dbeafe' },  // ML model — blue
+                              T2: { color: '#065f46', background: '#d1fae5' },  // Market benchmark — green
+                              T3: { color: '#92400e', background: '#fef3c7' },  // Best quote (multi) — amber
+                              T4: { color: '#475569', background: '#f1f5f9' },  // Quoted (single) — slate
+                            };
+                            const style = tierStyle[tier ?? 'T4'] ?? tierStyle.T4;
+                            return (
+                              <span className="block text-[10px] font-semibold mt-0.5" style={{ ...style, borderRadius: 3, padding: '1px 4px', display: 'inline-block' }}>
+                                {tierLabel}
+                              </span>
+                            );
+                          }
+                          // Fallback: show benchmark badge if no composite item
+                          if (benchmark?.modelSource === 'ml') {
+                            return <span className="block text-[10px] font-semibold mt-0.5" style={{ color: '#1d4ed8', background: '#dbeafe', borderRadius: 3, padding: '1px 4px', display: 'inline-block' }}>ML Model · n={benchmark.sampleSize}</span>;
+                          }
+                          if (benchmark?.modelSource === 'statistical') {
+                            return <span className="block text-[10px] font-semibold mt-0.5" style={{ color: '#065f46', background: '#d1fae5', borderRadius: 3, padding: '1px 4px', display: 'inline-block' }}>Market Benchmark · n={benchmark.sampleSize}</span>;
+                          }
+                          return null;
+                        })()}
+                        {/* Market range band */}
+                        {kingaP25 != null && kingaP75 != null && (
+                          <span className="block text-[10px] font-normal" style={{ color: '#64748b' }}>
+                            Range: {fmtMoney(kingaP25)}–{fmtMoney(kingaP75)}
                           </span>
                         )}
-                        {/* Model source badge */}
-                        {benchmark?.modelSource === 'ml' && (
-                          <span className="block text-[10px] font-semibold mt-0.5" style={{
-                            color: '#1d4ed8',
-                            background: '#dbeafe',
-                            borderRadius: 3,
-                            padding: '1px 4px',
-                            display: 'inline-block',
-                          }}>ML • n={benchmark.sampleSize}</span>
+                        {/* Verdict chip — colour only */}
+                        {(kingaVerdict === 'ABOVE_RANGE' || kingaVerdict === 'ABOVE_MARKET' || kingaVerdict === 'above') && (
+                          <span className="block text-[10px] font-bold mt-0.5" style={{ color: '#dc2626' }}>⚠ Above market</span>
                         )}
-                        {benchmark?.modelSource === 'statistical' && (
-                          <span className="block text-[10px] font-semibold mt-0.5" style={{
-                            color: '#065f46',
-                            background: '#d1fae5',
-                            borderRadius: 3,
-                            padding: '1px 4px',
-                            display: 'inline-block',
-                          }}>{benchmark.confidence ?? 'STAT'} • n={benchmark.sampleSize}</span>
+                        {(kingaVerdict === 'BELOW_RANGE' || kingaVerdict === 'BELOW_MARKET' || kingaVerdict === 'under') && (
+                          <span className="block text-[10px] font-bold mt-0.5" style={{ color: '#92400e' }}>▼ Below market</span>
                         )}
-                        {benchmark?.modelSource === 'db_legacy' && (
-                          <span className="block text-[10px] font-normal mt-0.5" style={{ color: 'var(--muted-foreground)' }}>n={benchmark.sampleSize}</span>
-                        )}
-                        {/* Verdict badge */}
-                        {benchmark?.verdict === 'ABOVE_RANGE' && (
-                          <span className="block text-[10px] font-bold mt-0.5" style={{ color: '#dc2626' }}>⚠ Above range</span>
-                        )}
-                        {benchmark?.verdict === 'BELOW_RANGE' && (
-                          <span className="block text-[10px] font-bold mt-0.5" style={{ color: '#92400e' }}>▼ Below range</span>
-                        )}
-                        {benchmark?.verdict === 'IN_RANGE' && (
-                          <span className="block text-[10px] font-semibold mt-0.5" style={{ color: '#15803d' }}>✓ In range</span>
+                        {(kingaVerdict === 'IN_RANGE' || kingaVerdict === 'MARKET_RATE' || kingaVerdict === 'fair') && (
+                          <span className="block text-[10px] font-semibold mt-0.5" style={{ color: '#15803d' }}>✓ Market rate</span>
                         )}
                       </td>
                     </tr>
@@ -4375,27 +4406,24 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                       {fmtMoney(q.total)}
                     </td>
                   ))}
-                  {/* KINGA Estimate total */}
-                  <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: "#0f172a", borderLeft: '2px solid var(--border)', background: '#ffffff' }}>
-                    {fmtMoney(allRows3.reduce((sum, row) => {
-                      const bm = perComponentBenchmarks?.[row.description];
-                      const va = row.cells.map(c => c.amount).filter((a): a is number => a !== null);
-                      const est = bm?.medianUsd ?? (va.length > 0 ? Math.min(...va) : 0);
-                      return sum + est;
-                    }, 0))}
-                    {(() => {
-                      const mlCount = perComponentBenchmarks ? Object.values(perComponentBenchmarks).filter((b: any) => b?.modelSource === 'ml').length : 0;
-                      const statCount = perComponentBenchmarks ? Object.values(perComponentBenchmarks).filter((b: any) => b?.modelSource === 'statistical').length : 0;
-                      if (mlCount > 0 || statCount > 0) {
-                        return (
-                          <span className="block text-[10px] font-normal" style={{ color: 'var(--muted-foreground)' }}>
-                            {mlCount > 0 && <span style={{ color: '#1d4ed8' }}>ML:{mlCount} </span>}
-                            {statCount > 0 && <span style={{ color: '#065f46' }}>Stat:{statCount} </span>}
-                          </span>
-                        );
-                      }
-                      return null;
-                    })()}
+                  {/* KINGA Optimised total */}
+                  <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a', borderLeft: '2px solid #0f172a', background: '#f8fafc' }}>
+{(co?.l2CompositeOptimisedCostUsd ?? co?.compositeL2TotalUsd) != null
+                       ? fmtMoney(co.l2CompositeOptimisedCostUsd ?? co.compositeL2TotalUsd)
+                      : fmtMoney(allRows3.reduce((sum, row) => {
+                          const compK = normKey(row.description);
+                          const compI = kingaOptimisedMap[compK];
+                          const bm = perComponentBenchmarks?.[row.description];
+                          const va = row.cells.map(c => c.amount).filter((a): a is number => a !== null);
+                          const est = compI?.amount ?? bm?.medianUsd ?? (va.length > 0 ? Math.min(...va) : 0);
+                          return sum + est;
+                        }, 0))
+                    }
+                    {co?.savingsL1vsL2Usd != null && co.savingsL1vsL2Usd > 0 && (
+                      <span className="block text-[10px] font-semibold" style={{ color: '#15803d' }}>
+                        ↓ {fmtMoney(co.savingsL1vsL2Usd)} vs quoted
+                      </span>
+                    )}
                   </td>
                 </tr>
               </tfoot>
@@ -4448,130 +4476,190 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         />
       )}
 
-      {/* Itemised parts */}
-      {itemisedParts.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Itemised Parts & Labour Breakdown</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs report-table">
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-                  {["Component", "Zone", "Benchmark", "Quote Status", "Variance", "Source"].map(h => (
-                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {itemisedParts.map((part: any, i: number) => {
-                  const matchingLine = (primaryQuote?.lineItems ?? []).find((li: any) =>
-                    li.description?.toLowerCase().includes(part.component?.toLowerCase()?.split(" ")[0])
-                  );
-                  const quotedPartCost = matchingLine ? (matchingLine.lineTotal ?? 0) / 100 : null;
-                  const hasBenchmark = part.total != null && part.total > 0;
-                  const v = quotedPartCost != null && hasBenchmark ? ((quotedPartCost - part.total) / part.total) * 100 : null;
-                  // Determine source label from the backend's costSource field
-                  const sourceLabel = part.costSource === "learning_db" ? "Learning DB" : part.source === "extracted" ? "Extracted" : hasBenchmark ? "Benchmark" : "Insufficient data";
-                  const sourceStatus = part.costSource === "learning_db" ? "pass" : part.source === "extracted" ? "pass" : hasBenchmark ? "info" : "na";
-                  return (
-                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined, background: "#ffffff" }}>
-                      <td className="px-3 py-2 font-medium" style={{ color: "#0f172a", fontFamily: "inherit" }}>{expandShorthand(toTitleCase(part.component ?? ""))}</td>
-                      <td className="px-3 py-2" style={{ color: "#64748b", fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {part.zone ?? part.damageZone ?? part.damage_zone ?? '—'}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a", fontFamily: "inherit" }}>
-                        {hasBenchmark ? fmtMoney(part.total) : <span style={{ color: "#64748b" }}>Insufficient data</span>}
-                      </td>
-                      <td className="px-3 py-2">
-                        {(() => {
-                          const rs = reconStatusMap[(part.component ?? '').toLowerCase()] ?? 'no_quote_available';
-                          const statusMap: Record<string, { status: 'pass' | 'warn' | 'fail' | 'na'; label: string }> = {
-                            matched: { status: 'pass', label: 'Matched' },
-                            missing_from_quote: { status: 'fail', label: 'Missing' },
-                            quoted_not_detected: { status: 'warn', label: 'Extra' },
-                            unmatched: { status: 'warn', label: 'Unmatched' },
-                            no_quote_available: { status: 'na', label: 'No quote' },
-                          };
-                          const s = statusMap[rs] ?? { status: 'na' as const, label: rs };
-                          return <span className="text-xs font-semibold" style={{ color: "#64748b" }}>{s.label}</span>;
-                        })()}
-                      </td>
-                      <td className="px-3 py-2">
-                        {v != null ? <span className="text-xs font-semibold tabular-nums" style={{ color: "#0f172a" }}>{v > 0 ? "+" : ""}{Math.round(v)}%</span> : <span style={{ color: "#64748b" }}>—</span>}
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="text-xs" style={{ color: "#64748b" }}>{sourceLabel}</span>
+      {/* Redundant itemised parts and per-repairer summary tables removed — all data is now in the unified component matrix above */}
+
+
+
+      {/* ── 3.1d Composite Quote Optimisation — Three-Layer Cost Model ── */}
+      {(() => {
+        const co = costIntel?.compositeOptimisation ?? null;
+        if (!co || co.quotesEvaluated === 0) return null;
+        const hasL2 = co.l2CompositeOptimisedCostUsd > 0;
+        const hasL3 = co.l3BenchmarkReferenceCostUsd > 0;
+        const nfsColor = co.negotiationFeasibilityScore >= 70 ? '#15803d' : co.negotiationFeasibilityScore >= 40 ? '#92400e' : '#64748b';
+        const nfsBg = co.negotiationFeasibilityScore >= 70 ? '#dcfce7' : co.negotiationFeasibilityScore >= 40 ? '#fef3c7' : '#f1f5f9';
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>3.1d Cost Optimisation Analysis</p>
+              {co.negotiationFeasibilityScore != null && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: nfsBg, color: nfsColor }}>
+                  NFS {co.negotiationFeasibilityScore} — {(co.negotiationFeasibilityLabel ?? '').toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Three-layer cost summary table */}
+              <table className="w-full text-xs report-table" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <th className="text-left px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Cost Layer</th>
+                    <th className="text-left px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Definition</th>
+                    <th className="text-right px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Amount</th>
+                    <th className="text-right px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Variance to L1</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderTop: '1px solid #e2e8f0' }}>
+                    <td className="px-3 py-2 font-bold" style={{ color: '#0f172a' }}>L1 — Submitted</td>
+                    <td className="px-3 py-2" style={{ color: '#64748b' }}>Authoritative quote from selected repairer</td>
+                    <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a' }}>{fmtMoney(co.l1SubmittedCostUsd)}</td>
+                    <td className="px-3 py-2 text-right" style={{ color: '#64748b' }}>—</td>
+                  </tr>
+                  {hasL2 && (
+                    <tr style={{ borderTop: '1px solid #e2e8f0' }}>
+                      <td className="px-3 py-2 font-bold" style={{ color: '#0f172a' }}>L2 — Composite</td>
+                      <td className="px-3 py-2" style={{ color: '#64748b' }}>Best credible price per component across all submitted quotes</td>
+                      <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a' }}>{fmtMoney(co.l2CompositeOptimisedCostUsd)}</td>
+                      <td className="px-3 py-2 tabular-nums text-right" style={{ color: co.negotiationSavingsUsd > 0 ? '#15803d' : '#64748b' }}>
+                        {co.negotiationSavingsUsd > 0 ? `−${fmtMoney(co.negotiationSavingsUsd)}` : '—'}
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: "2px solid #cbd5e1", background: "#ffffff" }}>
-                  <td className="px-3 py-2 font-bold" style={{ color: "#0f172a" }}>TOTAL</td>
-                  <td />
-                  <td className="px-3 py-2 tabular-nums font-bold" style={{ color: "#0f172a" }}>{fmtMoney(itemisedParts.reduce((s: number, p: any) => s + (p.total ?? 0), 0))}</td>
-                  <td className="px-3 py-2 text-xs" style={{ color: "#64748b" }}>
-                    {partsRecon.length > 0
-                      ? `${partsRecon.filter(r => r.reconciliation_status === 'matched').length}/${partsRecon.length} matched`
-                      : quotedTotal > 0 ? fmtMoney(quotedTotal) : "—"}
-                  </td>
-                  <td colSpan={2} />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      )}
+                  )}
+                  {hasL3 && (
+                    <tr style={{ borderTop: '1px solid #e2e8f0' }}>
+                      <td className="px-3 py-2 font-bold" style={{ color: '#0f172a' }}>L3 — Benchmark</td>
+                      <td className="px-3 py-2" style={{ color: '#64748b' }}>Market P50 reference cost ({co.benchmarkCoverageComponents ?? 0} components with data)</td>
+                      <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a' }}>{fmtMoney(co.l3BenchmarkReferenceCostUsd)}</td>
+                      <td className="px-3 py-2 tabular-nums text-right" style={{ color: co.totalSavingsOpportunityUsd > 0 ? '#15803d' : '#64748b' }}>
+                        {co.totalSavingsOpportunityUsd > 0 ? `−${fmtMoney(co.totalSavingsOpportunityUsd)}` : '—'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+                {(co.negotiationSavingsUsd > 0 || co.marketOverpriceDeltaUsd > 0) && (
+                  <tfoot>
+                    <tr style={{ borderTop: '2px solid #cbd5e1', background: '#f8fafc' }}>
+                      <td colSpan={2} className="px-3 py-2 font-bold" style={{ color: '#0f172a' }}>Total Savings Opportunity</td>
+                      <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#15803d' }}>{fmtMoney(co.totalSavingsOpportunityUsd)}</td>
+                      <td className="px-3 py-2 tabular-nums text-right text-xs" style={{ color: '#64748b' }}>
+                        {co.l1SubmittedCostUsd > 0 ? `${((co.totalSavingsOpportunityUsd / co.l1SubmittedCostUsd) * 100).toFixed(1)}% of L1` : ''}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
 
-      {/* Multiple quotes — shown inline below the primary quote table when > 1 quote exists */}
-      {pbQuotes.length > 1 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>3.1b Quote Comparison — All Repairers</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs report-table">
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-                  {["Repairer", "Parts", "Labour", "Total", "Status"].map(h => (
-                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {pbQuotes.map((q, i) => (
-                  <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined, background: "#ffffff" }}>
-                    <td className="px-3 py-2 font-medium" style={{ color: "#0f172a" }}>{q.name}</td>
-                    <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a" }}>{q.parts > 0 ? fmtMoney(q.parts) : "—"}</td>
-                    <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a" }}>{q.labour > 0 ? fmtMoney(q.labour) : "—"}</td>
-                    <td className="px-3 py-2 tabular-nums font-semibold" style={{ color: "#0f172a" }}>{fmtMoney(q.total)}</td>
-                    <td className="px-3 py-2"><span className="text-xs font-semibold" style={{ color: "#64748b" }}>{toTitleCase(q.status)}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: "2px solid #cbd5e1", background: "#ffffff" }}>
-                  <td className="px-3 py-2 font-bold" style={{ color: "#0f172a" }}>Average</td>
-                  <td className="px-3 py-2 tabular-nums" style={{ color: "#64748b" }}>
-                    {pbQuotes.some(q => q.parts > 0) ? fmtMoney(pbQuotes.filter(q => q.parts > 0).reduce((s, q) => s + q.parts, 0) / pbQuotes.filter(q => q.parts > 0).length) : "—"}
-                  </td>
-                  <td className="px-3 py-2 tabular-nums" style={{ color: "#64748b" }}>
-                    {pbQuotes.some(q => q.labour > 0) ? fmtMoney(pbQuotes.filter(q => q.labour > 0).reduce((s, q) => s + q.labour, 0) / pbQuotes.filter(q => q.labour > 0).length) : "—"}
-                  </td>
-                  <td className="px-3 py-2 tabular-nums font-bold" style={{ color: "#0f172a" }}>
-                    {fmtMoney(pbQuotes.reduce((s, q) => s + q.total, 0) / pbQuotes.length)}
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      )}
+              {/* Composite line items — best price per component */}
+              {Array.isArray(co.compositeLineItems) && co.compositeLineItems.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold mb-2" style={{ color: '#0f172a' }}>Composite Component Selection</p>
+                  <table className="w-full text-xs report-table" style={{ borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <th className="text-left px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Component</th>
+                        <th className="text-left px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Best Price From</th>
+                        <th className="text-right px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Selected</th>
+                        <th className="text-right px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Market P50</th>
+                        <th className="text-right px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Market P25–P75</th>
+                        <th className="text-left px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Verdict</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(co.compositeLineItems as any[]).map((item: any, idx: number) => {
+                        const verdictColor = item.benchmarkVerdict === 'ABOVE_RANGE' ? '#dc2626'
+                          : item.benchmarkVerdict === 'BELOW_RANGE' ? '#92400e'
+                          : item.benchmarkVerdict === 'MARKET_RATE' ? '#15803d'
+                          : '#64748b';
+                        const verdictLabel = item.benchmarkVerdict === 'ABOVE_RANGE' ? '⚠ Above range'
+                          : item.benchmarkVerdict === 'BELOW_RANGE' ? '▼ Below range'
+                          : item.benchmarkVerdict === 'MARKET_RATE' ? '✓ Market rate'
+                          : item.benchmarkVerdict === 'BENCHMARK_FILL' ? '◌ Benchmark fill'
+                          : '—';
+                        return (
+                          <tr key={idx} style={{ borderTop: '1px solid #e2e8f0' }}>
+                            <td className="px-3 py-2 font-medium" style={{ color: '#0f172a' }}>{item.componentName}</td>
+                            <td className="px-3 py-2" style={{ color: '#64748b' }}>
+                              {item.selectedFromQuote ?? (item.isBenchmarkFill ? 'Benchmark fill' : '—')}
+                              {item.isBenchmarkFill && <span className="ml-1 text-[10px]" style={{ color: '#64748b', fontStyle: 'italic' }}>(no quote)</span>}
+                            </td>
+                            <td className="px-3 py-2 tabular-nums text-right font-semibold" style={{ color: '#0f172a' }}>{fmtMoney(item.selectedCostUsd)}</td>
+                            <td className="px-3 py-2 tabular-nums text-right" style={{ color: '#64748b' }}>{item.benchmarkP50Usd != null ? fmtMoney(item.benchmarkP50Usd) : '—'}</td>
+                            <td className="px-3 py-2 tabular-nums text-right" style={{ color: '#64748b' }}>
+                              {item.benchmarkP25Usd != null && item.benchmarkP75Usd != null
+                                ? `${fmtMoney(item.benchmarkP25Usd)}–${fmtMoney(item.benchmarkP75Usd)}`
+                                : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-xs font-semibold" style={{ color: verdictColor }}>{verdictLabel}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
+              {/* Quoted-not-damaged flags */}
+              {Array.isArray(co.quotedNotDamaged) && co.quotedNotDamaged.length > 0 && (
+                <div className="p-3 rounded" style={{ background: '#fef3c7', border: '1px solid #f59e0b' }}>
+                  <p className="text-xs font-bold mb-1" style={{ color: '#92400e' }}>COMPONENTS QUOTED BUT NOT CONFIRMED DAMAGED</p>
+                  <p className="text-xs mb-2" style={{ color: '#92400e' }}>The following items appear in submitted quotes but were not identified in the damage assessment. These warrant verification before approval.</p>
+                  <div className="space-y-1">
+                    {(co.quotedNotDamaged as any[]).map((item: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between text-xs" style={{ color: '#0f172a' }}>
+                        <span className="font-medium">{item.componentName}</span>
+                        <span style={{ color: '#64748b' }}>{item.classification === 'plausible_scope_extension' ? 'Plausible scope extension' : item.classification === 'suspect_inflation' ? 'Suspect inflation' : item.classification}</span>
+                        {item.benchmarkCostUsd != null && <span className="tabular-nums" style={{ color: '#64748b' }}>Benchmark: {fmtMoney(item.benchmarkCostUsd)}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
+              {/* Damaged-not-quoted flags */}
+              {Array.isArray(co.damagedNotQuoted) && co.damagedNotQuoted.length > 0 && (
+                <div className="p-3 rounded" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <p className="text-xs font-bold mb-1" style={{ color: '#0f172a' }}>DAMAGE IDENTIFIED — NOT INCLUDED IN ANY QUOTE</p>
+                  <p className="text-xs mb-2" style={{ color: '#64748b' }}>The following components were identified as damaged but do not appear in any submitted repair quote. These may represent scope gaps or deferred repairs.</p>
+                  <div className="space-y-1">
+                    {(co.damagedNotQuoted as any[]).map((item: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between text-xs" style={{ color: '#0f172a' }}>
+                        <span className="font-medium">{item.componentName}</span>
+                        <span style={{ color: '#64748b' }}>{item.severity ?? 'severity unknown'}</span>
+                        {item.benchmarkCostUsd != null && <span className="tabular-nums" style={{ color: '#64748b' }}>Benchmark: {fmtMoney(item.benchmarkCostUsd)}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Probable hidden damage advisories */}
+              {Array.isArray(co.hiddenDamageAdvisories) && co.hiddenDamageAdvisories.length > 0 && (
+                <div className="p-3 rounded" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
+                  <p className="text-xs font-bold mb-1" style={{ color: '#0c4a6e' }}>PROBABLE HIDDEN DAMAGE — ADVISORY</p>
+                  <p className="text-xs mb-2" style={{ color: '#0c4a6e' }}>Based on co-occurrence patterns in the claims corpus, the following components have a statistically elevated probability of damage given the confirmed damage profile. Physical inspection is recommended.</p>
+                  <div className="space-y-1">
+                    {(co.hiddenDamageAdvisories as any[]).map((item: any, idx: number) => (
+                      <div key={idx} className="flex items-start justify-between text-xs" style={{ color: '#0f172a' }}>
+                        <div>
+                          <span className="font-medium">{item.componentName}</span>
+                          <span className="ml-2" style={{ color: '#64748b' }}>basis: {(item.basisComponents ?? []).join(', ')}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-semibold" style={{ color: item.probabilityPct >= 60 ? '#dc2626' : item.probabilityPct >= 35 ? '#92400e' : '#64748b' }}>
+                            {item.probabilityPct}% probability
+                          </span>
+                          <span className="ml-2" style={{ color: '#64748b' }}>({item.confidenceBand})</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Cost Decision Engine output — surfaced from costIntelligenceJson (C-3 fix) */}
       {/* B-02: Always render the Cost Decision Engine block; show INSUFFICIENT DATA when no cost data is available */}
