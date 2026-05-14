@@ -162,7 +162,8 @@ export async function runUnifiedStage7(
       // ANCAP / Global NCAP rating
       const rating = profile.ancapRating ?? profile.globalNcapAfrica;
       if (rating) {
-        lines.push(`Safety rating: ${rating.stars}★ (${rating.testYear}) — adult occupant: ${rating.adultOccupant}%, child: ${rating.childOccupant}%`);
+        const r = rating as any;
+        lines.push(`Safety rating: ${r.stars}★ (${r.testYear}) — adult occupant: ${r.adultOccupant}%, child: ${r.childOccupant}%`);
       }
       // Compatibility risk
       if (profile.compatibilityRisk && profile.compatibilityRisk !== "unknown") {

@@ -419,10 +419,10 @@ export default function SubmitClaim() {
     try {
       const result = await createOrFindFleetAccount.mutateAsync({
         companyName: companyName.trim(),
-        companyRegistration: companyRegistration.trim() || undefined,
+        companyReg: companyRegistration.trim() || undefined,
       });
-      setFleetAccountId(result.fleetAccountId);
-      if (result.isNew) {
+      setFleetAccountId(result.id);
+      if (result.created) {
         toast.success(`New fleet account created for ${companyName}`);
       } else {
         toast.info(`Claim will be linked to existing ${companyName} fleet account`);

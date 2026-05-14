@@ -108,7 +108,7 @@ export default function InviteAccept() {
         acceptMutation.mutate({
           token,
           name: user.name ?? user.email ?? "Unknown",
-          openId: user.openId ?? user.id?.toString() ?? "",
+          openId: (user as any).openId ?? (user as any).id?.toString() ?? "",
         });
       }
     }

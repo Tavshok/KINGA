@@ -122,7 +122,7 @@ export function parseStructuredNote(note: string): {
   const findingsMatch = note.match(/\[FINDINGS:\s*([^\]]+)\]/);
   const disputeMatch = note.match(/\[DISPUTE_REASON:\s*([^\]]+)\]/);
   const actionMatch = note.match(/\[ACTION:\s*([^\]]+)\]/);
-  const additionalMatch = note.match(/Additional notes:\s*(.+?)(?:\s*\||\s*$)/s);
+  const additionalMatch = note.match(/Additional notes:\s*([\s\S]+?)(?:\s*\||\s*$)/);
   return {
     isStructured: true,
     findingsVerdict: findingsMatch?.[1]?.trim(),

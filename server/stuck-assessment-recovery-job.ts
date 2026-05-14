@@ -120,7 +120,7 @@ async function markAsFailedAfterMaxRetries(claimId: number, caseName: string): P
         documentProcessingStatus: "failed",
         aiAssessmentTriggered: 0,
         aiAssessmentCompleted: 0,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString() as any,
       }).where(eq(claims.id, claimId));
     }, 3, 2000, `StuckRecovery markFailed claim ${claimId}`);
   } catch (err) {
@@ -163,7 +163,7 @@ export async function runStartupCleanup(): Promise<void> {
       await db.update(claims).set({
         documentProcessingStatus: "pending",
         aiAssessmentTriggered: 0,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString() as any,
       }).where(eq(claims.id, claim.id));
       console.log(`[StartupCleanup] Reset claim ${claim.claimNumber} (id=${claim.id}) from '${claim.documentProcessingStatus}' → 'pending'`);
     }
@@ -208,7 +208,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             return db.update(claims).set({
               status: "assessment_complete",
               documentProcessingStatus: "extracted",
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery finalise claim ${claim.id}`);
           console.log(`[StuckRecovery] Finalised claim ${claim.claimNumber} (id=${claim.id}) → assessment_complete [pipeline had completed]`);
@@ -262,7 +262,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
               documentProcessingStatus: "pending",
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery reset-for-retrigger claim ${claim.id}`);
           // Re-trigger the pipeline (fire-and-forget)
@@ -363,7 +363,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
               documentProcessingStatus: "pending",
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery timeout-reset claim ${claim.id}`);
           // Re-trigger the pipeline
@@ -428,7 +428,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               aiAssessmentCompleted: 0,
               documentProcessingStatus: "pending",
               workflowState: "under_assessment",
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-4 reset claim ${claim.id}`);
           // Re-trigger the pipeline
@@ -486,7 +486,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
               documentProcessingStatus: "pending",
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-6 reset claim ${claim.id}`);
           recordRetrigger(claim.id);
@@ -541,7 +541,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               documentProcessingStatus: "failed",
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-7 reset claim ${claim.id}`);
           console.log(`[StuckRecovery] CASE 7: Hard-reset claim ${claim.claimNumber} (id=${claim.id}) [stuck >30min in ${claim.documentProcessingStatus}] → intake_pending`);
@@ -593,7 +593,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               documentProcessingStatus: "pending",
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-8 reset claim ${claim.id}`);
           recordRetrigger(claim.id);

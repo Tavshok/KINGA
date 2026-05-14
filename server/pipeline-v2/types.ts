@@ -1295,10 +1295,25 @@ export interface Stage9Output {
     /** Verdict comparing quoted cost to the benchmark band */
     verdict?: 'IN_RANGE' | 'ABOVE_RANGE' | 'BELOW_RANGE' | 'NO_DATA' | null;
     /** Verdict for each submitted quote's line item: over | fair | under | no_data */
-    quoteFlags: Record<string, "over" | "fair" | "under" | "no_data">;
+     quoteFlags: Record<string, "over" | "fair" | "under" | "no_data">;
   } | null>;
+  /** Extracted quote line items from the claim document with real pricing — used by db.ts for persistExtractedQuote */
+  documentedLineItems?: Array<{
+    description: string;
+    partNumber: string | null;
+    category: string;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+    isRepair: boolean;
+    isReplacement: boolean;
+    component?: string;
+    unit_cost?: number | null;
+    line_total?: number | null;
+    part_origin?: string | null;
+    source_quote_index?: number | null;
+  }>;
 }
-
 // ────────────────────────────────────────────────────────────────────────────────
 // STAGE 9b — TURNAROUND TIME ANALYSIS
 // ─────────────────────────────────────────────────────────────────────────────

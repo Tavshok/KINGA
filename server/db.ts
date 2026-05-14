@@ -985,7 +985,7 @@ export async function triggerAiAssessment(claimId: number) {
   if (pipelineTimeoutId) clearTimeout(pipelineTimeoutId);
 
   // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────
-  const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome, caseSignature, stage2RawOcrText, decisionAuthority, reportReadiness, forensicAnalysis } = result;
+  const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome, caseSignature, stage2RawOcrText, decisionAuthority, reportReadiness, forensicAnalysis, coherenceResult: pipelineCoherenceResult, costRealismResult: pipelineCostRealismResult, consistencyCheckResult: pipelineConsistencyResult, contradictionGateResult: pipelineContradictionResult, physicsDeviationScoreValue: pipelinePhysicsDeviationScore } = result;
 
   // Diagnostic logging: show which pipeline outputs are populated vs null
   console.log(`[KINGA Assessment] Claim ${claimId}: Pipeline result summary — ` +
@@ -1473,6 +1473,22 @@ export async function triggerAiAssessment(claimId: number) {
     // Stage 6 enriched photo metadata — persisted so the UI can show per-photo vision analysis results
     // Previously this was computed but never written to the DB column, causing enriched_photos_json to always be NULL.
     enrichedPhotosJson: result.enrichedPhotosJson ?? null,
+    // Phase 3: Missing analytics fields — now computed and persisted
+    coherenceResultJson: (() => {
+      try { return pipelineCoherenceResult ? JSON.stringify(pipelineCoherenceResult) : null; } catch { return null; }
+    })(),
+    costRealismJson: (() => {
+      try { return pipelineCostRealismResult ? JSON.stringify(pipelineCostRealismResult) : null; } catch { return null; }
+    })(),
+    consistencyCheckJson: (() => {
+      try { return pipelineConsistencyResult ? JSON.stringify(pipelineConsistencyResult) : null; } catch { return null; }
+    })(),
+    contradictionGateJson: (() => {
+      try { return pipelineContradictionResult ? JSON.stringify(pipelineContradictionResult) : null; } catch { return null; }
+    })(),
+    physicsDeviationScore: (() => {
+      try { return typeof pipelinePhysicsDeviationScore === 'number' ? Math.round(pipelinePhysicsDeviationScore) : null; } catch { return null; }
+    })(),
     // Hallucination guard: parts the AI generated that could not be resolved to canonical names.
     // Preserved for manual review rather than silently dropped — data integrity.
     unresolvedPartsJson: (() => {

@@ -157,13 +157,13 @@ export default function FleetManagerDashboard() {
 
   // Check registration status first (for pending-approval gate)
   const { data: regStatus, isLoading: regLoading } =
-    trpc.fleetAccounts.getMyRegistrationStatus.useQuery();
+    trpc.fleetAccounts.getMyRegistrationStatus.useQuery(undefined);
 
   // Fetch fleet account info
   const { data: fleetAccounts, isLoading: accountsLoading } =
-    trpc.fleetAccounts.listMyAccounts.useQuery();
+    trpc.fleetAccounts.listMyAccounts.useQuery({});
 
-  const primaryAccount = fleetAccounts?.[0];
+  const primaryAccount = (fleetAccounts as any)?.[0];
 
   // Fetch all claims for the fleet account
   const { data: claimsData, isLoading: claimsLoading } =
@@ -172,7 +172,7 @@ export default function FleetManagerDashboard() {
       { enabled: !!primaryAccount?.id }
     );
 
-  const allClaims: FleetClaim[] = (claimsData?.claims ?? []) as FleetClaim[];
+  const allClaims: FleetClaim[] = (claimsData?.claims ?? []) as unknown as FleetClaim[];
 
   const activeClaims = useMemo(
     () =>

@@ -80,6 +80,7 @@ interface ApprovalEntry {
 interface WorkflowStage {
   stage_order: number;
   name: string;
+  stage_name?: string;
   role_key: string;
   required: boolean;
 }

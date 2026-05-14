@@ -154,6 +154,10 @@ import {
 } from "../db";
 import { claims } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { calculatePhysicsDeviationScore, parsePhysicsAnalysis } from "../physics-deviation-calculator";
+import { checkClaimConsistency } from "./claimConsistencyChecker";
+import { detectContradictions } from "./contradictionDetectionEngine";
+
 
 /**
  * Parse a mileage string like "85 000 km", "85000", "85,000 km" → number (km).
@@ -306,6 +310,10 @@ export async function runPipelineV2(
   let benchmarkBundle: BenchmarkBundle | null = null;
   let consensusResult: ConsensusResult | null = null;
   let causalVerdict: CausalVerdict | null = null;
+  let costRealismResult: import('./costRealismValidator').CostRealismResult | null = null;
+  let consistencyCheckResult: import('./claimConsistencyChecker').ConsistencyCheckResult | null = null;
+  let contradictionGateResult: import('./contradictionDetectionEngine').ContradictionResult | null = null;
+  let physicsDeviationScoreValue: number | null = null;
   let stage10Data: Stage10Output | null = null;
   let claimRecord: ClaimRecord | null = null;
   let evidenceRegistryData: EvidenceRegistry | null = null;
@@ -1088,10 +1096,15 @@ export async function runPipelineV2(
   const deterministicPostTask = async () => {
     // Stage 36: Cost Realism Validation
     let validatedStage9Data = stage9Data;
+    let localCostRealismResult: import('./costRealismValidator').CostRealismResult | null = null;
+    let localConsistencyCheckResult: import('./claimConsistencyChecker').ConsistencyCheckResult | null = null;
+    let localContradictionGateResult: import('./contradictionDetectionEngine').ContradictionResult | null = null;
+    let localPhysicsDeviationScore: number | null = null;
     try {
       const componentCount = stage6Data?.damagedParts?.length ?? 0;
       const overallSeverity = stage7Data?.accidentSeverity ?? null;
       const costValidation = validateCostRealism(stage9Data, componentCount, overallSeverity);
+      localCostRealismResult = costValidation;
       if (stage9Data) {
         validatedStage9Data = mergeValidatedCost(stage9Data, costValidation) as typeof stage9Data;
       }
@@ -1168,10 +1181,68 @@ export async function runPipelineV2(
       ctx.log("Stage 42", `Cross-engine consensus failed (non-fatal): ${String(err)}`);
     }
 
+    // Stage 43: Physics Deviation Score
+    try {
+      const parsedPhysics = stage7Data ? parsePhysicsAnalysis(JSON.stringify(stage7Data)) : null;
+      const claimDataForPhysics = {
+        declaredImpactAngle: (claimRecord as any)?.accidentDetails?.impactAngle ?? undefined,
+        declaredSeverity: stage7Data?.accidentSeverity ?? undefined,
+        damagedZones: (stage6Data?.damagedParts ?? []).map((p: any) => p.location ?? p.name),
+      };
+      localPhysicsDeviationScore = calculatePhysicsDeviationScore(parsedPhysics, claimDataForPhysics as any);
+      ctx.log("Stage 43", `Physics deviation score: ${localPhysicsDeviationScore ?? 'N/A (non-quantitative mode)'}`);
+    } catch (err) {
+      ctx.log("Stage 43", `Physics deviation score failed (non-fatal): ${String(err)}`);
+    }
+    // Stage 44: Claim Consistency Check
+    try {
+      const consistencyInput = {
+        stated_speed_kmh: (claimRecord as any)?.accidentDetails?.vehicleSpeed ?? null,
+        estimated_speed_kmh: stage7Data?.estimatedSpeedKmh ?? null,
+        classified_incident_type: (claimRecord as any)?.accidentDetails?.incidentClassification?.classified_type ?? null,
+        narrative_text: (claimRecord as any)?.accidentDetails?.narrativeAnalysis?.rawText ?? null,
+        claim_form_incident_type: (claimRecord as any)?.accidentDetails?.incidentType ?? null,
+        damage_severity: stage7Data?.accidentSeverity as any ?? null,
+        structural_component_count: (stage6Data?.damagedParts ?? []).filter((p: any) => p.isStructural).length || null,
+        airbag_deployed: (claimRecord as any)?.accidentDetails?.airbagDeployed ?? null,
+        max_crush_depth_m: (stage7Data as any)?.maxCrushDepthM ?? null,
+      };
+      localConsistencyCheckResult = checkClaimConsistency(consistencyInput);
+      ctx.log("Stage 44", `Consistency check: conflicts=${localConsistencyCheckResult.critical_conflicts.length}, proceed=${localConsistencyCheckResult.proceed}`);  
+    } catch (err) {
+      ctx.log("Stage 44", `Claim consistency check failed (non-fatal): ${String(err)}`);
+    }
+    // Stage 45: Contradiction Detection Gate
+    try {
+      const contradictionInput = {
+        recommendation: ((localConsensusResult?.consensus_label as string) === 'STRONG' ? 'APPROVE' : 'REVIEW') as any,
+        overall_confidence: claimRecord ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore)) : null,
+        fraud_result: stage8Data ? {
+          fraud_risk_level: stage8Data.fraudRiskLevel,
+          fraud_risk_score: stage8Data.fraudRiskScore,
+          critical_flag_count: stage8Data.indicators?.filter((i: any) => i.severity === 'critical').length ?? 0,
+          scenario_fraud_flagged: stage8Data.fraudRiskScore > 70,
+        } : null,
+        physics_result: stage7Data ? {
+          is_plausible: (stage7Data as any).isPhysicallyPlausible ?? (stage7Data.physicsStatus === 'EXECUTED'),
+          confidence: (stage7Data as any).physicsConfidence ?? null,
+          has_critical_inconsistency: (stage7Data as any).hasCriticalInconsistency ?? false,
+        } : null,
+        consistency_status: localConsistencyCheckResult ? {
+          overall_status: (localConsistencyCheckResult.critical_conflicts.length === 0 ? 'CONSISTENT' : 'CONFLICTED') as any,
+          critical_conflict_count: localConsistencyCheckResult.critical_conflicts.filter((c: any) => c.severity === 'HIGH').length,
+          proceed: localConsistencyCheckResult.proceed,
+        } : null,
+      };
+      localContradictionGateResult = detectContradictions(contradictionInput);
+      ctx.log("Stage 45", `Contradiction gate: action=${localContradictionGateResult.action}, valid=${localContradictionGateResult.valid}, contradictions=${localContradictionGateResult.contradictions.length}`);
+    } catch (err) {
+      ctx.log("Stage 45", `Contradiction detection failed (non-fatal): ${String(err)}`);
+    }
     // Stage 9b: Turnaround Time Analysis
     const localS9b = await runTurnaroundTimeStage(ctx, claimRecord!, stage6Data!, validatedStage9Data);
 
-    return { validatedStage9Data, localCausalChain, localEvidenceBundle, localRealismBundle, localBenchmarkBundle, localConsensusResult, localS9b };
+    return { validatedStage9Data, localCausalChain, localEvidenceBundle, localRealismBundle, localBenchmarkBundle, localConsensusResult, localS9b, localCostRealismResult, localConsistencyCheckResult, localContradictionGateResult, localPhysicsDeviationScore };
   };
 
   // Fire Stage 7b re-run and all deterministic post-processing concurrently
@@ -1184,7 +1255,11 @@ export async function runPipelineV2(
   if (updatedCausalVerdict) causalVerdict = updatedCausalVerdict;
 
   // Apply results from deterministic post-processing
-  const { validatedStage9Data, localCausalChain, localEvidenceBundle, localRealismBundle, localBenchmarkBundle, localConsensusResult, localS9b } = deterministicResults;
+  const { validatedStage9Data, localCausalChain, localEvidenceBundle, localRealismBundle, localBenchmarkBundle, localConsensusResult, localS9b, localCostRealismResult, localConsistencyCheckResult, localContradictionGateResult, localPhysicsDeviationScore } = deterministicResults;
+  costRealismResult = localCostRealismResult;
+  consistencyCheckResult = localConsistencyCheckResult;
+  contradictionGateResult = localContradictionGateResult;
+  physicsDeviationScoreValue = localPhysicsDeviationScore;
   stage9Data = validatedStage9Data;
   causalChain = localCausalChain;
   evidenceBundle = localEvidenceBundle;
@@ -1841,7 +1916,12 @@ export async function runPipelineV2(
     documentVerificationResult, stage2RawOcrText,
     decisionAuthorityResult, reportReadinessResult, forensicAnalysisResult,
     (ctx as any).enrichedPhotosJson ?? null,
-    ctx.classifiedImages ?? null
+    ctx.classifiedImages ?? null,
+    coherenceResult,
+    costRealismResult,
+    consistencyCheckResult,
+    contradictionGateResult,
+    physicsDeviationScoreValue
   );
 }
 
@@ -1871,7 +1951,12 @@ function buildResult(
   reportReadiness: ReportReadinessResult | null = null,
   forensicAnalysis: Record<string, any> | null = null,
   enrichedPhotosJson: string | null = null,
-  classifiedImages: import('./imageClassifier').ClassificationResult | null = null
+  classifiedImages: import('./imageClassifier').ClassificationResult | null = null,
+  coherenceResult: import('./damagePhysicsCoherence').DamagePhysicsCoherenceResult | null = null,
+  costRealismResult: import('./costRealismValidator').CostRealismResult | null = null,
+  consistencyCheckResult: import('./claimConsistencyChecker').ConsistencyCheckResult | null = null,
+  contradictionGateResult: import('./contradictionDetectionEngine').ContradictionResult | null = null,
+  physicsDeviationScoreValue: number | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
 
@@ -1965,6 +2050,12 @@ function buildResult(
     // Allows auditors to distinguish clean extraction from system-corrected output
     systemInterventionCount,
     interventionSummary,
+    // Phase 3: Missing analytics fields — now computed and returned
+    coherenceResult,
+    costRealismResult,
+    consistencyCheckResult,
+    contradictionGateResult,
+    physicsDeviationScoreValue,
   };
 }
 
