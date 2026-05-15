@@ -456,7 +456,7 @@ export async function runCostOptimisationStage(
       const key = ((li.component ?? li.description ?? '') as string).toLowerCase().trim();
       if (!key) continue;
       if (!lineItemMap.has(key)) {
-        const lineTotal = typeof li.line_total === 'number' ? li.line_total : 0;
+        const lineTotal = (typeof li.line_total === 'number' && li.line_total > 0) ? li.line_total : (typeof li.unit_cost === 'number' && li.unit_cost > 0 ? li.unit_cost * (li.quantity ?? 1) : 0);
         lineItemMap.set(key, {
           line_total: lineTotal,
           quoteCurrency: li.quoteCurrency,
@@ -808,7 +808,8 @@ export async function runCostOptimisationStage(
       const items: any[] = (eq as any).line_items ?? [];
       return sum + items.filter((li: any) => typeof li.line_total === 'number' && li.line_total > 0).length;
     }, 0);
-    const hasQuotesButNoPrices = allExtractedQuotes.length > 0 && totalPricedInExtracted === 0;
+    // Fire vision guard when: (a) quotes exist but all prices are zero, OR (b) Stage 3 returned no quotes at all
+    const hasQuotesButNoPrices = (allExtractedQuotes.length > 0 && totalPricedInExtracted === 0) || allExtractedQuotes.length === 0;
     const hasPdfForVision = !!ctx.pdfUrl;
     if (hasQuotesButNoPrices && hasPdfForVision) {
       ctx.log("Stage 9", `Vision re-extraction guard triggered: ${allExtractedQuotes.length} quote(s) with 0 priced items. Attempting PDF vision extraction from ${ctx.pdfUrl}`);
@@ -829,22 +830,42 @@ export async function runCostOptimisationStage(
         ctx.log("Stage 9", `Vision re-extraction result: ${visionResult.line_items?.length ?? 0} items, ${visionPricedCount} priced, score=${visionResult.line_item_completeness_score ?? 'N/A'}`);
         if (visionPricedCount > 0) {
           // Merge vision results back: replace the first quote's line_items with vision results
-          // Keep the original quote metadata (panel_beater, total_cost, currency) but use vision prices
-          const mergedQuotes = allExtractedQuotes.map((eq: any, qi: number) => {
-            if (qi === 0) {
-              return {
-                ...eq,
-                line_items: visionResult.line_items,
-                components: visionResult.components?.length ? visionResult.components : eq.components,
-                line_item_completeness_score: visionResult.line_item_completeness_score,
-                line_items_sum: visionResult.line_items_sum,
-                line_items_sum_discrepancy_pct: visionResult.line_items_sum_discrepancy_pct,
-                rejected_line_items: visionResult.rejected_line_items ?? [],
-                _vision_reextracted: true,
-              };
-            }
-            return eq;
-          });
+          // Keep the original quote metadata (panel_beater, total_cost, currency) but use vision prices.
+          // If allExtractedQuotes is empty (Stage 3 returned nothing), create a synthetic quote entry.
+          let mergedQuotes: any[];
+          if (allExtractedQuotes.length === 0) {
+            // Stage 3 returned no quotes — create a synthetic quote from vision result
+            mergedQuotes = [{
+              panel_beater: visionResult.panel_beater ?? null,
+              total_cost: visionResult.total_cost ?? null,
+              currency: visionResult.currency ?? 'USD',
+              line_items: visionResult.line_items,
+              components: visionResult.components ?? [],
+              line_item_completeness_score: visionResult.line_item_completeness_score,
+              line_items_sum: visionResult.line_items_sum,
+              line_items_sum_discrepancy_pct: visionResult.line_items_sum_discrepancy_pct,
+              rejected_line_items: visionResult.rejected_line_items ?? [],
+              _vision_reextracted: true,
+              _synthetic_from_vision: true,
+            }];
+            ctx.log("Stage 9", `Vision re-extraction: created synthetic quote[0] (Stage 3 had no quotes). ${visionPricedCount} priced items.`);
+          } else {
+            mergedQuotes = allExtractedQuotes.map((eq: any, qi: number) => {
+              if (qi === 0) {
+                return {
+                  ...eq,
+                  line_items: visionResult.line_items,
+                  components: visionResult.components?.length ? visionResult.components : eq.components,
+                  line_item_completeness_score: visionResult.line_item_completeness_score,
+                  line_items_sum: visionResult.line_items_sum,
+                  line_items_sum_discrepancy_pct: visionResult.line_items_sum_discrepancy_pct,
+                  rejected_line_items: visionResult.rejected_line_items ?? [],
+                  _vision_reextracted: true,
+                };
+              }
+              return eq;
+            });
+          }
           allExtractedQuotes = mergedQuotes;
           ctx.log("Stage 9", `Vision re-extraction: merged ${visionPricedCount} priced items into quote[0]. Proceeding with updated line items.`);
           // DEBUG: log first 3 vision line items to verify line_total values
@@ -881,7 +902,7 @@ export async function runCostOptimisationStage(
       const lineItems = (eq as any).line_items ?? [];
       for (const li of lineItems) {
         const unitPrice = typeof li.unit_cost === 'number' ? li.unit_cost : 0;
-        const lineTotal = typeof li.line_total === 'number' ? li.line_total
+        const lineTotal = (typeof li.line_total === 'number' && li.line_total > 0) ? li.line_total
           : (unitPrice > 0 ? unitPrice * (typeof li.quantity === 'number' ? li.quantity : 1) : 0);
         // Determine category: non-part cost rows get their own category
         const isNonPart = li.is_non_part_cost === true;
@@ -906,7 +927,7 @@ export async function runCostOptimisationStage(
           isReplacement: li.action === 'replace' || (li.action !== 'repair' && !isNonPart),
           component: li.component ?? null,
           unit_cost: typeof li.unit_cost === 'number' ? li.unit_cost : null,
-          line_total: typeof li.line_total === 'number' ? li.line_total : null,
+          line_total: lineTotal > 0 ? lineTotal : (typeof li.line_total === 'number' && li.line_total > 0 ? li.line_total : null),
           part_origin: li.part_origin ?? null,
           source_quote_index: qi,
           is_non_part_cost: isNonPart || undefined,

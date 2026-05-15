@@ -1586,7 +1586,8 @@ export async function triggerAiAssessment(claimId: number) {
         ? li.category : 'parts') as any,
       quantity: Number(li.quantity) || 1,
       unitPrice: Number(li.unit_cost ?? li.unitPrice) || 0,
-      lineTotal: Number(li.line_total ?? li.lineTotal) || 0,
+      // Prefer computed lineTotal (camelCase) over raw line_total (snake_case) to avoid zero-overwrite
+      lineTotal: Number(li.lineTotal ?? li.line_total) || 0,
       isRepair: Boolean(li.isRepair),
       isReplacement: li.isReplacement !== false,
       notes: li.notes ?? null,
