@@ -1,0 +1,253 @@
+{
+  "query": "SELECT id, description, unit_price, line_total, quantity, category, created_at \nFROM quote_line_items \nWHERE quote_id = 4740001 \nORDER BY id DESC \nLIMIT 30;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, description, unit_price, line_total, quantity, category, created_at \nFROM quote_line_items \nWHERE quote_id = 4740001 \nORDER BY id DESC \nLIMIT 30;",
+  "rows": [
+    {
+      "id": "930027",
+      "description": "Rear Left Tyre",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930026",
+      "description": "Sundries",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930025",
+      "description": "VOJ",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930024",
+      "description": "Sump Cover",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930023",
+      "description": "Engine Bottom Cover",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930022",
+      "description": "Bumper Frame",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930021",
+      "description": "Rad Support",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930020",
+      "description": "Right Front Fender",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930019",
+      "description": "Grille Air Guides",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930018",
+      "description": "Radiator",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930017",
+      "description": "Aircon Rad",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930016",
+      "description": "Cross Member Bracket",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930015",
+      "description": "Camber Bolts",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930014",
+      "description": "Cab Mountings",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930013",
+      "description": "R/F Lower C/Arm",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930012",
+      "description": "L/F Lower C/Arm",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930011",
+      "description": "Air Bag Module",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930010",
+      "description": "Knee Airbag",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930009",
+      "description": "Passenger Airbag",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930008",
+      "description": "Driver Airbag",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930007",
+      "description": "R/F Seat Belt+ Stalk",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930006",
+      "description": "L/F Seat Belt+ Stalk",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930005",
+      "description": "R/S Headlamp",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930004",
+      "description": "L/S Headlamp",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930003",
+      "description": "Front Windscreen",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930002",
+      "description": "R/F Slide",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    },
+    {
+      "id": "930001",
+      "description": "Front Bumper",
+      "unit_price": "0.00",
+      "line_total": "0.00",
+      "quantity": "1.00",
+      "category": "parts",
+      "created_at": "2026-05-15 06:06:10"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tdescription\tunit_price\tline_total\tquantity\tcategory\tcreated_at\n930027\tRear Left Tyre\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930026\tSundries\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930025\tVOJ\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930024\tSump Cover\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930023\tEngine Bottom Cover\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930022\tBumper Frame\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930021\tRad Support\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930020\tRight Front Fender\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930019\tGrille Air Guides\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930018\tRadiator\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930017\tAircon Rad\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930016\tCross Member Bracket\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930015\tCamber Bolts\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930014\tCab Mountings\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930013\tR/F Lower C/Arm\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930012\tL/F Lower C/Arm\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930011\tAir Bag Module\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930010\tKnee Airbag\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930009\tPassenger Airbag\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930008\tDriver Airbag\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930007\tR/F Seat Belt+ Stalk\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930006\tL/F Seat Belt+ Stalk\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930005\tR/S Headlamp\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930004\tL/S Headlamp\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930003\tFront Windscreen\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930002\tR/F Slide\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n930001\tFront Bumper\t0.00\t0.00\t1.00\tparts\t2026-05-15 06:06:10\n",
+  "stderr": "",
+  "execution_time_ms": 634
+}

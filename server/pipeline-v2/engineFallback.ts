@@ -480,6 +480,10 @@ export function ensureCostContract(
     marketValueUsd: partial.marketValueUsd ?? null,    // Vehicle market value for total-loss threshold
     aiEstimateSource: partial.aiEstimateSource,
     aiEstimateNote: partial.aiEstimateNote,
+    // Line item pricing — MUST be preserved so db.ts can persist extracted quote line items
+    documentedLineItems: partial.documentedLineItems,
+    quoteLineItemGapAdvisory: partial.quoteLineItemGapAdvisory,
+    overallLineItemCompletenessScore: partial.overallLineItemCompletenessScore,
   };
 
   return {
