@@ -12248,3 +12248,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix stage-9-cost: improve fuzzy match for partsReconciliation (handle SA abbreviations)
 - [x] Add quote_line_item_gap_advisory to Stage9Output for adjuster review
 - [x] Write vitest tests for quote line item completeness (23/23 passing)
+
+## Quote Line Item Persistence & UI Display (Phase 2 — Critical)
+- [ ] Fix saveAssessment: make quote persistence awaited (not fire-and-forget Promise.all.then)
+- [ ] Add persistence confirmation log after DB write: "Quote[n] persisted: N priced items, total=X"
+- [ ] Fix MultiQuoteComparisonPanel: read persisted line items from DB via tRPC query (not just costIntelligenceJson)
+- [ ] Add line item price table to cost report (component | qty | unit price | line total | category)
+- [ ] Add sum-check warning banner when line_items_sum deviates >10% from quoted_amount
+- [ ] Verify end-to-end: ISUZU MUX re-run shows priced rows in DB and in UI

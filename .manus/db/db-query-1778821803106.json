@@ -1,0 +1,28 @@
+{
+  "query": "\nSELECT \n  pbq.id,\n  pbq.quoted_amount,\n  pbq.currency,\n  COUNT(qli.id) as line_item_count,\n  SUM(CASE WHEN qli.line_total > 0 THEN 1 ELSE 0 END) as priced_items,\n  SUM(CASE WHEN qli.line_total = 0 OR qli.line_total IS NULL THEN 1 ELSE 0 END) as zero_priced_items,\n  SUM(qli.line_total) as total_from_line_items\nFROM panel_beater_quotes pbq\nLEFT JOIN quote_line_items qli ON qli.quote_id = pbq.id\nWHERE pbq.claim_id = 6240003\nGROUP BY pbq.id, pbq.quoted_amount, pbq.currency\nORDER BY pbq.id DESC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  pbq.id,\n  pbq.quoted_amount,\n  pbq.currency,\n  COUNT(qli.id) as line_item_count,\n  SUM(CASE WHEN qli.line_total > 0 THEN 1 ELSE 0 END) as priced_items,\n  SUM(CASE WHEN qli.line_total = 0 OR qli.line_total IS NULL THEN 1 ELSE 0 END) as zero_priced_items,\n  SUM(qli.line_total) as total_from_line_items\nFROM panel_beater_quotes pbq\nLEFT JOIN quote_line_items qli ON qli.quote_id = pbq.id\nWHERE pbq.claim_id = 6240003\nGROUP BY pbq.id, pbq.quoted_amount, pbq.currency\nORDER BY pbq.id DESC;\n",
+  "rows": [
+    {
+      "id": "4650001",
+      "quoted_amount": "2555300",
+      "currency": "USD",
+      "line_item_count": "26",
+      "priced_items": "0",
+      "zero_priced_items": "26",
+      "total_from_line_items": "0.00"
+    },
+    {
+      "id": "4620001",
+      "quoted_amount": "2478231",
+      "currency": "USD",
+      "line_item_count": "0",
+      "priced_items": "0",
+      "zero_priced_items": "1",
+      "total_from_line_items": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoted_amount\tcurrency\tline_item_count\tpriced_items\tzero_priced_items\ttotal_from_line_items\n4650001\t2555300\tUSD\t26\t0\t26\t0.00\n4620001\t2478231\tUSD\t0\t0\t1\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 583
+}

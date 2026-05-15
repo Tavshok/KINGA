@@ -435,18 +435,31 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
   }
 
   // Normalise components
+  // CRITICAL: Non-vehicle-part cost categories (sundries, paint, labour, VAT, etc.)
+  // AND valid SA vehicle parts not yet in the dictionary must NEVER be silently dropped.
+  // The guard now:
+  //   1. Passes non-part categories through unconditionally (sundries, paint, labour, etc.)
+  //   2. Resolves known vehicle parts via the dictionary
+  //   3. Keeps unresolvable names with a warning instead of dropping them
   const components: string[] = Array.isArray(raw.components)
     ? (raw.components as string[])
         .map(c => {
-          const normalised = normaliseComponentName(String(c));
+          const rawC = String(c);
+          const normalised = normaliseComponentName(rawC);
+          // Non-part cost categories always pass through
+          if (isNonPartLineItem(normalised) || isNonPartLineItem(rawC)) {
+            return rawC.trim();
+          }
           const resolved = resolveComponent(normalised);
           if (!resolved) {
-            console.warn(`⚠️  Hallucination guard (quote components): rejected "${normalised}" (raw: "${c}")`);
-            return null;
+            // Log for monitoring but KEEP the raw name — dropping it silently
+            // causes cost gaps. The adjuster can review unresolved items.
+            console.warn(`⚠️  Hallucination guard (quote components): could not resolve "${normalised}" (raw: "${rawC}") — keeping raw name`);
+            return rawC.trim();
           }
           return resolved.name;
         })
-        .filter((c): c is string => c !== null)
+        .filter((c): c is string => c !== null && c.length > 0)
     : [];
 
   // Extract and validate line_items
@@ -648,12 +661,43 @@ function normaliseComponentName(raw: string): string {
     [/\bW\/screen\b/i, "windscreen"],
     [/\bW\/S\b/i, "windscreen"],
     [/\bA\/bag\b/i, "airbag"],
+    // Side direction shorthands (must come before R/H, L/H to avoid double-replace)
     [/\bR\/H\b/i, "RHS"],
     [/\bL\/H\b/i, "LHS"],
     [/\bR\/F\b/i, "right front"],
     [/\bL\/F\b/i, "left front"],
     [/\bR\/R\b/i, "right rear"],
     [/\bL\/R\b/i, "left rear"],
+    // SA headlamp terminology → resolveComponent alias
+    [/\bLHS\s+headlamp\b/i, "left headlamp"],
+    [/\bRHS\s+headlamp\b/i, "right headlamp"],
+    [/\bLH\s+headlamp\b/i, "left headlamp"],
+    [/\bRH\s+headlamp\b/i, "right headlamp"],
+    [/\bL\/S\s+headlamp\b/i, "left headlamp"],
+    [/\bR\/S\s+headlamp\b/i, "right headlamp"],
+    // Sliding door (ISUZU MUX, Toyota HiAce, etc.)
+    [/\bLHS\s+slide\b/i, "lhs sliding door"],
+    [/\bRHS\s+slide\b/i, "rhs sliding door"],
+    [/\bL\/S\s+slide\b/i, "lhs sliding door"],
+    [/\bR\/S\s+slide\b/i, "rhs sliding door"],
+    // Lower control arm (SA suspension terminology)
+    [/\bLHS\s+lower\s+control\s+arm\b/i, "LH lower arm"],
+    [/\bRHS\s+lower\s+control\s+arm\b/i, "RH lower arm"],
+    [/\blower\s+control\s+arm\b/i, "front control arm"],
+    // O/S/C = On-Site/Calibration (A/C service)
+    [/\bO\/S\/C\s+regas\b/i, "aircon regas"],
+    [/\bO\/S\/C\s+reprogram\b/i, "aircon reprogram"],
+    [/\bOSC\s+regas\b/i, "aircon regas"],
+    [/\bOSC\s+reprogram\b/i, "aircon reprogram"],
+    // Airbag shorthand
+    [/\bdriver\s+a\/bag\b/i, "driver airbag"],
+    [/\bpassenger\s+a\/bag\b/i, "passenger airbag"],
+    [/\bknee\s+a\/bag\b/i, "knee airbag"],
+    // Seat belt + stalk (common SA quote format)
+    [/\bseat\s+belt\s*\+\s*stalk\b/i, "seat belt"],
+    [/\bseat\s+belt\+\s*stalk\b/i, "seat belt"],
+    // Rad support
+    [/\bRad\s+support\b/i, "radiator support panel"],
     [/\bRad\b/i, "radiator"],
     [/\bGrille\b/i, "grille"],
     [/\(upper\)/i, ""],

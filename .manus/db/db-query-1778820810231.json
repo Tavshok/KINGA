@@ -1,0 +1,28 @@
+{
+  "query": "\nSELECT \n  pbq.id AS quote_id,\n  pbq.quoted_amount,\n  pbq.currency_code,\n  COUNT(qli.id) AS line_item_count,\n  SUM(CASE WHEN qli.line_total > 0 THEN 1 ELSE 0 END) AS priced_items,\n  SUM(CASE WHEN qli.line_total = 0 OR qli.line_total IS NULL THEN 1 ELSE 0 END) AS zero_priced_items,\n  GROUP_CONCAT(CONCAT(qli.description, '=', qli.line_total, ' ', qli.currency) ORDER BY qli.id SEPARATOR ' | ') AS items\nFROM panel_beater_quotes pbq\nLEFT JOIN quote_line_items qli ON qli.quote_id = pbq.id\nWHERE pbq.claim_id = 6240003\nGROUP BY pbq.id\nORDER BY pbq.id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  pbq.id AS quote_id,\n  pbq.quoted_amount,\n  pbq.currency_code,\n  COUNT(qli.id) AS line_item_count,\n  SUM(CASE WHEN qli.line_total > 0 THEN 1 ELSE 0 END) AS priced_items,\n  SUM(CASE WHEN qli.line_total = 0 OR qli.line_total IS NULL THEN 1 ELSE 0 END) AS zero_priced_items,\n  GROUP_CONCAT(CONCAT(qli.description, '=', qli.line_total, ' ', qli.currency) ORDER BY qli.id SEPARATOR ' | ') AS items\nFROM panel_beater_quotes pbq\nLEFT JOIN quote_line_items qli ON qli.quote_id = pbq.id\nWHERE pbq.claim_id = 6240003\nGROUP BY pbq.id\nORDER BY pbq.id;\n",
+  "rows": [
+    {
+      "quote_id": "4620001",
+      "quoted_amount": "2478231",
+      "currency_code": "USD",
+      "line_item_count": "0",
+      "priced_items": "0",
+      "zero_priced_items": "1",
+      "items": "NULL"
+    },
+    {
+      "quote_id": "4650001",
+      "quoted_amount": "2555300",
+      "currency_code": "USD",
+      "line_item_count": "26",
+      "priced_items": "0",
+      "zero_priced_items": "26",
+      "items": "Front Bumper=0.00 USD | R/F Slide=0.00 USD | Front Windscreen=0.00 USD | L/S Headlamp=0.00 USD | R/S Headlamp=0.00 USD | L/F Seat Belt+ Stalk=0.00 USD | R/F Seat Belt+ Stalk=0.00 USD | Driver Airbag=0.00 USD | Passenger Airbag=0.00 USD | Knee Airbag=0.00 USD | Air Bag Module=0.00 USD | L/F Lower C/Arm=0.00 USD | R/F Lower C/Arm=0.00 USD | Cab Mountings=0.00 USD | Camber Bolts=0.00 USD | Cross Member Bracket=0.00 USD | Aircon Rad=0.00 USD | Radiator=0.00 USD | Grille Air Guides=0.00 USD | Right Front Fender=0.00 USD | Rad Support=0.00 USD | Bumper Frame=0.00 USD | Engine Bottom Cover=0.00 USD | Sump Cover=0.00 USD | VOJ=0.00 USD | Rear Left Tyre=0.00 USD"
+    }
+  ],
+  "messages": [],
+  "stdout": "quote_id\tquoted_amount\tcurrency_code\tline_item_count\tpriced_items\tzero_priced_items\titems\n4620001\t2478231\tUSD\t0\t0\t1\tNULL\n4650001\t2555300\tUSD\t26\t0\t26\tFront Bumper=0.00 USD | R/F Slide=0.00 USD | Front Windscreen=0.00 USD | L/S Headlamp=0.00 USD | R/S Headlamp=0.00 USD | L/F Seat Belt+ Stalk=0.00 USD | R/F Seat Belt+ Stalk=0.00 USD | Driver Airbag=0.00 USD | Passenger Airbag=0.00 USD | Knee Airbag=0.00 USD | Air Bag Module=0.00 USD | L/F Lower C/Arm=0.00 USD | R/F Lower C/Arm=0.00 USD | Cab Mountings=0.00 USD | Camber Bolts=0.00 USD | Cross Member Bracket=0.00 USD | Aircon Rad=0.00 USD | Radiator=0.00 USD | Grille Air Guides=0.00 USD | Right Front Fender=0.00 USD | Rad Support=0.00 USD | Bumper Frame=0.00 USD | Engine Bottom Cover=0.00 USD | Sump Cover=0.00 USD | VOJ=0.00 USD | Rear Left Tyre=0.00 USD\n",
+  "stderr": "",
+  "execution_time_ms": 577
+}

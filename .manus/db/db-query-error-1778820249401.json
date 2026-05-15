@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT GROUP_CONCAT(Field ORDER BY Field SEPARATOR ', ') AS all_columns \nFROM information_schema.COLUMNS \nWHERE TABLE_NAME = 'panel_beater_quotes' AND TABLE_SCHEMA = DATABASE();\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT GROUP_CONCAT(Field ORDER BY Field SEPARATOR ', ') AS all_columns \nFROM information_schema.COLUMNS \nWHERE TABLE_NAME = 'panel_beater_quotes' AND TABLE_SCHEMA = DATABASE();\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'field' in 'where clause'"
+  ]
+}

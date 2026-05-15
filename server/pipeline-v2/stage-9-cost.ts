@@ -797,7 +797,68 @@ export async function runCostOptimisationStage(
     // Non-vehicle-part cost rows (paint, sundries, labour, VAT) are included
     // because every cost contributes to the final claim value.
     // ─────────────────────────────────────────────────────────────────────────
-    const allExtractedQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+    // ── Stage 9 Vision Re-Extraction Guard ──────────────────────────────────
+    // When Stage 2 (OCR) or Stage 3 times out, extracted_quotes may have line
+    // items with all-zero prices. In that case, Stage 9 triggers a direct
+    // vision extraction using the primary PDF URL to recover the actual prices.
+    // This guard runs BEFORE documentedLineItems is built so the recovered
+    // prices flow through the full cost optimisation pipeline.
+    let allExtractedQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+    const totalPricedInExtracted = allExtractedQuotes.reduce((sum: number, eq: any) => {
+      const items: any[] = (eq as any).line_items ?? [];
+      return sum + items.filter((li: any) => typeof li.line_total === 'number' && li.line_total > 0).length;
+    }, 0);
+    const hasQuotesButNoPrices = allExtractedQuotes.length > 0 && totalPricedInExtracted === 0;
+    const hasPdfForVision = !!ctx.pdfUrl;
+    if (hasQuotesButNoPrices && hasPdfForVision) {
+      ctx.log("Stage 9", `Vision re-extraction guard triggered: ${allExtractedQuotes.length} quote(s) with 0 priced items. Attempting PDF vision extraction from ${ctx.pdfUrl}`);
+      try {
+        const { extractQuoteFromPdfVision } = await import('./quoteExtractionEngine');
+        const firstQuote = allExtractedQuotes[0] as any;
+        const panelBeater = firstQuote?.panel_beater ?? null;
+        const totalCost = firstQuote?.total_cost ?? null;
+        const visionResult = await extractQuoteFromPdfVision(
+          ctx.pdfUrl!,
+          panelBeater,
+          totalCost,
+          ctx.tenantCountry ?? null
+        );
+        const visionPricedCount = (visionResult.line_items ?? []).filter(
+          (li: any) => typeof li.line_total === 'number' && li.line_total > 0
+        ).length;
+        ctx.log("Stage 9", `Vision re-extraction result: ${visionResult.line_items?.length ?? 0} items, ${visionPricedCount} priced, score=${visionResult.line_item_completeness_score ?? 'N/A'}`);
+        if (visionPricedCount > 0) {
+          // Merge vision results back: replace the first quote's line_items with vision results
+          // Keep the original quote metadata (panel_beater, total_cost, currency) but use vision prices
+          const mergedQuotes = allExtractedQuotes.map((eq: any, qi: number) => {
+            if (qi === 0) {
+              return {
+                ...eq,
+                line_items: visionResult.line_items,
+                components: visionResult.components?.length ? visionResult.components : eq.components,
+                line_item_completeness_score: visionResult.line_item_completeness_score,
+                line_items_sum: visionResult.line_items_sum,
+                line_items_sum_discrepancy_pct: visionResult.line_items_sum_discrepancy_pct,
+                rejected_line_items: visionResult.rejected_line_items ?? [],
+                _vision_reextracted: true,
+              };
+            }
+            return eq;
+          });
+          allExtractedQuotes = mergedQuotes;
+          ctx.log("Stage 9", `Vision re-extraction: merged ${visionPricedCount} priced items into quote[0]. Proceeding with updated line items.`);
+          // DEBUG: log first 3 vision line items to verify line_total values
+          const debugItems = (visionResult.line_items ?? []).slice(0, 3);
+          for (const dbgLi of debugItems) {
+            ctx.log("Stage 9", `  DEBUG vision item: component="${dbgLi.component}" unit_cost=${dbgLi.unit_cost} line_total=${dbgLi.line_total} qty=${dbgLi.quantity}`);
+          }
+        } else {
+          ctx.log("Stage 9", `Vision re-extraction returned 0 priced items — keeping original (zero-priced) line items. Manual review required.`);
+        }
+      } catch (visionErr: any) {
+        ctx.log("Stage 9", `Vision re-extraction failed (non-fatal): ${visionErr?.message ?? String(visionErr)}`);
+      }
+    }
     const documentedLineItems: Array<{
       description: string;
       partNumber: string | null;

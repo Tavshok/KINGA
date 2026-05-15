@@ -742,6 +742,10 @@ async function runInputRecovery(
   let extracted_quotes: import('./quoteExtractionEngine').ExtractedQuote[] | undefined;
   try {
     const { extractMultipleQuotes, extractQuoteFromPdfVision } = await import('./quoteExtractionEngine');
+    // Collect PDF documents once — used both in the text-based path and the
+    // OCR-failure vision-direct path below.
+    const allPdfDocs = (stage1.documents ?? []).filter(d => d.mimeType === 'application/pdf');
+
     if (allText.trim().length > 50) {
       // Pass tenantCountry so the engine can apply the correct default currency
       // when the document does not explicitly state a currency code.
@@ -752,7 +756,6 @@ async function runInputRecovery(
       // We try ALL PDF documents on the claim — a claim form may contain multiple
       // separate quote documents, and the quote with missing prices may be in a
       // different document than the first one.
-      const allPdfDocs = (stage1.documents ?? []).filter(d => d.mimeType === 'application/pdf');
       if (allPdfDocs.length > 0 && extracted_quotes) {
         const repaired: typeof extracted_quotes = [];
         for (const q of extracted_quotes) {
@@ -798,6 +801,41 @@ async function runInputRecovery(
       } else if (!hasQuote && !recovered_quote && !llmFoundQuote) {
         flags.push('quote_not_mapped');
       }
+    } else if (allPdfDocs.length > 0) {
+      // OCR-FAILURE VISION-DIRECT PATH
+      // Stage 2 OCR timed out or returned no text (common with large scanned PDFs).
+      // We still have the PDF URL — send it directly to the vision LLM to extract
+      // the quote line items. This is the same vision fallback used above, but
+      // triggered proactively when there is no text at all.
+      console.log(`[Stage3] OCR-failure vision-direct: allText empty, trying ${allPdfDocs.length} PDF document(s) for quote extraction`);
+      // We need a total_cost hint from the claim record (already extracted by Stage 3's
+      // PDF extraction path above). Use the first non-null quoteTotalCents from
+      // perDocumentExtractions.
+      const hintTotalCents = perDocumentExtractions
+        .map(e => e.extracted?.quoteTotalCents)
+        .find(v => v != null && v > 0) ?? null;
+      const hintTotal = hintTotalCents ? hintTotalCents / 100 : null;
+      const hintPanelBeater = perDocumentExtractions
+        .map(e => e.extracted?.panelBeater)
+        .find(v => v != null) ?? null;
+      for (const pdfDoc of allPdfDocs) {
+        try {
+          console.log(`[Stage3] OCR-failure vision-direct: trying ${pdfDoc.fileName} (total hint: ${hintTotal})`);
+          const visionResult = await extractQuoteFromPdfVision(pdfDoc.sourceUrl, hintPanelBeater, hintTotal, tenantCountry);
+          const visionHasPrices = visionResult.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
+          const visionHasTotal = visionResult.total_cost !== null && visionResult.total_cost > 0;
+          if (visionHasPrices || visionHasTotal) {
+            console.log(`[Stage3] OCR-failure vision-direct succeeded on ${pdfDoc.fileName}: ${visionResult.line_items.length} line items, total=${visionResult.total_cost}`);
+            extracted_quotes = [visionResult];
+            break;
+          } else {
+            console.log(`[Stage3] OCR-failure vision-direct on ${pdfDoc.fileName} returned no prices`);
+          }
+        } catch (visionErr) {
+          console.error(`[Stage3] OCR-failure vision-direct failed on ${pdfDoc.fileName}:`, visionErr);
+        }
+      }
+      if (!extracted_quotes && !hasQuote && !recovered_quote) flags.push('quote_not_mapped');
     } else {
       if (!hasQuote && !recovered_quote) flags.push('quote_not_mapped');
     }

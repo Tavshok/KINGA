@@ -1689,34 +1689,51 @@ export async function triggerAiAssessment(claimId: number) {
           return qid;
         })
       );
-      Promise.all(persistAll).then(async (qids) => {
+      // ── AWAITED persistence: ensures line items are written before the pipeline exits ──
+      try {
+        const qids = await Promise.all(persistAll);
         const firstQid = qids.find(id => id != null) ?? null;
-        if (!firstQid) return;
-        // Patch costIntelligenceJson so the Quote Coverage badge shows correctly
-        try {
-          const db2 = await getDb();
-          if (db2) {
-            const latestRow = await db2.select({ id: aiAssessments.id, costIntelligenceJson: aiAssessments.costIntelligenceJson })
-              .from(aiAssessments)
-              .where(eq(aiAssessments.claimId, claimId))
-              .orderBy(desc(aiAssessments.createdAt))
-              .limit(1);
-            if (latestRow[0]) {
-              const ci = (() => { try { return JSON.parse(latestRow[0].costIntelligenceJson ?? '{}'); } catch { return {}; } })();
-              if (!ci.aiEstimateSource || ci.aiEstimateSource === 'insufficient_data') {
-                ci.aiEstimateSource = 'documented_quote';
-                ci.quoteCount = Math.max((ci.quoteCount ?? 0), quotesToPersist.length);
-                await db2.update(aiAssessments)
-                  .set({ costIntelligenceJson: JSON.stringify(ci) })
-                  .where(eq(aiAssessments.id, latestRow[0].id));
-                console.log(`[KINGA Assessment] Claim ${claimId}: Patched costIntelligenceJson → documented_quote (${quotesToPersist.length} quotes)`);
+        // Log confirmation for every persisted quote
+        for (let qi = 0; qi < quotesToPersist.length; qi++) {
+          const qp = quotesToPersist[qi];
+          const qid = qids[qi];
+          const pricedCount = qp.lineItems.filter((li: any) => (li.lineTotal ?? 0) > 0).length;
+          const totalFromItems = qp.lineItems.reduce((s: number, li: any) => s + (li.lineTotal ?? 0), 0);
+          if (qid) {
+            console.log(`[KINGA Assessment] Claim ${claimId}: OK Quote[${qi}] "${qp.repairerName}" persisted id=${qid}, ${pricedCount}/${qp.lineItems.length} priced items, total=${totalFromItems.toFixed(2)} ${qp.currency}`);
+          } else {
+            console.warn(`[KINGA Assessment] Claim ${claimId}: FAIL Quote[${qi}] "${qp.repairerName}" persistence FAILED - check persistExtractedQuote logs`);
+          }
+        }
+        if (firstQid) {
+          // Patch costIntelligenceJson so the Quote Coverage badge shows correctly
+          try {
+            const db2 = await getDb();
+            if (db2) {
+              const latestRow = await db2.select({ id: aiAssessments.id, costIntelligenceJson: aiAssessments.costIntelligenceJson })
+                .from(aiAssessments)
+                .where(eq(aiAssessments.claimId, claimId))
+                .orderBy(desc(aiAssessments.createdAt))
+                .limit(1);
+              if (latestRow[0]) {
+                const ci = (() => { try { return JSON.parse(latestRow[0].costIntelligenceJson ?? '{}'); } catch { return {}; } })();
+                if (!ci.aiEstimateSource || ci.aiEstimateSource === 'insufficient_data') {
+                  ci.aiEstimateSource = 'documented_quote';
+                  ci.quoteCount = Math.max((ci.quoteCount ?? 0), quotesToPersist.length);
+                  await db2.update(aiAssessments)
+                    .set({ costIntelligenceJson: JSON.stringify(ci) })
+                    .where(eq(aiAssessments.id, latestRow[0].id));
+                  console.log(`[KINGA Assessment] Claim ${claimId}: Patched costIntelligenceJson documented_quote (${quotesToPersist.length} quotes)`);
+                }
               }
             }
+          } catch (patchErr) {
+            console.warn(`[KINGA Assessment] Claim ${claimId}: costIntelligenceJson patch failed (non-fatal):`, (patchErr as any)?.message);
           }
-        } catch (patchErr) {
-          console.warn(`[KINGA Assessment] Claim ${claimId}: costIntelligenceJson patch failed (non-fatal):`, (patchErr as any)?.message);
         }
-      }).catch(e => console.warn(`[KINGA Assessment] Claim ${claimId}: Quote persistence failed (non-fatal):`, e?.message));
+      } catch (e: any) {
+        console.warn(`[KINGA Assessment] Claim ${claimId}: Quote persistence failed (non-fatal):`, e?.message);
+      }
     }
   }
 

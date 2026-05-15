@@ -3839,8 +3839,8 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
                 <td className="px-3 py-2" style={{ color: isRepairInstruction ? "#94a3b8" : "#0f172a", fontStyle: isRepairInstruction ? "italic" : "normal" }}>{displayDesc}</td>
                 <td className="px-3 py-2" style={{ color: "#64748b" }}>{li.category ? toTitleCase(li.category) : '—'}</td>
                 <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a" }}>{li.quantity ?? 1}</td>
-                <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a" }}>{fmtMoney((li.unitPrice ?? 0) / 100)}</td>
-                <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a" }}>{fmtMoney((li.lineTotal ?? li.unitPrice ?? 0) / 100)}</td>
+                <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a" }}>{fmtMoney(Number(li.unitPrice ?? 0))}</td>
+                <td className="px-3 py-2 tabular-nums" style={{ color: "#0f172a" }}>{fmtMoney(Number(li.lineTotal ?? li.unitPrice ?? 0))}</td>
                 <td className="px-3 py-2" style={{ color: li.aiReview && li.aiReview !== 'Consistent' ? "var(--muted-foreground)" : "var(--muted-foreground)", fontStyle: li.aiReview ? 'normal' : 'italic' }}>
                   {li.aiReview ?? '—'}
                 </td>
@@ -3852,7 +3852,7 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
             <tr style={{ borderTop: "2px solid #cbd5e1", background: "#ffffff" }}>
               <td colSpan={4} className="px-3 py-2 font-bold" style={{ color: "#0f172a" }}>Total</td>
               <td className="px-3 py-2 tabular-nums font-bold" style={{ color: "#0f172a" }}>
-                {fmtMoney(lineItems.reduce((s: number, li: any) => s + ((li.lineTotal ?? li.unitPrice ?? 0) / 100), 0))}
+                {fmtMoney(lineItems.reduce((s: number, li: any) => s + Number(li.lineTotal ?? li.unitPrice ?? 0), 0))}
               </td>
               <td />
             </tr>
@@ -4102,7 +4102,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
 
   const pbQuotes = (quotes ?? []).map((q: any) => {
     // Compute total from lineItems if quotedAmount is 0 or missing
-    const lineItemsTotal = (q.lineItems ?? []).reduce((sum: number, li: any) => sum + ((li.lineTotal ?? li.unitPrice ?? 0) / 100), 0);
+    const lineItemsTotal = (q.lineItems ?? []).reduce((sum: number, li: any) => sum + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
     const rawTotal = (q.quotedAmount ?? 0) / 100;
     const total = rawTotal > 0 ? rawTotal : lineItemsTotal;
     return {
@@ -4206,7 +4206,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
       const entry = cl.lineItems.find(e => e.quoteIdx === qi);
       if (!entry) return { amount: null };
       const li = entry.li;
-      return { amount: (li.lineTotal ?? li.unitPrice ?? 0) / 100, aiReview: li.aiReview ?? null };
+      return { amount: Number(li.lineTotal ?? li.unitPrice ?? 0), aiReview: li.aiReview ?? null };
     });
     const presentCount = cells.filter(c => c.amount !== null).length;
     const row: ItemRow3 = { description: expandShorthand(cl.canonical), category: cl.category, cells };
@@ -6901,7 +6901,7 @@ function Section7Learning({
       const quotes = (enforcement as any)?.quotes ?? [];
       if (quotes.length === 0) return null;
       const q = quotes[0];
-      const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + ((li.lineTotal ?? li.unitPrice ?? 0) / 100), 0);
+      const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
       const raw = (q.quotedAmount ?? 0) / 100;
       return raw > 0 ? raw : lineTotal > 0 ? lineTotal : null;
     } catch { return null; }
