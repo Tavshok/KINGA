@@ -15,6 +15,20 @@ type UseAuthOptions = {
   redirectPath?: string;
 };
 
+/** Read the last known user from localStorage so we can show a non-null user
+ *  while the server is warming up (cold start / restart). This prevents the
+ *  ProtectedRoute from immediately redirecting to /login during transient
+ *  server unavailability. The value is cleared on explicit logout. */
+function getCachedUser(): any | null {
+  try {
+    const raw = localStorage.getItem("manus-runtime-user-info");
+    if (!raw || raw === "null" || raw === "undefined") return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function useAuth(options?: UseAuthOptions) {
   const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
     options ?? {};
@@ -36,7 +50,16 @@ export function useAuth(options?: UseAuthOptions) {
   }, []);
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
-    retry: false,
+    // Retry on network/server errors (5xx, cold starts) but NOT on 401 Unauthorized
+    retry: (failureCount, error) => {
+      if (failureCount >= 3) return false;
+      // Don't retry on explicit 401 (user is genuinely not authenticated)
+      if (error && (error as any)?.data?.httpStatus === 401) return false;
+      if (error && (error as any)?.data?.code === "UNAUTHORIZED") return false;
+      // Retry on network errors / server restarts (503, 500, ECONNREFUSED, etc.)
+      return true;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8000),
     refetchOnWindowFocus: false,
     // Skip real auth query if dev role override is active
     enabled: !devMockUser,
@@ -45,6 +68,8 @@ export function useAuth(options?: UseAuthOptions) {
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
       utils.auth.me.setData(undefined, null);
+      // Clear cached user on explicit logout
+      localStorage.removeItem("manus-runtime-user-info");
     },
   });
 
@@ -72,6 +97,7 @@ export function useAuth(options?: UseAuthOptions) {
       throw error;
     } finally {
       utils.auth.me.setData(undefined, null);
+      localStorage.removeItem("manus-runtime-user-info");
       await utils.auth.me.invalidate();
       // Redirect to home page after logout
       window.location.href = "/";
@@ -90,20 +116,36 @@ export function useAuth(options?: UseAuthOptions) {
         loading: false,
         error: null,
         isAuthenticated: true,
-        isDevOverride: true, // Flag to indicate dev override is active
+        isDevOverride: true,
       };
     }
 
-    // Normal auth state
-    localStorage.setItem(
-      "manus-runtime-user-info",
-      JSON.stringify(meQuery.data)
-    );
+    // While the query is loading (including retries), use cached user from
+    // localStorage so ProtectedRoute doesn't redirect during cold starts.
+    const isQueryLoading = meQuery.isLoading || meQuery.isFetching;
+    const cachedUser = isQueryLoading ? getCachedUser() : null;
+    const resolvedUser = meQuery.data ?? cachedUser ?? null;
+
+    // Persist the resolved user to localStorage (cleared on logout)
+    if (meQuery.data) {
+      localStorage.setItem(
+        "manus-runtime-user-info",
+        JSON.stringify(meQuery.data)
+      );
+    }
+
+    // Only consider unauthenticated once the query has settled (not loading/retrying)
+    // AND there is no cached user to fall back on.
+    const settled = !meQuery.isLoading && !meQuery.isFetching;
+    const isAuthenticated = settled
+      ? Boolean(meQuery.data)
+      : Boolean(resolvedUser);
+
     return {
-      user: meQuery.data ?? null,
+      user: resolvedUser,
       loading: meQuery.isLoading || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
-      isAuthenticated: Boolean(meQuery.data),
+      isAuthenticated,
       isDevOverride: false,
     };
   }, [
@@ -111,13 +153,14 @@ export function useAuth(options?: UseAuthOptions) {
     meQuery.data,
     meQuery.error,
     meQuery.isLoading,
+    meQuery.isFetching,
     logoutMutation.error,
     logoutMutation.isPending,
   ]);
 
   useEffect(() => {
     if (!redirectOnUnauthenticated) return;
-    if (meQuery.isLoading || logoutMutation.isPending) return;
+    if (meQuery.isLoading || meQuery.isFetching || logoutMutation.isPending) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
     if (window.location.pathname === redirectPath) return;
@@ -128,6 +171,7 @@ export function useAuth(options?: UseAuthOptions) {
     redirectPath,
     logoutMutation.isPending,
     meQuery.isLoading,
+    meQuery.isFetching,
     state.user,
   ]);
 

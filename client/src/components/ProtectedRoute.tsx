@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Redirect, useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 
 /**
@@ -39,16 +40,20 @@ interface ProtectedRouteProps {
 
 /**
  * ProtectedRoute component that enforces role-based access control
- * 
- * Shows loading state while authentication is being verified
- * Redirects to login if user is not authenticated
- * Redirects to unauthorized page if user's role is not in allowedRoles
+ *
+ * Shows loading state while authentication is being verified (including retries
+ * on server cold starts / restarts — prevents spurious /login redirects).
+ * Redirects to login only after auth.me has fully settled with no user.
+ * Redirects to unauthorized page if user's role is not in allowedRoles.
  */
 export default function ProtectedRoute({ children, allowedRoles, allowedInsurerRoles, domain }: ProtectedRouteProps) {
   const { user, loading, isAuthenticated } = useAuth();
+  // Also watch the raw query state so we can hold the loading screen during retries
+  const meQuery = trpc.auth.me.useQuery(undefined, { enabled: false });
+  const isRetrying = meQuery.isFetching || meQuery.isLoading;
 
-  // Show loading spinner while auth is being verified
-  if (loading) {
+  // Show loading spinner while auth is being verified (including retry backoff)
+  if (loading || isRetrying) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -59,7 +64,7 @@ export default function ProtectedRoute({ children, allowedRoles, allowedInsurerR
     );
   }
 
-  // Redirect to login if not authenticated
+  // Redirect to login only once auth has fully settled with no authenticated user
   if (!isAuthenticated || !user) {
     return <Redirect to="/login" />;
   }

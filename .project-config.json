@@ -1,0 +1,42 @@
+{
+  "build_command": "pnpm run build",
+  "capabilities": [
+    "db",
+    "server",
+    "user"
+  ],
+  "dev_command": "pnpm run dev",
+  "env_vars": {
+    "DATABASE_URL": "mysql://3zQEb4HwERZa3vD.6f0bc5e32ffe:puYhen4l4bAz74Mn61cD@gateway02.us-east-1.prod.aws.tidbcloud.com:4000/YbS42LwGroxbVepAMjk4bS?ssl={\"rejectUnauthorized\":true}"
+  },
+  "experiments": null,
+  "git_remote": {
+    "repo_url": "s3://vida-prod-gitrepo/webdev-git/310419663031527958/YbS42LwGroxbVepAMjk4bS",
+    "access_key_id": "ASIAZV3A2ECZDEKRD2GL",
+    "secret_access_key": "P9w59hHYB0/ASBvoLRvToUwbu40Si0NEjgNfn7qQ",
+    "session_token": "IQoJb3JpZ2luX2VjELD//////////wEaCXVzLWVhc3QtMSJGMEQCIDymQ+MA1QJilFJWHa50NvSDMrwp9DK64NIYpYCFUUVbAiAcja+lix9vnvneafyegea4ABbFNXYjIoXbk0X4mNWQiSr2Awh4EAQaDDY2NTM4NjA5ODg2NiIMcG7N1U4KNSNemIWlKtMDbpqHQafMLMb4wu7yUxnaEwDfObyQl3uVO4zSGCI52yZtHbu/JwBR+2Is+vEIAD4fGKA2Q2PdYlSueZyqkdwscRnrLINcOLe5L01m+wZJbRMHXtz9a6722KWU9cW/moX7PwJdBXx0QzoPDGS6fjWqfVQAQjm/2ZwyDg5jn9ARvqXuH/aaatUm6sv+dYiwo1UAcs0w2JrfErEv1Xc+n6FA/94TI6Wdeo/aDx6X5wQ2FPedbwK3JK/UGr3AkYMo69ZnaGzlAipnya5QP2ZjGaajX/g/2T7LCoz7tRI+21QhQFPreS7YkEzM9sPbkwy+kW9tmpgHWxJWYnk9cE4+MhIj3w05psh9uW3npsqk1CK8AFSMT9A+CFP0t6Oog/413Z/a5963jHDmogVLxG6k29vIuh+LODzs92oRpfpvz/OPwj+rqlM1mg6uYdxGzx6IIM0AvcWf4248vefG36Ge6mDDtIGcjh9+FLji2YtBQEePH19f16UXApCMrb6Ax2qpfhAaikY7WXI6e6Dcuxrq+q72NeRtAOvyUHQTOY+yxWKeVKvXBcyGJ7kBaxJusAwygpzWSoszudTy6YrYdZvd1c8D0Q4CmenXB2W1N891tMWdvgBFp9Ywwu+c0AY6ngGOM5xAG8E+RBzos4atjCLpd54aGh5vQgJ+vQyrf3TC2kYBShUQm7ca3ZFQ+g2ZW36+IwT1rKCu8VnKyPwPyFPHprDlS39fFxJfLrYUajlMGG/LIk9HRSvfN2/WJmGfGlsbNsx6o11/Xp2SYDMOgRQhL3FG/MUf/eBiSU+wK8zvUokValCApvXrgoab9KRYPMsCvlL1R5Lxd5bMT0YuPg==",
+    "expiration": "2026-05-16T03:12:02.000Z"
+  },
+  "name": "kinga-replit",
+  "path": "/home/ubuntu/kinga-replit",
+  "port": 3000,
+  "secrets": {
+    "BUILT_IN_FORGE_API_KEY": "7nfvT3Hv3fzBRUYP5qsR7g",
+    "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
+    "GOOGLE_AI_API_KEY": "AIzaSyDNDyux_lsTBSUSITVHkL_9w8gKVZ3jQVk",
+    "JWT_SECRET": "2W3Mb6vwNCSuE5itEunTYB",
+    "OAUTH_SERVER_URL": "https://api.manus.im",
+    "OWNER_NAME": "Tavonga Shoko",
+    "OWNER_OPEN_ID": "YihPnA7MJmAvNyMeTe2HUX",
+    "VITE_ANALYTICS_ENDPOINT": "https://manus-analytics.com",
+    "VITE_ANALYTICS_WEBSITE_ID": "52b5d633-792f-4970-bddc-69ed75733592",
+    "VITE_APP_ID": "YbS42LwGroxbVepAMjk4bS",
+    "VITE_APP_LOGO": "https://files.manuscdn.com/user_upload_by_module/web_dev_logo/310419663031527958/dgYOKWsnjwEAzEjo.png",
+    "VITE_APP_TITLE": "KINGA - AutoVerify AI",
+    "VITE_FRONTEND_FORGE_API_KEY": "oWbeXStMYfkTQ7cePeUe6Y",
+    "VITE_FRONTEND_FORGE_API_URL": "https://forge.manus.ai",
+    "VITE_OAUTH_PORTAL_URL": "https://manus.im"
+  },
+  "template_id": "web-db-user",
+  "test_command": "pnpm test"
+}
