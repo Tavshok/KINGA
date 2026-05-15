@@ -1,0 +1,34 @@
+{
+  "query": "SELECT id, name, currency_code, country FROM tenants ORDER BY created_at DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, name, currency_code, country FROM tenants ORDER BY created_at DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "demo-tenant",
+      "name": "demo-insurance-company",
+      "currency_code": "USD",
+      "country": "NULL"
+    },
+    {
+      "id": "test-ops-001",
+      "name": "Test Insurance Co",
+      "currency_code": "USD",
+      "country": "NULL"
+    },
+    {
+      "id": "tenant-1771335377063",
+      "name": "E2E Test Tenant 1771335377063",
+      "currency_code": "USD",
+      "country": "NULL"
+    },
+    {
+      "id": "tenant-bb427411-1cb9-4767-b354-61831d4d2106",
+      "name": "demo-insurance",
+      "currency_code": "USD",
+      "country": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tcurrency_code\tcountry\ndemo-tenant\tdemo-insurance-company\tUSD\tNULL\ntest-ops-001\tTest Insurance Co\tUSD\tNULL\ntenant-1771335377063\tE2E Test Tenant 1771335377063\tUSD\tNULL\ntenant-bb427411-1cb9-4767-b354-61831d4d2106\tdemo-insurance\tUSD\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 625
+}

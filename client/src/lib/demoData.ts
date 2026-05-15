@@ -244,9 +244,9 @@ export const DEMO_MONTH_COMPARISON = [
   },
   {
     label: "KINGA Savings",
-    current: 214_800,
-    prior: 178_400,
-    unit: "R",
+    current: 11_900,
+    prior: 9_900,
+    unit: "USD",
     higherIsBetter: true,
     isCurrency: true,
   },

@@ -559,11 +559,11 @@ export default function ExecutiveDashboard() {
                   const isPositive = item.higherIsBetter ? delta >= 0 : delta <= 0;
                   const arrowUp = delta > 0;
                   const displayCurrent = item.isCurrency
-                    ? `R${(item.current / 1000).toFixed(0)}k`
-                    : `${item.unit === 'R' ? 'R' : ''}${item.current}${item.unit !== 'R' ? item.unit : ''}`;
+                    ? `${currencySymbol}${(item.current / 1000).toFixed(0)}k`
+                    : `${item.current}${item.unit ? item.unit : ''}`;
                   const displayPrior = item.isCurrency
-                    ? `R${(item.prior / 1000).toFixed(0)}k`
-                    : `${item.unit === 'R' ? 'R' : ''}${item.prior}${item.unit !== 'R' ? item.unit : ''}`;
+                    ? `${currencySymbol}${(item.prior / 1000).toFixed(0)}k`
+                    : `${item.prior}${item.unit ? item.unit : ''}`;
                   return (
                     <div
                       key={item.label}
