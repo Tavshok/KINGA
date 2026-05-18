@@ -5,7 +5,16 @@ Each entry records: **what** changed, **why** it was changed, **which files** we
 
 ---
 
-## [Unreleased] — Stage 2.7 Embedded Quote Extraction + Heuristic Calibration
+## [Unreleased] — 2026-05-18 — ProtectedRoute Infinite Spinner Fix
+
+### Bug Fix: "Verifying access..." infinite spinner after OAuth login
+- **Root cause:** `ProtectedRoute.tsx` created a second `trpc.auth.me.useQuery` with `enabled: false` and checked `meQuery.isLoading` as an `isRetrying` guard. In **React Query v5**, a disabled query is permanently in `"pending"` state — `isLoading` is always `true` and never resolves. This caused every `ProtectedRoute`-wrapped page (including `/portal-hub`, the post-login landing page) to show the spinner indefinitely after a successful OAuth login.
+- **Fix:** Removed the redundant disabled query from `ProtectedRoute.tsx`. The `useAuth()` hook already handles retry logic with correct `isLoading` state management (it retries on 5xx/network errors, does not retry on 401, and uses cached localStorage user during retries to prevent spurious redirects). `ProtectedRoute` now only reads `loading` from `useAuth()`, which correctly resolves to `false` once `auth.me` settles.
+- **Files changed:** `client/src/components/ProtectedRoute.tsx`
+
+---
+
+## [6fcbf96b] — 2026-05-18 — Stage 2.7 Embedded Quote Extraction + Heuristic Calibration
 
 ### Feature: Stage 2.7 — Embedded Quote Extraction from Quotation Scan Images
 - **Problem:** Many SA insurance claim PDFs contain repair quotes embedded as raster images (e.g. a Swiss Motors invoice scanned and embedded as a JPEG inside the PDF). Stage 2 OCR cannot read these — they are not text. Stage 3 therefore only extracted quotes from text-readable content, missing any quote that was embedded as an image. Stage 9 (cost optimisation) received only 1 quote and could not perform multi-quote spread analysis.

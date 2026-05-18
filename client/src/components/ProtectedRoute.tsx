@@ -1,5 +1,4 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { trpc } from "@/lib/trpc";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 
@@ -48,12 +47,13 @@ interface ProtectedRouteProps {
  */
 export default function ProtectedRoute({ children, allowedRoles, allowedInsurerRoles, domain }: ProtectedRouteProps) {
   const { user, loading, isAuthenticated } = useAuth();
-  // Also watch the raw query state so we can hold the loading screen during retries
-  const meQuery = trpc.auth.me.useQuery(undefined, { enabled: false });
-  const isRetrying = meQuery.isFetching || meQuery.isLoading;
 
   // Show loading spinner while auth is being verified (including retry backoff)
-  if (loading || isRetrying) {
+  // NOTE: useAuth() already handles retry logic internally — do NOT create a
+  // second trpc.auth.me.useQuery with enabled:false here. In React Query v5,
+  // disabled queries have isLoading=true permanently (they are in "pending" state
+  // and never settle), which would cause this spinner to never resolve.
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
