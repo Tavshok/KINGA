@@ -436,17 +436,68 @@ async function extractTextFromPdfChunked(
   pageImageUrls: string[],
   ctx: PipelineContext
 ): Promise<PrimaryExtractionResult> {
-  // For large PDFs, use the file_url approach — send the full PDF directly to the LLM.
-  // This is more reliable than image chunks because:
-  //   1. The LLM handles pagination internally — no token truncation from per-chunk limits.
-  //   2. No S3 upload overhead for each page image.
-  //   3. The LLM can cross-reference pages (e.g. repair quote on page 12 + agreed cost on page 13).
-  // The extractTextFromPdf function already uses file_url and works for any page count.
-  ctx.log('Stage 2', `[chunked->file_url] ${pageImageUrls.length} pages — using full-PDF file_url extraction (more reliable than image chunks)`);
+  // Strategy:
+  // 1. If page images are available (Stage 1 rendered them via pdftoppm), use chunked image
+  //    extraction. This avoids the LLM context-window truncation that causes Stage 2 to time
+  //    out on large scanned PDFs (the full-PDF file_url approach returns truncated JSON for >8 pages).
+  // 2. If no page images are available (Stage 1 failed to render), fall back to full-PDF file_url.
+  if (pageImageUrls.length > 0) {
+    ctx.log('Stage 2', `[chunked-images] ${pageImageUrls.length} page image(s) available — using chunked image extraction (${CHUNK_SIZE} pages/chunk)`);
+
+    // Split pages into chunks of CHUNK_SIZE
+    const chunks: string[][] = [];
+    for (let i = 0; i < pageImageUrls.length; i += CHUNK_SIZE) {
+      chunks.push(pageImageUrls.slice(i, i + CHUNK_SIZE));
+    }
+    ctx.log('Stage 2', `[chunked-images] ${chunks.length} chunk(s) to process sequentially`);
+
+    // Process chunks sequentially to avoid rate limits
+    const chunkResults: Array<{ rawText: string; tables: ExtractedTable[]; ocrConfidence: number }> = [];
+    for (let i = 0; i < chunks.length; i++) {
+      ctx.log('Stage 2', `[chunked-images] Processing chunk ${i + 1}/${chunks.length} (${chunks[i].length} pages)`);
+      const result = await extractChunk(chunks[i], i, ctx);
+      chunkResults.push(result);
+    }
+
+    // Merge all chunk results
+    const mergedRawText = chunkResults.map(r => r.rawText).join('\n\n--- PAGE BREAK ---\n\n');
+    const mergedTables = chunkResults.flatMap(r => r.tables);
+    const avgConfidence = Math.round(chunkResults.reduce((s, r) => s + r.ocrConfidence, 0) / chunkResults.length);
+
+    ctx.log('Stage 2', `[chunked-images] Merged: ${mergedRawText.length} chars, ${mergedTables.length} tables, confidence=${avgConfidence}%`);
+
+    // Compute deterministic flags from merged text
+    const agreedCostHintFound = hasAgreedCostHint(mergedRawText);
+    const repairQuoteDetected = mergedTables.length > 0 || /total\s*\(incl/i.test(mergedRawText) || /grand\s*total/i.test(mergedRawText) || /repair|quote|quotation|estimate/i.test(mergedRawText);
+    const criticalFieldsMissing = 3; // conservative — chunked extraction doesn't return per-field confidence
+
+    return {
+      rawText: mergedRawText,
+      tables: mergedTables,
+      ocrConfidence: avgConfidence,
+      fieldConfidence: {
+        claimId: 50, vehicleRegistration: 50, accidentDate: 50,
+        incidentType: 50, estimatedSpeed: 30, policeReportNumber: 30,
+        repairQuoteTotal: repairQuoteDetected ? 65 : 20,
+        agreedCost: agreedCostHintFound ? 45 : 20,
+        damageDescription: 50,
+      },
+      flags: {
+        agreedCostHintFound,
+        repairQuoteDetected,
+        quoteTotalInconsistent: false,
+        textTooShort: mergedRawText.length < MIN_TEXT_LENGTH_CHARS,
+        criticalFieldsMissing,
+      },
+    };
+  }
+
+  // Fallback: no page images — use full-PDF file_url extraction
+  ctx.log('Stage 2', `[chunked->file_url] No page images available — falling back to full-PDF file_url extraction`);
   return extractTextFromPdf(pdfUrl, ctx);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // HANDWRITING SPECIALIST PASS
 // Triggered only when: agreedCost confidence is low AND semantic hint found in text
 // ─────────────────────────────────────────────────────────────────────────────

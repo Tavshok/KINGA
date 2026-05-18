@@ -1,48 +1,42 @@
 /**
  * pdfToImages.ts
  *
- * WI-2: PDF page rendering engine — Pure Node.js implementation.
+ * PDF page rendering engine — pdftoppm implementation.
  *
- * Renders each page of a PDF document to a PNG image using pdfjs-dist
- * + @napi-rs/canvas. No system binaries required — works in Cloud Run
- * production containers (Node-only runtime, no poppler-utils).
+ * Renders each page of a PDF document to a PNG image using pdftoppm
+ * (poppler-utils). Replaces the previous pdfjs-dist + @napi-rs/canvas
+ * implementation which failed in Node.js environments due to the
+ * GlobalWorkerOptions.workerSrc requirement and @napi-rs/canvas native
+ * binary compatibility issues in Cloud Run.
  *
  * DESIGN DECISIONS
  * ─────────────────
- * 1. Uses pdfjs-dist (pure JS PDF parser) + @napi-rs/canvas (native canvas
- *    bindings via napi-rs) — no pdftoppm, no pdfinfo, no system binaries.
+ * 1. Uses pdftoppm (poppler-utils) via child_process.execFile.
+ *    poppler-utils is pre-installed in the Manus sandbox and must be
+ *    included in the Cloud Run container image (Dockerfile: apt-get install poppler-utils).
  *
- * 2. Resolution: 150 DPI — sufficient for LLM vision analysis, keeps
- *    file sizes manageable (~200–400 KB per page).
+ * 2. Resolution: 150 DPI — sufficient for LLM vision analysis.
  *
- * 3. Page limit: configurable, default 20 pages. Claim bundles are
- *    typically 10–25 pages; this prevents runaway processing on large
- *    documents.
+ * 3. Page limit: configurable, default 8 pages (memory guard for Cloud Run).
  *
  * 4. Uploads each page to S3 under a deterministic key so re-processing
  *    the same PDF does not create duplicate uploads.
  *
- * 5. Streaming: renders + uploads one page at a time to keep peak memory
- *    low (~15MB canvas buffer + 1 in-flight upload at any time).
- *
  * TIMEOUT GUARDS
  * ─────────────────────────────────────────────────────────────────
- * - PDF download: 60s hard timeout (AbortController covers both connection AND body read)
- * - Per-page render: 30s (pdfjs page render is synchronous-ish but can hang on corrupt pages)
- * - Global: 3 minutes total
+ * - PDF download: 60s hard timeout
+ * - pdftoppm render: 60s per batch
  */
 
 import { createHash } from "crypto";
-// @napi-rs/canvas is loaded lazily inside renderPdfToImages to prevent server startup
-// crash if the native Skia binary fails to load in the production container.
-let _napiCanvas: typeof import("@napi-rs/canvas") | null = null;
-async function getCanvas() {
-  if (!_napiCanvas) {
-    _napiCanvas = await import("@napi-rs/canvas");
-  }
-  return _napiCanvas;
-}
+import { execFile } from "child_process";
+import { promisify } from "util";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 import { storagePut } from "../storage";
+
+const execFileAsync = promisify(execFile);
 
 export interface PdfToImagesOptions {
   /** DPI resolution for rendering. Default: 150 */
@@ -70,58 +64,38 @@ export interface PdfToImagesResult {
   errors: string[];
 }
 
-// Lazy-loaded pdfjs-dist instance (shared across calls)
-let _pdfjsLib: any = null;
-async function getPdfjsLib(): Promise<any> {
-  if (_pdfjsLib) return _pdfjsLib;
-  _pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  // Disable worker in Node.js environment
-  _pdfjsLib.GlobalWorkerOptions.workerSrc = "";
-  return _pdfjsLib;
-}
-
 /**
  * Download a PDF from a URL into a Buffer.
  * Hard 60-second timeout covers both the connection and the full body read.
  */
 async function downloadPdfBuffer(url: string): Promise<Buffer> {
-  const DOWNLOAD_TIMEOUT_MS = 60_000;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
-
-  let response: Response;
+  const timer = setTimeout(() => controller.abort(), 60_000);
   try {
-    response = await fetch(url, { signal: controller.signal });
-  } catch (err: any) {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } finally {
     clearTimeout(timer);
-    if (err?.name === "AbortError" || controller.signal.aborted) {
-      throw new Error(`PDF download timed out after ${DOWNLOAD_TIMEOUT_MS / 1000}s — ${url}`);
-    }
-    throw err;
   }
-
-  if (!response.ok) {
-    clearTimeout(timer);
-    throw new Error(`Failed to download PDF: HTTP ${response.status} — ${url}`);
-  }
-
-  let buffer: Buffer;
-  try {
-    buffer = Buffer.from(await response.arrayBuffer());
-  } catch (err: any) {
-    clearTimeout(timer);
-    if (err?.name === "AbortError" || controller.signal.aborted) {
-      throw new Error(`PDF body download timed out after ${DOWNLOAD_TIMEOUT_MS / 1000}s — ${url}`);
-    }
-    throw err;
-  }
-  clearTimeout(timer);
-  return buffer;
 }
 
 /**
- * Render PDF pages to PNG images using pdfjs-dist + @napi-rs/canvas.
- * Pure Node.js — no system binaries required.
+ * Get total page count of a PDF using pdfinfo.
+ */
+async function getPdfPageCount(pdfPath: string): Promise<number> {
+  try {
+    const { stdout } = await execFileAsync("pdfinfo", [pdfPath], { timeout: 10_000 });
+    const match = stdout.match(/Pages:\s+(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Render PDF pages to PNG images using pdftoppm.
  *
  * @param pdfUrl   Public URL of the PDF to render
  * @param options  Rendering options
@@ -139,27 +113,18 @@ export async function renderPdfToImages(
   } = options;
 
   // ── MEMORY GUARD ──────────────────────────────────────────────────────────
-  // Cloud Run has 512MB RAM. A single page at 150 DPI renders to ~15-25MB in
-  // memory. With 20 pages that's 300-500MB — dangerously close to the limit.
-  // Strategy: cap at 8 pages max and use 100 DPI to keep peak memory under
-  // ~100MB total. The LLM reads the full PDF via file_url in Stage 2 anyway,
-  // so page images are only needed as a vision fallback for Stage 6.
+  // Cloud Run has 512MB RAM. Cap at 8 pages max.
   const SAFE_MAX_PAGES = 8;
-  const SAFE_DPI = 100;
   const effectiveMaxPages = Math.min(maxPages, SAFE_MAX_PAGES);
-  const effectiveDpi = Math.min(dpi, SAFE_DPI);
-  log(`[Memory Guard] Capping render to ${effectiveMaxPages} pages at ${effectiveDpi} DPI to stay within Cloud Run memory limits`);
-  // Override with safe values
-  const safeDpi = effectiveDpi;
-  const safeMaxPages = effectiveMaxPages;
+  log(`[Memory Guard] Capping render to ${effectiveMaxPages} pages at ${dpi} DPI to stay within Cloud Run memory limits`);
 
-  const SCALE = safeDpi / 72;
   const errors: string[] = [];
   const pages: PdfPageImage[] = [];
 
   // Deterministic S3 key prefix based on PDF URL hash
   const urlHash = createHash("md5").update(pdfUrl).digest("hex").slice(0, 8);
 
+  // Download PDF to temp file
   log(`Downloading PDF from ${pdfUrl}`);
   let pdfBuffer: Buffer;
   try {
@@ -171,90 +136,81 @@ export async function renderPdfToImages(
     return { pages: [], totalPagesRendered: 0, totalPagesInDocument: 0, truncated: false, errors };
   }
 
-  let pdfjsLib: any;
+  // Write to temp file
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kinga-pdf-"));
+  const pdfPath = path.join(tmpDir, "input.pdf");
+  const outputPrefix = path.join(tmpDir, "page");
+
   try {
-    pdfjsLib = await getPdfjsLib();
-  } catch (err: any) {
-    errors.push(`Failed to load pdfjs-dist: ${err.message}`);
-    log(`ERROR: ${err.message}`);
-    return { pages: [], totalPagesRendered: 0, totalPagesInDocument: 0, truncated: false, errors };
-  }
+    fs.writeFileSync(pdfPath, pdfBuffer);
+    // Release the large buffer now that it's on disk
+    (pdfBuffer as any) = null;
 
-  let pdfDoc: any;
-  try {
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(pdfBuffer),
-      disableFontFace: true,
-      standardFontDataUrl: undefined,
-    });
-    pdfDoc = await loadingTask.promise;
-  } catch (err: any) {
-    errors.push(`PDF parse failed: ${err.message}`);
-    log(`ERROR: PDF parse failed: ${err.message}`);
-    return { pages: [], totalPagesRendered: 0, totalPagesInDocument: 0, truncated: false, errors };
-  }
+    // Get total page count
+    const totalPages = await getPdfPageCount(pdfPath);
+    const pagesToRender = Math.min(totalPages || effectiveMaxPages, effectiveMaxPages);
+    const truncated = totalPages > effectiveMaxPages;
 
-  const totalPages = pdfDoc.numPages;
-  const pagesToRender = Math.min(totalPages, safeMaxPages);
-  const truncated = totalPages > safeMaxPages;
-  log(`PDF loaded: ${totalPages} pages, rendering ${pagesToRender} at ${dpi} DPI`);
-
-  if (truncated) {
-    log(`WARNING: PDF has ${totalPages} pages, rendering first ${maxPages} only`);
-  }
-
-  // Streaming: render + upload each page immediately, release canvas buffer
-  for (let pageNum = 1; pageNum <= pagesToRender; pageNum++) {
-    try {
-      const page = await pdfDoc.getPage(pageNum);
-      const viewport = page.getViewport({ scale: SCALE });
-      const napiCanvas = await getCanvas();
-      const canvas = napiCanvas.createCanvas(
-        Math.round(viewport.width),
-        Math.round(viewport.height)
-      );
-      const ctx = canvas.getContext("2d");
-
-      // Render with a 30s per-page timeout
-      const renderPromise = page.render({ canvasContext: ctx as any, viewport }).promise;
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Page ${pageNum} render timed out after 30s`)), 30_000)
-      );
-      await Promise.race([renderPromise, timeoutPromise]);
-
-      const pngBuffer = canvas.toBuffer("image/png");
-
-      // Upload to S3 immediately — release pngBuffer after upload
-      const s3Key = `${keyPrefix}/${urlHash}/page-${String(pageNum).padStart(3, "0")}.png`;
-      const { url, key } = await storagePut(s3Key, pngBuffer, "image/png");
-      pages.push({ pageNumber: pageNum, url, key, fileSizeBytes: pngBuffer.length });
-      log(`Rendered + uploaded page ${pageNum}/${pagesToRender} → ${url}`);
-
-      // Release page resources
-      page.cleanup();
-    } catch (err: any) {
-      const msg = `Page ${pageNum} render/upload failed: ${err.message}`;
-      errors.push(msg);
-      log(`ERROR: ${msg}`);
-      // Continue with remaining pages
+    if (totalPages > 0) {
+      log(`PDF loaded: ${totalPages} pages, rendering ${pagesToRender} at ${dpi} DPI`);
+      if (truncated) {
+        log(`WARNING: PDF has ${totalPages} pages, rendering first ${effectiveMaxPages} only`);
+      }
+    } else {
+      log(`PDF page count unknown, rendering up to ${effectiveMaxPages} pages`);
     }
-  }
 
-  // Cleanup pdfjs document
-  try {
-    await pdfDoc.destroy();
-  } catch {
-    // Non-fatal
-  }
+    // Run pdftoppm to render pages
+    try {
+      await execFileAsync(
+        "pdftoppm",
+        ["-r", String(dpi), "-f", "1", "-l", String(pagesToRender), "-png", pdfPath, outputPrefix],
+        { timeout: 60_000, maxBuffer: 100 * 1024 * 1024 }
+      );
+    } catch (err: any) {
+      errors.push(`pdftoppm render failed: ${err.message}`);
+      log(`ERROR: pdftoppm failed: ${err.message}`);
+      return { pages: [], totalPagesRendered: 0, totalPagesInDocument: totalPages, truncated, errors };
+    }
 
-  log(`Rendering complete: ${pages.length}/${pagesToRender} pages uploaded`);
-  return {
-    pages,
-    totalPagesRendered: pages.length,
-    totalPagesInDocument: totalPages,
-    truncated,
-    errors,
-  };
+    // Find rendered PNG files
+    const pngFiles = fs.readdirSync(tmpDir)
+      .filter(f => f.startsWith("page") && f.endsWith(".png"))
+      .sort();
+
+    log(`pdftoppm rendered ${pngFiles.length} page(s)`);
+
+    // Upload each page to S3
+    for (const pngFile of pngFiles) {
+      const match = pngFile.match(/(\d+)\.png$/);
+      const pageNum = match ? parseInt(match[1], 10) : pages.length + 1;
+      try {
+        const pngPath = path.join(tmpDir, pngFile);
+        const pngBuf = fs.readFileSync(pngPath);
+        const s3Key = `${keyPrefix}/${urlHash}/page-${String(pageNum).padStart(3, "0")}.png`;
+        const { url, key } = await storagePut(s3Key, pngBuf, "image/png");
+        pages.push({ pageNumber: pageNum, url, key, fileSizeBytes: pngBuf.length });
+        log(`Rendered + uploaded page ${pageNum}/${pagesToRender} → ${url}`);
+      } catch (err: any) {
+        const msg = `Page ${pageNum} upload failed: ${err.message}`;
+        errors.push(msg);
+        log(`ERROR: ${msg}`);
+      }
+    }
+
+    log(`Rendering complete: ${pages.length}/${pagesToRender} pages uploaded`);
+    return {
+      pages,
+      totalPagesRendered: pages.length,
+      totalPagesInDocument: totalPages,
+      truncated,
+      errors,
+    };
+
+  } finally {
+    // Clean up temp directory
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* non-fatal */ }
+  }
 }
 
 /**
