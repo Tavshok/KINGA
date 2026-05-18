@@ -51,6 +51,38 @@ const NON_PART_LINE_ITEM_CATEGORIES = new Set([
   "wash", "detail", "cleaning",
   "calibration", "adas calibration",
   "disposal", "environmental",
+  // ── SA repair workshop line items ────────────────────────────────────────
+  // Hardware / fasteners — appear in SA quotes as standalone line items
+  "fittings", "fitting", "clips", "clip", "bolts", "bolt", "nuts", "nut",
+  "washers", "washer", "rivets", "rivet", "screws", "screw",
+  "adhesive", "adhesives", "sealant", "sealants", "foam", "foams",
+  "grommets", "grommet", "bushings", "bushing", "bushes", "bush",
+  // Repair operations — common SA workshop terminology
+  "repairs", "repair", "strip", "strip & assemble", "strip and assemble",
+  "strip & fit", "strip and fit", "s/f", "s & f",
+  "regas", "re-gas", "regassing",
+  "reprogramme", "reprogram", "reprogramming", "reprograme",
+  "recalibration", "re-calibration",
+  "flush", "flushing",
+  "weld", "welding", "straighten", "straightening",
+  "panel beating", "panel beat",
+  // Electrical / mechanical service items
+  "focus lights", "focus light", "headlamp aim", "headlight aim",
+  "abs module", "abs unit", "abs sensor",
+  "airbag module", "airbag sensor", "airbag clock spring",
+  "ecu", "ecu programming", "module programming",
+  // Suspension / steering service items (appear in quotes without being body parts)
+  "camber bolts", "camber bolt", "camber kit",
+  "toe adjustment", "caster adjustment",
+  // Trim / moulding / hardware (small items that don't map to body panels)
+  "wind deflector", "wind deflectors", "door deflector",
+  "step", "steps", "running board", "running boards",
+  "tyre", "tyres", "tire", "tires", "wheel", "wheels",
+  "spare wheel", "spare tyre",
+  // Financial / admin line items
+  "discount", "credit", "deposit", "excess", "deductible",
+  "delivery", "transport", "freight",
+  "supply", "supplies",
 ]);
 
 /**

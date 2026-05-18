@@ -22,6 +22,7 @@ import type {
   RecoveryAction,
 } from "./types";
 import { renderPdfToImages, extractImageUrls } from "./pdfToImages";
+import { extractEmbeddedImagesFromUrl } from "./pdfEmbeddedImages";
 
 function classifyDocument(
   fileName: string,
@@ -173,6 +174,51 @@ export async function runIngestionStage(
         "WARNING: No PDF document provided — will use claim DB fields for recovery"
       );
     }
+
+    // ── EMBEDDED IMAGE EXTRACTION ──────────────────────────────────────────
+    // Extract raster images physically embedded inside the PDF (damage photos,
+    // scanned quote pages). These are the original full-resolution images that
+    // the document author embedded — much higher quality than page screenshots.
+    // Runs in both production and sandbox (pdfimages is a lightweight CLI tool).
+    if (ctx.pdfUrl) {
+      try {
+        ctx.log("Stage 1", "Extracting embedded images from PDF...");
+        const embeddedResult = await extractEmbeddedImagesFromUrl(
+          ctx.pdfUrl,
+          ctx.claimId,
+          (msg) => ctx.log("Stage 1 [Embedded Images]", msg)
+        );
+        if (embeddedResult.images.length > 0) {
+          const embeddedUrls = embeddedResult.images.map((img) => img.url);
+          // Merge into ctx.damagePhotoUrls — these will be treated as damage photos
+          // by Stage 6 (damage analysis). The LLM distinguishes between actual
+          // damage photos and embedded quote scans based on image content.
+          if (!ctx.damagePhotoUrls) (ctx as any).damagePhotoUrls = [];
+          (ctx as any).damagePhotoUrls = [...(ctx.damagePhotoUrls ?? []), ...embeddedUrls];
+          ctx.log(
+            "Stage 1",
+            `Embedded images: ${embeddedResult.images.length} extracted and merged into damage photo pool (${embeddedResult.totalFound} total found, ${embeddedResult.skipped} skipped)`
+          );
+        } else {
+          ctx.log(
+            "Stage 1",
+            `Embedded images: none qualifying found (${embeddedResult.totalFound} total, all below size/dimension threshold)`
+          );
+        }
+        if (embeddedResult.errors.length > 0) {
+          ctx.log("Stage 1", `Embedded image extraction warnings: ${embeddedResult.errors.join("; ")}`);
+        }
+      } catch (embeddedErr: any) {
+        ctx.log("Stage 1", `Embedded image extraction failed (non-fatal): ${String(embeddedErr)}`);
+        recoveryActions.push({
+          target: "embedded_image_extraction",
+          strategy: "partial_data",
+          success: false,
+          description: `PDF embedded image extraction threw an error: ${String(embeddedErr)}. Continuing without embedded images.`,
+        });
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
 
     // Process individual damage photos
     if (ctx.damagePhotoUrls && ctx.damagePhotoUrls.length > 0) {

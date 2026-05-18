@@ -15,9 +15,12 @@
  *    poppler-utils is pre-installed in the Manus sandbox and must be
  *    included in the Cloud Run container image (Dockerfile: apt-get install poppler-utils).
  *
- * 2. Resolution: 150 DPI — sufficient for LLM vision analysis.
+ * 2. Resolution: 100 DPI — sufficient for LLM vision analysis. Reduced from 150 DPI
+ *    to allow more pages to be rendered within Cloud Run memory limits.
  *
- * 3. Page limit: configurable, default 8 pages (memory guard for Cloud Run).
+ * 3. Page limit: configurable, default 25 pages (memory guard for Cloud Run).
+ *    At 100 DPI, 25 pages of a typical A4 PDF use ~200MB of RAM, well within the
+ *    512MB Cloud Run limit. This covers most SA repair quote PDFs (typically 10-32 pages).
  *
  * 4. Uploads each page to S3 under a deterministic key so re-processing
  *    the same PDF does not create duplicate uploads.
@@ -39,9 +42,9 @@ import { storagePut } from "../storage";
 const execFileAsync = promisify(execFile);
 
 export interface PdfToImagesOptions {
-  /** DPI resolution for rendering. Default: 150 */
+  /** DPI resolution for rendering. Default: 100 */
   dpi?: number;
-  /** Maximum number of pages to render. Default: 20 */
+  /** Maximum number of pages to render. Default: 25 */
   maxPages?: number;
   /** S3 key prefix for uploaded images. Default: "pdf-pages" */
   keyPrefix?: string;
@@ -106,15 +109,16 @@ export async function renderPdfToImages(
   options: PdfToImagesOptions = {}
 ): Promise<PdfToImagesResult> {
   const {
-    dpi = 150,
-    maxPages = 20,
+    dpi = 100,
+    maxPages = 25,
     keyPrefix = "pdf-pages",
     log = () => {},
   } = options;
 
   // ── MEMORY GUARD ──────────────────────────────────────────────────────────
-  // Cloud Run has 512MB RAM. Cap at 8 pages max.
-  const SAFE_MAX_PAGES = 8;
+  // Cloud Run has 512MB RAM. At 100 DPI, 25 A4 pages ≈ 200MB RAM — safe.
+  // At 150 DPI, 25 pages would exceed 400MB — unsafe. Keep DPI at 100 for large PDFs.
+  const SAFE_MAX_PAGES = 25;
   const effectiveMaxPages = Math.min(maxPages, SAFE_MAX_PAGES);
   log(`[Memory Guard] Capping render to ${effectiveMaxPages} pages at ${dpi} DPI to stay within Cloud Run memory limits`);
 

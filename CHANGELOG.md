@@ -5,7 +5,27 @@ Each entry records: **what** changed, **why** it was changed, **which files** we
 
 ---
 
-## [Pending checkpoint] — 2026-05-18
+## [Unreleased] — 2026-05-18
+
+### Fix: Stage 3 Hallucination Guard — Expanded SA Repair Terms Passthrough List
+- **Problem:** Valid South African workshop line items such as `"fittings"`, `"clips"`, `"regas"`, `"reprograme"`, `"focus lights"`, `"camber bolts"`, `"wind deflector"`, `"abs module"`, `"airbag module"`, `"tyre"`, `"supply"`, and `"repairs"` were being rejected by the hallucination guard in `quoteExtractionEngine.ts` because they were not in the `NON_PART_LINE_ITEM_CATEGORIES` set. This caused valid line items to be flagged as hallucinations and dropped from the extracted quote.
+- **Fix:** Expanded `NON_PART_LINE_ITEM_CATEGORIES` with five new groups: (1) hardware/fasteners (fittings, clips, bolts, washers, rivets, screws, adhesive, sealant, grommets, bushings), (2) repair operations (repairs, strip, regas, reprogramme, weld, welding, panel beating), (3) electrical/mechanical service items (focus lights, abs module, airbag module, ecu), (4) suspension/steering items (camber bolts, camber kit), (5) trim/hardware (wind deflector, step, tyre, spare wheel), and (6) financial/admin items (discount, delivery, supply).
+- **Files changed:** `server/pipeline-v2/quoteExtractionEngine.ts`
+
+### Fix: Stage 1 PDF Rendering — Increase page cap from 8 to 25 at 100 DPI
+- **Problem:** The page cap in `pdfToImages.ts` was hardcoded to 8 pages (`SAFE_MAX_PAGES = 8`). For the Voltron PDF (32 pages), this meant pages 9–32 were never rendered — the repair quotes on those pages were not available to Stage 2 (OCR) as page images. The DPI was 150, which at 25 pages would exceed Cloud Run's 512MB RAM limit.
+- **Fix:** Increased `SAFE_MAX_PAGES` from 8 to 25 and reduced default DPI from 150 to 100. At 100 DPI, 25 A4 pages use ~200MB RAM — well within the 512MB Cloud Run limit. Updated default values in `PdfToImagesOptions` interface and function signature accordingly.
+- **Files changed:** `server/pipeline-v2/pdfToImages.ts`
+
+### Feature: PDF Embedded Image Extraction — pdfimages (poppler-utils)
+- **Problem:** Many SA insurance claim PDFs contain damage photos and scanned repair quotes embedded as raster images (JPEG/PNG) inside the PDF. These are the original full-resolution images captured by the assessor or workshop. The pipeline was not extracting them — Stage 6 (damage analysis) had no visual evidence unless separate photo uploads were provided.
+- **Implementation:** New module `pdfEmbeddedImages.ts` uses `pdfimages -j -png` (poppler-utils) to snip embedded raster images out of the PDF. Images are filtered by: (1) min 200×200 pixels (excludes logos/icons), (2) min 8KB file size (excludes placeholder images). Qualifying images are uploaded to S3 under `claims/{claimId}/embedded-photos/{pdfHash}/img-NNN.jpg`. Stage 1 (`stage-1-ingestion.ts`) calls `extractEmbeddedImagesFromUrl()` after PDF download and merges the extracted image URLs into `ctx.damagePhotoUrls`, making them available to Stage 6 damage analysis.
+- **Filtering verified on Voltron PDF:** 26 images extracted (11 full-page quote scans + 15 damage photos), 21 small icons/logos correctly filtered out.
+- **Files changed:** `server/pipeline-v2/pdfEmbeddedImages.ts` (new), `server/pipeline-v2/stage-1-ingestion.ts`
+
+---
+
+## [ec364cd3] — 2026-05-18
 
 ### Fix: Stage 1 PDF Rendering — Replace pdf.js with pdftoppm
 - **Problem:** `pdf.js` requires `GlobalWorkerOptions.workerSrc` which cannot be set in a Node.js server environment. Stage 1 always failed to render PDF pages to images, logging `"No GlobalWorkerOptions.workerSrc specified"`. This meant 0 page images were uploaded to S3, causing Stage 7 (physics/damage) to run without visual evidence and Stage 12.5 to block report export with `IMAGE_PIPELINE_FAILURE`.
