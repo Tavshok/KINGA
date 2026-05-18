@@ -876,3 +876,146 @@ function buildFallback(warning: string): ExtractedQuote {
     rejected_line_items: [],
   };
 }
+
+/**
+ * extractQuoteFromImageUrl
+ *
+ * Extracts a repair quote from a single image URL (e.g. a scanned quote page
+ * extracted from a PDF via pdfimages). This is the image-native counterpart to
+ * extractQuoteFromPdfVision — instead of sending a PDF file_url, it sends an
+ * image_url so the LLM can read the quote directly from the raster image.
+ *
+ * Use this when:
+ *   - An embedded image in a PDF has been classified as 'quotation_scan'
+ *   - The image contains a visible repair quote with line items and prices
+ *   - The PDF text extraction (Stage 2 OCR) did not capture this quote
+ *
+ * @param imageUrl     S3 URL of the image to extract from
+ * @param panelBeater  Optional hint for the repairer name (from image metadata or context)
+ * @param totalCost    Optional hint for the total cost (from image metadata or context)
+ * @param tenantCountry ISO-3166-1 alpha-2 country code for currency default
+ */
+export async function extractQuoteFromImageUrl(
+  imageUrl: string,
+  panelBeater: string | null,
+  totalCost: number | null,
+  tenantCountry?: string | null
+): Promise<ExtractedQuote> {
+  try {
+    const contextHint = panelBeater
+      ? `This is a scanned repair quotation image from ${panelBeater}.${
+          totalCost ? ` The total cost is approximately ${totalCost}.` : ''
+        } Extract ALL line items with their individual prices.`
+      : `This is a scanned vehicle repair quotation image.${
+          totalCost ? ` The total cost is approximately ${totalCost}.` : ''
+        } Extract ALL line items with their individual prices.`;
+
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content:
+            SYSTEM_PROMPT +
+            `\n\nCRITICAL: This is an IMAGE extraction pass. You are looking at a scanned repair quote image. ` +
+            `Read the pricing columns visually and extract the actual amounts. ` +
+            `Do NOT return null or 0 for any line item that has a visible price. ` +
+            `If the total is known (${totalCost ?? "unknown"}), use it to validate — the sum of line items should be close to the total.`,
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url" as const,
+              image_url: {
+                url: imageUrl,
+                detail: "high" as const,
+              },
+            },
+            {
+              type: "text" as const,
+              text:
+                contextHint +
+                "\n\nExtract ALL repair quote line items from this image with their individual unit costs and line totals. " +
+                "Pay special attention to price columns — they may be in a separate column to the right of the component names. " +
+                "Also extract the panel beater / repairer name from the letterhead or header. " +
+                "Return the complete structured quote JSON.",
+            },
+          ],
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "extracted_quote",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              panel_beater: { type: ["string", "null"] },
+              total_cost: { type: ["number", "null"] },
+              currency: { type: "string" },
+              components: { type: "array", items: { type: "string" } },
+              line_items: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    component: { type: "string" },
+                    unit_cost: { type: ["number", "null"] },
+                    quantity: { type: "number" },
+                    line_total: { type: ["number", "null"] },
+                    action: { type: ["string", "null"] },
+                    part_origin: {
+                      type: "string",
+                      enum: ["oem", "aftermarket", "reconditioned", "used", "unknown"],
+                    },
+                  },
+                  required: ["component", "unit_cost", "quantity", "line_total", "action", "part_origin"],
+                  additionalProperties: false,
+                },
+              },
+              labour_defined: { type: "boolean" },
+              parts_defined: { type: "boolean" },
+              labour_cost: { type: ["number", "null"] },
+              parts_cost: { type: ["number", "null"] },
+              confidence: { type: "string", enum: ["high", "medium", "low"] },
+              extraction_warnings: { type: "array", items: { type: "string" } },
+            },
+            required: [
+              "panel_beater",
+              "total_cost",
+              "currency",
+              "components",
+              "line_items",
+              "labour_defined",
+              "parts_defined",
+              "labour_cost",
+              "parts_cost",
+              "confidence",
+              "extraction_warnings",
+            ],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const raw = response?.choices?.[0]?.message?.content;
+    if (!raw) return buildFallback("Image quote extraction: LLM returned empty response.");
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const result = validateAndNormalise(parsed);
+    if (!result.currency && tenantCountry) {
+      result.currency = getDefaultCurrencyForCountry(tenantCountry);
+    }
+    // Tag this result as image-extracted
+    result.extraction_warnings.push("image_extraction_used");
+    console.log(
+      `[QuoteExtractionEngine] Image extraction complete: ${result.line_items.length} line items, ` +
+        `total=${result.total_cost}, panel_beater=${result.panel_beater}, confidence=${result.confidence}`
+    );
+    return result;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return buildFallback(`Image quote extraction failed: ${msg}`);
+  }
+}

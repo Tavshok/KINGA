@@ -130,12 +130,25 @@ export interface ExtractEmbeddedImagesResult {
  * Estimate quality metrics for an embedded image from its geometry alone.
  * These are heuristic approximations — the imageClassifier LLM will refine them.
  *
- * Key heuristics:
- *   - Tall narrow (aspect < 0.7): likely a scanned quote/invoice page → isTextHeavy=true
- *   - Square-ish (0.7–1.5): likely a damage photo → isTextHeavy=false
- *   - Wide banner (aspect > 2.5): likely a header/logo strip → isTextHeavy=true
- *   - Small pixel area (<0.1MP): likely a logo/icon → isUniform=true
+ * Key heuristics (in priority order):
+ *   1. Pixel area > 0.8MP: almost certainly a full-page document scan (invoice, quote)
+ *      → isTextHeavy=true regardless of aspect ratio
+ *      (SA damage photos are typically 400–900px square = 0.16–0.81MP)
+ *   2. Tall narrow (aspect < 0.65): A4-ish portrait document → isTextHeavy=true
+ *   3. Wide banner (aspect > 2.5): header/logo strip → isTextHeavy=true
+ *   4. Otherwise: likely a damage photo → isTextHeavy=false
+ *   5. Small pixel area (<0.05MP): likely a logo/icon → isUniform=true
+ *
+ * CALIBRATION (Voltron PDF, 2026-05):
+ *   - Swiss Motors invoice: 1273×1800 = 2.29MP → isTextHeavy=true ✓
+ *   - Cedric Jonker quote pages: 1093×1594 = 1.74MP → isTextHeavy=true ✓
+ *   - Damage photos: 641×641 = 0.41MP → isTextHeavy=false ✓
+ *   - Damage photos: 641×881 = 0.56MP → isTextHeavy=false ✓
  */
+
+/** Images larger than this (in megapixels) are treated as document scans, not damage photos */
+const DOCUMENT_SCAN_MP_THRESHOLD = 0.8;
+
 function estimateQualityFromGeometry(
   width: number,
   height: number,
@@ -145,16 +158,19 @@ function estimateQualityFromGeometry(
   const pixelArea = width * height;
   const megapixels = pixelArea / 1_000_000;
 
-  // Text-heavy heuristic: tall narrow (A4-ish) or wide banner images
-  const isTextHeavy = aspectRatio < 0.7 || aspectRatio > 2.5;
+  // Text-heavy heuristic:
+  //   1. Large images (>0.8MP) are almost always full-page document scans
+  //   2. Tall narrow (aspect < 0.65) or wide banner (aspect > 2.5) → document
+  const isLargeDocumentScan = megapixels > DOCUMENT_SCAN_MP_THRESHOLD;
+  const isTextHeavy = isLargeDocumentScan || aspectRatio < 0.65 || aspectRatio > 2.5;
 
   // Uniform heuristic: very small images are likely logos/icons
   const isUniform = megapixels < 0.05;
 
-  // Colour variance estimate: damage photos tend to have more colour variation
-  // Use file size per pixel as a proxy (higher compression ratio = more detail)
+  // Colour variance estimate: damage photos tend to have more colour variation.
+  // Document scans (text on white) have very low colour variance.
   const bytesPerPixel = fileSizeBytes / Math.max(pixelArea, 1);
-  const colourVariance = isTextHeavy ? 15 : Math.min(80, bytesPerPixel * 200);
+  const colourVariance = isTextHeavy ? 12 : Math.min(80, bytesPerPixel * 200);
 
   // Blur score: embedded images are typically sharp originals
   const blurScore = isTextHeavy ? 150 : 250;

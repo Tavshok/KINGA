@@ -5,7 +5,23 @@ Each entry records: **what** changed, **why** it was changed, **which files** we
 
 ---
 
-## [Unreleased] — 2026-05-18
+## [Unreleased] — Stage 2.7 Embedded Quote Extraction + Heuristic Calibration
+
+### Feature: Stage 2.7 — Embedded Quote Extraction from Quotation Scan Images
+- **Problem:** Many SA insurance claim PDFs contain repair quotes embedded as raster images (e.g. a Swiss Motors invoice scanned and embedded as a JPEG inside the PDF). Stage 2 OCR cannot read these — they are not text. Stage 3 therefore only extracted quotes from text-readable content, missing any quote that was embedded as an image. Stage 9 (cost optimisation) received only 1 quote and could not perform multi-quote spread analysis.
+- **Implementation:** New Stage 2.7 in `orchestrator.ts` runs after Stage 2.6 (image classifier). It reads `ctx.classifiedImages.quotationImages` (images classified as `quotation_scan` by Stage 2.6) and calls `extractQuoteFromImageUrl()` (new function in `quoteExtractionEngine.ts`) on each one. Extracted quotes are merged into `stage3Data.inputRecovery.extracted_quotes` with deduplication by panel_beater name (image extraction replaces OCR extraction only if it yields more priced line items). Up to 5 quotation images are processed per run (cost guard).
+- **New function:** `extractQuoteFromImageUrl(imageUrl, panelBeaterHint, totalCostHint, country)` in `quoteExtractionEngine.ts` — sends a single image URL to the LLM with the same structured JSON schema used by `extractQuoteFromPdfVision`, but scoped to a single image rather than a full PDF URL.
+- **Heuristic calibration fix:** `pdfEmbeddedImages.ts` `estimateQualityFromGeometry()` updated to use **pixel area > 0.8MP** as the primary `isTextHeavy` signal (previously used aspect ratio < 0.7 only). Calibrated against Voltron PDF: Swiss Motors invoice (1273×1800 = 2.29MP) now correctly flagged as `isTextHeavy=true`; damage photos (641×641 = 0.41MP) correctly flagged as `isTextHeavy=false`.
+- **Verified on claim 6240003 (ISUZU MUX / Voltron):**
+  - Stage 2.6: 6 quotation scan images detected (up from 1 in previous run)
+  - Stage 2.7: Swiss Motors invoice extracted — 23 line items, total = USD 25,553, confidence = high
+  - Stage 3 total quotes: 2 (Cedric Jonker + Swiss Motors)
+  - Stage 9: `2 quotes (best: Cedric Jonker Spraypaints)` — DOE selected lower-cost option correctly
+- **Files changed:** `server/pipeline-v2/orchestrator.ts` (Stage 2.7 block), `server/pipeline-v2/quoteExtractionEngine.ts` (`extractQuoteFromImageUrl`), `server/pipeline-v2/pdfEmbeddedImages.ts` (heuristic calibration)
+
+---
+
+## [0318ead0] — 2026-05-18
 
 ### Fix: IMAGE_PIPELINE_FAILURE gate — embedded images now route through Stage 2.6 classifier
 - **Problem:** `pdfEmbeddedImages.ts` was merging all extracted images (damage photos AND full-page quote scans) directly into `ctx.damagePhotoUrls`. Since `ctx.extractedImagesWithMetadata` was not populated, Stage 2.6 (image classifier) was bypassed entirely. All 26 embedded images from the Voltron PDF went to Stage 6 damage analysis unfiltered, including 11 full-page quote scans that are not damage photos.

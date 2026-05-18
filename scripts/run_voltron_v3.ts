@@ -1,9 +1,9 @@
 /**
  * run_voltron_v3.ts
  * Re-triggers the ISUZU MUX claim (id=6240003) through the full pipeline.
- * Tests Stage 1 (pdftoppm) and Stage 2 (chunked image OCR) fixes.
+ * Tests Stage 1 (pdftoppm), Stage 2 (chunked image OCR), and Stage 2.7 (embedded quote extraction).
  *
- * Run: npx tsx scripts/run_voltron_v3.ts 2>&1 | tee /tmp/voltron-v3.log
+ * Run: npx tsx scripts/run_voltron_v3.ts 2>&1 | tee /tmp/voltron-v4.log
  */
 import { triggerAiAssessment, getDb } from "../server/db";
 import { claims, aiAssessments, panelBeaterQuotes, quoteLineItems } from "../drizzle/schema";

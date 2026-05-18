@@ -718,6 +718,103 @@ export async function runPipelineV2(
     ctx.log('Stage 2.6', 'No extracted image metadata available — skipping classification (using raw damagePhotoUrls)');
   }
 
+  // ── STAGE 2.7: Embedded Quote Extraction from Quotation Scan Images ────────
+  // After Stage 2.6 classifies embedded images, any images classified as
+  // 'quotation_scan' may contain repair quotes that were not captured by Stage 2
+  // OCR (because they were raster images, not text). Extract quotes from each
+  // quotation_scan image and merge them into stage3Data.inputRecovery.extracted_quotes
+  // so Stage 9 can compare all available quotes.
+  if (ctx.classifiedImages && ctx.classifiedImages.quotationImages.length > 0 && stage3Data) {
+    const quotationImages = ctx.classifiedImages.quotationImages;
+    ctx.log('Stage 2.7', `Found ${quotationImages.length} quotation scan image(s) — extracting quotes from each`);
+    try {
+      const { extractQuoteFromImageUrl } = await import('./quoteExtractionEngine');
+      const imageQuotes: import('./quoteExtractionEngine').ExtractedQuote[] = [];
+      // Process up to 5 quotation images (cost guard)
+      const MAX_QUOTATION_IMAGES = 5;
+      const toProcess = quotationImages.slice(0, MAX_QUOTATION_IMAGES);
+      for (const img of toProcess) {
+        try {
+          ctx.log('Stage 2.7', `Extracting quote from image: ${img.url}`);
+          const q = await extractQuoteFromImageUrl(
+            img.url,
+            null,   // panel_beater hint — not available at this stage
+            null,   // total_cost hint — not available at this stage
+            ctx.tenantCountry
+          );
+          const hasPrices = q.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
+          const hasTotal = q.total_cost !== null && q.total_cost > 0;
+          if (hasPrices || hasTotal) {
+            ctx.log('Stage 2.7', `Quote extracted: panel_beater=${q.panel_beater}, total=${q.total_cost}, line_items=${q.line_items.length}, confidence=${q.confidence}`);
+            imageQuotes.push(q);
+          } else {
+            ctx.log('Stage 2.7', `No prices found in image — skipping`);
+          }
+        } catch (imgErr) {
+          ctx.log('Stage 2.7', `Failed to extract quote from image: ${String(imgErr)}`);
+        }
+      }
+      if (imageQuotes.length > 0) {
+        // Merge into stage3Data.inputRecovery.extracted_quotes
+        // Deduplicate by panel_beater name (case-insensitive) to avoid double-counting
+        // quotes that were also captured by Stage 2 OCR text extraction.
+        // Ensure inputRecovery exists with all required fields
+        if (!stage3Data.inputRecovery) {
+          stage3Data.inputRecovery = {
+            accident_description: null,
+            recovered_quote: null,
+            extracted_quotes: [],
+            images_present: true,
+            damage_hints: { zones: [], components: [] },
+            failure_flags: [],
+            recovered_at: new Date().toISOString(),
+          };
+        }
+        // Non-null assertion safe: we just initialised it above if it was null
+        const ir = stage3Data.inputRecovery!;
+        let mergedCount = 0;
+        for (const q of imageQuotes) {
+          const pb = (q.panel_beater ?? '').toLowerCase().trim();
+          // Check if this panel_beater already exists in extracted_quotes
+          const existingQuotes = ir.extracted_quotes ?? [];
+          const existingIdx = existingQuotes.findIndex(
+            (e) => (e.panel_beater ?? '').toLowerCase().trim() === pb && pb !== ''
+          );
+          if (existingIdx >= 0) {
+            const existing = existingQuotes[existingIdx];
+            const existingPriced = (existing.line_items ?? []).filter((li) => (li.line_total ?? 0) > 0).length;
+            const imagePriced = q.line_items.filter(li => (li.line_total ?? 0) > 0).length;
+            if (imagePriced > existingPriced) {
+              // Image extraction gave more priced line items — replace
+              existingQuotes[existingIdx] = q;
+              ir.extracted_quotes = existingQuotes;
+              ctx.log('Stage 2.7', `Replaced existing quote for "${q.panel_beater}" with image-extracted version (${imagePriced} vs ${existingPriced} priced items)`);
+              mergedCount++;
+            } else {
+              ctx.log('Stage 2.7', `Skipping image quote for "${q.panel_beater}" — existing OCR quote has more priced items (${existingPriced} vs ${imagePriced})`);
+            }
+          } else {
+            ir.extracted_quotes = [...existingQuotes, q];
+            mergedCount++;
+            ctx.log('Stage 2.7', `Added new quote from image: "${q.panel_beater}" (total=${q.total_cost})`);
+          }
+        }
+        ctx.log('Stage 2.7', `Embedded quote extraction complete: ${mergedCount} quote(s) merged. Total quotes now: ${(ir.extracted_quotes ?? []).length}`);
+      } else {
+        ctx.log('Stage 2.7', `No priced quotes found in ${toProcess.length} quotation scan image(s)`);
+      }
+    } catch (stage27Err) {
+      ctx.log('Stage 2.7', `Embedded quote extraction failed (non-fatal): ${String(stage27Err)}`);
+    }
+  } else {
+    const reason = !ctx.classifiedImages
+      ? 'no classified images available'
+      : ctx.classifiedImages.quotationImages.length === 0
+        ? 'no quotation scan images found'
+        : 'no stage3Data to merge into';
+    ctx.log('Stage 2.7', `Skipped — ${reason}`);
+  }
+
   // ── COMPLEXITY GATE: Classify claim tier after assembly ─────────────────
   // Deterministic, <1ms. Controls which optional stages are skipped.
   let complexityScore: ComplexityScore | null = null;
