@@ -7,6 +7,17 @@ Each entry records: **what** changed, **why** it was changed, **which files** we
 
 ## [Unreleased] — 2026-05-18
 
+### Fix: IMAGE_PIPELINE_FAILURE gate — embedded images now route through Stage 2.6 classifier
+- **Problem:** `pdfEmbeddedImages.ts` was merging all extracted images (damage photos AND full-page quote scans) directly into `ctx.damagePhotoUrls`. Since `ctx.extractedImagesWithMetadata` was not populated, Stage 2.6 (image classifier) was bypassed entirely. All 26 embedded images from the Voltron PDF went to Stage 6 damage analysis unfiltered, including 11 full-page quote scans that are not damage photos.
+- **Root cause of IMAGE_PIPELINE_FAILURE:** The `_photosAvailable` check in orchestrator.ts reads `(ctx.damagePhotoUrls ?? []).length > 0`. For PDF-only claims with no separate photo uploads, this was always `false` before embedded image extraction was added. Now that embedded images populate `ctx.damagePhotoUrls`, the gate correctly sees photos as available.
+- **Fix 1 (routing):** `pdfEmbeddedImages.ts` now computes `EmbeddedImageClassifierInput` metadata for each extracted image using heuristic geometry analysis: tall narrow images (aspect < 0.7) are flagged as `isTextHeavy=true` (quote scans), square-ish images (0.7–1.5) are flagged as `isTextHeavy=false` (damage photos). This metadata is stored on each `EmbeddedImageInfo` as `classifierInput`.
+- **Fix 2 (Stage 1 integration):** Stage 1 now populates `ctx.extractedImagesWithMetadata` with the classifier inputs from embedded images. Stage 2.6 will classify them: damage photos → `ctx.damagePhotoUrls`, quotation scans → `quotation_scan` category (not sent to Stage 6). A safety-net copy of all URLs is still placed in `ctx.damagePhotoUrls` in case Stage 2.6 is skipped.
+- **Files changed:** `server/pipeline-v2/pdfEmbeddedImages.ts`, `server/pipeline-v2/stage-1-ingestion.ts`
+
+---
+
+## [80fbe632] — 2026-05-18
+
 ### Fix: Stage 3 Hallucination Guard — Expanded SA Repair Terms Passthrough List
 - **Problem:** Valid South African workshop line items such as `"fittings"`, `"clips"`, `"regas"`, `"reprograme"`, `"focus lights"`, `"camber bolts"`, `"wind deflector"`, `"abs module"`, `"airbag module"`, `"tyre"`, `"supply"`, and `"repairs"` were being rejected by the hallucination guard in `quoteExtractionEngine.ts` because they were not in the `NON_PART_LINE_ITEM_CATEGORIES` set. This caused valid line items to be flagged as hallucinations and dropped from the extracted quote.
 - **Fix:** Expanded `NON_PART_LINE_ITEM_CATEGORIES` with five new groups: (1) hardware/fasteners (fittings, clips, bolts, washers, rivets, screws, adhesive, sealant, grommets, bushings), (2) repair operations (repairs, strip, regas, reprogramme, weld, welding, panel beating), (3) electrical/mechanical service items (focus lights, abs module, airbag module, ecu), (4) suspension/steering items (camber bolts, camber kit), (5) trim/hardware (wind deflector, step, tyre, spare wheel), and (6) financial/admin items (discount, delivery, supply).

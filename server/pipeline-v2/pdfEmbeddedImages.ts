@@ -65,6 +65,35 @@ const MAX_IMAGES_TO_UPLOAD = 30;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/**
+ * Mirrors the ExtractedImageInput shape expected by imageClassifier.ts.
+ * Quality metrics are estimated heuristically from image geometry:
+ *   - Tall narrow images (aspect < 0.7) → likely quotation scans (isTextHeavy=true)
+ *   - Square-ish images (0.7–1.5) → likely damage photos (isTextHeavy=false)
+ *   - Wide banner images (aspect > 2.5) → likely headers/logos (isTextHeavy=true)
+ */
+export interface EmbeddedImageClassifierInput {
+  url: string;
+  width: number;
+  height: number;
+  pageNumber: number;
+  source: 'embedded_image';
+  quality: {
+    width: number;
+    height: number;
+    blurScore: number;
+    isBlurry: boolean;
+    isTextHeavy: boolean;
+    isUniform: boolean;
+    colourVariance: number;
+    aspectRatio: number;
+    pixelArea: number;
+    rejectionReason?: string;
+  };
+  fromScannedPdf: boolean;
+  renderDpi?: number;
+}
+
 export interface EmbeddedImageInfo {
   /** 0-based index from pdfimages output */
   index: number;
@@ -80,6 +109,8 @@ export interface EmbeddedImageInfo {
   url: string;
   /** S3 key */
   key: string;
+  /** Classifier-ready metadata for Stage 2.6 imageClassifier */
+  classifierInput: EmbeddedImageClassifierInput;
 }
 
 export interface ExtractEmbeddedImagesResult {
@@ -91,6 +122,54 @@ export interface ExtractEmbeddedImagesResult {
   skipped: number;
   /** Non-fatal errors encountered during extraction */
   errors: string[];
+}
+
+// ─── Heuristic quality estimation ────────────────────────────────────────────
+
+/**
+ * Estimate quality metrics for an embedded image from its geometry alone.
+ * These are heuristic approximations — the imageClassifier LLM will refine them.
+ *
+ * Key heuristics:
+ *   - Tall narrow (aspect < 0.7): likely a scanned quote/invoice page → isTextHeavy=true
+ *   - Square-ish (0.7–1.5): likely a damage photo → isTextHeavy=false
+ *   - Wide banner (aspect > 2.5): likely a header/logo strip → isTextHeavy=true
+ *   - Small pixel area (<0.1MP): likely a logo/icon → isUniform=true
+ */
+function estimateQualityFromGeometry(
+  width: number,
+  height: number,
+  fileSizeBytes: number
+): EmbeddedImageClassifierInput['quality'] {
+  const aspectRatio = width / Math.max(height, 1);
+  const pixelArea = width * height;
+  const megapixels = pixelArea / 1_000_000;
+
+  // Text-heavy heuristic: tall narrow (A4-ish) or wide banner images
+  const isTextHeavy = aspectRatio < 0.7 || aspectRatio > 2.5;
+
+  // Uniform heuristic: very small images are likely logos/icons
+  const isUniform = megapixels < 0.05;
+
+  // Colour variance estimate: damage photos tend to have more colour variation
+  // Use file size per pixel as a proxy (higher compression ratio = more detail)
+  const bytesPerPixel = fileSizeBytes / Math.max(pixelArea, 1);
+  const colourVariance = isTextHeavy ? 15 : Math.min(80, bytesPerPixel * 200);
+
+  // Blur score: embedded images are typically sharp originals
+  const blurScore = isTextHeavy ? 150 : 250;
+
+  return {
+    width,
+    height,
+    blurScore,
+    isBlurry: blurScore < 50,
+    isTextHeavy,
+    isUniform,
+    colourVariance,
+    aspectRatio,
+    pixelArea,
+  };
 }
 
 // ─── pdfimages list parser ────────────────────────────────────────────────────
@@ -252,6 +331,16 @@ export async function extractEmbeddedImages(
       try {
         const imgBuffer = fs.readFileSync(filePath);
         const { url, key } = await storagePut(s3Key, imgBuffer, mimeType);
+        const quality = estimateQualityFromGeometry(listEntry.width, listEntry.height, fileSize);
+        const classifierInput: EmbeddedImageClassifierInput = {
+          url,
+          width: listEntry.width,
+          height: listEntry.height,
+          pageNumber: listEntry.page,
+          source: 'embedded_image',
+          quality,
+          fromScannedPdf: true,
+        };
         images.push({
           index: fileIndex,
           page: listEntry.page,
@@ -260,8 +349,9 @@ export async function extractEmbeddedImages(
           fileSizeBytes: fileSize,
           url,
           key,
+          classifierInput,
         });
-        log(`Uploaded embedded image ${fileIndex} (page ${listEntry.page}, ${listEntry.width}×${listEntry.height}, ${Math.round(fileSize / 1024)}KB) → ${url}`);
+        log(`Uploaded embedded image ${fileIndex} (page ${listEntry.page}, ${listEntry.width}×${listEntry.height}, ${Math.round(fileSize / 1024)}KB, textHeavy=${quality.isTextHeavy}) → ${url}`);
         uploadCount++;
       } catch (uploadErr: any) {
         const msg = `Image ${fileIndex} upload failed: ${uploadErr.message}`;

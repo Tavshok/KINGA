@@ -189,15 +189,29 @@ export async function runIngestionStage(
           (msg) => ctx.log("Stage 1 [Embedded Images]", msg)
         );
         if (embeddedResult.images.length > 0) {
-          const embeddedUrls = embeddedResult.images.map((img) => img.url);
-          // Merge into ctx.damagePhotoUrls — these will be treated as damage photos
-          // by Stage 6 (damage analysis). The LLM distinguishes between actual
-          // damage photos and embedded quote scans based on image content.
+          // Populate ctx.extractedImagesWithMetadata so Stage 2.6 (imageClassifier)
+          // can classify them properly:
+          //   - Damage photos (square-ish, high colour variance) → ctx.damagePhotoUrls
+          //   - Quotation scans (tall narrow, text-heavy) → classified as quotation_scan
+          //   - Document pages → classified as document_page
+          // This is the architecturally correct path — Stage 2.6 handles the routing.
+          // Also add all URLs to ctx.damagePhotoUrls as a fallback in case Stage 2.6
+          // is skipped (e.g. no extractedImagesWithMetadata path taken).
+          const embeddedClassifierInputs = embeddedResult.images.map((img) => img.classifierInput);
+          if (!(ctx as any).extractedImagesWithMetadata) {
+            (ctx as any).extractedImagesWithMetadata = [];
+          }
+          (ctx as any).extractedImagesWithMetadata = [
+            ...((ctx as any).extractedImagesWithMetadata ?? []),
+            ...embeddedClassifierInputs,
+          ];
+          // Also populate damagePhotoUrls with all embedded images as a safety net.
+          // Stage 2.6 will replace this with the classifier-selected subset.
           if (!ctx.damagePhotoUrls) (ctx as any).damagePhotoUrls = [];
-          (ctx as any).damagePhotoUrls = [...(ctx.damagePhotoUrls ?? []), ...embeddedUrls];
+          (ctx as any).damagePhotoUrls = [...(ctx.damagePhotoUrls ?? []), ...embeddedResult.images.map(img => img.url)];
           ctx.log(
             "Stage 1",
-            `Embedded images: ${embeddedResult.images.length} extracted and merged into damage photo pool (${embeddedResult.totalFound} total found, ${embeddedResult.skipped} skipped)`
+            `Embedded images: ${embeddedResult.images.length} extracted — added to extractedImagesWithMetadata for Stage 2.6 classification (${embeddedResult.totalFound} total found, ${embeddedResult.skipped} skipped)`
           );
         } else {
           ctx.log(
