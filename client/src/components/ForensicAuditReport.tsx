@@ -817,7 +817,20 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const normalised = (aiAssessment as any)?._normalised as any;
   // No KINGA cost estimate — only document-sourced costs are used
   const aiEstimate = 0; // Disabled: system uses submitted quote only
-  const quotedTotal = ctl?.costBasis?.optimisedCostUsd ?? (quotes?.[0]?.quotedAmount ?? 0) / 100;
+  // quotedTotal = the lowest submitted quote total (L1).
+  // Use compositeOptimisation.l1LowestSubmittedCostUsd when available (set by stage-9 after
+  // computing savings), otherwise fall back to the lowest quote in the quotes prop.
+  const ci0 = (aiAssessment as any)?.costIntelligenceJson ?? null;
+  const co0 = ci0?.compositeOptimisation ?? null;
+  const quotedTotal = co0?.l1LowestSubmittedCostUsd
+    ?? co0?.l1SubmittedCostUsd
+    ?? (quotes && quotes.length > 0
+        ? Math.min(...quotes.map((q: any) => {
+            const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + Number(li.lineTotal ?? 0), 0);
+            const raw = (q.quotedAmount ?? 0) / 100;
+            return raw > 0 ? raw : lineTotal;
+          }).filter((t: number) => t > 0))
+        : 0);
   const photosDetected = ctl?.evidence?.photoCount ?? aiAssessment?.photosDetected ?? 0;
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
 
@@ -4530,8 +4543,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                 <tbody>
                   <tr style={{ borderTop: '1px solid #e2e8f0' }}>
                     <td className="px-3 py-2 font-bold" style={{ color: '#0f172a' }}>L1 — Submitted</td>
-                    <td className="px-3 py-2" style={{ color: '#64748b' }}>Authoritative quote from selected repairer</td>
-                    <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a' }}>{fmtMoney(co.l1SubmittedCostUsd)}</td>
+                    <td className="px-3 py-2" style={{ color: '#64748b' }}>Lowest submitted quote (canonical L1 figure)</td>
+                    <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a' }}>{fmtMoney(co.l1LowestSubmittedCostUsd ?? co.l1SubmittedCostUsd)}</td>
                     <td className="px-3 py-2 text-right" style={{ color: '#64748b' }}>—</td>
                   </tr>
                   {hasL2 && (
@@ -4561,7 +4574,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                       <td colSpan={2} className="px-3 py-2 font-bold" style={{ color: '#0f172a' }}>Total Savings Opportunity</td>
                       <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#15803d' }}>{fmtMoney(co.totalSavingsOpportunityUsd)}</td>
                       <td className="px-3 py-2 tabular-nums text-right text-xs" style={{ color: '#64748b' }}>
-                        {co.l1SubmittedCostUsd > 0 ? `${((co.totalSavingsOpportunityUsd / co.l1SubmittedCostUsd) * 100).toFixed(1)}% of L1` : ''}
+                        {(co.l1LowestSubmittedCostUsd ?? co.l1SubmittedCostUsd ?? 0) > 0 ? `${((co.totalSavingsOpportunityUsd / (co.l1LowestSubmittedCostUsd ?? co.l1SubmittedCostUsd)) * 100).toFixed(1)}% of L1` : ''}
                       </td>
                     </tr>
                   </tfoot>

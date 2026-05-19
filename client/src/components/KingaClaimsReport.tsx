@@ -841,7 +841,9 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
             {(() => {
               const compOpt = (ci as any)?.compositeOptimisation ?? null;
               const compositeLineItems: any[] = compOpt?.compositeLineItems ?? [];
-              const l1 = compOpt?.l1SubmittedCostUsd ?? null;
+              // l1 = lowest submitted quote (L1). Prefer l1LowestSubmittedCostUsd (set by stage-9
+              // after computing savings) so it matches the ForensicAuditReport cover KPI exactly.
+              const l1 = compOpt?.l1LowestSubmittedCostUsd ?? compOpt?.l1SubmittedCostUsd ?? null;
               const l2 = compOpt?.l2CompositeOptimisedCostUsd ?? null;
               const l3 = compOpt?.l3BenchmarkReferenceCostUsd ?? null;
               const nfs = compOpt?.negotiationFeasibilityScore ?? null;
@@ -1021,9 +1023,20 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                         {
                           label: "L2 — KINGA Optimised",
                           value: l2 != null ? fmtC(l2) : "—",
-                          sub: l1 != null && l2 != null && l1 > 0
-                            ? `${((l1 - l2) / l1 * 100).toFixed(1)}% saving vs submitted`
-                            : "Composite best-price selection",
+                          sub: (() => {
+                            // Use canonical savingsL1vsL2Usd from compositeOptimisation when available
+                            const savingsUsd: number | null = compOpt?.savingsL1vsL2Usd ?? null;
+                            if (savingsUsd != null && l1 != null && l1 > 0) {
+                              const pct = ((savingsUsd / l1) * 100).toFixed(1);
+                              return savingsUsd >= 0
+                                ? `${pct}% saving vs submitted (${fmtC(savingsUsd)} saved)`
+                                : `${Math.abs(Number(pct))}% above submitted — verify scope`;
+                            }
+                            if (l1 != null && l2 != null && l1 > 0) {
+                              return `${((l1 - l2) / l1 * 100).toFixed(1)}% saving vs submitted`;
+                            }
+                            return "Composite best-price selection";
+                          })(),
                           accent: "#1A2B4A",
                         },
                         {

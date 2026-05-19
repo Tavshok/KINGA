@@ -1484,6 +1484,12 @@ export async function runCostOptimisationStage(
               (output as any).kingaSavingsQuoteOptimisation = kingaSavingsUsd;
               (output as any).kingaSavingsLowestSubmittedUsd = lowestSubmittedUsd;
               (output as any).kingaSavingsL2OptimisedUsd = l2Usd;
+              // Backfill savingsL1vsL2Usd into compositeOptimisation so both reports
+              // read the same canonical savings figure from one place.
+              if ((output as any).compositeOptimisation) {
+                (output as any).compositeOptimisation.savingsL1vsL2Usd = kingaSavingsUsd;
+                (output as any).compositeOptimisation.l1LowestSubmittedCostUsd = lowestSubmittedUsd;
+              }
 
               // ── Step A3-patch: backfill L2 deviation percentages into the deviation matrix ──
               // The matrix was built earlier with pct_vs_kinga_optimised=null because L2 was
