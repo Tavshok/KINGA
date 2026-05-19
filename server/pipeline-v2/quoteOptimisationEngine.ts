@@ -128,6 +128,18 @@ export interface QuoteOptimisationResult {
   quotes_evaluated: number;
   /** Number of structural gaps across all selected quotes */
   total_structural_gaps: number;
+  /**
+   * The recommended quote: lowest-cost valid quote with ≥80% component coverage
+   * and no structural gaps. This is the KINGA cost recommendation.
+   * null if no quote meets the threshold.
+   */
+  best_quote_by_cost: QuoteValidationResult | null;
+  /**
+   * Savings opportunity in USD: difference between the highest-cost selected quote
+   * and the best_quote_by_cost. Represents what the insurer saves by using KINGA
+   * to select the optimal quote.
+   */
+  savings_vs_highest_usd: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -600,6 +612,8 @@ export function optimiseRepairCost(
       median_cost_usd: null,
       quotes_evaluated: 0,
       total_structural_gaps: 0,
+      best_quote_by_cost: null,
+      savings_vs_highest_usd: 0,
     };
   }
 
@@ -635,6 +649,8 @@ export function optimiseRepairCost(
       median_cost_usd: medianCost > 0 ? medianCost : null,
       quotes_evaluated: quotesEvaluated,
       total_structural_gaps: 0,
+      best_quote_by_cost: null,
+      savings_vs_highest_usd: 0,
     };
   }
 
@@ -690,6 +706,10 @@ export function optimiseRepairCost(
     median_cost_usd: medianCost > 0 ? medianCost : null,
     quotes_evaluated: quotesEvaluated,
     total_structural_gaps: totalStructuralGaps,
+    best_quote_by_cost: selectedQuotes.length > 0
+      ? selectedQuotes.reduce((a, b) => (a.total_cost ?? Infinity) < (b.total_cost ?? Infinity) ? a : b)
+      : null,
+    savings_vs_highest_usd: 0, // overridden in stage-9 with L1-L2 formula after compositeResult
   };
 }
 

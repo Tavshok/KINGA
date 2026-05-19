@@ -235,6 +235,19 @@ RULES — follow these exactly:
    e) Example: "Replace L/S Headlamp  1  1360.00  25.00" → unit_cost=1360, line_total=1385 (1360+25)
    f) If only one number appears (parts only, no labour/paint), unit_cost = line_total = that number.
    g) Words like "Strip", "S&A", "R&R" before a number indicate that number is a labour/strip cost — include it in line_total.
+   FIVE-COLUMN QUOTE TABLES WITH VAT (MIAZ format — common in Zimbabwe, e.g. Swiss Motors, Grand Auto Premier):
+   These quotes have columns: Item | Description | Quantity | Unit | Unit Price | Discount | VAT | Total
+   CRITICAL: The 'Total' column is the ONLY authoritative line total. It already includes VAT. NEVER use 'Unit Price' as line_total.
+   Rules for MIAZ five-column tables:
+   a) line_total = value in the 'Total' column (rightmost price column). This is Unit Price × Qty − Discount + VAT.
+   b) unit_cost = value in the 'Unit Price' column (NOT the Total column).
+   c) Example row: "HEADLAMPS  2  EA  1310.00  0.00  393.00  2620.00" → component="headlamps", qty=2, unit_cost=1310, line_total=2620
+   d) Example row: "AIRBAGS COMPLETE  1  EA  4350.00  0.00  652.50  4350.00" → component="airbags complete", qty=1, unit_cost=4350, line_total=4350
+   e) Example row: "FRONT BUMPER  1  EA  1400.00  0.00  210.00  1400.00" → component="front bumper", qty=1, unit_cost=1400, line_total=1400
+   f) The document footer shows Subtotal, Discount, VAT, and Total. Use the TOTAL (including VAT) as total_cost.
+   g) Example footer: "Subtotal: 22220.00  VAT: 3333.00  Total: 25553.00" → total_cost=25553
+   h) Do NOT skip VAT rows in the footer — use the grand Total as total_cost.
+   i) If the image shows a MIAZ logo or 'Motor Industry Association of Zimbabwe', apply these rules.
    PROPORTIONAL FALLBACK: If you cannot parse individual line totals but the document total is known and there are N components,
    distribute the total proportionally across components using equal shares as a last resort.
    Set extraction_warnings to include "proportional_fallback_used" in that case.

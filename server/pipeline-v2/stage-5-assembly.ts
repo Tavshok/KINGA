@@ -425,12 +425,12 @@ export async function runAssemblyStage(
           const vehicleSpec = [
             `Make: ${vehicle.make}`,
             `Model: ${vehicle.model}`,
-            `Variant/Trim: ${vehicle.variant || 'unknown'}`,
+            `Body Type: ${vehicle.bodyType || 'unknown'}`,
             `Year: ${vehicle.year}`,
             `Mileage: ${vehicle.mileageKm ? vehicle.mileageKm + ' km' : 'unknown'}`,
             `Colour: ${vehicle.colour || 'unknown'}`,
-            `Transmission: ${vehicle.transmission || 'unknown'}`,
-            `Engine: ${vehicle.engineCapacity || 'unknown'}`,
+            `Powertrain: ${vehicle.powertrain || 'unknown'}`,
+            `VIN: ${vehicle.vin || 'unknown'}`,
           ].join('\n');
 
           const llmResponse = await invokeLLM({

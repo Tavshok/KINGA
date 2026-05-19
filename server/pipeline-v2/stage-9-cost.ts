@@ -19,6 +19,7 @@ import { resolveComponent } from "../../shared/vehicleParts";
 import { sql as drizzleSql } from "drizzle-orm";
 import { optimiseRepairCost, type InputQuote, buildCompositeQuote, classifyComponents, computeProbableHiddenDamage, type InputQuoteWithLineItems, type BenchmarkMap } from "./quoteOptimisationEngine";
 import { runCostDecision } from "./costDecisionEngine";
+import { runCrossQuoteGapAnalysis, type CrossQuoteGapAnalysisResult } from "./crossQuoteGapAnalysis";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
 import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
 import { generateCostIntelligenceNarrative } from "./costIntelligenceNarrative";
@@ -305,6 +306,73 @@ export async function runCostOptimisationStage(
       ctx.log("Stage 9", `Quote optimisation: optimised_cost=USD ${quoteOptimisation.optimised_cost_usd.toFixed(2)}, confidence=${quoteOptimisation.confidence}, spread=${quoteOptimisation.cost_spread_pct}%, selected=${quoteOptimisation.selected_quotes.length}/${quoteOptimisation.quotes_evaluated}`);
     }
 
+    // ── Step A2: Cross-Quote Gap Analysis + Deviation Matrix ──────────────────
+    const gapAnalysisQuotes = (stage3 as any)?.inputRecovery?.extracted_quotes ?? [];
+    const damagePhotoUrlsForGap: string[] = [
+      ...((ctx as any).damagePhotoUrls ?? []),
+      ...((ctx as any).classifiedImages?.damagePhotos?.map((img: any) => img.url ?? img) ?? []),
+    ].filter(Boolean);
+
+    let crossQuoteGapAnalysis: CrossQuoteGapAnalysisResult | null = null;
+    if (gapAnalysisQuotes.length >= 1) {
+      try {
+        crossQuoteGapAnalysis = await runCrossQuoteGapAnalysis(
+          gapAnalysisQuotes,
+          damageAnalysis.damagedParts.map((p: any) => p.name),
+          damagePhotoUrlsForGap,
+          damagePhotoUrlsForGap.length > 0
+        );
+        ctx.log("Stage 9", `Cross-quote gap analysis: ${gapAnalysisQuotes.length} quotes, ${crossQuoteGapAnalysis.master_component_union.length} unique components, ${crossQuoteGapAnalysis.copy_quotation_flags.length} copy flag(s)`);
+        for (const pq of crossQuoteGapAnalysis.per_quote_gaps) {
+          ctx.log("Stage 9", `  [${pq.panel_beater}] coverage=${(pq.coverage_ratio * 100).toFixed(0)}%, missing=${pq.missing_components.length}, est_gap_cost=USD ${(pq.gap_cost_estimate_usd ?? 0).toFixed(2)}`);
+        }
+        if (crossQuoteGapAnalysis.latent_damage_advisories.length > 0) {
+          ctx.log("Stage 9", `LATENT DAMAGE WARNING: ${crossQuoteGapAnalysis.latent_damage_advisories.length} damaged component(s) not quoted by any panel beater: ${crossQuoteGapAnalysis.latent_damage_advisories.slice(0, 5).join(", ")}`);
+        }
+        if (crossQuoteGapAnalysis.copy_quotation_flags.some((f: any) => f.verdict === "likely_copy")) {
+          ctx.log("Stage 9", `FRAUD SIGNAL [copy quotation]: high-severity copy quotation detected`);
+        }
+      } catch (gapErr) {
+        ctx.log("Stage 9", `Cross-quote gap analysis failed (non-fatal): ${String(gapErr)}`);
+      }
+    }
+
+    // ── Step A3: Quote Deviation Matrix ──────────────────────────────────────
+    // % deviation of each panel beater vs (a) lowest submitted and (b) KINGA optimised.
+    const quoteDeviationMatrix: Array<{
+      panel_beater: string;
+      total_cost_usd: number;
+      pct_vs_lowest: number;
+      pct_vs_kinga_optimised: number | null;
+      verdict: 'cheapest' | 'above_lowest' | 'below_kinga' | 'above_kinga';
+    }> = [];
+    if (quoteOptimisation && quoteOptimisation.selected_quotes.length > 0) {
+      const lowestCost = Math.min(...quoteOptimisation.selected_quotes.map(q => q.total_cost));
+      const kingaOptimised = quoteOptimisation.optimised_cost_usd;
+      ctx.log("Stage 9", `=== QUOTE DEVIATION MATRIX (lowest=USD ${lowestCost.toFixed(2)}, KINGA=USD ${kingaOptimised.toFixed(2)}) ===`);
+      for (const q of quoteOptimisation.selected_quotes) {
+        const pctVsLowest = lowestCost > 0 ? Math.round(((q.total_cost - lowestCost) / lowestCost) * 1000) / 10 : 0;
+        const pctVsKinga = kingaOptimised > 0 ? Math.round(((q.total_cost - kingaOptimised) / kingaOptimised) * 1000) / 10 : null;
+        const verdict: 'cheapest' | 'above_lowest' | 'below_kinga' | 'above_kinga' = q.total_cost === lowestCost ? 'cheapest' : pctVsKinga !== null && pctVsKinga < 0 ? 'below_kinga' : pctVsKinga !== null && pctVsKinga > 0 ? 'above_kinga' : 'above_lowest';
+        quoteDeviationMatrix.push({ panel_beater: q.panel_beater, total_cost_usd: q.total_cost, pct_vs_lowest: pctVsLowest, pct_vs_kinga_optimised: pctVsKinga, verdict });
+        ctx.log("Stage 9", `  [${q.panel_beater}] USD ${q.total_cost.toFixed(2)} | vs_lowest=${pctVsLowest >= 0 ? "+" : ""}${pctVsLowest}% | vs_kinga=${pctVsKinga !== null ? (pctVsKinga >= 0 ? "+" : "") + pctVsKinga + "%" : "N/A"} | ${verdict}`);
+      }
+      ctx.log("Stage 9", `=== END DEVIATION MATRIX ===`);
+    }
+
+    // ── Step A4: KINGA Savings log ──────────────────────────────────────────
+    if (quoteOptimisation) {
+      if (quoteOptimisation.best_quote_by_cost) {
+        ctx.log("Stage 9", `KINGA recommended quote: ${quoteOptimisation.best_quote_by_cost.panel_beater} @ USD ${quoteOptimisation.best_quote_by_cost.total_cost.toFixed(2)} (coverage=${(quoteOptimisation.best_quote_by_cost.coverage_ratio * 100).toFixed(0)}%, structurally_complete=${quoteOptimisation.best_quote_by_cost.structurally_complete})`);
+      }
+      if (quoteOptimisation.savings_vs_highest_usd !== 0) {
+        const savingsLabel = quoteOptimisation.savings_vs_highest_usd > 0
+          ? `KINGA savings [quote optimisation]: USD ${quoteOptimisation.savings_vs_highest_usd.toFixed(2)} (lowest submitted minus KINGA optimised)`
+          : `SUPPLEMENTARY CLAIM RISK: USD ${Math.abs(quoteOptimisation.savings_vs_highest_usd).toFixed(2)} (cheapest quote is incomplete)`;
+        ctx.log("Stage 9", savingsLabel);
+      }
+    }
+
     // ── Step B: Document-sourced cost breakdown ONLY ────────────────────────────
     // Use only what is in the submitted quote. No AI estimates for missing components.
     let totalPartsCents = 0;
@@ -522,11 +590,11 @@ export async function runCostOptimisationStage(
           : matched
           ? null
           : null,
-        reconciliation_status: reconciliation
+        reconciliation_status: (reconciliation
           ? (matched
               ? (isUnpriced ? "matched_unpriced" : "matched")
               : isMissing ? "missing_from_quote" : "unmatched")
-          : "no_quote_available",
+          : "no_quote_available") as "matched" | "matched_unpriced" | "missing_from_quote" | "unmatched" | "no_quote_available",
         is_structural: comp.name ? /radiator support|bumper bracket|chassis|sill|diff connector|differential connector/i.test(comp.name) : false,
       };
     });
@@ -1086,6 +1154,18 @@ export async function runCostOptimisationStage(
       // This is the primary signal for adjuster follow-up on missing cost data.
       quoteLineItemGapAdvisory: quoteLineItemGapAdvisory.length > 0 ? quoteLineItemGapAdvisory : undefined,
       overallLineItemCompletenessScore,
+      // Cross-quote gap analysis — component union, per-quote gaps, latent damage, copy detection
+      crossQuoteGapAnalysis: crossQuoteGapAnalysis ?? undefined,
+      // KINGA Savings — quote optimisation dimension
+      kingaSavingsQuoteOptimisation: quoteOptimisation?.savings_vs_highest_usd ?? 0,
+      kingaRecommendedQuote: quoteOptimisation?.best_quote_by_cost
+        ? {
+            panel_beater: quoteOptimisation.best_quote_by_cost.panel_beater,
+            total_cost: quoteOptimisation.best_quote_by_cost.total_cost,
+            coverage_ratio: quoteOptimisation.best_quote_by_cost.coverage_ratio,
+            structurally_complete: quoteOptimisation.best_quote_by_cost.structurally_complete,
+          }
+        : null,
     }, isDegraded ? "degraded_estimate" : "success");
 
     // ── Phase 2: Per-component KINGA benchmarks ─────────────────────────────
@@ -1388,6 +1468,28 @@ export async function runCostOptimisationStage(
               quotesEvaluated: compositeInputQuotes.length,
             };
 
+            // ── KINGA Savings: L1 (lowest submitted) minus L2 (per-component optimised) ──
+            // This is the headline KINGA value: what the insurer saves by using KINGA
+            // to select the per-component lowest credible price instead of approving
+            // the cheapest submitted quote as-is.
+            const allSubmittedTotals = (stage3?.inputRecovery?.extracted_quotes ?? [])
+              .map((q: any) => q.total_cost ?? 0)
+              .filter((t: number) => t > 0);
+            const lowestSubmittedUsd = allSubmittedTotals.length > 0
+              ? Math.min(...allSubmittedTotals)
+              : 0;
+            const l2Usd = compositeResult.compositeOptimisedCostUsd;
+            if (lowestSubmittedUsd > 0 && l2Usd > 0) {
+              const kingaSavingsUsd = lowestSubmittedUsd - l2Usd;
+              // Override the earlier weighted-average savings with the correct L1-L2 figure
+              (output as any).kingaSavingsQuoteOptimisation = kingaSavingsUsd;
+              (output as any).kingaSavingsLowestSubmittedUsd = lowestSubmittedUsd;
+              (output as any).kingaSavingsL2OptimisedUsd = l2Usd;
+              const savingsLabel = kingaSavingsUsd >= 0
+                ? `KINGA savings [L1-L2]: USD ${kingaSavingsUsd.toFixed(2)} (lowest submitted $${lowestSubmittedUsd.toFixed(2)} minus KINGA per-component optimised $${l2Usd.toFixed(2)})`
+                : `SUPPLEMENTARY CLAIM RISK [L1-L2]: USD ${Math.abs(kingaSavingsUsd).toFixed(2)} (cheapest quote $${lowestSubmittedUsd.toFixed(2)} is below KINGA optimised $${l2Usd.toFixed(2)} — likely incomplete)`;
+              ctx.log('Stage 9', savingsLabel);
+            }
             ctx.log('Stage 9',
               `Composite optimisation: L1=$${l1TotalUsd.toFixed(2)} L2=$${compositeResult.compositeOptimisedCostUsd.toFixed(2)} ` +
               `L3=$${compositeResult.benchmarkReferenceCostUsd.toFixed(2)} ` +

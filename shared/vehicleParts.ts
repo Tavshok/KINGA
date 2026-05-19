@@ -102,7 +102,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "headlight_l",
     name: "Headlight Assembly (Left)",
-    aliases: ["left headlamp", "driver headlight", "LH headlight"],
+    aliases: ["left headlamp", "driver headlight", "LH headlight", "headlamps", "headlights", "headlamp set", "headlight set", "headlamp assembly", "headlight assembly"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -747,7 +747,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "airbag_driver",
     name: "Driver Airbag",
-    aliases: ["driver air bag", "steering wheel airbag", "driver srs", "driver srs airbag"],
+    aliases: ["driver air bag", "steering wheel airbag", "driver srs", "driver srs airbag", "airbags complete", "airbags", "airbag set", "airbag complete", "air bags complete", "air bags"],
     zone: "roof",
     structural: false,
     costTier: "high",

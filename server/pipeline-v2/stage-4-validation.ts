@@ -117,6 +117,7 @@ function emptyExtraction(): ExtractedClaimFields {
     repairCountry: null,
     quoteCurrency: null,
     uploadedImageUrls: [], sourceDocumentIndex: -1,
+    policyExclusions: null, assessorInspectionDate: null,
   };
 }
 

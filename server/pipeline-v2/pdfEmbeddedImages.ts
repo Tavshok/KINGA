@@ -48,6 +48,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { createHash } from "crypto";
+import sharp from "sharp";
 import { storagePut } from "../storage";
 
 const execFileAsync = promisify(execFile);
@@ -352,7 +353,22 @@ export async function extractEmbeddedImages(
       const s3Key = `claims/${claimId}/embedded-photos/${pdfHash}/img-${String(fileIndex).padStart(3, "0")}${uploadExt}`;
 
       try {
-        const imgBuffer = fs.readFileSync(filePath);
+        let imgBuffer: Buffer = fs.readFileSync(filePath);
+
+        // ── LANDSCAPE AUTO-ROTATION ──────────────────────────────────────────
+        // Embedded quote scans stored landscape (width > height) cause the LLM
+        // to read the wrong column. Rotate 90° clockwise to portrait.
+        try {
+          const meta = await sharp(imgBuffer).metadata();
+          if (meta.width && meta.height && meta.width > meta.height) {
+            log(`Embedded img ${fileIndex}: landscape detected (${meta.width}×${meta.height}) — rotating 90° to portrait`);
+            imgBuffer = Buffer.from(await sharp(imgBuffer).rotate(90).png().toBuffer());
+          }
+        } catch (rotErr: any) {
+          log(`Embedded img ${fileIndex}: rotation check failed (non-fatal): ${rotErr.message}`);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         const { url, key } = await storagePut(s3Key, imgBuffer, mimeType);
         const quality = estimateQualityFromGeometry(listEntry.width, listEntry.height, fileSize);
         const classifierInput: EmbeddedImageClassifierInput = {

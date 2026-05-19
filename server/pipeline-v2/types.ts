@@ -1345,6 +1345,26 @@ export interface Stage9Output {
    * Used to determine if cost optimisation can be performed reliably.
    */
   overallLineItemCompletenessScore?: number;
+  /**
+   * Cross-quote gap analysis — component union, per-quote completeness, latent damage,
+   * copy quotation detection. Foundation of the KINGA Savings model.
+   */
+  crossQuoteGapAnalysis?: import('./crossQuoteGapAnalysis').CrossQuoteGapAnalysisResult;
+  /**
+   * KINGA Savings [quote optimisation dimension] — difference between the highest
+   * valid quote and the KINGA-recommended best quote (USD).
+   */
+  kingaSavingsQuoteOptimisation?: number;
+  /**
+   * KINGA-recommended quote — the lowest-cost fully-extracted valid quote.
+   * This is the quote KINGA recommends the insurer approve.
+   */
+  kingaRecommendedQuote?: {
+    panel_beater: string;
+    total_cost: number;
+    coverage_ratio: number;
+    structurally_complete: boolean;
+  } | null;
 }
 // ────────────────────────────────────────────────────────────────────────────────
 // STAGE 9b — TURNAROUND TIME ANALYSIS

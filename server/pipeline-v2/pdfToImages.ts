@@ -37,6 +37,7 @@ import { promisify } from "util";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import sharp from "sharp";
 import { storagePut } from "../storage";
 
 const execFileAsync = promisify(execFile);
@@ -184,13 +185,29 @@ export async function renderPdfToImages(
 
     log(`pdftoppm rendered ${pngFiles.length} page(s)`);
 
-    // Upload each page to S3
+    // Upload each page to S3 (with landscape auto-rotation)
     for (const pngFile of pngFiles) {
       const match = pngFile.match(/(\d+)\.png$/);
       const pageNum = match ? parseInt(match[1], 10) : pages.length + 1;
       try {
         const pngPath = path.join(tmpDir, pngFile);
-        const pngBuf = fs.readFileSync(pngPath);
+        let pngBuf: Buffer = fs.readFileSync(pngPath);
+
+        // ── LANDSCAPE AUTO-ROTATION ──────────────────────────────────────────
+        // PDF pages stored in landscape orientation (width > height) confuse the
+        // LLM — table columns appear rotated 90°, causing wrong column reads.
+        // Detect landscape pages and rotate 90° clockwise to portrait.
+        try {
+          const meta = await sharp(pngBuf).metadata();
+          if (meta.width && meta.height && meta.width > meta.height) {
+            log(`Page ${pageNum}: landscape detected (${meta.width}×${meta.height}) — rotating 90° to portrait`);
+            pngBuf = Buffer.from(await sharp(pngBuf).rotate(90).png().toBuffer());
+          }
+        } catch (rotErr: any) {
+          log(`Page ${pageNum}: rotation check failed (non-fatal): ${rotErr.message}`);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         const s3Key = `${keyPrefix}/${urlHash}/page-${String(pageNum).padStart(3, "0")}.png`;
         const { url, key } = await storagePut(s3Key, pngBuf, "image/png");
         pages.push({ pageNumber: pageNum, url, key, fileSizeBytes: pngBuf.length });

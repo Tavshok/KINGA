@@ -12282,3 +12282,23 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Surface subrogation leads in report UI (ForensicAuditReport Section 3)
 - [ ] Improve LLM market valuation prompt for Zimbabwe/Southern Africa vehicle pricing
 - [ ] Add fraud indicator evidence traceability to report (each flag links to source document/page)
+
+## Cross-Quote Gap Analysis Engine (Cost Intelligence)
+
+- [ ] Build crossQuoteGapAnalysis.ts: union all quoted components, per-quote gap map, copy quotation detection
+- [ ] Add vision validation layer: for each gap component, check damage photos via LLM vision to confirm/deny visibility
+- [ ] Integrate CrossQuoteGapAnalysis into Stage 9 pipeline with end-of-pipeline summary log
+- [ ] Persist gap analysis results in ai_assessments JSON (cross_quote_gap_analysis field)
+- [ ] Surface gap analysis in UI: per-quote gap table, vision-validated gaps, composite fair quote, savings
+- [ ] Fix Swiss Motors MIAZ-format extraction (USD 25,553 total, 26 line items) - prompt updated, re-run pending
+- [x] Add best_quote_by_cost and savings_vs_highest_usd to QuoteOptimisationResult
+
+## KINGA Savings Dashboard Audit (Future)
+
+- [ ] Audit executive dashboard "KINGA Savings" widget — trace where the current figure comes from in the code and DB
+- [ ] Audit claims manager dashboard "KINGA Savings" widget — same trace
+- [ ] Determine if current savings figures are real (from pipeline data) or hardcoded/fabricated
+- [ ] Map existing savings widgets to the new KINGA Savings Model dimensions (quote optimisation, gap prevention, latent damage, fraud prevention, copy quotation risk)
+- [ ] Redesign savings display: each dimension stands alone with its own label and confidence badge
+- [ ] Add "KINGA Cost Savings" as a separate headline parameter distinct from fraud/gap savings
+- [ ] Implement portfolio-level savings aggregation across all claims for the insurer

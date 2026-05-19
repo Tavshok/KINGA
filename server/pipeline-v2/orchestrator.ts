@@ -786,14 +786,23 @@ export async function runPipelineV2(
             const existing = existingQuotes[existingIdx];
             const existingPriced = (existing.line_items ?? []).filter((li) => (li.line_total ?? 0) > 0).length;
             const imagePriced = q.line_items.filter(li => (li.line_total ?? 0) > 0).length;
-            if (imagePriced > existingPriced) {
-              // Image extraction gave more priced line items — replace
+            const existingTotal = existing.total_cost ?? 0;
+            const imageTotal = q.total_cost ?? 0;
+            // Prefer image extraction if:
+            //   (a) it has more priced items, OR
+            //   (b) both have ≥10 priced items but image total is higher
+            //       (OCR text layer may read wrong column, e.g. Unit Price instead of Total)
+            const preferImage =
+              imagePriced > existingPriced ||
+              (imagePriced >= 10 && existingPriced >= 10 && imageTotal > existingTotal);
+            if (preferImage) {
+              // Image extraction gave more priced line items or higher total — replace
               existingQuotes[existingIdx] = q;
               ir.extracted_quotes = existingQuotes;
-              ctx.log('Stage 2.7', `Replaced existing quote for "${q.panel_beater}" with image-extracted version (${imagePriced} vs ${existingPriced} priced items)`);
+              ctx.log('Stage 2.7', `Replaced existing quote for "${q.panel_beater}" with image-extracted version (priced: ${imagePriced} vs ${existingPriced}, total: ${imageTotal} vs ${existingTotal})`);
               mergedCount++;
             } else {
-              ctx.log('Stage 2.7', `Skipping image quote for "${q.panel_beater}" — existing OCR quote has more priced items (${existingPriced} vs ${imagePriced})`);
+              ctx.log('Stage 2.7', `Skipping image quote for "${q.panel_beater}" — existing OCR quote preferred (priced: ${existingPriced} vs ${imagePriced}, total: ${existingTotal} vs ${imageTotal})`);
             }
           } else {
             ir.extracted_quotes = [...existingQuotes, q];

@@ -819,11 +819,11 @@ async function runInputRecovery(
       // PDF extraction path above). Use the first non-null quoteTotalCents from
       // perDocumentExtractions.
       const hintTotalCents = perDocumentExtractions
-        .map(e => e.extracted?.quoteTotalCents)
+        .map(e => e.quoteTotalCents)
         .find(v => v != null && v > 0) ?? null;
       const hintTotal = hintTotalCents ? hintTotalCents / 100 : null;
       const hintPanelBeater = perDocumentExtractions
-        .map(e => e.extracted?.panelBeater)
+        .map(e => e.panelBeater)
         .find(v => v != null) ?? null;
       for (const pdfDoc of allPdfDocs) {
         try {
