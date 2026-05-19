@@ -372,10 +372,11 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
           ? 'Stated on claim form'
           : null;
 
-  // Decision
-  const decision: string = e?.finalDecision?.decision ?? phase2?.finalDecision ?? "REVIEW_REQUIRED";
-  const primaryReason: string = e?.finalDecision?.primaryReason ?? phase2?.keyDrivers?.[0] ?? "";
-  const recommendedActions: string[] = e?.finalDecision?.recommendedActions ?? [];
+  // Decision — CTL unified decision takes priority when available
+  const _ctl0 = (e as any)?._claimTruth;
+  const decision: string = _ctl0?.decision?.recommendation ?? e?.finalDecision?.decision ?? phase2?.finalDecision ?? "REVIEW_REQUIRED";
+  const primaryReason: string = _ctl0?.decision?.reasoning ?? e?.finalDecision?.primaryReason ?? phase2?.keyDrivers?.[0] ?? "";
+  const recommendedActions: string[] = _ctl0?.decision?.actions ?? e?.finalDecision?.recommendedActions ?? [];
 
   // Fraud
   const fraudScore: number = e?.fraudScoreBreakdown?.totalScore ?? aiAssessment?.fraudScore ?? 0;
@@ -386,10 +387,11 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
     return top ? `${toTitleCase(top.factor ?? "")} (${top.contribution ?? 0} pts)` : primaryReason;
   })();
 
-  // Cost
-  const aiEstimate: number = (ci?.aiEstimateCents ?? 0) / 100;
-  const costVerdict: string = e?.costVerdict?.verdict ?? ci?.costVerdict ?? "NO_QUOTE";
-  const deviationPct: number | null = e?.costVerdict?.deviationPercent ?? null;
+  // Cost — CTL override when available
+  const ctl = (e as any)?._claimTruth;
+  const aiEstimate: number = ctl?.costBasis?.kingaEstimateUsd ?? (ci?.aiEstimateCents ?? 0) / 100;
+  const costVerdict: string = ctl?.costBasis?.verdict ?? e?.costVerdict?.verdict ?? ci?.costVerdict ?? "NO_QUOTE";
+  const deviationPct: number | null = ctl?.costBasis?.deviationPercent ?? e?.costVerdict?.deviationPercent ?? null;
   const fairMin: number = (e?.costBenchmark?.estimatedFairMin ?? 0);
   const fairMax: number = (e?.costBenchmark?.estimatedFairMax ?? 0);
 

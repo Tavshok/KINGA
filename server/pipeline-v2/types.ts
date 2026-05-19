@@ -329,6 +329,8 @@ export interface ExtractedClaimFields {
   // Cross-border
   repairCountry: string | null;   // ISO 3166-1 alpha-2 country where repair is happening (e.g. 'ZA', 'ZW')
   quoteCurrency: string | null;   // Currency of the repair quote (e.g. 'ZAR', 'USD', 'ZWL')
+  policyExclusions: string | null;  // Policy exclusions/limitations mentioned in documents (pipe-separated)
+  assessorInspectionDate: string | null;  // Date assessor inspected vehicle (YYYY-MM-DD)
   // Images
   uploadedImageUrls: string[];
   // Source document reference

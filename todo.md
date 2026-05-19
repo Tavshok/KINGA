@@ -12256,3 +12256,29 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Add line item price table to cost report (component | qty | unit price | line total | category)
 - [ ] Add sum-check warning banner when line_items_sum deviates >10% from quoted_amount
 - [ ] Verify end-to-end: ISUZU MUX re-run shows priced rows in DB and in UI
+
+## Claim Truth Layer (CTL) — Pipeline Integration Fix (May 2026)
+### Root cause: Pipeline fragmentation — engines operated as isolated silos with no shared state
+- [x] Design Claim Truth Layer (CTL) — unified resolution engine between extraction and decision stages
+- [x] Implement claimTruthLayer.ts — resolves evidence, cost, timeline, policy, police report, decision
+- [x] Wire CTL into orchestrator — runs after Stage 9, enriched with Stage 7 physics
+- [x] Add claimTruthJson column to ai_assessments table (SQL migration applied)
+- [x] Persist CTL output to DB in db.ts saveAssessment
+- [x] Read CTL back in byClaim query — available as _claimTruth in report data
+- [x] Fix intelligence-enforcement cost verdict — uses lowest quote (not highest) vs KINGA estimate
+- [x] Fix image classifier — remove embedded_image source bonus from Tier 1, lower threshold to 0.80
+- [x] Fix pdfEmbeddedImages — lower DOCUMENT_SCAN_MP_THRESHOLD from 0.8 to 0.5
+- [x] Fix late submission — use assessorInspectionDate (Stage 3 extraction) not system ingestion date
+- [x] Add policyExclusions field to Stage 3 extraction schema (LLM extracts verbatim exclusion text)
+- [x] Add assessorInspectionDate field to Stage 3 extraction schema
+- [x] Wire policyExclusions into CTL resolvePolicyRecovery
+- [x] Wire assessorInspectionDate into CTL resolveTimeline as primary claim registration date
+- [x] Add physics enrichment call after buildClaimTruth — airbag anomaly elevated to INVESTIGATE
+- [x] Override ForensicAuditReport photo count, completeness, decision with CTL values
+- [x] Override KingaClaimsReport cost verdict and decision with CTL values
+### Remaining
+- [ ] Verify CTL produces correct output with Voltron PDF (re-run pipeline)
+- [ ] Surface policy exclusions in report UI (ForensicAuditReport Section 5)
+- [ ] Surface subrogation leads in report UI (ForensicAuditReport Section 3)
+- [ ] Improve LLM market valuation prompt for Zimbabwe/Southern Africa vehicle pricing
+- [ ] Add fraud indicator evidence traceability to report (each flag links to source document/page)

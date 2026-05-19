@@ -196,6 +196,10 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Also written by the classifyPhotoUrls tRPC procedure on first call for user-uploaded S3 photos.
   // Prevents redundant LLM vision calls on every report page open.
   photoClassificationJson: longtext("photo_classification_json"),
+  // Claim Truth Layer output: unified resolution of all extraction/decision data.
+  // Single source of truth for evidence inventory, cost authority, timeline, and decision.
+  // Both reports (Forensic Audit + Claims Assessment) read from this to prevent contradictions.
+  claimTruthJson: longtext("claim_truth_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

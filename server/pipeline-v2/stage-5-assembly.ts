@@ -421,10 +421,41 @@ export async function runAssemblyStage(
       // Always attempt LLM benchmark when vehicle details are available
       if (vehicle.make && vehicle.model && vehicle.year) {
         try {
+          // Build a rich context string for the valuation prompt
+          const vehicleSpec = [
+            `Make: ${vehicle.make}`,
+            `Model: ${vehicle.model}`,
+            `Variant/Trim: ${vehicle.variant || 'unknown'}`,
+            `Year: ${vehicle.year}`,
+            `Mileage: ${vehicle.mileageKm ? vehicle.mileageKm + ' km' : 'unknown'}`,
+            `Colour: ${vehicle.colour || 'unknown'}`,
+            `Transmission: ${vehicle.transmission || 'unknown'}`,
+            `Engine: ${vehicle.engineCapacity || 'unknown'}`,
+          ].join('\n');
+
           const llmResponse = await invokeLLM({
             messages: [
-              { role: "system", content: "You are a vehicle valuation expert for the Southern African market. Return ONLY valid JSON with no markdown." },
-              { role: "user", content: `Estimate the current retail market value in USD for:\nMake: ${vehicle.make}\nModel: ${vehicle.model}\nYear: ${vehicle.year}\nMileage: ${vehicle.mileageKm ? vehicle.mileageKm + " km" : "unknown"}\nColour: ${vehicle.colour || "unknown"}\nRegion: Southern Africa (Zimbabwe/South Africa market)\n\nReturn JSON: { "market_value_usd": number, "confidence": "high"|"medium"|"low", "reasoning": string, "data_source": string }` },
+              {
+                role: "system",
+                content: `You are a certified vehicle valuation expert specialising in the Zimbabwean and Southern African used-car market.
+
+KEY MARKET CONTEXT FOR ZIMBABWE:
+- Zimbabwe uses USD cash transactions for vehicle sales. Prices are NOT discounted vs SA.
+- Import duties and scarcity mean popular SUVs and bakkies trade at PREMIUM to SA retail.
+- A 2020 ISUZU MU-X (7-seat SUV, 3.0L diesel) retails for USD 40,000–55,000 in Zimbabwe (2024–2025).
+- A 2020 ISUZU D-MAX (bakkie) retails for USD 35,000–50,000 depending on variant.
+- A 2020 Toyota Fortuner retails for USD 45,000–60,000 in Zimbabwe.
+- A 2020 Toyota Hilux retails for USD 38,000–52,000 in Zimbabwe.
+- Depreciation in Zimbabwe is slower than SA due to limited supply and high import costs.
+- Do NOT use South African Rand-based valuations converted at spot rate — this significantly underestimates Zimbabwe USD values.
+- Use AutoTrader Zimbabwe, Zimclassifieds, and regional dealer knowledge as reference points.
+
+Return ONLY valid JSON with no markdown.`,
+              },
+              {
+                role: "user",
+                content: `Estimate the current retail market value in USD for the following vehicle in Zimbabwe/Southern Africa:\n\n${vehicleSpec}\n\nIMPORTANT: Base your estimate on actual Zimbabwe USD market prices, not SA Rand conversions. A 2020 ISUZU MU-X in Zimbabwe is worth significantly more than USD 28,000.\n\nReturn JSON: { "market_value_usd": number, "confidence": "high"|"medium"|"low", "reasoning": string, "data_source": string }`,
+              },
             ],
             response_format: {
               type: "json_schema",

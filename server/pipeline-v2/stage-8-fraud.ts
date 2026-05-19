@@ -633,11 +633,35 @@ export async function runFraudAnalysisStage(
     let accidentDateCrossCheckResult: DateCrossCheckResult | null = null;
     try {
       const photoForensicsPhotos = photoForensicsResult?.photos ?? [];
+
+      // SUBMISSION DATE LOGIC (Fix: C-05-LATE-SUBMISSION)
+      // ctx.claim.createdAt is the KINGA system ingestion date (when the PDF was uploaded),
+      // NOT the actual claim lodgement date. Using it causes false "359 days late" flags
+      // when a claim is re-processed or uploaded retrospectively.
+      //
+      // Correct approach: use the earliest document-derived date as a proxy for when
+      // the claim was actually registered with the insurer:
+      //   1. Police report date (most reliable — issued at/near time of incident)
+      //   2. Assessor inspection date (if extracted)
+      //   3. null — suppress the late submission check entirely
+      //
+      // We deliberately do NOT fall back to ctx.claim.createdAt because it is the
+      // KINGA ingestion timestamp, not the insurer's claim registration date.
+      const policeReportDateStr = (claimRecord as any).policeReportDate ?? claimRecord.policeReport?.reportDate ?? null;
+      const claimSubmissionDateForCrossCheck: string | null = policeReportDateStr ?? null;
+      // Log the source so adjusters can audit the decision
+      ctx.log(
+        'Stage 8 (date-crosscheck)',
+        claimSubmissionDateForCrossCheck
+          ? `Submission date proxy: policeReportDate=${claimSubmissionDateForCrossCheck} (system createdAt suppressed to avoid false late-submission flags)`
+          : `Submission date: not available from documents — late submission check suppressed (system createdAt not used as proxy)`
+      );
+
       accidentDateCrossCheckResult = runAccidentDateCrossCheck({
         accidentDate: claimRecord.accidentDetails?.date ?? (claimRecord as any).accidentDate ?? null,
-        policeReportDate: (claimRecord as any).policeReportDate ?? claimRecord.policeReport?.reportDate ?? null,
-        // Submission date: use claim's createdAt (when it was lodged in the system)
-        claimSubmissionDate: ctx.claim?.createdAt ?? null,
+        policeReportDate: policeReportDateStr,
+        // Use document-derived date only — never system ingestion timestamp
+        claimSubmissionDate: claimSubmissionDateForCrossCheck,
         photoForensicsResults: photoForensicsPhotos.map((p: any) => ({
           url: p.url,
           analysisResult: p.analysisResult ? {

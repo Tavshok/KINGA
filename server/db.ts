@@ -1378,6 +1378,8 @@ export async function triggerAiAssessment(claimId: number) {
     narrativeAnalysisJson: narrativeAnalysis ? JSON.stringify(narrativeAnalysis) : null,
     // Stage 12: Claims Decision Authority — single non-contradictory recommendation
     decisionAuthorityJson: decisionAuthority ? JSON.stringify(decisionAuthority) : null,
+    // Claim Truth Layer: unified resolution of all extraction/decision data
+    claimTruthJson: result.claimTruth ? JSON.stringify(result.claimTruth) : null,
     // Stage 12.5: Report Readiness Gate — whether the claim can be exported as a report
     reportReadinessJson: reportReadiness ? JSON.stringify(reportReadiness) : null,
     // Stage 13: Forensic Analysis — comprehensive forensic analysis summary from all stages
@@ -1765,11 +1767,14 @@ export async function triggerAiAssessment(claimId: number) {
     if (v.vin) claimUpdate.vehicleVin = trunc(v.vin, 50);
     if (v.color) claimUpdate.vehicleColor = trunc(v.color, 50);
   }
-  // Backfill incident info from pipeline extraction
-  if (claimRecord?.damage) {
-    const d = claimRecord.damage;
-    if (d.description) claimUpdate.incidentDescription = d.description;
-  }
+  // Backfill incident info from pipeline extraction.
+  // IMPORTANT: use accidentDetails.description (the event narrative: "hit a depression on the road")
+  // NOT damage.description (the component list: "Damage to Front Bumper, R/F Slide...").
+  // The damage component list must never appear in the Incident Narrative field of the report.
+  const _eventNarrative = claimRecord?.accidentDetails?.description || null;
+  const _damageListFallback = claimRecord?.damage?.description || null;
+  const _resolvedNarrative = _eventNarrative || _damageListFallback;
+  if (_resolvedNarrative) claimUpdate.incidentDescription = _resolvedNarrative;
   // Backfill claimant name — from driver.claimantName (Stage 3 extraction)
   const resolvedClaimantName =
     claimRecord?.driver?.claimantName ||

@@ -100,9 +100,10 @@ export interface ClassificationResult {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 /** Heuristic confidence thresholds */
-const HIGH_CONFIDENCE_THRESHOLD = 0.7;   // Above this → trust heuristic
-const LOW_CONFIDENCE_THRESHOLD = 0.3;    // Below this → trust heuristic (other direction)
-// Between 0.3 and 0.7 → send to LLM for Tier 2 classification
+const HIGH_CONFIDENCE_THRESHOLD = 0.80;  // Above this → trust heuristic (raised from 0.7 to widen LLM band)
+const LOW_CONFIDENCE_THRESHOLD = 0.25;   // Below this → trust heuristic (other direction)
+// Between 0.25 and 0.80 → send to LLM for Tier 2 classification
+// Widened band ensures mid-size quote scans (0.4–0.8MP) reach the LLM for visual inspection
 
 /** Max images to send to LLM for classification */
 const MAX_LLM_CLASSIFICATION_BATCH = 8;
@@ -142,14 +143,17 @@ function computeHeuristicScore(img: ExtractedImageInput): {
   }
 
   // ── Factor 2: Source type ─────────────────────────────────────────────
-  if (img.source === 'embedded_image') {
-    score += 0.15; // Embedded images are more likely to be actual photos
-    reasons.push('embedded (+0.15)');
-  } else {
-    // Page renders are more likely to be document pages
+  // NOTE: We intentionally do NOT give embedded images a score bonus.
+  // Embedded images include both damage photos AND scanned quote pages.
+  // Adding a bonus would push mid-size quote scans (0.4–0.8MP) above the
+  // HIGH_CONFIDENCE_THRESHOLD, locking them as damage_photo before the LLM
+  // can visually inspect them. Page renders get a small penalty since they
+  // are more likely to be document pages.
+  if (img.source === 'page_render') {
     score -= 0.10;
     reasons.push('page_render (-0.10)');
   }
+  // embedded_image: no bonus — let LLM decide for mid-size images
 
   // ── Factor 3: Colour variance — photos have higher variance ──────────
   if (q.colourVariance > 60) {

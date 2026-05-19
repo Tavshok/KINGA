@@ -681,7 +681,6 @@ export function enforceCostVerdict(params: {
   }
 
   // B-02 guard: if KINGA has no AI estimate, we cannot compute deviation or declare OVERPRICED/UNDERPRICED.
-  // Return INSUFFICIENT_DATA so the report does not show a misleading verdict.
   if (aiEstimatedCost <= 0) {
     const quotedCost = Math.max(...quotedAmounts);
     return {
@@ -696,8 +695,19 @@ export function enforceCostVerdict(params: {
     };
   }
 
-  const quotedCost = Math.max(...quotedAmounts);
-  const deviationPercent = Math.round(((quotedCost - aiEstimatedCost) / aiEstimatedCost) * 1000) / 10;
+  // ── OPTIMISED COST MODEL ──────────────────────────────────────────────────
+  // Compare each quote against the KINGA AI estimate (benchmark).
+  // The optimised cost = lowest of {all quotes, KINGA estimate}.
+  // Verdict is per-quote: each quote is individually assessed.
+  // The OVERALL verdict uses the LOWEST quote (best available price).
+  const lowestQuote = Math.min(...quotedAmounts);
+  const highestQuote = Math.max(...quotedAmounts);
+  const optimisedCost = Math.min(lowestQuote, aiEstimatedCost);
+
+  // Deviation: how far is the lowest quote from the KINGA estimate?
+  // Positive = quote is above estimate (potential overpricing)
+  // Negative = quote is below estimate (good deal or scope concern)
+  const deviationPercent = Math.round(((lowestQuote - aiEstimatedCost) / aiEstimatedCost) * 1000) / 10;
 
   let verdict: CostVerdict["verdict"];
   let ruleApplied: string;
@@ -705,19 +715,33 @@ export function enforceCostVerdict(params: {
 
   if (deviationPercent > 15) {
     verdict = "OVERPRICED";
-    ruleApplied = `Deviation ${deviationPercent}% > +15% threshold → OVERPRICED`;
-    explanation = `Highest quote of $${quotedCost.toLocaleString()} is ${deviationPercent}% above the AI estimate of $${aiEstimatedCost.toLocaleString()}. This exceeds the +15% overpricing threshold. Negotiate or seek an alternative quote.`;
+    ruleApplied = `Lowest quote deviation ${deviationPercent}% > +15% threshold → OVERPRICED`;
+    explanation = quotedAmounts.length > 1
+      ? `Both quotes exceed the AI estimate of $${aiEstimatedCost.toLocaleString()} by >${deviationPercent}%. Lowest quote: $${lowestQuote.toLocaleString()}, highest: $${highestQuote.toLocaleString()}. Negotiate down to ~$${aiEstimatedCost.toLocaleString()} or seek alternative repairers.`
+      : `Quote of $${lowestQuote.toLocaleString()} is ${deviationPercent}% above the AI estimate of $${aiEstimatedCost.toLocaleString()}. Negotiate or seek an alternative quote.`;
   } else if (deviationPercent < -15) {
     verdict = "UNDERPRICED";
-    ruleApplied = `Deviation ${deviationPercent}% < -15% threshold → UNDERPRICED`;
-    explanation = `Highest quote of $${quotedCost.toLocaleString()} is ${Math.abs(deviationPercent)}% below the AI estimate of $${aiEstimatedCost.toLocaleString()}. This may indicate incomplete scope of work or missing components.`;
+    ruleApplied = `Lowest quote deviation ${deviationPercent}% < -15% threshold → UNDERPRICED`;
+    explanation = `Lowest quote of $${lowestQuote.toLocaleString()} is ${Math.abs(deviationPercent)}% below the AI estimate of $${aiEstimatedCost.toLocaleString()}. Verify scope of work is complete — possible missing components.`;
   } else {
     verdict = "FAIR";
-    ruleApplied = `Deviation ${deviationPercent}% within ±15% threshold → FAIR`;
-    explanation = `Highest quote of $${quotedCost.toLocaleString()} is within the acceptable ±15% range of the AI estimate ($${aiEstimatedCost.toLocaleString()}). Cost is reasonable.`;
+    ruleApplied = `Lowest quote deviation ${deviationPercent}% within ±15% threshold → FAIR`;
+    const savingNote = highestQuote > lowestQuote
+      ? ` Potential saving of $${(highestQuote - optimisedCost).toLocaleString()} by using the optimised cost.`
+      : "";
+    explanation = `Lowest quote of $${lowestQuote.toLocaleString()} is within the acceptable ±15% range of the AI estimate ($${aiEstimatedCost.toLocaleString()}). Cost is reasonable.${savingNote}`;
   }
 
-  return { aiEstimatedCost, quotedCost, fairMin, fairMax, deviationPercent, verdict, ruleApplied, explanation };
+  return {
+    aiEstimatedCost,
+    quotedCost: lowestQuote, // Use lowest (optimised) quote as the reference cost
+    fairMin,
+    fairMax,
+    deviationPercent,
+    verdict,
+    ruleApplied,
+    explanation,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

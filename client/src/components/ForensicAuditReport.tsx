@@ -807,7 +807,9 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const wfScore = canonicalScore0 != null && canonicalScore0 > 0 ? Number(canonicalScore0) : (wf?.score ?? 0);
   // Map canonical fraud score to a decision string
   const wfDecision = wfScore >= 70 ? "DECLINE" : wfScore >= 40 ? "REVIEW_REQUIRED" : null;
-  const rawDecision: string = wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
+  // ── Claim Truth Layer override (unified source of truth) ──
+  const ctl = (e as any)?._claimTruth;
+  const rawDecision: string = ctl?.decision?.recommendation ?? wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
   const fraudScore = wfScore;
   const physicsScore = phase2?.physicsConsistency ?? e?.consistencyFlag?.score ?? 0;
 
@@ -815,8 +817,8 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const normalised = (aiAssessment as any)?._normalised as any;
   // No KINGA cost estimate — only document-sourced costs are used
   const aiEstimate = 0; // Disabled: system uses submitted quote only
-  const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
-  const photosDetected = aiAssessment?.photosDetected ?? 0;
+  const quotedTotal = ctl?.costBasis?.optimisedCostUsd ?? (quotes?.[0]?.quotedAmount ?? 0) / 100;
+  const photosDetected = ctl?.evidence?.photoCount ?? aiAssessment?.photosDetected ?? 0;
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
 
   const keyDrivers: string[] = phase2?.keyDrivers ?? e?.finalDecision?.recommendedActions ?? [];
@@ -1191,7 +1193,9 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const description = aiAssessment?.incidentDescription ?? claim?.incidentDescription ?? null;
   const corrections: string[] = phase1?.allCorrections ?? [];
   const gates: any[] = phase1?.gates ?? [];
-  const dataCompleteness = phase2?.dataCompleteness ?? 0;
+  // CTL override: use unified evidence completeness when available
+  const ctl1 = (enforcement as any)?._claimTruth;
+  const dataCompleteness = ctl1?.evidence?.completenessPercent ?? phase2?.dataCompleteness ?? 0;
   const confidenceScore = aiAssessment?.confidenceScore ?? 0;
   const ocrConfidence = phase2?.ocrConfidence ?? phase1?.ocrConfidence ?? confidenceScore;
   const costConfidence = (aiAssessment as any)?._normalised?.costs?.confidence ?? 0;
@@ -1219,7 +1223,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const checklist = [
     { label: "Incident type identified", ok: incidentType !== "N/A" && incidentType !== "unknown", detail: incidentType.replace(/_/g, " "), conf: 95 },
     { label: "Cost data present", ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), detail: fmtMoney(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), conf: Math.round(costConfidence > 0 ? costConfidence : confidenceScore) },
-    { label: "Photos submitted", ok: !!(aiAssessment?.photosDetected), detail: aiAssessment?.photosDetected ? `${aiAssessment.photosDetected} detected` : "None", conf: photoConfidence > 0 ? Math.round(photoConfidence) : 0 },
+    { label: "Photos submitted", ok: !!(ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected), detail: (ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected) ? `${ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected} detected` : "None", conf: photoConfidence > 0 ? Math.round(photoConfidence) : (ctl1?.evidence?.photoCount ? 80 : 0) },
     { label: "Police report", ok: !!(aiAssessment?.policeReportNumber) || !!(claimRecord0?.policeReport?.station), detail: aiAssessment?.policeReportNumber ?? (claimRecord0?.policeReport?.station ? `Station: ${claimRecord0.policeReport.station}` : "Not provided"), conf: aiAssessment?.policeReportNumber ? 100 : claimRecord0?.policeReport?.station ? 60 : 0 },
     { label: "Cost corrections applied", ok: corrections.length > 0 || !!(normalised?.costs?.totalUsd), detail: corrections.length > 0 ? `${corrections.length} correction(s)` : "None needed", conf: 100 },
   ];
@@ -4766,9 +4770,13 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
   const valuationMethod = llmValuation?.valuationMethod ?? null;
   const verdictReason = llmValuation?.verdictReason ?? null;
   const llmVerdict = llmValuation?.verdict ?? null; // REPAIRABLE | WRITE_OFF | BORDERLINE
-  // Guard: treat 0 as null — a zero ratio means the LLM had no data, not that repair is free
-  const llmRepairToValue = (llmValuation?.repairToValueRatio != null && llmValuation.repairToValueRatio > 0)
-    ? llmValuation.repairToValueRatio
+  // Guard: treat 0 as null — a zero ratio means the LLM had no data, not that repair is free.
+  // Stage 5 always stores repairToValueRatio as a decimal fraction (e.g. 0.754 = 75.4%).
+  // Multiply by 100 to convert to a percentage for display.
+  // Guard: values <= 0.001 are effectively zero; values > 5 (>500%) are data errors.
+  const _rawRatio = llmValuation?.repairToValueRatio ?? null;
+  const llmRepairToValue = (_rawRatio != null && _rawRatio > 0.001 && _rawRatio <= 5)
+    ? _rawRatio * 100
     : null;
   const excessUsd = claimRecord0?.insuranceContext?.excessAmountUsd ?? null;
   const bettermentUsd = claimRecord0?.insuranceContext?.bettermentUsd ?? null;
@@ -4970,7 +4978,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   const fmtMoney = makeFmtCurrency((aiAssessment as any)?.currencyCode ?? (aiAssessment as any)?.claimCurrency ?? null);
   const phase2 = (enforcement as any)?._phase2 as any;
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
-  const photosDetected = aiAssessment?.photosDetected ?? 0;
+  // CTL override: unified evidence inventory
+  const ctl4 = (enforcement as any)?._claimTruth;
+  const photosDetected = ctl4?.evidence?.photoCount ?? aiAssessment?.photosDetected ?? 0;
   const photosProcessed = aiAssessment?.photosProcessedCount ?? 0;
   // CRITICAL FIX: Use enrichedPhotosJson (per-photo KINGA vision metadata) as the
   // primary source so each photo is labelled with what the AI actually detected
@@ -5044,14 +5054,16 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   const excludedDocUrls: Array<{ url: string; category: string; confidence: number; reasoning: string }> =
     classifiedPhotos.filter(c => c.category === 'document_page' || c.category === 'quotation_scan' || c.category === 'other');
 
+  // CTL-aware evidence inventory: use unified truth when available
+  const ctlQuoteCount = ctl4?.costBasis?.quotes?.length ?? 0;
   const docs = [
     { id: "Claim Form", type: "Primary", extracted: true, note: "Submitted by claimant" },
-    { id: "Police Report", type: "Supporting", extracted: !!(aiAssessment?.policeReportNumber), note: aiAssessment?.policeReportNumber ? `Case: ${aiAssessment.policeReportNumber}` : "Not provided" },
-    { id: "Repair Quote", type: "Financial", extracted: !!(aiAssessment?.estimatedCost), note: aiAssessment?.estimatedCost ? `${fmtMoney(aiAssessment.estimatedCost)} extracted` : "Not submitted" },
-    { id: "Photos", type: "Visual", extracted: photosDetected > 0, note: isSystemFailure ? "SYSTEM ERROR — not claimant fault" : photosDetected > 0 ? `${photosDetected} detected, ${photosProcessed} processed` : "Not submitted" },
+    { id: "Police Report", type: "Supporting", extracted: !!(ctl4?.evidence?.policeReportPresent ?? aiAssessment?.policeReportNumber), note: aiAssessment?.policeReportNumber ? `Case: ${aiAssessment.policeReportNumber}` : (ctl4?.evidence?.policeReportPresent ? "Present in file" : "Not provided") },
+    { id: "Repair Quote", type: "Financial", extracted: ctlQuoteCount > 0 || !!(aiAssessment?.estimatedCost), note: ctlQuoteCount > 0 ? `${ctlQuoteCount} quote${ctlQuoteCount !== 1 ? 's' : ''} extracted (${fmtMoney(ctl4?.costBasis?.optimisedCostUsd)})` : (aiAssessment?.estimatedCost ? `${fmtMoney(aiAssessment.estimatedCost)} extracted` : "Not submitted") },
+    { id: "Photos", type: "Visual", extracted: photosDetected > 0, note: isSystemFailure ? "SYSTEM ERROR \u2014 not claimant fault" : photosDetected > 0 ? `${photosDetected} detected, ${photosProcessed} processed` : "Not submitted" },
     { id: "Driver Licence", type: "Identity", extracted: !!(claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber), note: claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber ?? "Not recorded" },
     { id: "Vehicle Registration", type: "Identity", extracted: !!(claim?.vehicleRegistration), note: claim?.vehicleRegistration ?? "Not recorded" },
-    { id: "Witness Statement", type: "Supporting", extracted: false, note: "Optional" },
+    { id: "Witness Statement", type: "Supporting", extracted: false, note: ctl4?.evidence?.witnessStatementNote ?? "Optional" },
   ];
 
   return (

@@ -124,6 +124,8 @@ const EXTRACTION_SCHEMA = {
         // Cross-border fields
         repairCountry: { type: ["string", "null"], description: "Country where the vehicle is being repaired. Look for the panel beater or repairer address. If the address contains 'South Africa', 'SA', 'RSA', 'Johannesburg', 'Cape Town', 'Durban', 'Pretoria', 'Sandton', 'Randburg', 'Boksburg', 'Germiston', 'Roodepoort', 'Centurion', 'Midrand', 'Kempton Park', 'Springs', 'Benoni', 'Alberton', 'Edenvale', 'Bedfordview', 'Fourways', 'Soweto', 'Tembisa', 'Katlehong', 'Thokoza', 'Vosloorus', 'Daveyton', 'Brakpan', 'Nigel', 'Heidelberg', 'Vereeniging', 'Vanderbijlpark', 'Sasolburg', 'Klerksdorp', 'Potchefstroom', 'Rustenburg', 'Polokwane', 'Nelspruit', 'Witbank', 'Middelburg', 'Secunda', 'Ermelo', 'Standerton', 'Bethal', 'Kriel', 'Hendrina', 'Delmas', 'Bronkhorstspruit', 'Cullinan', 'Bela-Bela', 'Modimolle', 'Mokopane', 'Lephalale', 'Thabazimbi', 'Northam', 'Brits', 'Hartbeespoort', 'Atteridgeville', 'Soshanguve', 'Mabopane', 'Ga-Rankuwa', 'Temba', 'Hammanskraal', 'Bapsfontein', 'Tarlton', 'Krugersdorp', 'Randfontein', 'Westonaria', 'Carletonville', 'Fochville', 'Stilfontein', 'Orkney', 'Wolmaransstad', 'Schweizer-Reneke', 'Vryburg', 'Taung', 'Lichtenburg', 'Delareyville', 'Sannieshof', 'Groot Marico', 'Zeerust', 'Mafikeng', 'Mmabatho', 'Lomanyaneng', 'Mahikeng', 'Ratlou', 'Tswaing', 'Ditsobotla', 'Ramotshere Moiloa', 'Ngaka Modiri Molema', 'Dr Ruth Segomotsi Mompati', 'Bojanala', 'Dr Kenneth Kaunda', 'JHB', 'GP', 'WC', 'EC', 'KZN', 'LP', 'MP', 'NC', 'NW', 'FS' etc., set to 'ZA'. If in Zimbabwe, set to 'ZW'. Use ISO 3166-1 alpha-2 codes. Return null if not determinable." },
         quoteCurrency: { type: ["string", "null"], description: "Currency used in the repair quotation. Look for currency symbols or codes in the repair quote: 'R ' prefix or 'ZAR' → 'ZAR'; 'USD', '$', 'US$', 'USD ' prefix → 'USD'; 'ZWL', 'ZWD', 'RTGS', 'ZiG' → 'ZWL'. If the quote amounts are preceded by 'R' (e.g. 'R 591.33', 'R591.33') set to 'ZAR'. Return null if not determinable." },
+        policyExclusions: { type: ["string", "null"], description: "Any policy exclusions, limitations, or items explicitly NOT covered mentioned anywhere in the document. Look for: 'not covered', 'excluded', 'exclusion', 'specifically mentioned in the policy wording', 'policy does not cover', 'not included in cover', 'excluded from policy'. Extract the FULL text of the exclusion statement verbatim. Multiple exclusions should be separated by ' | '. Example: 'Suspension is not covered since it is specifically mentioned in the policy wording | Tyres excluded'. Return null if no exclusions mentioned." },
+        assessorInspectionDate: { type: ["string", "null"], description: "Date the assessor inspected the vehicle, in YYYY-MM-DD format. Look for 'Date Inspected:', 'Inspection Date:', 'Date of Inspection:', 'Assessed on:', 'Date of Assessment:'. This is the date the loss adjuster or assessor physically viewed the vehicle — NOT the accident date and NOT the report date. For DD/MM/YYYY format, convert correctly (e.g. '03/06/2025' = 3 June 2025 = '2025-06-03')." },
       },
       required: [
         "claimId", "claimantName", "driverName",
@@ -147,6 +149,8 @@ const EXTRACTION_SCHEMA = {
         "driverLicenseNumber",
         "repairCountry",
         "quoteCurrency",
+        "policyExclusions",
+        "assessorInspectionDate",
       ],
       additionalProperties: false,
     },
@@ -557,6 +561,9 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     // Cross-border
     repairCountry: raw.repairCountry || null,
     quoteCurrency: raw.quoteCurrency || null,
+    // Policy & assessor
+    policyExclusions: raw.policyExclusions || null,
+    assessorInspectionDate: raw.assessorInspectionDate || null,
     uploadedImageUrls: [],
     sourceDocumentIndex,
   };

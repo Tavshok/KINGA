@@ -5,7 +5,7 @@ Each entry records: **what** changed, **why** it was changed, **which files** we
 
 ---
 
-## [Unreleased] — 2026-05-18 — ProtectedRoute Infinite Spinner Fix
+## [e10634e2] — 2026-05-18 — ProtectedRoute Infinite Spinner Fix
 
 ### Bug Fix: "Verifying access..." infinite spinner after OAuth login
 - **Root cause:** `ProtectedRoute.tsx` created a second `trpc.auth.me.useQuery` with `enabled: false` and checked `meQuery.isLoading` as an `isRetrying` guard. In **React Query v5**, a disabled query is permanently in `"pending"` state — `isLoading` is always `true` and never resolves. This caused every `ProtectedRoute`-wrapped page (including `/portal-hub`, the post-login landing page) to show the spinner indefinitely after a successful OAuth login.

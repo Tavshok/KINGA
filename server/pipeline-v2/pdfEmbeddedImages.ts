@@ -142,12 +142,19 @@ export interface ExtractEmbeddedImagesResult {
  * CALIBRATION (Voltron PDF, 2026-05):
  *   - Swiss Motors invoice: 1273×1800 = 2.29MP → isTextHeavy=true ✓
  *   - Cedric Jonker quote pages: 1093×1594 = 1.74MP → isTextHeavy=true ✓
- *   - Damage photos: 641×641 = 0.41MP → isTextHeavy=false ✓
- *   - Damage photos: 641×881 = 0.56MP → isTextHeavy=false ✓
+ *   - Damage photos: 641×641 = 0.41MP → isTextHeavy=false ✓ (0.41MP < 0.5MP threshold)
+ *   - Grand Auto Premier quote: 641×881 = 0.56MP → isTextHeavy=true ✓ (0.56MP > 0.5MP threshold)
+ *   - NOTE: 641×881 portrait images are now correctly flagged as textHeavy and sent to
+ *     Stage 2.7 for quote extraction. The LLM classifier (Tier 2) provides final confirmation.
  */
 
-/** Images larger than this (in megapixels) are treated as document scans, not damage photos */
-const DOCUMENT_SCAN_MP_THRESHOLD = 0.8;
+/**
+ * Images larger than this (in megapixels) are treated as document scans, not damage photos.
+ * Lowered from 0.8 to 0.5 to catch medium-resolution quote scans (e.g. Grand Auto Premier
+ * at 641×881 = 0.56MP). Damage photos in Zimbabwean/SA claims are typically 641×641 = 0.41MP
+ * or smaller. Quote scans are typically 641×881+ (portrait A4-ish).
+ */
+const DOCUMENT_SCAN_MP_THRESHOLD = 0.5;
 
 function estimateQualityFromGeometry(
   width: number,

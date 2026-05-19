@@ -484,6 +484,24 @@ export function ensureCostContract(
     documentedLineItems: partial.documentedLineItems,
     quoteLineItemGapAdvisory: partial.quoteLineItemGapAdvisory,
     overallLineItemCompletenessScore: partial.overallLineItemCompletenessScore,
+    // ── Optional fields that MUST be preserved — previously dropped by this function ──
+    bestSelectedQuote: partial.bestSelectedQuote ?? null,
+    quoteCount: partial.quoteCount,
+    // Three-layer cost model (L1/L2/L3)
+    compositeOptimisedCostCents: partial.compositeOptimisedCostCents,
+    benchmarkReferenceCostCents: partial.benchmarkReferenceCostCents,
+    negotiationSavingsCents: partial.negotiationSavingsCents,
+    marketOverpriceDeltaCents: partial.marketOverpriceDeltaCents,
+    totalSavingsOpportunityCents: partial.totalSavingsOpportunityCents,
+    compositeLineItems: partial.compositeLineItems,
+    // Component classification flags
+    quotedNotDamagedComponents: partial.quotedNotDamagedComponents,
+    damagedNotQuotedComponents: partial.damagedNotQuotedComponents,
+    probableHiddenDamage: partial.probableHiddenDamage,
+    // Negotiation Feasibility Score
+    negotiationFeasibilityScore: partial.negotiationFeasibilityScore,
+    negotiationFeasibilityLabel: partial.negotiationFeasibilityLabel,
+    benchmarkCoverageComponents: partial.benchmarkCoverageComponents,
   };
 
   return {

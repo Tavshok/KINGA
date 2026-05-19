@@ -157,6 +157,7 @@ import { eq } from "drizzle-orm";
 import { calculatePhysicsDeviationScore, parsePhysicsAnalysis } from "../physics-deviation-calculator";
 import { checkClaimConsistency } from "./claimConsistencyChecker";
 import { detectContradictions } from "./contradictionDetectionEngine";
+import { buildClaimTruth, enrichClaimTruthWithPhysics, type ClaimTruth } from "./claimTruthLayer";
 
 
 /**
@@ -322,6 +323,7 @@ export async function runPipelineV2(
   let documentVerificationResult: DocumentReadVerificationResult | null = null;
   let reconciliationLog: ReconciliationLog | null = null;
   let schemaValidationResult: ClaimRecordValidationResult | null = null;
+  let claimTruth: ClaimTruth | null = null;
 
   // Helper to record stage summary
   const recordStage = (key: string, result: { status: string; durationMs: number; savedToDb: boolean; error?: string; assumptions?: Assumption[]; recoveryActions?: RecoveryAction[]; degraded?: boolean }) => {
@@ -813,6 +815,31 @@ export async function runPipelineV2(
         ? 'no quotation scan images found'
         : 'no stage3Data to merge into';
     ctx.log('Stage 2.7', `Skipped — ${reason}`);
+  }
+
+  // ── STAGE 0b: Evidence Registry Update (post-classification) ─────────────────
+  // After Stage 2.6 classifies images, update the evidence registry's damage_photos
+  // status to reflect actual classified results rather than Stage 1 metadata alone.
+  // This ensures the forensic report shows "Photos: PRESENT" when damage photos were
+  // found in embedded images, even if Stage 1 didn't flag containsImages.
+  if (evidenceRegistryData && ctx.classifiedImages) {
+    const _cls = ctx.classifiedImages;
+    const _hasDamagePhotos = _cls.damagePhotos.length > 0 || _cls.vehicleOverviews.length > 0;
+    const _hasQuotationScans = _cls.quotationImages.length > 0;
+    if (_hasDamagePhotos && evidenceRegistryData.evidence_registry.damage_photos !== 'PRESENT') {
+      evidenceRegistryData.evidence_registry.damage_photos = 'PRESENT';
+      evidenceRegistryData.document_summary.has_images = true;
+      evidenceRegistryData.document_summary.estimated_image_pages = Math.max(
+        evidenceRegistryData.document_summary.estimated_image_pages,
+        _cls.damagePhotos.length + _cls.vehicleOverviews.length
+      );
+      ctx.log('Stage 0b', `Evidence registry updated: damage_photos=PRESENT (${_cls.damagePhotos.length} damage photos, ${_cls.vehicleOverviews.length} vehicle overviews)`);
+    }
+    if (_hasQuotationScans && evidenceRegistryData.evidence_registry.repair_quote !== 'PRESENT') {
+      evidenceRegistryData.evidence_registry.repair_quote = 'PRESENT';
+      ctx.log('Stage 0b', `Evidence registry updated: repair_quote=PRESENT (${_cls.quotationImages.length} quotation scan(s) found by classifier)`);
+    }
+    (ctx as any).evidenceRegistry = evidenceRegistryData;
   }
 
   // ── COMPLEXITY GATE: Classify claim tier after assembly ─────────────────
@@ -1441,6 +1468,61 @@ export async function runPipelineV2(
     }
   }
 
+  // ── CLAIM TRUTH LAYER ─────────────────────────────────────────────────────
+  // Unifies all extraction and analysis outputs into a single authoritative
+  // claim picture. Resolves contradictions between engines (evidence registry
+  // vs image classifier, multiple quotes, timeline dates) BEFORE report generation.
+  // Both reports (Forensic + Claims) read from this unified truth.
+  try {
+    // Build CTL input from all available stage outputs
+    const ctlExtractedQuotes = stage3Data?.inputRecovery?.extracted_quotes ?? [];
+    const ctlKingaEstimate = stage9Data?.expectedRepairCostCents
+      ? stage9Data.expectedRepairCostCents / 100
+      : null;
+    const ctlKingaEstimateSource = stage9Data?.costDecision?.cost_basis ?? "ai_estimate";
+
+    claimTruth = buildClaimTruth({
+      claimRecord: claimRecord!,
+      stage3Data: stage3Data ?? null,
+      evidenceRegistry: evidenceRegistryData ?? null,
+      classifiedImages: ctx.classifiedImages ?? null,
+      extractedQuotes: ctlExtractedQuotes,
+      kingaEstimateUsd: ctlKingaEstimate,
+      kingaEstimateSource: ctlKingaEstimateSource,
+      systemCreatedAt: ctx.claim?.createdAt ? new Date(ctx.claim.createdAt) : null,
+      totalPages: (stage1Data as any)?.totalPages ?? (ctx as any).totalPages ?? 0,
+    });
+    ctx.log("CTL", `Claim Truth Layer resolved: quotes=${claimTruth.costBasis.quotes.length}, ` +
+      `optimisedCost=$${claimTruth.costBasis.optimisedCostUsd.toFixed(2)}, ` +
+      `photos=${claimTruth.evidence.photoCount}, ` +
+      `decision=${claimTruth.decision.recommendation}, ` +
+      `conflicts=${claimTruth.meta.conflictsResolved.length}`);
+    if (claimTruth.meta.conflictsResolved.length > 0) {
+      for (const c of claimTruth.meta.conflictsResolved) {
+        ctx.log("CTL", `  CONFLICT [${c.field}]: chose "${c.chosen}" over "${c.rejected}" \u2014 ${c.reason}`);
+      }
+    }
+    // Enrich with physics results (Stage 7 already ran)
+    if (stage7Data && claimTruth) {
+      const airbagDeployed = claimRecord?.accidentDetails?.airbagDeployment === true;
+      claimTruth = enrichClaimTruthWithPhysics(claimTruth, {
+        deltaVKmh: stage7Data.deltaVKmh ?? null,
+        airbagDeployed,
+        airbagThresholdKmh: 25,
+        estimatedSpeedKmh: stage7Data.estimatedSpeedKmh ?? null,
+        damageConsistencyScore: stage7Data.damageConsistencyScore ?? null,
+      });
+      if (claimTruth.fraudSignals.physicsAnomalies.length > 0) {
+        ctx.log("CTL", `Physics enrichment: ${claimTruth.fraudSignals.physicsAnomalies.length} anomaly(ies) detected. ` +
+          claimTruth.fraudSignals.physicsAnomalies.map(a => `[${a.severity}] ${a.type}`).join(", "));
+      }
+    }
+    // Attach to context so downstream consumers (Stage 10, reports) can access it
+    (ctx as any).claimTruth = claimTruth;
+  } catch (ctlErr) {
+    ctx.log("CTL", `Claim Truth Layer error (non-fatal): ${ctlErr instanceof Error ? ctlErr.message : String(ctlErr)}`);
+  }
+
   // ── PRE-REPORT INTEGRITY GATE ─────────────────────────────────────────────
   // Hard checks before Stage 10. If any CRITICAL check fails, the report is
   // generated in BLOCKED mode — it is produced but stamped as NOT READY FOR
@@ -2026,7 +2108,8 @@ export async function runPipelineV2(
     costRealismResult,
     consistencyCheckResult,
     contradictionGateResult,
-    physicsDeviationScoreValue
+    physicsDeviationScoreValue,
+    claimTruth
   );
 }
 
@@ -2061,7 +2144,8 @@ function buildResult(
   costRealismResult: import('./costRealismValidator').CostRealismResult | null = null,
   consistencyCheckResult: import('./claimConsistencyChecker').ConsistencyCheckResult | null = null,
   contradictionGateResult: import('./contradictionDetectionEngine').ContradictionResult | null = null,
-  physicsDeviationScoreValue: number | null = null
+  physicsDeviationScoreValue: number | null = null,
+  claimTruthResult: ClaimTruth | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
 
@@ -2161,6 +2245,7 @@ function buildResult(
     consistencyCheckResult,
     contradictionGateResult,
     physicsDeviationScoreValue,
+    claimTruth: claimTruthResult,
   };
 }
 
@@ -2238,6 +2323,8 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
       driverLicenseNumber: null,
       repairCountry: null,
       quoteCurrency: null,
+      policyExclusions: null,
+      assessorInspectionDate: null,
       sourceDocumentIndex: 0,
     },
     completenessScore: 10,

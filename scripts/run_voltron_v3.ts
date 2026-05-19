@@ -60,6 +60,10 @@ async function main() {
       if (costJson) {
         console.log(`[Voltron V3 Test] Total repair cost: ${costJson.totalRepairCostFormatted ?? costJson.totalRepairCost ?? 'unknown'}`);
         console.log(`[Voltron V3 Test] Cost decision: ${costJson.costDecision?.recommendation ?? 'unknown'}`);
+        console.log(`[Voltron V3 Test] bestSelectedQuote: ${costJson.bestSelectedQuote ? JSON.stringify(costJson.bestSelectedQuote).slice(0, 120) : 'NULL ❌'}`);
+        console.log(`[Voltron V3 Test] quotesEvaluated: ${costJson.quotesEvaluated ?? 'unknown'}`);
+        console.log(`[Voltron V3 Test] l2CompositeOptimisedCostUsd: ${costJson.l2CompositeOptimisedCostUsd ?? 'unknown'}`);
+        console.log(`[Voltron V3 Test] l3BenchmarkReferenceCostUsd: ${costJson.l3BenchmarkReferenceCostUsd ?? 'unknown'}`);
       }
     } catch (parseErr) {
       console.log(`[Voltron V3 Test] Could not parse costIntelligenceJson: ${parseErr}`);

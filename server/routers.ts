@@ -5001,14 +5001,17 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           if (dbConn && assessment.vehicleMake) {
             const vehicleDesc = `${(assessment.vehicleMake ?? '').toLowerCase()} ${(assessment.vehicleModel ?? '').toLowerCase()}`.trim();
             if (vehicleDesc) {
+              // Exclude the current claim to prevent circular self-reference in the benchmark
+              const currentClaimId = input.claimId ?? 0;
               const rows = await dbConn.select({
                 avgCost: sqlFn`AVG(final_cost_usd_cents)`.as('avg_cost'),
                 cnt: sqlFn`COUNT(*)`.as('cnt'),
               })
                 .from(costLearningRecords)
-                .where(sqlFn`vehicle_descriptor LIKE ${`%${vehicleDesc}%`}`);
+                .where(sqlFn`vehicle_descriptor LIKE ${`%${vehicleDesc}%`} AND (claim_id IS NULL OR claim_id != ${currentClaimId})`);
               const row = rows[0] as any;
-              if (row && Number(row.cnt) > 0) {
+              // Require at least 3 independent historical claims to avoid noise / self-reference
+              if (row && Number(row.cnt) >= 3) {
                 // Use claim's currency code for learning benchmark segmentation
                 const claimCurrencyCode = (assessment as any).currencyCode ?? 'USD';
                 learningBenchmark = {
@@ -5175,6 +5178,12 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
             _kingaRef = _kr?.kingaRef ?? null;
           }
         } catch { /* non-fatal */ }
+        // Parse Claim Truth Layer from DB (unified resolution of all extraction/decision data)
+        let _claimTruth: any = null;
+        try {
+          const ctRaw = (assessment as any).claimTruthJson;
+          _claimTruth = ctRaw ? (typeof ctRaw === 'string' ? JSON.parse(ctRaw) : ctRaw) : null;
+        } catch { /* non-fatal */ }
         const rawResponse = {
           ...result,
           costExtraction,
@@ -5182,6 +5191,7 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           _phase2: phase2,
           claimId: input.claimId,
           kingaRef: _kingaRef,
+          _claimTruth,
           _photoForensics: photoForensicsData,
           // Expose damageZones at top level so ForensicAuditReport Section2 VehicleDamageMap can read it
           // (IntelligenceEnforcementResult.directionFlag does NOT include damageZones — it only has mismatch/explanation)
