@@ -71,6 +71,18 @@ export function MultiQuoteComparisonPanel({ costIntelligenceJson }: MultiQuoteCo
   const gapAdvisory: any[] = ci.quoteLineItemGapAdvisory ?? [];
   const overallCompletenessScore: number | null = ci.overallLineItemCompletenessScore ?? null;
 
+  // Use L2 per-component benchmark as the KINGA cost reference (not the weighted average).
+  // Fall back to lowest submitted quote if L2 is not yet available.
+  const compositeOpt = ci.compositeOptimisation ?? null;
+  const l2BenchmarkUsd: number = compositeOpt?.l2CompositeOptimisedCostUsd ?? 0;
+  const lowestSubmittedUsd: number = ci.kingaSavingsLowestSubmittedUsd ?? (
+    optimisation?.selected_quotes?.length
+      ? Math.min(...(optimisation.selected_quotes.map((q: SelectedQuote) => q.total_cost ?? Infinity)))
+      : 0
+  );
+  const kingaCostUsd = l2BenchmarkUsd > 0 ? l2BenchmarkUsd : lowestSubmittedUsd;
+  const kingaCostLabel = l2BenchmarkUsd > 0 ? "KINGA Benchmark (L2)" : "Lowest Submitted Quote";
+
   // Nothing to show if no quotes were evaluated
   if (quoteCount === 0 || !optimisation) {
     return (
@@ -105,11 +117,11 @@ export function MultiQuoteComparisonPanel({ costIntelligenceJson }: MultiQuoteCo
         <Badge variant="outline" className={`text-xs border ${src.color}`}>{src.label}</Badge>
       </div>
 
-      {/* Optimised cost summary */}
-      {optimisation.optimised_cost_usd > 0 && (
+      {/* KINGA cost reference — L2 per-component benchmark or lowest submitted quote */}
+      {kingaCostUsd > 0 && (
         <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border/50">
-          <span className="text-sm text-muted-foreground">Optimised cost</span>
-          <span className="text-base font-bold text-primary">{fmt(optimisation.optimised_cost_usd)}</span>
+          <span className="text-sm text-muted-foreground">{kingaCostLabel}</span>
+          <span className="text-base font-bold text-primary">{fmt(kingaCostUsd)}</span>
         </div>
       )}
 

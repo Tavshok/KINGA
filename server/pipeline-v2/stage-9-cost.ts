@@ -338,7 +338,9 @@ export async function runCostOptimisationStage(
     }
 
     // ── Step A3: Quote Deviation Matrix ──────────────────────────────────────
-    // % deviation of each panel beater vs (a) lowest submitted and (b) KINGA optimised.
+    // % deviation of each panel beater vs (a) lowest submitted and (b) KINGA L2 per-component benchmark.
+    // NOTE: kingaL2BenchmarkUsd is populated later (after perComponentBenchmarks are built).
+    // The matrix is rebuilt with the L2 value once it is available (see Step A3-patch below).
     const quoteDeviationMatrix: Array<{
       panel_beater: string;
       total_cost_usd: number;
@@ -346,18 +348,15 @@ export async function runCostOptimisationStage(
       pct_vs_kinga_optimised: number | null;
       verdict: 'cheapest' | 'above_lowest' | 'below_kinga' | 'above_kinga';
     }> = [];
+    let _deviationMatrixLowestCost = 0;
     if (quoteOptimisation && quoteOptimisation.selected_quotes.length > 0) {
-      const lowestCost = Math.min(...quoteOptimisation.selected_quotes.map(q => q.total_cost));
-      const kingaOptimised = quoteOptimisation.optimised_cost_usd;
-      ctx.log("Stage 9", `=== QUOTE DEVIATION MATRIX (lowest=USD ${lowestCost.toFixed(2)}, KINGA=USD ${kingaOptimised.toFixed(2)}) ===`);
+      _deviationMatrixLowestCost = Math.min(...quoteOptimisation.selected_quotes.map(q => q.total_cost));
+      // Populate with lowest-only data for now; vs_kinga will be patched after L2 is computed
       for (const q of quoteOptimisation.selected_quotes) {
-        const pctVsLowest = lowestCost > 0 ? Math.round(((q.total_cost - lowestCost) / lowestCost) * 1000) / 10 : 0;
-        const pctVsKinga = kingaOptimised > 0 ? Math.round(((q.total_cost - kingaOptimised) / kingaOptimised) * 1000) / 10 : null;
-        const verdict: 'cheapest' | 'above_lowest' | 'below_kinga' | 'above_kinga' = q.total_cost === lowestCost ? 'cheapest' : pctVsKinga !== null && pctVsKinga < 0 ? 'below_kinga' : pctVsKinga !== null && pctVsKinga > 0 ? 'above_kinga' : 'above_lowest';
-        quoteDeviationMatrix.push({ panel_beater: q.panel_beater, total_cost_usd: q.total_cost, pct_vs_lowest: pctVsLowest, pct_vs_kinga_optimised: pctVsKinga, verdict });
-        ctx.log("Stage 9", `  [${q.panel_beater}] USD ${q.total_cost.toFixed(2)} | vs_lowest=${pctVsLowest >= 0 ? "+" : ""}${pctVsLowest}% | vs_kinga=${pctVsKinga !== null ? (pctVsKinga >= 0 ? "+" : "") + pctVsKinga + "%" : "N/A"} | ${verdict}`);
+        const pctVsLowest = _deviationMatrixLowestCost > 0 ? Math.round(((q.total_cost - _deviationMatrixLowestCost) / _deviationMatrixLowestCost) * 1000) / 10 : 0;
+        const verdict: 'cheapest' | 'above_lowest' | 'below_kinga' | 'above_kinga' = q.total_cost === _deviationMatrixLowestCost ? 'cheapest' : 'above_lowest';
+        quoteDeviationMatrix.push({ panel_beater: q.panel_beater, total_cost_usd: q.total_cost, pct_vs_lowest: pctVsLowest, pct_vs_kinga_optimised: null, verdict });
       }
-      ctx.log("Stage 9", `=== END DEVIATION MATRIX ===`);
     }
 
     // ── Step A4: KINGA Savings log ──────────────────────────────────────────
@@ -365,12 +364,7 @@ export async function runCostOptimisationStage(
       if (quoteOptimisation.best_quote_by_cost) {
         ctx.log("Stage 9", `KINGA recommended quote: ${quoteOptimisation.best_quote_by_cost.panel_beater} @ USD ${quoteOptimisation.best_quote_by_cost.total_cost.toFixed(2)} (coverage=${(quoteOptimisation.best_quote_by_cost.coverage_ratio * 100).toFixed(0)}%, structurally_complete=${quoteOptimisation.best_quote_by_cost.structurally_complete})`);
       }
-      if (quoteOptimisation.savings_vs_highest_usd !== 0) {
-        const savingsLabel = quoteOptimisation.savings_vs_highest_usd > 0
-          ? `KINGA savings [quote optimisation]: USD ${quoteOptimisation.savings_vs_highest_usd.toFixed(2)} (lowest submitted minus KINGA optimised)`
-          : `SUPPLEMENTARY CLAIM RISK: USD ${Math.abs(quoteOptimisation.savings_vs_highest_usd).toFixed(2)} (cheapest quote is incomplete)`;
-        ctx.log("Stage 9", savingsLabel);
-      }
+      // Weighted-average savings removed — L1-L2 savings are logged after composite result is built
     }
 
     // ── Step B: Document-sourced cost breakdown ONLY ────────────────────────────
@@ -678,11 +672,16 @@ export async function runCostOptimisationStage(
           : null;
     const costDecision = (() => {
       try {
-        return runCostDecision({
+        // Use lowest submitted quote as the optimised_cost_usd for costDecisionEngine.
+          // This will be overridden with the L2 per-component benchmark once it is computed.
+          const lowestSubmittedForDecision = quoteOptimisation?.selected_quotes?.length
+            ? Math.min(...quoteOptimisation.selected_quotes.map(q => q.total_cost))
+            : 0;
+          return runCostDecision({
           cost_mode: agreedCostUsd ? "POST_ASSESSMENT" : "PRE_ASSESSMENT",
           agreed_cost_usd: agreedCostUsd,
           optimised_cost: quoteOptimisation ? {
-            optimised_cost_usd: quoteOptimisation.optimised_cost_usd,
+            optimised_cost_usd: lowestSubmittedForDecision > 0 ? lowestSubmittedForDecision : quoteOptimisation.optimised_cost_usd,
             selected_quotes: quoteOptimisation.selected_quotes.map(q => ({
               panel_beater: q.panel_beater,
               total_cost: q.total_cost,

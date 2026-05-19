@@ -557,7 +557,7 @@ function buildReasoning(
   // 1. Mode context
   if (mode === "PRE_ASSESSMENT") {
     parts.push(
-      `This analysis was performed in pre-assessment mode. No assessor-agreed cost is available at this stage; the cost basis of ${currency} ${trueCostUsd.toFixed(2)} is derived from the system-optimised weighted quote baseline and is intended to guide negotiation only — it does not constitute a final approval decision.`
+      `This analysis was performed in pre-assessment mode. No assessor-agreed cost is available at this stage; the cost basis of ${currency} ${trueCostUsd.toFixed(2)} is the lowest credible submitted quote and is intended to guide negotiation only — it does not constitute a final approval decision.`
     );
   } else {
     if (costBasis === "assessor_validated") {
@@ -566,7 +566,7 @@ function buildReasoning(
       );
     } else {
       parts.push(
-        `No assessor-agreed cost was available. The true cost basis of ${currency} ${trueCostUsd.toFixed(2)} has been derived from the system-optimised weighted quote baseline.`
+        `No assessor-agreed cost was available. The true cost basis of ${currency} ${trueCostUsd.toFixed(2)} is the lowest credible submitted quote.`
       );
     }
   }
@@ -688,9 +688,9 @@ export function runCostDecision(input: CostDecisionInput): CostDecisionOutput {
     trueCostUsd = round2(optimisedCost);
     costBasis = "system_optimised";
     if (mode === "PRE_ASSESSMENT") {
-      trace.push(`PRE_ASSESSMENT mode: TRUE_COST set to system-optimised baseline of ${currency} ${trueCostUsd.toFixed(2)}.`);
+      trace.push(`PRE_ASSESSMENT mode: TRUE_COST set to lowest credible submitted quote of ${currency} ${trueCostUsd.toFixed(2)}.`);
     } else {
-      trace.push(`No agreed cost present. TRUE_COST resolved to ${currency} ${trueCostUsd.toFixed(2)} from system-optimised quote baseline (system_optimised).`);
+      trace.push(`No agreed cost present. TRUE_COST resolved to ${currency} ${trueCostUsd.toFixed(2)} from lowest credible submitted quote.`);
     }
   } else {
     trueCostUsd = 0;
