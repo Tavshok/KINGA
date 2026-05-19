@@ -30,7 +30,7 @@
  */
 
 import { invokeLLM } from "../_core/llm";
-import { resolveComponent } from "../../shared/vehicleParts";
+import { resolveComponent, isPlausiblePartName } from "../../shared/vehicleParts";
 import { getDefaultCurrencyForCountry } from "../../shared/countryCurrency";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -125,6 +125,12 @@ export interface QuoteLineItem {
    * damage-component reconciliation.
    */
   is_non_part_cost?: boolean;
+  /**
+   * True when this line item passed the semantic plausibility check but could
+   * not be resolved to a known vehicle part in the taxonomy. The raw name is
+   * preserved as-is. Adjuster should verify this item manually.
+   */
+  is_unresolved?: boolean;
 }
 
 export interface ExtractedQuote {
@@ -535,10 +541,33 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
       } else {
         const _resolvedComponent = resolveComponent(_normalisedComponent);
         if (!_resolvedComponent) {
-          // Genuine hallucination guard rejection — record for adjuster review
-          console.warn(`⚠️  Hallucination guard (quote line_items): rejected "${_normalisedComponent}" (raw: "${rawComponentName}")`);
-          rejected_line_items.push({ raw_name: rawComponentName, raw_cost: lineTotal });
-          warnings.push(`line_item_rejected: "${rawComponentName}" not in vehicle parts catalogue`);
+          // Not in taxonomy — apply semantic plausibility check before deciding
+          const plausibility = isPlausiblePartName(rawComponentName);
+          if (plausibility === 'implausible') {
+            // Clear nonsense (random chars, pure number, etc.) — hard reject
+            console.warn(`⚠️  Hallucination guard (quote line_items): hard-rejected "${_normalisedComponent}" (raw: "${rawComponentName}") — implausible`);
+            rejected_line_items.push({ raw_name: rawComponentName, raw_cost: lineTotal });
+            warnings.push(`line_item_rejected: "${rawComponentName}" failed semantic plausibility check`);
+            continue;
+          }
+          // Plausible or uncertain — keep with raw name, flag for adjuster review
+          console.warn(`⚠️  Hallucination guard (quote line_items): unresolved "${_normalisedComponent}" (raw: "${rawComponentName}") — plausibility=${plausibility}, keeping with is_unresolved=true`);
+          warnings.push(`line_item_unresolved: "${rawComponentName}" not in vehicle parts catalogue — verify manually`);
+          resolvedName = rawComponentName.trim();
+          // Push with is_unresolved flag and continue (skip the normal resolvedName assignment below)
+          const validOriginsUnresolved = ["oem", "aftermarket", "reconditioned", "used", "unknown"];
+          const partOriginUnresolved = validOriginsUnresolved.includes(item.part_origin as string)
+            ? (item.part_origin as "oem" | "aftermarket" | "reconditioned" | "used" | "unknown")
+            : "unknown";
+          line_items.push({
+            component: resolvedName,
+            unit_cost: unitCost,
+            quantity: qty,
+            line_total: lineTotal,
+            action: typeof item.action === 'string' ? item.action : null,
+            part_origin: partOriginUnresolved,
+            is_unresolved: true,
+          });
           continue;
         }
         resolvedName = _resolvedComponent.name;
