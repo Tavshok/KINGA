@@ -1484,6 +1484,26 @@ export async function runCostOptimisationStage(
               (output as any).kingaSavingsQuoteOptimisation = kingaSavingsUsd;
               (output as any).kingaSavingsLowestSubmittedUsd = lowestSubmittedUsd;
               (output as any).kingaSavingsL2OptimisedUsd = l2Usd;
+
+              // ── Step A3-patch: backfill L2 deviation percentages into the deviation matrix ──
+              // The matrix was built earlier with pct_vs_kinga_optimised=null because L2 was
+              // not yet available. Now that we have l2Usd, patch each row with the real figure.
+              for (const row of quoteDeviationMatrix) {
+                const pctVsL2 = Math.round(((row.total_cost_usd - l2Usd) / l2Usd) * 1000) / 10;
+                row.pct_vs_kinga_optimised = pctVsL2;
+                // Recompute verdict now that we have both axes
+                if (row.total_cost_usd === _deviationMatrixLowestCost && pctVsL2 <= 0) {
+                  row.verdict = 'below_kinga'; // cheapest AND below L2 benchmark
+                } else if (row.total_cost_usd === _deviationMatrixLowestCost) {
+                  row.verdict = 'cheapest'; // cheapest but above L2
+                } else if (pctVsL2 <= 0) {
+                  row.verdict = 'below_kinga'; // not cheapest but below L2
+                } else {
+                  row.verdict = 'above_kinga'; // above L2 benchmark
+                }
+              }
+              ctx.log('Stage 9', `Deviation matrix patched with L2 (${l2Usd.toFixed(2)}): ${quoteDeviationMatrix.map(r => `${r.panel_beater} pct_vs_kinga=${r.pct_vs_kinga_optimised?.toFixed(1)}% verdict=${r.verdict}`).join(', ')}`);
+
               const savingsLabel = kingaSavingsUsd >= 0
                 ? `KINGA savings [L1-L2]: USD ${kingaSavingsUsd.toFixed(2)} (lowest submitted $${lowestSubmittedUsd.toFixed(2)} minus KINGA per-component optimised $${l2Usd.toFixed(2)})`
                 : `SUPPLEMENTARY CLAIM RISK [L1-L2]: USD ${Math.abs(kingaSavingsUsd).toFixed(2)} (cheapest quote $${lowestSubmittedUsd.toFixed(2)} is below KINGA optimised $${l2Usd.toFixed(2)} — likely incomplete)`;
