@@ -15,7 +15,7 @@
  *   4. Cost Enforcement      — always produces a fair cost range and benchmark
  *                              even when no quotes exist.
  *   5. Fraud Score Mapping   — enforces strict label thresholds:
- *                              0–20 Minimal | 21–40 Low | 41–60 Moderate |
+  *   0–19 Minimal | 20–39 Low | 40–60 Moderate |
  *                              61–80 High | 81–100 Critical
  *   6. Output Enhancement    — converts raw values into decision insights and
  *                              generates top-3 critical alerts.
@@ -207,8 +207,8 @@ const SEVERITY_COST_RANGE: Record<string, { base: number; min: number; max: numb
 export function enforceFraudLevel(score: number): { level: FraudLevelEnforced; label: string } {
   if (score >= 81) return { level: "elevated", label: "Elevated Risk" };
   if (score >= 61) return { level: "high",      label: "High Risk"      };
-  if (score >= 41) return { level: "moderate",  label: "Moderate Risk"  };
-  if (score >= 21) return { level: "low",       label: "Low Risk"       };
+  if (score >= 40) return { level: "moderate",  label: "Moderate Risk"  };
+  if (score >= 20) return { level: "low",       label: "Low Risk"       };
   return                  { level: "minimal",   label: "Minimal Risk"   };
 }
 
@@ -568,7 +568,7 @@ export function generateCriticalAlerts(params: {
       engine: "Fraud Detection Engine",
       priority: 10,
     });
-  } else if (params.fraudScore >= 41) {
+  } else if (params.fraudScore >= 40) {
     alerts.push({
       id: "fraud_moderate",
       severity: "warning",

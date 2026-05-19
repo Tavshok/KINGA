@@ -31,12 +31,14 @@ export interface ChecklistItem {
 interface ConfidenceImprovementChecklistProps {
   aiAssessment: any;
   claim?: any;
+  /** Explicit quotes array from the parent — preferred over claim.quotes or aiAssessment fallbacks */
+  quotes?: any[];
   styleMode: ChecklistStyleMode;
 }
 
 // ─── Gap Analysis Engine ─────────────────────────────────────────────────────
 
-function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
+function deriveChecklistItems(aiAssessment: any, claim?: any, quotesOverride?: any[]): ChecklistItem[] {
   const items: ChecklistItem[] = [];
 
   if (!aiAssessment) return items;
@@ -47,9 +49,9 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
   const fraudScore = Number(aiAssessment.fraudScore ?? 0);
   const confidenceScore = Number(aiAssessment.confidenceScore ?? 50);
   const photosDetected = Number(aiAssessment.photosDetected ?? 0);
-  // quoteCount: prefer the actual quotes array length (passed via claim prop) over the
-  // pipeline-stored quoteCount which may be stale or reflect extraction failures.
-  const quotesFromClaim: any[] = Array.isArray((claim as any)?.quotes) ? (claim as any).quotes
+  // quoteCount: prefer explicit quotes prop, then claim.quotes, then aiAssessment fallback.
+  const quotesFromClaim: any[] = Array.isArray(quotesOverride) && quotesOverride.length > 0 ? quotesOverride
+    : Array.isArray((claim as any)?.quotes) ? (claim as any).quotes
     : Array.isArray(aiAssessment?._quotes) ? aiAssessment._quotes
     : [];
   const quoteCount = quotesFromClaim.length > 0 ? quotesFromClaim.length : Number(aiAssessment.quoteCount ?? 0);
@@ -199,6 +201,8 @@ function deriveChecklistItems(aiAssessment: any, claim?: any): ChecklistItem[] {
   // ── 6. Vehicle Market Value ───────────────────────────────────────────────
   const marketValue = Number(
     aiAssessment.vehicleMarketValueCents ??
+    // claim.vehicleMarketValue is stored in cents in the claims table
+    (claim as any)?.vehicleMarketValue ??
     claimRecord?.vehicle?.marketValueCents ??
     claimRecord?.vehicle?.market_value_cents ??
     0
@@ -300,10 +304,11 @@ const PRIORITY_LABELS: Record<ChecklistItem["priority"], string> = {
 export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementChecklistProps> = ({
   aiAssessment,
   claim,
+  quotes,
   styleMode,
 }) => {
   // C-08: Filter out any null/undefined items to ensure sequential numbering starting from 1
-  const items = deriveChecklistItems(aiAssessment, claim).filter((item): item is ChecklistItem => !!item && !!item.id);
+  const items = deriveChecklistItems(aiAssessment, claim, quotes).filter((item): item is ChecklistItem => !!item && !!item.id);
 
   if (items.length === 0) {
     // All gaps resolved — render a positive completion notice

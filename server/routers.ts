@@ -4734,6 +4734,10 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
 
         return {
           ...assessment,
+          // Overwrite raw JSON strings with parsed objects so components receive
+          // proper objects instead of strings that silently evaluate to null/undefined.
+          costIntelligenceJson: costIntelParsed,
+          fraudScoreBreakdownJson: fraudBreakdownParsed,
           // Overwrite with normalised values — these are what the UI must use
           _normalised: normalised,
           // Phase 1 gate results — for audit trail and data quality indicators

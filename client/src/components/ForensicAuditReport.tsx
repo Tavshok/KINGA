@@ -897,11 +897,18 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           <div className="claim-id">
             {(() => {
               const cr = (aiAssessment as any)?._claimRecord;
-              return cr?.insuranceContext?.claimReference ?? cr?.insuranceContext?.policyNumber ?? claim?.claimNumber ?? claim?.claimReference ?? '—';
+              // Validate extracted claimReference — reject values that look like names
+              // (all-alpha, short) rather than reference numbers (contain digits or slashes)
+              const rawRef = cr?.insuranceContext?.claimReference;
+              const isValidRef = rawRef && /[0-9\/\-]/.test(rawRef) && rawRef.length >= 4;
+              return (isValidRef ? rawRef : null) ?? cr?.insuranceContext?.policyNumber ?? claim?.claimNumber ?? claim?.claimReference ?? '—';
             })()}
           </div>
           <div className="meta-line">{fmtDate(incidentDate)} · {[claim?.vehicleMake, claim?.vehicleModel, claim?.vehicleYear].filter(Boolean).join(' ') || 'Vehicle Claim'}</div>
-          <div className="meta-line">Reg: {claim?.vehicleRegistration ?? '—'} · {claim?.insurerName ?? 'Insurer'}</div>
+          <div className="meta-line">Reg: {claim?.vehicleRegistration ?? '—'} · {(() => {
+              const cr0 = (aiAssessment as any)?._claimRecord;
+              return cr0?.insuranceContext?.insurerName ?? claim?.insurerName ?? '—';
+            })()}</div>
           <button onClick={() => window.print()} className="no-print" style={{ marginTop: 8, padding: '4px 12px', fontSize: 11, fontFamily: 'sans-serif', cursor: 'pointer', background: '#111', color: '#fff', border: 'none' }}>Print / PDF</button>
         </div>
       </div>
@@ -916,9 +923,16 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           </div>
         )}
         <div><span className="di-label">Claim Ref</span>{claim?.claimNumber ?? claim?.claimReference ?? '—'}</div>
-        <div><span className="di-label">Report Hash</span><span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 10 }}>#{((aiAssessment?.id ?? 0) * 31337).toString(16).toUpperCase().slice(0, 8)}</span></div>
+        <div><span className="di-label">Report Hash</span><span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 10 }}>#{[aiAssessment?.id, aiAssessment?.claimId, aiAssessment?.processingTime].filter(Boolean).map(n => (n as number).toString(16)).join('').toUpperCase().slice(0, 8) || 'N/A'}</span></div>
         <div><span className="di-label">Generated</span>{fmtDate(aiAssessment?.createdAt)}</div>
-        <div><span className="di-label">Adjuster</span>{claim?.assignedAdjuster ?? (aiAssessment as any)?._claimRecord?.insuranceContext?.adjuster ?? '—'}</div>
+        <div><span className="di-label">Adjuster</span>{(() => {
+            const cr0 = (aiAssessment as any)?._claimRecord;
+            return claim?.assignedAdjuster
+              ?? cr0?.insuranceContext?.adjuster
+              ?? cr0?.insuranceContext?.claimHandler
+              ?? cr0?.insuranceContext?.claimOfficer
+              ?? '—';
+          })()}</div>
       </div>
 
       {/* ── Verdict Banner — full-width decision above KPI strip ── */}
@@ -5059,7 +5073,15 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   const docs = [
     { id: "Claim Form", type: "Primary", extracted: true, note: "Submitted by claimant" },
     { id: "Police Report", type: "Supporting", extracted: !!(ctl4?.evidence?.policeReportPresent ?? aiAssessment?.policeReportNumber), note: aiAssessment?.policeReportNumber ? `Case: ${aiAssessment.policeReportNumber}` : (ctl4?.evidence?.policeReportPresent ? "Present in file" : "Not provided") },
-    { id: "Repair Quote", type: "Financial", extracted: ctlQuoteCount > 0 || !!(aiAssessment?.estimatedCost), note: ctlQuoteCount > 0 ? `${ctlQuoteCount} quote${ctlQuoteCount !== 1 ? 's' : ''} extracted (${fmtMoney(ctl4?.costBasis?.optimisedCostUsd)})` : (aiAssessment?.estimatedCost ? `${fmtMoney(aiAssessment.estimatedCost)} extracted` : "Not submitted") },
+    { id: "Repair Quote", type: "Financial", extracted: ctlQuoteCount > 0 || !!(aiAssessment?.estimatedCost), note: (() => {
+      if (ctlQuoteCount > 0) {
+        // Show the actual submitted quote total(s), not the optimised benchmark
+        const quoteTotals = (ctl4?.costBasis?.quotes ?? []).map((q: any) => q.quotedAmountUsd ?? (q.quotedAmount != null ? q.quotedAmount / 100 : null)).filter((v: any) => v != null);
+        const totalDisplay = quoteTotals.length > 0 ? quoteTotals.map((v: number) => fmtMoney(v)).join(', ') : fmtMoney(ctl4?.costBasis?.lowestQuoteUsd);
+        return `${ctlQuoteCount} quote${ctlQuoteCount !== 1 ? 's' : ''} extracted (${totalDisplay})`;
+      }
+      return aiAssessment?.estimatedCost ? `${fmtMoney(aiAssessment.estimatedCost)} extracted` : 'Not submitted';
+    })() },
     { id: "Photos", type: "Visual", extracted: photosDetected > 0, note: isSystemFailure ? "SYSTEM ERROR \u2014 not claimant fault" : photosDetected > 0 ? `${photosDetected} detected, ${photosProcessed} processed` : "Not submitted" },
     { id: "Driver Licence", type: "Identity", extracted: !!(claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber), note: claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber ?? "Not recorded" },
     { id: "Vehicle Registration", type: "Identity", extracted: !!(claim?.vehicleRegistration), note: claim?.vehicleRegistration ?? "Not recorded" },
@@ -5464,7 +5486,19 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
     ? Number(canonicalFraudScore)
     : (wf?.score ?? 0);
   const fraudLevel = fraudScoreBreakdown5?.level ?? wf?.level ?? "minimal";
-  const fraudLabel = wf?.explanation ?? fraudLevel;
+  // Build fraud label from canonical score and triggered factors — do NOT use stored explanation
+  // text which may embed a stale sub-score number from an older pipeline run.
+  const triggeredFactorNames = (wf?.full_contributions ?? wf?.contributions ?? [])
+    .filter((c: any) => c.triggered)
+    .map((c: any) => (c.factor ?? "").toLowerCase())
+    .filter(Boolean);
+  const fraudLabel = triggeredFactorNames.length > 0
+    ? `Risk indicators detected: ${triggeredFactorNames.join(", ")}. ${
+        fraudScore >= 70 ? "Escalation to a senior assessor is required before proceeding."
+        : fraudScore >= 40 ? "Additional verification is advised before approving this claim."
+        : "Standard review process applies."
+      }`
+    : "No fraud indicators detected. The claim is consistent with the reported incident.";
   const fraudColor = fraudScore >= 70 ? "var(--fp-critical-text)" : fraudScore >= 40 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
   const fraudBand = fraudScore >= 70 ? "High risk" : fraudScore >= 40 ? "Moderate risk" : "Low risk";
 
@@ -7616,6 +7650,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       <ConfidenceImprovementChecklist
         aiAssessment={aiAssessment}
         claim={claim}
+        quotes={quotes}
         styleMode="forensic"
       />
 

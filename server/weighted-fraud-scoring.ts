@@ -82,11 +82,13 @@ export interface FraudScoringInput {
 }
 
 // ─── Level mapping (strict 5-band) ───────────────────────────────────────────
+// Thresholds aligned with intelligence-enforcement.ts enforceFraudLevel:
+//   0–19: minimal | 20–39: low | 40–60: moderate | 61–80: high | 81+: elevated
 function scoreToLevel(score: number): WeightedFraudResult["level"] {
-  if (score <= 20) return "minimal";
-  if (score <= 40) return "low";
-  if (score <= 60) return "moderate";
-  if (score <= 80) return "high";
+  if (score < 20) return "minimal";
+  if (score < 40) return "low";
+  if (score < 61) return "moderate";
+  if (score < 81) return "high";
   return "elevated";
 }
 
@@ -279,12 +281,12 @@ export function computeWeightedFraudScore(
       "No fraud indicators detected. The claim is consistent with the reported incident, cost estimates are within range, and all data fields are present.";
   } else {
     const names = triggeredFactors.map((f) => f.factor.toLowerCase()).join(", ");
-    explanation = `Fraud score ${score}/100 (${level}) driven by: ${names}. ${
+    explanation = `Risk indicators detected: ${names}. ${
       score >= 81
         ? "Escalation to a senior assessor is required before proceeding."
         : score >= 61
         ? "Escalation to a senior assessor is recommended before proceeding."
-        : score >= 41
+        : score >= 40
         ? "Additional verification is advised before approving this claim."
         : "Standard review process applies."
     }`;
