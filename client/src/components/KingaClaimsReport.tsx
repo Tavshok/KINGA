@@ -21,6 +21,7 @@ import { currencySymbol } from "@/lib/currency";
 import { ReportSectionThread } from "./ReportSectionThread";
 import { ConfidenceImprovementChecklist } from "./ConfidenceImprovementChecklist";
 import { expandShorthand } from "../../../shared/expandShorthand";
+import { ComponentCostMatrix, buildRowsFromComposite, buildRowsFromLineItems, MatrixQuote } from "./ComponentCostMatrix";
 
 // ─── Print CSS injected once per mount ───────────────────────────────────────
 const CLAIMS_PRINT_CSS = `
@@ -809,313 +810,57 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               </div>
             )}
 
-            {/* ── Unified Cost Matrix Table ── */}
+            {/* ── Unified Cost Matrix Table (shared ComponentCostMatrix) ── */}
             {(() => {
               const compOpt = (ci as any)?.compositeOptimisation ?? null;
               const compositeLineItems: any[] = compOpt?.compositeLineItems ?? [];
-              // l1 = lowest submitted quote (L1). Prefer l1LowestSubmittedCostUsd (set by stage-9
-              // after computing savings) so it matches the ForensicAuditReport cover KPI exactly.
               const l1 = compOpt?.l1LowestSubmittedCostUsd ?? compOpt?.l1SubmittedCostUsd ?? null;
               const l2 = compOpt?.l2CompositeOptimisedCostUsd ?? null;
-              const l3 = compOpt?.l3BenchmarkReferenceCostUsd ?? null;
               const nfs = compOpt?.negotiationFeasibilityScore ?? null;
               const qndFlags: any[] = compOpt?.quotedNotDamaged ?? [];
               const dnqFlags: any[] = compOpt?.damagedNotQuoted ?? [];
+              const savingsUsd: number | null = compOpt?.savingsL1vsL2Usd ?? (l1 != null && l2 != null ? l1 - l2 : null);
+              const savingsPct: number | null = savingsUsd != null && l1 != null && l1 > 0
+                ? Math.round((savingsUsd / l1) * 1000) / 10
+                : null;
 
-              // Build repairer name list from quotes
-              const repairerNames: string[] = quotes.map((q: any, qi: number) =>
-                q.panelBeaterName ?? q.repairerName ?? q.repairer_name ?? `Quote ${qi + 1}`
-              );
+              // Build MatrixQuote array
+              const matrixQuotes: MatrixQuote[] = quotes.map((q: any, qi: number) => ({
+                name: q.panelBeaterName ?? q.repairerName ?? q.repairer_name ?? `Quote ${qi + 1}`,
+                total: (q.lineItems ?? []).length > 0
+                  ? (q.lineItems as any[]).reduce((sum: number, li: any) => sum + Number(li.lineTotal ?? 0), 0)
+                  : Number(q.quotedAmount ?? 0) / 100,
+                lineItems: (q.lineItems ?? []).map((li: any) => ({
+                  description: expandShorthand((li.description ?? "").trim()),
+                  lineTotal: Number(li.lineTotal ?? 0),
+                  is_non_part_cost: li.is_non_part_cost ?? false,
+                })),
+                isFlagged: isCopyQuote && (quoteSimilarity?.pairs ?? []).some(
+                  (p: any) => p.quoteA_index === qi || p.quoteB_index === qi
+                ),
+              }));
 
-              // Determine row source: prefer compositeLineItems, fall back to allDescriptions
-              const useComposite = compositeLineItems.length > 0;
-              const rowDescriptions: string[] = useComposite
-                ? compositeLineItems.map((r: any) => r.componentName ?? r.component ?? r.description ?? "")
-                : allDescriptions;
-
-              // Tier badge renderer
-              function TierBadge({ tier, label }: { tier: string; label: string }) {
-                const styles: Record<string, React.CSSProperties> = {
-                  T1: { background: "#dbeafe", color: "#1d4ed8", border: "1px solid #93c5fd" },
-                  T2: { background: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" },
-                  T3: { background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db" },
-                  T4: { background: "#f9fafb", color: "#6b7280", border: "1px solid #e5e7eb" },
-                };
-                const s = styles[tier] ?? styles.T4;
-                return (
-                  <span style={{ ...s, fontSize: 9, fontWeight: 700, borderRadius: 3, padding: "1px 4px", display: "inline-block", marginLeft: 4, whiteSpace: "nowrap" }}>
-                    {label ?? tier}
-                  </span>
-                );
-              }
+              // Build rows
+              const matrixRows = compositeLineItems.length > 0
+                ? buildRowsFromComposite(compositeLineItems, matrixQuotes)
+                : buildRowsFromLineItems(matrixQuotes);
 
               return (
-                <>
-                  {quotes.length > 0 ? (
-                    <div style={{ overflowX: "auto", marginBottom: 16 }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                        <thead>
-                          <tr>
-                            <th style={{ ...S.th, minWidth: 160 }}>Component</th>
-                            <th style={{ ...S.th, minWidth: 80 }}>Zone</th>
-                            {repairerNames.map((name, qi) => (
-                              <th key={qi} style={{ ...S.th, textAlign: "right" as const, minWidth: 110 }}>
-                                <div>{name}</div>
-                                {isCopyQuote && quoteSimilarity?.pairs?.some((p: any) =>
-                                  p.quoteA_index === qi || p.quoteB_index === qi
-                                ) && (
-                                  <div style={{ fontSize: 9, fontWeight: 700, color: "#92400e", marginTop: 1 }}>⚠ Similarity flagged</div>
-                                )}
-                              </th>
-                            ))}
-                            <th style={{ ...S.th, textAlign: "right" as const, minWidth: 130, background: "#f8fafc", color: "#1A2B4A", borderLeft: "2px solid #1A2B4A" }}>
-                              KINGA Optimised
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rowDescriptions.map((desc: string, ri: number) => {
-                            const compRow = useComposite ? compositeLineItems[ri] : null;
-                            const zone = compRow?.zone ?? compRow?.impactZone ?? "—";
-
-                            return (
-                              <tr key={ri} style={{ background: "transparent" }}>
-                                <td style={S.td}>{expandShorthand(desc)}</td>
-                                <td style={{ ...S.td, color: "#64748b", fontSize: 11 }}>{zone}</td>
-                                {quotes.map((q: any, qi: number) => {
-                                  const li = (q.lineItems ?? []).find(
-                                    (l: any) => {
-                                      const ld = (l.description ?? "").trim().toLowerCase();
-                                      const dd = desc.toLowerCase();
-                                      return ld === dd || ld.includes(dd) || dd.includes(ld);
-                                    }
-                                  );
-                                  // Flag from similarity engine
-                                  const itemFlags: Record<number, string> = {};
-                                  (quoteSimilarity?.pairs ?? []).forEach((pair: any) => {
-                                    (pair.per_item_flags ?? []).forEach((f: any) => {
-                                      if ((f.description ?? "").toLowerCase() === desc.toLowerCase()) {
-                                        if (f.flag === "missing_in_a") itemFlags[pair.quoteA_index] = "missing";
-                                        if (f.flag === "missing_in_b") itemFlags[pair.quoteB_index] = "missing";
-                                        if (f.flag === "high_variance") {
-                                          itemFlags[pair.quoteA_index] = "variance";
-                                          itemFlags[pair.quoteB_index] = "variance";
-                                        }
-                                      }
-                                    });
-                                  });
-                                  const flag = itemFlags[qi];
-                                  let cellStyle: React.CSSProperties = { ...S.td, textAlign: "right" };
-                                  if (flag === "missing") cellStyle = { ...cellStyle, color: "#94a3b8", fontStyle: "italic" };
-                                  else if (flag === "variance") cellStyle = { ...cellStyle, fontWeight: 700 };
-                                  return (
-                                    <td key={qi} style={cellStyle}>
-                                      {li ? fmtC(Number(li.lineTotal)) : <span style={{ color: "#94a3b8" }}>—</span>}
-                                    </td>
-                                  );
-                                })}
-                                {/* KINGA Optimised cell — cost + source label only, no benchmark clutter */}
-                                <td style={{ ...S.td, textAlign: "right", background: "#f8fafc", fontWeight: 600, borderLeft: "2px solid #1A2B4A" }}>
-                                  {compRow ? (
-                                    <>
-                                      <span>{fmtC(compRow.selectedCostUsd ?? compRow.kingaOptimisedUsd ?? 0)}</span>
-                                      <TierBadge tier={compRow.kingaOptimisedTier ?? "T4"} label={compRow.kingaOptimisedTierLabel ?? compRow.kingaOptimisedTier ?? "Quoted"} />
-                                    </>
-                                  ) : <span style={{ color: "#94a3b8" }}>—</span>}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {/* TOTAL row */}
-                          <tr style={{ borderTop: "2px solid #1A2B4A", fontWeight: 700 }}>
-                            <td style={{ ...S.td, fontWeight: 700, fontSize: 12 }}>TOTAL</td>
-                            <td style={S.td}></td>
-                            {quotes.map((q: any, qi: number) => (
-                              <td key={qi} style={{ ...S.td, textAlign: "right", fontWeight: 700 }}>
-                                {fmtC(
-                                  (q.lineItems ?? []).length > 0
-                                    ? (q.lineItems as any[]).reduce((sum: number, li: any) => sum + Number(li.lineTotal ?? 0), 0)
-                                    : Number(q.quotedAmount ?? 0) / 100
-                                )}
-                              </td>
-                            ))}
-                            <td style={{ ...S.td, textAlign: "right", background: "#f8fafc", fontWeight: 700, borderLeft: "2px solid #1A2B4A", fontSize: 13 }}>
-                              {l2 != null ? fmtC(l2) : fmtC(aiEstimate)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p style={S.muted}>No quotes submitted for this claim.</p>
-                  )}
-
-                  {/* ── Cost Decision Summary: Lowest Submitted vs KINGA Optimised ── */}
-                  {(l1 != null || l2 != null) && (() => {
-                    const savingsUsd: number | null = compOpt?.savingsL1vsL2Usd ?? (l1 != null && l2 != null ? l1 - l2 : null);
-                    const savingsPct = savingsUsd != null && l1 != null && l1 > 0
-                      ? ((savingsUsd / l1) * 100).toFixed(1)
-                      : null;
-                    const isSaving = savingsUsd != null && savingsUsd > 0;
-                    const nfsColor = nfs != null ? (nfs >= 70 ? '#15803d' : nfs >= 40 ? '#b45309' : '#dc2626') : '#64748b';
-                    const nfsBg = nfs != null ? (nfs >= 70 ? '#dcfce7' : nfs >= 40 ? '#fef3c7' : '#fee2e2') : '#f1f5f9';
-                    return (
-                      <div style={{ marginBottom: 16 }}>
-                        {/* Three-column KPI row */}
-                        <div style={{ display: "grid", gridTemplateColumns: isSaving && l2 != null ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginBottom: isSaving && l1 != null && l2 != null ? 10 : 16 }}>
-                          {/* L1: Lowest Submitted Quote */}
-                          <div style={{ padding: "12px 16px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#fafafa" }}>
-                            <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#64748b", margin: "0 0 4px" }}>Lowest Submitted</p>
-                            <p style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.1 }}>
-                              {l1 != null ? fmtC(l1) : "—"}
-                            </p>
-                            <p style={{ fontSize: 10, color: "#94a3b8", margin: 0 }}>L1 — best of {quotes.length} quote{quotes.length !== 1 ? 's' : ''}</p>
-                          </div>
-                          {/* L2: KINGA Optimised */}
-                          {l2 != null && (
-                            <div style={{ padding: "12px 16px", borderRadius: 6, border: "2px solid #1A2B4A", background: "#f0f4f8" }}>
-                              <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#1A2B4A", margin: "0 0 4px" }}>KINGA Optimised</p>
-                              <p style={{ fontSize: 22, fontWeight: 800, color: "#1A2B4A", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.1 }}>
-                                {fmtC(l2)}
-                              </p>
-                              <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>L2 — best price per component</p>
-                            </div>
-                          )}
-                          {/* Savings card */}
-                          {isSaving && savingsUsd != null && (
-                            <div style={{ padding: "12px 16px", borderRadius: 6, border: "1px solid #bbf7d0", background: "#f0fdf4" }}>
-                              <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#15803d", margin: "0 0 4px" }}>Savings Opportunity</p>
-                              <p style={{ fontSize: 22, fontWeight: 800, color: "#15803d", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.1 }}>
-                                {fmtC(savingsUsd)}
-                              </p>
-                              <p style={{ fontSize: 10, color: "#16a34a", margin: 0 }}>{savingsPct}% reduction from L1</p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Savings progress bar */}
-                        {isSaving && l1 != null && l2 != null && (
-                          <div style={{ marginBottom: 12 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                              <span style={{ fontSize: 10, color: '#64748b' }}>KINGA Optimised vs Submitted</span>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: '#15803d' }}>{savingsPct}% saving</span>
-                            </div>
-                            <div style={{ height: 7, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${Math.min((l2 / l1) * 100, 100)}%`, background: '#1A2B4A', borderRadius: 4 }} />
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-                              <span style={{ fontSize: 9, color: '#94a3b8' }}>L2 {fmtC(l2)}</span>
-                              <span style={{ fontSize: 9, color: '#94a3b8' }}>L1 {fmtC(l1)}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* NFS badge — integrated inline below cost KPIs */}
-                        {nfs != null && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#f8fafc", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "#64748b" }}>NFS</span>
-                            <span style={{ fontSize: 16, fontWeight: 800, color: nfsColor, fontFamily: "'IBM Plex Mono', monospace" }}>{nfs.toFixed(0)}</span>
-                            <span style={{ fontSize: 10, color: nfsColor, fontWeight: 600 }}>
-                              {nfs >= 70 ? "STRONG" : nfs >= 40 ? "MODERATE" : "LIMITED"}
-                            </span>
-                            <span style={{ fontSize: 10, color: "#64748b", flex: 1 }}>
-                              {nfs >= 70 ? "Strong negotiation potential — benchmark data supports cost reduction."
-                                : nfs >= 40 ? "Moderate negotiation potential — partial benchmark support."
-                                : "Limited negotiation potential — submitted costs are within benchmark range."}
-                            </span>
-                            {nfs != null && (
-                              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: nfsBg, color: nfsColor }}>
-                                {nfs.toFixed(0)}%
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* ── Advisory Flags ── */}
-                  {(qndFlags.length > 0 || dnqFlags.length > 0) && (
-                    <div style={{ marginBottom: 16 }}>
-                      <p style={{ ...S.label, marginBottom: 8 }}>Advisory Observations</p>
-
-                      {/* Quoted-Not-Damaged */}
-                      {qndFlags.length > 0 && (
-                        <div style={{ marginBottom: 10 }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, color: "#92400e", marginBottom: 4 }}>
-                            ⚠ Quoted-Not-Damaged Components ({qndFlags.length})
-                          </p>
-                          <p style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>
-                            The following components appear in submitted quotes but are not corroborated by the damage assessment. These items warrant verification before settlement.
-                          </p>
-                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-                            <thead>
-                              <tr>
-                                <th style={{ ...S.th, textAlign: "left" as const }}>Component</th>
-                                <th style={{ ...S.th, textAlign: "left" as const }}>Repairer</th>
-                                <th style={{ ...S.th, textAlign: "right" as const }}>Quoted Amount</th>
-                                <th style={{ ...S.th, textAlign: "left" as const }}>Flag</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {qndFlags.map((f: any, fi: number) => (
-                                <tr key={fi}>
-                                  <td style={S.td}>{f.componentName ?? f.component ?? "—"}</td>
-                                  <td style={S.td}>{f.repairerName ?? f.repairer ?? "—"}</td>
-                                  <td style={{ ...S.td, textAlign: "right" }}>{f.quotedAmountUsd != null ? fmtC(f.quotedAmountUsd) : "—"}</td>
-                                  <td style={{ ...S.td }}>
-                                    <span style={{ fontSize: 10, fontWeight: 700, background: "#fef3c7", color: "#92400e", borderRadius: 3, padding: "1px 5px" }}>
-                                      {f.flag ?? "VERIFY"}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {/* Damaged-Not-Quoted */}
-                      {dnqFlags.length > 0 && (
-                        <div>
-                          <p style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 4 }}>
-                            ℹ Damaged-Not-Quoted Components ({dnqFlags.length})
-                          </p>
-                          <p style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>
-                            The following components show evidence of damage in the assessment but have not been included in any submitted quote. These may represent supplementary repair requirements or hidden damage.
-                          </p>
-                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-                            <thead>
-                              <tr>
-                                <th style={{ ...S.th, textAlign: "left" as const }}>Component</th>
-                                <th style={{ ...S.th, textAlign: "right" as const }}>Estimated Cost</th>
-                                <th style={{ ...S.th, textAlign: "left" as const }}>Source</th>
-                                <th style={{ ...S.th, textAlign: "right" as const }}>Probability</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {dnqFlags.map((f: any, fi: number) => (
-                                <tr key={fi}>
-                                  <td style={S.td}>{f.componentName ?? f.component ?? "—"}</td>
-                                  <td style={{ ...S.td, textAlign: "right" }}>{f.estimatedCostUsd != null ? fmtC(f.estimatedCostUsd) : (f.estimatedCost != null ? fmtC(f.estimatedCost) : "—")}</td>
-                                  <td style={S.td}>{f.source ?? "—"}</td>
-                                  <td style={{ ...S.td, textAlign: "right" }}>
-                                    {f.probability != null ? (
-                                      <span style={{ fontSize: 10, fontWeight: 700, background: "#f3f4f6", color: "#374151", borderRadius: 3, padding: "1px 5px" }}>
-                                        {Math.round(f.probability * 100)}%
-                                      </span>
-                                    ) : "—"}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
+                <ComponentCostMatrix
+                  quotes={matrixQuotes}
+                  rows={matrixRows}
+                  l1Total={l1}
+                  l2Total={l2}
+                  savingsUsd={savingsUsd}
+                  savingsPct={savingsPct}
+                  nfs={nfs}
+                  qndFlags={qndFlags}
+                  dnqFlags={dnqFlags}
+                  fmtMoney={fmtC}
+                  isCopyQuote={isCopyQuote}
+                />
               );
+
             })()}
           </div>
         </div>

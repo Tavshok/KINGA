@@ -18,6 +18,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { expandShorthand } from "../../../shared/expandShorthand";
 import { ReportSectionThread } from "./ReportSectionThread";
 import { ConfidenceImprovementChecklist } from "./ConfidenceImprovementChecklist";
+import { ComponentCostMatrix, MatrixQuote, MatrixRow } from "./ComponentCostMatrix";
 import { Bar } from "react-chartjs-2";
 import { trpc } from "@/lib/trpc";
 import { CheckCircle, XCircle, AlertTriangle, Printer } from "lucide-react";
@@ -4254,173 +4255,94 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         </div>
       )}
       {/* ── UNIFIED COMPONENT COST MATRIX TABLE ── */}
-      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>3.1 Repair Cost Analysis — Component Matrix</p>
-          <span className="text-xs" style={{ color: "#64748b" }}>{pbQuotes.length > 0 ? `${pbQuotes.length} quote${pbQuotes.length !== 1 ? 's' : ''} received` : 'No quotes'}</span>
-        </div>
-        <div className="overflow-x-auto">
-          {pbQuotes.length > 0 ? (
-            <table className="w-full text-xs report-table" style={{ borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-                  <th className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", minWidth: 180 }}>Repair Item</th>
-                  <th className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", whiteSpace: 'nowrap' }}>Zone</th>
-                  <th className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", whiteSpace: 'nowrap' }}>Category</th>
-                  {pbQuotes.map((q, qi) => {
-                    // Per-quote similarity verdict badge
-                    const pairVerdicts = (quoteSimilarity?.pair_results ?? []) as any[];
-                    const isFlagged = pairVerdicts.some((p: any) =>
-                      (p.verdict === 'confirmed' || p.verdict === 'suspected') &&
-                      (p.quote_a === q.name || p.quote_b === q.name)
-                    );
-                    return (
-                      <th key={qi} className="text-right px-3 py-2 font-semibold" style={{ color: "#64748b", whiteSpace: 'nowrap' }}>
-                        {q.name}
-                        {isFlagged && (
-                          <span className="ml-1 text-[10px] font-bold px-1 rounded" style={{ background: 'var(--fp-warning-bg, #fef3c7)', color: 'var(--fp-warning-text, #92400e)' }}>SIM</span>
-                        )}
-                      </th>
-                    );
-                  })}
-                  {/* KINGA Optimised column — best credible price per component */}
-                  <th className="text-right px-3 py-2 font-semibold" style={{ color: "#0f172a", whiteSpace: 'nowrap', borderLeft: '2px solid #0f172a', background: '#f8fafc' }}>KINGA Optimised</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allRows3.map((row, ri) => {
-                  const isMissedRow = ri >= matchedRows3.length;
-                  const validAmounts = row.cells.map(c => c.amount).filter((a): a is number => a !== null);
-                  // KINGA estimate: use benchmark median if available, else min of quotes
-                  const benchmark = perComponentBenchmarks?.[row.description];
-                  // KINGA Optimised: prefer compositeLineItems selection, then benchmark median, then min of quotes
-                  const compKey = normKey(row.description);
-                  const compItem = kingaOptimisedMap[compKey];
-                  const kingaEstimate = compItem?.amount ?? benchmark?.medianUsd ?? (validAmounts.length > 0 ? Math.min(...validAmounts) : null);
-                  const kingaSource = compItem?.source ?? null;
-                  const kingaVerdict = compItem?.verdict ?? benchmark?.verdict ?? null;
-                  const kingaP25 = compItem?.p25 ?? benchmark?.p25Usd ?? null;
-                  const kingaP75 = compItem?.p75 ?? benchmark?.p75Usd ?? null;
-                  return (
-                    <tr key={ri} style={{ borderTop: "1px solid #e2e8f0", background: isMissedRow ? "var(--muted)" : "var(--background)" }}>
-                      <td className="px-3 py-2 font-medium" style={{ color: isMissedRow ? "var(--muted-foreground)" : "var(--foreground)" }}>
-                        {row.description}
-                        {isMissedRow && <span className="ml-2 text-xs" style={{ color: "#64748b", fontStyle: 'italic' }}>(not in all quotes)</span>}
-                      </td>
-                      <td className="px-3 py-2" style={{ color: "#64748b", fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {(row as any).zone ?? (row as any).damageZone ?? '—'}
-                      </td>
-                      <td className="px-3 py-2" style={{ color: "#64748b" }}>{row.category || '—'}</td>
-                      {row.cells.map((cell, ci) => {
-                        // Per-cell colour coding from Phase 2 benchmark flags
-                        const qName = pbQuotes[ci]?.name ?? '';
-                        const flag = benchmark?.quoteFlags?.[qName] ?? null;
-                        const cellColor = flag === 'over'
-                          ? 'var(--fp-critical-text)'
-                          : flag === 'under'
-                            ? 'var(--fp-warning-text, #92400e)'
-                            : cell.amount !== null ? 'var(--foreground)' : 'var(--muted-foreground)';
-                        const cellBg = flag === 'over'
-                          ? 'var(--status-reject-bg)'
-                          : flag === 'under'
-                            ? 'var(--fp-warning-bg, #fef3c7)'
-                            : undefined;
-                        return (
-                          <td key={ci} className="px-3 py-2 tabular-nums text-right" style={{ color: cellColor, fontStyle: cell.amount === null ? 'italic' : 'normal', background: cellBg }}>
-                            {cell.amount !== null ? fmtMoney(cell.amount) : '—'}
-                          </td>
-                        );
-                      })}
-                      {/* KINGA Optimised cell — four-tier source hierarchy */}
-                      <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a', borderLeft: '2px solid #0f172a', background: '#f8fafc' }}>
-                        {kingaEstimate !== null ? fmtMoney(kingaEstimate) : '—'}
-                        {/* Tier label — always shown, colour-coded by tier */}
-                        {(() => {
-                          const tier = compItem?.tier ?? null;
-                          const tierLabel = compItem?.tierLabel ?? null;
-                          if (tierLabel) {
-                            const tierStyle: Record<string, React.CSSProperties> = {
-                              T1: { color: '#1d4ed8', background: '#dbeafe' },  // ML model — blue
-                              T2: { color: '#065f46', background: '#d1fae5' },  // Market benchmark — green
-                              T3: { color: '#92400e', background: '#fef3c7' },  // Best quote (multi) — amber
-                              T4: { color: '#475569', background: '#f1f5f9' },  // Quoted (single) — slate
-                            };
-                            const style = tierStyle[tier ?? 'T4'] ?? tierStyle.T4;
-                            return (
-                              <span className="block text-[10px] font-semibold mt-0.5" style={{ ...style, borderRadius: 3, padding: '1px 4px', display: 'inline-block' }}>
-                                {tierLabel}
-                              </span>
-                            );
-                          }
-                          // Fallback: show benchmark badge if no composite item
-                          if (benchmark?.modelSource === 'ml') {
-                            return <span className="block text-[10px] font-semibold mt-0.5" style={{ color: '#1d4ed8', background: '#dbeafe', borderRadius: 3, padding: '1px 4px', display: 'inline-block' }}>ML Model · n={benchmark.sampleSize}</span>;
-                          }
-                          if (benchmark?.modelSource === 'statistical') {
-                            return <span className="block text-[10px] font-semibold mt-0.5" style={{ color: '#065f46', background: '#d1fae5', borderRadius: 3, padding: '1px 4px', display: 'inline-block' }}>Market Benchmark · n={benchmark.sampleSize}</span>;
-                          }
-                          return null;
-                        })()}
-                        {/* Market range band */}
-                        {kingaP25 != null && kingaP75 != null && (
-                          <span className="block text-[10px] font-normal" style={{ color: '#64748b' }}>
-                            Range: {fmtMoney(kingaP25)}–{fmtMoney(kingaP75)}
-                          </span>
-                        )}
-                        {/* Verdict chip — colour only */}
-                        {(kingaVerdict === 'ABOVE_RANGE' || kingaVerdict === 'ABOVE_MARKET' || kingaVerdict === 'above') && (
-                          <span className="block text-[10px] font-bold mt-0.5" style={{ color: '#dc2626' }}>⚠ Above market</span>
-                        )}
-                        {(kingaVerdict === 'BELOW_RANGE' || kingaVerdict === 'BELOW_MARKET' || kingaVerdict === 'under') && (
-                          <span className="block text-[10px] font-bold mt-0.5" style={{ color: '#92400e' }}>▼ Below market</span>
-                        )}
-                        {(kingaVerdict === 'IN_RANGE' || kingaVerdict === 'MARKET_RATE' || kingaVerdict === 'fair') && (
-                          <span className="block text-[10px] font-semibold mt-0.5" style={{ color: '#15803d' }}>✓ Market rate</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: "2px solid #cbd5e1", background: "#ffffff" }}>
-                  <td colSpan={3} className="px-3 py-2 font-bold" style={{ color: "#0f172a" }}>TOTAL</td>
-                  {pbQuotes.map((q, qi) => (
-                    <td key={qi} className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: "#0f172a" }}>
-                      {fmtMoney(q.total)}
-                    </td>
-                  ))}
-                  {/* KINGA Optimised total */}
-                  <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a', borderLeft: '2px solid #0f172a', background: '#f8fafc' }}>
-{(co?.l2CompositeOptimisedCostUsd ?? co?.compositeL2TotalUsd) != null
-                       ? fmtMoney(co.l2CompositeOptimisedCostUsd ?? co.compositeL2TotalUsd)
-                      : fmtMoney(allRows3.reduce((sum, row) => {
-                          const compK = normKey(row.description);
-                          const compI = kingaOptimisedMap[compK];
-                          const bm = perComponentBenchmarks?.[row.description];
-                          const va = row.cells.map(c => c.amount).filter((a): a is number => a !== null);
-                          const est = compI?.amount ?? bm?.medianUsd ?? (va.length > 0 ? Math.min(...va) : 0);
-                          return sum + est;
-                        }, 0))
-                    }
-                    {co?.savingsL1vsL2Usd != null && co.savingsL1vsL2Usd > 0 && (
-                      <span className="block text-[10px] font-semibold" style={{ color: '#15803d' }}>
-                        ↓ {fmtMoney(co.savingsL1vsL2Usd)} vs quoted
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          ) : (
-            <div style={{ padding: '24px 20px', textAlign: 'center', borderTop: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>&#9744;</div>
-              <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>No Repair Quote Submitted</p>
-              <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>Cost validation cannot be performed until a quotation is received from a panel beater. Once submitted, KINGA will perform itemised analysis and cross-repairer comparison.</p>
+      {(() => {
+        // Build MatrixQuote[] for the shared component
+        const matrixQuotes: MatrixQuote[] = pbQuotes.map((q: any) => ({
+          name: q.name,
+          total: q.total,
+          lineItems: (q.lineItems ?? []).map((li: any) => ({
+            description: li.description ?? '',
+            lineTotal: Number(li.lineTotal ?? li.unitPrice ?? 0),
+            is_non_part_cost: li.is_non_part_cost ?? false,
+          })),
+          isFlagged: (() => {
+            const pairVerdicts = (quoteSimilarity?.pair_results ?? []) as any[];
+            return pairVerdicts.some((p: any) =>
+              (p.verdict === 'confirmed' || p.verdict === 'suspected') &&
+              (p.quote_a === q.name || p.quote_b === q.name)
+            );
+          })(),
+        }));
+
+        // Build MatrixRow[] from allRows3 with benchmark colour flags
+        const matrixRows: MatrixRow[] = allRows3.map((row: any, ri: number) => {
+          const benchmark = perComponentBenchmarks?.[row.description];
+          const compKey = normKey(row.description);
+          const compItem = kingaOptimisedMap[compKey];
+          const validAmounts = row.cells.map((c: any) => c.amount).filter((a: any): a is number => a !== null);
+          const kingaAmount = compItem?.amount ?? benchmark?.medianUsd ?? (validAmounts.length > 0 ? Math.min(...validAmounts) : null);
+
+          // Derive clean source label
+          const tier = compItem?.tier ?? null;
+          const rawLabel = compItem?.tierLabel ?? null;
+          let kingaSource: string | null = null;
+          if (tier === 'T1') kingaSource = 'ML Benchmark';
+          else if (tier === 'T2') kingaSource = 'Market Benchmark';
+          else if (tier === 'T3' || tier === 'T4') {
+            const match = rawLabel?.match(/·\s*(.+)$/);
+            kingaSource = match ? match[1].trim() : (rawLabel ?? compItem?.source ?? null);
+          } else if (benchmark?.modelSource === 'ml') kingaSource = 'ML Benchmark';
+          else if (benchmark?.modelSource === 'statistical') kingaSource = 'Market Benchmark';
+          else if (compItem?.source) kingaSource = compItem.source;
+
+          const cells = row.cells.map((cell: any, ci: number) => {
+            const qName = pbQuotes[ci]?.name ?? '';
+            const bmFlag = benchmark?.quoteFlags?.[qName] ?? null;
+            const flag = bmFlag === 'over' ? 'over' as const
+              : bmFlag === 'under' ? 'under' as const
+              : cell.amount === null ? 'missing' as const
+              : undefined;
+            return { amount: cell.amount, flag };
+          });
+
+          return {
+            description: row.description,
+            zone: (row as any).zone ?? (row as any).damageZone ?? null,
+            category: row.category ?? null,
+            cells,
+            kingaAmount,
+            kingaSource,
+          };
+        });
+
+        const coData = costIntel?.compositeOptimisation ?? null;
+        const l1 = coData?.l1LowestSubmittedCostUsd ?? coData?.l1SubmittedCostUsd ?? null;
+        const l2 = coData?.l2CompositeOptimisedCostUsd ?? null;
+        const savingsUsd = coData?.negotiationSavingsUsd ?? (l1 && l2 && l1 > l2 ? l1 - l2 : null);
+        const savingsPct = l1 && savingsUsd && l1 > 0 ? Math.round((savingsUsd / l1) * 100) : null;
+
+        return (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#0f172a' }}>3.1 Repair Cost Analysis — Component Matrix</span>
+              <span style={{ fontSize: 11, color: '#64748b' }}>{matrixQuotes.length > 0 ? `${matrixQuotes.length} quote${matrixQuotes.length !== 1 ? 's' : ''} received` : 'No quotes'}</span>
             </div>
-          )}
-        </div>
-      </div>
+            <ComponentCostMatrix
+              quotes={matrixQuotes}
+              rows={matrixRows}
+              l1Total={l1}
+              l2Total={l2}
+              savingsUsd={savingsUsd}
+              savingsPct={savingsPct}
+              nfs={coData?.negotiationFeasibilityScore ?? null}
+              qndFlags={coData?.quotedNotDamagedFlags ?? []}
+              dnqFlags={coData?.damagedNotQuotedFlags ?? []}
+              fmtMoney={fmtMoney}
+              showCategory={true}
+            />
+          </div>
+        );
+      })()}
 
       {/* Cost Waterfall Chart — rendered inside 3.1d Cost Intelligence block below */}
 
