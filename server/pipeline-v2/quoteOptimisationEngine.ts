@@ -224,7 +224,20 @@ const SYNONYM_MAP: Record<string, string> = {
 };
 
 function normalise(name: string): string {
-  const lower = name.toLowerCase().trim();
+  let lower = name.toLowerCase().trim();
+  // Resolve synonym map first
+  if (SYNONYM_MAP[lower]) return SYNONYM_MAP[lower];
+  // British/American spelling normalisation — collapse to British spelling
+  // so "rubberizing" and "rubberising" map to the same canonical name
+  lower = lower
+    .replace(/izing\b/g, 'ising')   // rubberizing → rubberising
+    .replace(/ize\b/g, 'ise')       // oxidize → oxidise
+    .replace(/ized\b/g, 'ised')     // oxidized → oxidised
+    .replace(/izer\b/g, 'iser')     // stabilizer → stabiliser
+    .replace(/ization\b/g, 'isation') // normalization → normalisation
+    .replace(/aluminum\b/g, 'aluminium') // aluminum → aluminium
+    .replace(/color\b/g, 'colour') // color → colour
+    .replace(/center\b/g, 'centre'); // center → centre
   return SYNONYM_MAP[lower] ?? lower;
 }
 

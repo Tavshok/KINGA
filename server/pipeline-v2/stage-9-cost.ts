@@ -1420,31 +1420,43 @@ export async function runCostOptimisationStage(
           }
 
           // Build InputQuoteWithLineItems[] from all extracted quotes
-          const compositeInputQuotes: InputQuoteWithLineItems[] = allQuotes.map((q: any) => ({
-            panel_beater: q.panel_beater ?? null,
-            total_cost: q.total_cost ?? null,
-            currency: q.currency ?? currency,
-            components: q.components ?? [],
-            labour_defined: q.labour_defined ?? false,
-            parts_defined: q.parts_defined ?? false,
-            labour_cost: q.labour_cost ?? null,
-            parts_cost: q.parts_cost ?? null,
-            confidence: (q.confidence as 'high' | 'medium' | 'low') ?? 'low',
+          const compositeInputQuotes: InputQuoteWithLineItems[] = allQuotes.map((q: any) => {
             // CRITICAL: exclude is_non_part_cost rows (labour, paint, VAT) from lineItems.
             // buildCompositeQuote sums lineItems into compositePartsUsd, then adds bestLabourUsd
             // separately from q.labour_cost. Including labour rows here causes double-counting
             // and inflates L2 above the submitted quote totals.
-            lineItems: (q.line_items ?? [])
+            const partLineItems = (q.line_items ?? [])
               .filter((li: any) => !li.is_non_part_cost)
               .map((li: any) => ({
                 componentName: li.component ?? li.description ?? '',
                 costUsd: li.line_total ?? li.unit_cost ?? 0,
-              })).filter((li: any) => li.componentName && li.costUsd > 0),
-          }));
+              })).filter((li: any) => li.componentName && li.costUsd > 0);
 
-          // Bug fix: l1TotalUsd must be the LOWEST submitted quote total, not the first/only
-          // quote stored on claimRecord.repairQuote (which may be a single higher quote).
-          // Use the minimum of all extracted quote totals so L1 is the true best submitted price.
+            // CRITICAL: In MIAZ-format quotes (Swiss Motors, Grand Auto Premier etc.),
+            // labour operations appear as individual line items (e.g. "Cut in Join $140",
+            // "Rubberising $337.50"). These are already included in partLineItems above.
+            // The quote header also has a summary labour_cost field (e.g. $253.80) which
+            // is the SUM of those same labour line items — NOT additional labour.
+            // If we have line items, set labour_cost = null to prevent double-counting.
+            // Only use labour_cost when there are NO line items (quote-total-only case).
+            const effectiveLabourCost = partLineItems.length > 0 ? null : (q.labour_cost ?? null);
+
+            return {
+              panel_beater: q.panel_beater ?? null,
+              total_cost: q.total_cost ?? null,
+              currency: q.currency ?? currency,
+              components: q.components ?? [],
+              labour_defined: q.labour_defined ?? false,
+              parts_defined: q.parts_defined ?? false,
+              labour_cost: effectiveLabourCost,
+              parts_cost: q.parts_cost ?? null,
+              confidence: (q.confidence as 'high' | 'medium' | 'low') ?? 'low',
+              lineItems: partLineItems,
+            };
+          });
+
+          // L1 = lowest submitted quote total across all extracted quotes.
+          // Use total_cost exactly as extracted (including VAT where applicable).
           const allSubmittedTotalsForL1 = allQuotes
             .map((q: any) => q.total_cost ?? 0)
             .filter((t: number) => t > 0);
