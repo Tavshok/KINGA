@@ -120,8 +120,9 @@ function makeFmtCurrency(code: string | null | undefined) {
   };
 }
 
-function toTitleCase(s: string): string {
-  return s.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function toTitleCase(s: string | null | undefined): string {
+  if (s == null) return '';
+  return String(s).replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function parseJson(raw: any): any {
@@ -1188,7 +1189,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 <div style={{ marginTop: 10, padding: "8px 12px", background: "#ffffff", borderRadius: 0, border: "1px solid #e2e8f0" }}>
                   <p style={{ ...S.label, marginBottom: 4 }}>Date Consistency</p>
                   <p style={{ fontSize: 12, fontWeight: dateCheck.verdict === "consistent" ? 600 : 800, color: "#111" }}>
-                    {toTitleCase(dateCheck.verdict.replace(/_/g, " "))}
+                    {toTitleCase((dateCheck.verdict ?? "").replace(/_/g, " "))}
                   </p>
                   {dateCheck.verdict === "mismatch" && (
                     <p style={S.muted}>Claim form date and police report date do not match.</p>

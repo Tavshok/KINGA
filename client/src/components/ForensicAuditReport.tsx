@@ -1248,7 +1248,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   ];
 
   const checklist = [
-    { label: "Incident type identified", ok: incidentType !== "N/A" && incidentType !== "unknown", detail: incidentType.replace(/_/g, " "), conf: 95 },
+    { label: "Incident type identified", ok: incidentType !== "N/A" && incidentType !== "unknown", detail: (incidentType ?? "").replace(/_/g, " "), conf: 95 },
     { label: "Cost data present", ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), detail: fmtMoney(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), conf: Math.round(costConfidence > 0 ? costConfidence : confidenceScore) },
     { label: "Photos submitted", ok: !!(ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected), detail: (ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected) ? `${ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected} detected` : "None", conf: photoConfidence > 0 ? Math.round(photoConfidence) : (ctl1?.evidence?.photoCount ? 80 : 0) },
     { label: "Police report", ok: !!(aiAssessment?.policeReportNumber) || !!(claimRecord0?.policeReport?.station), detail: aiAssessment?.policeReportNumber ?? (claimRecord0?.policeReport?.station ? `Station: ${claimRecord0.policeReport.station}` : "Not provided"), conf: aiAssessment?.policeReportNumber ? 100 : claimRecord0?.policeReport?.station ? 60 : 0 },
@@ -1306,7 +1306,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                       {(displayIncidentType.toLowerCase() === 'other' || displayIncidentType === 'UNCLASSIFIED_REQUIRES_MANUAL_INPUT' || displayIncidentType === 'N/A') ? (
                         <span className="font-semibold" style={{ color: 'var(--fp-critical-text)', fontWeight: 700 }}>UNCLASSIFIED — REQUIRES MANUAL INPUT</span>
                       ) : (
-                        <span className="font-semibold capitalize">{displayIncidentType.replace(/_/g, ' ')}</span>
+                        <span className="font-semibold capitalize">{(displayIncidentType ?? "").replace(/_/g, ' ')}</span>
                       )}
                       {isClassifiedByLLM && (
                         <span
@@ -2000,7 +2000,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     ["Impact energy (KE)", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
                     ["Impact force", impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : "N/A"],
                     ["Vehicle mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
-                    ["Accident severity", toSentenceCase(severity.replace(/_/g, " "))],
+                    ["Accident severity", toSentenceCase((severity ?? "").replace(/_/g, " "))],
                     ["Incident type", toSentenceCase(incidentType.replace(/_/g, " "))],
                     ...((_phys as any)?.decelerationG > 0 ? [["Deceleration", `${fmt((_phys as any).decelerationG, 2)} g`]] : []),
                     ...((_phys as any)?.velocityRange?.low_kmh > 0 ? [["Velocity range (est.)", `${fmt((_phys as any).velocityRange.low_kmh, 1)}–${fmt((_phys as any).velocityRange.high_kmh, 1)} km/h`]] : []),
@@ -5106,7 +5106,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Photo Evidence</p>
-          <span className="text-xs font-semibold" style={{ color: "#64748b" }}>{toSentenceCase(photoStatus.replace(/_/g, " "))}</span>
+          <span className="text-xs font-semibold" style={{ color: "#64748b" }}>{toSentenceCase((photoStatus ?? "").replace(/_/g, " "))}</span>
         </div>
         <div className="p-4">
           <div className="grid grid-cols-3 gap-4 mb-3">
@@ -5162,7 +5162,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                               : `View ${i + 1}`;
                           })();
                       const subLabel = enriched
-                        ? `${enriched.impactZone.replace(/_/g, " ")} · ${enriched.severity}`
+                        ? `${(enriched.impactZone ?? "").replace(/_/g, " ")} · ${enriched.severity ?? ""}`
                         : `Photo ${i + 1}`;
                       return (
                         <div key={i} className="rounded overflow-hidden relative" data-photo-card style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
@@ -5197,7 +5197,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                         <div style={{ aspectRatio: "1", position: "relative" }}>
                           <img src={exc.url} alt={`Excluded ${i + 1}`} className="w-full h-full object-cover opacity-60" />
                           <div className="absolute bottom-0 left-0 right-0 px-1.5 py-0.5" style={{ background: "rgba(146,64,14,0.8)" }}>
-                            <p className="text-xs font-semibold truncate text-white">{exc.category.replace(/_/g, ' ').toUpperCase()}</p>
+                            <p className="text-xs font-semibold truncate text-white">{(exc.category ?? "").replace(/_/g, ' ').toUpperCase()}</p>
                             <p className="text-xs text-white/80">{Math.round(exc.confidence * 100)}% confidence</p>
                           </div>
                         </div>
@@ -6890,7 +6890,7 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
               {domainPenalties.map((dp: any, i: number) => (
                 <div key={i} className="flex items-start gap-2">
                   <span className="tabular-nums text-xs px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "rgba(220,38,38,0.1)", color: "var(--fp-danger)" }}>
-                    {dp.code.replace(/_/g, ' ')}
+                    {(dp.code ?? "").replace(/_/g, ' ')}
                   </span>
                   <span className="flex-1" style={{ color: "#64748b" }}>{dp.reason}</span>
                   <span className="flex-shrink-0 font-semibold" style={{ color: "var(--fp-danger)" }}>−{Math.round((dp.weight ?? 0) * 100)}pts</span>
