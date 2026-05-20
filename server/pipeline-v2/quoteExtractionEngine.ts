@@ -427,21 +427,109 @@ export async function extractMultipleQuotes(
   /** ISO 3166-1 alpha-2 tenant country code — used to derive default currency when not found in document */
   tenantCountry?: string | null
 ): Promise<ExtractedQuote[]> {
-  // Split on common quote-separator patterns
+  // Step 1: Try structural splitting first (fast, no LLM cost)
   const blocks = splitQuoteBlocks(rawText);
+  if (blocks.length > 1) {
+    // Structural split found multiple blocks — extract each one
+    const results: ExtractedQuote[] = [];
+    for (const block of blocks) {
+      const result = await extractQuoteFromText(block, contextHint, tenantCountry);
+      results.push(result);
+    }
+    return results;
+  }
 
-  if (blocks.length <= 1) {
-    // Single block — run standard extraction
+  // Step 2: Structural split found only one block.
+  // Use LLM to detect if the document actually contains multiple distinct repair quotes
+  // (e.g. two separate company letterheads concatenated without separator lines).
+  // This handles the common case where a claim PDF contains 2-3 panel beater quotes
+  // as separate pages but the OCR text has no structural separators between them.
+  let detectedRepairers: string[] = [];
+  try {
+    const detectionResponse = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: `You are a document analyser. Your ONLY job is to count how many distinct repair quotations are present in the provided text and list the company/repairer name for each one.
+
+A distinct quotation is identified by:
+- A different company name, letterhead, or trading name
+- A separate set of line items with its own total
+- A different address, phone number, or VAT number
+
+Return ONLY a JSON object with a single field "repairers" — an array of company name strings, one per distinct quote.
+If there is only one quote, return a single-element array.
+If you cannot identify any company names, return an empty array.
+Do NOT extract prices, line items, or any other data — only company names.`,
+        },
+        {
+          role: "user",
+          content: `Document text (first 8000 chars):\n\n${rawText.slice(0, 8000)}`,
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "repairer_detection",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              repairers: {
+                type: "array",
+                items: { type: "string" },
+                description: "List of distinct repairer/company names found in the document, one per quote",
+              },
+            },
+            required: ["repairers"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+    const raw = detectionResponse?.choices?.[0]?.message?.content;
+    if (raw) {
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (Array.isArray(parsed?.repairers) && parsed.repairers.length > 0) {
+        detectedRepairers = parsed.repairers.map((r: unknown) => String(r).trim()).filter(Boolean);
+      }
+    }
+  } catch {
+    // Detection failed — fall back to single extraction
+  }
+
+  if (detectedRepairers.length <= 1) {
+    // Only one repairer detected (or detection failed) — run standard extraction
     const single = await extractQuoteFromText(rawText, contextHint, tenantCountry);
     return [single];
   }
 
-  // Extract each block in sequence (not parallel — LLM rate limits)
+  // Step 3: Multiple repairers detected — extract each one by name
+  // Ask the LLM to extract ONLY the quote for the specified repairer from the full text.
   const results: ExtractedQuote[] = [];
-  for (const block of blocks) {
-    const result = await extractQuoteFromText(block, contextHint, tenantCountry);
-    results.push(result);
+  for (const repairerName of detectedRepairers) {
+    try {
+      const result = await extractQuoteFromText(
+        rawText,
+        `Extract ONLY the quote from "${repairerName}". Ignore all other quotes in this document.`,
+        tenantCountry
+      );
+      // Override panel_beater with the detected name if LLM returned null
+      if (!result.panel_beater) {
+        result.panel_beater = repairerName;
+      }
+      results.push(result);
+    } catch {
+      // If extraction fails for one repairer, skip it
+    }
   }
+
+  // If all per-repairer extractions failed, fall back to single extraction
+  if (results.length === 0) {
+    const single = await extractQuoteFromText(rawText, contextHint, tenantCountry);
+    return [single];
+  }
+
   return results;
 }
 

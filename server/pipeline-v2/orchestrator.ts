@@ -788,15 +788,15 @@ export async function runPipelineV2(
             const imagePriced = q.line_items.filter(li => (li.line_total ?? 0) > 0).length;
             const existingTotal = existing.total_cost ?? 0;
             const imageTotal = q.total_cost ?? 0;
-            // Prefer image extraction if:
-            //   (a) it has more priced items, OR
-            //   (b) both have ≥10 priced items but image total is higher
-            //       (OCR text layer may read wrong column, e.g. Unit Price instead of Total)
-            const preferImage =
-              imagePriced > existingPriced ||
-              (imagePriced >= 10 && existingPriced >= 10 && imageTotal > existingTotal);
+            // Prefer image extraction ONLY if it has more priced line items.
+            // IMPORTANT: Never replace an existing quote with a higher-cost image version.
+            // The previous condition (imageTotal > existingTotal) was intended to handle
+            // OCR reading the wrong column (unit price vs line total), but in practice
+            // it caused image scans to overwrite lower-cost OCR quotes with inflated
+            // image totals, corrupting the savings calculation and cost optimisation.
+            const preferImage = imagePriced > existingPriced;
             if (preferImage) {
-              // Image extraction gave more priced line items or higher total — replace
+              // Image extraction gave more priced line items — replace
               existingQuotes[existingIdx] = q;
               ir.extracted_quotes = existingQuotes;
               ctx.log('Stage 2.7', `Replaced existing quote for "${q.panel_beater}" with image-extracted version (priced: ${imagePriced} vs ${existingPriced}, total: ${imageTotal} vs ${existingTotal})`);
