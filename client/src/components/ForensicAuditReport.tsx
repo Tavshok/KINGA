@@ -2568,7 +2568,6 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               try { return typeof partsReconRaw === 'string' ? JSON.parse(partsReconRaw) : (Array.isArray(partsReconRaw) ? partsReconRaw : []); } catch { return []; }
             })();
             if (partsRecon.length === 0) return null;
-            // Also get extra quote items (in quote but not in damage list)
             const extraItems: any[] = (() => {
               const reconSummaryRaw = (aiAssessment as any)?.costIntelligenceJson?.reconciliationSummary;
               if (!reconSummaryRaw) return [];
@@ -2580,115 +2579,83 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             const matchedCount = partsRecon.filter((r: any) => r.reconciliation_status === 'matched').length;
             const missingCount = partsRecon.filter((r: any) => r.reconciliation_status === 'missing_from_quote').length;
             const noQuoteCount = partsRecon.filter((r: any) => r.reconciliation_status === 'no_quote_available').length;
+            const structuralCount = partsRecon.filter((r: any) => r.is_structural).length;
             const coverageRatio = partsRecon.length > 0 ? matchedCount / partsRecon.length : 0;
-            const statusColor = (status: string) => {
-              if (status === 'matched') return { bg: 'var(--status-pass-bg)', text: 'var(--status-pass-text)', label: 'Matched' };
-              if (status === 'missing_from_quote') return { bg: 'var(--status-fail-bg)', text: 'var(--status-fail-text)', label: 'Missing from Quote' };
-              if (status === 'unmatched') return { bg: 'var(--status-review-bg)', text: 'var(--status-review-text)', label: 'Unmatched' };
-              return { bg: '#ffffff', text: '#64748b', label: 'No Quote' };
-            };
-            // Get panel beater name from quotes or claimRecord
+            const coverageColor = coverageRatio >= 0.8 ? 'var(--status-pass-text)' : coverageRatio >= 0.5 ? 'var(--status-review-text)' : 'var(--status-fail-text)';
+            const coverageBg = coverageRatio >= 0.8 ? 'var(--status-pass-bg)' : coverageRatio >= 0.5 ? 'var(--status-review-bg)' : 'var(--status-fail-bg)';
             const pbName = (quotes ?? []).find((q: any) => q.panelBeaterName || q.repairerName)?.panelBeaterName
               ?? (quotes ?? []).find((q: any) => q.panelBeaterName || q.repairerName)?.repairerName
               ?? claimRecord0?.repairQuote?.repairerName
               ?? aiAssessment?.panelBeaterName
               ?? null;
-            // Get total repair cost from claim and sum of quote line items
             const claimedRepairCostCents = claimRecord0?.repairQuote?.totalRepairCostCents
               ?? (aiAssessment?.repairCostUsd != null ? Math.round(aiAssessment.repairCostUsd * 100) : null);
             const quotedItemsTotal = partsRecon.reduce((sum: number, r: any) => sum + (r.quotedAmount ?? 0), 0);
             const costDeltaCents = claimedRepairCostCents != null && quotedItemsTotal > 0
               ? claimedRepairCostCents - Math.round(quotedItemsTotal * 100)
               : null;
+            // Missing component names for adjuster note
+            const missingNames = partsRecon.filter((r: any) => r.reconciliation_status === 'missing_from_quote').map((r: any) => expandShorthand(r.component ?? ''));
             return (
               <div className="mt-6">
-                <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "#64748b" }}>2.5 Quote Coverage Analysis</p>
+                <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#64748b" }}>2.5 Quote Coverage Summary</p>
                 {pbName && (
-                  <p className="text-xs mb-1" style={{ color: "#0f172a" }}>
-                    <span style={{ color: 'var(--muted-foreground)' }}>Quoting repairer: </span>
+                  <p className="text-xs mb-2" style={{ color: "#0f172a" }}>
+                    <span style={{ color: 'var(--muted-foreground)' }}>Primary quoting repairer: </span>
                     <strong>{pbName}</strong>
+                    {(quotes ?? []).length > 1 && <span style={{ color: 'var(--muted-foreground)', marginLeft: 6 }}>· {(quotes ?? []).length} quotes received — full comparison in Section 3.1</span>}
                   </p>
                 )}
-                <p className="text-xs mb-3" style={{ color: "#64748b" }}>
-                  Cross-reference of KINGA-identified damage components against submitted repair quotation line items.
-                  Coverage ratio: <strong style={{ color: coverageRatio >= 0.8 ? 'var(--status-pass-text)' : coverageRatio >= 0.5 ? 'var(--status-review-text)' : 'var(--status-fail-text)' }}>{Math.round(coverageRatio * 100)}%</strong>
-                  {" "}({matchedCount} matched, {missingCount} missing{noQuoteCount > 0 ? `, ${noQuoteCount} no quote` : ''}{extraItems.length > 0 ? `, ${extraItems.length} extra in quote` : ''}).
-                </p>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                  <thead>
-                    <tr style={{ background: '#ffffff', color: 'var(--muted-foreground)' }}>
-                      <th style={{ padding: '5px 8px', textAlign: 'left', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Damage Component</th>
-                      <th style={{ padding: '5px 8px', textAlign: 'left', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Severity</th>
-                      <th style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quote Status</th>
-                      <th style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quoted Amount</th>
-                      <th style={{ padding: '5px 8px', textAlign: 'left', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Structural Risk</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {partsRecon.map((r: any, i: number) => {
-                      // Find the matching damagedPart from damagedComponentsJson for severity
-                      // damagedComponentsJson contains full DamageAnalysisComponent objects {name, severity, location, ...}
-                      const damagedPartsRaw = (aiAssessment as any)?.damagedComponentsJson;
-                      const damagedPartsObjects: any[] = (() => {
-                        if (!damagedPartsRaw) return [];
-                        try { return typeof damagedPartsRaw === 'string' ? JSON.parse(damagedPartsRaw) : (Array.isArray(damagedPartsRaw) ? damagedPartsRaw : []); } catch { return []; }
-                      })();
-                      const dp = damagedPartsObjects.find((d: any) => toTitleCase((d.name ?? '').toLowerCase().trim()) === toTitleCase((r.component ?? '').toLowerCase().trim()));
-                      const sc = statusColor(r.reconciliation_status);
-                      return (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--muted)' }}>
-                          <td style={{ padding: '5px 8px', fontWeight: r.is_structural ? 600 : 400 }}>
-                            {expandShorthand(r.component ?? "")}
-                            {r.is_structural && <span style={{ marginLeft: 4, fontSize: 9, color: 'var(--status-fail-text)', fontWeight: 700, textTransform: 'uppercase' }}>STRUCTURAL</span>}
-                          </td>
-                          <td style={{ padding: '5px 8px', color: 'var(--muted-foreground)', textTransform: 'capitalize' }}>{dp?.severity ?? '—'}</td>
-                          <td style={{ padding: '5px 8px', textAlign: 'center' }}>
-                            <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: sc.bg, color: sc.text }}>
-                              {sc.label}
-                            </span>
-                          </td>
-                          <td style={{ padding: '5px 8px', textAlign: 'right' }}>
-                            {r.quotedAmount != null
-                              ? `${r.quotedCurrency ?? ''} ${r.quotedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                              : <span style={{ color: 'var(--muted-foreground)' }}>—</span>
-                            }
-                          </td>
-                          <td style={{ padding: '5px 8px', color: r.is_structural ? 'var(--status-fail-text)' : 'var(--muted-foreground)' }}>
-                            {r.is_structural ? 'Structural component — verify repair method' : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {extraItems.length > 0 && extraItems.map((ex: any, i: number) => (
-                      <tr key={`extra-${i}`} style={{ borderBottom: '1px solid var(--border)', background: 'var(--background)' }}>
-                        <td style={{ padding: '5px 8px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>{expandShorthand(ex.component ?? String(ex))}</td>
-                        <td style={{ padding: '5px 8px', color: 'var(--muted-foreground)' }}>—</td>
-                        <td style={{ padding: '5px 8px', textAlign: 'center' }}>
-                          <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>Extra in quote</span>
-                        </td>
-                        <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--muted-foreground)' }}>—</td>
-                        <td style={{ padding: '5px 8px', color: 'var(--muted-foreground)' }}>In quote but not in damage report</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {missingCount > 0 && (
-                  <p className="text-xs mt-2 p-2" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
-                    <strong style={{ color: 'var(--foreground)' }}>Coverage gap:</strong> {missingCount} damage component{missingCount > 1 ? 's' : ''} identified by KINGA analysis
-                    {missingCount === 1 ? ' is' : ' are'} not covered by any line item in the submitted quotation.
-                    This may indicate an incomplete quote or undisclosed damage.
-                  </p>
-                )}
-                {costDeltaCents != null && Math.abs(costDeltaCents) > 500 && (
-                  <div className="text-xs mt-2 p-2" style={{ borderTop: '1px solid var(--border)', background: Math.abs(costDeltaCents) > 10000 ? 'var(--status-review-bg)' : '#ffffff', color: Math.abs(costDeltaCents) > 10000 ? 'var(--status-review-text)' : 'var(--muted-foreground)' }}>
-                    <strong style={{ color: 'var(--foreground)' }}>Quote total vs claimed repair cost: </strong>
-                    The sum of itemised line amounts ({fmtMoney(quotedItemsTotal)}) {costDeltaCents > 0 ? 'falls short of' : 'exceeds'} the total repair cost on the claim ({fmtMoney(claimedRepairCostCents! / 100)}) by{' '}
-                    <strong>{fmtMoney(Math.abs(costDeltaCents) / 100)}</strong>.
-                    {costDeltaCents > 0
-                      ? ' The itemised quote does not account for the full claimed amount — verify whether additional labour, consumables, or undocumented parts make up the difference.'
-                      : ' The itemised quote total exceeds the claimed repair cost — verify whether discounts, adjustments, or a revised quote have been applied.'}
+                {/* Compact stat row */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: coverageBg, border: `1px solid ${coverageColor}` }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: coverageColor }}>{Math.round(coverageRatio * 100)}%</span>
+                    <span style={{ fontSize: 10, color: coverageColor, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coverage</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--status-pass-bg)', border: '1px solid var(--status-pass-text)' }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-pass-text)' }}>{matchedCount}</span>
+                    <span style={{ fontSize: 10, color: 'var(--status-pass-text)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Matched</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--status-fail-bg)', border: '1px solid var(--status-fail-text)' }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-fail-text)' }}>{missingCount}</span>
+                    <span style={{ fontSize: 10, color: 'var(--status-fail-text)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Missing from Quote</span>
+                  </div>
+                  {extraItems.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--status-review-bg)', border: '1px solid var(--status-review-text)' }}>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-review-text)' }}>{extraItems.length}</span>
+                      <span style={{ fontSize: 10, color: 'var(--status-review-text)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Extra in Quote</span>
+                    </div>
+                  )}
+                  {noQuoteCount > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--muted-foreground)' }}>{noQuoteCount}</span>
+                      <span style={{ fontSize: 10, color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>No Quote Available</span>
+                    </div>
+                  )}
+                </div>
+                {/* Missing components — compact badge list */}
+                {missingNames.length > 0 && (
+                  <div className="text-xs mb-2 p-2" style={{ background: 'var(--status-fail-bg)', borderRadius: 4, border: '1px solid var(--status-fail-text)' }}>
+                    <strong style={{ color: 'var(--status-fail-text)' }}>Components not covered by quote:</strong>{' '}
+                    <span style={{ color: 'var(--foreground)' }}>{missingNames.join(' · ')}</span>
                   </div>
                 )}
+                {/* Structural risk note */}
+                {structuralCount > 0 && (
+                  <div className="text-xs mb-2 p-2" style={{ background: 'var(--fp-warning-bg, #fffbeb)', borderRadius: 4, border: '1px solid var(--fp-warning-border, #fbbf24)' }}>
+                    <strong style={{ color: 'var(--fp-warning-text, #92400e)' }}>⚠ {structuralCount} structural component{structuralCount > 1 ? 's' : ''} detected</strong>
+                    <span style={{ color: 'var(--muted-foreground)', marginLeft: 6 }}>— independent structural assessment required before settlement.</span>
+                  </div>
+                )}
+                {/* Quote total vs claimed cost delta */}
+                {costDeltaCents != null && Math.abs(costDeltaCents) > 500 && (
+                  <div className="text-xs p-2" style={{ background: Math.abs(costDeltaCents) > 10000 ? 'var(--status-review-bg)' : 'var(--muted)', borderRadius: 4, border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
+                    <strong style={{ color: 'var(--foreground)' }}>Quote vs claimed cost: </strong>
+                    Itemised line total ({fmtMoney(quotedItemsTotal)}) {costDeltaCents > 0 ? 'falls short of' : 'exceeds'} claimed repair cost ({fmtMoney(claimedRepairCostCents! / 100)}) by <strong>{fmtMoney(Math.abs(costDeltaCents) / 100)}</strong>.
+                    {costDeltaCents > 0 ? ' Verify additional labour, consumables, or undocumented parts.' : ' Verify whether discounts or a revised quote have been applied.'}
+                  </div>
+                )}
+                <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>Full component-by-component breakdown with all quote prices is in Section 3.1 — Repair Cost Analysis.</p>
               </div>
             );
            })()}

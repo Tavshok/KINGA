@@ -18,7 +18,8 @@
  */
 
 // sharp is loaded lazily to prevent server startup crash in Cloud Run.
-let _sharp: typeof import('sharp').default | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _sharp: ((input?: any) => any) | null = null;
 async function getSharp() {
   if (!_sharp) {
     const mod = await import('sharp');

@@ -882,27 +882,16 @@ export async function runCostOptimisationStage(
       ctx.log("Stage 9", `Vision re-extraction guard triggered: ${allExtractedQuotes.length} quote(s) with 0 priced items. Attempting PDF vision extraction from ${ctx.pdfUrl}`);
       try {
         const { extractQuoteFromPdfVision } = await import('./quoteExtractionEngine');
-        const firstQuote = allExtractedQuotes[0] as any;
-        const panelBeater = firstQuote?.panel_beater ?? null;
-        const totalCost = firstQuote?.total_cost ?? null;
-        const visionResult = await extractQuoteFromPdfVision(
-          ctx.pdfUrl!,
-          panelBeater,
-          totalCost,
-          ctx.tenantCountry ?? null
-        );
-        const visionPricedCount = (visionResult.line_items ?? []).filter(
-          (li: any) => typeof li.line_total === 'number' && li.line_total > 0
-        ).length;
-        ctx.log("Stage 9", `Vision re-extraction result: ${visionResult.line_items?.length ?? 0} items, ${visionPricedCount} priced, score=${visionResult.line_item_completeness_score ?? 'N/A'}`);
-        if (visionPricedCount > 0) {
-          // Merge vision results back: replace the first quote's line_items with vision results
-          // Keep the original quote metadata (panel_beater, total_cost, currency) but use vision prices.
-          // If allExtractedQuotes is empty (Stage 3 returned nothing), create a synthetic quote entry.
-          let mergedQuotes: any[];
-          if (allExtractedQuotes.length === 0) {
-            // Stage 3 returned no quotes — create a synthetic quote from vision result
-            mergedQuotes = [{
+
+        if (allExtractedQuotes.length === 0) {
+          // ── No quotes at all: single vision extraction to create a synthetic quote ──
+          const visionResult = await extractQuoteFromPdfVision(ctx.pdfUrl!, null, null, ctx.tenantCountry ?? null);
+          const visionPricedCount = (visionResult.line_items ?? []).filter(
+            (li: any) => typeof li.line_total === 'number' && li.line_total > 0
+          ).length;
+          ctx.log("Stage 9", `Vision re-extraction (no prior quotes): ${visionResult.line_items?.length ?? 0} items, ${visionPricedCount} priced.`);
+          if (visionPricedCount > 0) {
+            allExtractedQuotes = [{
               panel_beater: visionResult.panel_beater ?? null,
               total_cost: visionResult.total_cost ?? null,
               currency: visionResult.currency ?? 'USD',
@@ -915,11 +904,29 @@ export async function runCostOptimisationStage(
               _vision_reextracted: true,
               _synthetic_from_vision: true,
             }];
-            ctx.log("Stage 9", `Vision re-extraction: created synthetic quote[0] (Stage 3 had no quotes). ${visionPricedCount} priced items.`);
-          } else {
-            mergedQuotes = allExtractedQuotes.map((eq: any, qi: number) => {
-              if (qi === 0) {
-                return {
+            ctx.log("Stage 9", `Vision re-extraction: created synthetic quote[0]. ${visionPricedCount} priced items.`);
+          }
+        } else {
+          // ── Multiple (or single) quotes with zero prices: re-extract each by name ──
+          // This preserves ALL quotes instead of only fixing quote[0].
+          const mergedQuotes: any[] = [];
+          for (let qi = 0; qi < allExtractedQuotes.length; qi++) {
+            const eq = allExtractedQuotes[qi] as any;
+            const panelBeater = eq.panel_beater ?? null;
+            const totalCost = eq.total_cost ?? null;
+            try {
+              const visionResult = await extractQuoteFromPdfVision(
+                ctx.pdfUrl!,
+                panelBeater,
+                totalCost,
+                ctx.tenantCountry ?? null
+              );
+              const visionPricedCount = (visionResult.line_items ?? []).filter(
+                (li: any) => typeof li.line_total === 'number' && li.line_total > 0
+              ).length;
+              ctx.log("Stage 9", `  Quote[${qi}] "${panelBeater ?? 'unknown'}": vision returned ${visionResult.line_items?.length ?? 0} items, ${visionPricedCount} priced.`);
+              if (visionPricedCount > 0) {
+                mergedQuotes.push({
                   ...eq,
                   line_items: visionResult.line_items,
                   components: visionResult.components?.length ? visionResult.components : eq.components,
@@ -928,20 +935,20 @@ export async function runCostOptimisationStage(
                   line_items_sum_discrepancy_pct: visionResult.line_items_sum_discrepancy_pct,
                   rejected_line_items: visionResult.rejected_line_items ?? [],
                   _vision_reextracted: true,
-                };
+                });
+              } else {
+                // Vision returned 0 priced items for this quote — keep original metadata
+                mergedQuotes.push(eq);
               }
-              return eq;
-            });
+            } catch (qErr: any) {
+              ctx.log("Stage 9", `  Quote[${qi}] vision re-extraction failed (non-fatal): ${qErr?.message}`);
+              mergedQuotes.push(eq);
+            }
           }
           allExtractedQuotes = mergedQuotes;
-          ctx.log("Stage 9", `Vision re-extraction: merged ${visionPricedCount} priced items into quote[0]. Proceeding with updated line items.`);
-          // DEBUG: log first 3 vision line items to verify line_total values
-          const debugItems = (visionResult.line_items ?? []).slice(0, 3);
-          for (const dbgLi of debugItems) {
-            ctx.log("Stage 9", `  DEBUG vision item: component="${dbgLi.component}" unit_cost=${dbgLi.unit_cost} line_total=${dbgLi.line_total} qty=${dbgLi.quantity}`);
-          }
-        } else {
-          ctx.log("Stage 9", `Vision re-extraction returned 0 priced items — keeping original (zero-priced) line items. Manual review required.`);
+          const totalPricedAfter = allExtractedQuotes.reduce((s: number, eq: any) =>
+            s + (eq.line_items ?? []).filter((li: any) => typeof li.line_total === 'number' && li.line_total > 0).length, 0);
+          ctx.log("Stage 9", `Vision re-extraction complete: ${allExtractedQuotes.length} quotes, ${totalPricedAfter} total priced items.`);
         }
       } catch (visionErr: any) {
         ctx.log("Stage 9", `Vision re-extraction failed (non-fatal): ${visionErr?.message ?? String(visionErr)}`);
