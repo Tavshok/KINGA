@@ -875,11 +875,23 @@ export async function runCostOptimisationStage(
       const items: any[] = (eq as any).line_items ?? [];
       return sum + items.filter((li: any) => typeof li.line_total === 'number' && li.line_total > 0).length;
     }, 0);
-    // Fire vision guard when: (a) quotes exist but all prices are zero, OR (b) Stage 3 returned no quotes at all
-    const hasQuotesButNoPrices = (allExtractedQuotes.length > 0 && totalPricedInExtracted === 0) || allExtractedQuotes.length === 0;
+    // Fire vision guard when:
+    //   (a) No quotes at all — full vision extraction to create a synthetic quote
+    //   (b) ALL quotes have zero priced items — re-extract every quote via vision
+    //   (c) PARTIAL: some quotes have prices but one or more individual quotes have
+    //       zero priced line items (e.g. Grand Auto Premier has a total but no line items
+    //       because OCR only captured the summary row, not the itemised table).
+    //       In this case, run vision re-extraction ONLY for the zero-priced quotes.
     const hasPdfForVision = !!ctx.pdfUrl;
-    if (hasQuotesButNoPrices && hasPdfForVision) {
-      ctx.log("Stage 9", `Vision re-extraction guard triggered: ${allExtractedQuotes.length} quote(s) with 0 priced items. Attempting PDF vision extraction from ${ctx.pdfUrl}`);
+    const quotesWithNoPrices = allExtractedQuotes.filter((eq: any) => {
+      const items: any[] = (eq as any).line_items ?? [];
+      const priced = items.filter((li: any) => typeof li.line_total === 'number' && li.line_total > 0).length;
+      return priced === 0 && !!(eq as any).total_cost; // has a total but no line items
+    });
+    const hasQuotesButNoPrices = (allExtractedQuotes.length > 0 && totalPricedInExtracted === 0) || allExtractedQuotes.length === 0;
+    const hasPartialZeroPriceQuotes = !hasQuotesButNoPrices && quotesWithNoPrices.length > 0;
+    if ((hasQuotesButNoPrices || hasPartialZeroPriceQuotes) && hasPdfForVision) {
+      ctx.log("Stage 9", `Vision re-extraction guard triggered: ${allExtractedQuotes.length} quote(s), ${quotesWithNoPrices.length} with 0 priced items (partial=${hasPartialZeroPriceQuotes}). Attempting PDF vision extraction from ${ctx.pdfUrl}`);
       try {
         const { extractQuoteFromPdfVision } = await import('./quoteExtractionEngine');
 
@@ -907,11 +919,21 @@ export async function runCostOptimisationStage(
             ctx.log("Stage 9", `Vision re-extraction: created synthetic quote[0]. ${visionPricedCount} priced items.`);
           }
         } else {
-          // ── Multiple (or single) quotes with zero prices: re-extract each by name ──
-          // This preserves ALL quotes instead of only fixing quote[0].
+          // ── Re-extract only the quotes that have zero priced line items ──
+          // For partial mode: only re-extract zero-priced quotes; keep fully-priced quotes untouched.
+          // For full mode (all zero): re-extract every quote.
           const mergedQuotes: any[] = [];
           for (let qi = 0; qi < allExtractedQuotes.length; qi++) {
             const eq = allExtractedQuotes[qi] as any;
+            const existingPricedCount = (eq.line_items ?? []).filter(
+              (li: any) => typeof li.line_total === 'number' && li.line_total > 0
+            ).length;
+            // Skip re-extraction for quotes that already have priced line items (partial mode)
+            if (hasPartialZeroPriceQuotes && existingPricedCount > 0) {
+              ctx.log("Stage 9", `  Quote[${qi}] "${eq.panel_beater ?? 'unknown'}": already has ${existingPricedCount} priced items — skipping vision re-extraction.`);
+              mergedQuotes.push(eq);
+              continue;
+            }
             const panelBeater = eq.panel_beater ?? null;
             const totalCost = eq.total_cost ?? null;
             try {
@@ -938,6 +960,7 @@ export async function runCostOptimisationStage(
                 });
               } else {
                 // Vision returned 0 priced items for this quote — keep original metadata
+                ctx.log("Stage 9", `  Quote[${qi}] "${panelBeater ?? 'unknown'}": vision also returned 0 priced items — keeping original.`);
                 mergedQuotes.push(eq);
               }
             } catch (qErr: any) {
