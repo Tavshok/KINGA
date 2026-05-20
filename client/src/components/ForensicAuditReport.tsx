@@ -2647,15 +2647,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     <span style={{ color: 'var(--muted-foreground)', marginLeft: 6 }}>— independent structural assessment required before settlement.</span>
                   </div>
                 )}
-                {/* Quote total vs claimed cost delta */}
-                {costDeltaCents != null && Math.abs(costDeltaCents) > 500 && (
-                  <div className="text-xs p-2" style={{ background: Math.abs(costDeltaCents) > 10000 ? 'var(--status-review-bg)' : 'var(--muted)', borderRadius: 4, border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
-                    <strong style={{ color: 'var(--foreground)' }}>Quote vs claimed cost: </strong>
-                    Itemised line total ({fmtMoney(quotedItemsTotal)}) {costDeltaCents > 0 ? 'falls short of' : 'exceeds'} claimed repair cost ({fmtMoney(claimedRepairCostCents! / 100)}) by <strong>{fmtMoney(Math.abs(costDeltaCents) / 100)}</strong>.
-                    {costDeltaCents > 0 ? ' Verify additional labour, consumables, or undocumented parts.' : ' Verify whether discounts or a revised quote have been applied.'}
-                  </div>
-                )}
-                <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>Full component-by-component breakdown with all quote prices is in Section 3.1 — Repair Cost Analysis.</p>
+                <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>Full component breakdown with all quote prices and KINGA Optimised figures is in Section 3.1. Cost optimisation summary is in Section 3.1d.</p>
               </div>
             );
            })()}
@@ -4430,34 +4422,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         </div>
       </div>
 
-      {/* Cost Waterfall Chart — benchmark vs quoted vs fair range vs write-off threshold */}
-      {pbQuotes.length > 0 && (() => {
-        // learningBenchmark3 is echoed from CostExtractionResult — field is avgCostUsd (not estimatedCostUsd)
-        // fair_range comes from the costExtraction result itself
-        const benchmarkUsd = learningBenchmark3?.avgCostUsd ?? 0;
-        const fairRange = ce?.fair_range ?? { min: 0, max: 0 };
-        const currencySymbol = fmtMoney(1).replace(/[\d,.\s]/g, '').trim() || '$';
-        const waterfallData: CostWaterfallData = {
-          benchmarkUsd,
-          quotedTotalUsd: quotedTotal,
-          marketValueUsd: marketValueUsd3 ?? undefined,
-          fairRangeMinUsd: fairRange.min,
-          fairRangeMaxUsd: fairRange.max,
-          currencySymbol,
-        };
-        // Render if we have a quoted total (benchmark may be 0 if no historical claims yet)
-        if (quotedTotal === 0) return null;
-        return (
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: '#ffffff' }}>
-            <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: '#ffffff' }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>3.1c Cost Overview</p>
-            </div>
-            <div className="p-4">
-              <CostWaterfallChart data={waterfallData} />
-            </div>
-          </div>
-        );
-      })()}
+      {/* Cost Waterfall Chart — rendered inside 3.1d Cost Intelligence block below */}
 
       {/* Labour vs Parts Ratio Chart — only shown when split data is available */}
       {pbQuotes.length > 0 && (
@@ -4472,124 +4437,145 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
 
 
 
-      {/* ── 3.1d Composite Quote Optimisation — Three-Layer Cost Model ── */}
+      {/* ── 3.1d Cost Intelligence — KINGA Optimisation Summary ── */}
       {(() => {
         const co = costIntel?.compositeOptimisation ?? null;
         if (!co || co.quotesEvaluated === 0) return null;
-        const hasL2 = co.l2CompositeOptimisedCostUsd > 0;
-        const hasL3 = co.l3BenchmarkReferenceCostUsd > 0;
-        const nfsColor = co.negotiationFeasibilityScore >= 70 ? '#15803d' : co.negotiationFeasibilityScore >= 40 ? '#92400e' : '#64748b';
-        const nfsBg = co.negotiationFeasibilityScore >= 70 ? '#dcfce7' : co.negotiationFeasibilityScore >= 40 ? '#fef3c7' : '#f1f5f9';
+        const l1 = co.l1LowestSubmittedCostUsd ?? co.l1SubmittedCostUsd ?? 0;
+        const l2 = co.l2CompositeOptimisedCostUsd ?? 0;
+        const l3 = co.l3BenchmarkReferenceCostUsd ?? 0;
+        const savingsL1L2 = co.negotiationSavingsUsd ?? (l1 > 0 && l2 > 0 && l1 > l2 ? l1 - l2 : 0);
+        const savingsPct = l1 > 0 && savingsL1L2 > 0 ? (savingsL1L2 / l1) * 100 : 0;
+        const nfsScore = co.negotiationFeasibilityScore ?? null;
+        const nfsColor = nfsScore != null ? (nfsScore >= 70 ? '#15803d' : nfsScore >= 40 ? '#92400e' : '#64748b') : '#64748b';
+        const nfsBg = nfsScore != null ? (nfsScore >= 70 ? '#dcfce7' : nfsScore >= 40 ? '#fef3c7' : '#f1f5f9') : '#f1f5f9';
+        // Waterfall data for inline chart
+        const benchmarkUsd = learningBenchmark3?.avgCostUsd ?? 0;
+        const fairRange = ce?.fair_range ?? { min: 0, max: 0 };
+        const currencySymbol = fmtMoney(1).replace(/[\d,.\s]/g, '').trim() || '$';
+        const waterfallData: CostWaterfallData = {
+          benchmarkUsd,
+          quotedTotalUsd: l1,
+          marketValueUsd: marketValueUsd3 ?? undefined,
+          fairRangeMinUsd: fairRange.min,
+          fairRangeMaxUsd: fairRange.max,
+          currencySymbol,
+        };
+        // Cost Decision Engine data
+        const cde = costDecision;
         return (
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
-            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>3.1d Cost Optimisation Analysis</p>
-              {co.negotiationFeasibilityScore != null && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: nfsBg, color: nfsColor }}>
-                  NFS {co.negotiationFeasibilityScore} — {(co.negotiationFeasibilityLabel ?? '').toUpperCase()}
-                </span>
-              )}
-            </div>
-            <div className="p-4 space-y-4">
-              {/* Three-layer cost summary table */}
-              <table className="w-full text-xs report-table" style={{ borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <th className="text-left px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Cost Layer</th>
-                    <th className="text-left px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Definition</th>
-                    <th className="text-right px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Amount</th>
-                    <th className="text-right px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Variance to L1</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr style={{ borderTop: '1px solid #e2e8f0' }}>
-                    <td className="px-3 py-2 font-bold" style={{ color: '#0f172a' }}>L1 — Submitted</td>
-                    <td className="px-3 py-2" style={{ color: '#64748b' }}>Lowest submitted quote (canonical L1 figure)</td>
-                    <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a' }}>{fmtMoney(co.l1LowestSubmittedCostUsd ?? co.l1SubmittedCostUsd)}</td>
-                    <td className="px-3 py-2 text-right" style={{ color: '#64748b' }}>—</td>
-                  </tr>
-                  {hasL2 && (
-                    <tr style={{ borderTop: '1px solid #e2e8f0' }}>
-                      <td className="px-3 py-2 font-bold" style={{ color: '#0f172a' }}>L2 — Composite</td>
-                      <td className="px-3 py-2" style={{ color: '#64748b' }}>Best credible price per component across all submitted quotes</td>
-                      <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a' }}>{fmtMoney(co.l2CompositeOptimisedCostUsd)}</td>
-                      <td className="px-3 py-2 tabular-nums text-right" style={{ color: co.negotiationSavingsUsd > 0 ? '#15803d' : '#64748b' }}>
-                        {co.negotiationSavingsUsd > 0 ? `−${fmtMoney(co.negotiationSavingsUsd)}` : '—'}
-                      </td>
-                    </tr>
-                  )}
-                  {hasL3 && (
-                    <tr style={{ borderTop: '1px solid #e2e8f0' }}>
-                      <td className="px-3 py-2 font-bold" style={{ color: '#0f172a' }}>L3 — Benchmark</td>
-                      <td className="px-3 py-2" style={{ color: '#64748b' }}>Market P50 reference cost ({co.benchmarkCoverageComponents ?? 0} components with data)</td>
-                      <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#0f172a' }}>{fmtMoney(co.l3BenchmarkReferenceCostUsd)}</td>
-                      <td className="px-3 py-2 tabular-nums text-right" style={{ color: co.totalSavingsOpportunityUsd > 0 ? '#15803d' : '#64748b' }}>
-                        {co.totalSavingsOpportunityUsd > 0 ? `−${fmtMoney(co.totalSavingsOpportunityUsd)}` : '—'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                {(co.negotiationSavingsUsd > 0 || co.marketOverpriceDeltaUsd > 0) && (
-                  <tfoot>
-                    <tr style={{ borderTop: '2px solid #cbd5e1', background: '#f8fafc' }}>
-                      <td colSpan={2} className="px-3 py-2 font-bold" style={{ color: '#0f172a' }}>Total Savings Opportunity</td>
-                      <td className="px-3 py-2 tabular-nums text-right font-bold" style={{ color: '#15803d' }}>{fmtMoney(co.totalSavingsOpportunityUsd)}</td>
-                      <td className="px-3 py-2 tabular-nums text-right text-xs" style={{ color: '#64748b' }}>
-                        {(co.l1LowestSubmittedCostUsd ?? co.l1SubmittedCostUsd ?? 0) > 0 ? `${((co.totalSavingsOpportunityUsd / (co.l1LowestSubmittedCostUsd ?? co.l1SubmittedCostUsd)) * 100).toFixed(1)}% of L1` : ''}
-                      </td>
-                    </tr>
-                  </tfoot>
+            {/* Header row: title + NFS badge */}
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>3.1d Cost Intelligence</p>
+                <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>{co.quotesEvaluated} quote{co.quotesEvaluated !== 1 ? 's' : ''} evaluated · KINGA four-tier benchmark hierarchy</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {cde?.recommendation && (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: cde.recommendation === 'APPROVE' ? '#dcfce7' : cde.recommendation === 'DECLINE' ? '#fee2e2' : '#fef3c7', color: cde.recommendation === 'APPROVE' ? '#15803d' : cde.recommendation === 'DECLINE' ? '#dc2626' : '#92400e' }}>
+                    {cde.recommendation}
+                  </span>
                 )}
-              </table>
+                {nfsScore != null && (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: nfsBg, color: nfsColor }}>
+                    NFS {nfsScore} — {(co.negotiationFeasibilityLabel ?? '').toUpperCase()}
+                  </span>
+                )}
+              </div>
+            </div>
 
-              {/* Composite line items — best price per component */}
-              {Array.isArray(co.compositeLineItems) && co.compositeLineItems.length > 0 && (
+            <div className="p-4 space-y-4">
+              {/* KPI card row: L1 vs L2 vs savings */}
+              <div style={{ display: 'grid', gridTemplateColumns: l2 > 0 ? '1fr 1fr 1fr' : '1fr 1fr', gap: 12 }}>
+                {/* L1 — Lowest Submitted */}
+                <div style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#ffffff' }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', margin: '0 0 4px' }}>Lowest Submitted</p>
+                  <p style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.1, fontFamily: "'IBM Plex Mono','Courier New',monospace" }}>{fmtMoney(l1)}</p>
+                  <p style={{ fontSize: 10, color: '#94a3b8', margin: '3px 0 0' }}>L1 — {co.quotesEvaluated} quote{co.quotesEvaluated !== 1 ? 's' : ''} received</p>
+                </div>
+                {/* L2 — KINGA Optimised */}
+                {l2 > 0 && (
+                  <div style={{ padding: '12px 14px', borderRadius: 8, border: '2px solid #1A2B4A', background: '#f8fafc' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1A2B4A', margin: '0 0 4px' }}>KINGA Optimised</p>
+                    <p style={{ fontSize: 20, fontWeight: 800, color: '#1A2B4A', margin: 0, lineHeight: 1.1, fontFamily: "'IBM Plex Mono','Courier New',monospace" }}>{fmtMoney(l2)}</p>
+                    <p style={{ fontSize: 10, color: '#64748b', margin: '3px 0 0' }}>L2 — best price per component</p>
+                  </div>
+                )}
+                {/* Savings */}
+                {savingsL1L2 > 0 && (
+                  <div style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid #bbf7d0', background: '#f0fdf4' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#15803d', margin: '0 0 4px' }}>Savings Opportunity</p>
+                    <p style={{ fontSize: 20, fontWeight: 800, color: '#15803d', margin: 0, lineHeight: 1.1, fontFamily: "'IBM Plex Mono','Courier New',monospace" }}>{fmtMoney(savingsL1L2)}</p>
+                    <p style={{ fontSize: 10, color: '#16a34a', margin: '3px 0 0' }}>{savingsPct.toFixed(1)}% reduction from L1</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Savings progress bar */}
+              {savingsL1L2 > 0 && l1 > 0 && (
                 <div>
-                  <p className="text-xs font-semibold mb-2" style={{ color: '#0f172a' }}>Composite Component Selection</p>
-                  <table className="w-full text-xs report-table" style={{ borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <th className="text-left px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Component</th>
-                        <th className="text-left px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Best Price From</th>
-                        <th className="text-right px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Selected</th>
-                        <th className="text-right px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Market P50</th>
-                        <th className="text-right px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Market P25–P75</th>
-                        <th className="text-left px-3 py-2 font-semibold" style={{ color: '#64748b' }}>Verdict</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(co.compositeLineItems as any[]).map((item: any, idx: number) => {
-                        const verdictColor = item.benchmarkVerdict === 'ABOVE_RANGE' ? '#dc2626'
-                          : item.benchmarkVerdict === 'BELOW_RANGE' ? '#92400e'
-                          : item.benchmarkVerdict === 'MARKET_RATE' ? '#15803d'
-                          : '#64748b';
-                        const verdictLabel = item.benchmarkVerdict === 'ABOVE_RANGE' ? '⚠ Above range'
-                          : item.benchmarkVerdict === 'BELOW_RANGE' ? '▼ Below range'
-                          : item.benchmarkVerdict === 'MARKET_RATE' ? '✓ Market rate'
-                          : item.benchmarkVerdict === 'BENCHMARK_FILL' ? '◌ Benchmark fill'
-                          : '—';
-                        return (
-                          <tr key={idx} style={{ borderTop: '1px solid #e2e8f0' }}>
-                            <td className="px-3 py-2 font-medium" style={{ color: '#0f172a' }}>{item.componentName}</td>
-                            <td className="px-3 py-2" style={{ color: '#64748b' }}>
-                              {item.selectedFromQuote ?? (item.isBenchmarkFill ? 'Benchmark fill' : '—')}
-                              {item.isBenchmarkFill && <span className="ml-1 text-[10px]" style={{ color: '#64748b', fontStyle: 'italic' }}>(no quote)</span>}
-                            </td>
-                            <td className="px-3 py-2 tabular-nums text-right font-semibold" style={{ color: '#0f172a' }}>{fmtMoney(item.selectedCostUsd)}</td>
-                            <td className="px-3 py-2 tabular-nums text-right" style={{ color: '#64748b' }}>{item.benchmarkP50Usd != null ? fmtMoney(item.benchmarkP50Usd) : '—'}</td>
-                            <td className="px-3 py-2 tabular-nums text-right" style={{ color: '#64748b' }}>
-                              {item.benchmarkP25Usd != null && item.benchmarkP75Usd != null
-                                ? `${fmtMoney(item.benchmarkP25Usd)}–${fmtMoney(item.benchmarkP75Usd)}`
-                                : '—'}
-                            </td>
-                            <td className="px-3 py-2 text-xs font-semibold" style={{ color: verdictColor }}>{verdictLabel}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 10, color: '#64748b' }}>KINGA Optimised vs Submitted</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#15803d' }}>{savingsPct.toFixed(1)}% saving</span>
+                  </div>
+                  <div style={{ height: 8, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min((l2 / l1) * 100, 100)}%`, background: '#1A2B4A', borderRadius: 4 }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+                    <span style={{ fontSize: 9, color: '#94a3b8' }}>L2 {fmtMoney(l2)}</span>
+                    <span style={{ fontSize: 9, color: '#94a3b8' }}>L1 {fmtMoney(l1)}</span>
+                  </div>
                 </div>
               )}
+
+              {/* Inline waterfall chart — only when benchmark data is available */}
+              {quotedTotal > 0 && (benchmarkUsd > 0 || (fairRange.min > 0 && fairRange.max > 0) || marketValueUsd3 != null) && (
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: 8 }}>Market Context</p>
+                  <CostWaterfallChart data={waterfallData} />
+                </div>
+              )}
+
+              {/* Cost Decision Engine narrative — merged inline */}
+              {costNarrative && (
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: 6 }}>Cost Analysis Narrative</p>
+                  <p className="text-xs leading-relaxed" style={{ color: '#374151' }}>{typeof costNarrative === 'string' ? costNarrative : (costNarrative as any)?.narrative ?? ''}</p>
+                </div>
+              )}
+
+              {/* Reconciliation summary — merged from 3.1a */}
+              {reconciliationSummary && (() => {
+                const rs = typeof reconciliationSummary === 'string' ? null : reconciliationSummary as any;
+                const summary = typeof reconciliationSummary === 'string'
+                  ? reconciliationSummary
+                  : typeof rs?.summary === 'string'
+                    ? rs.summary
+                    : `${rs?.matched_count ?? 0} matched · ${rs?.missing_count ?? 0} missing from quote · ${rs?.extra_count ?? 0} extra in quote`;
+                const missing: any[] = Array.isArray(rs?.missing) ? rs.missing : [];
+                const extra: any[] = Array.isArray(rs?.extra) ? rs.extra : [];
+                return (
+                  <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: 6 }}>Reconciliation</p>
+                    <p className="text-xs" style={{ color: '#374151', marginBottom: missing.length > 0 || extra.length > 0 ? 6 : 0 }}>{summary}</p>
+                    {missing.length > 0 && (
+                      <p className="text-xs" style={{ color: '#64748b' }}>
+                        <span style={{ fontWeight: 600, color: '#0f172a' }}>Missing from quote: </span>
+                        {missing.map((m: any) => expandShorthand(m.component ?? String(m))).join(' · ')}
+                      </p>
+                    )}
+                    {extra.length > 0 && (
+                      <p className="text-xs mt-1" style={{ color: '#64748b' }}>
+                        <span style={{ fontWeight: 600, color: '#0f172a' }}>Extra in quote: </span>
+                        {extra.map((e: any) => expandShorthand(e.component ?? String(e))).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Component-level breakdown is in the 3.1 matrix above — not repeated here */}
 
               {/* Quoted-not-damaged flags */}
               {Array.isArray(co.quotedNotDamaged) && co.quotedNotDamaged.length > 0 && (
@@ -4653,85 +4639,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         );
       })()}
 
-      {/* Cost Decision Engine output — surfaced from costIntelligenceJson (C-3 fix) */}
-      {/* B-02: Always render the Cost Decision Engine block; show INSUFFICIENT DATA when no cost data is available */}
-      {!(costDecision || costNarrative || reconciliationSummary) ? (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>3.1a Cost Decision Engine</p>
-          </div>
-          <div className="p-4">
-            <p className="text-xs" style={{ color: "#64748b", fontStyle: "italic" }}>
-              INSUFFICIENT DATA — The Cost Decision Engine did not produce a recommendation for this claim. This may indicate that the cost intelligence pipeline did not run, or that the claim lacks sufficient quote or repair data for automated cost analysis. Manual cost review is required.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>3.1a Cost Decision Engine</p>
-            {costReliability && (
-              <span className="text-xs font-semibold" style={{ color: "#64748b" }}>Reliability: {toTitleCase(typeof costReliability === 'string' ? costReliability : (costReliability as any)?.confidence_level ?? '')}</span>
-            )}
-          </div>
-          <div className="p-4 space-y-3">
-            {costDecision && (
-              <table className="w-full text-xs report-table">
-                <tbody>
-                  {costDecision.recommendation && (
-                    <tr>
-                      <td className="py-1.5 pr-3 font-semibold w-40" style={{ color: "#64748b" }}>Recommendation</td>
-                      <td className="py-1.5 tabular-nums" style={{ color: "#0f172a" }}>{costDecision.recommendation}</td>
-                    </tr>
-                  )}
-                  {costDecision.approvedAmountUsd != null && (
-                    <tr style={{ borderTop: "1px solid #e2e8f0" }}>
-                      <td className="py-1.5 pr-3 font-semibold" style={{ color: "#64748b" }}>Approved Amount</td>
-                      <td className="py-1.5 tabular-nums font-bold" style={{ color: "#0f172a" }}>{fmtMoney(costDecision.approvedAmountUsd)}</td>
-                    </tr>
-                  )}
-                  {costDecision.savingsUsd != null && costDecision.savingsUsd > 0 && (
-                    <tr style={{ borderTop: "1px solid #e2e8f0" }}>
-                      <td className="py-1.5 pr-3 font-semibold" style={{ color: "#64748b" }}>Savings Identified</td>
-                      <td className="py-1.5 tabular-nums" style={{ color: "var(--fp-success-text)" }}>{fmtMoney(costDecision.savingsUsd)}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-            {costNarrative && (
-              <p className="text-xs leading-relaxed" style={{ color: "#64748b" }}>{typeof costNarrative === 'string' ? costNarrative : (costNarrative as any)?.narrative ?? ''}</p>
-            )}
-            {reconciliationSummary && (
-              <div className="space-y-2">
-                <div className="p-2 rounded text-xs" style={{ background: "#ffffff", color: "#64748b" }}>
-                  <span className="font-semibold">Reconciliation: </span>
-                  {typeof reconciliationSummary === 'string'
-                    ? reconciliationSummary
-                    : typeof (reconciliationSummary as any)?.summary === 'string'
-                      ? (reconciliationSummary as any).summary
-                      : `${(reconciliationSummary as any)?.matched_count ?? 0} matched · ${(reconciliationSummary as any)?.missing_count ?? 0} missing from quote · ${(reconciliationSummary as any)?.extra_count ?? 0} extra in quote`
-                  }
-                </div>
-                {/* Missing from quote — damage detected but not quoted */}
-                {Array.isArray((reconciliationSummary as any)?.missing) && (reconciliationSummary as any).missing.length > 0 && (
-                  <div className="p-2 text-xs" style={{ borderTop: '1px solid var(--border)', color: "#64748b" }}>
-                    <span className="font-semibold" style={{ color: 'var(--foreground)' }}>Missing from quote: </span>
-                    {(reconciliationSummary as any).missing.map((m: any) => expandShorthand(m.component ?? String(m))).join(" · ")}
-                  </div>
-                )}
-                {/* Extra in quote — quoted but not in damage analysis */}
-                {Array.isArray((reconciliationSummary as any)?.extra) && (reconciliationSummary as any).extra.length > 0 && (
-                  <div className="p-2 text-xs" style={{ borderTop: '1px solid var(--border)', color: "#64748b" }}>
-                    <span className="font-semibold" style={{ color: 'var(--foreground)' }}>Extra in quote (not in damage analysis): </span>
-                    {(reconciliationSummary as any).extra.map((e: any) => expandShorthand(e.component ?? String(e))).join(" · ")}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* 3.1a Cost Decision Engine — merged into 3.1d block above */}
 
       {/* 3.2 Vehicle Valuation — populated from extracted data */}
       <ValuationSubsection aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />

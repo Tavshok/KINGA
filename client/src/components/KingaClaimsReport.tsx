@@ -733,36 +733,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               ))}
             </div>
 
-            {/* Damaged components table */}
-            {damagedParts.length > 0 && (
-              <div style={{ marginBottom: 16, overflowX: "auto" }}>
-                <p style={{ ...S.label, marginBottom: 6 }}>Damaged Components</p>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <thead>
-                    <tr>
-                      {["Component", "Location", "Damage Type", "Severity", "Action"].map((h) => (
-                        <th key={h} style={S.th}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {damagedParts.map((p: any, i: number) => {
-                      const sev = (p.severity ?? "").toLowerCase();
-                      const action = sev === "severe" || sev === "catastrophic" ? "Replace" : sev === "moderate" ? "Repair / Replace" : "Repair";
-                      return (
-                        <tr key={i} style={{ background: "transparent" }}>
-                          <td style={S.td}>{p.name ?? "—"}</td>
-                          <td style={S.td}>{toTitleCase(p.location ?? "—")}</td>
-                          <td style={S.td}>{toTitleCase(p.damageType ?? "—")}</td>
-                          <td style={S.td}>{toTitleCase(sev)}</td>
-                          <td style={S.td}>{action}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {/* Damaged components detail is in Section 5 Component Matrix — not repeated here */}
 
             {/* Photo grid — shows all available damage photos (1–6), layout adapts */}
             {photoUrls.length > 0 && (
@@ -1018,49 +989,82 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                       ? ((savingsUsd / l1) * 100).toFixed(1)
                       : null;
                     const isSaving = savingsUsd != null && savingsUsd > 0;
+                    const nfsColor = nfs != null ? (nfs >= 70 ? '#15803d' : nfs >= 40 ? '#b45309' : '#dc2626') : '#64748b';
+                    const nfsBg = nfs != null ? (nfs >= 70 ? '#dcfce7' : nfs >= 40 ? '#fef3c7' : '#fee2e2') : '#f1f5f9';
                     return (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                        {/* L1: Lowest Submitted Quote */}
-                        <div style={{ padding: "12px 16px", borderTop: "3px solid #64748b", background: "#fafafa" }}>
-                          <p style={{ ...S.label, color: "#64748b", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Lowest Submitted Quote</p>
-                          <p style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace" }}>
-                            {l1 != null ? fmtC(l1) : "—"}
-                          </p>
-                          <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>Best price from submitted panel beater quotes</p>
+                      <div style={{ marginBottom: 16 }}>
+                        {/* Three-column KPI row */}
+                        <div style={{ display: "grid", gridTemplateColumns: isSaving && l2 != null ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginBottom: isSaving && l1 != null && l2 != null ? 10 : 16 }}>
+                          {/* L1: Lowest Submitted Quote */}
+                          <div style={{ padding: "12px 16px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#fafafa" }}>
+                            <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#64748b", margin: "0 0 4px" }}>Lowest Submitted</p>
+                            <p style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.1 }}>
+                              {l1 != null ? fmtC(l1) : "—"}
+                            </p>
+                            <p style={{ fontSize: 10, color: "#94a3b8", margin: 0 }}>L1 — best of {quotes.length} quote{quotes.length !== 1 ? 's' : ''}</p>
+                          </div>
+                          {/* L2: KINGA Optimised */}
+                          {l2 != null && (
+                            <div style={{ padding: "12px 16px", borderRadius: 6, border: "2px solid #1A2B4A", background: "#f0f4f8" }}>
+                              <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#1A2B4A", margin: "0 0 4px" }}>KINGA Optimised</p>
+                              <p style={{ fontSize: 22, fontWeight: 800, color: "#1A2B4A", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.1 }}>
+                                {fmtC(l2)}
+                              </p>
+                              <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>L2 — best price per component</p>
+                            </div>
+                          )}
+                          {/* Savings card */}
+                          {isSaving && savingsUsd != null && (
+                            <div style={{ padding: "12px 16px", borderRadius: 6, border: "1px solid #bbf7d0", background: "#f0fdf4" }}>
+                              <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#15803d", margin: "0 0 4px" }}>Savings Opportunity</p>
+                              <p style={{ fontSize: 22, fontWeight: 800, color: "#15803d", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.1 }}>
+                                {fmtC(savingsUsd)}
+                              </p>
+                              <p style={{ fontSize: 10, color: "#16a34a", margin: 0 }}>{savingsPct}% reduction from L1</p>
+                            </div>
+                          )}
                         </div>
-                        {/* L2: KINGA Optimised */}
-                        <div style={{ padding: "12px 16px", borderTop: "3px solid #1A2B4A", background: "#f0f4f8" }}>
-                          <p style={{ ...S.label, color: "#1A2B4A", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>KINGA Optimised Cost</p>
-                          <p style={{ fontSize: 22, fontWeight: 800, color: "#1A2B4A", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace" }}>
-                            {l2 != null ? fmtC(l2) : "—"}
-                          </p>
-                          <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>
-                            {savingsPct != null
-                              ? isSaving
-                                ? `${savingsPct}% saving — ${fmtC(savingsUsd!)} below lowest submitted`
-                                : `${Math.abs(Number(savingsPct))}% above lowest submitted — verify scope completeness`
-                              : "Per-component best-price composite"}
-                          </p>
-                        </div>
+
+                        {/* Savings progress bar */}
+                        {isSaving && l1 != null && l2 != null && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                              <span style={{ fontSize: 10, color: '#64748b' }}>KINGA Optimised vs Submitted</span>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: '#15803d' }}>{savingsPct}% saving</span>
+                            </div>
+                            <div style={{ height: 7, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${Math.min((l2 / l1) * 100, 100)}%`, background: '#1A2B4A', borderRadius: 4 }} />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+                              <span style={{ fontSize: 9, color: '#94a3b8' }}>L2 {fmtC(l2)}</span>
+                              <span style={{ fontSize: 9, color: '#94a3b8' }}>L1 {fmtC(l1)}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* NFS badge — integrated inline below cost KPIs */}
+                        {nfs != null && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#f8fafc", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "#64748b" }}>NFS</span>
+                            <span style={{ fontSize: 16, fontWeight: 800, color: nfsColor, fontFamily: "'IBM Plex Mono', monospace" }}>{nfs.toFixed(0)}</span>
+                            <span style={{ fontSize: 10, color: nfsColor, fontWeight: 600 }}>
+                              {nfs >= 70 ? "STRONG" : nfs >= 40 ? "MODERATE" : "LIMITED"}
+                            </span>
+                            <span style={{ fontSize: 10, color: "#64748b", flex: 1 }}>
+                              {nfs >= 70 ? "Strong negotiation potential — benchmark data supports cost reduction."
+                                : nfs >= 40 ? "Moderate negotiation potential — partial benchmark support."
+                                : "Limited negotiation potential — submitted costs are within benchmark range."}
+                            </span>
+                            {nfs != null && (
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: nfsBg, color: nfsColor }}>
+                                {nfs.toFixed(0)}%
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
-
-                  {/* ── NFS Badge ── */}
-                  {nfs != null && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "8px 14px", background: "#f8fafc", borderLeft: "3px solid #1A2B4A" }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "#64748b" }}>Negotiation Feasibility Score</span>
-                      <span style={{
-                        fontSize: 16, fontWeight: 800, color: nfs >= 70 ? "#15803d" : nfs >= 40 ? "#b45309" : "#dc2626",
-                        fontFamily: "'IBM Plex Mono', monospace",
-                      }}>{nfs.toFixed(0)}%</span>
-                      <span style={{ fontSize: 11, color: "#64748b" }}>
-                        {nfs >= 70 ? "Strong negotiation potential — cost reduction is well-supported by benchmark data."
-                          : nfs >= 40 ? "Moderate negotiation potential — partial benchmark support available."
-                          : "Limited negotiation potential — submitted costs are broadly within benchmark range."}
-                      </span>
-                    </div>
-                  )}
 
                   {/* ── Advisory Flags ── */}
                   {(qndFlags.length > 0 || dnqFlags.length > 0) && (
