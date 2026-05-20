@@ -25,7 +25,7 @@ import { PolicyVersionHistory } from "@/components/policy/PolicyVersionHistory";
 import { CreatePolicyForm } from "@/components/policy/CreatePolicyForm";
 import { PolicyComparisonView } from "@/components/policy/PolicyComparisonView";
 
-export function PolicyManagementDashboard() {
+export default function PolicyManagementDashboard() {
   const [selectedTab, setSelectedTab] = useState("active");
 
   // Fetch active policy

@@ -19,6 +19,9 @@ import { AiStatusBadge } from "@/components/AiStatusBadge";
 import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
 import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
 import { VehicleStructuralIntelligencePanel } from "@/components/VehicleStructuralIntelligencePanel";
+import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
+import { RepairReplacePanel } from "@/components/RepairReplacePanel";
+import { ClaimCommentThread } from "@/components/ClaimCommentThread";
 
 export default function AssessorClaimDetails() {
   const { user, logout } = useAuth();
@@ -631,11 +634,21 @@ export default function AssessorClaimDetails() {
               </Card>
             )}
 
-            {/* Police Report */}
+                        {/* Police Report */}
             <PoliceReportForm claimId={claimId} />
-
             {/* Vehicle Market Valuation */}
             <VehicleValuationCard claimId={claimId} />
+            {/* Repair Intelligence — panel beater network & cost benchmarks */}
+            <RepairIntelligencePanel claimId={claimId} countryCode={(claim as any)?.countryCode ?? "ZA"} />
+            {/* Repair vs Replace Decision */}
+            <RepairReplacePanel
+              claimId={claimId}
+              vehicleMake={(claim as any)?.vehicleMake ?? undefined}
+              vehicleModel={(claim as any)?.vehicleModel ?? undefined}
+              vehicleYear={(claim as any)?.vehicleYear ?? undefined}
+            />
+            {/* Claim Communications Thread */}
+            <ClaimCommentThread claimId={claimId} showClaimantOption={false} />
           </div>
         </div>
       </main>

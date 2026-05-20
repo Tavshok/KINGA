@@ -48,6 +48,14 @@ import {
   AdjusterSignOffPanel,
 } from "@/components/Batch3ReportComponents";
 // Removed: DecisionNarrativeView, ForensicAuditValidationPanel (pre-report panels removed)
+import { MultiQuoteComparisonPanel } from "@/components/MultiQuoteComparisonPanel";
+import ClaimsExplanationPanel from "@/components/ClaimsExplanationPanel";
+import DecisionAuthorityPanel from "@/components/DecisionAuthorityPanel";
+import EscalationRoutingPanel from "@/components/EscalationRoutingPanel";
+import { PhysicsAnalysisChart } from "@/components/PhysicsAnalysisChart";
+import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
+import { RepairReplacePanel } from "@/components/RepairReplacePanel";
+import { ClaimCommentThread } from "@/components/ClaimCommentThread";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1515,6 +1523,121 @@ export default function ClaimDecisionReport() {
 
         {/* ── Post-report interactive panels — hidden in print/PDF ── */}
         <div className="no-print">
+
+        {/* ── Intelligence Panels (wired from orphan audit) ── */}
+        {claimId > 0 && (() => {
+          const pe = (enforcement as any)?.physicsEstimate;
+          const physicsRaw = (() => {
+            try {
+              const raw = (aiAssessment as any)?.physicsAnalysis;
+              return raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
+            } catch { return null; }
+          })();
+          const consistencyFlag = (enforcement as any)?.consistencyFlag;
+          const physicsScore = physicsRaw?.damageConsistencyScore ?? consistencyFlag?.score ?? 0;
+          const impactSpeed = pe?.estimatedVelocityKmh ?? physicsRaw?.deltaVKmh ?? physicsRaw?.deltaV;
+          return (
+            <>
+              <ReportSectionDivider label="Decision Intelligence" icon="🧠" />
+
+              {/* Multi-Quote Cost Comparison */}
+              <div className="mb-4">
+                <MultiQuoteComparisonPanel
+                  costIntelligenceJson={(aiAssessment as any)?.costIntelligenceJson ?? null}
+                />
+              </div>
+
+              {/* Physics Analysis Chart — only when physics data is available */}
+              {(physicsScore > 0 || impactSpeed) && (
+                <div className="mb-4">
+                  <PhysicsAnalysisChart data={{
+                    impactSpeed: impactSpeed ?? undefined,
+                    impactForce: pe?.impactForceKn?.min ?? physicsRaw?.impactForceKn ?? undefined,
+                    energyDissipated: pe?.energyKj?.min ?? physicsRaw?.energyKj ?? undefined,
+                    deceleration: physicsRaw?.deceleration ?? undefined,
+                    damageConsistency: (physicsRaw?.damageConsistency ?? consistencyFlag?.label ?? "questionable") as "consistent" | "questionable" | "impossible",
+                    physicsScore,
+                  }} />
+                </div>
+              )}
+
+              {/* Claims Explanation Panel */}
+              <div className="mb-4">
+                <ClaimsExplanationPanel
+                  claimId={claimId}
+                  precomputed={aiAssessment ? {
+                    recommendation: (aiAssessment as any)?.recommendation ?? "REVIEW",
+                    key_drivers: (aiAssessment as any)?.keyDrivers ?? [],
+                    reasoning: (aiAssessment as any)?.reasoning ?? "",
+                    confidence: (aiAssessment as any)?.confidenceScore ?? null,
+                    incident_type: (claim as any)?.incidentType ?? null,
+                    fraud_risk_level: (aiAssessment as any)?.fraudRiskLevel ?? null,
+                    physics_plausible: (aiAssessment as any)?.physicsPlausible ?? null,
+                    damage_consistent: (aiAssessment as any)?.damageConsistent ?? null,
+                    estimated_cost: (aiAssessment as any)?.estimatedCost ?? null,
+                  } : undefined}
+                />
+              </div>
+
+              {/* Decision Authority Panel */}
+              <div className="mb-4">
+                <DecisionAuthorityPanel
+                  claimId={claimId}
+                  aiAssessment={aiAssessment ? {
+                    fraudRiskLevel: (aiAssessment as any)?.fraudRiskLevel,
+                    fraudRiskScore: (aiAssessment as any)?.fraudRiskScore,
+                    confidenceScore: (aiAssessment as any)?.confidenceScore,
+                    structuralDamageSeverity: (aiAssessment as any)?.structuralDamageSeverity,
+                    estimatedCost: (aiAssessment as any)?.estimatedCost,
+                    physicsAnalysis: (aiAssessment as any)?.physicsAnalysis,
+                    consistencyCheckJson: (aiAssessment as any)?.consistencyCheckJson,
+                    costRealismJson: (aiAssessment as any)?.costRealismJson,
+                  } : null}
+                  claim={claim ? {
+                    incidentType: (claim as any)?.incidentType,
+                    finalApprovedAmount: (claim as any)?.finalApprovedAmount,
+                    claimAmount: (claim as any)?.claimAmount,
+                    isHighValue: (claim as any)?.isHighValue,
+                  } : null}
+                  assessorValidated={(aiAssessment as any)?.assessorValidated ?? false}
+                />
+              </div>
+
+              {/* Escalation Routing Panel */}
+              <div className="mb-4">
+                <EscalationRoutingPanel claimId={claimId} />
+              </div>
+
+              {/* Repair Intelligence Panel */}
+              <div className="mb-4">
+                <RepairIntelligencePanel
+                  claimId={claimId}
+                  countryCode={(claim as any)?.countryCode ?? "ZA"}
+                />
+              </div>
+
+              {/* Repair vs Replace Panel */}
+              <div className="mb-4">
+                <RepairReplacePanel
+                  claimId={claimId}
+                  vehicleMake={(claim as any)?.vehicleMake ?? undefined}
+                  vehicleModel={(claim as any)?.vehicleModel ?? undefined}
+                  vehicleYear={(claim as any)?.vehicleYear ?? undefined}
+                />
+              </div>
+
+              {/* Claim Comment Thread */}
+              <ReportSectionDivider label="Claim Communications" icon="💬" />
+              <div className="mb-4">
+                <ClaimCommentThread
+                  claimId={claimId}
+                  showClaimantOption={user?.role === "claims_processor"}
+                />
+              </div>
+            </>
+          );
+        })()}
+
         <ReportSectionDivider label="Audit Trail & Decision History" icon="📜" />
         {/* 7. Snapshot History */}
         {(snapshotHistory as any[]).length > 0 && (

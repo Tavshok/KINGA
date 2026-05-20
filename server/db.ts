@@ -1163,6 +1163,11 @@ export async function triggerAiAssessment(claimId: number) {
     perComponentBenchmarks: (costAnalysis as any).perComponentBenchmarks ?? null,
     // Phase 3: Composite quote optimisation — three-layer cost model (L1/L2/L3), NFS, component classification
     compositeOptimisation: (costAnalysis as any).compositeOptimisation ?? null,
+    // Phase 3: Top-level KINGA savings fields (also set on compositeOptimisation, surfaced here for direct access)
+    kingaSavingsLowestSubmittedUsd: (costAnalysis as any).kingaSavingsLowestSubmittedUsd ?? null,
+    kingaSavingsL2OptimisedUsd: (costAnalysis as any).kingaSavingsL2OptimisedUsd ?? null,
+    kingaSavingsQuoteOptimisation: (costAnalysis as any).kingaSavingsQuoteOptimisation ?? null,
+    benchmarkCoverageComponents: (costAnalysis as any).benchmarkCoverageComponents ?? null,
   }) : (
     // Even if costAnalysis is null, still persist the documented quote values
     // so the UI can display the panel beater quote from the extracted document.

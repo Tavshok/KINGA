@@ -66,6 +66,9 @@ const InviteAccept = lazy(() => import("./pages/InviteAccept"));
 const ClaimsManagerComparisonView = lazy(() => import("./pages/ClaimsManagerComparisonView"));
 const WorkflowSettings = lazy(() => import("./pages/WorkflowSettings"));
 const MonetizationDashboard = lazy(() => import("./pages/MonetizationDashboard"));
+const AdminRevenueDashboard = lazy(() => import("./pages/AdminRevenueDashboard"));
+const PolicyManagementDashboard = lazy(() => import("./pages/PolicyManagementDashboard"));
+const InteractiveReport = lazy(() => import("./pages/InteractiveReport"));
 const OperationalHealthDashboard = lazy(() => import("./pages/OperationalHealthDashboard"));
 const ExceptionIntelligenceHub = lazy(() => import("./pages/ExceptionIntelligenceHub"));
 const PlatformOverviewDashboard = lazy(() => import("./pages/PlatformOverviewDashboard"));
@@ -84,6 +87,7 @@ import PanelBeaterPortalLayout from "./components/PanelBeaterPortalLayout";
 import ClaimantPortalLayout from "./components/ClaimantPortalLayout";
 
 // Assessor pages
+const ExternalAssessorDashboard = lazy(() => import("./pages/ExternalAssessorDashboard"));
 const AssessorDashboard = lazy(() => import("@/pages/AssessorDashboard"));
 const AssessorPerformance = lazy(() => import("@/pages/AssessorPerformance"));
 const AssessorPerformanceDashboard = lazy(() => import("@/pages/AssessorPerformanceDashboard"));
@@ -168,6 +172,12 @@ function Router() {
         <Route path="/admin/monetization">
           <ProtectedRoute allowedRoles={["admin"]}>
             <MonetizationDashboard />
+          </ProtectedRoute>
+        </Route>
+        {/* Admin Revenue Dashboard (Super-Admin Only) */}
+        <Route path="/admin/revenue">
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminRevenueDashboard />
           </ProtectedRoute>
         </Route>
         
@@ -376,6 +386,14 @@ function Router() {
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleGuard allowedRoles={["insurer_admin"]}>
               <InsurerAdminDashboard />
+            </RoleGuard>
+          </ProtectedRoute>
+        </Route>
+        {/* Policy Management Dashboard */}
+        <Route path="/insurer-portal/policy-management">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <RoleGuard allowedRoles={["insurer_admin", "executive"]}>
+              <InsurerPortalLayout><PolicyManagementDashboard /></InsurerPortalLayout>
             </RoleGuard>
           </ProtectedRoute>
         </Route>
@@ -661,7 +679,19 @@ function Router() {
             <AssessorPortalLayout><AssessorLeaderboard /></AssessorPortalLayout>
           </ProtectedRoute>
         </Route>
+        {/* External Assessor Dashboard */}
+        <Route path="/assessor/external">
+          <ProtectedRoute allowedRoles={["assessor", "admin"]}>
+            <AssessorPortalLayout><ExternalAssessorDashboard /></AssessorPortalLayout>
+          </ProtectedRoute>
+        </Route>
         
+        {/* Interactive Report — snapshot-based living report */}
+        <Route path="/reports/interactive/:snapshotId">
+          <ProtectedRoute allowedRoles={["insurer", "admin", "assessor"]}>
+            <InteractiveReport />
+          </ProtectedRoute>
+        </Route>
         {/* Panel Beater Routes */}
         <Route path="/panel-beater/dashboard">
           <ProtectedRoute allowedRoles={["panel_beater", "admin"]}>

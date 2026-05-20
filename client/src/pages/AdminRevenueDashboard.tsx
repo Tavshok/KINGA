@@ -26,7 +26,7 @@ import { Loader2, TrendingUp, DollarSign, Users, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 
-export function AdminRevenueDashboard() {
+export default function AdminRevenueDashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 

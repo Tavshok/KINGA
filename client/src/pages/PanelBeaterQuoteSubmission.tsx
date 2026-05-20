@@ -11,6 +11,7 @@ import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { useState } from "react";
 import { PdfQuoteUpload } from "@/components/PdfQuoteUpload";
+import QuoteOCRUpload from "@/components/QuoteOCRUpload";
 
 interface LineItem {
   id: string;
@@ -230,10 +231,17 @@ export default function PanelBeaterQuoteSubmission() {
                 </div>
 
                 {uploadMethod === "pdf" ? (
-                  <PdfQuoteUpload
-                    claimId={claimId}
-                    onExtracted={handlePdfExtracted}
-                  />
+                  <>
+                    <PdfQuoteUpload
+                      claimId={claimId}
+                      onExtracted={handlePdfExtracted}
+                    />
+                    {/* OCR fallback — extracts line items directly from quote image */}
+                    <QuoteOCRUpload
+                      claimId={claimId}
+                      onSuccess={() => { toast.success("Quote extracted via OCR — review line items below."); }}
+                    />
+                  </>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Cost Summary */}
