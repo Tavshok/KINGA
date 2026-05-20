@@ -658,7 +658,7 @@ export function GapAttributionTable({ data }: { data: GapAttributionData }) {
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold" style={{ color: "var(--foreground)" }}>
-                  {entry.field.replace(/_/g, " ")}
+                  {(entry.field ?? "").replace(/_/g, " ")}
                 </p>
                 <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
                   {entry.explanation}

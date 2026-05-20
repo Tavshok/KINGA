@@ -1965,7 +1965,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
   };
 
   // Normalise: map granular sub-types to their display key
-  const normalised = incidentType.toUpperCase().replace(/ /g, "_");
+  const normalised = (incidentType ?? "").toUpperCase().replace(/ /g, "_");
   // Map sub-types that have their own pattern entries
   const patternKey = incidentPatterns[normalised] ? normalised
     : normalised === "VEHICLE_COLLISION" ? "VEHICLE_COLLISION"
@@ -1978,7 +1978,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
     : normalised;
   const pattern = incidentPatterns[patternKey] ?? {
     expected: ["Damage consistent with stated incident type"],
-    notes: `Review damage components against incident narrative for ${incidentType.replace(/_/g, " ")} claim type.`,
+    notes: `Review damage components against incident narrative for ${(incidentType ?? "").replace(/_/g, " ")} claim type.`,
   };
 
   return (
@@ -2001,7 +2001,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     ["Impact force", impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : "N/A"],
                     ["Vehicle mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
                     ["Accident severity", toSentenceCase((severity ?? "").replace(/_/g, " "))],
-                    ["Incident type", toSentenceCase(incidentType.replace(/_/g, " "))],
+                    ["Incident type", toSentenceCase((incidentType ?? "").replace(/_/g, " "))],
                     ...((_phys as any)?.decelerationG > 0 ? [["Deceleration", `${fmt((_phys as any).decelerationG, 2)} g`]] : []),
                     ...((_phys as any)?.velocityRange?.low_kmh > 0 ? [["Velocity range (est.)", `${fmt((_phys as any).velocityRange.low_kmh, 1)}–${fmt((_phys as any).velocityRange.high_kmh, 1)} km/h`]] : []),
                     ...((_phys as any)?.damageConsistencyScore != null ? [["Damage consistency score", `${Math.round((_phys as any).damageConsistencyScore)}/100`]] : []),
@@ -2157,7 +2157,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#64748b" }}>
-                Typical pattern for {incidentType.replace(/_/g, " ").toLowerCase()} — observed damage
+                Typical pattern for {(incidentType ?? "").replace(/_/g, " ").toLowerCase()} — observed damage
               </p>
               <table className="w-full text-xs report-table">
                 <thead>
@@ -2374,7 +2374,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               return { expected: item, observed: String(observed), matchStatus };
             });
             const damagePatternData: DamagePatternData = {
-              incidentType: incidentType.replace(/_/g, " "),
+              incidentType: (incidentType ?? "").replace(/_/g, " "),
               rows,
             };
             const mismatchRows = rows.filter(r => r.matchStatus === 'mismatch');
@@ -5158,7 +5158,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                         : (() => {
                             const damagedZones = (phase2?.damageZones ?? []) as string[];
                             return damagedZones[i]
-                              ? damagedZones[i].replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+                              ? (damagedZones[i] ?? "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
                               : `View ${i + 1}`;
                           })();
                       const subLabel = enriched
