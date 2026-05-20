@@ -1887,6 +1887,37 @@ export async function triggerAiAssessment(claimId: number) {
 
   console.log(`[KINGA Assessment] Claim ${claimId}: DB insert + claim update complete. Pipeline v2 finished. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
 
+  // ── Fast-Track Routing: fire-and-forget (non-blocking) ───────────────────
+  // Evaluates claim against fast-track automation rules after assessment is persisted.
+  // Gated by ENABLE_FAST_TRACK=true env var. Never awaited — never delays the pipeline.
+  if (process.env.ENABLE_FAST_TRACK === 'true') {
+    setImmediate(async () => {
+      try {
+        const { evaluateFastTrack } = await import('./services/fast-track-engine');
+        const { executeFastTrackAction } = await import('./services/fast-track-dispatcher');
+        const ftTenantRows = await db.select({ tenantId: claims.tenantId }).from(claims).where(eq(claims.id, claimId)).limit(1);
+        const ftTenantId = ftTenantRows[0]?.tenantId ?? 'default';
+        const ftConfidence = Math.round((safeFloat(costAnalysis?.costDecision?.confidence) ?? 0) * 100);
+        const ftFraud = Math.round((safeFloat(fraudAnalysis?.fraudRiskScore) ?? 0) * 100);
+        const ftClaimValue = safeInt(estimatedCost) ?? 0;
+        const ftClaimType = (claimRecord as any)?.accidentDetails?.incidentType ?? 'collision';
+        const ftEval = await evaluateFastTrack({
+          claimId, tenantId: ftTenantId,
+          confidenceScore: ftConfidence, claimValue: ftClaimValue,
+          fraudScore: ftFraud, claimType: ftClaimType, productId: null,
+        });
+        if (ftEval.eligible && ftEval.action) {
+          await executeFastTrackAction(claimId, ftEval, 0);
+          console.log(`[FastTrack] Claim ${claimId}: action=${ftEval.action} reason=${ftEval.evaluationDetails.reason}`);
+        } else {
+          console.log(`[FastTrack] Claim ${claimId}: not eligible — ${ftEval.evaluationDetails.reason}`);
+        }
+      } catch (ftErr: any) {
+        console.warn(`[FastTrack] Claim ${claimId}: evaluation failed (non-fatal):`, ftErr?.message ?? ftErr);
+      }
+    });
+  }
+
   // ── Entity Registry: fire-and-forget (non-blocking) ──────────────────────
   // Upsert all entities and write relationship graph edges asynchronously.
   // Never awaited — never delays the pipeline response.

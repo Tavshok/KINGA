@@ -109,6 +109,7 @@ import { monetizationRouter } from "./routers/monetization";
 import { operationalHealthRouter } from "./routers/operational-health";
 import { platformObservabilityRouter } from "./routers/platform-observability";
 import { auditRouter } from "./routers/audit";
+import { superAuditRouter } from "./routers/super-audit";
 import { governanceRouter } from "./routers/governance";
 import { governanceDashboardRouter } from "./routers/governance-dashboard";
 import { aiReanalysisRouter } from "./routers/ai-reanalysis";
@@ -298,6 +299,7 @@ export const appRouter = router({
   operationalHealth: operationalHealthRouter,
   platformObservability: platformObservabilityRouter,
   audit: auditRouter,
+  superAudit: superAuditRouter,
   governance: governanceRouter,
   governanceDashboard: governanceDashboardRouter,
   aiReanalysis: aiReanalysisRouter,
