@@ -10,8 +10,7 @@
  */
 
 import { z } from "zod";
-import { router } from "./_core/trpc";
-import { protectedProcedure } from "./_core/procedures";
+import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import {
   createSuperAuditSession,
@@ -23,7 +22,7 @@ import {
   endSuperAuditSession,
   getActiveAuditSession,
   getAllTenants,
-} from "./services/super-audit-mode";
+} from "../services/super-audit-mode";
 
 /**
  * Super-admin only middleware
