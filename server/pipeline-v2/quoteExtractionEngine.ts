@@ -173,6 +173,14 @@ export interface ExtractedQuote {
    */
   rejected_line_items: Array<{ raw_name: string; raw_cost: number | null }>;
   /**
+   * Quote type — distinguishes panel beater repair quotes from parts supplier quotes.
+   * 'repair' = panel beater repair quote (default, used in composite optimisation).
+   * 'parts_supplier' = parts-only quote (e.g. Sarjazz) — used for parts price verification
+   *   but NOT included as a repairer column in the composite matrix.
+   * 'assessor_adjusted' = assessor-modified version of a panel beater quote.
+   */
+  quote_type?: 'repair' | 'parts_supplier' | 'assessor_adjusted';
+  /**
    * Set to true when this quote's line items were re-extracted via vision (Stage 9 self-healing).
    * Used internally to prevent double re-extraction passes.
    */
@@ -454,18 +462,40 @@ export async function extractMultipleQuotes(
   // (e.g. two separate company letterheads concatenated without separator lines).
   // This handles the common case where a claim PDF contains 2-3 panel beater quotes
   // as separate pages but the OCR text has no structural separators between them.
+  //
+  // Strategy: sample the FULL document in chunks — first 4000 chars, last 4000 chars,
+  // and up to 3 evenly-spaced middle samples of 2000 chars each. This ensures company
+  // names on later pages (e.g. Grand Auto Premier on page 5+) are always seen by the
+  // detection LLM, regardless of document length.
+  const buildDetectionSample = (text: string): string => {
+    const MAX_TOTAL = 20000;
+    if (text.length <= MAX_TOTAL) return text;
+    const head = text.slice(0, 4000);
+    const tail = text.slice(-4000);
+    const middle = text.slice(4000, text.length - 4000);
+    const step = Math.floor(middle.length / 4);
+    const mid1 = middle.slice(step, step + 2000);
+    const mid2 = middle.slice(step * 2, step * 2 + 2000);
+    const mid3 = middle.slice(step * 3, step * 3 + 2000);
+    return [head, '...', mid1, '...', mid2, '...', mid3, '...', tail].join('\n');
+  };
+  const detectionSample = buildDetectionSample(rawText);
+
   let detectedRepairers: string[] = [];
   try {
     const detectionResponse = await invokeLLM({
       messages: [
         {
           role: "system",
-          content: `You are a document analyser. Your ONLY job is to count how many distinct repair quotations are present in the provided text and list the company/repairer name for each one.
+          content: `You are a document analyser. Your ONLY job is to count how many distinct repair quotations or parts quotes are present in the provided text and list the company/repairer name for each one.
 
 A distinct quotation is identified by:
 - A different company name, letterhead, or trading name
 - A separate set of line items with its own total
 - A different address, phone number, or VAT number
+
+Include ALL types of quotes: panel beater repair quotes, parts supplier quotes (e.g. Sarjazz, parts dealers), and assessor-adjusted quotes.
+Each distinct company = one entry.
 
 Return ONLY a JSON object with a single field "repairers" — an array of company name strings, one per distinct quote.
 If there is only one quote, return a single-element array.
@@ -474,7 +504,7 @@ Do NOT extract prices, line items, or any other data — only company names.`,
         },
         {
           role: "user",
-          content: `Document text (first 8000 chars):\n\n${rawText.slice(0, 8000)}`,
+          content: `Document text (sampled across full document):\n\n${detectionSample}`,
         },
       ],
       response_format: {
@@ -514,19 +544,37 @@ Do NOT extract prices, line items, or any other data — only company names.`,
     return [single];
   }
 
-  // Step 3: Multiple repairers detected — extract each one by name
-  // Ask the LLM to extract ONLY the quote for the specified repairer from the full text.
+  // Step 3: Multiple repairers detected — extract each one by name.
+  // For each repairer, find their approximate position in the full text and extract
+  // a targeted window (±8000 chars) around it. This ensures repairers on later pages
+  // (e.g. Grand Auto Premier on page 5+) are not truncated by token limits.
+  const findRepairerWindow = (text: string, name: string, windowSize = 8000): string => {
+    const nameLower = name.toLowerCase();
+    const idx = text.toLowerCase().indexOf(nameLower);
+    if (idx === -1) return text.slice(0, windowSize * 2); // fallback: start of doc
+    const start = Math.max(0, idx - 500); // small look-back for letterhead
+    const end = Math.min(text.length, idx + windowSize);
+    return text.slice(start, end);
+  };
+
   const results: ExtractedQuote[] = [];
   for (const repairerName of detectedRepairers) {
     try {
+      const repairerWindow = findRepairerWindow(rawText, repairerName);
       const result = await extractQuoteFromText(
-        rawText,
-        `Extract ONLY the quote from "${repairerName}". Ignore all other quotes in this document.`,
+        repairerWindow,
+        `Extract ONLY the quote from "${repairerName}". This text is a targeted excerpt from the section of the document containing this repairer's quote.`,
         tenantCountry
       );
       // Override panel_beater with the detected name if LLM returned null
       if (!result.panel_beater) {
         result.panel_beater = repairerName;
+      }
+      // Auto-classify quote type based on company name heuristics
+      if (!result.quote_type) {
+        const nameLower = repairerName.toLowerCase();
+        const isPartsSupplier = /sarjazz|parts|spares|accessories|auto parts|motor parts|spare parts|parts dealer|parts supply|parts world|parts centre|parts center|parts hub/.test(nameLower);
+        result.quote_type = isPartsSupplier ? 'parts_supplier' : 'repair';
       }
       results.push(result);
     } catch {

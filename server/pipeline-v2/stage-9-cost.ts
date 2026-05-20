@@ -1419,8 +1419,12 @@ export async function runCostOptimisationStage(
             }
           }
 
-          // Build InputQuoteWithLineItems[] from all extracted quotes
-          const compositeInputQuotes: InputQuoteWithLineItems[] = allQuotes.map((q: any) => {
+          // Build InputQuoteWithLineItems[] from all extracted quotes.
+          // Exclude parts_supplier quotes (e.g. Sarjazz) from the composite matrix —
+          // they are parts-only dealers, not panel beaters, and should not appear as
+          // repairer columns. Their prices are used for L1 comparison only.
+          const repairQuotes = allQuotes.filter((q: any) => q.quote_type !== 'parts_supplier');
+          const compositeInputQuotes: InputQuoteWithLineItems[] = repairQuotes.map((q: any) => {
             // CRITICAL: exclude is_non_part_cost rows (labour, paint, VAT) from lineItems.
             // buildCompositeQuote sums lineItems into compositePartsUsd, then adds bestLabourUsd
             // separately from q.labour_cost. Including labour rows here causes double-counting
