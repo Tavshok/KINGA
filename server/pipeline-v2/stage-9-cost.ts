@@ -1407,13 +1407,27 @@ export async function runCostOptimisationStage(
             labour_cost: q.labour_cost ?? null,
             parts_cost: q.parts_cost ?? null,
             confidence: (q.confidence as 'high' | 'medium' | 'low') ?? 'low',
-            lineItems: (q.line_items ?? []).map((li: any) => ({
-              componentName: li.component ?? li.description ?? '',
-              costUsd: li.line_total ?? li.unit_cost ?? 0,
-            })).filter((li: any) => li.componentName && li.costUsd > 0),
+            // CRITICAL: exclude is_non_part_cost rows (labour, paint, VAT) from lineItems.
+            // buildCompositeQuote sums lineItems into compositePartsUsd, then adds bestLabourUsd
+            // separately from q.labour_cost. Including labour rows here causes double-counting
+            // and inflates L2 above the submitted quote totals.
+            lineItems: (q.line_items ?? [])
+              .filter((li: any) => !li.is_non_part_cost)
+              .map((li: any) => ({
+                componentName: li.component ?? li.description ?? '',
+                costUsd: li.line_total ?? li.unit_cost ?? 0,
+              })).filter((li: any) => li.componentName && li.costUsd > 0),
           }));
 
-          const l1TotalUsd = quotedCents ? quotedCents / 100 : 0;
+          // Bug fix: l1TotalUsd must be the LOWEST submitted quote total, not the first/only
+          // quote stored on claimRecord.repairQuote (which may be a single higher quote).
+          // Use the minimum of all extracted quote totals so L1 is the true best submitted price.
+          const allSubmittedTotalsForL1 = allQuotes
+            .map((q: any) => q.total_cost ?? 0)
+            .filter((t: number) => t > 0);
+          const l1TotalUsd = allSubmittedTotalsForL1.length > 0
+            ? Math.min(...allSubmittedTotalsForL1)
+            : (quotedCents ? quotedCents / 100 : 0);
 
           if (compositeInputQuotes.length > 0 && l1TotalUsd > 0) {
             const compositeResult = buildCompositeQuote(

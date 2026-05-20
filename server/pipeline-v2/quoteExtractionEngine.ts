@@ -172,6 +172,16 @@ export interface ExtractedQuote {
    * Surfaced so the adjuster can manually review them.
    */
   rejected_line_items: Array<{ raw_name: string; raw_cost: number | null }>;
+  /**
+   * Set to true when this quote's line items were re-extracted via vision (Stage 9 self-healing).
+   * Used internally to prevent double re-extraction passes.
+   */
+  _vision_reextracted?: boolean;
+  /**
+   * Set to true when this quote record was synthesised from a vision re-extraction pass
+   * (i.e. the original OCR extraction had no line items and vision rebuilt it from scratch).
+   */
+  _synthetic_from_vision?: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -530,7 +540,44 @@ Do NOT extract prices, line items, or any other data — only company names.`,
     return [single];
   }
 
-  return results;
+  // Final deduplication: remove duplicate panel beaters using fuzzy name matching.
+  // The LLM may detect the same repairer under slightly different names (e.g.
+  // "Cedric Jonker" and "Cedric Jonker Spraypaints"). Keep the version with more
+  // priced line items; if equal, keep the one with the higher total_cost.
+  const normName = (name: string): string =>
+    name.toLowerCase()
+      .replace(/\b(spraypaints?|spray paint|auto|motors?|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|\(pty\)|\(cc\)|\.)/gi, '')
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const fuzzyMatch = (a: string, b: string): boolean => {
+    const na = normName(a);
+    const nb = normName(b);
+    if (!na || !nb) return false;
+    if (na === nb) return true;
+    if (na.startsWith(nb) || nb.startsWith(na)) return true;
+    const ta = na.split(' ').filter(t => t.length > 1);
+    const tb = nb.split(' ').filter(t => t.length > 1);
+    const overlap = ta.filter(t => tb.includes(t)).length;
+    const minLen = Math.min(ta.length, tb.length);
+    return minLen > 0 && overlap / minLen >= 0.6;
+  };
+  const deduped: ExtractedQuote[] = [];
+  for (const r of results) {
+    const existingIdx = deduped.findIndex(d => fuzzyMatch(r.panel_beater ?? '', d.panel_beater ?? ''));
+    if (existingIdx >= 0) {
+      const existing = deduped[existingIdx];
+      const rPriced = (r.line_items ?? []).filter(li => (li.line_total ?? 0) > 0).length;
+      const ePriced = (existing.line_items ?? []).filter(li => (li.line_total ?? 0) > 0).length;
+      if (rPriced > ePriced || (rPriced === ePriced && (r.total_cost ?? 0) > (existing.total_cost ?? 0))) {
+        deduped[existingIdx] = r; // replace with better version
+      }
+    } else {
+      deduped.push(r);
+    }
+  }
+
+  return deduped;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

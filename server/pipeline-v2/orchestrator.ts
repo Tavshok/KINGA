@@ -774,13 +774,38 @@ export async function runPipelineV2(
         }
         // Non-null assertion safe: we just initialised it above if it was null
         const ir = stage3Data.inputRecovery!;
+        // Fuzzy panel beater name normaliser:
+        // Strips common business suffixes and punctuation so that
+        // "Cedric Jonker Spraypaints" and "Cedric Jonker" match as the same repairer.
+        const normPb = (name: string): string =>
+          name.toLowerCase()
+            .replace(/\b(spraypaints?|spray paint|auto|motors?|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|\(pty\)|\(cc\)|\.)/gi, '')
+            .replace(/[^a-z0-9\s]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const pbFuzzyMatch = (a: string, b: string): boolean => {
+          const na = normPb(a);
+          const nb = normPb(b);
+          if (!na || !nb) return false;
+          // Exact match after normalisation
+          if (na === nb) return true;
+          // One is a prefix/suffix of the other (handles "Cedric Jonker" vs "Cedric Jonker Spraypaints")
+          if (na.startsWith(nb) || nb.startsWith(na)) return true;
+          // Token overlap ≥ 60% of the shorter name's tokens
+          const ta = na.split(' ').filter(t => t.length > 1);
+          const tb = nb.split(' ').filter(t => t.length > 1);
+          const overlap = ta.filter(t => tb.includes(t)).length;
+          const minLen = Math.min(ta.length, tb.length);
+          return minLen > 0 && overlap / minLen >= 0.6;
+        };
+
         let mergedCount = 0;
         for (const q of imageQuotes) {
           const pb = (q.panel_beater ?? '').toLowerCase().trim();
-          // Check if this panel_beater already exists in extracted_quotes
+          // Check if this panel_beater already exists in extracted_quotes (fuzzy match)
           const existingQuotes = ir.extracted_quotes ?? [];
           const existingIdx = existingQuotes.findIndex(
-            (e) => (e.panel_beater ?? '').toLowerCase().trim() === pb && pb !== ''
+            (e) => pb !== '' && pbFuzzyMatch(q.panel_beater ?? '', e.panel_beater ?? '')
           );
           if (existingIdx >= 0) {
             const existing = existingQuotes[existingIdx];

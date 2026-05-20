@@ -1011,50 +1011,40 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                     <p style={S.muted}>No quotes submitted for this claim.</p>
                   )}
 
-                  {/* ── Three-Layer Cost Summary ── */}
-                  {(l1 != null || l2 != null || l3 != null) && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
-                      {[
-                        {
-                          label: "L1 — Submitted Cost",
-                          value: l1 != null ? fmtC(l1) : "—",
-                          sub: "Total as quoted by panel beaters",
-                          accent: "#64748b",
-                        },
-                        {
-                          label: "L2 — KINGA Optimised",
-                          value: l2 != null ? fmtC(l2) : "—",
-                          sub: (() => {
-                            // Use canonical savingsL1vsL2Usd from compositeOptimisation when available
-                            const savingsUsd: number | null = compOpt?.savingsL1vsL2Usd ?? null;
-                            if (savingsUsd != null && l1 != null && l1 > 0) {
-                              const pct = ((savingsUsd / l1) * 100).toFixed(1);
-                              return savingsUsd >= 0
-                                ? `${pct}% saving vs submitted (${fmtC(savingsUsd)} saved)`
-                                : `${Math.abs(Number(pct))}% above submitted — verify scope`;
-                            }
-                            if (l1 != null && l2 != null && l1 > 0) {
-                              return `${((l1 - l2) / l1 * 100).toFixed(1)}% saving vs submitted`;
-                            }
-                            return "Composite best-price selection";
-                          })(),
-                          accent: "#1A2B4A",
-                        },
-                        {
-                          label: "L3 — Market Benchmark",
-                          value: l3 != null ? fmtC(l3) : "—",
-                          sub: "Statistical / ML benchmark reference",
-                          accent: "#065f46",
-                        },
-                      ].map((item, i) => (
-                        <div key={i} style={{ padding: "10px 14px", borderTop: `3px solid ${item.accent}`, background: "#fafafa" }}>
-                          <p style={{ ...S.label, color: item.accent, marginBottom: 4 }}>{item.label}</p>
-                          <p style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace" }}>{item.value}</p>
-                          <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>{item.sub}</p>
+                  {/* ── Cost Decision Summary: Lowest Submitted vs KINGA Optimised ── */}
+                  {(l1 != null || l2 != null) && (() => {
+                    const savingsUsd: number | null = compOpt?.savingsL1vsL2Usd ?? (l1 != null && l2 != null ? l1 - l2 : null);
+                    const savingsPct = savingsUsd != null && l1 != null && l1 > 0
+                      ? ((savingsUsd / l1) * 100).toFixed(1)
+                      : null;
+                    const isSaving = savingsUsd != null && savingsUsd > 0;
+                    return (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                        {/* L1: Lowest Submitted Quote */}
+                        <div style={{ padding: "12px 16px", borderTop: "3px solid #64748b", background: "#fafafa" }}>
+                          <p style={{ ...S.label, color: "#64748b", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Lowest Submitted Quote</p>
+                          <p style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace" }}>
+                            {l1 != null ? fmtC(l1) : "—"}
+                          </p>
+                          <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>Best price from submitted panel beater quotes</p>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        {/* L2: KINGA Optimised */}
+                        <div style={{ padding: "12px 16px", borderTop: "3px solid #1A2B4A", background: "#f0f4f8" }}>
+                          <p style={{ ...S.label, color: "#1A2B4A", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>KINGA Optimised Cost</p>
+                          <p style={{ fontSize: 22, fontWeight: 800, color: "#1A2B4A", margin: "0 0 2px 0", fontFamily: "'IBM Plex Mono', monospace" }}>
+                            {l2 != null ? fmtC(l2) : "—"}
+                          </p>
+                          <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>
+                            {savingsPct != null
+                              ? isSaving
+                                ? `${savingsPct}% saving — ${fmtC(savingsUsd!)} below lowest submitted`
+                                : `${Math.abs(Number(savingsPct))}% above lowest submitted — verify scope completeness`
+                              : "Per-component best-price composite"}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* ── NFS Badge ── */}
                   {nfs != null && (

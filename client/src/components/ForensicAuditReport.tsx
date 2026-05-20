@@ -4336,12 +4336,6 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                         return (
                           <td key={ci} className="px-3 py-2 tabular-nums text-right" style={{ color: cellColor, fontStyle: cell.amount === null ? 'italic' : 'normal', background: cellBg }}>
                             {cell.amount !== null ? fmtMoney(cell.amount) : '—'}
-                            {flag && flag !== 'fair' && flag !== 'no_data' && (
-                              <span className="block text-[10px] font-semibold" style={{ color: cellColor }}>{flag === 'over' ? '▲ Over' : '▼ Under'}</span>
-                            )}
-                            {cell.aiReview && cell.aiReview !== 'Consistent' && (
-                              <span className="block text-xs" style={{ color: "#64748b" }}>{cell.aiReview}</span>
-                            )}
                           </td>
                         );
                       })}
