@@ -277,30 +277,30 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
 
   // Use normalised costs as primary source — these are internally consistent
   const aiCost           = Number(normCosts?.aiEstimateUsd ?? aiAssessment?.estimatedCost ?? 0);
-  const agreedCost       = Number(normCosts?.documentedAgreedUsd ?? costIntel?.documentedAgreedCostUsd ?? costIntel?.agreedCostUsd ?? 0);
+  // agreedCost removed — system is used for unfinalised claims; no settled figure exists at analysis time
   const originalQuote    = Number(normCosts?.documentedQuoteUsd ?? costIntel?.documentedOriginalQuoteUsd ?? costIntel?.originalQuoteUsd ?? 0);
   const partsTotal       = Number(normCosts?.partsUsd ?? costIntel?.partsCostUsd ?? 0);
   const labourTotal      = Number(normCosts?.labourUsd ?? costIntel?.labourCostUsd ?? 0);
   const marketValue      = Number(costIntel?.marketValueUsd ?? 0);
-  const repairToValue    = marketValue > 0 ? ((agreedCost || aiCost) / marketValue) * 100 : Number(costIntel?.repairToValuePct ?? 0);
-  const maxCost          = Math.max(aiCost, agreedCost, originalQuote, 1);
+  const repairToValue    = marketValue > 0 ? (aiCost / marketValue) * 100 : Number(costIntel?.repairToValuePct ?? 0);
+  const maxCost          = Math.max(aiCost, originalQuote, 1);
   const quotesReceived   = Number(costIntel?.quotesReceived ?? 0);
   // Cost Decision Engine output — the authoritative cost figure
   const costDecision      = costIntel?.costDecision ?? null;
   // Use normalised total as the single authoritative cost
   const trueCostUsd       = Number(normCosts?.totalUsd ?? costDecision?.true_cost_usd ?? 0);
   // Derive a human-readable cost basis label from the normalised source
-  const costBasisLabel    = normCosts?.source === 'agreed_cost' ? 'Agreed Cost' :
-                            normCosts?.source === 'original_quote' ? 'Panel Beater Quote' :
+  const costBasisLabel    = normCosts?.source === 'agreed_cost' ? 'KINGA Estimate' :
+                            normCosts?.source === 'original_quote' ? 'Lowest Submitted Quote' :
                             normCosts?.source === 'parts_labour_sum' ? 'Parts + Labour' :
                             normCosts?.source === 'ai_estimate' ? 'KINGA Estimate' :
-                            costDecision?.cost_basis ?? (agreedCost > 0 ? 'Agreed Cost' : 'KINGA Estimate');
-  const costBasis         = trueCostUsd > 0 ? trueCostUsd : (agreedCost > 0 ? agreedCost : aiCost);
+                            costDecision?.cost_basis ?? 'KINGA Estimate';
+  const costBasis         = trueCostUsd > 0 ? trueCostUsd : aiCost;
   const costRecommendation = costDecision?.recommendation ?? null;
   const costAnomalies     = Array.isArray(costDecision?.anomalies) ? costDecision.anomalies : [];
   const costNarrative     = costIntel?.costNarrative ?? null;
   const costReliability   = costIntel?.costReliability ?? null;
-  const hasDocumentedQuote = originalQuote > 0 || agreedCost > 0;
+  const hasDocumentedQuote = originalQuote > 0;
   const quotesMapped     = partsRecon.filter((r: any) => r.quotedAmount != null).length;
   const photosJson       = safeParseArray(aiAssessment?.damagePhotosJson);
 
@@ -357,7 +357,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
           {costBasis > 0 && (
             <div className="flex flex-col">
               <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                {costBasisLabel === "AGREED_COST" ? "Agreed Cost" : costBasisLabel === "OPTIMISED_COST" ? "Optimised Cost" : "Est. Cost"}
+                {costBasisLabel === "OPTIMISED_COST" ? "KINGA Optimised" : costBasisLabel || "KINGA Estimate"}
               </span>
               <span className="text-lg font-bold text-foreground tabular-nums">{fmt(costBasis)}</span>
             </div>
@@ -547,7 +547,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
                   { label: "Vehicle type & mass",   used: !!aiAssessment?.vehicleMake || totalComponents > 0 },
                   { label: "Component list",         used: totalComponents > 0 },
                   { label: "Accident description",   used: !!(claim?.incidentDescription ?? claim?.normalised_description) },
-                  { label: "Agreed cost",            used: agreedCost > 0 },
+
                   { label: "Market value",           used: marketValue > 0 },
                   { label: "Damage photographs",     used: photosJson.length > 0 || !!enrichedPhotos },
                 ].map(({ label, used }) => (
@@ -692,9 +692,8 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
           <Card title="Cost Comparison" icon={<DollarSign className="h-4 w-4" />}>
             <div className="space-y-4">
               {[
-                { label: costIntel?.panelBeaterName ? `Panel Beater Quote — ${costIntel.panelBeaterName}` : "Panel Beater Quote", value: originalQuote, note: quotesReceived > 0 ? `${quotesReceived} quote${quotesReceived > 1 ? "s" : ""} received` : "From claim document", colorCls: "bg-primary", primary: hasDocumentedQuote },
-                { label: "Agreed Cost",        value: agreedCost > 0 ? agreedCost : null, note: "Assessor-negotiated — operative figure", colorCls: "bg-green-500", primary: agreedCost > 0 },
-                { label: "AI Model Estimate",  value: aiCost,      note: hasDocumentedQuote ? "Internal reference only — not used for decision" : "Physics-based component model",       colorCls: hasDocumentedQuote ? "bg-muted-foreground/30" : "bg-orange-400", primary: !hasDocumentedQuote },
+                { label: costIntel?.panelBeaterName ? `Lowest Submitted Quote — ${costIntel.panelBeaterName}` : "Lowest Submitted Quote", value: originalQuote, note: quotesReceived > 0 ? `${quotesReceived} quote${quotesReceived > 1 ? "s" : ""} received` : "From claim document", colorCls: "bg-primary", primary: hasDocumentedQuote },
+                { label: "KINGA Estimate",     value: aiCost,      note: hasDocumentedQuote ? "KINGA computed fair repair cost" : "Physics-based component model",       colorCls: hasDocumentedQuote ? "bg-orange-400" : "bg-orange-400", primary: !hasDocumentedQuote },
               ].filter(item => (item.value ?? 0) > 0).map(({ label, value, note, colorCls, primary }) => (
                 <div key={label} className={!primary ? "opacity-60" : ""}>
                   <div className="flex items-start justify-between mb-1.5 gap-2">
@@ -714,7 +713,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Visual Comparison</p>
               <CostComparisonChart
                 originalQuote={originalQuote}
-                agreedCost={agreedCost}
+                agreedCost={0}
                 aiEstimate={aiCost}
                 trueCost={trueCostUsd}
                 panelBeaterName={costIntel?.panelBeaterName}

@@ -478,11 +478,10 @@ export default function InsurerComparisonView() {
   // Derive the correct label for the primary cost KPI based on what source it came from
   const aiCostLabel = (() => {
     const src = normCosts?.source;
-    if (src === 'agreed_cost') return 'Agreed Cost';
-    if (src === 'original_quote') return 'Quote Total';
+    // Always show as KINGA Estimate — the primary KPI is KINGA's computed figure
+    if (src === 'original_quote') return 'Lowest Quote';
     if (src === 'parts_labour_sum') return 'Parts + Labour';
-    if (src === 'ai_estimate') return 'KINGA Estimate';
-    return 'KINGA Estimate'; // fallback
+    return 'KINGA Estimate'; // agreed_cost, ai_estimate, fallback
   })();
   // Currency sanity guard: flag when the stored cost appears to be in a different
   // currency unit than the claim's declared currency.
@@ -638,7 +637,7 @@ export default function InsurerComparisonView() {
               )}
               {lowestQuoteCents > 0 && (
                 <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Best Quote</p>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Lowest Quote</p>
                   <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
                     {csym}{lowestQuoteCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>

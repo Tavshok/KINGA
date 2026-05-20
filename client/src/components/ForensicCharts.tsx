@@ -65,12 +65,11 @@ export function CostComparisonChart({
 
   const items = useMemo(() => {
     const list: { label: string; value: number; color: string }[] = [];
-    if (originalQuote > 0) list.push({ label: panelBeaterName ? `Quote (${panelBeaterName})` : "Panel Beater Quote", value: originalQuote, color: colors.blue });
-    if (agreedCost > 0) list.push({ label: "Agreed Cost", value: agreedCost, color: colors.green });
-    if (trueCost > 0 && trueCost !== agreedCost && trueCost !== originalQuote) list.push({ label: "True Cost (Engine)", value: trueCost, color: colors.primary });
-    if (aiEstimate > 0) list.push({ label: "KINGA Estimate", value: aiEstimate, color: colors.muted });
+    if (originalQuote > 0) list.push({ label: panelBeaterName ? `Lowest Quote (${panelBeaterName})` : "Lowest Submitted Quote", value: originalQuote, color: colors.blue });
+    if (trueCost > 0 && trueCost !== originalQuote) list.push({ label: "KINGA Optimised", value: trueCost, color: colors.primary });
+    if (aiEstimate > 0 && aiEstimate !== trueCost) list.push({ label: "KINGA Estimate", value: aiEstimate, color: colors.muted });
     return list;
-  }, [originalQuote, agreedCost, aiEstimate, trueCost, panelBeaterName, colors]);
+  }, [originalQuote, aiEstimate, trueCost, panelBeaterName, colors]);
 
   if (items.length === 0) return null;
 

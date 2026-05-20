@@ -914,46 +914,14 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                                     </td>
                                   );
                                 })}
-                                {/* KINGA Optimised cell */}
+                                {/* KINGA Optimised cell — cost + source label only, no benchmark clutter */}
                                 <td style={{ ...S.td, textAlign: "right", background: "#f8fafc", fontWeight: 600, borderLeft: "2px solid #1A2B4A" }}>
                                   {compRow ? (
                                     <>
                                       <span>{fmtC(compRow.selectedCostUsd ?? compRow.kingaOptimisedUsd ?? 0)}</span>
                                       <TierBadge tier={compRow.kingaOptimisedTier ?? "T4"} label={compRow.kingaOptimisedTierLabel ?? compRow.kingaOptimisedTier ?? "Quoted"} />
-                                      {(compRow.p25Usd ?? compRow.benchmarkP25Usd) != null && (compRow.p75Usd ?? compRow.benchmarkP75Usd) != null && (
-                                        <div style={{ fontSize: 9, color: "#64748b", fontWeight: 400, marginTop: 1 }}>
-                                          Range: {fmtC(compRow.p25Usd ?? compRow.benchmarkP25Usd)}–{fmtC(compRow.p75Usd ?? compRow.benchmarkP75Usd)}
-                                        </div>
-                                      )}
-                                      {(compRow.benchmarkVerdict === "ABOVE_MARKET" || compRow.verdict === "ABOVE_RANGE") && (
-                                        <div style={{ fontSize: 9, fontWeight: 700, color: "#dc2626", marginTop: 1 }}>⚠ Above range</div>
-                                      )}
-                                      {(compRow.benchmarkVerdict === "MARKET_RATE" || compRow.verdict === "IN_RANGE") && (
-                                        <div style={{ fontSize: 9, fontWeight: 600, color: "#15803d", marginTop: 1 }}>✓ In range</div>
-                                      )}
-                                      {(compRow.benchmarkVerdict === "BELOW_MARKET" || compRow.verdict === "BELOW_RANGE") && (
-                                        <div style={{ fontSize: 9, fontWeight: 600, color: "#2563eb", marginTop: 1 }}>↓ Below range</div>
-                                      )}
                                     </>
-                                  ) : (() => {
-                                    // Fallback: use perComponentBenchmarks median
-                                    const benchKey = Object.keys(perComponentBenchmarks).find(
-                                      (k) => k.toLowerCase() === desc.toLowerCase() || desc.toLowerCase().includes(k.toLowerCase())
-                                    );
-                                    const bench = benchKey ? perComponentBenchmarks[benchKey] : null;
-                                    const kingaVal = bench?.medianUsd ?? bench?.median_usd ?? null;
-                                    return kingaVal != null ? (
-                                      <>
-                                        <span>{fmtC(kingaVal)}</span>
-                                        <TierBadge tier="T2" label="Market Benchmark" />
-                                        {bench?.p25Usd != null && bench?.p75Usd != null && (
-                                          <div style={{ fontSize: 9, color: "#64748b", fontWeight: 400, marginTop: 1 }}>
-                                            Range: {fmtC(bench.p25Usd)}–{fmtC(bench.p75Usd)}
-                                          </div>
-                                        )}
-                                      </>
-                                    ) : <span style={{ color: "#94a3b8" }}>—</span>;
-                                  })()}
+                                  ) : <span style={{ color: "#94a3b8" }}>—</span>}
                                 </td>
                               </tr>
                             );

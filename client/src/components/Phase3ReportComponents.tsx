@@ -385,21 +385,12 @@ export function CostComparisonChart({ aiAssessment, enforcement, quotes }: CostC
   const repairerQuote: number | null = quotes.length > 0
     ? quotes.reduce((sum: number, q: any) => sum + (q.quotedAmount ?? 0) / 100, 0)
     : null;
-  const agreedCost: number | null = norm?.costs?.totalUsd ?? aiEstimate;
-
-  const maxVal = Math.max(aiEstimate ?? 0, repairerQuote ?? 0, agreedCost ?? 0) * 1.2 || 1000;
+  const maxVal = Math.max(aiEstimate ?? 0, repairerQuote ?? 0) * 1.2 || 1000;
 
   // Use semantic colours — these work in both light and dark mode
   const bars: Array<{ label: string; value: number | null; color: string }> = [
-    { label: "KINGA Estimate",    value: aiEstimate,    color: "var(--fp-info-text)" },
-    { label: "Repairer Quote", value: repairerQuote, color: "var(--fp-warning-text)" },
-    {
-      label: "Agreed Cost",
-      value: agreedCost,
-      color: aiEstimate && agreedCost && Math.abs(agreedCost - aiEstimate) / aiEstimate <= 0.10
-        ? "var(--fp-success-text)"
-        : "var(--fp-critical-text)",
-    },
+    { label: "KINGA Estimate",          value: aiEstimate,    color: "var(--fp-info-text)" },
+    { label: "Lowest Submitted Quote",  value: repairerQuote, color: "var(--fp-warning-text)" },
   ];
 
   function variance(a: number | null, b: number | null): string | null {
@@ -414,7 +405,7 @@ export function CostComparisonChart({ aiAssessment, enforcement, quotes }: CostC
       <div className="space-y-3">
         {bars.map(({ label, value, color }) => {
           const widthPct = value !== null ? Math.min((value / maxVal) * 100, 100) : 0;
-          const varStr = label === "Repairer Quote" ? variance(value, aiEstimate) : label === "Agreed Cost" ? variance(value, aiEstimate) : null;
+          const varStr = label === "Lowest Submitted Quote" ? variance(value, aiEstimate) : null;
           return (
             <div key={label}>
               <div className="flex items-center justify-between mb-1">

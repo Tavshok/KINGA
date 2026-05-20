@@ -892,8 +892,8 @@ export default function AssessmentResults() {
             {/* Cost Summary Cards */}
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="p-5">
-                <p className="text-sm text-muted-foreground mb-1">Agreed Cost</p>
-                <p className="text-2xl font-bold text-green-600">${(extractedData.agreedCost || extractedData.estimatedCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                <p className="text-sm text-muted-foreground mb-1">KINGA Estimate</p>
+                <p className="text-2xl font-bold text-green-600">${(extractedData.estimatedCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                 {extractedData.assessorName && <p className="text-xs text-muted-foreground/70 mt-1">By {extractedData.assessorName}</p>}
               </Card>
               {extractedData.originalQuote && extractedData.originalQuote > 0 && (
