@@ -38,8 +38,9 @@ import {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function toTitleCase(str: string): string {
-  return str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function toTitleCase(str: string | null | undefined): string {
+  if (str == null) return '';
+  return String(str).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function fmtDate(d: string): string {

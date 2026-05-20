@@ -113,14 +113,14 @@ function fmtUsd(n: number | null | undefined): string {
 
 /** Convert a string to Title Case (first letter of each word capitalised) */
 function toTitleCase(s: string | null | undefined): string {
-  if (!s) return '';
-  return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  if (s == null) return '';
+  return String(s).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 /** Sentence-case: first letter capitalised, rest lower */
 function toSentenceCase(s: string | null | undefined): string {
-  if (!s) return '';
-  const clean = s.replace(/_/g, ' ').toLowerCase();
+  if (s == null) return '';
+  const clean = String(s).replace(/_/g, ' ').toLowerCase();
   return clean.charAt(0).toUpperCase() + clean.slice(1);
 }
 
