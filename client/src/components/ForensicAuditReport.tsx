@@ -4710,7 +4710,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>3.1a Cost Decision Engine</p>
             {costReliability && (
-              <span className="text-xs font-semibold" style={{ color: "#64748b" }}>Reliability: {toTitleCase(costReliability)}</span>
+              <span className="text-xs font-semibold" style={{ color: "#64748b" }}>Reliability: {toTitleCase(typeof costReliability === 'string' ? costReliability : (costReliability as any)?.confidence_level ?? '')}</span>
             )}
           </div>
           <div className="p-4 space-y-3">
@@ -4739,7 +4739,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
               </table>
             )}
             {costNarrative && (
-              <p className="text-xs leading-relaxed" style={{ color: "#64748b" }}>{costNarrative}</p>
+              <p className="text-xs leading-relaxed" style={{ color: "#64748b" }}>{typeof costNarrative === 'string' ? costNarrative : (costNarrative as any)?.narrative ?? ''}</p>
             )}
             {reconciliationSummary && (
               <div className="space-y-2">
