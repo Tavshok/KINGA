@@ -554,37 +554,10 @@ Do NOT extract prices, line items, or any other data — only company names.`,
   // For each repairer, find their approximate position in the full text and extract
   // a targeted window (±8000 chars) around it. This ensures repairers on later pages
   // (e.g. Grand Auto Premier on page 5+) are not truncated by token limits.
-
-  // Resolve T/A trading names: "X T/A Y" → use Y (the trading name) as canonical
-  // Must be defined before findRepairerWindow and normName which both use it.
-  const resolveTradingName = (name: string): string => {
-    const taMatch = name.match(/^.+?\s+t\/?a\s+(.+)$/i);
-    return taMatch ? taMatch[1].trim() : name;
-  };
-
   const findRepairerWindow = (text: string, name: string, windowSize = 8000): string => {
-    const textLower = text.toLowerCase();
-    // Try exact match first
-    let idx = textLower.indexOf(name.toLowerCase());
-    // If not found, try T/A trading name
-    if (idx === -1) {
-      const tradingName = resolveTradingName(name);
-      if (tradingName !== name) idx = textLower.indexOf(tradingName.toLowerCase());
-    }
-    // If still not found, try each significant word (>3 chars) from the name
-    if (idx === -1) {
-      const words = name.toLowerCase().split(/\s+/).filter(w => w.length > 3 && !/^(auto|motors?|t\/a|pty|ltd|cc)$/.test(w));
-      for (const word of words) {
-        const wordIdx = textLower.indexOf(word);
-        if (wordIdx !== -1) { idx = wordIdx; break; }
-      }
-    }
-    if (idx === -1) {
-      // Last resort: scan the full document in chunks for any word from the name
-      // Return a broader window from the middle of the document to catch later pages
-      const mid = Math.floor(text.length / 2);
-      return text.slice(Math.max(0, mid - windowSize), Math.min(text.length, mid + windowSize));
-    }
+    const nameLower = name.toLowerCase();
+    const idx = text.toLowerCase().indexOf(nameLower);
+    if (idx === -1) return text.slice(0, windowSize * 2); // fallback: start of doc
     const start = Math.max(0, idx - 500); // small look-back for letterhead
     const end = Math.min(text.length, idx + windowSize);
     return text.slice(start, end);
@@ -622,39 +595,23 @@ Do NOT extract prices, line items, or any other data — only company names.`,
   }
 
   // Final deduplication: remove duplicate panel beaters using fuzzy name matching.
-  // Handles T/A trading names (e.g. "Kingfisher Auto Motors T/A Grand Auto Premier"
-  // and "Grand Auto Premier" are the same company).
   // The LLM may detect the same repairer under slightly different names (e.g.
   // "Cedric Jonker" and "Cedric Jonker Spraypaints"). Keep the version with more
   // priced line items; if equal, keep the one with the higher total_cost.
-
   const normName = (name: string): string =>
-    resolveTradingName(name)
-      .toLowerCase()
-      .replace(/\b(spraypaints?|spray\s*paint|auto|motors?|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|\(pty\)|\(cc\)|premier|kingfisher|\.)/gi, '')
+    name.toLowerCase()
+      .replace(/\b(spraypaints?|spray paint|auto|motors?|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|\(pty\)|\(cc\)|\.)/gi, '')
       .replace(/[^a-z0-9\s]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
-
   const fuzzyMatch = (a: string, b: string): boolean => {
-    // First check T/A alias: if either name contains T/A, compare both the
-    // registered name and the trading name against the other
-    const resolvedA = resolveTradingName(a);
-    const resolvedB = resolveTradingName(b);
     const na = normName(a);
     const nb = normName(b);
     if (!na || !nb) return false;
     if (na === nb) return true;
     if (na.startsWith(nb) || nb.startsWith(na)) return true;
-    // Check if the trading name of one matches the other
-    const nra = normName(resolvedA);
-    const nrb = normName(resolvedB);
-    if (nra === nrb) return true;
-    if (nra.startsWith(nrb) || nrb.startsWith(nra)) return true;
-    // Token overlap check
-    const ta = na.split(' ').filter(t => t.length > 2);
-    const tb = nb.split(' ').filter(t => t.length > 2);
-    if (ta.length === 0 || tb.length === 0) return false;
+    const ta = na.split(' ').filter(t => t.length > 1);
+    const tb = nb.split(' ').filter(t => t.length > 1);
     const overlap = ta.filter(t => tb.includes(t)).length;
     const minLen = Math.min(ta.length, tb.length);
     return minLen > 0 && overlap / minLen >= 0.6;

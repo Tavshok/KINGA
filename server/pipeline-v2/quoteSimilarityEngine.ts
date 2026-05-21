@@ -217,38 +217,6 @@ function coefficientOfVariation(values: number[]): number | null {
 // PAIR ANALYSIS
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Resolve T/A trading name: "X T/A Y" → Y
-function resolveTradingAlias(name: string): string {
-  const m = name.match(/^.+?\s+t\/?a\s+(.+)$/i);
-  return m ? m[1].trim() : name;
-}
-
-// Normalise a company name for alias comparison
-function normCompanyName(name: string): string {
-  return resolveTradingAlias(name)
-    .toLowerCase()
-    .replace(/\b(auto|motors?|spraypaints?|spray paint|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|premier|kingfisher|\.)\b/gi, '')
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// Returns true if two panel beater names refer to the same company
-// (handles T/A aliases, suffix variants, and token overlap)
-function isSameCompany(nameA: string, nameB: string): boolean {
-  const na = normCompanyName(nameA);
-  const nb = normCompanyName(nameB);
-  if (!na || !nb) return false;
-  if (na === nb) return true;
-  if (na.startsWith(nb) || nb.startsWith(na)) return true;
-  const ta = na.split(' ').filter(t => t.length > 2);
-  const tb = nb.split(' ').filter(t => t.length > 2);
-  if (ta.length === 0 || tb.length === 0) return false;
-  const overlap = ta.filter(t => tb.includes(t)).length;
-  const minLen = Math.min(ta.length, tb.length);
-  return minLen > 0 && overlap / minLen >= 0.6;
-}
-
 function analysePair(
   a: ExtractedQuote,
   aIdx: number,
@@ -257,22 +225,6 @@ function analysePair(
 ): QuotePairSimilarity {
   const nameA = a.panel_beater ?? `Quote ${aIdx + 1}`;
   const nameB = b.panel_beater ?? `Quote ${bIdx + 1}`;
-
-  // ── 0. Same-company guard ────────────────────────────────────────────────────
-  // If both quotes are from the same company (T/A alias variants), skip fraud
-  // detection — structural similarity is expected to be high.
-  if (isSameCompany(nameA, nameB)) {
-    return {
-      quoteA: nameA, quoteB: nameB,
-      structural: 1, sequence: 1, amount: 1, pricing: 0,
-      verdict: 'independent' as const,
-      confidence: 1,
-      flags: ['same_company_alias'],
-      componentsOnlyInA: [], componentsOnlyInB: [],
-      pricingOutliers: [],
-    };
-  }
-
 
   // ── 1. Structural fingerprint (Jaccard on component sets) ─────────────────
   const setA = new Set(a.components.map(normKey));
