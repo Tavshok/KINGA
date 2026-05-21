@@ -5,11 +5,11 @@
  * Renders the cross-repairer component cost table with a KINGA Optimised column.
  *
  * Design principles:
- *  - Clean, professional table — no visual noise in cells
- *  - KINGA Optimised column is visually distinct but not garish
- *  - Source attribution is a single subdued line below the amount
+ *  - table-fixed layout with explicit column widths — no overflow
+ *  - Panel beater names truncated to 3 words max
+ *  - KINGA Optimised split into two sub-columns: Cost | Comment
  *  - Alternating row shading for readability
- *  - Totals row is clearly separated
+ *  - Totals row clearly separated
  *  - Cost summary strip below the table (L1 / L2 / Savings)
  *  - Advisory flags (QND / DNQ) rendered below the summary strip
  */
@@ -70,6 +70,13 @@ const KINGA_BORDER = "2px solid #1A2B4A";
 const KINGA_BG = "#f0f4f8";
 const KINGA_COLOR = "#1A2B4A";
 
+/** Truncate a repairer name to at most 3 words */
+function truncateName(name: string, maxWords = 3): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length <= maxWords) return name.trim();
+  return words.slice(0, maxWords).join(" ");
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ComponentCostMatrix({
@@ -99,9 +106,17 @@ export function ComponentCostMatrix({
   const nfsBg   = nfs != null ? (nfs >= 70 ? "#dcfce7" : nfs >= 40 ? "#fef3c7" : "#fee2e2") : "#f1f5f9";
   const isSaving = savingsUsd != null && savingsUsd > 0;
 
-  // ── Table styles ─────────────────────────────────────────────────────────────
+  // ── Column width calculation ──────────────────────────────────────────────
+  // Fixed widths: Repair Item=180, Zone=60, Category=80 (optional)
+  // Each panel beater column: equal share of remaining space, min 90px
+  // KINGA Cost column: 90px, KINGA Comment column: 120px
+  const fixedColWidth = 180 + 60 + (showCategory ? 80 : 0);
+  const kingaWidth = 90 + 120; // cost + comment
+  const pbColWidth = Math.max(90, Math.floor((700 - fixedColWidth - kingaWidth) / Math.max(quotes.length, 1)));
+
+  // ── Table styles ─────────────────────────────────────────────────────────
   const th: React.CSSProperties = {
-    padding: "9px 12px",
+    padding: "9px 10px",
     fontSize: 10,
     fontWeight: 700,
     textTransform: "uppercase",
@@ -111,39 +126,60 @@ export function ComponentCostMatrix({
     borderBottom: "1px solid #e2e8f0",
     whiteSpace: "nowrap",
     textAlign: "left",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   };
   const thRight: React.CSSProperties = { ...th, textAlign: "right" };
-  const thKinga: React.CSSProperties = {
+  const thKingaCost: React.CSSProperties = {
     ...thRight,
     color: KINGA_COLOR,
     background: KINGA_BG,
     borderLeft: KINGA_BORDER,
-    minWidth: 130,
+    width: 90,
+  };
+  const thKingaComment: React.CSSProperties = {
+    ...th,
+    color: KINGA_COLOR,
+    background: KINGA_BG,
+    width: 120,
+    borderRight: "1px solid #e2e8f0",
   };
   const td: React.CSSProperties = {
-    padding: "8px 12px",
+    padding: "7px 10px",
     fontSize: 12,
     color: "#0f172a",
     borderBottom: "1px solid #f1f5f9",
     verticalAlign: "middle",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   };
   const tdRight: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };
-  const tdKinga: React.CSSProperties = {
+  const tdKingaCost: React.CSSProperties = {
     ...tdRight,
     fontWeight: 600,
     color: KINGA_COLOR,
     background: KINGA_BG,
     borderLeft: KINGA_BORDER,
   };
+  const tdKingaComment: React.CSSProperties = {
+    ...td,
+    fontSize: 10,
+    color: "#64748b",
+    background: KINGA_BG,
+    whiteSpace: "normal",
+    lineHeight: 1.3,
+    borderRight: "1px solid #e2e8f0",
+  };
   const tfTd: React.CSSProperties = {
-    padding: "10px 12px",
+    padding: "10px 10px",
     fontSize: 12,
     fontWeight: 700,
     color: "#0f172a",
     borderTop: "2px solid #cbd5e1",
     background: "#ffffff",
   };
-  const tfKinga: React.CSSProperties = {
+  const tfKingaCost: React.CSSProperties = {
     ...tfTd,
     textAlign: "right",
     fontVariantNumeric: "tabular-nums",
@@ -152,9 +188,14 @@ export function ComponentCostMatrix({
     background: KINGA_BG,
     borderLeft: KINGA_BORDER,
   };
+  const tfKingaComment: React.CSSProperties = {
+    ...tfTd,
+    background: KINGA_BG,
+    borderRight: "1px solid #e2e8f0",
+  };
 
   return (
-    <div style={{ fontFamily: "inherit" }}>
+    <div style={{ fontFamily: "inherit", width: "100%", overflowX: "hidden" }}>
 
       {/* ── Copy-quote alert ── */}
       {isCopyQuote && (
@@ -167,16 +208,29 @@ export function ComponentCostMatrix({
       )}
 
       {/* ── Matrix table ── */}
-      <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 16 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+      <div style={{ width: "100%", overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 16 }}>
+        <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", fontSize: 12 }}>
+          <colgroup>
+            <col style={{ width: 180 }} />
+            <col style={{ width: 60 }} />
+            {showCategory && <col style={{ width: 80 }} />}
+            {quotes.map((_, qi) => (
+              <col key={qi} style={{ width: pbColWidth }} />
+            ))}
+            {/* KINGA: cost col + comment col */}
+            <col style={{ width: 90 }} />
+            <col style={{ width: 120 }} />
+          </colgroup>
           <thead>
             <tr>
-              <th style={{ ...th, minWidth: 180 }}>Repair Item</th>
-              <th style={{ ...th, minWidth: 70 }}>Zone</th>
-              {showCategory && <th style={{ ...th, minWidth: 90 }}>Category</th>}
+              <th style={{ ...th, width: 180 }}>Repair Item</th>
+              <th style={{ ...th, width: 60 }}>Zone</th>
+              {showCategory && <th style={{ ...th, width: 80 }}>Category</th>}
               {quotes.map((q, qi) => (
-                <th key={qi} style={{ ...thRight, minWidth: 110 }}>
-                  <div>{q.name}</div>
+                <th key={qi} style={{ ...thRight, width: pbColWidth }}>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {truncateName(q.name)}
+                  </div>
                   {q.isFlagged && (
                     <div style={{ fontSize: 9, fontWeight: 700, color: "#92400e", marginTop: 1 }}>
                       ⚠ Similarity flagged
@@ -184,7 +238,8 @@ export function ComponentCostMatrix({
                   )}
                 </th>
               ))}
-              <th style={thKinga}>KINGA Optimised</th>
+              <th style={thKingaCost}>Cost</th>
+              <th style={thKingaComment}>Source / Comment</th>
             </tr>
           </thead>
           <tbody>
@@ -219,27 +274,17 @@ export function ComponentCostMatrix({
                       </td>
                     );
                   })}
-                  {/* KINGA Optimised cell */}
-                  <td style={tdKinga}>
-                    {row.kingaAmount != null ? (
-                      <>
-                        <span>{fmtMoney(row.kingaAmount)}</span>
-                        {row.kingaSource && (
-                          <span style={{
-                            display: "block",
-                            fontSize: 9,
-                            fontWeight: 500,
-                            color: "#64748b",
-                            marginTop: 1,
-                            letterSpacing: "0.02em",
-                          }}>
-                            {row.kingaSource}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span style={{ color: "#cbd5e1" }}>—</span>
-                    )}
+                  {/* KINGA Cost cell */}
+                  <td style={{ ...tdKingaCost, background: rowBg === "#fafafa" ? "#edf2f7" : KINGA_BG }}>
+                    {row.kingaAmount != null
+                      ? fmtMoney(row.kingaAmount)
+                      : <span style={{ color: "#cbd5e1" }}>—</span>}
+                  </td>
+                  {/* KINGA Comment cell */}
+                  <td style={{ ...tdKingaComment, background: rowBg === "#fafafa" ? "#edf2f7" : KINGA_BG }}>
+                    {row.kingaSource
+                      ? <span style={{ fontSize: 10, color: "#475569" }}>{truncateName(row.kingaSource, 3)}</span>
+                      : <span style={{ color: "#cbd5e1" }}>—</span>}
                   </td>
                 </tr>
               );
@@ -253,8 +298,15 @@ export function ComponentCostMatrix({
                   {fmtMoney(q.total)}
                 </td>
               ))}
-              <td style={tfKinga}>
+              <td style={tfKingaCost}>
                 {l2Total != null ? fmtMoney(l2Total) : "—"}
+              </td>
+              <td style={tfKingaComment}>
+                {l2Total != null && l1Total != null && l1Total > l2Total && (
+                  <span style={{ fontSize: 10, color: "#15803d", fontWeight: 600 }}>
+                    Best composite
+                  </span>
+                )}
               </td>
             </tr>
           </tfoot>
@@ -361,7 +413,13 @@ export function ComponentCostMatrix({
               <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 8px" }}>
                 The following components appear in submitted quotes but are not corroborated by the damage assessment. These items warrant verification before settlement.
               </p>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", fontSize: 11 }}>
+                <colgroup>
+                  <col style={{ width: "35%" }} />
+                  <col style={{ width: "25%" }} />
+                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "20%" }} />
+                </colgroup>
                 <thead>
                   <tr style={{ background: "#f8fafc" }}>
                     <th style={{ ...th, textAlign: "left" }}>Component</th>
@@ -374,7 +432,7 @@ export function ComponentCostMatrix({
                   {qndFlags.map((f, fi) => (
                     <tr key={fi}>
                       <td style={td}>{f.componentName ?? "—"}</td>
-                      <td style={td}>{f.repairerName ?? "—"}</td>
+                      <td style={td}>{f.repairerName ? truncateName(f.repairerName, 3) : "—"}</td>
                       <td style={{ ...tdRight }}>{f.quotedAmountUsd != null ? fmtMoney(f.quotedAmountUsd) : "—"}</td>
                       <td style={td}>
                         <span style={{ fontSize: 10, fontWeight: 700, background: "#fef3c7", color: "#92400e", borderRadius: 3, padding: "1px 5px" }}>
@@ -397,7 +455,13 @@ export function ComponentCostMatrix({
               <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 8px" }}>
                 The following components show evidence of damage in the assessment but have not been included in any submitted quote. These may represent supplementary repair requirements or hidden damage.
               </p>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", fontSize: 11 }}>
+                <colgroup>
+                  <col style={{ width: "40%" }} />
+                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "25%" }} />
+                  <col style={{ width: "15%" }} />
+                </colgroup>
                 <thead>
                   <tr style={{ background: "#f8fafc" }}>
                     <th style={{ ...th, textAlign: "left" }}>Component</th>

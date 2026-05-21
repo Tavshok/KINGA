@@ -497,6 +497,12 @@ A distinct quotation is identified by:
 Include ALL types of quotes: panel beater repair quotes, parts supplier quotes (e.g. Sarjazz, parts dealers), and assessor-adjusted quotes.
 Each distinct company = one entry.
 
+IMPORTANT — DO NOT confuse brand names or product names with company names:
+- Brand names on parts (e.g. "Speedo", "Toyota", "Isuzu", "Bosch", "NGK", "Monroe") are NOT companies — ignore them.
+- Only extract names that appear as a LETTERHEAD, TRADING NAME, or COMPANY HEADER at the top of a quote section.
+- A valid company name is typically followed by an address, phone number, VAT/registration number, or quote reference number.
+- If a name appears only in a parts description or line item, it is a brand name — do NOT include it.
+
 Return ONLY a JSON object with a single field "repairers" — an array of company name strings, one per distinct quote.
 If there is only one quote, return a single-element array.
 If you cannot identify any company names, return an empty array.
