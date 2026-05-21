@@ -226,6 +226,51 @@ function analysePair(
   const nameA = a.panel_beater ?? `Quote ${aIdx + 1}`;
   const nameB = b.panel_beater ?? `Quote ${bIdx + 1}`;
 
+  // ── 0. Same-company guard ────────────────────────────────────────────────────
+  // If both quotes are from the same company (T/A alias variants), skip fraud
+  // detection — structural similarity is expected to be high.
+  // Resolve "X T/A Y" → Y, strip common suffixes, then compare tokens.
+  const _normForAlias = (n: string): string => {
+    const ta = n.match(/^.+?\s+t\/?a\s+(.+)$/i);
+    const resolved = ta ? ta[1].trim() : n;
+    return resolved.toLowerCase()
+      .replace(/\b(auto|motors?|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|premier|kingfisher)\b/gi, '')
+      .replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  };
+  const _sameCompany = (() => {
+    const na = _normForAlias(nameA);
+    const nb = _normForAlias(nameB);
+    if (!na || !nb) return false;
+    if (na === nb) return true;
+    if (na.startsWith(nb) || nb.startsWith(na)) return true;
+    const ta = na.split(' ').filter((t: string) => t.length > 2);
+    const tb = nb.split(' ').filter((t: string) => t.length > 2);
+    if (ta.length === 0 || tb.length === 0) return false;
+    const overlap = ta.filter((t: string) => tb.includes(t)).length;
+    const minLen = Math.min(ta.length, tb.length);
+    return minLen > 0 && overlap / minLen >= 0.6;
+  })();
+  if (_sameCompany) {
+    return {
+      quote_a_index: aIdx,
+      quote_a_name: nameA,
+      quote_b_index: bIdx,
+      quote_b_name: nameB,
+      structural_similarity: 1,
+      sequence_similarity: null,
+      amount_similarity: null,
+      total_cost_near_identical: false,
+      labour_parts_ratio_similar: null,
+      components_only_in_a: [],
+      components_only_in_b: [],
+      amount_outlier_components: [],
+      verdict: 'independent' as const,
+      verdict_reason: `${nameA} and ${nameB} are the same company (T/A alias) — copy-fraud check skipped.`,
+      pair_risk_score: 0,
+    };
+  }
+
+
   // ── 1. Structural fingerprint (Jaccard on component sets) ─────────────────
   const setA = new Set(a.components.map(normKey));
   const setB = new Set(b.components.map(normKey));
