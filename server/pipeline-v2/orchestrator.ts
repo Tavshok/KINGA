@@ -777,8 +777,13 @@ export async function runPipelineV2(
         // Fuzzy panel beater name normaliser:
         // Strips common business suffixes and punctuation so that
         // "Cedric Jonker Spraypaints" and "Cedric Jonker" match as the same repairer.
+        // Resolve T/A aliases before normalising so "X T/A Y" and "Y" are treated as the same company.
+        const resolvePbTaAlias = (name: string): string => {
+          const m = name.match(/^.+?\s+t\/?a\s+(.+)$/i);
+          return m ? m[1].trim() : name;
+        };
         const normPb = (name: string): string =>
-          name.toLowerCase()
+          resolvePbTaAlias(name).toLowerCase()
             .replace(/\b(spraypaints?|spray paint|auto|motors?|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|\(pty\)|\(cc\)|\.)/gi, '')
             .replace(/[^a-z0-9\s]/g, '')
             .replace(/\s+/g, ' ')

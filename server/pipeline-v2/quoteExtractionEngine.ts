@@ -468,16 +468,27 @@ export async function extractMultipleQuotes(
   // names on later pages (e.g. Grand Auto Premier on page 5+) are always seen by the
   // detection LLM, regardless of document length.
   const buildDetectionSample = (text: string): string => {
-    const MAX_TOTAL = 20000;
+    // BUG FIX: Increased sampling to cover large multi-repairer documents.
+    // Previous: 20000 char cap with 4000+3×2000+4000 = 18000 chars sampled.
+    // Problem: a 3-repairer doc where each quote is ~9000 chars = 27000 chars total.
+    //   Grand Auto Premier starts at ~18000 — the old mid3 sample (at 75% of middle)
+    //   landed inside Swiss Motors' content, never reaching Grand Auto's letterhead.
+    // Fix: Use 8 evenly-spaced samples of 2000 chars + full head/tail.
+    //   This gives ~24000 chars of coverage spread across the full document,
+    //   ensuring every repairer letterhead is seen regardless of document length.
+    const MAX_TOTAL = 30000;
     if (text.length <= MAX_TOTAL) return text;
-    const head = text.slice(0, 4000);
-    const tail = text.slice(-4000);
-    const middle = text.slice(4000, text.length - 4000);
-    const step = Math.floor(middle.length / 4);
-    const mid1 = middle.slice(step, step + 2000);
-    const mid2 = middle.slice(step * 2, step * 2 + 2000);
-    const mid3 = middle.slice(step * 3, step * 3 + 2000);
-    return [head, '...', mid1, '...', mid2, '...', mid3, '...', tail].join('\n');
+    const head = text.slice(0, 5000);
+    const tail = text.slice(-5000);
+    const middle = text.slice(5000, text.length - 5000);
+    const numSamples = 8;
+    const sampleSize = 1500;
+    const samples: string[] = [];
+    for (let i = 0; i < numSamples; i++) {
+      const pos = Math.floor((middle.length / (numSamples + 1)) * (i + 1));
+      samples.push(middle.slice(pos, pos + sampleSize));
+    }
+    return [head, '...', ...samples.flatMap(s => [s, '...']), tail].join('\n');
   };
   const detectionSample = buildDetectionSample(rawText);
 
@@ -552,21 +563,38 @@ Do NOT extract prices, line items, or any other data — only company names.`,
 
   // Step 3: Multiple repairers detected — extract each one by name.
   // For each repairer, find their approximate position in the full text and extract
-  // a targeted window (±8000 chars) around it. This ensures repairers on later pages
-  // (e.g. Grand Auto Premier on page 5+) are not truncated by token limits.
-  const findRepairerWindow = (text: string, name: string, windowSize = 8000): string => {
+  // a targeted window from their letterhead to the start of the NEXT repairer.
+  // BUG FIX: The old fixed 8000-char window was too small for large quotes.
+  // A quote with 50+ line items can easily exceed 8000 chars, causing the LLM
+  // to see only the header + first few items, missing the total and later items.
+  // New approach: window runs from this repairer's position to the next repairer's
+  // position (or end of doc), capped at 20000 chars to stay within LLM context.
+  const findRepairerWindow = (text: string, name: string, allNames: string[], windowSize = 20000): string => {
+    const textLower = text.toLowerCase();
     const nameLower = name.toLowerCase();
-    const idx = text.toLowerCase().indexOf(nameLower);
-    if (idx === -1) return text.slice(0, windowSize * 2); // fallback: start of doc
+    const idx = textLower.indexOf(nameLower);
+    if (idx === -1) return text.slice(0, windowSize); // fallback: start of doc
     const start = Math.max(0, idx - 500); // small look-back for letterhead
-    const end = Math.min(text.length, idx + windowSize);
+    // Find the start of the next repairer to use as the natural boundary
+    let nextStart = text.length;
+    for (const otherName of allNames) {
+      if (otherName === name) continue;
+      const otherLower = otherName.toLowerCase();
+      // Find the first occurrence of the other repairer AFTER this one
+      let searchFrom = idx + nameLower.length;
+      let otherIdx = textLower.indexOf(otherLower, searchFrom);
+      if (otherIdx !== -1 && otherIdx < nextStart) {
+        nextStart = otherIdx;
+      }
+    }
+    const end = Math.min(text.length, start + windowSize, nextStart + 200); // +200 for overlap
     return text.slice(start, end);
   };
 
   const results: ExtractedQuote[] = [];
   for (const repairerName of detectedRepairers) {
     try {
-      const repairerWindow = findRepairerWindow(rawText, repairerName);
+      const repairerWindow = findRepairerWindow(rawText, repairerName, detectedRepairers);
       const result = await extractQuoteFromText(
         repairerWindow,
         `Extract ONLY the quote from "${repairerName}". This text is a targeted excerpt from the section of the document containing this repairer's quote.`,
@@ -598,8 +626,23 @@ Do NOT extract prices, line items, or any other data — only company names.`,
   // The LLM may detect the same repairer under slightly different names (e.g.
   // "Cedric Jonker" and "Cedric Jonker Spraypaints"). Keep the version with more
   // priced line items; if equal, keep the one with the higher total_cost.
+  //
+  // BUG FIX: T/A alias handling in normName.
+  // Problem: normName("Grand Auto Premier") = "grand premier"
+  //          normName("Kingfisher Auto Motors T/A Grand Auto Premier") = "kingfisher ta grand premier"
+  //   Tokens "grand" and "premier" appear in both → 2/2 = 100% overlap → MATCH → one dropped.
+  //   This caused the T/A form to be incorrectly deduplicated against the short form,
+  //   resulting in only one extraction for what should be two separate companies.
+  // Fix: Resolve T/A aliases BEFORE normalising. "X T/A Y" → use Y as the canonical name.
+  //   After resolution, "Grand Auto Premier" and "Kingfisher T/A Grand Auto Premier"
+  //   both resolve to "grand premier" → correctly identified as the SAME company → dedup.
+  //   But "Grand Auto Premier" and "Swiss Motors" resolve to different names → kept separate.
+  const resolveTaAlias = (name: string): string => {
+    const m = name.match(/^.+?\s+t\/?a\s+(.+)$/i);
+    return m ? m[1].trim() : name;
+  };
   const normName = (name: string): string =>
-    name.toLowerCase()
+    resolveTaAlias(name).toLowerCase()
       .replace(/\b(spraypaints?|spray paint|auto|motors?|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|\(pty\)|\(cc\)|\.)/gi, '')
       .replace(/[^a-z0-9\s]/g, '')
       .replace(/\s+/g, ' ')
