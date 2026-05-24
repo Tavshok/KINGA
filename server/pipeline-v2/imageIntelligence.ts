@@ -98,12 +98,12 @@ async function extractFeatures(url: string): Promise<ImageFeatures | null> {
       })
       .raw()
       .toBuffer();
-    const edgeSum = edgeBuffer.reduce((s, v) => s + v, 0);
+    const edgeSum = (edgeBuffer as Buffer).reduce((s: number, v: number) => s + v, 0);
     const edgeDensity = Math.min(edgeSum / (256 * 256 * 255), 1);
 
     // ── Blur score (variance of Laplacian — high variance = sharp image) ──────
     const edgeMean = edgeSum / edgeBuffer.length;
-    const edgeVariance = edgeBuffer.reduce((s, v) => s + Math.pow(v - edgeMean, 2), 0) / edgeBuffer.length;
+    const edgeVariance = (edgeBuffer as Buffer).reduce((s: number, v: number) => s + Math.pow(v - edgeMean, 2), 0) / edgeBuffer.length;
     // Normalise: typical sharp images have variance > 500; blurry < 100
     const blurScore = Math.min(edgeVariance / 1000, 1);
 
