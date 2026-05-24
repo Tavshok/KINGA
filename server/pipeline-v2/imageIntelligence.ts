@@ -263,8 +263,8 @@ async function computeThumbnailHash(url: string): Promise<string | null> {
     // Resize to 8×8 greyscale, get raw pixels → 64-bit hash string
     const sharp = await getSharp();
     const raw = await sharp(buffer).greyscale().resize(8, 8, { fit: "fill" }).raw().toBuffer();
-    const mean = raw.reduce((s, v) => s + v, 0) / raw.length;
-    return Array.from(raw).map(v => v >= mean ? "1" : "0").join("");
+    const mean = raw.reduce((s: number, v: number) => s + v, 0) / raw.length;
+    return Array.from(raw).map((v: number) => v >= mean ? "1" : "0").join("");
   } catch {
     return null;
   }
