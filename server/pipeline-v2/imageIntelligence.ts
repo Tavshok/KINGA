@@ -76,7 +76,7 @@ async function extractFeatures(url: string): Promise<ImageFeatures | null> {
     // ── Colour variance (std dev across RGB channels) ─────────────────────────
     // sharp.stats() returns per-channel mean/std. High std = colourful photo.
     const stats = await image.stats();
-    const channelStds = stats.channels.map(c => c.stdev);
+    const channelStds = stats.channels.map((c: { mean: number; stdev: number }) => c.stdev);
     // Average std across channels, normalised to 0–1 (max theoretical ~127)
     const colourVariance = Math.min(
       channelStds.reduce((s: number, v: number) => s + v, 0) / (channelStds.length * 127),
