@@ -79,12 +79,12 @@ async function extractFeatures(url: string): Promise<ImageFeatures | null> {
     const channelStds = stats.channels.map(c => c.stdev);
     // Average std across channels, normalised to 0–1 (max theoretical ~127)
     const colourVariance = Math.min(
-      channelStds.reduce((s, v) => s + v, 0) / (channelStds.length * 127),
+      channelStds.reduce((s: number, v: number) => s + v, 0) / (channelStds.length * 127),
       1
     );
 
     // ── Mean brightness ───────────────────────────────────────────────────────
-    const meanBrightness = stats.channels.reduce((s, c) => s + c.mean, 0) / stats.channels.length;
+    const meanBrightness = stats.channels.reduce((s: number, c: { mean: number; stdev: number }) => s + c.mean, 0) / stats.channels.length;
 
     // ── Edge density (Sobel-like: convert to greyscale, apply edge detection) ─
     // We use a Laplacian approximation via sharp's convolve kernel.
