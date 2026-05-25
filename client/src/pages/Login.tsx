@@ -80,7 +80,7 @@ export default function Login() {
                 You are currently logged in as <strong>{user.name || user.email}</strong>
                 <br />
                 <span className="text-sm text-muted-foreground">
-                  Role: {user.role === "admin" ? "Administrator" : user.role.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                  Role: {user.role === "admin" ? "Administrator" : user.role.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
                 </span>
               </AlertDescription>
             </Alert>

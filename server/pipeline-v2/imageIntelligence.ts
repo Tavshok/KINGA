@@ -76,15 +76,15 @@ async function extractFeatures(url: string): Promise<ImageFeatures | null> {
     // ── Colour variance (std dev across RGB channels) ─────────────────────────
     // sharp.stats() returns per-channel mean/std. High std = colourful photo.
     const stats = await image.stats();
-    const channelStds = stats.channels.map((c: { mean: number; stdev: number }) => c.stdev);
+    const channelStds = stats.channels.map(c => c.stdev);
     // Average std across channels, normalised to 0–1 (max theoretical ~127)
     const colourVariance = Math.min(
-      channelStds.reduce((s: number, v: number) => s + v, 0) / (channelStds.length * 127),
+      channelStds.reduce((s, v) => s + v, 0) / (channelStds.length * 127),
       1
     );
 
     // ── Mean brightness ───────────────────────────────────────────────────────
-    const meanBrightness = stats.channels.reduce((s: number, c: { mean: number; stdev: number }) => s + c.mean, 0) / stats.channels.length;
+    const meanBrightness = stats.channels.reduce((s, c) => s + c.mean, 0) / stats.channels.length;
 
     // ── Edge density (Sobel-like: convert to greyscale, apply edge detection) ─
     // We use a Laplacian approximation via sharp's convolve kernel.
@@ -98,12 +98,12 @@ async function extractFeatures(url: string): Promise<ImageFeatures | null> {
       })
       .raw()
       .toBuffer();
-    const edgeSum = (edgeBuffer as Buffer).reduce((s: number, v: number) => s + v, 0);
+    const edgeSum = edgeBuffer.reduce((s, v) => s + v, 0);
     const edgeDensity = Math.min(edgeSum / (256 * 256 * 255), 1);
 
     // ── Blur score (variance of Laplacian — high variance = sharp image) ──────
     const edgeMean = edgeSum / edgeBuffer.length;
-    const edgeVariance = (edgeBuffer as Buffer).reduce((s: number, v: number) => s + Math.pow(v - edgeMean, 2), 0) / edgeBuffer.length;
+    const edgeVariance = edgeBuffer.reduce((s, v) => s + Math.pow(v - edgeMean, 2), 0) / edgeBuffer.length;
     // Normalise: typical sharp images have variance > 500; blurry < 100
     const blurScore = Math.min(edgeVariance / 1000, 1);
 
@@ -263,8 +263,8 @@ async function computeThumbnailHash(url: string): Promise<string | null> {
     // Resize to 8×8 greyscale, get raw pixels → 64-bit hash string
     const sharp = await getSharp();
     const raw = await sharp(buffer).greyscale().resize(8, 8, { fit: "fill" }).raw().toBuffer();
-    const mean = (raw as Buffer).reduce((s: number, v: number) => s + v, 0) / raw.length;
-    return Array.from(raw as Buffer).map((v: number) => v >= mean ? "1" : "0").join("");
+    const mean = raw.reduce((s, v) => s + v, 0) / raw.length;
+    return Array.from(raw).map(v => v >= mean ? "1" : "0").join("");
   } catch {
     return null;
   }
