@@ -598,8 +598,16 @@ Do NOT extract prices, line items, or any other data — only company names.`,
   // The LLM may detect the same repairer under slightly different names (e.g.
   // "Cedric Jonker" and "Cedric Jonker Spraypaints"). Keep the version with more
   // priced line items; if equal, keep the one with the higher total_cost.
+  // Resolve "X T/A Y" or "X Trading As Y" → "Y" before normalising.
+  // This prevents "Kingfisher Auto Motors T/A Grand Auto Premier" and
+  // "Grand Auto Premier" from being treated as different companies.
+  const resolveTa = (name: string): string => {
+    const m = name.match(/\bT\/A\b|\btrading\s+as\b/i);
+    if (m && m.index !== undefined) return name.slice(m.index + m[0].length).trim();
+    return name;
+  };
   const normName = (name: string): string =>
-    name.toLowerCase()
+    resolveTa(name).toLowerCase()
       .replace(/\b(spraypaints?|spray paint|auto|motors?|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|\(pty\)|\(cc\)|\.)/gi, '')
       .replace(/[^a-z0-9\s]/g, '')
       .replace(/\s+/g, ' ')
