@@ -568,9 +568,10 @@ Do NOT extract prices, line items, or any other data — only company names.`,
     return text.slice(start, end);
   };
 
-  const results: ExtractedQuote[] = [];
-  for (const repairerName of detectedRepairers) {
-    try {
+  // Extract all repairers in parallel — each window is independent, so concurrent LLM calls
+  // cut Stage 3 time from ~30s (3 × 10s sequential) to ~10s (all at once).
+  const extractResults = await Promise.allSettled(
+    detectedRepairers.map(async (repairerName) => {
       const repairerWindow = findRepairerWindow(rawText, repairerName);
       const nameIdx = rawText.toLowerCase().indexOf(repairerName.toLowerCase());
       plog(`[QuoteExtraction] Repairer "${repairerName}": found at idx=${nameIdx}, window=${repairerWindow.length} chars`);
@@ -590,9 +591,16 @@ Do NOT extract prices, line items, or any other data — only company names.`,
         result.quote_type = isPartsSupplier ? 'parts_supplier' : 'repair';
       }
       plog(`[QuoteExtraction] Extracted "${repairerName}": panel_beater=${result.panel_beater}, total=${result.total_cost}, line_items=${result.line_items.length}`);
-      results.push(result);
-    } catch (extErr) {
-      plog(`[QuoteExtraction] Extraction failed for "${repairerName}": ${extErr}`);
+      return result;
+    })
+  );
+  const results: ExtractedQuote[] = [];
+  for (let i = 0; i < extractResults.length; i++) {
+    const r = extractResults[i];
+    if (r.status === 'fulfilled') {
+      results.push(r.value);
+    } else {
+      plog(`[QuoteExtraction] Extraction failed for "${detectedRepairers[i]}": ${r.reason}`);
     }
   }
 

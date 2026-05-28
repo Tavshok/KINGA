@@ -82,7 +82,7 @@ export interface ContractCheckResult {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TIMEOUT_LLM_MS = 60_000;        // 60 s for LLM stages (default)
-export const TIMEOUT_LLM_EXTRACTION_MS = 180_000; // 180 s for Stage 2/3 — large PDF extraction with up to 3 retries
+export const TIMEOUT_LLM_EXTRACTION_MS = 240_000; // 240 s for Stage 2/3 — parallel chunk extraction; 90s/chunk × 3 chunks + margin
 export const TIMEOUT_MULTI_LLM_MS = 180_000;  // 180 s for stages with 3+ sequential LLM calls (Stage 7 unified)
 export const TIMEOUT_VISION_MS = 200_000;     // 200 s for Stage 6 — vision processes up to PER_RUN_VISION_BUDGET photos sequentially (~8s each, budget=20)
 export const TIMEOUT_DETERMINISTIC_MS = 10_000; // 10 s for deterministic stages
