@@ -244,7 +244,12 @@ export async function runCostOptimisationStage(
     // compute a meaningful coverage ratio. Non-part cost rows (paint, sundries,
     // labour, VAT) are excluded from the component list because they are not
     // vehicle parts and should not affect structural coverage scoring.
-    const optimisationInputQuotes: InputQuote[] = (stage3?.inputRecovery?.extracted_quotes ?? []).map(q => {
+    // CRITICAL: Exclude parts_supplier quotes (e.g. Sarjazz) from the panel beater
+    // optimisation engine. Parts suppliers are not repairers — their quotes are used
+    // only for parts price benchmarking, not for L1/L2 composite optimisation.
+    const optimisationInputQuotes: InputQuote[] = (stage3?.inputRecovery?.extracted_quotes ?? [])
+      .filter((q: any) => (q.quote_type ?? 'repair') !== 'parts_supplier')
+      .map(q => {
       let components: string[] = q.components ?? [];
       if (components.length === 0 && Array.isArray((q as any).line_items)) {
         components = ((q as any).line_items as any[])
@@ -909,10 +914,17 @@ export async function runCostOptimisationStage(
               currency: visionResult.currency ?? 'USD',
               line_items: visionResult.line_items,
               components: visionResult.components ?? [],
+              labour_defined: visionResult.labour_defined ?? false,
+              parts_defined: visionResult.parts_defined ?? false,
+              labour_cost: visionResult.labour_cost ?? null,
+              parts_cost: visionResult.parts_cost ?? null,
+              confidence: visionResult.confidence ?? 'low',
+              extraction_warnings: visionResult.extraction_warnings ?? [],
               line_item_completeness_score: visionResult.line_item_completeness_score,
               line_items_sum: visionResult.line_items_sum,
               line_items_sum_discrepancy_pct: visionResult.line_items_sum_discrepancy_pct,
               rejected_line_items: visionResult.rejected_line_items ?? [],
+              quote_type: 'repair' as const,
               _vision_reextracted: true,
               _synthetic_from_vision: true,
             }];
@@ -1459,9 +1471,12 @@ export async function runCostOptimisationStage(
             };
           });
 
-          // L1 = lowest submitted quote total across all extracted quotes.
+          // L1 = lowest submitted quote total across panel beater quotes only.
+          // Parts supplier quotes (e.g. Sarjazz) are excluded — they are not repairers
+          // and their totals should not set the L1 baseline for the composite optimisation.
           // Use total_cost exactly as extracted (including VAT where applicable).
           const allSubmittedTotalsForL1 = allQuotes
+            .filter((q: any) => (q.quote_type ?? 'repair') !== 'parts_supplier')
             .map((q: any) => q.total_cost ?? 0)
             .filter((t: number) => t > 0);
           const l1TotalUsd = allSubmittedTotalsForL1.length > 0
@@ -1531,7 +1546,10 @@ export async function runCostOptimisationStage(
             // This is the headline KINGA value: what the insurer saves by using KINGA
             // to select the per-component lowest credible price instead of approving
             // the cheapest submitted quote as-is.
+            // CRITICAL: Exclude parts_supplier quotes (e.g. Sarjazz) from L1 — they are
+            // not panel beaters and their totals must not set the L1 baseline.
             const allSubmittedTotals = (stage3?.inputRecovery?.extracted_quotes ?? [])
+              .filter((q: any) => (q.quote_type ?? 'repair') !== 'parts_supplier')
               .map((q: any) => q.total_cost ?? 0)
               .filter((t: number) => t > 0);
             const lowestSubmittedUsd = allSubmittedTotals.length > 0
