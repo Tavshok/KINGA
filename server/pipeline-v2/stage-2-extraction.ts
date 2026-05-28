@@ -449,15 +449,15 @@ async function extractTextFromPdfChunked(
     for (let i = 0; i < pageImageUrls.length; i += CHUNK_SIZE) {
       chunks.push(pageImageUrls.slice(i, i + CHUNK_SIZE));
     }
-    ctx.log('Stage 2', `[chunked-images] ${chunks.length} chunk(s) to process sequentially`);
-
-    // Process chunks sequentially to avoid rate limits
-    const chunkResults: Array<{ rawText: string; tables: ExtractedTable[]; ocrConfidence: number }> = [];
-    for (let i = 0; i < chunks.length; i++) {
-      ctx.log('Stage 2', `[chunked-images] Processing chunk ${i + 1}/${chunks.length} (${chunks[i].length} pages)`);
-      const result = await extractChunk(chunks[i], i, ctx);
-      chunkResults.push(result);
-    }
+    // Process chunks in parallel — sequential processing caused Stage 2 to exceed its 180s budget
+    // on multi-repairer claims with 12+ pages (3 chunks × 90s each = 270s > 180s limit).
+    ctx.log('Stage 2', `[chunked-images] Processing ${chunks.length} chunk(s) in parallel`);
+    const chunkResults = await Promise.all(
+      chunks.map((chunk, i) => {
+        ctx.log('Stage 2', `[chunked-images] Starting chunk ${i + 1}/${chunks.length} (${chunk.length} pages)`);
+        return extractChunk(chunk, i, ctx);
+      })
+    );
 
     // Merge all chunk results
     const mergedRawText = chunkResults.map(r => r.rawText).join('\n\n--- PAGE BREAK ---\n\n');

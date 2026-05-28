@@ -30,6 +30,8 @@
  */
 
 import { invokeLLM } from "../_core/llm";
+import { appendFileSync } from "fs";
+const plog = (msg: string) => { try { appendFileSync('/tmp/kinga-pipeline-debug.log', `[${new Date().toISOString()}] ${msg}\n`); } catch {} };
 import { resolveComponent, isPlausiblePartName } from "../../shared/vehicleParts";
 import { getDefaultCurrencyForCountry } from "../../shared/countryCurrency";
 
@@ -481,6 +483,7 @@ export async function extractMultipleQuotes(
   };
   const detectionSample = buildDetectionSample(rawText);
 
+  plog(`[QuoteExtraction] allText length=${rawText.length} chars. Building detection sample...`);
   let detectedRepairers: string[] = [];
   try {
     const detectionResponse = await invokeLLM({
@@ -539,16 +542,18 @@ Do NOT extract prices, line items, or any other data — only company names.`,
       if (Array.isArray(parsed?.repairers) && parsed.repairers.length > 0) {
         detectedRepairers = parsed.repairers.map((r: unknown) => String(r).trim()).filter(Boolean);
       }
+      plog(`[QuoteExtraction] Detection LLM returned repairers: ${JSON.stringify(detectedRepairers)}`);
     }
-  } catch {
-    // Detection failed — fall back to single extraction
+  } catch (detErr) {
+    plog(`[QuoteExtraction] Detection LLM failed: ${detErr} — falling back to single extraction`);
   }
 
   if (detectedRepairers.length <= 1) {
-    // Only one repairer detected (or detection failed) — run standard extraction
+    plog(`[QuoteExtraction] Only ${detectedRepairers.length} repairer(s) detected — running single extraction`);
     const single = await extractQuoteFromText(rawText, contextHint, tenantCountry);
     return [single];
   }
+  plog(`[QuoteExtraction] ${detectedRepairers.length} repairers detected — extracting each: ${detectedRepairers.join(', ')}`);
 
   // Step 3: Multiple repairers detected — extract each one by name.
   // For each repairer, find their approximate position in the full text and extract
@@ -567,6 +572,8 @@ Do NOT extract prices, line items, or any other data — only company names.`,
   for (const repairerName of detectedRepairers) {
     try {
       const repairerWindow = findRepairerWindow(rawText, repairerName);
+      const nameIdx = rawText.toLowerCase().indexOf(repairerName.toLowerCase());
+      plog(`[QuoteExtraction] Repairer "${repairerName}": found at idx=${nameIdx}, window=${repairerWindow.length} chars`);
       const result = await extractQuoteFromText(
         repairerWindow,
         `Extract ONLY the quote from "${repairerName}". This text is a targeted excerpt from the section of the document containing this repairer's quote.`,
@@ -582,9 +589,10 @@ Do NOT extract prices, line items, or any other data — only company names.`,
         const isPartsSupplier = /sarjazz|parts|spares|accessories|auto parts|motor parts|spare parts|parts dealer|parts supply|parts world|parts centre|parts center|parts hub/.test(nameLower);
         result.quote_type = isPartsSupplier ? 'parts_supplier' : 'repair';
       }
+      plog(`[QuoteExtraction] Extracted "${repairerName}": panel_beater=${result.panel_beater}, total=${result.total_cost}, line_items=${result.line_items.length}`);
       results.push(result);
-    } catch {
-      // If extraction fails for one repairer, skip it
+    } catch (extErr) {
+      plog(`[QuoteExtraction] Extraction failed for "${repairerName}": ${extErr}`);
     }
   }
 
@@ -639,6 +647,7 @@ Do NOT extract prices, line items, or any other data — only company names.`,
     }
   }
 
+  plog(`[QuoteExtraction] Dedup complete: ${results.length} → ${deduped.length} quotes. Final: ${deduped.map(d => d.panel_beater).join(', ')}`);
   return deduped;
 }
 
