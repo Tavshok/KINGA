@@ -776,6 +776,43 @@ export interface CompositeQuoteResult {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PRICE VARIANCE HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Coefficient of variation (CV) = stddev / mean × 100.
+ * Returns null if fewer than 2 prices are provided.
+ * CV < 20% = low variance (prices are consistent)
+ * CV 20–40% = moderate variance
+ * CV > 40% = high variance (prices are inconsistent)
+ */
+function coefficientOfVariation(prices: number[]): number | null {
+  if (prices.length < 2) return null;
+  const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
+  if (mean === 0) return null;
+  const variance = prices.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / prices.length;
+  return Math.round((Math.sqrt(variance) / mean) * 100 * 10) / 10;
+}
+
+function buildVarianceSignal(
+  cv: number | null,
+  priceCount: number,
+  selectedFromSubmitted: boolean,
+  isBenchmarkFill: boolean
+): string {
+  if (priceCount === 0) return 'No submitted prices available — benchmark reference used.';
+  if (priceCount === 1) return 'Single submitted price — no cross-quote comparison available.';
+  if (cv === null) return 'Variance not calculable.';
+  if (isBenchmarkFill) {
+    if (cv <= 20) return `Submitted prices are consistent (CV ${cv}%) but failed the credibility gate — benchmark P50 used as reference.`;
+    return `Submitted prices show high variance (CV ${cv}%) — benchmark P50 used as credibility anchor.`;
+  }
+  if (cv <= 20) return `Submitted prices are consistent across repairers (CV ${cv}%) — lowest submitted price selected with high confidence.`;
+  if (cv <= 40) return `Moderate price variation across repairers (CV ${cv}%) — lowest credible submitted price selected.`;
+  return `High price variation across repairers (CV ${cv}%) — assessor review of scope alignment recommended.`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CREDIBILITY GATE
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -955,28 +992,66 @@ export function buildCompositeQuote(
         kingaOptimisedTier = 'T4';
         kingaOptimisedTierLabel = `Quoted · ${best.quote}`;
       }
-    } else if (p50 !== null) {
-      // All prices failed the gate — use benchmark P50 as fill
-      selectedCostUsd = p50;
-      selectedFromQuote = 'benchmark_fill';
-      isBenchmarkFill = true;
-      // Distinguish ML-backed (T1) vs statistical-only (T2) benchmark
-      // The bm object carries modelSource from the ML engine
-      const modelSource = (bm as any)?.modelSource ?? 'statistical';
-      if (modelSource === 'ml') {
-        kingaOptimisedTier = 'T1';
-        kingaOptimisedTierLabel = `ML Model · n=${(bm as any)?.sampleSize ?? '?'}`;
+    } else if (prices.length > 0) {
+      // All prices failed the credibility gate.
+      // Apply variance check: if submitted prices are internally consistent (CV ≤ 40%),
+      // the prices are likely real — use the lowest submitted price (T4) rather than
+      // substituting a benchmark that may be calibrated to a different market.
+      // Only fall back to the benchmark P50 when prices are wildly inconsistent (CV > 40%)
+      // or when there is only one price that failed (no cross-quote validation possible).
+      const rawValues = prices.map(p => p.costUsd);
+      const mean = rawValues.reduce((a, b) => a + b, 0) / rawValues.length;
+      const cv = mean > 0
+        ? Math.sqrt(rawValues.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / rawValues.length) / mean * 100
+        : Infinity;
+
+      const useSubmitted = prices.length >= 2 ? cv <= 40 : false;
+
+      if (useSubmitted) {
+        // Prices are consistent — lowest submitted price wins
+        const lowestRaw = prices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b);
+        selectedCostUsd = lowestRaw.costUsd;
+        selectedFromQuote = lowestRaw.quote;
+        kingaOptimisedTier = prices.length > 1 ? 'T3' : 'T4';
+        kingaOptimisedTierLabel = prices.length > 1
+          ? `Best Quote · ${lowestRaw.quote}`
+          : `Quoted · ${lowestRaw.quote}`;
+      } else if (p50 !== null) {
+        // Prices are inconsistent or single — use benchmark P50 as credibility anchor
+        selectedCostUsd = p50;
+        selectedFromQuote = 'benchmark_fill';
+        isBenchmarkFill = true;
+        const modelSource = (bm as any)?.modelSource ?? 'statistical';
+        if (modelSource === 'ml') {
+          kingaOptimisedTier = 'T1';
+          kingaOptimisedTierLabel = `ML Model · n=${(bm as any)?.sampleSize ?? '?'}`;
+        } else {
+          kingaOptimisedTier = 'T2';
+          kingaOptimisedTierLabel = `Market Benchmark · n=${(bm as any)?.sampleSize ?? '?'}`;
+        }
       } else {
-        kingaOptimisedTier = 'T2';
-        kingaOptimisedTierLabel = `Market Benchmark · n=${(bm as any)?.sampleSize ?? '?'}`;
+        // No benchmark either — use lowest raw price
+        const lowestRaw = prices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b);
+        selectedCostUsd = lowestRaw.costUsd;
+        selectedFromQuote = lowestRaw.quote;
+        kingaOptimisedTier = 'T4';
+        kingaOptimisedTierLabel = `Quoted · ${lowestRaw.quote}`;
       }
     } else {
-      // No benchmark data either — use lowest raw price (T4 fallback)
-      const lowestRaw = prices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b);
-      selectedCostUsd = lowestRaw.costUsd;
-      selectedFromQuote = lowestRaw.quote;
-      kingaOptimisedTier = 'T4';
-      kingaOptimisedTierLabel = `Quoted · ${lowestRaw.quote}`;
+      // No submitted prices at all — use benchmark P50 if available
+      if (p50 !== null) {
+        selectedCostUsd = p50;
+        selectedFromQuote = 'benchmark_fill';
+        isBenchmarkFill = true;
+        const modelSource = (bm as any)?.modelSource ?? 'statistical';
+        kingaOptimisedTier = modelSource === 'ml' ? 'T1' : 'T2';
+        kingaOptimisedTierLabel = modelSource === 'ml'
+          ? `ML Model · n=${(bm as any)?.sampleSize ?? '?'}`
+          : `Market Benchmark · n=${(bm as any)?.sampleSize ?? '?'}`;
+      } else {
+        // Nothing available — skip this component
+        continue;
+      }
     }
 
     compositePartsUsd += selectedCostUsd;

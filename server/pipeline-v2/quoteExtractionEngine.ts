@@ -31,7 +31,7 @@
 
 import { invokeLLM } from "../_core/llm";
 import { appendFileSync } from "fs";
-const plog = (msg: string) => { try { appendFileSync('/tmp/kinga-pipeline-debug.log', `[${new Date().toISOString()}] ${msg}\n`); } catch {} };
+const plog = (msg: string) => { try { appendFileSync('/home/ubuntu/kinga-replit/pipeline-debug.log', `[${new Date().toISOString()}] ${msg}\n`); } catch(e) { console.log('[plog error]', e); } };
 import { resolveComponent, isPlausiblePartName } from "../../shared/vehicleParts";
 import { getDefaultCurrencyForCountry } from "../../shared/countryCurrency";
 
@@ -465,21 +465,22 @@ export async function extractMultipleQuotes(
   // This handles the common case where a claim PDF contains 2-3 panel beater quotes
   // as separate pages but the OCR text has no structural separators between them.
   //
-  // Strategy: sample the FULL document in chunks — first 4000 chars, last 4000 chars,
-  // and up to 3 evenly-spaced middle samples of 2000 chars each. This ensures company
-  // names on later pages (e.g. Grand Auto Premier on page 5+) are always seen by the
-  // detection LLM, regardless of document length.
+  // Strategy: divide the document into equal contiguous windows and take the first
+  // WINDOW_CHARS chars of each window. This guarantees NO gaps — every part of the
+  // document is represented. The previous sparse-sampling approach created a gap
+  // between head (0–4000) and mid1 (~6000+) that swallowed Cedric Jonker at char 5227.
   const buildDetectionSample = (text: string): string => {
-    const MAX_TOTAL = 20000;
+    const MAX_TOTAL = 24000; // total budget sent to detection LLM
     if (text.length <= MAX_TOTAL) return text;
-    const head = text.slice(0, 4000);
-    const tail = text.slice(-4000);
-    const middle = text.slice(4000, text.length - 4000);
-    const step = Math.floor(middle.length / 4);
-    const mid1 = middle.slice(step, step + 2000);
-    const mid2 = middle.slice(step * 2, step * 2 + 2000);
-    const mid3 = middle.slice(step * 3, step * 3 + 2000);
-    return [head, '...', mid1, '...', mid2, '...', mid3, '...', tail].join('\n');
+    const WINDOW_CHARS = 3000; // chars taken from each window
+    const NUM_WINDOWS = Math.floor(MAX_TOTAL / WINDOW_CHARS); // 8 windows
+    const windowSize = Math.floor(text.length / NUM_WINDOWS);
+    const parts: string[] = [];
+    for (let i = 0; i < NUM_WINDOWS; i++) {
+      const start = i * windowSize;
+      parts.push(text.slice(start, start + WINDOW_CHARS));
+    }
+    return parts.join('\n...');
   };
   const detectionSample = buildDetectionSample(rawText);
 
@@ -556,15 +557,25 @@ Do NOT extract prices, line items, or any other data — only company names.`,
   plog(`[QuoteExtraction] ${detectedRepairers.length} repairers detected — extracting each: ${detectedRepairers.join(', ')}`);
 
   // Step 3: Multiple repairers detected — extract each one by name.
-  // For each repairer, find their approximate position in the full text and extract
-  // a targeted window (±8000 chars) around it. This ensures repairers on later pages
-  // (e.g. Grand Auto Premier on page 5+) are not truncated by token limits.
-  const findRepairerWindow = (text: string, name: string, windowSize = 8000): string => {
-    const nameLower = name.toLowerCase();
-    const idx = text.toLowerCase().indexOf(nameLower);
-    if (idx === -1) return text.slice(0, windowSize * 2); // fallback: start of doc
-    const start = Math.max(0, idx - 500); // small look-back for letterhead
-    const end = Math.min(text.length, idx + windowSize);
+  // For each repairer, find their section using the NEXT repairer's position as the
+  // natural end boundary. This guarantees the full quote is included regardless of
+  // length — a fixed window (e.g. 8000 chars) truncates large MIAZ-format quotes
+  // with 20+ line items, causing the LLM to extract 0 line items.
+  //
+  // Sort repairers by their position in the text so we can use adjacent positions.
+  const repairerPositions: Array<{ name: string; idx: number }> = detectedRepairers.map(name => {
+    const idx = rawText.toLowerCase().indexOf(name.toLowerCase());
+    return { name, idx: idx === -1 ? 0 : idx };
+  }).sort((a, b) => a.idx - b.idx);
+
+  const findRepairerWindow = (text: string, name: string): string => {
+    const pos = repairerPositions.find(p => p.name === name);
+    if (!pos) return text.slice(0, 20000);
+    const start = Math.max(0, pos.idx - 500); // small look-back for letterhead
+    // End = start of the NEXT repairer (natural boundary), capped at 25000 chars
+    const nextPos = repairerPositions.find(p => p.idx > pos.idx);
+    const naturalEnd = nextPos ? nextPos.idx : text.length;
+    const end = Math.min(text.length, naturalEnd, pos.idx + 25000);
     return text.slice(start, end);
   };
 
