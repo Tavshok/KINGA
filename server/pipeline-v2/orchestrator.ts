@@ -784,6 +784,13 @@ export async function runPipelineV2(
           if (m && m.index !== undefined) return name.slice(m.index + m[0].length).trim();
           return name;
         };
+        // Returns raw T/A suffix for prefix matching (handles LLM truncation of trading name).
+        const getPbTaSuffix = (name: string): string | null => {
+          const m = name.match(/\bT\/A\b|\btrading\s+as\b/i);
+          if (m && m.index !== undefined)
+            return name.slice(m.index + m[0].length).trim().toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+          return null;
+        };
         const normPb = (name: string): string =>
           resolvePbTa(name).toLowerCase()
             .replace(/\b(spraypaints?|spray paint|auto|motors?|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|\(pty\)|\(cc\)|\.)/gi, '')
@@ -803,7 +810,15 @@ export async function runPipelineV2(
           const tb = nb.split(' ').filter(t => t.length > 1);
           const overlap = ta.filter(t => tb.includes(t)).length;
           const minLen = Math.min(ta.length, tb.length);
-          return minLen > 0 && overlap / minLen >= 0.6;
+          if (minLen > 0 && overlap / minLen >= 0.6) return true;
+          // T/A suffix prefix check — handles LLM truncation of the trading name.
+          const suffixA = getPbTaSuffix(a);
+          const suffixB = getPbTaSuffix(b);
+          const plainB = b.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+          const plainA = a.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+          if (suffixA && (plainB.startsWith(suffixA) || suffixA.startsWith(plainB.split(' ').slice(0, 2).join(' ')))) return true;
+          if (suffixB && (plainA.startsWith(suffixB) || suffixB.startsWith(plainA.split(' ').slice(0, 2).join(' ')))) return true;
+          return false;
         };
 
         let mergedCount = 0;

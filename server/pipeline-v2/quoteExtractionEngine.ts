@@ -633,6 +633,14 @@ Do NOT extract prices, line items, or any other data — only company names.`,
     if (m && m.index !== undefined) return name.slice(m.index + m[0].length).trim();
     return name;
   };
+  // Returns the raw T/A suffix (after "T/A" or "Trading As") without stripping stop-words,
+  // so we can do prefix matching even when the LLM truncated the trading name.
+  const getTaSuffix = (name: string): string | null => {
+    const m = name.match(/\bT\/A\b|\btrading\s+as\b/i);
+    if (m && m.index !== undefined)
+      return name.slice(m.index + m[0].length).trim().toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    return null;
+  };
   const normName = (name: string): string =>
     resolveTa(name).toLowerCase()
       .replace(/\b(spraypaints?|spray paint|auto|motors?|panel|beaters?|body|works?|repairs?|services?|cc|pty|ltd|\(pty\)|\(cc\)|\.)/gi, '')
@@ -649,7 +657,19 @@ Do NOT extract prices, line items, or any other data — only company names.`,
     const tb = nb.split(' ').filter(t => t.length > 1);
     const overlap = ta.filter(t => tb.includes(t)).length;
     const minLen = Math.min(ta.length, tb.length);
-    return minLen > 0 && overlap / minLen >= 0.6;
+    if (minLen > 0 && overlap / minLen >= 0.6) return true;
+    // T/A suffix prefix check — handles LLM truncation of the trading name.
+    // e.g. LLM extracts "KINGFISHER T/A GRAND AUT" (truncated) instead of
+    // "KINGFISHER T/A GRAND AUTO PREMIER". The suffix "grand aut" is a prefix
+    // of the plain name "grand auto premier", so we correctly identify them as
+    // the same company even when the T/A suffix was cut short.
+    const suffixA = getTaSuffix(a);
+    const suffixB = getTaSuffix(b);
+    const plainB = b.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    const plainA = a.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    if (suffixA && (plainB.startsWith(suffixA) || suffixA.startsWith(plainB.split(' ').slice(0, 2).join(' ')))) return true;
+    if (suffixB && (plainA.startsWith(suffixB) || suffixB.startsWith(plainA.split(' ').slice(0, 2).join(' ')))) return true;
+    return false;
   };
   const deduped: ExtractedQuote[] = [];
   for (const r of results) {
