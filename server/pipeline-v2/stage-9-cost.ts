@@ -1431,10 +1431,55 @@ export async function runCostOptimisationStage(
             }
           }
 
+          // ── Parts supplier benchmark injection ────────────────────────────────
+          // Parts supplier quotes (e.g. Sarjazz) are NOT panel beaters and must never
+          // appear as repairer columns or in any output. However, their per-component
+          // prices are valuable market reference data and should silently enrich the
+          // benchmarkMap so the credibility gate uses the most accurate price bands.
+          //
+          // Strategy: for each component a parts supplier quotes, inject its price as
+          // an additional data point:
+          //   - If a benchmark entry already exists: tighten p25Usd downward (min of
+          //     existing p25 and supplier price) to reflect real-world parts cost floor.
+          //   - If no benchmark entry exists: create one using the supplier price as
+          //     both p25 and p75 (single data point, conservative range).
+          const supplierQuotes = allQuotes.filter((q: any) => q.quote_type === 'parts_supplier');
+          for (const sq of supplierQuotes) {
+            for (const li of ((sq as any).line_items ?? [])) {
+              if (li.is_non_part_cost) continue; // skip labour/paint/VAT rows
+              const compRaw: string = (li.component ?? li.description ?? '').trim();
+              if (!compRaw) continue;
+              const costUsd: number = li.line_total ?? li.unit_cost ?? 0;
+              if (costUsd <= 0) continue;
+              // Try to match against existing benchmark keys (exact or partial)
+              const existingKey = Object.keys(benchmarkMap).find(k =>
+                k.toLowerCase().includes(compRaw.toLowerCase()) ||
+                compRaw.toLowerCase().includes(k.toLowerCase())
+              ) ?? compRaw;
+              const existing = benchmarkMap[existingKey];
+              if (existing) {
+                // Tighten the lower bound: supplier price is a real parts cost floor
+                benchmarkMap[existingKey] = {
+                  ...existing,
+                  p25Usd: existing.p25Usd !== null ? Math.min(existing.p25Usd, costUsd) : costUsd,
+                  // Do not raise p75 — supplier prices are parts-only (no fitment/labour)
+                };
+              } else {
+                // No existing benchmark: create a supplier-only reference entry
+                benchmarkMap[compRaw] = {
+                  p25Usd: costUsd,
+                  p50Usd: costUsd,
+                  p75Usd: costUsd * 1.25, // allow 25% fitment premium above parts cost
+                  sampleSize: 1,
+                };
+              }
+            }
+          }
+
           // Build InputQuoteWithLineItems[] from all extracted quotes.
           // Exclude parts_supplier quotes (e.g. Sarjazz) from the composite matrix —
           // they are parts-only dealers, not panel beaters, and should not appear as
-          // repairer columns. Their prices are used for L1 comparison only.
+          // repairer columns.
           const repairQuotes = allQuotes.filter((q: any) => q.quote_type !== 'parts_supplier');
           const compositeInputQuotes: InputQuoteWithLineItems[] = repairQuotes.map((q: any) => {
             // CRITICAL: exclude is_non_part_cost rows (labour, paint, VAT) from lineItems.

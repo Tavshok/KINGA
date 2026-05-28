@@ -106,3 +106,4 @@ temp/
 *.sqlite
 *.sqlite3
 .github/workflows/
+.project-config.json
