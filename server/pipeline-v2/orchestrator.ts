@@ -399,6 +399,13 @@ export async function runPipelineV2(
     ctx.onStageStart?.("Stage 2 — Extracting");
     const s2 = await runWithTimeout("2_extraction", () => runExtractionStage(ctx, stage1Data!)).catch((err) => {
       const isTimeout = err instanceof StageTimeoutError;
+      // Quota exhaustion is a transient infrastructure failure — re-throw so the
+      // pipeline orchestrator's outer catch stores it as a retriable error and
+      // preserves the existing complete assessment data instead of overwriting it.
+      const errMsg = String(err);
+      if (!isTimeout && (errMsg.includes('quota exhausted') || errMsg.includes('usage exhausted') || errMsg.includes('412') || errMsg.includes('Precondition Failed'))) {
+        throw err;
+      }
       const reason = isTimeout
         ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
         : `engine_failure: ${String(err)}`;

@@ -979,7 +979,14 @@ export async function runExtractionStage(
         };
 
       } catch (docErr) {
-        ctx.log("Stage 2", `[doc ${doc.documentIndex}] Failed to extract: ${String(docErr)} — skipping`);
+        const errMsg = String(docErr);
+        // Quota exhaustion is a transient infrastructure error — re-throw immediately
+        // so the pipeline halts with a retriable error rather than silently producing
+        // empty text and degrading all downstream stages.
+        if (errMsg.includes('usage exhausted') || errMsg.includes('412') || errMsg.includes('Precondition Failed')) {
+          throw new Error(`LLM quota exhausted during Stage 2 extraction (doc ${doc.documentIndex}): ${errMsg}. Re-trigger when quota resets.`);
+        }
+        ctx.log("Stage 2", `[doc ${doc.documentIndex}] Failed to extract: ${errMsg} — skipping`);
         return {
           extracted: { documentIndex: doc.documentIndex, rawText: "", tables: [], ocrApplied: false, ocrConfidence: 0 },
           docAssumptions: [],
@@ -987,7 +994,7 @@ export async function runExtractionStage(
             target: `document_${doc.documentIndex}`,
             strategy: "partial_data",
             success: true,
-            description: `Extraction failed for ${doc.fileName}: ${String(docErr)}. Skipping this document and continuing.`,
+            description: `Extraction failed for ${doc.fileName}: ${errMsg}. Skipping this document and continuing.`,
           }],
           docDegraded: true,
         };
@@ -1024,7 +1031,14 @@ export async function runExtractionStage(
     };
 
   } catch (err) {
-    ctx.log("Stage 2", `Text extraction failed completely: ${String(err)} — producing empty output`);
+    const errMsg = String(err);
+    // Quota exhaustion must propagate — do not swallow it as empty output.
+    // The pipeline orchestrator will catch this and store it as a retriable failure,
+    // preserving the existing complete assessment data.
+    if (errMsg.includes('quota exhausted') || errMsg.includes('usage exhausted') || errMsg.includes('412') || errMsg.includes('Precondition Failed')) {
+      throw err;
+    }
+    ctx.log("Stage 2", `Text extraction failed completely: ${errMsg} — producing empty output`);
     return {
       status: "degraded",
       data: {
