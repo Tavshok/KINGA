@@ -198,9 +198,11 @@ const SYNONYM_MAP: Record<string, string> = {
   "quarter panel": "rear quarter panel",
   "rear fender": "rear quarter panel",
   "front bumper": "front bumper assembly",
-  "bumper cover": "front bumper assembly",
-  "bumper bar": "front bumper assembly",
   "f/bar": "front bumper assembly",
+  "bumper cover": "bumper cover",          // distinct from full assembly
+  "bumper bar": "front bumper assembly",
+  "bumper bracket": "bumper bracket",       // mounting bracket, not the assembly
+  "bumper absorber": "bumper absorber",     // energy absorber foam, not the assembly
   "rear bumper": "rear bumper assembly",
   "b/bar": "rear bumper assembly",
   "back bumper": "rear bumper assembly",

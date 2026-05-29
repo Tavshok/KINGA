@@ -1055,7 +1055,12 @@ export async function runCostOptimisationStage(
     //   - Whether the sum of line items matches the quote total
     //   - A completeness score (0-100)
     // ─────────────────────────────────────────────────────────────────────────
-    const quoteLineItemGapAdvisory = allExtractedQuotes.map((eq: any, qi: number) => {
+    // Exclude parts suppliers from the gap advisory — they are not panel beaters
+    // and should not be persisted as panel_beater_quotes rows.
+    const panelBeaterExtractedQuotes = allExtractedQuotes.filter((eq: any) =>
+      (eq.quote_type ?? 'repair') !== 'parts_supplier'
+    );
+    const quoteLineItemGapAdvisory = panelBeaterExtractedQuotes.map((eq: any, qi: number) => {
       const lineItems: any[] = eq.line_items ?? [];
       const pricedItems = lineItems.filter((li: any) => typeof li.line_total === 'number' && li.line_total > 0);
       const unpricedItems = lineItems.filter((li: any) => !(typeof li.line_total === 'number' && li.line_total > 0));

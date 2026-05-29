@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { eq, and, or, desc, inArray, sql, like } from "drizzle-orm";
+import { eq, and, or, desc, inArray, notInArray, sql, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import * as schema from "../drizzle/schema";
@@ -591,16 +591,13 @@ export async function triggerAiAssessment(claimId: number) {
   const claim = await getClaimById(claimId);
   if (!claim) throw new Error("Claim not found");
 
-  // CLEAN SLATE: Delete all existing aiAssessments records for this claim before
-  // running the pipeline. This ensures the report always reflects the latest run.
-  // Without this, stale records accumulate and byClaim may return an old result
-  // if the new pipeline run fails partway through.
-  try {
-    const deletedCount = await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId));
-    console.log(`[KINGA Assessment] Claim ${claimId}: Deleted existing aiAssessments records before re-run.`);
-  } catch (deleteErr) {
-    console.warn(`[KINGA Assessment] Claim ${claimId}: Could not delete existing aiAssessments (non-fatal):`, deleteErr);
-  }
+  // SAFE REPLACE: Do NOT delete the existing ai_assessments record upfront.
+  // The success-path at the end of this function deletes the old record just before
+  // inserting the new one (line ~1313). This means if the pipeline degrades before
+  // completing, the old assessment (with its enrichedPhotosJson, damagePhotosJson,
+  // costIntelligenceJson, quotes etc.) is still intact and the reports can still render.
+  // Previously, deleting upfront caused both the financial and photo sections of the
+  // Forensic Report to show empty when a re-run degraded.
 
   // Mark assessment as triggered and transition to 'parsing'.
   // Also reset aiAssessmentCompleted to 0 so the frontend polling knows to wait.
@@ -1608,6 +1605,10 @@ export async function triggerAiAssessment(claimId: number) {
       lineItemsByQuoteIndex.get(idx)!.push(li);
     }
 
+    // NOTE: Stale quote deletion has been moved to AFTER successful insertion below.
+    // This prevents data loss when a pipeline re-run degrades before writing new quotes.
+    // The delete only runs once at least one new quote has been successfully persisted.
+
     // Determine which quotes to persist.
     // If quoteLineItemGapAdvisory has entries, use it as the authoritative quote list
     // (it covers all extracted quotes). Otherwise fall back to single-quote path.
@@ -1711,6 +1712,29 @@ export async function triggerAiAssessment(claimId: number) {
             console.log(`[KINGA Assessment] Claim ${claimId}: OK Quote[${qi}] "${qp.repairerName}" persisted id=${qid}, ${pricedCount}/${qp.lineItems.length} priced items, total=${totalFromItems.toFixed(2)} ${qp.currency}`);
           } else {
             console.warn(`[KINGA Assessment] Claim ${claimId}: FAIL Quote[${qi}] "${qp.repairerName}" persistence FAILED - check persistExtractedQuote logs`);
+          }
+        }
+        // ── DELETE STALE PIPELINE-EXTRACTED QUOTES (safe replace) ──────────────
+        // Only delete old pipeline-extracted quotes AFTER at least one new quote
+        // was successfully written. This prevents data loss on degraded re-runs.
+        if (firstQid) {
+          try {
+            const db0 = await getDb();
+            if (db0) {
+              // Delete all OLD pipeline-extracted quotes except the ones just inserted
+              const newQids = qids.filter((id): id is number => id != null);
+              if (newQids.length > 0) {
+                await db0.delete(panelBeaterQuotes)
+                  .where(and(
+                    eq(panelBeaterQuotes.claimId, claimId),
+                    like(panelBeaterQuotes.notes, '%pipeline_extracted%'),
+                    notInArray(panelBeaterQuotes.id, newQids)
+                  ));
+                console.log(`[KINGA Assessment] Claim ${claimId}: Deleted stale pipeline-extracted quotes (kept new ids: ${newQids.join(',')})`);
+              }
+            }
+          } catch (delErr) {
+            console.warn(`[KINGA Assessment] Claim ${claimId}: Could not delete stale quotes (non-fatal):`, delErr);
           }
         }
         if (firstQid) {
