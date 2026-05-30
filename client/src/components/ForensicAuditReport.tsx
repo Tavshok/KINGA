@@ -1372,14 +1372,14 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                   return 'Not stated';
                 })()],
                 ["Incident date", fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)],
-                ["Incident time", accidentTime ?? "Not recorded"],
-                ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not recorded"],
-                ["Weather conditions", weatherConditions ? toSentenceCase(weatherConditions) : "Not recorded"],
-                ["Road surface", roadSurface ? toSentenceCase(roadSurface) : "Not recorded"],
+                ["Incident time", accidentTime ?? "Not Provided"],
+                ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not Provided"],
+                ["Weather conditions", weatherConditions ? toSentenceCase(weatherConditions) : "Not Provided"],
+                ["Road surface", roadSurface ? toSentenceCase(roadSurface) : "Not Provided"],
                 animalType ? ["Animal type", <span className="font-semibold capitalize">{animalType}</span>] : null,
-                ["Driver", driverName ? toTitleCase(driverName) : "Not recorded"],
+                ["Driver", driverName ? toTitleCase(driverName) : "Not Provided"],
                 ["Driver licence", driverLicenseNumber ?? "Not provided"],
-                ["Claimant", claimantName ?? claim?.claimantName ?? "Not recorded"],
+                ["Claimant", claimantName ?? claim?.claimantName ?? "Not Provided"],
                 ["Inspection date", fmtDate(aiAssessment?.assessmentDate)],
                 ["Assessor", aiAssessment?.assessorName ?? claimRecord0?.repairQuote?.assessorName ?? "Not assigned"],
                 ["Repairer", toTitleCase(aiAssessment?.panelBeaterName ?? claimRecord0?.repairQuote?.repairerName ?? claim?.repairerName) || "Not specified"],
@@ -1610,7 +1610,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           <table className="w-full text-xs report-table">
             <tbody>
               {[
-                ["Registration", claim?.vehicleRegistration ?? claimRecord0?.vehicle?.registration ?? "Not recorded"],
+                ["Registration", claim?.vehicleRegistration ?? claimRecord0?.vehicle?.registration ?? "Not Provided"],
                 // C-04: VIN is structurally critical — flag absence explicitly
                 ["VIN", vehicleVin ?? "NOT PROVIDED — required for vehicle verification"],
                 ["Engine number", vehicleEngineNumber ?? "Not provided"],
@@ -1648,7 +1648,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
               <table className="w-full text-xs">
                 <tbody>
                   {([
-                    ["Name", driverName ?? claim?.claimantName ?? "Not recorded"],
+                    ["Name", driverName ?? claim?.claimantName ?? "Not Provided"],
                     ["ID / Passport", claimRecord0?.driver?.idNumber ?? (claim as any)?.claimantIdNumber ?? "Not provided"],
                     ["Licence no.", driverLicenseNumber ?? "Not provided"],
                     ["Contact", claimRecord0?.driver?.phone ?? (claim as any)?.claimantPhone ?? "Not provided"],
@@ -1669,8 +1669,8 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
               <table className="w-full text-xs">
                 <tbody>
                   {([
-                    ["Name", (claimRecord0?.thirdParty as any)?.driverName ?? (claim as any)?.thirdPartyName ?? "Not recorded"],
-                    ["Vehicle", (claimRecord0?.thirdParty as any)?.vehicleDescription ?? (claim as any)?.thirdPartyVehicle ?? "Not recorded"],
+                    ["Name", (claimRecord0?.thirdParty as any)?.driverName ?? (claim as any)?.thirdPartyName ?? "Not Provided"],
+                    ["Vehicle", (claimRecord0?.thirdParty as any)?.vehicleDescription ?? (claim as any)?.thirdPartyVehicle ?? "Not Provided"],
                     ["Registration", (claimRecord0?.thirdParty as any)?.registration ?? (claim as any)?.thirdPartyRegistration ?? "Not provided"],
                     ["Insurer", (claimRecord0?.thirdParty as any)?.insurerName ?? (claim as any)?.thirdPartyInsurer ?? "Not provided"],
                     ["Policy No.", (claimRecord0?.thirdParty as any)?.policyNumber ?? "Not provided"],
@@ -3290,7 +3290,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
               <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'monospace' }}>
                 {claimed != null ? claimed : '—'}
               </p>
-              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{claimed != null ? 'km/h — driver statement' : 'Not recorded'}</p>
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{claimed != null ? 'km/h — driver statement' : 'Not Provided'}</p>
             </div>
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
               <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Physics-Inferred Speed</p>
@@ -4546,8 +4546,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                           <span className="ml-2" style={{ color: '#64748b' }}>basis: {(item.basisComponents ?? []).join(', ')}</span>
                         </div>
                         <div className="text-right">
-                          <span className="font-semibold" style={{ color: item.probabilityPct >= 60 ? '#dc2626' : item.probabilityPct >= 35 ? '#92400e' : '#64748b' }}>
-                            {item.probabilityPct}% probability
+                          <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '1px 6px', border: `1px solid ${item.probabilityPct >= 60 ? '#c00' : item.probabilityPct >= 35 ? '#c8a000' : '#aaa'}`, color: item.probabilityPct >= 60 ? '#c00' : item.probabilityPct >= 35 ? '#7a5c00' : '#555', background: '#fff', letterSpacing: '0.03em' }}>
+                            {item.probabilityPct}%
                           </span>
                           <span className="ml-2" style={{ color: '#64748b' }}>({item.confidenceBand})</span>
                         </div>
@@ -4887,8 +4887,8 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
       return aiAssessment?.estimatedCost ? `${fmtMoney(aiAssessment.estimatedCost)} extracted` : 'Not submitted';
     })() },
     { id: "Photos", type: "Visual", extracted: photosDetected > 0, note: isSystemFailure ? "SYSTEM ERROR \u2014 not claimant fault" : photosDetected > 0 ? `${photosDetected} detected, ${photosProcessed} processed` : "Not submitted" },
-    { id: "Driver Licence", type: "Identity", extracted: !!(claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber), note: claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber ?? "Not recorded" },
-    { id: "Vehicle Registration", type: "Identity", extracted: !!(claim?.vehicleRegistration), note: claim?.vehicleRegistration ?? "Not recorded" },
+    { id: "Driver Licence", type: "Identity", extracted: !!(claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber), note: claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber ?? "Not Provided" },
+    { id: "Vehicle Registration", type: "Identity", extracted: !!(claim?.vehicleRegistration), note: claim?.vehicleRegistration ?? "Not Provided" },
     { id: "Witness Statement", type: "Supporting", extracted: false, note: ctl4?.evidence?.witnessStatementNote ?? "Optional" },
   ];
 
@@ -4973,9 +4973,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                   )}
                 </>
               )}
-              {/* C-09: Excluded document/form images section */}
+              {/* C-09: Excluded document/form images section — screen only, hidden in print */}
               {excludedDocUrls.length > 0 && (
-                <div className="mt-3 rounded p-3" style={{ border: "1px solid #fbbf24", background: "#fffbeb" }}>
+                <div className="mt-3 rounded p-3 no-print" style={{ border: "1px solid #fbbf24", background: "#fffbeb" }}>
                   <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#92400e" }}>
                     ⚠ {excludedDocUrls.length} image{excludedDocUrls.length !== 1 ? 's' : ''} excluded from damage gallery
                   </p>
@@ -5073,9 +5073,8 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
             aiVisionDescription: r.ai_vision_description ?? null,
           } satisfies PhotoExifResult;
         });
-        const exifData: PhotoExifForensicsData = { results: exifResults };
-        // ── Hedged photo integrity summary verdict ──────────────────────
-        // Use the same two-layer document-detection logic as PhotoExifForensicsPanel
+        // ── Vehicle-only filter: exclude document scans and non-vehicle images from forensics panel ──
+        // Applied to both the summary verdict AND the PhotoExifForensicsPanel table
         const isDocumentVisionText = (text: string): boolean => {
           if (!text) return false;
           if (/^\s*(DAMAGE\s+DESCRIPTION|ESTIMATE|QUOTATION|INVOICE|CLAIM\s+FORM|REPAIR\s+ORDER|PARTS\s+LIST|LABOUR\s+SCHEDULE|SCHEDULE\s+OF|VEHICLE\s+INSPECTION\s+REPORT|ASSESSMENT\s+REPORT|BASED\s+ON\s+ESTIMATE)/i.test(text)) return true;
@@ -5083,7 +5082,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           if (/^\s*(i\s+am\s+sorry|i\s+cannot|i\s+can't|i\s+apologize|i\s+apologise|unable\s+to|this\s+image\s+does\s+not|the\s+image\s+does\s+not\s+(?:show|contain|depict))/i.test(text)) return true;
           return false;
         };
+        // Filter to vehicle damage photos only — re-index so panel shows Photo 1, 2, 3...
         const vehiclePhotos = exifResults.filter(r => !r.isNonVehicle && !isDocumentVisionText(r.aiVisionDescription ?? ''));
+        const vehicleExifData: PhotoExifForensicsData = { results: vehiclePhotos.map((r, i) => ({ ...r, photoIndex: i + 1 })) };
         const totalAnalysed = vehiclePhotos.length;
         // Three-tier thresholds:
         //   High concern  : manipulation_score > 40  (likely post-processing)
@@ -5126,7 +5127,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                 </div>
                 <p className="pis-text text-sm" style={{ color: 'var(--foreground)', lineHeight: '1.6', margin: 0 }}>{summaryVerdict}</p>
               </div>
-              <PhotoExifForensicsPanel data={exifData} />
+              <PhotoExifForensicsPanel data={vehicleExifData} />
             </div>
           </div>
         );
@@ -6878,9 +6879,9 @@ const REPORT_CSS = `
 .kinga-report .ps-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.06em}
 .kinga-report .section-heading{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#1A2B4A;margin:36px 0 14px;padding-bottom:7px;border-bottom:2px solid #1A2B4A}
 .kinga-report .sub-heading{font-size:14px;font-weight:700;color:#111;margin:16px 0 10px}
-.kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px}
-.kinga-report .data-table td,.kinga-report .data-table th{padding:7px 12px;font-size:12px !important;border-bottom:1px solid #eee;vertical-align:top}
-.kinga-report .data-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#fff;border-bottom:1px solid #ddd}
+.kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
+.kinga-report .data-table td,.kinga-report .data-table th{padding:7px 12px;font-size:12px !important;border-bottom:1px solid #eee;vertical-align:top;word-break:break-word;overflow-wrap:break-word;white-space:normal}
+.kinga-report .data-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;background:#f4f4f4;border-bottom:2px solid #ccc}
 .kinga-report .data-table td:first-child{color:#555;width:210px;font-size:12px}
 .kinga-report .data-table td:last-child{color:#111;font-weight:500}
 .kinga-report .data-table tr:last-child td{border-bottom:none}
@@ -6895,7 +6896,7 @@ const REPORT_CSS = `
 .kinga-report .legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:#333;margin-bottom:6px}
 .kinga-report .legend-swatch{width:18px;height:12px;border-radius:2px;flex-shrink:0}
 .kinga-report .diagram-caption{font-size:10px;color:#666;margin-top:8px;font-style:italic}
-.kinga-report .chart-container{position:relative;height:200px;margin-bottom:14px}
+.kinga-report .chart-container{position:relative;height:200px;width:100%;margin-bottom:14px}
 .kinga-report .chart-side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:16px}
 .kinga-report .bordered-block{border:1px solid #ddd;padding:14px 16px;margin-bottom:14px}
 .kinga-report .valuation-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:12px}
@@ -6910,9 +6911,9 @@ const REPORT_CSS = `
 .kinga-report .pt-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px}
 .kinga-report .pt-value{font-size:36px;font-weight:700;color:#111}
 .kinga-report .pt-sub{font-size:10px;color:#888;margin-top:2px}
-.kinga-report .photo-forensics-table{width:100%;border-collapse:collapse;margin-bottom:14px}
-.kinga-report .photo-forensics-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#fff;border-bottom:1px solid #ddd;padding:7px 10px;text-align:left}
-.kinga-report .photo-forensics-table td{padding:8px 10px;font-size:11px;border-bottom:1px solid #eee;vertical-align:top}
+.kinga-report .photo-forensics-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
+.kinga-report .photo-forensics-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;background:#f4f4f4;border-bottom:2px solid #ccc;padding:7px 10px;text-align:left;word-break:break-word;white-space:normal}
+.kinga-report .photo-forensics-table td{padding:8px 10px;font-size:11px;border-bottom:1px solid #eee;vertical-align:top;word-break:break-word;overflow-wrap:break-word;white-space:normal}
 .kinga-report .photo-forensics-table tr:last-child td{border-bottom:none}
 .kinga-report .photo-forensics-table .photo-finding{font-size:11px;color:#333;line-height:1.5}
 .kinga-report .photo-forensics-table .photo-detail{font-size:10px;color:#666;margin-top:3px;font-style:italic;line-height:1.4}
@@ -6954,8 +6955,8 @@ const REPORT_CSS = `
 .kinga-report .next-steps{margin-bottom:20px;list-style:none;padding:0}
 .kinga-report .next-steps li{font-size:12px;color:#333;padding:5px 0 5px 28px;position:relative;border-bottom:1px solid #f0f0f0}
 .kinga-report .ns-num{position:absolute;left:0;font-weight:700;color:#888;font-size:11px}
-.kinga-report .integrity-table{width:100%;border-collapse:collapse;margin-bottom:14px}
-.kinga-report .integrity-table td{padding:7px 12px;font-size:12px;border-bottom:1px solid #eee}
+.kinga-report .integrity-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
+.kinga-report .integrity-table td{padding:7px 12px;font-size:12px;border-bottom:1px solid #eee;word-break:break-word;overflow-wrap:break-word;white-space:normal}
 .kinga-report .integrity-table td:first-child{color:#555;width:210px;font-size:11px}
 .kinga-report .hash-block{font-family:'Courier New',monospace;font-size:10px;color:#444;background:#fff;padding:10px 14px;border:1px solid #ddd;margin-bottom:10px;word-break:break-all}
 .kinga-report .tamper-note{font-size:11px;color:#666;font-style:italic;margin-bottom:16px}
@@ -7072,9 +7073,9 @@ const REPORT_CSS = `
   border-color:#ddd !important;
 }
 /* Table rows */
-.kinga-report table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
-.kinga-report table td,.kinga-report table th{padding:7px 12px;font-size:12px !important;border-bottom:1px solid #eee;vertical-align:top;color:#111;background:#fff}
-.kinga-report table th{font-size:10px !important;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#fff;border-bottom:1px solid #ddd}
+.kinga-report table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;table-layout:fixed}
+.kinga-report table td,.kinga-report table th{padding:7px 12px;font-size:12px !important;border-bottom:1px solid #eee;vertical-align:top;color:#111;background:#fff;word-break:break-word;overflow-wrap:break-word;white-space:normal}
+.kinga-report table th{font-size:10px !important;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;background:#f4f4f4;border-bottom:2px solid #ccc;word-break:break-word;white-space:normal}
 .kinga-report table td:first-child{color:#555;font-size:12px !important}
 /* Narrative boxes */
 .kinga-report [class*="p-3"][class*="rounded"]{background:#fff !important;border:1px solid #ddd !important;border-radius:0 !important;color:#333 !important}
@@ -7137,22 +7138,25 @@ const REPORT_CSS = `
   /* Lifecycle steps: B&W bottom border */
   .kinga-report .lc-step.active{background:#fff !important;color:#111 !important;border-bottom:3px solid #555 !important;font-weight:600 !important}
   .kinga-report .lc-step.done{background:#fff !important;color:#111 !important;border-bottom:3px solid #aaa !important;font-weight:500 !important}
-  /* Alert banners: B&W left border weight hierarchy */
-  .kinga-report .alert-banner{background:#f8f8f8 !important;border-left:4px solid #555 !important}
-  .kinga-report .alert-banner.critical{background:#f0f0f0 !important;border-left:4px solid #111 !important}
-  .kinga-report .alert-banner.info{background:#fff !important;border-left:4px solid #aaa !important}
-  /* Table borders visible in print */
-  .kinga-report table,.kinga-report table td,.kinga-report table th{border-color:#ddd !important;background:#fff !important}
+  /* Alert banners: B&W left border weight hierarchy — text must wrap */
+  .kinga-report .alert-banner{background:#f8f8f8 !important;border-left:4px solid #555 !important;white-space:normal !important;overflow:visible !important;word-break:break-word !important}
+  .kinga-report .alert-banner.critical{background:#f0f0f0 !important;border-left:4px solid #111 !important;white-space:normal !important;overflow:visible !important}
+  .kinga-report .alert-banner.info{background:#fff !important;border-left:4px solid #aaa !important;white-space:normal !important;overflow:visible !important}
+  /* Table borders visible in print — text must wrap */
+  .kinga-report table,.kinga-report table td,.kinga-report table th{border-color:#ddd !important;background:#fff !important;word-break:break-word !important;overflow-wrap:break-word !important;white-space:normal !important}
+  .kinga-report table th{background:#f4f4f4 !important;border-bottom:2px solid #bbb !important;color:#555 !important}
   /* Section 2.5 Quote Coverage table */
-  .kinga-report .report-table,.kinga-report .report-table td,.kinga-report .report-table th{border:1px solid #ddd !important;background:#fff !important}
+  .kinga-report .report-table,.kinga-report .report-table td,.kinga-report .report-table th{border:1px solid #ddd !important;background:#fff !important;word-break:break-word !important;white-space:normal !important}
   /* Page break strategy */
   .kinga-report .section-heading{page-break-before:auto;page-break-after:avoid}
   /* Section 4 Evidence Inventory: start on new page */
   .kinga-report [data-section="4"]{page-break-before:always}
   /* Photo cards: never split mid-row */
   .kinga-report .photo-card,.kinga-report [data-photo-card]{page-break-inside:avoid}
-  /* Flowchart and charts: keep together */
+  /* Flowchart and charts: keep together, constrain size */
   .kinga-report .flowchart,.kinga-report .chart-container,.kinga-report canvas{page-break-inside:avoid}
+  .kinga-report .chart-container{height:auto !important;min-height:160px;width:100% !important}
+  .kinga-report canvas{width:100% !important;height:auto !important;min-height:140px}
   /* SVG damage map: keep together */
   .kinga-report svg{page-break-inside:avoid}
   /* SVG zone severity fills — FAR-01: B&W typographic hierarchy for print */
@@ -7216,13 +7220,20 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
     >
       <style dangerouslySetInnerHTML={{ __html: REPORT_CSS }} />
       {/* DRAFT Banner */}
+      {/* DRAFT diagonal watermark — visible on screen and in print */}
       {isDraft && (
-        <div style={{ background: '#fffbeb', border: '2px solid #f59e0b', borderRadius: 6, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#92400e', letterSpacing: '0.08em', flexShrink: 0 }}>DRAFT</span>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
+          <div style={{ transform: 'rotate(-45deg)', fontSize: 110, fontWeight: 900, color: 'rgba(0,0,0,0.05)', letterSpacing: '0.12em', userSelect: 'none', whiteSpace: 'nowrap' }}>DRAFT</div>
+        </div>
+      )}
+      {/* DRAFT Banner */}
+      {isDraft && (
+        <div style={{ background: '#f4f4f4', border: '2px solid #555', padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10, position: 'relative', zIndex: 1 }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#111', letterSpacing: '0.1em', flexShrink: 0, textTransform: 'uppercase' }}>DRAFT</span>
           <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#92400e', margin: 0 }}>This Forensic Audit Report is incomplete and has been exported as a draft.</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#111', margin: 0 }}>This Forensic Audit Report is incomplete and has been exported as a draft.</p>
             {draftMissingFields.length > 0 && (
-              <p style={{ fontSize: 11, color: '#b45309', margin: '3px 0 0' }}>Missing: {draftMissingFields.join(', ')}. Complete these fields and re-export for the final version.</p>
+              <p style={{ fontSize: 11, color: '#555', margin: '3px 0 0' }}>Missing: {draftMissingFields.join(', ')}. Complete these fields and re-export for the final version.</p>
             )}
           </div>
         </div>
