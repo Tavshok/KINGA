@@ -4724,7 +4724,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                           <span className="ml-2" style={{ color: '#64748b' }}>basis: {(item.basisComponents ?? []).join(', ')}</span>
                         </div>
                         <div className="text-right">
-                          <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '1px 6px', border: `1px solid ${item.probabilityPct >= 60 ? '#c00' : item.probabilityPct >= 35 ? '#c8a000' : '#aaa'}`, color: item.probabilityPct >= 60 ? '#c00' : item.probabilityPct >= 35 ? '#7a5c00' : '#555', background: '#fff', letterSpacing: '0.03em' }}>
+                          <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 3, border: 'none', color: '#fff', background: item.probabilityPct >= 60 ? '#dc2626' : item.probabilityPct >= 35 ? '#d97706' : '#64748b', letterSpacing: '0.03em' }}>
                             {item.probabilityPct}%
                           </span>
                           <span className="ml-2" style={{ color: '#64748b' }}>({item.confidenceBand})</span>
