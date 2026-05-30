@@ -131,8 +131,13 @@ export const quantitativePhysicsFieldsSchema = z.object({
  * Complete physics analysis Zod schema
  * Combines legacy and quantitative fields
  */
+// IMPORTANT: .passthrough() is required so that pipeline-added fields
+// (speedInferenceEnsemble, divergenceExplanation, severityConsensus,
+//  damagePatternValidation, speedForensics, physicsNumerical, velocityRange, etc.)
+// are NOT stripped by Zod's default 'strip' mode when parsePhysicsAnalysis runs.
 export const physicsAnalysisSchema = legacyPhysicsFieldsSchema
   .merge(quantitativePhysicsFieldsSchema)
+  .passthrough()
   .describe('Complete physics analysis structure');
 
 // ============================================================

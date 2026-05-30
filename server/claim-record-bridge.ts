@@ -134,6 +134,21 @@ export interface ResolvedClaimRecord {
       outlierMethods: string[];
       recommendation: string;
     };
+    // Added by Phase 2 fix: explains WHY methods diverge when HIGH_DIVERGENCE is set
+    divergenceExplanation?: Array<{
+      methodPair: [string, string];
+      speedsKmh: [number, number];
+      gapKmh: number;
+      gapPct: number;
+      keyInputDifference: string;
+      explanation: string;
+      recommendedAction: string;
+    }>;
+    highDivergence?: boolean;
+    overallConfidence?: string;
+    consensusSpeedKmh?: number;
+    confidenceInterval?: [number, number];
+    lowerBoundKmh?: number;
   } | null;
 }
 
