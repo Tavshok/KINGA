@@ -2982,6 +2982,62 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     </div>
                   </div>
 
+                  {/* ── Divergence Explanation — only shown when HIGH_DIVERGENCE is set ── */}
+                  {divergenceFlag && (() => {
+                    const divExpl: any[] = ensemble.divergenceExplanation ?? [];
+                    if (divExpl.length === 0) return null;
+                    return (
+                      <div className="px-5 py-4" style={{ borderTop: '1px solid var(--fp-locked-border)', background: 'var(--fp-locked-bg)' }}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--fp-locked-text)' }}>Why Methods Diverge — Adjuster Explanation</p>
+                        {divExpl.map((d: any, i: number) => (
+                          <div key={i} className="rounded-lg overflow-hidden mb-2" style={{ border: '1px solid var(--fp-locked-border)', background: '#ffffff' }}>
+                            {/* Method pair header */}
+                            <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid var(--fp-locked-border)', background: 'var(--fp-locked-bg)' }}>
+                              <p className="text-xs font-bold" style={{ color: '#0f172a' }}>
+                                {d.methodPair?.[0]} vs {d.methodPair?.[1]}
+                              </p>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[10px] font-mono" style={{ color: '#64748b' }}>
+                                  {d.speedsKmh?.[0]} km/h vs {d.speedsKmh?.[1]} km/h
+                                </span>
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#ffffff', color: 'var(--fp-locked-text)', border: '1px solid var(--fp-locked-border)' }}>
+                                  Δ{d.gapKmh} km/h ({d.gapPct}%)
+                                </span>
+                              </div>
+                            </div>
+                            {/* Explanation body */}
+                            <div className="px-3 py-2 space-y-1.5">
+                              <div>
+                                <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: '#64748b' }}>Key input difference</p>
+                                <p className="text-[10px]" style={{ color: '#0f172a' }}>{d.keyInputDifference}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: '#64748b' }}>Explanation</p>
+                                <p className="text-[10px] leading-relaxed" style={{ color: '#334155' }}>{d.explanation}</p>
+                              </div>
+                            </div>
+                            {/* Recommended action */}
+                            {d.recommendedAction && (
+                              <div className="px-3 py-1.5" style={{ borderTop: '1px solid var(--fp-locked-border)', background: '#f8fafc' }}>
+                                <p className="text-[10px]" style={{ color: '#64748b' }}>
+                                  <span className="font-semibold" style={{ color: '#0f172a' }}>Action: </span>
+                                  {d.recommendedAction}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {/* Cross-validation summary */}
+                        {ensemble.crossValidation?.recommendation && (
+                          <p className="text-[10px] mt-2" style={{ color: 'var(--fp-locked-text)' }}>
+                            <span className="font-semibold">Cross-validation: </span>
+                            {ensemble.crossValidation.recommendation}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                 </div>
               </div>
             );
@@ -5792,6 +5848,34 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                     </tr>
                   );
                 })()}
+                {/* Cross-Engine Conflict rows — injected from C1–C9 validator */}
+                {(() => {
+                  const cec = fraudScoreBreakdown5?.crossEngineConsistency;
+                  if (!cec || !cec.conflicts || cec.conflicts.length === 0) return null;
+                  return cec.conflicts.map((c: any, i: number) => {
+                    const severity = c.severity ?? 'MINOR';
+                    const scoreMap: Record<string, number> = { CRITICAL: 20, SIGNIFICANT: 12, MINOR: 4 };
+                    const score = scoreMap[severity] ?? 4;
+                    const scoreColor = severity === 'CRITICAL' ? 'var(--fp-critical-text)' : severity === 'SIGNIFICANT' ? 'var(--fp-warning-text)' : 'var(--muted-foreground)';
+                    return (
+                      <tr key={`cec-${i}`} style={{ borderTop: '1px solid #e2e8f0', background: severity === 'CRITICAL' ? 'var(--fp-critical-bg)' : severity === 'SIGNIFICANT' ? 'var(--fp-warning-bg)' : '#ffffff' }}>
+                        <td className="px-3 py-2 font-medium" style={{ color: '#0f172a' }}>
+                          <span className="text-[10px] font-mono mr-1" style={{ color: '#64748b' }}>[{c.check_id}]</span>
+                          {c.label}
+                          <span className="ml-1 text-[10px] font-bold" style={{ color: scoreColor }}>{severity}</span>
+                        </td>
+                        <td className="px-3 py-2 font-bold" style={{ color: scoreColor }}>{score}/20</td>
+                        <td className="px-3 py-2" style={{ minWidth: 80 }}>
+                          <div className="h-1.5 rounded-full" style={{ background: '#ffffff' }}>
+                            <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (score / 20) * 100)}%`, background: scoreColor }} />
+                          </div>
+                        </td>
+                        <td className="px-3 py-2"><span className="text-xs font-semibold" style={{ color: '#64748b' }}>Yes</span></td>
+                        <td className="px-3 py-2" style={{ color: '#64748b' }}>{c.recommended_action} (see §5.6)</td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
@@ -6019,11 +6103,262 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         );
       })()}
 
+      {/* 5.6 Cross-Engine Consistency — agreements and conflicts from C1–C9 checks */}
+      {(() => {
+        const cec = fraudScoreBreakdown5?.crossEngineConsistency;
+        if (!cec) return null;
+        const agreements: any[] = cec.agreements ?? [];
+        const conflicts: any[] = cec.conflicts ?? [];
+        const overallStatus: string = cec.overall_status ?? 'CONSISTENT';
+        const consistencyScore: number = cec.consistency_score ?? 100;
+        const criticalCount: number = cec.critical_conflict_count ?? 0;
+        const isConflicted = overallStatus === 'CONFLICTED';
+        const panelBorderColor = criticalCount > 0 ? 'var(--fp-critical-text)' : isConflicted ? 'var(--fp-warning-text)' : 'var(--fp-success-text)';
+        const panelBg = criticalCount > 0 ? 'var(--fp-critical-bg)' : isConflicted ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)';
+        const statusLabel = criticalCount > 0 ? `${criticalCount} CRITICAL CONFLICT${criticalCount > 1 ? 'S' : ''}` : isConflicted ? 'CONFLICTED' : 'CONSISTENT';
+        const severityColor = (sev: string) => sev === 'CRITICAL' ? 'var(--fp-critical-text)' : sev === 'SIGNIFICANT' ? 'var(--fp-warning-text)' : 'var(--muted-foreground)';
+        const severityBg = (sev: string) => sev === 'CRITICAL' ? 'var(--fp-critical-bg)' : sev === 'SIGNIFICANT' ? 'var(--fp-warning-bg)' : '#ffffff';
+        const severityBorder = (sev: string) => sev === 'CRITICAL' ? 'var(--fp-critical-border)' : sev === 'SIGNIFICANT' ? 'var(--fp-warning-border)' : 'var(--border)';
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${panelBorderColor}40`, background: '#ffffff' }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: panelBg }}>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>5.6 Cross-Engine Consistency — Physics ↔ Damage ↔ Fraud</p>
+                <p className="text-[10px] mt-0.5" style={{ color: '#64748b' }}>Automated agreement/conflict checks across all three analysis engines (C1–C9)</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: panelBg, color: panelBorderColor, border: `1px solid ${panelBorderColor}` }}>{statusLabel}</span>
+                <span className="text-xs font-mono font-bold" style={{ color: '#0f172a' }}>{consistencyScore}/100</span>
+              </div>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Consistency score bar */}
+              <div>
+                <div className="flex justify-between text-[10px] mb-1" style={{ color: '#64748b' }}>
+                  <span>Cross-engine consistency score</span>
+                  <span className="font-bold" style={{ color: panelBorderColor }}>{consistencyScore}/100</span>
+                </div>
+                <div className="h-2 rounded-full" style={{ background: '#e2e8f0' }}>
+                  <div className="h-2 rounded-full" style={{ width: `${consistencyScore}%`, background: panelBorderColor }} />
+                </div>
+                <div className="flex justify-between text-[9px] mt-0.5" style={{ color: '#94a3b8' }}>
+                  <span>0 — Fully conflicted</span><span>50 — Partial</span><span>100 — Fully consistent</span>
+                </div>
+              </div>
+
+              {/* Conflicts */}
+              {conflicts.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#0f172a' }}>Conflicts Detected ({conflicts.length})</p>
+                  <div className="space-y-2">
+                    {conflicts.map((c: any, i: number) => (
+                      <div key={i} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${severityBorder(c.severity)}`, background: '#ffffff' }}>
+                        <div className="px-3 py-2 flex items-center justify-between" style={{ background: severityBg(c.severity), borderBottom: `1px solid ${severityBorder(c.severity)}` }}>
+                          <p className="text-xs font-bold" style={{ color: '#0f172a' }}>{c.label}</p>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#ffffff', color: severityColor(c.severity), border: `1px solid ${severityBorder(c.severity)}` }}>{c.severity}</span>
+                        </div>
+                        <div className="px-3 py-2 grid grid-cols-3 gap-3 text-[10px]">
+                          <div>
+                            <p className="font-semibold mb-0.5" style={{ color: '#64748b' }}>Physics says</p>
+                            <p style={{ color: '#0f172a' }}>{c.physics_says ?? '—'}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold mb-0.5" style={{ color: '#64748b' }}>Damage says</p>
+                            <p style={{ color: '#0f172a' }}>{c.damage_says ?? '—'}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold mb-0.5" style={{ color: '#64748b' }}>Fraud engine</p>
+                            <p style={{ color: '#0f172a' }}>{c.fraud_says ?? '—'}</p>
+                          </div>
+                        </div>
+                        {c.recommended_action && (
+                          <div className="px-3 py-2" style={{ borderTop: `1px solid ${severityBorder(c.severity)}`, background: '#f8fafc' }}>
+                            <p className="text-[10px]" style={{ color: '#64748b' }}><span className="font-semibold" style={{ color: '#0f172a' }}>Recommended action: </span>{c.recommended_action}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Agreements */}
+              {agreements.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#0f172a' }}>Agreements ({agreements.length})</p>
+                  <div className="space-y-1">
+                    {agreements.map((a: any, i: number) => (
+                      <div key={i} className="flex items-start gap-2 px-3 py-1.5 rounded" style={{ background: 'var(--fp-success-bg)', border: '1px solid var(--fp-success-border)' }}>
+                        <span className="text-[10px] font-bold mt-0.5" style={{ color: 'var(--fp-success-text)' }}>✓</span>
+                        <div className="flex-1">
+                          <span className="text-[10px] font-semibold" style={{ color: '#0f172a' }}>{a.label}</span>
+                          <span className="text-[10px] ml-2" style={{ color: '#64748b' }}>{a.detail}</span>
+                        </div>
+                        <span className="text-[10px] font-bold shrink-0" style={{ color: a.strength === 'STRONG' ? 'var(--fp-success-text)' : 'var(--fp-warning-text)' }}>{a.strength}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata summary */}
+              {cec.validator_metadata && (
+                <div className="flex flex-wrap gap-3 text-[10px] pt-2" style={{ borderTop: '1px solid #e2e8f0', color: '#64748b' }}>
+                  <span>Checks run: <strong style={{ color: '#0f172a' }}>{cec.validator_metadata.checks_run}</strong></span>
+                  <span>Agreements: <strong style={{ color: 'var(--fp-success-text)' }}>{cec.validator_metadata.agreements_found}</strong></span>
+                  <span>Conflicts: <strong style={{ color: conflicts.length > 0 ? 'var(--fp-warning-text)' : '#0f172a' }}>{cec.validator_metadata.conflicts_found}</strong></span>
+                  <span>Critical: <strong style={{ color: criticalCount > 0 ? 'var(--fp-critical-text)' : '#0f172a' }}>{cec.validator_metadata.critical_conflicts}</strong></span>
+                  {cec.validator_metadata.conflict_penalty_applied > 0 && (
+                    <span>Score penalty applied: <strong style={{ color: 'var(--fp-warning-text)' }}>−{cec.validator_metadata.conflict_penalty_applied} pts</strong></span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 5.6 Cross-Engine Consistency — C1–C9 agreements and conflicts */}
+      {(() => {
+        const cec = fraudScoreBreakdown5?.crossEngineConsistency;
+        if (!cec) return null;
+        const agreements: any[] = cec.agreements ?? [];
+        const conflicts: any[] = cec.conflicts ?? [];
+        const consistencyScore: number = cec.consistency_score ?? 100;
+        const criticalCount: number = cec.critical_conflict_count ?? 0;
+        const isConflicted = cec.overall_status === 'CONFLICTED';
+        const panelColor = criticalCount > 0 ? 'var(--fp-critical-text)' : isConflicted ? 'var(--fp-warning-text)' : 'var(--fp-success-text)';
+        const panelBg = criticalCount > 0 ? 'var(--fp-critical-bg)' : isConflicted ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)';
+        const panelBorder = criticalCount > 0 ? 'var(--fp-critical-border)' : isConflicted ? 'var(--fp-warning-border)' : 'var(--fp-success-border)';
+        const statusLabel = criticalCount > 0
+          ? `${criticalCount} CRITICAL CONFLICT${criticalCount > 1 ? 'S' : ''}`
+          : isConflicted ? 'CONFLICTED' : 'CONSISTENT';
+        const severityColor = (sev: string) =>
+          sev === 'CRITICAL' ? 'var(--fp-critical-text)'
+          : sev === 'SIGNIFICANT' ? 'var(--fp-warning-text)'
+          : 'var(--muted-foreground)';
+        const severityBg = (sev: string) =>
+          sev === 'CRITICAL' ? 'var(--fp-critical-bg)'
+          : sev === 'SIGNIFICANT' ? 'var(--fp-warning-bg)'
+          : '#f8fafc';
+        const severityBorder = (sev: string) =>
+          sev === 'CRITICAL' ? 'var(--fp-critical-border)'
+          : sev === 'SIGNIFICANT' ? 'var(--fp-warning-border)'
+          : 'var(--border)';
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${panelBorder}`, background: '#ffffff' }}>
+            {/* Header */}
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: panelBg }}>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>5.6 Cross-Engine Consistency — Physics ↔ Damage ↔ Fraud</p>
+                <p className="text-[10px] mt-0.5" style={{ color: '#64748b' }}>Automated C1–C9 agreement/conflict checks across all three analysis engines</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: panelBg, color: panelColor, border: `1px solid ${panelBorder}` }}>{statusLabel}</span>
+                <span className="text-xs font-mono font-bold" style={{ color: '#0f172a' }}>{consistencyScore}/100</span>
+              </div>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Score bar */}
+              <div>
+                <div className="flex justify-between text-[10px] mb-1" style={{ color: '#64748b' }}>
+                  <span>Cross-engine consistency score</span>
+                  <span className="font-bold" style={{ color: panelColor }}>{consistencyScore}/100</span>
+                </div>
+                <div className="h-2 rounded-full" style={{ background: '#e2e8f0' }}>
+                  <div className="h-2 rounded-full" style={{ width: `${consistencyScore}%`, background: panelColor }} />
+                </div>
+                <div className="flex justify-between text-[9px] mt-0.5" style={{ color: '#94a3b8' }}>
+                  <span>0 — Fully conflicted</span><span>50 — Partial</span><span>100 — Fully consistent</span>
+                </div>
+              </div>
+
+              {/* Conflicts */}
+              {conflicts.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#0f172a' }}>Conflicts Detected ({conflicts.length})</p>
+                  <div className="space-y-2">
+                    {conflicts.map((c: any, i: number) => (
+                      <div key={i} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${severityBorder(c.severity)}`, background: '#ffffff' }}>
+                        {/* Conflict header */}
+                        <div className="px-3 py-2 flex items-center justify-between" style={{ background: severityBg(c.severity), borderBottom: `1px solid ${severityBorder(c.severity)}` }}>
+                          <p className="text-xs font-bold" style={{ color: '#0f172a' }}>
+                            <span className="text-[10px] font-mono mr-2" style={{ color: '#64748b' }}>[{c.check_id}]</span>
+                            {c.label}
+                          </p>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0" style={{ background: '#ffffff', color: severityColor(c.severity), border: `1px solid ${severityBorder(c.severity)}` }}>{c.severity}</span>
+                        </div>
+                        {/* Three-column engine breakdown */}
+                        <div className="px-3 py-2 grid grid-cols-3 gap-3 text-[10px]" style={{ borderBottom: `1px solid ${severityBorder(c.severity)}` }}>
+                          <div>
+                            <p className="font-semibold mb-0.5 uppercase tracking-wide" style={{ color: '#64748b', fontSize: 9 }}>Physics engine</p>
+                            <p style={{ color: '#0f172a' }}>{c.physics_says || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold mb-0.5 uppercase tracking-wide" style={{ color: '#64748b', fontSize: 9 }}>Damage engine</p>
+                            <p style={{ color: '#0f172a' }}>{c.damage_says || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold mb-0.5 uppercase tracking-wide" style={{ color: '#64748b', fontSize: 9 }}>Fraud engine</p>
+                            <p style={{ color: '#0f172a' }}>{c.fraud_says || '—'}</p>
+                          </div>
+                        </div>
+                        {/* Recommended action */}
+                        {c.recommended_action && (
+                          <div className="px-3 py-1.5" style={{ background: '#f8fafc' }}>
+                            <p className="text-[10px]" style={{ color: '#64748b' }}>
+                              <span className="font-semibold" style={{ color: '#0f172a' }}>Action: </span>
+                              {c.recommended_action}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Agreements */}
+              {agreements.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#0f172a' }}>Engine Agreements ({agreements.length})</p>
+                  <div className="space-y-1">
+                    {agreements.map((a: any, i: number) => (
+                      <div key={i} className="flex items-start gap-2 px-3 py-1.5 rounded" style={{ background: 'var(--fp-success-bg)', border: '1px solid var(--fp-success-border)' }}>
+                        <span className="text-[10px] font-bold mt-0.5 shrink-0" style={{ color: 'var(--fp-success-text)' }}>✓</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[10px] font-semibold" style={{ color: '#0f172a' }}>{a.label}</span>
+                          {a.detail && <span className="text-[10px] ml-2" style={{ color: '#64748b' }}>{a.detail}</span>}
+                        </div>
+                        <span className="text-[10px] font-bold shrink-0" style={{ color: a.strength === 'STRONG' ? 'var(--fp-success-text)' : 'var(--fp-warning-text)' }}>{a.strength}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Validator metadata footer */}
+              {cec.validator_metadata && (
+                <div className="flex flex-wrap gap-4 text-[10px] pt-2" style={{ borderTop: '1px solid #e2e8f0', color: '#64748b' }}>
+                  <span>Checks run: <strong style={{ color: '#0f172a' }}>{cec.validator_metadata.checks_run}</strong></span>
+                  <span>Agreements: <strong style={{ color: 'var(--fp-success-text)' }}>{cec.validator_metadata.agreements_found}</strong></span>
+                  <span>Conflicts: <strong style={{ color: conflicts.length > 0 ? 'var(--fp-warning-text)' : '#0f172a' }}>{cec.validator_metadata.conflicts_found}</strong></span>
+                  <span>Critical: <strong style={{ color: criticalCount > 0 ? 'var(--fp-critical-text)' : '#0f172a' }}>{cec.validator_metadata.critical_conflicts}</strong></span>
+                  {(cec.validator_metadata.conflict_penalty_applied ?? 0) > 0 && (
+                    <span>Consistency penalty: <strong style={{ color: 'var(--fp-warning-text)' }}>−{cec.validator_metadata.conflict_penalty_applied} pts</strong></span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${fraudColor}40`, background: "#ffffff" }}>
         <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Final Risk Statement</p>
         </div>
-        <div className="p-4">
+        <div className="p-4 space-y-3">
           <p className="text-sm leading-relaxed" style={{ color: "#0f172a" }}>
             {fraudScore >= 70 ? `High fraud risk (${Math.round(fraudScore)}/100) detected. ` :
              fraudScore >= 40 ? `Moderate fraud risk (${Math.round(fraudScore)}/100) identified. ` :
@@ -6033,6 +6368,35 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
              `Physics consistency of ${Math.round(physicsScore)}% is within acceptable parameters. `}
             {keyDrivers.length > 0 ? `Key drivers: ${keyDrivers.slice(0, 2).join("; ")}.` : "No specific key drivers identified."}
           </p>
+          {/* Cross-engine physics linkage callout — shown when critical conflicts exist */}
+          {(() => {
+            const cec = fraudScoreBreakdown5?.crossEngineConsistency;
+            if (!cec) return null;
+            const critConflicts = (cec.conflicts ?? []).filter((c: any) => c.severity === 'CRITICAL');
+            const sigConflicts = (cec.conflicts ?? []).filter((c: any) => c.severity === 'SIGNIFICANT');
+            if (critConflicts.length === 0 && sigConflicts.length === 0) return null;
+            const hasCritical = critConflicts.length > 0;
+            const borderColor = hasCritical ? 'var(--fp-critical-border)' : 'var(--fp-warning-border)';
+            const bgColor = hasCritical ? 'var(--fp-critical-bg)' : 'var(--fp-warning-bg)';
+            const textColor = hasCritical ? 'var(--fp-critical-text)' : 'var(--fp-warning-text)';
+            const allConflicts = [...critConflicts, ...sigConflicts];
+            return (
+              <div className="rounded-lg p-3" style={{ border: `1px solid ${borderColor}`, background: bgColor }}>
+                <p className="text-xs font-bold mb-1.5" style={{ color: textColor }}>
+                  {hasCritical ? '⚠ Critical Physics Conflicts Detected' : '⚠ Significant Physics Conflicts Detected'}
+                </p>
+                <ul className="space-y-1">
+                  {allConflicts.map((c: any, i: number) => (
+                    <li key={i} className="text-xs flex items-start gap-1.5">
+                      <span className="shrink-0 font-mono text-[10px] mt-0.5" style={{ color: '#64748b' }}>[{c.check_id}]</span>
+                      <span style={{ color: '#0f172a' }}>{c.label}: {c.physics_says || c.damage_says || c.fraud_says || 'Conflict detected'}. <span style={{ color: '#64748b' }}>Action: {c.recommended_action}</span></span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[10px] mt-2" style={{ color: '#64748b' }}>Full cross-engine analysis in §5.6. Physics method inputs in §2.6.</p>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

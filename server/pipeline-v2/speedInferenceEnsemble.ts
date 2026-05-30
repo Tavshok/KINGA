@@ -99,6 +99,37 @@ export interface SpeedInferenceResult {
   summary: string;
   /** Number of methods that successfully produced a point estimate */
   methodsRan: number;
+  /**
+   * When highDivergence is true: structured explanation of WHY methods diverge.
+   * Each entry identifies the two most divergent methods, their key inputs,
+   * and a plain-English reason for the gap. Used by the report to explain
+   * conflicts to adjusters rather than just flagging them.
+   */
+  divergenceExplanation?: {
+    /** The two method IDs that are furthest apart */
+    methodPair: [string, string];
+    /** Speed estimates for each method */
+    speedsKmh: [number, number];
+    /** Absolute gap in km/h */
+    gapKmh: number;
+    /** Percentage divergence */
+    gapPct: number;
+    /** Key input difference driving the gap (e.g. crush depth discrepancy) */
+    keyInputDifference: string;
+    /** Plain-English adjuster-facing explanation */
+    explanation: string;
+    /** Recommended adjuster action */
+    recommendedAction: string;
+  }[];
+  /**
+   * Cross-validation spread across all contributing methods (km/h).
+   * Populated when >= 2 methods ran.
+   */
+  crossValidation?: {
+    spread: number;
+    outlierMethods: string[];
+    recommendation: string;
+  };
 }
 
 // ── Vehicle stiffness table (kN/m) ───────────────────────────────────────────
@@ -528,17 +559,23 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
 
   // Cross-validation: check for high divergence between any two estimates
   let highDivergence = false;
+  // Track the most divergent pair for the explanation
+  let maxGapKmh = 0;
+  let maxGapPair: [number, number] = [0, 0]; // indices into pointEstimates
   for (let i = 0; i < pointEstimates.length; i++) {
     for (let j = i + 1; j < pointEstimates.length; j++) {
       const a = pointEstimates[i].speedKmh;
       const b = pointEstimates[j].speedKmh;
       const maxVal = Math.max(a, b);
-      if (maxVal > 0 && Math.abs(a - b) / maxVal > 0.40) {
+      const gap = Math.abs(a - b);
+      if (maxVal > 0 && gap / maxVal > 0.40) {
         highDivergence = true;
-        break;
+      }
+      if (gap > maxGapKmh) {
+        maxGapKmh = gap;
+        maxGapPair = [i, j];
       }
     }
-    if (highDivergence) break;
   }
 
   // Overall confidence: based on number of methods and their individual confidence
@@ -554,6 +591,70 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
     : '';
   const summary = `Consensus impact speed: ~${consensusSpeedKmh} km/h (90% CI: ${confidenceInterval[0]}–${confidenceInterval[1]} km/h) derived from ${pointEstimates.length} method${pointEstimates.length > 1 ? 's' : ''}: ${methodNames}.${divergenceNote}`;
 
+  // Build divergence explanation when methods conflict
+  const divergenceExplanation: SpeedInferenceResult['divergenceExplanation'] = [];
+  if (highDivergence && pointEstimates.length >= 2) {
+    const mA = pointEstimates[maxGapPair[0]];
+    const mB = pointEstimates[maxGapPair[1]];
+    const gapKmh = Math.round(Math.abs(mA.speedKmh - mB.speedKmh));
+    const maxSpeed = Math.max(mA.speedKmh, mB.speedKmh);
+    const gapPct = maxSpeed > 0 ? Math.round((gapKmh / maxSpeed) * 100) : 0;
+
+    // Determine the key input difference driving the gap
+    let keyInputDifference = `${mA.label} used: ${mA.basis}. ${mB.label} used: ${mB.basis}.`;
+    let explanation = `${mA.label} estimated ${mA.speedKmh} km/h while ${mB.label} estimated ${mB.speedKmh} km/h — a ${gapPct}% gap (${gapKmh} km/h). `;
+
+    // Specific explanation for the most common divergence patterns
+    if ((mA.method === 'CAMPBELL' || mA.method === 'VISION_DEFORMATION') &&
+        (mB.method === 'CAMPBELL' || mB.method === 'VISION_DEFORMATION')) {
+      // M1 vs M5: crush depth discrepancy between document and photos
+      explanation += `Both methods use crush depth but from different sources. `;
+      explanation += `If the document-stated crush depth differs from the photo-measured depth, this indicates the damage documentation may not accurately reflect the physical deformation. `;
+      explanation += `The photo-measured value (${mB.method === 'VISION_DEFORMATION' ? mB.speedKmh : mA.speedKmh} km/h) is typically more reliable for recent impacts.`;
+      keyInputDifference = `Document crush depth vs photo-measured crush depth discrepancy.`;
+    } else if (mA.method === 'IMPULSE' || mB.method === 'IMPULSE') {
+      explanation += `The impulse method uses total damage area as a proxy for contact force, which can overestimate speed for distributed low-energy damage. `;
+      explanation += `Consider whether the damage area is consistent with a single impact event.`;
+      keyInputDifference = `Damage area used by impulse method may not reflect a single concentrated impact.`;
+    } else if (mA.method === 'DEPLOYMENT_THRESHOLD' || mB.method === 'DEPLOYMENT_THRESHOLD') {
+      explanation += `The deployment threshold provides a hard lower bound (not a point estimate) based on airbag/pretensioner activation. `;
+      explanation += `If the other method estimates a speed below the deployment threshold, the physical evidence (airbag deployed) overrides it.`;
+      keyInputDifference = `Airbag/pretensioner deployment confirms speed exceeded the activation threshold.`;
+    } else {
+      explanation += `Review the key inputs for each method to identify the source of the discrepancy.`;
+    }
+
+    divergenceExplanation.push({
+      methodPair: [mA.method, mB.method],
+      speedsKmh: [mA.speedKmh, mB.speedKmh],
+      gapKmh,
+      gapPct,
+      keyInputDifference,
+      explanation,
+      recommendedAction: gapPct >= 60
+        ? 'Critical divergence — independent accident reconstruction specialist required before settlement.'
+        : 'Significant divergence — senior assessor should review Section 2.6 method inputs and request additional evidence.',
+    });
+  }
+
+  // Cross-validation spread summary
+  const allSpeeds = pointEstimates.map(m => m.speedKmh);
+  const spread = allSpeeds.length >= 2
+    ? Math.round(Math.max(...allSpeeds) - Math.min(...allSpeeds))
+    : 0;
+  const outlierMethods = pointEstimates
+    .filter(m => Math.abs(m.speedKmh - consensus.mean) > 2 * consensus.stdDev)
+    .map(m => m.method);
+  const crossValidation: SpeedInferenceResult['crossValidation'] = pointEstimates.length >= 2 ? {
+    spread,
+    outlierMethods,
+    recommendation: highDivergence
+      ? 'Methods diverge significantly — do not use consensus as sole basis for settlement.'
+      : spread <= 10
+      ? 'Methods agree closely — consensus estimate is reliable.'
+      : 'Methods show moderate spread — treat consensus as indicative, verify with physical inspection.',
+  } : undefined;
+
   return {
     consensusSpeedKmh,
     confidenceInterval,
@@ -563,5 +664,7 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
     highDivergence,
     summary,
     methodsRan: pointEstimates.length,
+    divergenceExplanation: divergenceExplanation.length > 0 ? divergenceExplanation : undefined,
+    crossValidation,
   };
 }

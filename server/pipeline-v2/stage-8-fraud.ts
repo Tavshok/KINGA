@@ -794,6 +794,35 @@ export async function runFraudAnalysisStage(
       });
       if (crossEngineConsistency) {
         ctx.log("Stage 8/43", `Cross-engine consistency: ${crossEngineConsistency.overall_status} (${crossEngineConsistency.consistency_score}/100), ${crossEngineConsistency.agreements.length} agreements, ${crossEngineConsistency.conflicts.length} conflicts`);
+
+        // ── STRATEGIC FIX: Feed C-check conflicts back into the fraud score ──
+        // The cross-engine validator already detects physics↔damage↔fraud conflicts
+        // (C1–C9) but previously these findings were stored and never counted.
+        // We now inject each conflict as a FraudIndicator so the fraud score
+        // reflects ALL detected inconsistencies, not just the legacy indicators.
+        //
+        // Score mapping (per conflict severity):
+        //   CRITICAL    → 20 pts  (e.g. physics says minor, damage says catastrophic)
+        //   SIGNIFICANT → 12 pts  (e.g. direction mismatch confirmed by two engines)
+        //   MINOR       → 4 pts   (e.g. small severity band gap)
+        //
+        // Deduplication: skip if an indicator with the same check_id already exists
+        // from the legacy analysers (e.g. damage_direction_mismatch from analyseDamageConsistency).
+        const CONFLICT_SCORE: Record<string, number> = { CRITICAL: 20, SIGNIFICANT: 12, MINOR: 4 };
+        for (const conflict of crossEngineConsistency.conflicts) {
+          const indicatorId = `cross_engine_${conflict.check_id.toLowerCase()}`;
+          const alreadyPresent = allIndicators.some(i => i.indicator === indicatorId);
+          if (!alreadyPresent) {
+            const score = CONFLICT_SCORE[conflict.severity] ?? 4;
+            allIndicators.push({
+              indicator: indicatorId,
+              category: "consistency",
+              score,
+              description: `[${conflict.check_id}] ${conflict.label}: ${conflict.physics_says || conflict.damage_says || conflict.fraud_says || 'Cross-engine conflict detected'}. Recommended action: ${conflict.recommended_action}`,
+            });
+            ctx.log("Stage 8/43", `Injected cross-engine conflict indicator: ${indicatorId} (+${score}pts) — ${conflict.label}`);
+          }
+        }
       }
     } catch (crossErr) {
       ctx.log("Stage 8/43", `Cross-engine consistency validator failed: ${String(crossErr)} — skipping`);
