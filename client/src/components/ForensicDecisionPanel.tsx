@@ -235,7 +235,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   const costIntel        = useMemo(() => safeParse(aiAssessment?.costIntelligenceJson), [aiAssessment?.costIntelligenceJson]);
   const fraudBreakdown   = useMemo(() => safeParse(aiAssessment?.fraudScoreBreakdownJson), [aiAssessment?.fraudScoreBreakdownJson]);
   const scenarioFraud    = useMemo(() => { const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson); return fb?.scenario_fraud_detection ?? null; }, [aiAssessment?.fraudScoreBreakdownJson]);
-  const crossEngine      = useMemo(() => { const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson); return fb?.cross_engine_consistency ?? null; }, [aiAssessment?.fraudScoreBreakdownJson]);
+  const crossEngine      = useMemo(() => { const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson); return fb?.crossEngineConsistency ?? fb?.cross_engine_consistency ?? null; }, [aiAssessment?.fraudScoreBreakdownJson]);
   const severityConsensus = useMemo(() => { const p = safeParse(aiAssessment?.physicsAnalysis); return p?.severityConsensus ?? null; }, [aiAssessment?.physicsAnalysis]);
   const confAgg          = useMemo(() => { const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson); return fb?.confidence_aggregation ?? null; }, [aiAssessment?.fraudScoreBreakdownJson]);
   const validatedOutcome = useMemo(() => safeParse(aiAssessment?.validatedOutcomeJson), [aiAssessment?.validatedOutcomeJson]);

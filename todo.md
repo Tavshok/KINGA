@@ -185,7 +185,7 @@
 - [ ] Fix: Photos extracted from PDF being misclassified (page renders vs actual damage photos)
 - [ ] Fix: Vision analysis running on PDF page images instead of dedicated damage photos
 - [ ] Implement proper image classification: page renders vs damage photos vs documents
-- [ ] Fix: Forensic validator treating INVALID_EXTRACTION as missing field
+- [x] Fix: Forensic validator treating INVALID_EXTRACTION as missing field
 - [ ] Fix: Cost model not populating line items into assessment record
 - [ ] Fix: Report missing critical sections (assessor remarks, cost breakdown, evidence summary)
 - [ ] Re-run BMW 318i case study: target consistencyScore > 70, criticalFailures = 0
@@ -12250,8 +12250,8 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Write vitest tests for quote line item completeness (23/23 passing)
 
 ## Quote Line Item Persistence & UI Display (Phase 2 — Critical)
-- [ ] Fix saveAssessment: make quote persistence awaited (not fire-and-forget Promise.all.then)
-- [ ] Add persistence confirmation log after DB write: "Quote[n] persisted: N priced items, total=X"
+- [x] Fix saveAssessment: make quote persistence awaited (not fire-and-forget Promise.all.then)
+- [x] Add persistence confirmation log after DB write: "Quote[n] persisted: N priced items, total=X"
 - [ ] Fix MultiQuoteComparisonPanel: read persisted line items from DB via tRPC query (not just costIntelligenceJson)
 - [ ] Add line item price table to cost report (component | qty | unit price | line total | category)
 - [ ] Add sum-check warning banner when line_items_sum deviates >10% from quoted_amount
@@ -12278,26 +12278,26 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Override KingaClaimsReport cost verdict and decision with CTL values
 ### Remaining
 - [ ] Verify CTL produces correct output with Voltron PDF (re-run pipeline)
-- [ ] Surface policy exclusions in report UI (ForensicAuditReport Section 5)
-- [ ] Surface subrogation leads in report UI (ForensicAuditReport Section 3)
+- [x] Surface policy exclusions in report UI (ForensicAuditReport Section 5)
+- [x] Surface subrogation leads in report UI (ForensicAuditReport Section 3)
 - [ ] Improve LLM market valuation prompt for Zimbabwe/Southern Africa vehicle pricing
 - [ ] Add fraud indicator evidence traceability to report (each flag links to source document/page)
 
 ## Cross-Quote Gap Analysis Engine (Cost Intelligence)
 
-- [ ] Build crossQuoteGapAnalysis.ts: union all quoted components, per-quote gap map, copy quotation detection
-- [ ] Add vision validation layer: for each gap component, check damage photos via LLM vision to confirm/deny visibility
-- [ ] Integrate CrossQuoteGapAnalysis into Stage 9 pipeline with end-of-pipeline summary log
-- [ ] Persist gap analysis results in ai_assessments JSON (cross_quote_gap_analysis field)
+- [x] Build crossQuoteGapAnalysis.ts: union all quoted components, per-quote gap map, copy quotation detection
+- [x] Add vision validation layer: for each gap component, check damage photos via LLM vision to confirm/deny visibility
+- [x] Integrate CrossQuoteGapAnalysis into Stage 9 pipeline with end-of-pipeline summary log
+- [x] Persist gap analysis results in ai_assessments JSON (cross_quote_gap_analysis field)
 - [ ] Surface gap analysis in UI: per-quote gap table, vision-validated gaps, composite fair quote, savings
 - [ ] Fix Swiss Motors MIAZ-format extraction (USD 25,553 total, 26 line items) - prompt updated, re-run pending
 - [x] Add best_quote_by_cost and savings_vs_highest_usd to QuoteOptimisationResult
 
 ## KINGA Savings Dashboard Audit (Future)
 
-- [ ] Audit executive dashboard "KINGA Savings" widget — trace where the current figure comes from in the code and DB
-- [ ] Audit claims manager dashboard "KINGA Savings" widget — same trace
-- [ ] Determine if current savings figures are real (from pipeline data) or hardcoded/fabricated
+- [x] Audit executive dashboard "KINGA Savings" widget — trace where the current figure comes from in the code and DB
+- [x] Audit claims manager dashboard "KINGA Savings" widget — same trace
+- [x] Determine if current savings figures are real (from pipeline data) or hardcoded/fabricated
 - [ ] Map existing savings widgets to the new KINGA Savings Model dimensions (quote optimisation, gap prevention, latent damage, fraud prevention, copy quotation risk)
 - [ ] Redesign savings display: each dimension stands alone with its own label and confidence badge
 - [ ] Add "KINGA Cost Savings" as a separate headline parameter distinct from fraud/gap savings

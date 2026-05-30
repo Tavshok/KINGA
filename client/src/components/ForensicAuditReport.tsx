@@ -6239,6 +6239,78 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         );
       })()}
 
+      {/* 5.7 Policy Exclusions & Recovery Opportunities — sourced from Claim Truth Layer */}
+      {(() => {
+        const ctl5 = (enforcement as any)?._claimTruth;
+        const recovery = ctl5?.policyAndRecovery;
+        if (!recovery) return null;
+        const exclusions: any[] = recovery.exclusions ?? [];
+        const subrogation: any[] = recovery.subrogationLeads ?? [];
+        const excess: number | null = recovery.excessApplicable ?? null;
+        if (exclusions.length === 0 && subrogation.length === 0 && excess === null) return null;
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: '#fafafa' }}>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>5.7 Policy Exclusions &amp; Recovery Opportunities</p>
+                <p className="text-[10px] mt-0.5" style={{ color: '#64748b' }}>Sourced from policy document analysis and third-party evidence — Claim Truth Layer</p>
+              </div>
+              {excess !== null && (
+                <div className="text-right shrink-0">
+                  <p className="text-[10px] uppercase tracking-wide" style={{ color: '#64748b' }}>Excess Applicable</p>
+                  <p className="text-sm font-bold" style={{ color: '#0f172a' }}>{excess > 0 ? `${excess.toLocaleString()}` : 'None'}</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 space-y-4">
+              {exclusions.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#64748b' }}>Policy Exclusions Identified</p>
+                  <div className="space-y-2">
+                    {exclusions.map((ex: any, i: number) => (
+                      <div key={i} className="rounded-lg px-3 py-2.5" style={{ border: '1px solid var(--fp-critical-border)', background: 'var(--fp-critical-bg)' }}>
+                        <div className="flex items-start gap-2">
+                          <span className="shrink-0 mt-0.5 text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>EXCLUSION</span>
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold" style={{ color: '#0f172a' }}>{ex.clause ?? ex.description ?? 'Policy exclusion'}</p>
+                            {ex.description && ex.description !== ex.clause && (
+                              <p className="text-xs mt-0.5" style={{ color: '#475569' }}>{ex.description}</p>
+                            )}
+                            <div className="flex items-center gap-3 mt-1">
+                              {ex.source && <span className="text-[10px]" style={{ color: '#64748b' }}>Source: {ex.source}</span>}
+                              {ex.pageRef != null && <span className="text-[10px]" style={{ color: '#64748b' }}>Page {ex.pageRef}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {subrogation.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#64748b' }}>Subrogation &amp; Recovery Leads</p>
+                  <div className="space-y-2">
+                    {subrogation.map((lead: any, i: number) => (
+                      <div key={i} className="rounded-lg px-3 py-2.5" style={{ border: '1px solid var(--fp-warning-border)', background: 'var(--fp-warning-bg)' }}>
+                        <div className="flex items-start gap-2">
+                          <span className="shrink-0 mt-0.5 text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>RECOVERY</span>
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold" style={{ color: '#0f172a' }}>{lead.party}</p>
+                            <p className="text-xs mt-0.5" style={{ color: '#475569' }}>{lead.basis}</p>
+                            {lead.source && <p className="text-[10px] mt-0.5" style={{ color: '#64748b' }}>Source: {lead.source}</p>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${fraudColor}40`, background: "#ffffff" }}>
         <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Final Risk Statement</p>
