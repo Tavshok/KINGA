@@ -1017,6 +1017,63 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         </div>
       </div>
 
+      {/* ── Decision Score Summary Chart ── */}
+      {(() => {
+        const dims5 = [
+          { label: 'Fraud Risk', score: Math.round(fraudScore), threshold: 40, invert: true },
+          { label: 'Physics', score: Math.round(physicsScore), threshold: 70, invert: false },
+          { label: 'Data Completeness', score: Math.round(dataCompleteness), threshold: 75, invert: false },
+          { label: 'Photo Integrity', score: fcdiTileScore >= 0 ? Math.round(fcdiTileScore) : 0, threshold: 55, invert: false },
+          { label: 'Cost Intelligence', score: quotedTotal > 0 ? 80 : 20, threshold: 60, invert: false },
+        ];
+        const barColors = dims5.map(d => {
+          if (d.invert) return d.score >= d.threshold ? '#dc2626' : '#16a34a';
+          return d.score >= d.threshold ? '#16a34a' : '#d97706';
+        });
+        const chartData5 = {
+          labels: dims5.map(d => d.label),
+          datasets: [
+            {
+              label: 'Actual Score',
+              data: dims5.map(d => d.score),
+              backgroundColor: barColors,
+              borderRadius: 3,
+              borderWidth: 0,
+            },
+            {
+              label: 'Threshold',
+              data: dims5.map(d => d.threshold),
+              backgroundColor: 'rgba(0,0,0,0)',
+              borderColor: '#94a3b8',
+              borderWidth: 2,
+              borderDash: [4, 3],
+              type: 'bar' as const,
+              borderRadius: 0,
+            },
+          ],
+        };
+        const opts5: any = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: 'bottom' as const, labels: { font: { size: 10 }, padding: 10, boxWidth: 10 } },
+            tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.dataset.label}: ${ctx.raw}/100` } },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+            y: { min: 0, max: 100, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, stepSize: 20 } },
+          },
+        };
+        return (
+          <div style={{ margin: '16px 0' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginBottom: 8 }}>Decision Score Summary</div>
+            <div style={{ height: 200 }}>
+              <Bar data={chartData5} options={opts5} />
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── 10-Dimension Results ── */}
       {(() => {
         const dims = (aiAssessment as any)?._forensicAnalysis?.dimensionResults ?? (enforcement as any)?.dimensionResults ?? null;
@@ -1727,7 +1784,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
         {/* Completeness checklist */}
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.2 Data Completeness</p>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.6 Data Completeness</p>
             <span className="text-xs font-bold" style={{ color: dataCompleteness >= 70 ? "var(--fp-success-text)" : "var(--fp-warning-text)" }}>{Math.round(dataCompleteness)}%</span>
           </div>
           {/* Overall completeness bar */}
@@ -1756,7 +1813,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
         {/* Confidence bars */}
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.3 Extraction Confidence</p>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.7 Extraction Confidence</p>
           </div>
           <div className="p-4 space-y-3">
             {confidenceBars.map((bar, i) => (
@@ -1800,7 +1857,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
         return (
           <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
             <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.4 Data Gap Attribution</p>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.8 Data Gap Attribution</p>
             </div>
             <div className="p-4">
               <GapAttributionTable data={gapData} />
@@ -2067,33 +2124,58 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             if (!ldp) return null;
             const entries = Object.entries(ldp) as [string, number][];
             if (entries.length === 0) return null;
-            // Normalise: values may be 0-1 or 0-100; detect by max value
             const maxRaw = Math.max(...entries.map(([,v]) => v));
             const scale = maxRaw <= 1 ? 100 : 1;
             const normalised = entries.map(([k, v]) => [k, Math.round(v * scale)] as [string, number]);
             const anySignificant = normalised.some(([,v]) => v >= 15);
             if (!anySignificant) return null;
+            const sorted = [...normalised].sort(([,a],[,b]) => b - a);
+            const ldpColors = sorted.map(([,pct]) =>
+              pct >= 60 ? '#dc2626' : pct >= 35 ? '#d97706' : '#16a34a'
+            );
+            const ldpChartData = {
+              labels: sorted.map(([sys]) => sys.charAt(0).toUpperCase() + sys.slice(1)),
+              datasets: [{
+                label: 'Probability (%)',
+                data: sorted.map(([,pct]) => pct),
+                backgroundColor: ldpColors,
+                borderRadius: 3,
+                borderWidth: 0,
+              }],
+            };
+            const ldpOpts: any = {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw}%` } },
+                annotation: {
+                  annotations: {
+                    threshold: {
+                      type: 'line',
+                      yMin: 40,
+                      yMax: 40,
+                      borderColor: '#d97706',
+                      borderWidth: 1,
+                      borderDash: [4, 3],
+                      label: { content: 'Elevated Risk Threshold', display: true, position: 'end', font: { size: 9 }, color: '#d97706' },
+                    },
+                  },
+                },
+              },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                y: { min: 0, max: 100, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, callback: (v: any) => v + '%' } },
+              },
+            };
             return (
               <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Latent Damage Probability</p>
-                  <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>Hidden damage risk by system</span>
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Latent Damage Probability — By System</p>
+                  <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>Hidden damage risk</span>
                 </div>
-                <div className="space-y-1.5">
-                  {normalised.sort(([,a],[,b]) => b - a).map(([sys, pct]) => {
-                    const barColour = pct >= 60 ? 'var(--fp-critical-text)' : pct >= 35 ? 'var(--fp-warning-text)' : pct >= 15 ? 'var(--fp-locked-text)' : 'var(--fp-success-text)';
-                    return (
-                      <div key={sys}>
-                        <div className="flex justify-between text-[10px] mb-0.5">
-                          <span className="capitalize" style={{ color: 'var(--muted-foreground)' }}>{sys}</span>
-                          <span className="tabular-nums font-semibold" style={{ color: 'var(--foreground)' }}>{pct}%</span>
-                        </div>
-                        <div className="h-1.5 rounded-full" style={{ background: '#ffffff' }}>
-                          <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: barColour, opacity: 0.8 }} />
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div style={{ height: 180 }}>
+                  <Bar data={ldpChartData} options={ldpOpts} />
                 </div>
                 {normalised.some(([,v]) => v >= 40) && (
                   <p className="text-[10px] mt-2 px-2 py-1" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)', borderRadius: '4px' }}>
@@ -4321,9 +4403,49 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         const savingsUsd = coData?.negotiationSavingsUsd ?? (l1 && l2 && l1 > l2 ? l1 - l2 : null);
         const savingsPct = l1 && savingsUsd && l1 > 0 ? Math.round((savingsUsd / l1) * 100) : null;
 
+        // Chart 4 — Component-Level Quote Comparison grouped bar (top 10 by value)
+        const chart4Rows = allRows3
+          .filter((r: any) => r.cells.some((c: any) => c.amount !== null && c.amount > 0))
+          .map((r: any) => ({
+            description: r.description.length > 22 ? r.description.slice(0, 20) + '…' : r.description,
+            values: r.cells.map((c: any) => c.amount ?? 0),
+          }))
+          .sort((a: any, b: any) => Math.max(...b.values) - Math.max(...a.values))
+          .slice(0, 10);
+        const chart4QuoteColors = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4'];
+        const chart4Data = {
+          labels: chart4Rows.map((r: any) => r.description),
+          datasets: pbQuotes.map((q: any, qi: number) => ({
+            label: q.name.length > 18 ? q.name.slice(0, 16) + '…' : q.name,
+            data: chart4Rows.map((r: any) => r.values[qi] ?? 0),
+            backgroundColor: chart4QuoteColors[qi % chart4QuoteColors.length],
+            borderRadius: 2,
+            borderWidth: 0,
+          })),
+        };
+        const chart4Opts: any = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: pbQuotes.length > 1, position: 'top' as const, labels: { font: { size: 10 }, boxWidth: 10, padding: 8 } },
+            tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.dataset.label}: ${fmtMoney(ctx.raw)}` } },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 35, minRotation: 20 } },
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 }, callback: (v: any) => fmtMoney(v) } },
+          },
+        };
         return (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {chart4Rows.length > 0 && (
+              <div style={{ padding: '12px 16px 0 16px' }}>
+                <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: 8 }}>Component-Level Quote Comparison (Top {chart4Rows.length})</p>
+                <div style={{ height: 220 }}>
+                  <Bar data={chart4Data} options={chart4Opts} />
+                </div>
+              </div>
+            )}
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: chart4Rows.length > 0 ? 12 : 0 }}>
               <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#0f172a' }}>3.1 Repair Cost Analysis — Component Matrix</span>
               <span style={{ fontSize: 11, color: '#64748b' }}>{matrixQuotes.length > 0 ? `${matrixQuotes.length} quote${matrixQuotes.length !== 1 ? 's' : ''} received` : 'No quotes'}</span>
             </div>
@@ -4896,7 +5018,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
     <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Photo Evidence</p>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>4.0 Photo Evidence</p>
           <span className="text-xs font-semibold" style={{ color: "#64748b" }}>{toSentenceCase((photoStatus ?? "").replace(/_/g, " "))}</span>
         </div>
         <div className="p-4">
@@ -4927,6 +5049,57 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
               <strong>✓ Photos analysed</strong> — {photosProcessed} of {photosDetected} photos successfully processed.
             </div>
           )}
+          {/* Chart 3 — Photo Evidence Inventory: vertical bar chart */}
+          {photosDetected > 0 && (() => {
+            const pf3 = (enforcement as any)?._photoForensics as any;
+            const pfPhotos: any[] = pf3?.photos ?? [];
+            const isDocVision3 = (text: string) => {
+              if (!text) return false;
+              if (/^\s*(DAMAGE\s+DESCRIPTION|ESTIMATE|QUOTATION|INVOICE|CLAIM\s+FORM|REPAIR\s+ORDER|PARTS\s+LIST|LABOUR\s+SCHEDULE|SCHEDULE\s+OF|VEHICLE\s+INSPECTION\s+REPORT|ASSESSMENT\s+REPORT|BASED\s+ON\s+ESTIMATE)/i.test(text)) return true;
+              if (/listed\s+for\s+(replacement|repair)|qty\s*:|item\s*:|unit\s+price|labour\s+rate|parts\s+cost/i.test(text)) return true;
+              if (/^\s*(i\s+am\s+sorry|i\s+cannot|i\s+can't|i\s+apologize|i\s+apologise|unable\s+to|this\s+image\s+does\s+not|the\s+image\s+does\s+not\s+(?:show|contain|depict))/i.test(text)) return true;
+              return false;
+            };
+            const vehicleCount = pfPhotos.filter((p: any) => {
+              const r = p.analysisResult ?? {};
+              return !r.is_non_vehicle && !isDocVision3(r.ai_vision_description ?? '');
+            }).length;
+            const fraudFlagCount = pfPhotos.filter((p: any) => (p.analysisResult?.is_suspicious ?? false)).length;
+            const exifStrippedCount = pfPhotos.filter((p: any) => {
+              const r = p.analysisResult ?? {};
+              return !r.capture_datetime && !r.camera_make && !r.camera_model;
+            }).length;
+            const photoInventoryData = {
+              labels: ['Detected', 'Processed', 'Damage\nConfirmed', 'Fraud Flags', 'EXIF Stripped'],
+              datasets: [{
+                label: 'Count',
+                data: [photosDetected, photosProcessed, vehicleCount, fraudFlagCount, exifStrippedCount],
+                backgroundColor: ['#3b82f6', '#6366f1', '#16a34a', '#dc2626', '#d97706'],
+                borderRadius: 3,
+                borderWidth: 0,
+              }],
+            };
+            const photoInventoryOpts: any = {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw} photo${ctx.raw !== 1 ? 's' : ''}` } },
+              },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, stepSize: 1 } },
+              },
+            };
+            return (
+              <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Photo Evidence Inventory</p>
+                <div style={{ height: 160 }}>
+                  <Bar data={photoInventoryData} options={photoInventoryOpts} />
+                </div>
+              </div>
+            );
+          })()}
           {photoUrls.length > 0 && (
             <div className="mt-3">
               {/* C-09: Classification status indicator */}
@@ -5318,7 +5491,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
     <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
       <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${fraudColor}40`, background: "#ffffff" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Overall Fraud Risk Score</p>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>5.1 Overall Fraud Risk Score</p>
           <span className="text-xs font-semibold" style={{ color: "#0f172a" }}>{toSentenceCase(fraudBand)}</span>
         </div>
         <div className="p-4">
@@ -6154,7 +6327,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
       {wf?.full_contributions && wf.full_contributions.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Fraud Score Breakdown</p>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>5.4 Fraud Score Breakdown</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs report-table">
@@ -6216,7 +6389,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
 
       <div style={{ border: '1px solid var(--fp-border)', background: '#fff', borderRadius: 8, overflow: 'hidden' }}>
         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--fp-border)', background: 'var(--fp-section-bg)' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#374151', margin: 0 }}>Audit Trail</p>
+          <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#374151', margin: 0 }}>6.5 Audit Trail</p>
         </div>
         <div style={{ padding: '12px 16px' }}>
           <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
@@ -6771,7 +6944,7 @@ function Section7Learning({
     <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
       <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: '#ffffff' }}>
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: '#ffffff' }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>Historical cost benchmark</p>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>7.1 Historical Cost Benchmark</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
             Based on {lb!.sampleSize} anonymised validated claims for {lb!.vehicleDescriptor} ({lb!.collisionDirection} impact, {lb!.marketRegion} market)
           </p>
@@ -7194,6 +7367,12 @@ const REPORT_CSS = `
   /* ── Section 6 score summary bars: keep together ── */
   .kinga-report [data-section="6"]{page-break-before:always}
   .kinga-report [data-section="5"]{page-break-before:always}
+  /* ── Phase 3: Collapse two-col grid to single column in print to prevent chart/table collisions ── */
+  .kinga-report .two-col{grid-template-columns:1fr !important;gap:16px !important}
+  /* ── Phase 3: Ensure chart wrappers never overflow page width ── */
+  .kinga-report [class*="chart-wrap"],[class*="chart-section"]{width:100% !important;max-width:100% !important;overflow:visible !important}
+  /* ── Phase 3: Party grid collapses to single column in print ── */
+  .kinga-report .party-grid{grid-template-columns:1fr !important}
 }
 `;
 

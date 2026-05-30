@@ -115,9 +115,14 @@ export function ComponentCostMatrix({
   const pbColWidth = Math.max(90, Math.floor((700 - fixedColWidth - kingaWidth) / Math.max(quotes.length, 1)));
 
   // ── Table styles ─────────────────────────────────────────────────────────
+  // Scale font size down when there are many quotes (wide table)
+  const isWideTable = quotes.length >= 3;
+  const baseFontSize = isWideTable ? 10 : 12;
+  const headerFontSize = isWideTable ? 9 : 10;
+
   const th: React.CSSProperties = {
-    padding: "9px 10px",
-    fontSize: 10,
+    padding: isWideTable ? "7px 7px" : "9px 10px",
+    fontSize: headerFontSize,
     fontWeight: 700,
     textTransform: "uppercase",
     letterSpacing: "0.06em",
@@ -135,18 +140,18 @@ export function ComponentCostMatrix({
     color: KINGA_COLOR,
     background: KINGA_BG,
     borderLeft: KINGA_BORDER,
-    width: 90,
+    width: isWideTable ? 80 : 90,
   };
   const thKingaComment: React.CSSProperties = {
     ...th,
     color: KINGA_COLOR,
     background: KINGA_BG,
-    width: 120,
+    width: isWideTable ? 100 : 120,
     borderRight: "1px solid #e2e8f0",
   };
   const td: React.CSSProperties = {
-    padding: "7px 10px",
-    fontSize: 12,
+    padding: isWideTable ? "5px 7px" : "7px 10px",
+    fontSize: baseFontSize,
     color: "#0f172a",
     borderBottom: "1px solid #f1f5f9",
     verticalAlign: "middle",
@@ -164,7 +169,7 @@ export function ComponentCostMatrix({
   };
   const tdKingaComment: React.CSSProperties = {
     ...td,
-    fontSize: 10,
+    fontSize: isWideTable ? 9 : 10,
     color: "#64748b",
     background: KINGA_BG,
     whiteSpace: "normal",
@@ -172,8 +177,8 @@ export function ComponentCostMatrix({
     borderRight: "1px solid #e2e8f0",
   };
   const tfTd: React.CSSProperties = {
-    padding: "10px 10px",
-    fontSize: 12,
+    padding: isWideTable ? "8px 7px" : "10px 10px",
+    fontSize: isWideTable ? 11 : 12,
     fontWeight: 700,
     color: "#0f172a",
     borderTop: "2px solid #cbd5e1",
@@ -218,8 +223,8 @@ export function ComponentCostMatrix({
               <col key={qi} style={{ width: pbColWidth }} />
             ))}
             {/* KINGA: cost col + comment col */}
-            <col style={{ width: 90 }} />
-            <col style={{ width: 120 }} />
+            <col style={{ width: isWideTable ? 80 : 90 }} />
+            <col style={{ width: isWideTable ? 100 : 120 }} />
           </colgroup>
           <thead>
             <tr>

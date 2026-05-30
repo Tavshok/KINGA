@@ -476,7 +476,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
       </div>
 
       {/* Items table */}
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", tableLayout: "fixed" }}>
         <thead>
           <tr style={{ background: "#ffffff" }}>
             <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, fontSize: "9px", letterSpacing: "1px", textTransform: "uppercase", color: "var(--fp-text-muted)", borderBottom: "2px solid var(--fp-border)", width: "3%" }}>#</th>
@@ -504,7 +504,7 @@ export const ConfidenceImprovementChecklist: React.FC<ConfidenceImprovementCheck
                   </span>
                 </td>
                 <td style={{ padding: "10px", borderBottom: "1px solid var(--fp-border)", fontWeight: 600, color: "var(--fp-text-primary)" }}>{item.title}</td>
-                <td style={{ padding: "10px", borderBottom: "1px solid var(--fp-border)", color: "var(--fp-text-secondary, #374151)", lineHeight: "1.5" }}>{item.description}</td>
+                <td style={{ padding: "10px", borderBottom: "1px solid var(--fp-border)", color: "var(--fp-text-secondary, #374151)", lineHeight: "1.5", wordBreak: "break-word", whiteSpace: "normal" }}>{item.description}</td>
                 <td style={{ padding: "10px", borderBottom: "1px solid var(--fp-border)" }}>
                   <div style={{ color: "var(--fp-text-secondary, #374151)", marginBottom: "3px" }}>{item.impact}</div>
                   {/* FAR-01: impact delta in B&W bold instead of green */}
