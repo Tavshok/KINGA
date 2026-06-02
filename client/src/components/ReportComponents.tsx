@@ -152,7 +152,7 @@ export function CostBenchmarkDeviation({ data }: { data: CostBenchmarkData }) {
 
   return (
     <div className="space-y-3">
-      <div style={{ height: 200 }}>
+      <div style={{ height: 150 }}>
         <Bar data={chartData} options={options} />
       </div>
       {(benchmarkOutside || reconciledOutside) && (
@@ -319,7 +319,7 @@ export function FraudRadarChart({ data }: { data: FraudRadarData | FraudRadarDat
   return (
     <div className={`flex gap-6 justify-center ${items.length > 1 ? "flex-row flex-wrap" : ""}`}>
       {items.map((d, i) => (
-        <FraudRadarSingle key={i} data={d} size={items.length > 1 ? 200 : 220} />
+        <FraudRadarSingle key={i} data={d} size={items.length > 1 ? 160 : 180} />
       ))}
     </div>
   );

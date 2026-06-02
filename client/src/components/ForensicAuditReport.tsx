@@ -7821,7 +7821,7 @@ const REPORT_CSS = `
 .kinga-report .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid #ddd;margin-bottom:14px}
 .kinga-report .kpi-tile{padding:10px 12px;border-right:1px solid #ddd;text-align:center}
 .kinga-report .kpi-tile:last-child{border-right:none}
-.kinga-report .kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px}
+.kinga-report .kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:5px}
 .kinga-report .kpi-value{font-family:'IBM Plex Mono','Courier New',monospace;font-size:22px;font-weight:700;color:#111;line-height:1}
 .kinga-report .kpi-sub{font-size:10px;color:#666;margin-top:4px}
 .kinga-report .kpi-polarity{font-size:8px;color:#aaa;margin-top:2px;font-style:italic}
@@ -7855,8 +7855,8 @@ const REPORT_CSS = `
 .kinga-report .ps-item{text-align:center}
 .kinga-report .ps-value{font-size:22px;font-weight:700;color:#111}
 .kinga-report .ps-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.06em}
-.kinga-report .section-heading{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#1A2B4A;margin:20px 0 10px;padding-bottom:6px;border-bottom:2px solid #1A2B4A}
-.kinga-report .sub-heading{font-size:13px;font-weight:700;color:#111;margin:12px 0 8px}
+.kinga-report .section-heading{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#1A2B4A;margin:18px 0 10px;padding-bottom:5px;border-bottom:2px solid #1A2B4A}
+.kinga-report .sub-heading{font-size:13px;font-weight:700;color:#111;margin:10px 0 7px}
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
 .kinga-report .data-table td,.kinga-report .data-table th{padding:5px 10px;font-size:11px !important;border-bottom:1px solid #eee;vertical-align:top;word-break:break-word;overflow-wrap:break-word;white-space:normal}
 .kinga-report .data-table th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;background:#f4f4f4;border-bottom:2px solid #ccc}
@@ -7900,8 +7900,8 @@ const REPORT_CSS = `
 .kinga-report .photo-integrity-summary{background:#f8f9fa !important;border:1px solid #ddd !important;border-radius:0 !important;padding:10px 14px !important;margin-bottom:14px !important}
 .kinga-report .photo-integrity-summary .pis-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;margin-bottom:4px}
 .kinga-report .photo-integrity-summary .pis-text{font-size:12px;color:#111;line-height:1.6}
-.kinga-report .fraud-score-block{display:flex;gap:24px;align-items:flex-start;margin-bottom:16px}
-.kinga-report .fraud-big{font-size:48px;font-weight:700;color:#111;line-height:1}
+.kinga-report .fraud-score-block{display:flex;gap:16px;align-items:flex-start;margin-bottom:10px}
+.kinga-report .fraud-big{font-size:44px;font-weight:700;color:#111;line-height:1}
 .kinga-report .fraud-denom{font-size:22px;color:#888}
 .kinga-report .fraud-explain{font-size:12px;color:#333;line-height:1.7;flex:1;padding-top:8px}
 .kinga-report .ml-glimpse{background:#fff;border:1px solid #ddd;padding:10px 14px;margin-bottom:10px}
@@ -7914,12 +7914,12 @@ const REPORT_CSS = `
 .kinga-report .ml-badge.normal{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
 .kinga-report .ml-badge.anomaly{background:#fff8e1;color:#f57f17;border:1px solid #ffe082}
 .kinga-report .ml-badge.cluster{background:#e8eaf6;color:#283593;border:1px solid #9fa8da}
-.kinga-report .decision-box{border:2px solid #111;padding:20px 24px;margin-bottom:20px;text-align:center}
-.kinga-report .db-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:8px}
+.kinga-report .decision-box{border:2px solid #111;padding:16px 20px;margin-bottom:14px;text-align:center}
+.kinga-report .db-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:4px}
 .kinga-report .db-value{font-size:28px;font-weight:700;color:#111}
 .kinga-report .db-sub{font-size:11px;color:#555;margin-top:6px}
-.kinga-report .flowchart{display:flex;flex-direction:column;align-items:center;gap:0;margin-bottom:20px}
-.kinga-report .fc-box{width:360px;padding:12px 20px;text-align:center;border:1px solid #ccc;font-size:12px;background:#fff}
+.kinga-report .flowchart{display:flex;flex-direction:column;align-items:center;gap:0;margin-bottom:12px}
+.kinga-report .fc-box{width:340px;padding:10px 18px;text-align:center;border:1px solid #ccc;font-size:11px;background:#fff}
 .kinga-report .fc-box.start{background:#fff;font-weight:700;border:2px solid #111}
 .kinga-report .fc-box.amber-box{background:#fff;border-color:#c8a000;color:#7a5c00}
 .kinga-report .fc-box.green-box{background:#fff;border-color:#388e3c;color:#1b5e20}
@@ -7930,8 +7930,8 @@ const REPORT_CSS = `
 .kinga-report .blockers-list{margin-bottom:16px;list-style:none;padding:0}
 .kinga-report .blockers-list li{font-size:12px;color:#333;padding:4px 0 4px 16px;position:relative;border-bottom:1px solid #f0f0f0}
 .kinga-report .blockers-list li::before{content:'•';position:absolute;left:0;color:#888}
-.kinga-report .next-steps{margin-bottom:20px;list-style:none;padding:0}
-.kinga-report .next-steps li{font-size:12px;color:#333;padding:5px 0 5px 28px;position:relative;border-bottom:1px solid #f0f0f0}
+.kinga-report .next-steps{margin-bottom:12px;list-style:none;padding:0}
+.kinga-report .next-steps li{font-size:11px;color:#333;padding:5px 0 5px 26px;position:relative;border-bottom:1px solid #f0f0f0}
 .kinga-report .ns-num{position:absolute;left:0;font-weight:700;color:#888;font-size:11px}
 .kinga-report .integrity-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
 .kinga-report .integrity-table td{padding:7px 12px;font-size:12px;border-bottom:1px solid #eee;word-break:break-word;overflow-wrap:break-word;white-space:normal}
@@ -7944,8 +7944,8 @@ const REPORT_CSS = `
 .kinga-report .lc-step.active{background:#fff;color:#7a5c00;border-color:#c8a000;border-bottom:3px solid #c8a000}
 .kinga-report .lc-step.done{background:#fff;color:#2e7d32;border-color:#a5d6a7;border-bottom:3px solid #2e7d32}
 .kinga-report .conf-footer{font-size:10px;color:#888;text-align:center;padding:12px 20px;border-top:1px solid #ddd;line-height:1.5;background:#fff}
-.kinga-report .two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px}
-.kinga-report .section-divider{border:none;border-top:1px solid #ddd;margin:24px 0}
+.kinga-report .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.kinga-report .section-divider{border:none;border-top:1px solid #ddd;margin:16px 0}
 .kinga-report .text-muted{color:#888}
 .kinga-report .mono{font-family:'Courier New',monospace}
 .kinga-report .small{font-size:10px}
@@ -8051,10 +8051,10 @@ const REPORT_CSS = `
   border-color:#ddd !important;
 }
 /* Table rows */
-.kinga-report table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;table-layout:fixed}
-.kinga-report table td,.kinga-report table th{padding:7px 12px;font-size:12px !important;border-bottom:1px solid #eee;vertical-align:top;color:#111;background:#fff;word-break:break-word;overflow-wrap:break-word;white-space:normal}
+.kinga-report table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px;table-layout:fixed}
+.kinga-report table td,.kinga-report table th{padding:6px 10px;font-size:11px !important;border-bottom:1px solid #eee;vertical-align:top;color:#111;background:#fff;word-break:break-word;overflow-wrap:break-word;white-space:normal}
 .kinga-report table th{font-size:10px !important;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;background:#f4f4f4;border-bottom:2px solid #ccc;word-break:break-word;white-space:normal}
-.kinga-report table td:first-child{color:#555;font-size:12px !important}
+.kinga-report table td:first-child{color:#555;font-size:11px !important;font-weight:500}
 /* Narrative boxes */
 .kinga-report [class*="p-3"][class*="rounded"]{background:#fff !important;border:1px solid #ddd !important;border-radius:0 !important;color:#333 !important}
 /* Section sub-headings */
@@ -8126,17 +8126,101 @@ const REPORT_CSS = `
   .kinga-report table th{background:#f4f4f4 !important;border-bottom:2px solid #bbb !important;color:#555 !important}
   /* Section 2.5 Quote Coverage table */
   .kinga-report .report-table,.kinga-report .report-table td,.kinga-report .report-table th{border:1px solid #ddd !important;background:#fff !important;word-break:break-word !important;white-space:normal !important}
-  /* Page break strategy */
-  .kinga-report .section-heading{page-break-before:auto;page-break-after:avoid}
-  /* Section 4 Evidence Inventory: start on new page */
-  /* Photo cards: never split mid-row */
-  .kinga-report .photo-card,.kinga-report [data-photo-card]{page-break-inside:avoid}
-  /* Flowchart and charts: keep together, constrain size */
-  .kinga-report .flowchart,.kinga-report .chart-container,.kinga-report canvas{page-break-inside:avoid}
-  .kinga-report .chart-container{height:auto !important;min-height:120px;width:100% !important}
-  .kinga-report canvas{width:100% !important;height:auto !important;min-height:100px}
-  /* SVG damage map: keep together */
-  .kinga-report svg{page-break-inside:avoid}
+  /* ── Page Break Strategy: Professional section-aware breaks ── */
+
+  /* 1. Section headings: always keep with the content that follows them */
+  .kinga-report .section-heading{
+    page-break-before:always;
+    page-break-after:avoid;
+    break-before:page;
+    break-after:avoid;
+  }
+  /* ReportSectionThread UI components: hidden in print (they are screen-only discussion threads) */
+  .kinga-report [data-section-thread],
+  .kinga-report [class*="section-thread"],
+  .kinga-report [class*="SectionThread"]{
+    display:none !important;
+  }
+
+  /* 2. Sub-headings: never orphaned at bottom of page */
+  .kinga-report .sub-heading{
+    page-break-after:avoid;
+    break-after:avoid;
+    orphans:3;
+    widows:3;
+  }
+
+  /* 3. KPI row, verdict banner, score summary: always keep together */
+  .kinga-report .kpi-row,
+  .kinga-report .verdict-banner,
+  .kinga-report .score-summary-panel,
+  .kinga-report .decision-box,
+  .kinga-report .fraud-score-block,
+  .kinga-report .dim-grid,
+  .kinga-report .party-grid{
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+
+  /* 4. Tables: header row never orphaned; rows never split mid-row */
+  .kinga-report table{
+    page-break-inside:auto;
+    break-inside:auto;
+  }
+  .kinga-report tr{
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+  .kinga-report thead{
+    display:table-header-group;
+  }
+
+  /* 5. Charts, flowcharts, SVGs: always keep together */
+  .kinga-report .flowchart,
+  .kinga-report .chart-container,
+  .kinga-report canvas,
+  .kinga-report svg{
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+  .kinga-report .chart-container{height:auto !important;min-height:90px;width:100% !important}
+  .kinga-report canvas{width:100% !important;height:auto !important;min-height:80px}
+
+  /* 6. Photo cards: never split mid-row */
+  .kinga-report .photo-card,.kinga-report [data-photo-card]{
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+
+  /* 7. Alert banners and narrative boxes: keep together */
+  .kinga-report .alert-banner,
+  .kinga-report .ml-glimpse,
+  .kinga-report .photo-integrity-summary,
+  .kinga-report .next-steps,
+  .kinga-report .blockers-list{
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+
+  /* 8. Two-column grids: keep each column cell together */
+  .kinga-report .two-col > *{
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+
+  /* 9. Lifecycle tracker and approval chain: keep together */
+  .kinga-report .lc-row,
+  .kinga-report [class*="approval"],
+  .kinga-report [class*="lifecycle"]{
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+
+  /* 10. Orphan/widow control for narrative paragraphs */
+  .kinga-report p{
+    orphans:3;
+    widows:3;
+  }
   /* SVG zone severity fills — FAR-01: B&W typographic hierarchy for print */
   .kinga-report svg rect[fill="var(--fp-warning-bg)"]{fill:#f8f8f8 !important}
   .kinga-report svg rect[stroke="var(--fp-warning-text)"]{stroke:#555555 !important}
@@ -8170,12 +8254,12 @@ const REPORT_CSS = `
   .kinga-report .report-persistent-footer .footer-bar *{color:#fff !important}
   .kinga-report .report-persistent-footer .footer-bar .footer-decision-badge{border:1px solid #fff !important;color:#fff !important}
   /* ── Section 6 score summary bars: keep together ── */
-  /* ── Phase 3: Collapse two-col grid to single column in print to prevent chart/table collisions ── */
-  .kinga-report .two-col{grid-template-columns:1fr !important;gap:16px !important}
+  /* ── Phase 4: Keep two-col layout in print for side-by-side sections (saves ~2 pages) ── */
+  .kinga-report .two-col{grid-template-columns:1fr 1fr !important;gap:14px !important}
   /* ── Phase 3: Ensure chart wrappers never overflow page width ── */
   .kinga-report [class*="chart-wrap"],[class*="chart-section"]{width:100% !important;max-width:100% !important;overflow:visible !important}
-  /* ── Phase 3: Party grid collapses to single column in print ── */
-  .kinga-report .party-grid{grid-template-columns:1fr !important}
+  /* ── Phase 4: Party grid keeps 2 columns in print ── */
+  .kinga-report .party-grid{grid-template-columns:1fr 1fr !important}
 }
 `;
 
@@ -8244,15 +8328,15 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       <DataQualityPanel aiAssessment={aiAssessment} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
-      <div className="section-heading">01 — Incident &amp; Data Integrity</div>
+      <div className="section-heading" data-section="1">01 — Incident &amp; Data Integrity</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="incident_integrity" pipelineRunId={pipelineRunId} />}
       <Section1Incident claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
 
-      <div className="section-heading">02 — Technical Forensics</div>
+      <div className="section-heading" data-section="2">02 — Technical Forensics</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="physics" pipelineRunId={pipelineRunId} />}
       <Section2Physics claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
 
-      <div className="section-heading">03 — Financial Validation</div>
+      <div className="section-heading" data-section="3">03 — Financial Validation</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="financial_validation" pipelineRunId={pipelineRunId} />}
       <Section3Financial aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} claimId={claim?.id} />
 
@@ -8260,16 +8344,16 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="evidence_inventory" pipelineRunId={pipelineRunId} />}
       <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
 
-      <div className="section-heading">05 — Risk &amp; Fraud Assessment</div>
+      <div className="section-heading" data-section="5">05 — Risk &amp; Fraud Assessment</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="fraud_risk" pipelineRunId={pipelineRunId} />}
       <Section5Fraud aiAssessment={aiAssessment} enforcement={enforcement} speedForensics={(enforcement as any)?._physics?.speedForensics ?? null} />
 
-      <div className="section-heading">06 — Decision Authority &amp; Audit Trail</div>
+      <div className="section-heading" data-section="6">06 — Decision Authority &amp; Audit Trail</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="decision_authority" pipelineRunId={pipelineRunId} />}
       <Section6Decision claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
 
       {/* ── SECTION 7 — Approval Chain & Audit Signatures ── */}
-      <div className="section-heading">07 — Approval Chain &amp; Audit Signatures</div>
+      <div className="section-heading" data-section="7">07 — Approval Chain &amp; Audit Signatures</div>
       {(() => {
         const FAR_ROLE_LABELS: Record<string, string> = {
           claims_processor: "Claims Processor",

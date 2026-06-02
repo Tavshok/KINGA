@@ -79,7 +79,7 @@ export function CostComparisonChart({
       data: items.map(i => i.value),
       backgroundColor: items.map(i => i.color),
       borderRadius: 4,
-      barThickness: 28,
+      barThickness: 22,
     }],
   };
 
@@ -111,7 +111,7 @@ export function CostComparisonChart({
   };
 
   return (
-    <div style={{ height: `${Math.max(120, items.length * 50)}px` }}>
+    <div style={{ height: `${Math.max(90, items.length * 36)}px` }}>
       <Bar data={data} options={options} />
     </div>
   );
@@ -168,9 +168,9 @@ export function FraudBreakdownChart({ fraudScore, indicators }: FraudBreakdownCh
   };
 
   return (
-    <div className="relative" style={{ height: "200px" }}>
+    <div className="relative" style={{ height: "150px" }}>
       <Doughnut data={data} options={options} />
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ marginRight: "100px" }}>
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ marginRight: "80px" }}>
         <div className="text-center">
           <p className={`text-2xl font-black tabular-nums ${fraudScore <= 35 ? "text-green-600 dark:text-green-400" : fraudScore <= 60 ? "text-amber-600 dark:text-amber-400" : "text-purple-600 dark:text-purple-400"}`}>{fraudScore}</p>
           <p className="text-xs text-muted-foreground">/100</p>
@@ -215,7 +215,7 @@ export function DamageSeverityChart({ components }: DamageSeverityChartProps) {
       data: counts.map(([_, v]) => v),
       backgroundColor: counts.map(([k]) => severityColors[k] ?? colors.muted),
       borderRadius: 4,
-      barThickness: 32,
+      barThickness: 24,
     }],
   };
 
@@ -244,7 +244,7 @@ export function DamageSeverityChart({ components }: DamageSeverityChartProps) {
   };
 
   return (
-    <div style={{ height: "180px" }}>
+    <div style={{ height: "140px" }}>
       <Bar data={data} options={options} />
     </div>
   );
