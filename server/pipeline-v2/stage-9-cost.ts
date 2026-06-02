@@ -1598,11 +1598,11 @@ export async function runCostOptimisationStage(
             // the cheapest submitted quote as-is.
             // CRITICAL: Exclude non-repair documents from L1 — these must NOT set the baseline:
             //   1. parts_supplier quotes (e.g. Sarjazz) — not panel beaters
-            //   2. assessor/inspection fee documents — e.g. National Loss Adjusters $37.50 charge
-            //      These are professional service fees, not vehicle repair estimates.
-            //      Heuristic: panel_beater name contains 'adjuster', 'assessor', 'loss', 'survey',
-            //      'inspection', 'valuation', or total_cost < $500 (no legitimate repair quote is < $500)
-            const NON_REPAIR_PANEL_BEATER_PATTERN = /adjuster|assessor|loss\s*adjuster|surveyor|inspection|valuation|apprais/i;
+            //   2. assessor/inspection fee documents — identified by panel_beater name
+            //      e.g. "National Loss Adjusters" — professional service fees, not vehicle repair estimates
+            //      Heuristic: panel_beater name contains 'adjuster', 'assessor', 'loss adjuster',
+            //      'surveyor', 'inspection', 'valuation', or 'apprais'
+            const NON_REPAIR_PANEL_BEATER_PATTERN = /adjuster|assessor|loss\s*adjuster|surveyor|inspection fee|valuation|apprais/i;
             const allSubmittedTotals = (stage3?.inputRecovery?.extracted_quotes ?? [])
               .filter((q: any) => {
                 const qType = q.quote_type ?? 'repair';
@@ -1611,12 +1611,6 @@ export async function runCostOptimisationStage(
                 const pbName: string = q.panel_beater ?? '';
                 if (NON_REPAIR_PANEL_BEATER_PATTERN.test(pbName)) {
                   ctx.log('Stage 9', `L1 filter: excluding non-repair document from "${pbName}" (total_cost=${q.total_cost}) — assessor/inspection fee, not a repair quote`);
-                  return false;
-                }
-                // Exclude suspiciously small totals — no legitimate vehicle repair quote is under $500
-                const cost = q.total_cost ?? 0;
-                if (cost > 0 && cost < 500) {
-                  ctx.log('Stage 9', `L1 filter: excluding micro-cost quote from "${pbName}" (total_cost=${cost}) — too small to be a repair quote, likely an assessor fee`);
                   return false;
                 }
                 return true;
