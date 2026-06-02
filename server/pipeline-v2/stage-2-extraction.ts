@@ -499,8 +499,28 @@ async function extractTextFromPdfChunked(
     };
   }
 
-  // Fallback: no page images — use full-PDF file_url extraction
-  ctx.log('Stage 2', `[chunked->file_url] No page images available — falling back to full-PDF file_url extraction`);
+  // Fallback: no page images (production Cloud Run path).
+  // STRATEGY: Try pdfjs native text extraction FIRST before the LLM file_url call.
+  // Rationale: The LLM file_url path consistently returns empty rawText for complex PDFs
+  // on the first attempt (Voltron pattern). pdfjs native extraction is deterministic,
+  // instant, and works on every digital PDF. If it gets enough text, we use it directly
+  // and skip the expensive/unreliable LLM file_url call entirely.
+  ctx.log('Stage 2', `[chunked->pdfjs-first] No page images — attempting pdfjs native text extraction before LLM file_url`);
+  try {
+    const nativeText = await extractNativeTextFromPdf(pdfUrl, ctx);
+    if (nativeText.length >= MIN_TEXT_LENGTH_CHARS) {
+      ctx.log('Stage 2', `[chunked->pdfjs-first] pdfjs extracted ${nativeText.length} chars — using as primary text, sending to LLM for structured extraction`);
+      // We have good native text. Now send it to the LLM as plain text (not file_url)
+      // for structured field extraction. This is faster and more reliable than file_url.
+      return await extractTextFromNativeString(nativeText, ctx);
+    }
+    ctx.log('Stage 2', `[chunked->pdfjs-first] pdfjs text too short (${nativeText.length} chars) — PDF may be scanned, falling back to LLM file_url`);
+  } catch (pdfjsErr) {
+    ctx.log('Stage 2', `[chunked->pdfjs-first] pdfjs failed: ${(pdfjsErr as Error)?.message ?? pdfjsErr} — falling back to LLM file_url`);
+  }
+
+  // pdfjs failed or returned insufficient text — fall back to LLM file_url
+  ctx.log('Stage 2', `[chunked->file_url] Falling back to full-PDF file_url extraction`);
   try {
     return await extractTextFromPdf(pdfUrl, ctx);
   } catch (llmErr) {
@@ -541,6 +561,117 @@ async function extractTextFromPdfChunked(
     // Re-throw the original LLM error so Stage 2 degrades gracefully
     throw llmErr;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NATIVE TEXT → LLM STRUCTURED EXTRACTION
+// Used when pdfjs successfully extracted native text from a digital PDF.
+// Sends the text as a plain string to the LLM (not file_url) for structured
+// field extraction. This is faster, cheaper, and more reliable than file_url.
+// ─────────────────────────────────────────────────────────────────────────────
+async function extractTextFromNativeString(
+  nativeText: string,
+  ctx: PipelineContext
+): Promise<PrimaryExtractionResult> {
+  const parsed = await withRetry(
+    async () => {
+      const response = await invokeLLM({
+        timeoutMs: 90_000,
+        maxTokens: 16384,
+        messages: [
+          {
+            role: "system",
+            content: `You are a specialist insurance document extraction system for the Zimbabwean market.
+You will receive the raw text extracted from an insurance claim PDF.
+Your job is to parse this text and extract structured fields with confidence scores.
+
+Rules:
+1. Extract ALL form fields as "Label: Value" pairs verbatim.
+2. Extract ALL table rows verbatim, preserving column structure.
+3. Look for handwritten annotations: agreed/authorised cost amounts.
+4. Rate per-field confidence 0-100 based on how clearly the field appears in the text.
+
+Return JSON with this exact structure:
+{
+  "rawText": "<the full text you received, verbatim>",
+  "tables": [{"headers": [...], "rows": [[...]], "context": "..."}],
+  "ocrConfidence": 80,
+  "fieldConfidence": {
+    "claimId": 90, "vehicleRegistration": 85, "accidentDate": 80,
+    "incidentType": 75, "estimatedSpeed": 60, "policeReportNumber": 70,
+    "repairQuoteTotal": 85, "agreedCost": 30, "damageDescription": 80
+  }
+}`,
+          },
+          {
+            role: "user",
+            content: `Parse this insurance claim document text and return structured JSON:\n\n${nativeText.slice(0, 60000)}`,
+          },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "text_extraction_native",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                rawText: { type: "string" },
+                tables: { type: "array", items: { type: "object", properties: { headers: { type: "array", items: { type: "string" } }, rows: { type: "array", items: { type: "array", items: { type: "string" } } }, context: { type: "string" } }, required: ["headers", "rows", "context"], additionalProperties: false } },
+                ocrConfidence: { type: "integer" },
+                fieldConfidence: { type: "object", properties: { claimId: { type: "integer" }, vehicleRegistration: { type: "integer" }, accidentDate: { type: "integer" }, incidentType: { type: "integer" }, estimatedSpeed: { type: "integer" }, policeReportNumber: { type: "integer" }, repairQuoteTotal: { type: "integer" }, agreedCost: { type: "integer" }, damageDescription: { type: "integer" } }, required: ["claimId", "vehicleRegistration", "accidentDate", "incidentType", "estimatedSpeed", "policeReportNumber", "repairQuoteTotal", "agreedCost", "damageDescription"], additionalProperties: false },
+              },
+              required: ["rawText", "tables", "ocrConfidence", "fieldConfidence"],
+              additionalProperties: false,
+            },
+          },
+        },
+      });
+      const rawContent = response.choices?.[0]?.message?.content;
+      const content = typeof rawContent === 'string' ? rawContent : '';
+      if (!content || content.trim() === '' || content.trim() === '{}') {
+        throw new Error('Empty LLM response for native text extraction');
+      }
+      const p = JSON.parse(content);
+      // If LLM returned empty rawText, use the original nativeText directly
+      if (!p.rawText || p.rawText.trim().length < MIN_TEXT_LENGTH_CHARS) {
+        p.rawText = nativeText;
+      }
+      return p;
+    },
+    2,
+    [2000, 5000],
+    (attempt, err) => {
+      ctx.log('Stage 2', `[native-string] Attempt ${attempt} failed: ${(err as Error)?.message ?? err}. Retrying...`);
+    },
+  );
+
+  const rawText: string = parsed.rawText || nativeText;
+  const ocrConfidence: number = parsed.ocrConfidence || 70;
+  const fc = parsed.fieldConfidence || {};
+  const fieldConfidence: FieldConfidence = {
+    claimId: fc.claimId ?? 50, vehicleRegistration: fc.vehicleRegistration ?? 50,
+    accidentDate: fc.accidentDate ?? 50, incidentType: fc.incidentType ?? 50,
+    estimatedSpeed: fc.estimatedSpeed ?? 30, policeReportNumber: fc.policeReportNumber ?? 30,
+    repairQuoteTotal: fc.repairQuoteTotal ?? 50, agreedCost: fc.agreedCost ?? 30,
+    damageDescription: fc.damageDescription ?? 50,
+  };
+  const criticalFieldsMissing = Object.values(fieldConfidence).filter(v => v < FIELD_CONFIDENCE_MISSING).length;
+  const agreedCostHintFound = hasAgreedCostHint(rawText);
+  const repairQuoteDetected = (parsed.tables || []).length > 0 || /total\s*\(incl/i.test(rawText) || /grand\s*total/i.test(rawText);
+  return {
+    rawText,
+    tables: (parsed.tables || []).map((t: any) => ({ headers: t.headers || [], rows: t.rows || [], context: t.context || '' })),
+    ocrConfidence,
+    fieldConfidence,
+    flags: {
+      agreedCostHintFound,
+      repairQuoteDetected,
+      quoteTotalInconsistent: false,
+      textTooShort: rawText.length < MIN_TEXT_LENGTH_CHARS,
+      criticalFieldsMissing,
+    },
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
