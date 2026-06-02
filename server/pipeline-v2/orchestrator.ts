@@ -459,38 +459,31 @@ export async function runPipelineV2(
         `missing=${v.missing_critical_fields.join(",") || "none"}, reason="${v.reason}"`
       );
       if (shouldHaltPipeline(documentVerificationResult)) {
+        // STRATEGIC CHANGE: Never return claimRecord: null due to extraction failure.
+        // A blank report is worse than a partial report — the adjuster has no context at all.
+        // Instead, log the failure and continue in DEGRADED mode using Stage 1 metadata.
+        // Downstream stages will produce minimal output from claim DB fields.
+        // The report will show a prominent "Document extraction failed — manual review required" banner.
         ctx.log(
           "Stage 0a (Document Verification)",
-          `HALT: Document verification ${v.status} (confidence ${v.confidence}) — pipeline halted. ` +
+          `DEGRADED (not halting): Document verification ${v.status} (confidence ${v.confidence}) — ` +
+          `continuing pipeline in degraded mode with Stage 1 metadata only. ` +
           `Missing: ${v.missing_critical_fields.join(", ") || "none"}. Reason: ${v.reason}`
         );
-        // Mark all remaining stages as skipped and return early
-        const haltMsg = `Document read ${v.status.toLowerCase()} — ${v.reason}`;
-        for (const sk of ["0_evidence_registry", "3_structured_extraction", "4_validation", "5_assembly", "6_damage", "7_physics", "8_fraud", "9_cost", "9b_turnaround", "10_report"]) {
-          stages[sk] = { status: "skipped", durationMs: 0, savedToDb: false, error: haltMsg, degraded: true, assumptionCount: 0, recoveryActionCount: 0 };
+        // Mark Stage 2 as degraded but allow downstream stages to run with empty text
+        if (stages["2_extraction"]) {
+          stages["2_extraction"].degraded = true;
+          stages["2_extraction"].error = `Document verification ${v.status}: ${v.reason}`;
         }
-        return {
-          summary: {
-            claimId: ctx.claimId,
-            pipelineVersion: "v2",
-            totalDurationMs: Date.now() - pipelineStart,
-            stages,
-            totalAssumptions: 0,
-            totalRecoveryActions: 0,
-            overallStatus: "failed",
-            failureReason: haltMsg,
-            documentVerification: documentVerificationResult,
-          } as any,
-          claimRecord: null,
-          report: null,
-          damageAnalysis: null,
-          physicsAnalysis: null,
-          fraudAnalysis: null,
-          costAnalysis: null,
-          turnaroundAnalysis: null,
-          causalVerdict: null,
-          enrichedPhotosJson: null,
-        };
+        // Inject a clear extraction failure notice into the stage 2 text so downstream
+        // stages know to use claim DB fields as the primary data source.
+        if (stage2Data && stage2Data.extractedTexts.length > 0) {
+          stage2Data.extractedTexts[0].rawText =
+            `[EXTRACTION_FAILED] Document text could not be extracted from the PDF. ` +
+            `Reason: ${v.reason}. ` +
+            `All analysis below is based on claim registration data only. ` +
+            `Manual document review is required.`;
+        }
       }
     } catch (err) {
       ctx.log("Stage 0a (Document Verification)", `Verification failed (non-fatal): ${String(err)} — continuing pipeline`);

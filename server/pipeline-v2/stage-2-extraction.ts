@@ -264,7 +264,14 @@ After extracting, rate your confidence per field in fieldConfidence (0-100).`,
       if (!content || content.trim() === '' || content.trim() === '{}') {
         throw new Error('Empty or truncated LLM response');
       }
-      return JSON.parse(content);
+      const parsed = JSON.parse(content);
+      // CRITICAL: if the LLM returned valid JSON but empty rawText, treat as retryable failure.
+      // This is the root cause of the Voltron claim degradation — the LLM returned {rawText: ""}
+      // for a valid 2.5MB PDF, which passed JSON.parse but produced text_length=0 downstream.
+      if (!parsed.rawText || parsed.rawText.trim().length < MIN_TEXT_LENGTH_CHARS) {
+        throw new Error(`LLM returned empty rawText (length=${parsed.rawText?.length ?? 0}) — retrying`);
+      }
+      return parsed;
     },
     3,
     [2000, 4000, 8000],
@@ -494,7 +501,84 @@ async function extractTextFromPdfChunked(
 
   // Fallback: no page images — use full-PDF file_url extraction
   ctx.log('Stage 2', `[chunked->file_url] No page images available — falling back to full-PDF file_url extraction`);
-  return extractTextFromPdf(pdfUrl, ctx);
+  try {
+    return await extractTextFromPdf(pdfUrl, ctx);
+  } catch (llmErr) {
+    // LLM file_url extraction failed all 3 retries (consistently returned empty rawText).
+    // This is the Voltron pattern: valid PDF, accessible URL, but LLM returns {rawText: ""}.
+    // Final fallback: use pdfjs-dist to extract native text layer directly (no LLM, no network).
+    ctx.log('Stage 2', `[chunked->file_url] LLM extraction failed (${(llmErr as Error)?.message ?? llmErr}) — attempting pdfjs native text extraction`);
+    try {
+      const nativeText = await extractNativeTextFromPdf(pdfUrl, ctx);
+      if (nativeText.length >= MIN_TEXT_LENGTH_CHARS) {
+        ctx.log('Stage 2', `[chunked->pdfjs-native] Extracted ${nativeText.length} chars via pdfjs native text layer`);
+        const agreedCostHintFound = hasAgreedCostHint(nativeText);
+        const repairQuoteDetected = /total\s*\(incl/i.test(nativeText) || /grand\s*total/i.test(nativeText) || /repair|quote|quotation|estimate/i.test(nativeText);
+        return {
+          rawText: nativeText,
+          tables: [],
+          ocrConfidence: 55, // conservative — no table parsing in native mode
+          fieldConfidence: {
+            claimId: 40, vehicleRegistration: 40, accidentDate: 40,
+            incidentType: 40, estimatedSpeed: 25, policeReportNumber: 25,
+            repairQuoteTotal: repairQuoteDetected ? 50 : 15,
+            agreedCost: agreedCostHintFound ? 35 : 15,
+            damageDescription: 40,
+          },
+          flags: {
+            agreedCostHintFound,
+            repairQuoteDetected,
+            quoteTotalInconsistent: false,
+            textTooShort: nativeText.length < MIN_TEXT_LENGTH_CHARS,
+            criticalFieldsMissing: 4, // conservative
+          },
+        };
+      }
+      ctx.log('Stage 2', `[chunked->pdfjs-native] Native text too short (${nativeText.length} chars) — PDF may be scanned/image-only`);
+    } catch (pdfjsErr) {
+      ctx.log('Stage 2', `[chunked->pdfjs-native] pdfjs native extraction failed: ${(pdfjsErr as Error)?.message ?? pdfjsErr}`);
+    }
+    // Re-throw the original LLM error so Stage 2 degrades gracefully
+    throw llmErr;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PDFJS NATIVE TEXT EXTRACTION — final fallback when LLM returns empty text
+// Uses pdfjs-dist text layer (no LLM, no network after PDF download).
+// Works for native/digital PDFs. Scanned PDFs will return short text.
+// ─────────────────────────────────────────────────────────────────────────────
+async function extractNativeTextFromPdf(pdfUrl: string, ctx: PipelineContext): Promise<string> {
+  // Download the PDF buffer
+  const response = await fetch(pdfUrl, { signal: AbortSignal.timeout(30_000) });
+  if (!response.ok) throw new Error(`PDF download failed: HTTP ${response.status}`);
+  const arrayBuffer = await response.arrayBuffer();
+  const pdfBuffer = Buffer.from(arrayBuffer);
+
+  // Load with pdfjs-dist
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs') as any;
+  const loadingTask = pdfjsLib.getDocument({
+    data: new Uint8Array(pdfBuffer),
+    disableFontFace: true,
+    standardFontDataUrl: undefined,
+  });
+  const pdfDoc = await loadingTask.promise;
+  const pageCount = pdfDoc.numPages;
+  ctx.log('Stage 2', `[pdfjs-native] Loaded PDF: ${pageCount} pages`);
+
+  const pageTexts: string[] = [];
+  for (let p = 1; p <= pageCount; p++) {
+    const page = await pdfDoc.getPage(p);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item: any) => item.str || '')
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (pageText.length > 0) pageTexts.push(`[Page ${p}]\n${pageText}`);
+  }
+
+  return pageTexts.join('\n\n');
 }
 
 // ─────────────────────────────────────────────────────────────────
