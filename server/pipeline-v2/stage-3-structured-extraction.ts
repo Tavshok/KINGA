@@ -801,8 +801,46 @@ async function runInputRecovery(
         extracted_quotes = repaired;
       }
 
+      // SPARSE-TEXT VISION SCAN: For each PDF document whose extracted text is very short
+      // (< 200 chars), the OCR likely failed to read it — run a vision-direct extraction
+      // to catch scanned/image-based documents that the text path missed entirely.
+      // This is the primary fix for cases where a repairer's PDF was scanned and not
+      // detected by the text-based extractMultipleQuotes call above.
+      if (allPdfDocs.length > 0) {
+        const extractedNames = new Set(
+          (extracted_quotes ?? []).map(q => (q.panel_beater ?? '').toLowerCase().trim())
+        );
+        for (const pdfDoc of allPdfDocs) {
+          const docText = stage2.extractedTexts.find(t => t.documentIndex === pdfDoc.documentIndex)?.rawText ?? '';
+          if (docText.trim().length < 200) {
+            // Very little text — likely a scanned document. Run vision extraction.
+            console.log(`[Stage3] Sparse-text vision scan triggered for ${pdfDoc.fileName} (${docText.trim().length} chars extracted by OCR)`);
+            try {
+              const visionResult = await extractQuoteFromPdfVision(pdfDoc.sourceUrl, null, null, tenantCountry);
+              const visionHasPrices = visionResult.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
+              const visionHasTotal = visionResult.total_cost !== null && visionResult.total_cost > 0;
+              const visionName = (visionResult.panel_beater ?? '').toLowerCase().trim();
+              // Only add if this repairer wasn't already extracted from text
+              const alreadyExtracted = visionName && extractedNames.has(visionName);
+              if ((visionHasPrices || visionHasTotal) && !alreadyExtracted) {
+                console.log(`[Stage3] Sparse-text vision scan found new quote from "${visionResult.panel_beater}" in ${pdfDoc.fileName}: ${visionResult.line_items.length} line items, total=${visionResult.total_cost}`);
+                if (!extracted_quotes) extracted_quotes = [];
+                extracted_quotes.push(visionResult);
+                if (visionName) extractedNames.add(visionName);
+              } else if (alreadyExtracted) {
+                console.log(`[Stage3] Sparse-text vision scan: "${visionResult.panel_beater}" already extracted — skipping duplicate`);
+              } else {
+                console.log(`[Stage3] Sparse-text vision scan on ${pdfDoc.fileName} returned no usable quote`);
+              }
+            } catch (sparseErr) {
+              console.error(`[Stage3] Sparse-text vision scan failed on ${pdfDoc.fileName}:`, sparseErr);
+            }
+          }
+        }
+      }
+
       // If LLM found a quote but regex did not, remove the quote_not_mapped flag
-      const llmFoundQuote = extracted_quotes.some(q => q.total_cost !== null && q.confidence !== 'low');
+      const llmFoundQuote = (extracted_quotes ?? []).some(q => q.total_cost !== null && q.confidence !== 'low');
       if (!hasQuote && !recovered_quote && llmFoundQuote) {
         // LLM recovered the quote — do not push quote_not_mapped
       } else if (!hasQuote && !recovered_quote && !llmFoundQuote) {

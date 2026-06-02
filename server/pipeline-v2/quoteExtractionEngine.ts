@@ -491,25 +491,31 @@ export async function extractMultipleQuotes(
       messages: [
         {
           role: "system",
-          content: `You are a document analyser. Your ONLY job is to count how many distinct repair quotations or parts quotes are present in the provided text and list the company/repairer name for each one.
+          content: `You are a document analyser. Your ONLY job is to identify all distinct VEHICLE REPAIR QUOTATIONS or PARTS QUOTES in the provided text and list the company/repairer name for each one.
 
-A distinct quotation is identified by:
-- A different company name, letterhead, or trading name
-- A separate set of line items with its own total
-- A different address, phone number, or VAT number
+A distinct repair quotation is identified by:
+- A different panel beater, body shop, or parts supplier company name, letterhead, or trading name
+- A separate set of repair line items (parts, labour, paint) with its own total
+- A different address, phone number, VAT/registration number, or quote reference number
 
-Include ALL types of quotes: panel beater repair quotes, parts supplier quotes (e.g. Sarjazz, parts dealers), and assessor-adjusted quotes.
+Include: panel beater repair quotes, body shop quotes, parts supplier quotes (e.g. Sarjazz, parts dealers).
 Each distinct company = one entry.
+
+EXCLUDE the following — these are NOT repair quotes:
+- Loss adjusters, assessors, surveyors, or appraisers (e.g. "National Loss Adjusters", "ABC Assessors", "XYZ Surveyors") — these issue professional fee invoices, NOT vehicle repair quotes
+- Insurance companies or brokers
+- Towing companies (unless they also quote for repairs)
+- Any document that is clearly a professional service fee invoice rather than a vehicle repair estimate
 
 IMPORTANT — DO NOT confuse brand names or product names with company names:
 - Brand names on parts (e.g. "Speedo", "Toyota", "Isuzu", "Bosch", "NGK", "Monroe") are NOT companies — ignore them.
 - Only extract names that appear as a LETTERHEAD, TRADING NAME, or COMPANY HEADER at the top of a quote section.
-- A valid company name is typically followed by an address, phone number, VAT/registration number, or quote reference number.
+- A valid repair company name is typically followed by an address, phone number, VAT/registration number, or quote reference number.
 - If a name appears only in a parts description or line item, it is a brand name — do NOT include it.
 
-Return ONLY a JSON object with a single field "repairers" — an array of company name strings, one per distinct quote.
-If there is only one quote, return a single-element array.
-If you cannot identify any company names, return an empty array.
+Return ONLY a JSON object with a single field "repairers" — an array of company name strings, one per distinct repair quote.
+If there is only one repair quote, return a single-element array.
+If you cannot identify any repair company names, return an empty array.
 Do NOT extract prices, line items, or any other data — only company names.`,
         },
         {

@@ -1596,14 +1596,40 @@ export async function runCostOptimisationStage(
             // This is the headline KINGA value: what the insurer saves by using KINGA
             // to select the per-component lowest credible price instead of approving
             // the cheapest submitted quote as-is.
-            // CRITICAL: Exclude parts_supplier quotes (e.g. Sarjazz) from L1 — they are
-            // not panel beaters and their totals must not set the L1 baseline.
+            // CRITICAL: Exclude non-repair documents from L1 — these must NOT set the baseline:
+            //   1. parts_supplier quotes (e.g. Sarjazz) — not panel beaters
+            //   2. assessor/inspection fee documents — e.g. National Loss Adjusters $37.50 charge
+            //      These are professional service fees, not vehicle repair estimates.
+            //      Heuristic: panel_beater name contains 'adjuster', 'assessor', 'loss', 'survey',
+            //      'inspection', 'valuation', or total_cost < $500 (no legitimate repair quote is < $500)
+            const NON_REPAIR_PANEL_BEATER_PATTERN = /adjuster|assessor|loss\s*adjuster|surveyor|inspection|valuation|apprais/i;
             const allSubmittedTotals = (stage3?.inputRecovery?.extracted_quotes ?? [])
-              .filter((q: any) => (q.quote_type ?? 'repair') !== 'parts_supplier')
+              .filter((q: any) => {
+                const qType = q.quote_type ?? 'repair';
+                if (qType === 'parts_supplier') return false;
+                // Exclude assessor/inspection fee documents by panel_beater name
+                const pbName: string = q.panel_beater ?? '';
+                if (NON_REPAIR_PANEL_BEATER_PATTERN.test(pbName)) {
+                  ctx.log('Stage 9', `L1 filter: excluding non-repair document from "${pbName}" (total_cost=${q.total_cost}) — assessor/inspection fee, not a repair quote`);
+                  return false;
+                }
+                // Exclude suspiciously small totals — no legitimate vehicle repair quote is under $500
+                const cost = q.total_cost ?? 0;
+                if (cost > 0 && cost < 500) {
+                  ctx.log('Stage 9', `L1 filter: excluding micro-cost quote from "${pbName}" (total_cost=${cost}) — too small to be a repair quote, likely an assessor fee`);
+                  return false;
+                }
+                return true;
+              })
               .map((q: any) => q.total_cost ?? 0)
               .filter((t: number) => t > 0);
-            const lowestSubmittedUsd = allSubmittedTotals.length > 0
-              ? Math.min(...allSubmittedTotals)
+            // Fallback: if all extracted quotes were filtered out, use the selected_quotes totals
+            // (these are already validated repair quotes from the optimisation engine)
+            const fallbackTotals = allSubmittedTotals.length === 0
+              ? (compositeInputQuotes ?? []).map((q: any) => q.total_cost ?? 0).filter((t: number) => t > 0)
+              : allSubmittedTotals;
+            const lowestSubmittedUsd = fallbackTotals.length > 0
+              ? Math.min(...fallbackTotals)
               : 0;
             const l2Usd = compositeResult.compositeOptimisedCostUsd;
             if (lowestSubmittedUsd > 0 && l2Usd > 0) {

@@ -824,15 +824,26 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   // computing savings), otherwise fall back to the lowest quote in the quotes prop.
   const ci0 = (aiAssessment as any)?.costIntelligenceJson ?? null;
   const co0 = ci0?.compositeOptimisation ?? null;
-  const quotedTotal = co0?.l1LowestSubmittedCostUsd
-    ?? co0?.l1SubmittedCostUsd
-    ?? (quotes && quotes.length > 0
-        ? Math.min(...quotes.map((q: any) => {
-            const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + Number(li.lineTotal ?? 0), 0);
-            const raw = (q.quotedAmount ?? 0) / 100;
-            return raw > 0 ? raw : lineTotal;
-          }).filter((t: number) => t > 0))
-        : 0);
+  // quotedTotal = lowest REPAIR quote submitted by panel beaters.
+  // CRITICAL: Do NOT use l1LowestSubmittedCostUsd from costIntelligenceJson — it may have been
+  // poisoned by assessor/inspection fee documents (e.g. National Loss Adjusters $37.50 charge)
+  // that were incorrectly classified as repair quotes in older pipeline runs.
+  // Instead: derive from the panel_beater_quotes table (quotes prop) which only contains
+  // actual repair quotes submitted through the KINGA portal, OR from the optimisation
+  // selected_quotes which are already validated repair quotes.
+  const _selectedQuoteTotals: number[] = (
+    (ci0?.quoteOptimisation?.selected_quotes ?? []) as any[]
+  ).map((q: any) => q.total_cost ?? 0).filter((t: number) => t >= 500);
+  const _pbQuoteTotals: number[] = (quotes && quotes.length > 0)
+    ? quotes.map((q: any) => {
+        const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + Number(li.lineTotal ?? 0), 0);
+        const raw = (q.quotedAmount ?? 0) / 100;
+        return raw > 0 ? raw : lineTotal;
+      }).filter((t: number) => t >= 500)
+    : [];
+  // Prefer panel_beater_quotes (portal submissions), fallback to selected_quotes from optimisation
+  const _quoteTotalsForL1 = _pbQuoteTotals.length > 0 ? _pbQuoteTotals : _selectedQuoteTotals;
+  const quotedTotal = _quoteTotalsForL1.length > 0 ? Math.min(..._quoteTotalsForL1) : 0;
   const photosDetected = ctl?.evidence?.photoCount ?? aiAssessment?.photosDetected ?? 0;
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
 
@@ -932,9 +943,9 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
       {/* ── Document identity ── */}
       <div className="doc-identity">
         {(enforcement as any)?.kingaRef && (
-          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 6px', borderBottom: '1.5px solid #1A2B4A', marginBottom: 4 }}>
-            <span className="di-label" style={{ color: '#1A2B4A', fontWeight: 800, fontSize: 10, letterSpacing: '0.08em' }}>KINGA REF</span>
-            <span style={{ fontFamily: 'Inter,sans-serif', fontSize: 13, fontWeight: 800, color: '#1A2B4A', letterSpacing: '0.05em' }}>{(enforcement as any).kingaRef}-FR</span>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 6px', borderBottom: '1.5px solid #111', marginBottom: 4 }}>
+            <span className="di-label" style={{ color: '#111', fontWeight: 800, fontSize: 10, letterSpacing: '0.08em' }}>KINGA REF</span>
+            <span style={{ fontFamily: 'Inter,sans-serif', fontSize: 13, fontWeight: 800, color: '#111', letterSpacing: '0.05em' }}>{(enforcement as any).kingaRef}-FR</span>
             <span style={{ marginLeft: 'auto', fontSize: 9, color: '#888', fontStyle: 'italic' }}>Forensic Audit Report</span>
           </div>
         )}
@@ -1006,58 +1017,74 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         </div>
       )}
 
-      {/* ── KPI tiles ── */}
-      <div className="kpi-row">
-        <div className="kpi-tile">
-          <div className="kpi-label">Consistency</div>
-          <div className="kpi-value">{Math.round(physicsScore)}<span style={{ fontSize: 16, color: '#888' }}>/100</span></div>
-          <div className="kpi-sub">Physics score</div>
-          <div style={{ marginTop: 6, height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: 4, width: `${Math.min(100, Math.round(physicsScore))}%`, background: physicsBarColor, borderRadius: 2, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
+      {/* ── KPI tiles — 2×4 grid matching sample report ── */}
+      {(() => {
+        const kingaOptTotal: number = co0?.totalOptimisedCostUsd ?? 0;
+        const agreedCostTotal: number = ci0?.documentedAgreedCostUsd ?? 0;
+        const marketValTotal: number = ci0?.marketValueUsd ?? 0;
+        const submittedQuoteCount = _quoteTotalsForL1.length;
+        const kingaSavingPct = quotedTotal > 0 && kingaOptTotal > 0 ? ((quotedTotal - kingaOptTotal) / quotedTotal * 100) : 0;
+        const agreedSavingPct = quotedTotal > 0 && agreedCostTotal > 0 ? ((quotedTotal - agreedCostTotal) / quotedTotal * 100) : 0;
+        const repairToValuePct = marketValTotal > 0 && quotedTotal > 0 ? (quotedTotal / marketValTotal * 100) : 0;
+        return (
+          <div className="kpi-row">
+            {/* Row 1 */}
+            <div className="kpi-tile">
+              <div className="kpi-label">Fraud Score</div>
+              <div className="kpi-value">{Math.round(fraudScore)}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>/100</span></div>
+              <div className="kpi-sub">{fraudScore >= 70 ? 'High Risk' : fraudScore >= 40 ? 'Moderate' : 'Low Risk'}</div>
+              <div style={{ marginTop: 6, height: 3, background: '#eee', overflow: 'hidden' }}>
+                <div style={{ height: 3, width: `${Math.min(100, Math.round(fraudScore))}%`, background: '#555', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
+              </div>
+            </div>
+            <div className="kpi-tile">
+              <div className="kpi-label">Physics Consistency</div>
+              <div className="kpi-value">{Math.round(physicsScore)}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>/100</span></div>
+              <div className="kpi-sub">{physicsScore >= 70 ? 'Consistent' : physicsScore >= 30 ? 'Minor anomaly' : 'Anomaly'}</div>
+              <div style={{ marginTop: 6, height: 3, background: '#eee', overflow: 'hidden' }}>
+                <div style={{ height: 3, width: `${Math.min(100, Math.round(physicsScore))}%`, background: '#555', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
+              </div>
+            </div>
+            <div className="kpi-tile">
+              <div className="kpi-label">FCDI Score</div>
+              <div className="kpi-value">{fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>{fcdiTileScore >= 0 ? '/100' : ''}</span></div>
+              <div className="kpi-sub">{fcdiTileLabel} evidence quality</div>
+              <div style={{ marginTop: 6, height: 3, background: '#eee', overflow: 'hidden' }}>
+                <div style={{ height: 3, width: fcdiTileScore >= 0 ? `${Math.min(100, fcdiTileScore)}%` : '0%', background: '#555', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
+              </div>
+            </div>
+            <div className="kpi-tile">
+              <div className="kpi-label">Data Completeness</div>
+              <div className="kpi-value">{Math.round(dataCompleteness)}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>%</span></div>
+              <div className="kpi-sub">{dataCompleteness >= 75 ? 'Sufficient' : dataCompleteness >= 50 ? 'Partial' : 'Insufficient'}</div>
+              <div style={{ marginTop: 6, height: 3, background: '#eee', overflow: 'hidden' }}>
+                <div style={{ height: 3, width: `${Math.min(100, Math.round(dataCompleteness))}%`, background: '#555', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
+              </div>
+            </div>
+            {/* Row 2 */}
+            <div className="kpi-tile">
+              <div className="kpi-label">Submitted Quote</div>
+              <div className="kpi-value" style={{ fontSize: 18 }}>{quotedTotal > 0 ? fmtMoney(quotedTotal) : '—'}</div>
+              <div className="kpi-sub">{submittedQuoteCount > 0 ? `${submittedQuoteCount} quote${submittedQuoteCount === 1 ? '' : 's'} received` : 'No quote submitted'}</div>
+            </div>
+            <div className="kpi-tile">
+              <div className="kpi-label">KINGA Optimised</div>
+              <div className="kpi-value" style={{ fontSize: 18 }}>{kingaOptTotal > 0 ? fmtMoney(kingaOptTotal) : '—'}</div>
+              <div className="kpi-sub">{kingaSavingPct > 0 ? `${kingaSavingPct.toFixed(1)}% saving from submitted` : 'Best price per component'}</div>
+            </div>
+            <div className="kpi-tile">
+              <div className="kpi-label">Agreed Cost</div>
+              <div className="kpi-value" style={{ fontSize: 18 }}>{agreedCostTotal > 0 ? fmtMoney(agreedCostTotal) : '—'}</div>
+              <div className="kpi-sub">{agreedSavingPct > 0 ? `${agreedSavingPct.toFixed(1)}% below submitted` : 'Pending settlement'}</div>
+            </div>
+            <div className="kpi-tile">
+              <div className="kpi-label">Market Value</div>
+              <div className="kpi-value" style={{ fontSize: 18 }}>{marketValTotal > 0 ? fmtMoney(marketValTotal) : '—'}</div>
+              <div className="kpi-sub">{repairToValuePct > 0 ? `Repair ratio: ${repairToValuePct.toFixed(0)}%` : 'Vehicle market value'}</div>
+            </div>
           </div>
-          <div style={{ fontSize: 8, color: '#aaa', marginTop: 2 }}>{physicsScore >= 70 ? '● Consistent' : physicsScore >= 30 ? '● Minor anomaly' : '● Anomaly detected'}</div>
-        </div>
-        <div className="kpi-tile">
-          <div className="kpi-label">Fraud Risk</div>
-          <div className="kpi-value" style={{ color: fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32' }}>{Math.round(fraudScore)}<span style={{ fontSize: 16, color: '#888' }}>/100</span></div>
-          <div className="kpi-sub">
-            <span style={{ display: 'inline-block', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 6px', border: `1px solid ${fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32'}`, color: fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32', background: '#fff' }}>
-              {fraudScore >= 70 ? 'HIGH RISK' : fraudScore >= 40 ? 'MODERATE' : 'LOW RISK'}
-            </span>
-          </div>
-          <div style={{ marginTop: 6, height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: 4, width: `${Math.min(100, Math.round(fraudScore))}%`, background: fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32', borderRadius: 2, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
-          </div>
-          <div style={{ fontSize: 8, color: '#aaa', marginTop: 2 }}>0–39 Low · 40–69 Moderate · 70+ High</div>
-        </div>
-        <div className="kpi-tile">
-          <div className="kpi-label">Quoted Cost</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>{quotedTotal > 0 ? fmtMoney(quotedTotal) : '—'}</div>
-          <div className="kpi-sub">Submitted Quote</div>
-          <div style={{ marginTop: 6, height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: 4, width: quotedTotal > 0 ? '100%' : '0%', background: quotedTotal > 0 ? '#2e7d32' : '#ccc', borderRadius: 2, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
-          </div>
-          <div style={{ fontSize: 8, color: '#aaa', marginTop: 2 }}>{quotedTotal > 0 ? '● Quote received' : '● No quote submitted'}</div>
-        </div>
-        <div className="kpi-tile">
-          <div className="kpi-label">Photo Integrity</div>
-          <div className="kpi-value" style={{ fontSize: 15, fontWeight: 800, color: photoIntegrityColor, letterSpacing: '-0.01em' }}>{photoIntegrityLabel}</div>
-          <div className="kpi-sub">{vehiclePhotosCover.length > 0 ? `${vehiclePhotosCover.length} photo${vehiclePhotosCover.length === 1 ? '' : 's'} analysed` : 'No photos'}</div>
-          <div style={{ marginTop: 6, height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: 4, width: photoIntegrityTier === 'none' && vehiclePhotosCover.length > 0 ? '100%' : photoIntegrityTier === 'medium' ? '50%' : photoIntegrityTier === 'high' ? '90%' : '0%', background: photoIntegrityColor, borderRadius: 2, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
-          </div>
-          <div style={{ fontSize: 8, color: '#aaa', marginTop: 2 }}>{photoIntegrityTier === 'high' ? '● Manipulation signals' : photoIntegrityTier === 'medium' ? '● Mild signals' : vehiclePhotosCover.length > 0 ? '● No signals' : '● No photos'}</div>
-        </div>
-        <div className="kpi-tile">
-          <div className="kpi-label">FCDI Score</div>
-          <div className="kpi-value" style={{ color: fcdiBarColor }}>{fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>/100</span></div>
-          <div className="kpi-sub">{fcdiTileLabel} evidence quality</div>
-          <div style={{ marginTop: 6, height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: 4, width: fcdiTileScore >= 0 ? `${Math.min(100, fcdiTileScore)}%` : '0%', background: fcdiBarColor, borderRadius: 2, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
-          </div>
-          <div style={{ fontSize: 8, color: '#aaa', marginTop: 2 }}>Higher = more reliable</div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ── Decision Score Summary Chart ── */}
       {(() => {
@@ -7794,6 +7821,7 @@ function Section7Learning({
 const REPORT_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
 .kinga-report{font-family:Inter,'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#111;background:#fff;line-height:1.5;padding:16px 18px;position:relative}
+.kinga-report[data-draft="true"]::before{content:'DRAFT';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;font-weight:900;color:rgba(0,0,0,0.04);letter-spacing:0.15em;pointer-events:none;z-index:0;white-space:nowrap;user-select:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .kinga-report .verdict-banner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin-bottom:10px;border-left:6px solid #111}
 .kinga-report .verdict-banner.approve{border-color:#2e7d32;background:#f1f8f1}
 .kinga-report .verdict-banner.review{border-color:#c8a000;background:#fffde7}
@@ -7805,8 +7833,8 @@ const REPORT_CSS = `
 .kinga-report .verdict-banner .vb-decision.decline{color:#c00}
 .kinga-report .verdict-banner .vb-meta{font-size:10px;color:#555;margin-top:5px}
 .kinga-report .verdict-banner .vb-right{text-align:right;min-width:120px}
-.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:5px 18px;background:#fff;border-top:3px solid #1A2B4A;border-bottom:1px solid #ddd;font-family:Inter,system-ui,sans-serif;font-size:10px;color:#666;margin:-16px -18px 16px}
-.kinga-report .page-header .brand{font-family:sans-serif;font-weight:700;font-size:11px;color:#111;letter-spacing:.05em;border:1.5px solid #111;padding:2px 8px}
+.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:7px 18px;background:#1A2B4A;border-bottom:1px solid #000;font-family:Inter,system-ui,sans-serif;font-size:10px;color:#fff;margin:-16px -18px 20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.kinga-report .page-header .brand{font-family:sans-serif;font-weight:700;font-size:11px;color:#fff;letter-spacing:.05em}
 .kinga-report .cover-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #111}
 .kinga-report .cover-title-row h1{font-size:22px;font-weight:700;letter-spacing:-.02em;font-family:Inter,'Helvetica Neue',Arial,sans-serif}
 .kinga-report .cover-title-row .subtitle{font-size:12px;color:#555;margin-top:4px;font-style:normal}
@@ -7815,14 +7843,14 @@ const REPORT_CSS = `
 .kinga-report .cover-meta .meta-line{font-size:11px;color:#555;margin-top:2px}
 .kinga-report .doc-identity{background:#fff;border:1px solid #ddd;padding:8px 14px;margin-bottom:10px;font-size:11px;color:#444;display:flex;gap:20px;flex-wrap:wrap}
 .kinga-report .di-label{font-weight:700;color:#111;text-transform:uppercase;font-size:9px;letter-spacing:.08em;display:block;margin-bottom:2px}
-.kinga-report .alert-banner{border:1px solid #bbb;padding:8px 14px;margin-bottom:10px;font-size:11px;color:#333;background:#fff;border-left:4px solid #c8a000}
-.kinga-report .alert-banner.critical{background:#fff;border-left-color:#c00}
-.kinga-report .alert-banner.info{background:#fff;border-left-color:#111}
-.kinga-report .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid #ddd;margin-bottom:14px}
-.kinga-report .kpi-tile{padding:10px 12px;border-right:1px solid #ddd;text-align:center}
+.kinga-report .alert-banner{border:1px solid #ddd;padding:10px 14px;margin-bottom:12px;font-size:11px;color:#333;background:#f9f9f9;border-left:4px solid #555;line-height:1.6}
+.kinga-report .alert-banner.critical{background:#f5f5f5;border-left-color:#111}
+.kinga-report .alert-banner.info{background:#fafafa;border-left-color:#aaa}
+.kinga-report .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd;margin-bottom:14px}
+.kinga-report .kpi-tile{padding:12px 14px;border-right:1px solid #ddd;border-bottom:1px solid #ddd;text-align:center}.kinga-report .kpi-tile:nth-child(4n){border-right:none}.kinga-report .kpi-tile:nth-last-child(-n+4){border-bottom:none}
 .kinga-report .kpi-tile:last-child{border-right:none}
-.kinga-report .kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:5px}
-.kinga-report .kpi-value{font-family:'IBM Plex Mono','Courier New',monospace;font-size:22px;font-weight:700;color:#111;line-height:1}
+.kinga-report .kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#666;margin-bottom:4px}
+.kinga-report .kpi-value{font-family:'IBM Plex Mono','Courier New',monospace;font-size:24px;font-weight:700;color:#111;line-height:1;margin:4px 0}
 .kinga-report .kpi-sub{font-size:10px;color:#666;margin-top:4px}
 .kinga-report .kpi-polarity{font-size:8px;color:#aaa;margin-top:2px;font-style:italic}
 .kinga-report .dim-grid{display:grid;grid-template-columns:repeat(2,1fr);border:1px solid #ddd;margin-bottom:14px}
@@ -7855,11 +7883,11 @@ const REPORT_CSS = `
 .kinga-report .ps-item{text-align:center}
 .kinga-report .ps-value{font-size:22px;font-weight:700;color:#111}
 .kinga-report .ps-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.06em}
-.kinga-report .section-heading{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#1A2B4A;margin:18px 0 10px;padding-bottom:5px;border-bottom:2px solid #1A2B4A}
-.kinga-report .sub-heading{font-size:13px;font-weight:700;color:#111;margin:10px 0 7px}
+.kinga-report .section-heading{font-size:17px;font-weight:700;color:#111;margin:22px 0 12px;padding-bottom:6px;border-bottom:2.5px solid #111;letter-spacing:-.01em;line-height:1.2}
+.kinga-report .sub-heading{font-size:13px;font-weight:700;color:#111;margin:14px 0 8px;letter-spacing:-.01em}
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
 .kinga-report .data-table td,.kinga-report .data-table th{padding:5px 10px;font-size:11px !important;border-bottom:1px solid #eee;vertical-align:top;word-break:break-word;overflow-wrap:break-word;white-space:normal}
-.kinga-report .data-table th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;background:#f4f4f4;border-bottom:2px solid #ccc}
+.kinga-report .data-table th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#fff;background:#1A2B4A;border-bottom:2px solid #000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .kinga-report .data-table td:first-child{color:#555;width:210px;font-size:12px}
 .kinga-report .data-table td:last-child{color:#111;font-weight:500}
 .kinga-report .data-table tr:last-child td{border-bottom:none}
@@ -7967,7 +7995,7 @@ const REPORT_CSS = `
 /* Body text: uniform 11px throughout */
 .kinga-report p,.kinga-report td,.kinga-report li,.kinga-report span{font-size:11px}
 /* Sub-labels: 10px only for section headings and KPI labels */
-.kinga-report .section-heading{font-size:9px}
+.kinga-report .section-heading{font-size:17px}
 .kinga-report .kpi-label{font-size:9px}
 /* ── CSS variable overrides: map all dark-theme vars to white-document values ── */
 .kinga-report,.dark .kinga-report{color-scheme:light !important;background:#fff !important;color:#111 !important;
@@ -8053,12 +8081,42 @@ const REPORT_CSS = `
 /* Table rows */
 .kinga-report table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px;table-layout:fixed}
 .kinga-report table td,.kinga-report table th{padding:6px 10px;font-size:11px !important;border-bottom:1px solid #eee;vertical-align:top;color:#111;background:#fff;word-break:break-word;overflow-wrap:break-word;white-space:normal}
-.kinga-report table th{font-size:10px !important;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;background:#f4f4f4;border-bottom:2px solid #ccc;word-break:break-word;white-space:normal}
+.kinga-report table th{font-size:9px !important;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#fff;background:#1A2B4A;border-bottom:2px solid #000;word-break:break-word;white-space:normal;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .kinga-report table td:first-child{color:#555;font-size:11px !important;font-weight:500}
 /* Narrative boxes */
 .kinga-report [class*="p-3"][class*="rounded"]{background:#fff !important;border:1px solid #ddd !important;border-radius:0 !important;color:#333 !important}
-/* Section sub-headings */
-.kinga-report [class*="text-xs"][class*="font-bold"][class*="uppercase"]{color:#888 !important;font-size:10px !important}
+/* Flatten card wrappers — remove rounded corners and shadows from sub-section containers */
+.kinga-report .rounded-xl,.kinga-report .rounded-lg,.kinga-report .rounded-md{
+  border-radius:0 !important;
+  box-shadow:none !important;
+}
+.kinga-report [class*="shadow"]{
+  box-shadow:none !important;
+}
+/* Sub-section header bars — remove coloured backgrounds, keep border-bottom only */
+.kinga-report .px-4.py-3[style*="borderBottom"]{
+  background:#fff !important;
+  border-bottom:1px solid #ddd !important;
+  padding:6px 0 6px 0 !important;
+}
+/* Remove inner padding from card containers */
+.kinga-report .rounded-xl.overflow-hidden,
+.kinga-report .rounded-lg.overflow-hidden{
+  border:none !important;
+  margin-bottom:12px !important;
+}
+/* Section sub-headings — override Tailwind tiny uppercase labels to proper 13px bold headings */
+.kinga-report p.text-xs.font-bold.uppercase.tracking-wide,
+.kinga-report span.text-xs.font-bold.uppercase.tracking-wide{
+  font-size:12px !important;
+  font-weight:700 !important;
+  text-transform:uppercase !important;
+  letter-spacing:.08em !important;
+  color:#111 !important;
+  margin-bottom:6px !important;
+  display:block !important;
+}
+/* Section sub-headings — see override above */
 /* Badges — FAR-01: all tinted backgrounds converted to white/light-grey, text to #111 */
 .kinga-report .bg-green-100{background:#fff !important;color:#111 !important;border:1px solid #aaa !important}
 .kinga-report .bg-yellow-100{background:#f8f8f8 !important;color:#111 !important;border:1px solid #555 !important}
@@ -8283,15 +8341,10 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
     <div className="kinga-report"
       data-claim-number={claim?.claimNumber ?? claim?.claimReference ?? `#${(claim as any)?.id ?? ''}`}
       data-report-date={new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+      data-draft={isDraft ? 'true' : undefined}
     >
       <style dangerouslySetInnerHTML={{ __html: REPORT_CSS }} />
-      {/* DRAFT Banner */}
-      {/* DRAFT diagonal watermark — visible on screen and in print */}
-      {isDraft && (
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', overflow: 'hidden' } as React.CSSProperties}>
-          <div style={{ transform: 'rotate(-45deg)', fontSize: 110, fontWeight: 900, color: 'rgba(0,0,0,0.05)', letterSpacing: '0.12em', userSelect: 'none', whiteSpace: 'nowrap' }}>DRAFT</div>
-        </div>
-      )}
+      {/* DRAFT watermark — injected via CSS ::before on .kinga-report so it never blocks content */}
       {/* DRAFT Banner */}
       {isDraft && (
         <div style={{ background: '#f4f4f4', border: '2px solid #555', padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10, position: 'relative', zIndex: 1 }}>
@@ -8309,7 +8362,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span>
           {(enforcement as any)?.kingaRef && (
-            <><span style={{ fontWeight: 800, color: '#1A2B4A', fontFamily: 'Inter,sans-serif', letterSpacing: '0.04em' }}>{(enforcement as any).kingaRef}-FR</span> &nbsp;|&nbsp;</>
+            <><span style={{ fontWeight: 800, color: '#fff', fontFamily: 'Inter,sans-serif', letterSpacing: '0.04em' }}>{(enforcement as any).kingaRef}-FR</span> &nbsp;|&nbsp;</>
           )}
           Claim: {claim?.claimNumber ?? claim?.claimReference ?? '—'} &nbsp;|&nbsp;
           Hash: <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace" }}>#{((aiAssessment?.id ?? 0) * 31337).toString(16).toUpperCase().slice(0, 8)}</span>
@@ -8328,32 +8381,32 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       <DataQualityPanel aiAssessment={aiAssessment} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
-      <div className="section-heading" data-section="1">01 — Incident &amp; Data Integrity</div>
+      <div className="section-heading" data-section="1">1 &nbsp; Incident &amp; Data Integrity</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="incident_integrity" pipelineRunId={pipelineRunId} />}
       <Section1Incident claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
 
-      <div className="section-heading" data-section="2">02 — Technical Forensics</div>
+      <div className="section-heading" data-section="2">2 &nbsp; Technical Forensics</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="physics" pipelineRunId={pipelineRunId} />}
       <Section2Physics claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
 
-      <div className="section-heading" data-section="3">03 — Financial Validation</div>
+      <div className="section-heading" data-section="3">3 &nbsp; Financial Validation</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="financial_validation" pipelineRunId={pipelineRunId} />}
       <Section3Financial aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} claimId={claim?.id} />
 
-      <div className="section-heading" data-section="4">04 — Evidence Inventory</div>
+      <div className="section-heading" data-section="4">4 &nbsp; Evidence Inventory</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="evidence_inventory" pipelineRunId={pipelineRunId} />}
       <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
 
-      <div className="section-heading" data-section="5">05 — Risk &amp; Fraud Assessment</div>
+      <div className="section-heading" data-section="5">5 &nbsp; Risk &amp; Fraud Assessment</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="fraud_risk" pipelineRunId={pipelineRunId} />}
       <Section5Fraud aiAssessment={aiAssessment} enforcement={enforcement} speedForensics={(enforcement as any)?._physics?.speedForensics ?? null} />
 
-      <div className="section-heading" data-section="6">06 — Decision Authority &amp; Audit Trail</div>
+      <div className="section-heading" data-section="6">6 &nbsp; Decision Authority &amp; Audit Trail</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="decision_authority" pipelineRunId={pipelineRunId} />}
       <Section6Decision claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
 
       {/* ── SECTION 7 — Approval Chain & Audit Signatures ── */}
-      <div className="section-heading" data-section="7">07 — Approval Chain &amp; Audit Signatures</div>
+      <div className="section-heading" data-section="7">7 &nbsp; Approval Chain &amp; Audit Signatures</div>
       {(() => {
         const FAR_ROLE_LABELS: Record<string, string> = {
           claims_processor: "Claims Processor",
