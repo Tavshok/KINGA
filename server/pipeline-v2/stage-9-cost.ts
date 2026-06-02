@@ -1596,24 +1596,29 @@ export async function runCostOptimisationStage(
             // This is the headline KINGA value: what the insurer saves by using KINGA
             // to select the per-component lowest credible price instead of approving
             // the cheapest submitted quote as-is.
-            // CRITICAL: Exclude non-repair documents from L1 — these must NOT set the baseline:
-            //   1. parts_supplier quotes (e.g. Sarjazz) — not panel beaters
-            //   2. assessor/inspection fee documents — identified by panel_beater name
-            //      e.g. "National Loss Adjusters" — professional service fees, not vehicle repair estimates
-            //      Heuristic: panel_beater name contains 'adjuster', 'assessor', 'loss adjuster',
-            //      'surveyor', 'inspection', 'valuation', or 'apprais'
-            const NON_REPAIR_PANEL_BEATER_PATTERN = /adjuster|assessor|loss\s*adjuster|surveyor|inspection fee|valuation|apprais/i;
+            // CRITICAL: Exclude non-repair documents from L1 — these must NOT set the baseline.
+            // Primary signal: document_category (LLM-classified at Stage 3 extraction time).
+            //   'repair_quote'    → include in L1
+            //   'parts_quote'     → exclude (parts supplier, not a panel beater)
+            //   'assessor_report' → exclude (professional fee, not a repair estimate)
+            //   'agreed_cost'     → exclude (settlement document, not a submitted quote)
+            //   'other'           → exclude (unknown document type)
+            //   undefined         → fall back to quote_type heuristic for backward compatibility
+            //     with pre-classification data (claims processed before document_category was added)
             const allSubmittedTotals = (stage3?.inputRecovery?.extracted_quotes ?? [])
               .filter((q: any) => {
-                const qType = q.quote_type ?? 'repair';
-                if (qType === 'parts_supplier') return false;
-                // Exclude assessor/inspection fee documents by panel_beater name
-                const pbName: string = q.panel_beater ?? '';
-                if (NON_REPAIR_PANEL_BEATER_PATTERN.test(pbName)) {
-                  ctx.log('Stage 9', `L1 filter: excluding non-repair document from "${pbName}" (total_cost=${q.total_cost}) — assessor/inspection fee, not a repair quote`);
-                  return false;
+                // Primary: use LLM-classified document_category when available
+                if (q.document_category) {
+                  const isRepair = q.document_category === 'repair_quote';
+                  if (!isRepair) {
+                    ctx.log('Stage 9', `L1 filter: excluding "${q.panel_beater ?? 'unknown'}" (document_category=${q.document_category}, total_cost=${q.total_cost}) — not a repair quote`);
+                  }
+                  return isRepair;
                 }
-                return true;
+                // Fallback for legacy data without document_category:
+                // use quote_type (parts_supplier exclusion) — this is the pre-existing logic
+                const qType = q.quote_type ?? 'repair';
+                return qType !== 'parts_supplier';
               })
               .map((q: any) => q.total_cost ?? 0)
               .filter((t: number) => t > 0);

@@ -183,6 +183,20 @@ export interface ExtractedQuote {
    */
   quote_type?: 'repair' | 'parts_supplier' | 'assessor_adjusted';
   /**
+   * LLM-classified document category — the authoritative signal for whether this document
+   * is a vehicle repair quote or a professional service fee.
+   *
+   * 'repair_quote'     = panel beater / body shop repair estimate (USE in L1 baseline)
+   * 'parts_quote'      = parts supplier invoice/quote (e.g. Sarjazz) — NOT a repair quote
+   * 'assessor_report'  = loss adjuster / assessor fee document (NOT a repair quote)
+   * 'agreed_cost'      = insurer-agreed settlement amount document
+   * 'other'            = any other document type
+   *
+   * Populated by the extraction engine at Stage 3. Defaults to 'repair_quote' when absent
+   * (backward-compatible with pre-classification data).
+   */
+  document_category?: 'repair_quote' | 'parts_quote' | 'assessor_report' | 'agreed_cost' | 'other';
+  /**
    * Set to true when this quote's line items were re-extracted via vision (Stage 9 self-healing).
    * Used internally to prevent double re-extraction passes.
    */
@@ -303,6 +317,7 @@ OUTPUT — return ONLY valid JSON matching this schema exactly:
   "panel_beater": string | null,
   "total_cost": number | null,
   "currency": string,
+  "document_category": "repair_quote" | "parts_quote" | "assessor_report" | "agreed_cost" | "other",
   "components": string[],
   "line_items": [{"component": string, "unit_cost": number|null, "quantity": number, "line_total": number|null, "action": string|null, "part_origin": "oem"|"aftermarket"|"reconditioned"|"used"|"unknown"}],
   "labour_defined": boolean,
@@ -311,7 +326,15 @@ OUTPUT — return ONLY valid JSON matching this schema exactly:
   "parts_cost": number | null,
   "confidence": "high" | "medium" | "low",
   "extraction_warnings": string[]
-}`;
+}
+
+For document_category, classify the document as follows:
+- "repair_quote": A vehicle body shop / panel beater repair estimate. Contains itemised repair costs for vehicle parts and labour.
+- "parts_quote": A parts supplier invoice or quote. Lists parts for sale, not repair services.
+- "assessor_report": A loss adjuster, assessor, or surveyor fee invoice. The issuer is a professional assessor, not a repairer. Examples: National Loss Adjusters, ABC Assessors, XYZ Surveyors.
+- "agreed_cost": An insurer-agreed settlement amount or cost agreement document.
+- "other": Any document that does not fit the above categories.
+IMPORTANT: An assessor fee invoice is NOT a repair quote even if it references vehicle damage. Classify by the nature of the issuing company and the type of charges, not by the subject matter.`;
 
 // ─── Main extraction function ─────────────────────────────────────────────────
 
@@ -352,6 +375,11 @@ export async function extractQuoteFromText(
               panel_beater: { type: ["string", "null"], description: "Name of the panel beater or repairer" },
               total_cost: { type: ["number", "null"], description: "Total repair cost as a plain number" },
               currency: { type: "string", description: "Currency code, e.g. USD, ZWL, ZAR" },
+              document_category: {
+                type: "string",
+                enum: ["repair_quote", "parts_quote", "assessor_report", "agreed_cost", "other"],
+                description: "Classification of the document type. repair_quote = panel beater repair estimate. assessor_report = loss adjuster/assessor fee invoice. parts_quote = parts supplier. agreed_cost = insurer settlement. other = anything else."
+              },
               components: {
                 type: "array",
                 items: { type: "string" },
@@ -397,6 +425,7 @@ export async function extractQuoteFromText(
               "panel_beater",
               "total_cost",
               "currency",
+              "document_category",
               "components",
               "line_items",
               "labour_defined",
@@ -606,6 +635,21 @@ Do NOT extract prices, line items, or any other data — only company names.`,
         const nameLower = repairerName.toLowerCase();
         const isPartsSupplier = /sarjazz|parts|spares|accessories|auto parts|motor parts|spare parts|parts dealer|parts supply|parts world|parts centre|parts center|parts hub/.test(nameLower);
         result.quote_type = isPartsSupplier ? 'parts_supplier' : 'repair';
+      }
+      // Fallback document_category classifier — only applies when the LLM did not classify
+      // (i.e. document_category is undefined, which happens for quotes extracted from legacy
+      // data before this field was added, or when the LLM omitted it).
+      if (!result.document_category) {
+        const nameLower = repairerName.toLowerCase();
+        const isAssessor = /adjuster|assessor|loss adjust|surveyor|inspection|valuation|apprais/.test(nameLower);
+        const isPartsOnly = /sarjazz|parts|spares|accessories|auto parts|motor parts|spare parts|parts dealer|parts supply|parts world|parts centre|parts center|parts hub/.test(nameLower);
+        if (isAssessor) {
+          result.document_category = 'assessor_report';
+        } else if (isPartsOnly || result.quote_type === 'parts_supplier') {
+          result.document_category = 'parts_quote';
+        } else {
+          result.document_category = 'repair_quote';
+        }
       }
       plog(`[QuoteExtraction] Extracted "${repairerName}": panel_beater=${result.panel_beater}, total=${result.total_cost}, line_items=${result.line_items.length}`);
       return result;
@@ -945,12 +989,20 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
     );
   }
 
+  // Validate and preserve document_category from LLM output
+  const VALID_DOC_CATEGORIES = new Set(['repair_quote', 'parts_quote', 'assessor_report', 'agreed_cost', 'other']);
+  const rawDocCategory = raw.document_category;
+  const document_category = (typeof rawDocCategory === 'string' && VALID_DOC_CATEGORIES.has(rawDocCategory))
+    ? rawDocCategory as ExtractedQuote['document_category']
+    : undefined; // undefined = not yet classified; Stage 3 post-processor will apply fallback
+
   return {
     panel_beater: typeof raw.panel_beater === "string" ? raw.panel_beater : null,
     total_cost: totalCost,
     // Currency: use what the LLM extracted from the document. If null, the caller
     // (extractQuoteFromText) will apply the tenant-country default.
     currency: typeof raw.currency === "string" && raw.currency.length > 0 ? raw.currency.toUpperCase() : null,
+    document_category,
     components,
     line_items,
     labour_defined: raw.labour_defined === true,
