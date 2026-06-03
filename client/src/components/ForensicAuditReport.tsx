@@ -1838,73 +1838,62 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
         </div>
       </div>
 
-      {/* 1.2 Data Completeness + Confidence Bars */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* 1.6/1.7 Data Completeness + Confidence Bars — two-column layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px', margin: '16px 0' }}>
         {/* Completeness checklist */}
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.6 Data Completeness</p>
-            <span className="text-xs font-bold" style={{ color: dataCompleteness >= 70 ? "var(--fp-success-text)" : "var(--fp-warning-text)" }}>{Math.round(dataCompleteness)}%</span>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 10, fontFamily: 'var(--kr-mono)', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--kr-muted)' }}>1.6 Data Completeness</span>
+            <span style={{ fontSize: 11, fontFamily: 'var(--kr-mono)', fontWeight: 500, color: dataCompleteness >= 70 ? 'var(--kr-green)' : dataCompleteness >= 40 ? 'var(--kr-amber)' : 'var(--kr-red)' }}>{Math.round(dataCompleteness)}%</span>
           </div>
           {/* Overall completeness bar */}
-          <div className="px-4 pt-3">
-            <div className="h-2 rounded-full" style={{ background: "#ffffff" }}>
-              <div className="h-2 rounded-full" style={{ width: `${Math.min(100, dataCompleteness)}%`, background: dataCompleteness >= 70 ? "var(--fp-success-text)" : dataCompleteness >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }} />
-            </div>
+          <div style={{ height: 3, background: 'var(--kr-off-white)', marginBottom: 12, overflow: 'hidden' }}>
+            <div style={{ height: 3, width: `${Math.min(100, dataCompleteness)}%`, background: dataCompleteness >= 70 ? 'var(--kr-green)' : dataCompleteness >= 40 ? 'var(--kr-amber)' : 'var(--kr-red)', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
           </div>
-          <div className="p-4 space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {checklist.map((item, i) => (
-              <div key={i} className="space-y-0.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    {item.ok
-                      ? <CheckCircle className="h-3 w-3 shrink-0" style={{ color: "var(--fp-success-text)" }} />
-                      : <XCircle className="h-3 w-3 shrink-0" style={{ color: "var(--fp-critical-text)" }} />}
-                    <span className="text-xs" style={{ color: "#0f172a" }}>{item.label}</span>
-                  </div>
-                  <span className="text-xs shrink-0" style={{ color: "#64748b" }}>{item.detail}</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, borderBottom: '1px solid var(--kr-rule)', paddingBottom: 5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: item.ok ? 'var(--kr-green)' : 'var(--kr-red)', fontFamily: 'var(--kr-mono)', fontSize: 10 }}>{item.ok ? '✓' : '✗'}</span>
+                  <span style={{ color: 'var(--kr-body)' }}>{item.label}</span>
                 </div>
+                <span style={{ color: 'var(--kr-muted)', fontSize: 10, fontFamily: 'var(--kr-mono)' }}>{item.detail}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Confidence bars */}
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.7 Extraction Confidence</p>
-            <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>How reliably each data type was extracted from the submitted documents. Low confidence means the field was partially readable or estimated — not that the claim is fraudulent.</p>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 10, fontFamily: 'var(--kr-mono)', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--kr-muted)' }}>1.7 Extraction Confidence</span>
+            <ConfidenceGauge
+              score={Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4)}
+              size={40}
+            />
           </div>
-          <div className="p-4">
-            <div className="flex items-center gap-4 mb-3">
-              <ConfidenceGauge
-                score={Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4)}
-                size={80}
-              />
-              <div className="flex-1">
-                <p className="text-xs font-semibold" style={{ color: '#0f172a' }}>Overall Data Quality</p>
-                <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>
-                  {Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4) >= 70
-                    ? 'Data quality is sufficient for automated assessment. All key fields were extracted with high confidence.'
-                    : Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4) >= 40
-                    ? 'Data quality is acceptable but some fields had low extraction confidence. Manual verification of flagged fields is recommended.'
-                    : 'Data quality is below the reliable assessment threshold. Manual review of all flagged fields is required before settlement.'}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="px-4 pb-4 space-y-3">
+          <p style={{ fontSize: 11, color: 'var(--kr-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+            {Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4) >= 70
+              ? 'Data quality is sufficient for automated assessment.'
+              : Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4) >= 40
+              ? 'Some fields had low extraction confidence — manual verification recommended.'
+              : 'Data quality is below threshold — manual review required before settlement.'}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {confidenceBars.map((bar, i) => (
               <div key={i}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span style={{ color: "#64748b" }}>{bar.label}</span>
-                  <span className="font-semibold" style={{ color: bar.value >= 70 ? "var(--fp-success-text)" : bar.value >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }}>{Math.round(bar.value)}%</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontFamily: 'var(--kr-mono)', marginBottom: 3 }}>
+                  <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{bar.label}</span>
+                  <span style={{ color: bar.value >= 70 ? 'var(--kr-green)' : bar.value >= 40 ? 'var(--kr-amber)' : 'var(--kr-red)', fontWeight: 500 }}>{Math.round(bar.value)}%</span>
                 </div>
-                <div className="h-2 rounded-full" style={{ background: "#ffffff" }}>
-                  <div className="h-2 rounded-full" style={{
+                <div style={{ height: 3, background: 'var(--kr-off-white)', overflow: 'hidden' }}>
+                  <div style={{
+                    height: 3,
                     width: `${Math.min(100, bar.value)}%`,
-                    background: bar.value >= 70 ? "var(--fp-success-text)" : bar.value >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)"
-                  }} />
+                    background: bar.value >= 70 ? 'var(--kr-green)' : bar.value >= 40 ? 'var(--kr-amber)' : 'var(--kr-red)',
+                    WebkitPrintColorAdjust: 'exact',
+                    printColorAdjust: 'exact'
+                  } as React.CSSProperties} />
                 </div>
               </div>
             ))}
@@ -3299,86 +3288,80 @@ function Section210VehicleStructural({ claim }: { claim: any }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {/* Left column: insured vehicle */}
           <div>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '6px' }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--kr-body)', marginBottom: 8, fontFamily: 'var(--kr-sans)' }}>
               Insured Vehicle: {insured.make} {insured.model}{insured.year ? ` (${insured.year})` : ''}
             </p>
-            <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+            <table className="compact-kv-table">
               <tbody>
                 {insured.ancapRating && (
                   <>
                     <tr>
-                      <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px', width: '50%' }}>ANCAP Rating</td>
-                      <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                      <td>ANCAP Rating</td>
+                      <td>
                         {insured.ancapRating.stars}★ ({insured.ancapRating.testYear}, {insured.ancapRating.protocol})
-                        {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel('verified')}]</span>
+                        {' '}<span style={{ fontWeight: 400, color: 'var(--kr-muted)' }}>[{confLabel('verified')}]</span>
                       </td>
                     </tr>
                     {insured.ancapRating.adultOccupant > 0 && (
                       <tr>
-                        <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Adult Occupant</td>
-                        <td style={{ fontWeight: 600, paddingBottom: '3px' }}>{insured.ancapRating.adultOccupant}%</td>
+                        <td>Adult Occupant</td>
+                        <td>{insured.ancapRating.adultOccupant}%</td>
                       </tr>
                     )}
                     {insured.ancapRating.childOccupant > 0 && (
                       <tr>
-                        <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Child Occupant</td>
-                        <td style={{ fontWeight: 600, paddingBottom: '3px' }}>{insured.ancapRating.childOccupant}%</td>
+                        <td>Child Occupant</td>
+                        <td>{insured.ancapRating.childOccupant}%</td>
                       </tr>
                     )}
                   </>
                 )}
                 {!insured.ancapRating && insured.globalNcapAfrica && (
                   <tr>
-                    <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Global NCAP Africa</td>
-                    <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                    <td>Global NCAP Africa</td>
+                    <td>
                       {insured.globalNcapAfrica.adultStars}★ adult ({insured.globalNcapAfrica.testYear})
-                      {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel('verified')}]</span>
+                      {' '}<span style={{ fontWeight: 400, color: 'var(--kr-muted)' }}>[{confLabel('verified')}]</span>
                     </td>
                   </tr>
                 )}
                 {!insured.ancapRating && !insured.globalNcapAfrica && (
                   <tr>
-                    <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Safety Rating</td>
-                    <td style={{ fontWeight: 600, paddingBottom: '3px', color: 'var(--fp-warning-text)' }}>
+                    <td>Safety Rating</td>
+                    <td style={{ color: 'var(--kr-amber)' }}>
                       Not tested — risk {riskLabel(insured.safetyRiskLevel)}
-                      {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel(insured.ancapConfidenceTier)}]</span>
+                      {' '}<span style={{ fontWeight: 400, color: 'var(--kr-muted)' }}>[{confLabel(insured.ancapConfidenceTier)}]</span>
                     </td>
                   </tr>
                 )}
                 {insured.crash3Class && (
                   <>
                     <tr>
-                      <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Structural Class</td>
-                      <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                      <td>Structural Class</td>
+                      <td>
                         {insured.crash3Class.vehicleClass}
-                        {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel(insured.crash3Class.confidenceTier)}]</span>
+                        {' '}<span style={{ fontWeight: 400, color: 'var(--kr-muted)' }}>[{confLabel(insured.crash3Class.confidenceTier)}]</span>
                       </td>
                     </tr>
                     <tr>
-                      <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>CRASH3 A / B</td>
-                      <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
-                        {insured.crash3Class.A_kN_m} kN/m / {insured.crash3Class.B_kN_m2} kN/m²
-                      </td>
+                      <td>CRASH3 A / B</td>
+                      <td>{insured.crash3Class.A_kN_m} kN/m / {insured.crash3Class.B_kN_m2} kN/m²</td>
                     </tr>
                     <tr>
-                      <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Typical Mass</td>
-                      <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
-                        {insured.crash3Class.typicalMassRange_kg[0]}–{insured.crash3Class.typicalMassRange_kg[1]} kg
-                      </td>
+                      <td>Typical Mass</td>
+                      <td>{insured.crash3Class.typicalMassRange_kg[0]}–{insured.crash3Class.typicalMassRange_kg[1]} kg</td>
                     </tr>
                   </>
                 )}
                 {!insured.crash3Class && (
                   <tr>
-                    <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>CRASH3 Class</td>
-                    <td style={{ fontWeight: 600, paddingBottom: '3px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
-                      Undetermined — insufficient data
-                    </td>
+                    <td>CRASH3 Class</td>
+                    <td style={{ color: 'var(--kr-muted)', fontStyle: 'italic' }}>Undetermined — insufficient data</td>
                   </tr>
                 )}
                 <tr>
-                  <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Safety Risk</td>
-                  <td style={{ fontWeight: 600, paddingBottom: '3px' }}>{riskLabel(insured.safetyRiskLevel)}</td>
+                  <td>Safety Risk</td>
+                  <td>{riskLabel(insured.safetyRiskLevel)}</td>
                 </tr>
               </tbody>
             </table>
@@ -3388,75 +3371,71 @@ function Section210VehicleStructural({ claim }: { claim: any }) {
           <div>
             {thirdParty ? (
               <>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '6px' }}>
+                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--kr-body)', marginBottom: 8, fontFamily: 'var(--kr-sans)' }}>
                   Third-Party Vehicle: {thirdParty.make} {thirdParty.model}{thirdParty.year ? ` (${thirdParty.year})` : ''}
                 </p>
-                <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                <table className="compact-kv-table">
                   <tbody>
                     {thirdParty.ancapRating && (
                       <tr>
-                        <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px', width: '50%' }}>ANCAP Rating</td>
-                        <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                        <td>ANCAP Rating</td>
+                        <td>
                           {thirdParty.ancapRating.stars}★ ({thirdParty.ancapRating.testYear})
-                          {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel('verified')}]</span>
+                          {' '}<span style={{ fontWeight: 400, color: 'var(--kr-muted)' }}>[{confLabel('verified')}]</span>
                         </td>
                       </tr>
                     )}
                     {!thirdParty.ancapRating && thirdParty.globalNcapAfrica && (
                       <tr>
-                        <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Global NCAP Africa</td>
-                        <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                        <td>Global NCAP Africa</td>
+                        <td>
                           {thirdParty.globalNcapAfrica.adultStars}★ ({thirdParty.globalNcapAfrica.testYear})
-                          {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel('verified')}]</span>
+                          {' '}<span style={{ fontWeight: 400, color: 'var(--kr-muted)' }}>[{confLabel('verified')}]</span>
                         </td>
                       </tr>
                     )}
                     {!thirdParty.ancapRating && !thirdParty.globalNcapAfrica && (
                       <tr>
-                        <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Safety Rating</td>
-                        <td style={{ fontWeight: 600, paddingBottom: '3px', color: 'var(--fp-warning-text)' }}>
+                        <td>Safety Rating</td>
+                        <td style={{ color: 'var(--kr-amber)' }}>
                           Not tested — risk {riskLabel(thirdParty.safetyRiskLevel)}
-                          {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel(thirdParty.ancapConfidenceTier)}]</span>
+                          {' '}<span style={{ fontWeight: 400, color: 'var(--kr-muted)' }}>[{confLabel(thirdParty.ancapConfidenceTier)}]</span>
                         </td>
                       </tr>
                     )}
                     {thirdParty.crash3Class && (
                       <>
                         <tr>
-                          <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Structural Class</td>
-                          <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
+                          <td>Structural Class</td>
+                          <td>
                             {thirdParty.crash3Class.vehicleClass}
-                            {' '}<span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>[{confLabel(thirdParty.crash3Class.confidenceTier)}]</span>
+                            {' '}<span style={{ fontWeight: 400, color: 'var(--kr-muted)' }}>[{confLabel(thirdParty.crash3Class.confidenceTier)}]</span>
                           </td>
                         </tr>
                         <tr>
-                          <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>CRASH3 A / B</td>
-                          <td style={{ fontWeight: 600, paddingBottom: '3px' }}>
-                            {thirdParty.crash3Class.A_kN_m} kN/m / {thirdParty.crash3Class.B_kN_m2} kN/m²
-                          </td>
+                          <td>CRASH3 A / B</td>
+                          <td>{thirdParty.crash3Class.A_kN_m} kN/m / {thirdParty.crash3Class.B_kN_m2} kN/m²</td>
                         </tr>
                       </>
                     )}
                     <tr>
-                      <td style={{ color: 'var(--muted-foreground)', paddingBottom: '3px' }}>Safety Risk</td>
-                      <td style={{ fontWeight: 600, paddingBottom: '3px' }}>{riskLabel(thirdParty.safetyRiskLevel)}</td>
+                      <td>Safety Risk</td>
+                      <td>{riskLabel(thirdParty.safetyRiskLevel)}</td>
                     </tr>
                   </tbody>
                 </table>
                 {/* Compatibility assessment */}
                 <div style={{
-                  marginTop: '8px', padding: '8px', borderRadius: '6px',
-                  background: insured.compatibilityRisk === 'high' ? 'var(--fp-critical-bg)' :
-                              insured.compatibilityRisk === 'medium' ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)',
-                  border: `1px solid ${insured.compatibilityRisk === 'high' ? 'var(--fp-critical-border)' :
-                           insured.compatibilityRisk === 'medium' ? 'var(--fp-warning-border)' : 'var(--fp-success-border)'}`,
+                  marginTop: 8, padding: '8px 12px',
+                  borderLeft: `3px solid ${insured.compatibilityRisk === 'high' ? 'var(--kr-red)' : insured.compatibilityRisk === 'medium' ? 'var(--kr-amber)' : 'var(--kr-green)'}`,
+                  background: 'var(--kr-off-white)',
                 }}>
-                  <p style={{ fontSize: '11px', fontWeight: 700, marginBottom: '3px',
-                    color: insured.compatibilityRisk === 'high' ? 'var(--fp-critical-text)' :
-                           insured.compatibilityRisk === 'medium' ? 'var(--fp-warning-text)' : 'var(--fp-success-text)' }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 3,
+                    color: insured.compatibilityRisk === 'high' ? 'var(--kr-red)' :
+                           insured.compatibilityRisk === 'medium' ? 'var(--kr-amber)' : 'var(--kr-green)' }}>
                     Structural Compatibility: {riskLabel(insured.compatibilityRisk)} Risk
                   </p>
-                  <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
+                  <p style={{ fontSize: 10, color: 'var(--kr-muted)', lineHeight: 1.5 }}>
                     {insured.compatibilityRisk === 'high'
                       ? 'Significant stiffness/mass mismatch. Disproportionate injury distribution likely. Critical factor in injury severity assessment.'
                       : insured.compatibilityRisk === 'medium'
@@ -7143,17 +7122,15 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
         )}
 
         {nextSteps.length > 0 && (
-          <div className="rounded-xl overflow-hidden" style={{ border: `1px solid var(--fp-warning-border)`, background: "#ffffff" }}>
-            <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>6.3 Required Next Steps</p>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, borderBottom: '1px solid var(--kr-rule)', paddingBottom: 6 }}>
+              <span style={{ fontSize: 10, fontFamily: 'var(--kr-mono)', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--kr-muted)' }}>6.3 Required Next Steps</span>
             </div>
-            <div className="p-4 space-y-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {nextSteps.map((step, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs">
-                  <div className="w-4 h-4 rounded shrink-0 mt-0.5 flex items-center justify-center" style={{ border: `1.5px solid var(--fp-warning-text)` }}>
-                    <span className="text-xs font-bold" style={{ color: "var(--fp-warning-text)", lineHeight: 1 }}>{i + 1}</span>
-                  </div>
-                  <span style={{ color: "#0f172a" }}>{step}</span>
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 11, paddingBottom: 6, borderBottom: '1px solid var(--kr-rule)' }}>
+                  <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, color: 'var(--kr-amber)', fontWeight: 500, minWidth: 16, paddingTop: 1 }}>{i + 1}.</span>
+                  <span style={{ color: 'var(--kr-body)', lineHeight: 1.5 }}>{step}</span>
                 </div>
               ))}
             </div>
@@ -7968,7 +7945,7 @@ const REPORT_CSS = `
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
 .kinga-report .compact-kv-table{width:auto;max-width:520px;border-collapse:collapse;margin-bottom:14px;table-layout:auto}
 .kinga-report .compact-kv-table td{padding:5px 0;font-size:12px;border-bottom:1px solid var(--kr-rule);vertical-align:top;white-space:normal}
-.kinga-report .compact-kv-table td:first-child{font-size:11px;font-family:var(--kr-mono);color:var(--kr-muted);letter-spacing:0.06em;padding-right:24px;white-space:nowrap;min-width:160px}
+.kinga-report .compact-kv-table td:first-child{font-size:10px;font-family:var(--kr-mono);color:var(--kr-muted);letter-spacing:0.1em;text-transform:uppercase;padding-right:24px;white-space:nowrap;min-width:160px}
 .kinga-report .compact-kv-table td:last-child{color:var(--kr-text);font-weight:500}
 .kinga-report .compact-kv-table tr:last-child td{border-bottom:none}
 .kinga-report .two-col-kv{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-bottom:14px}
