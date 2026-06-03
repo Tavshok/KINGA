@@ -412,16 +412,16 @@ function ArcGauge({ value, max = 100, label, size = 100 }: { value: number; max?
 type DamageSeverity = 0 | 1 | 2 | 3;
 
 const SEVERITY_FILL: Record<DamageSeverity, string> = {
-  0: "transparent",
-  1: "var(--fp-warning-bg)",   // yellow tint — minor
-  2: "var(--fp-warning-bg)",   // orange tint — moderate
-  3: "var(--fp-critical-bg)",  // red tint — severe
+  0: "#f7f6f3",   // off-white — undamaged (design system)
+  1: "#fef3c7",   // warm amber tint — minor
+  2: "#ffedd5",   // deep orange tint — moderate
+  3: "#fee2e2",   // deep red tint — severe
 };
 const SEVERITY_STROKE: Record<DamageSeverity, string> = {
-  0: "var(--border)",
-  1: "var(--fp-warning-text)",   // minor
-  2: "var(--fp-warning-text)",   // moderate
-  3: "var(--fp-critical-text)",  // severe
+  0: "#e0ddd8",   // design system rule colour — undamaged
+  1: "#d97706",   // amber — minor
+  2: "#c2410c",   // deep orange — moderate
+  3: "#b91c1c",   // deep red — severe
 };
 const SEVERITY_LABEL: Record<DamageSeverity, string> = { 0: "Undamaged", 1: "Minor", 2: "Moderate", 3: "Severe" };
 
@@ -556,7 +556,7 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
     <div className="flex justify-center items-start gap-4">
       {/* SVG diagram */}
       <div className="flex flex-col items-center shrink-0">
-        <svg viewBox="-50 -36 420 360" width="320" height="288" style={{ maxWidth: "100%" }}>
+        <svg viewBox="-50 -36 420 360" width="100%" style={{ display: 'block', maxWidth: '100%', aspectRatio: '420/360' }}>
           <defs>
             <marker id="tp-arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
               <polygon points="0 0, 7 3.5, 0 7" fill="#ef4444" />
@@ -580,17 +580,17 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
 
           {/* Vehicle body */}
           <rect x="76" y="52" width="168" height="176" rx="20"
-            fill="var(--muted)" stroke="var(--border)" strokeWidth="2" />
+            fill="#f0f0ee" stroke="#0a0a0a" strokeWidth="1.5" />
           {/* Windscreen */}
           <rect x="92" y="62" width="136" height="52" rx="8"
-            fill="var(--card)" stroke="var(--border)" strokeWidth="1.5" opacity="0.8" />
+            fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1" opacity="0.7" />
           {/* Rear window */}
           <rect x="92" y="166" width="136" height="48" rx="8"
-            fill="var(--card)" stroke="var(--border)" strokeWidth="1.5" opacity="0.8" />
+            fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1" opacity="0.7" />
           {/* Wheels */}
           {([[62,72],[62,188],[238,72],[238,188]] as [number,number][]).map(([wx,wy],i) => (
             <rect key={i} x={wx} y={wy} width="20" height="36" rx="6"
-              fill="var(--foreground)" opacity="0.25" />
+              fill="#1a1916" opacity="0.55" />
           ))}
           {/* Damage zones — unexplained zones get a dashed red border overlay */}
           {zones.map(zone => {
@@ -749,7 +749,7 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
       <div className="flex flex-col gap-2 text-xs pt-2 shrink-0">
         <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "#64748b" }}>Legend</p>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded" style={{ border: "1px dashed var(--border)" }} />
+          <span className="inline-block w-3 h-3 rounded" style={{ background: "#f7f6f3", border: "1px dashed #e0ddd8" }} />
           <span style={{ color: "#64748b" }}>Undamaged</span>
         </span>
         {([1,2,3] as DamageSeverity[]).map(s => (
