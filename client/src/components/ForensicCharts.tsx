@@ -25,19 +25,19 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Le
 
 function useChartColors() {
   return useMemo(() => {
-    const isDark = document.documentElement.classList.contains("dark");
+    // Always use the new design system tokens — report is always light
     return {
-      text: isDark ? "#e5e7eb" : "#1f2937",
-      muted: isDark ? "#6b7280" : "#9ca3af",
-      grid: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-      green: isDark ? "#4ade80" : "#16a34a",
-      amber: isDark ? "#fbbf24" : "#d97706",
-      red: isDark ? "#f87171" : "#dc2626",
-      purple: isDark ? "#c084fc" : "#9333ea",
-      blue: isDark ? "#60a5fa" : "#2563eb",
-      orange: isDark ? "#fb923c" : "#ea580c",
-      primary: isDark ? "#4ade80" : "#16a34a",
-      bg: isDark ? "#1e1e1e" : "#ffffff",
+      text: "#1a1916",
+      muted: "#6b6862",
+      grid: "rgba(0,0,0,0.06)",
+      green: "#16a34a",
+      amber: "#d97706",
+      red: "#c0392b",
+      purple: "#7c3aed",
+      blue: "#1d4ed8",
+      orange: "#c2410c",
+      primary: "#0a0a0a",
+      bg: "#ffffff",
     };
   }, []);
 }
@@ -78,7 +78,7 @@ export function CostComparisonChart({
     datasets: [{
       data: items.map(i => i.value),
       backgroundColor: items.map(i => i.color),
-      borderRadius: 4,
+      borderRadius: 0,
       barThickness: 22,
     }],
   };
@@ -172,8 +172,8 @@ export function FraudBreakdownChart({ fraudScore, indicators }: FraudBreakdownCh
       <Doughnut data={data} options={options} />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ marginRight: "80px" }}>
         <div className="text-center">
-          <p className={`text-2xl font-black tabular-nums ${fraudScore <= 35 ? "text-green-600 dark:text-green-400" : fraudScore <= 60 ? "text-amber-600 dark:text-amber-400" : "text-purple-600 dark:text-purple-400"}`}>{fraudScore}</p>
-          <p className="text-xs text-muted-foreground">/100</p>
+          <p style={{ fontFamily: "'DM Mono',monospace", fontSize: 22, fontWeight: 500, color: fraudScore <= 35 ? '#16a34a' : fraudScore <= 60 ? '#d97706' : '#c0392b', lineHeight: 1 }}>{fraudScore}</p>
+          <p style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: '#6b6862' }}>/100</p>
         </div>
       </div>
     </div>
@@ -214,7 +214,7 @@ export function DamageSeverityChart({ components }: DamageSeverityChartProps) {
     datasets: [{
       data: counts.map(([_, v]) => v),
       backgroundColor: counts.map(([k]) => severityColors[k] ?? colors.muted),
-      borderRadius: 4,
+      borderRadius: 0,
       barThickness: 24,
     }],
   };
@@ -288,9 +288,9 @@ export function ConfidenceGauge({ score, size = 120 }: ConfidenceGaugeProps) {
     // Value arc
     const pct = Math.min(100, Math.max(0, score)) / 100;
     const endAngle = Math.PI + pct * Math.PI;
-    const color = score >= 80 ? (isDark ? "#4ade80" : "#16a34a") :
-                  score >= 60 ? (isDark ? "#fbbf24" : "#d97706") :
-                  (isDark ? "#f87171" : "#dc2626");
+    const color = score >= 80 ? "#16a34a" :
+                  score >= 60 ? "#d97706" :
+                  "#c0392b";
     ctx.beginPath();
     ctx.arc(cx, cy, radius, Math.PI, endAngle);
     ctx.strokeStyle = color;
@@ -299,15 +299,15 @@ export function ConfidenceGauge({ score, size = 120 }: ConfidenceGaugeProps) {
     ctx.stroke();
 
     // Score text
-    ctx.fillStyle = isDark ? "#e5e7eb" : "#1f2937";
-    ctx.font = `bold ${size * 0.18}px system-ui, sans-serif`;
+    ctx.fillStyle = "#0a0a0a";
+    ctx.font = `500 ${size * 0.18}px 'DM Mono',monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     ctx.fillText(`${score}`, cx, cy - 2);
 
     // Label
-    ctx.fillStyle = isDark ? "#6b7280" : "#9ca3af";
-    ctx.font = `${size * 0.08}px system-ui, sans-serif`;
+    ctx.fillStyle = "#6b6862";
+    ctx.font = `400 ${size * 0.08}px 'DM Mono',monospace`;
     ctx.fillText("CONFIDENCE", cx, cy + size * 0.12);
   }, [score, size]);
 

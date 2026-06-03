@@ -66,9 +66,9 @@ export interface ComponentCostMatrixProps {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const KINGA_BORDER = "2px solid #1A2B4A";
+const KINGA_BORDER = "2px solid #0a0a0a";
 const KINGA_BG = "#f0f4f8";
-const KINGA_COLOR = "#1A2B4A";
+const KINGA_COLOR = "#0a0a0a";
 
 /** Truncate a repairer name to at most 3 words */
 function truncateName(name: string, maxWords = 3): string {
