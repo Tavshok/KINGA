@@ -18,27 +18,33 @@
  * M1 — Campbell's Stiffness Formula (crush depth × vehicle stiffness)
  *      V = √(2 × k × C² / m)
  *      Source: Campbell (1974), NHTSA crash test correlation
- *      Confidence: HIGH when crush depth is explicit; MEDIUM when inferred
+ *      Confidence: HIGH when crush depth is document-stated; LOW when inferred
+ *      NOTE: Inferred crush depth from damage severity is circular (severity
+ *      depends on speed) — LOW confidence only, not used for consensus.
  *
- * M2 — Energy-Momentum Balance (repair cost → deformation energy → speed)
- *      V = √(2 × E_deform / m)  where E_deform ≈ partsCost × energyFactor
- *      Source: NHTSA repair cost / energy correlation (Strother et al. 1986)
- *      Confidence: MEDIUM (repair cost is a proxy, not a direct measurement)
+ * M2 — Energy-Momentum Balance — DISABLED
+ *      Repair cost is market-dependent and cannot be reliably converted to
+ *      deformation energy across different markets and time periods.
  *
- * M3 — Impulse-Momentum (damage area × contact force → speed)
- *      V = F × Δt / m  where Δt = 2C / V (iterative)
- *      Source: SAE 930899 — Impulse-momentum method for low-speed impacts
- *      Confidence: MEDIUM when damage area is available; LOW otherwise
+ * M3 — Impulse-Momentum (primary impact contact area × contact pressure) — DISABLED
+ *      Requires vision-derived primary impact contact area from M5.
+ *      totalDamageAreaM2 (sum of all damaged component areas) is NOT a valid
+ *      input — it includes secondary damage from rollovers, multi-impacts, etc.
+ *      Re-enable only when M5 provides a measured primary contact patch area.
  *
  * M4 — Deployment Threshold (airbag / seatbelt pretensioner hard bounds)
- *      Airbag deployment → V ≥ 20 km/h (FMVSS 208 threshold: 20–30 km/h)
+ *      Airbag deployment → V ≥ 20 km/h (FMVSS 208 frontal barrier equivalent)
  *      Seatbelt pretensioner → V ≥ 15 km/h
  *      Source: FMVSS 208, Euro NCAP frontal test protocols
- *      Confidence: HIGH as a lower bound; provides a hard floor only
+ *      Confidence: HIGH as a lower bound for frontal/barrier events.
+ *      NOTE: For non-barrier events (pothole, rollover, single-vehicle),
+ *      the FMVSS 208 threshold may not apply directly — flagged accordingly.
  *
  * M5 — Computer Vision Deformation Estimate (vision-extracted crush depth)
- *      Same Campbell formula as M1 but using the crush depth extracted by
- *      the vision LLM from the damage photos, rather than the document value.
+ *      Path A: Campbell formula using vision-extracted crush depth from photos.
+ *      Path B: Energy balance using primary-impact deformation energy — only
+ *      valid when damage is concentrated in a single impact zone (≤ 2 zones).
+ *      Multi-zone damage (rollover, multi-impact) disables Path B.
  *      Confidence: MEDIUM-HIGH when vision depth is available
  *
  * CONSENSUS ALGORITHM
@@ -135,6 +141,7 @@ export interface SpeedInferenceResult {
 // ── Vehicle stiffness table (kN/m) ───────────────────────────────────────────
 // Based on NHTSA crash test data and Campbell (1974) stiffness coefficients.
 // Values represent the structural stiffness of the primary impact zone.
+// Source: NHTSA Technical Report DOT HS 811 144 (2009), Table 3.
 
 const STIFFNESS_KNM: Record<string, number> = {
   compact:  800,
@@ -157,6 +164,7 @@ function getStiffnessKnm(bodyType: string | null | undefined): number {
 // ── Accident type multipliers ─────────────────────────────────────────────────
 // Accounts for the fraction of kinetic energy absorbed by the primary structure.
 // Rear impacts have less crumple zone; side impacts have less protection.
+// Source: SAE 2002-01-0547 (Varat & Husher, 2002) — directional energy absorption.
 
 const ACCIDENT_TYPE_MULTIPLIER: Record<string, number> = {
   frontal:          1.00,
@@ -173,23 +181,29 @@ function getAccidentMultiplier(direction: string | null | undefined): number {
   return ACCIDENT_TYPE_MULTIPLIER[direction.toLowerCase()] ?? 1.0;
 }
 
-// ── Energy-to-repair-cost correlation ────────────────────────────────────────
-// Empirical correlation from Strother et al. (1986) SAE 860924:
-//   Parts cost in USD ≈ 0.003 × deformation energy in Joules (2024 USD adjusted)
-// Inverted: E_deform (J) ≈ partsCostUsd / 0.003
-// This is a rough proxy — confidence is MEDIUM.
-
-const PARTS_COST_TO_ENERGY_FACTOR = 1 / 0.003; // J per USD
-
 // ── M1: Campbell's Stiffness Formula ─────────────────────────────────────────
+// V = √(2 × k × C² / m)
+// Source: Campbell (1974), NHTSA crash test correlation.
+//
+// IMPORTANT NOTES ON CONFIDENCE:
+// - When crush depth is document-stated (explicit measurement): HIGH confidence
+// - When crush depth is inferred from damage severity: LOW confidence only.
+//   Inferred crush depth is derived from damage severity, which is itself
+//   partially determined by speed — this creates circular reasoning that
+//   cannot be defended in court. LOW-confidence M1 is excluded from consensus.
+//
+// The internal airbag floor has been removed — M4 (Deployment Threshold)
+// handles the lower bound independently. Applying it inside M1 would
+// double-count the deployment evidence.
+//
+// The structural damage multiplier (×1.12) has been removed — it was an
+// arbitrary coefficient not grounded in published crash test data.
 
 function runCampbell(
   crushDepthM: number,
   massKg: number,
   bodyType: string | null | undefined,
   collisionDirection: string | null | undefined,
-  structuralDamage: boolean,
-  airbagDeployment: boolean,
   isExplicitDepth: boolean,
 ): MethodEstimate {
   if (crushDepthM <= 0 || massKg <= 0) {
@@ -197,7 +211,7 @@ function runCampbell(
       method: 'CAMPBELL', label: "Campbell's formula (crush depth)",
       speedKmh: null, isLowerBoundOnly: false,
       confidenceWeight: 0, confidence: 'LOW',
-      basis: 'Insufficient data: crush depth or mass missing',
+      basis: 'Insufficient data: crush depth or vehicle mass missing',
       ran: false,
     };
   }
@@ -207,19 +221,18 @@ function runCampbell(
   let speedMs = Math.sqrt((2 * energyJ) / massKg);
   let speedKmh = speedMs * 3.6;
 
-  // Apply accident-type multiplier
+  // Apply accident-type directional multiplier
   speedKmh *= getAccidentMultiplier(collisionDirection);
-
-  // Structural damage correction: structural deformation absorbs more energy
-  if (structuralDamage) speedKmh *= 1.12;
-
-  // Airbag floor
-  if (airbagDeployment) speedKmh = Math.max(speedKmh, 22);
 
   speedKmh = Math.round(speedKmh);
 
-  const confidence: MethodConfidence = isExplicitDepth ? 'HIGH' : 'MEDIUM';
-  const weight = isExplicitDepth ? 0.90 : 0.60;
+  // Confidence and weight:
+  // - Explicit (document-stated) crush depth: HIGH confidence, weight 0.80
+  // - Inferred crush depth (from damage severity): LOW confidence, weight 0.00
+  //   LOW-confidence M1 is excluded from the weighted consensus — it is shown
+  //   in the report for transparency but does not influence the speed estimate.
+  const confidence: MethodConfidence = isExplicitDepth ? 'HIGH' : 'LOW';
+  const weight = isExplicitDepth ? 0.80 : 0.00;
 
   return {
     method: 'CAMPBELL',
@@ -228,8 +241,8 @@ function runCampbell(
     isLowerBoundOnly: false,
     confidenceWeight: weight,
     confidence,
-    basis: `Crush depth: ${(crushDepthM * 100).toFixed(1)} cm (${isExplicitDepth ? 'document-stated' : 'inferred from damage severity'}), stiffness: ${getStiffnessKnm(bodyType)} kN/m, mass: ${massKg} kg`,
-    ran: true,
+    basis: `Crush depth: ${(crushDepthM * 100).toFixed(1)} cm (${isExplicitDepth ? 'document-stated measurement' : 'inferred from damage severity — LOW confidence, excluded from consensus'}), stiffness: ${getStiffnessKnm(bodyType)} kN/m (${bodyType ?? 'default'}), mass: ${massKg} kg`,
+    ran: isExplicitDepth, // Only counts as "ran" when explicit — inferred is shown but not used
   };
 }
 
@@ -259,72 +272,63 @@ function runEnergyMomentum(
   };
 }
 
-// ── M3: Impulse-Momentum (damage area × contact pressure) ────────────────────
+// ── M3: Impulse-Momentum — DISABLED ──────────────────────────────────────────
+// The impulse-momentum method requires the PRIMARY IMPACT CONTACT AREA —
+// the physical zone where force was transferred during the collision event.
+//
+// The available input (totalDamageAreaM2) is the sum of all damaged component
+// areas across the entire vehicle. This is NOT the contact area. Examples of
+// why this is wrong:
+//   - A vehicle hitting a tree at 40 km/h and rolling will have damage on all
+//     4 sides. totalDamageAreaM2 could be 4–6 m², but the impact contact area
+//     was ~0.3 m² (the tree contact patch).
+//   - A pothole impact damages underbody, suspension, and wheels — total area
+//     may be 2+ m², but the contact was a single wheel hitting a depression.
+//
+// Applying the impulse formula to totalDamageAreaM2 produces speed estimates
+// that are 3–10× too high and cannot be defended in court.
+//
+// M3 will be re-enabled when M5 computer vision provides a measured primary
+// impact contact patch area (width × height of the deformed zone at the
+// primary impact point). This requires the vision model to identify and
+// measure the primary impact zone specifically, not the total damage footprint.
 
 function runImpulse(
-  totalDamageAreaM2: number | null,
-  crushDepthM: number,
-  massKg: number,
-  collisionDirection: string | null | undefined,
+  _totalDamageAreaM2: number | null,
+  _crushDepthM: number,
+  _massKg: number,
+  _collisionDirection: string | null | undefined,
 ): MethodEstimate {
-  if (!totalDamageAreaM2 || totalDamageAreaM2 <= 0 || crushDepthM <= 0 || massKg <= 0) {
-    return {
-      method: 'IMPULSE', label: 'Impulse-momentum method (damage area)',
-      speedKmh: null, isLowerBoundOnly: false,
-      confidenceWeight: 0, confidence: 'LOW',
-      basis: 'Insufficient data: damage area or crush depth missing',
-      ran: false,
-    };
-  }
-
-  // Average panel yield stress for distributed deformation over total damage area.
-  // SAE 930899 cites 2–8 MPa LOCAL peak contact pressure at the primary impact point.
-  // However, applying this to the TOTAL damage area (e.g. 2.875 m²) produces
-  // contactForceN = 0.5e6 × 2.875 = 1,437,500 N → still too high (85 km/h).
-  //
-  // The totalDamageAreaM2 represents ALL damaged panels on the vehicle — not just the
-  // primary impact contact zone. For a single-impact event, the effective contact area
-  // (the zone where force is actually transferred) is typically 0.1–0.5 m²:
-  //   - Bumper + bonnet contact zone: ~0.3–0.5 m²
-  //   - Side swipe: ~0.1–0.3 m²
-  //   - Full-width frontal: ~0.4–0.6 m²
-  // Cap at 0.5 m² to prevent total-vehicle damage footprint from inflating the estimate.
-  const contactPressurePa = 0.5e6; // 0.5 MPa — average panel yield stress (not peak local pressure)
-  const effectiveDamageAreaM2 = Math.min(totalDamageAreaM2, 0.5); // cap: impact contact zone, not total damage footprint
-  const contactForceN = contactPressurePa * effectiveDamageAreaM2;
-
-  // Contact duration: Δt = 2C / V (iterative — use initial estimate)
-  // Start with a rough speed estimate from energy: V₀ = √(F×C/m × 2)
-  const roughSpeedMs = Math.sqrt((contactForceN * crushDepthM) / massKg);
-  const contactDurationS = (2 * crushDepthM) / Math.max(roughSpeedMs, 1);
-
-  // Impulse = F × Δt = m × ΔV
-  const deltaVMs = (contactForceN * contactDurationS) / massKg;
-  let speedKmh = deltaVMs * 3.6;
-
-  speedKmh *= getAccidentMultiplier(collisionDirection);
-  // Physics cap: 150 km/h upper bound for distributed-damage impulse method.
-  // Speeds above this require highway-context evidence captured by other methods.
-  speedKmh = Math.min(speedKmh, 150);
-  speedKmh = Math.round(speedKmh);
-
   return {
     method: 'IMPULSE',
     label: 'Impulse-momentum method (damage area)',
-    speedKmh,
+    speedKmh: null,
     isLowerBoundOnly: false,
-    confidenceWeight: 0.40,
-    confidence: 'MEDIUM',
-    basis: `Damage area: ${totalDamageAreaM2.toFixed(3)} m², effective contact area: ${effectiveDamageAreaM2.toFixed(3)} m², avg panel yield stress: 0.5 MPa, crush depth: ${(crushDepthM * 100).toFixed(1)} cm`,
-    ran: true,
+    confidenceWeight: 0,
+    confidence: 'LOW',
+    basis: 'Method disabled — total damage area is not a valid proxy for primary impact contact area. Secondary damage from rollovers, multi-impacts, and cascading failures inflates the area and produces unreliable speed estimates. Re-enable when computer vision provides a measured primary contact patch area.',
+    ran: false,
   };
 }
 
 // ── M4: Deployment Threshold (hard lower bound) ───────────────────────────────
+// Source: FMVSS 208 (Federal Motor Vehicle Safety Standard 208),
+// Euro NCAP frontal test protocols.
+//
+// IMPORTANT: The FMVSS 208 threshold (20–30 km/h) is calibrated for
+// FRONTAL BARRIER EQUIVALENT speed — i.e., a direct frontal collision with
+// a fixed barrier. For non-barrier events (pothole impacts, rollovers,
+// single-vehicle collisions with deformable objects), the airbag sensor
+// algorithm uses a different deceleration profile and the threshold may
+// be higher (typically >30 km/h for non-barrier events).
+//
+// This method provides a HARD LOWER BOUND only — it is not a point estimate.
+// It is excluded from the weighted mean but used to floor the consensus.
 
 function runDeploymentThreshold(
   airbagDeployment: boolean,
   seatbeltPretensioner: boolean,
+  collisionDirection: string | null | undefined,
 ): MethodEstimate {
   if (!airbagDeployment && !seatbeltPretensioner) {
     return {
@@ -336,26 +340,46 @@ function runDeploymentThreshold(
     };
   }
 
-  // FMVSS 208: frontal airbags deploy at 20–30 km/h equivalent barrier speed
+  // FMVSS 208: frontal airbags deploy at 20–30 km/h equivalent barrier speed.
   // Side airbags: 15–25 km/h. Use conservative lower bound.
   const lowerBoundKmh = airbagDeployment ? 20 : 15;
   const typicalKmh = airbagDeployment ? 28 : 18;
+
+  // Check if this is a non-barrier event where FMVSS 208 may not apply directly
+  const dir = (collisionDirection ?? '').toLowerCase();
+  const isNonBarrier = dir === 'rollover' || dir === 'single_vehicle' || dir === 'pothole' || dir === 'unknown';
+  const caveat = isNonBarrier
+    ? ' Note: FMVSS 208 threshold is calibrated for frontal barrier events. For this incident type, actual deployment threshold may be higher (>30 km/h). Use as indicative lower bound only.'
+    : '';
 
   return {
     method: 'DEPLOYMENT_THRESHOLD',
     label: 'Deployment threshold (FMVSS 208 / Euro NCAP)',
     speedKmh: typicalKmh,
     isLowerBoundOnly: true,
-    confidenceWeight: 0.70, // High confidence as a floor
+    confidenceWeight: 0.70, // High confidence as a floor for barrier events
     confidence: 'HIGH',
     basis: airbagDeployment
-      ? 'Airbag deployment confirmed — FMVSS 208 threshold: ≥ 20 km/h (frontal). Typical deployment: 25–35 km/h.'
-      : 'Seatbelt pretensioner deployment — typical activation: ≥ 15 km/h.',
+      ? `Airbag deployment confirmed — FMVSS 208 threshold: ≥ ${lowerBoundKmh} km/h (frontal barrier equivalent). Typical deployment: 25–35 km/h.${caveat}`
+      : `Seatbelt pretensioner deployment — typical activation: ≥ ${lowerBoundKmh} km/h.${caveat}`,
     ran: true,
   };
 }
 
-// ── M5: Vision Deformation Estimate ──────────────────────────────────────────
+// ── M5: Computer Vision Deformation Estimate ──────────────────────────────────
+// Source: Vision LLM analysis of damage photographs.
+//
+// Path A: Campbell formula using vision-extracted crush depth.
+//   V = √(2 × k × C_vision² / m)
+//   This is the most reliable path when the vision model correctly identifies
+//   the primary impact crush depth from photographs.
+//
+// Path B: Energy balance using primary-impact deformation energy.
+//   V = √(2 × E_primary / m)
+//   ONLY valid when damage is concentrated in a single impact zone (≤ 2 zones).
+//   For multi-zone damage (rollover, multi-impact), the total deformation energy
+//   includes secondary damage and does NOT represent the primary impact energy.
+//   Path B is disabled when multiZoneDamage = true.
 
 function runVisionDeformation(
   visionCrushDepthM: number | null,
@@ -366,16 +390,20 @@ function runVisionDeformation(
   airbagDeployment: boolean,
   totalDeformationEnergyJ: number | null,
   visionConfidenceScore: number | null,
+  multiZoneDamage: boolean,
 ): MethodEstimate {
   const hasCrush = visionCrushDepthM != null && visionCrushDepthM > 0;
-  const hasEnergy = totalDeformationEnergyJ != null && totalDeformationEnergyJ > 0;
+  // Path B is only valid for single-zone impacts
+  const hasEnergy = totalDeformationEnergyJ != null && totalDeformationEnergyJ > 0 && !multiZoneDamage;
 
   if (!hasCrush && !hasEnergy) {
     return {
       method: 'VISION_DEFORMATION', label: 'M5 Vision Deformation',
       speedKmh: null, isLowerBoundOnly: false,
       confidenceWeight: 0, confidence: 'LOW',
-      basis: 'No vision-extracted crush depth or deformation energy available',
+      basis: hasCrush === false && multiZoneDamage
+        ? 'No vision-extracted crush depth available. Path B (deformation energy) disabled — multi-zone damage detected; total deformation energy includes secondary damage and is not a valid primary impact energy input.'
+        : 'No vision-extracted crush depth or deformation energy available',
       ran: false,
     };
   }
@@ -389,18 +417,17 @@ function runVisionDeformation(
     const energyJ = 0.5 * stiffnessNm * Math.pow(visionCrushDepthM!, 2);
     let speedMs = Math.sqrt((2 * energyJ) / massKg);
     let speedKmh = speedMs * 3.6 * dirMultiplier;
-    if (structuralDamage) speedKmh *= 1.12;
-    if (airbagDeployment) speedKmh = Math.max(speedKmh, 22);
+    // Note: no arbitrary structural damage multiplier — not grounded in published data
+    // Airbag floor is handled by M4, not here
     pathA = { crushDepthM: visionCrushDepthM!, speedKmh: Math.round(speedKmh) };
   }
 
-  // ── Path B: Energy balance v = sqrt(2E/m) from total deformation energy ───
+  // ── Path B: Energy balance v = sqrt(2E/m) from primary-impact deformation energy
+  // Only runs for single-zone impacts (multiZoneDamage = false)
   let pathB: { deformationEnergyJ: number; speedKmh: number } | null = null;
   if (hasEnergy) {
     let speedMs = Math.sqrt((2 * totalDeformationEnergyJ!) / massKg);
     let speedKmh = speedMs * 3.6 * dirMultiplier;
-    if (structuralDamage) speedKmh *= 1.12;
-    if (airbagDeployment) speedKmh = Math.max(speedKmh, 22);
     pathB = { deformationEnergyJ: totalDeformationEnergyJ!, speedKmh: Math.round(speedKmh) };
   }
 
@@ -427,8 +454,9 @@ function runVisionDeformation(
   const confidence = finalWeight >= 0.75 ? 'HIGH' : finalWeight >= 0.55 ? 'MEDIUM' : 'LOW';
 
   const basisParts: string[] = [];
-  if (pathA) basisParts.push(`Path A (Campbell): C=${(pathA.crushDepthM * 100).toFixed(1)} cm → ${pathA.speedKmh} km/h`);
-  if (pathB) basisParts.push(`Path B (Energy): E=${(pathB.deformationEnergyJ / 1000).toFixed(2)} kJ → ${pathB.speedKmh} km/h`);
+  if (pathA) basisParts.push(`Path A (Campbell from vision): C=${(pathA.crushDepthM * 100).toFixed(1)} cm → ${pathA.speedKmh} km/h`);
+  if (pathB) basisParts.push(`Path B (Energy, single-zone): E=${(pathB.deformationEnergyJ / 1000).toFixed(2)} kJ → ${pathB.speedKmh} km/h`);
+  if (multiZoneDamage && !pathB) basisParts.push('Path B disabled: multi-zone damage (rollover/multi-impact) — total deformation energy is not primary impact energy');
   if (crossValidation) basisParts.push(crossValidation.agreement ? `✓ Paths agree (Δ${crossValidation.spreadKmh} km/h)` : `! Paths diverge (Δ${crossValidation.spreadKmh} km/h)`);
 
   return {
@@ -479,9 +507,9 @@ export interface EnsembleInput {
   inferredCrushDepthM: number;
   /** Crush depth extracted by vision LLM from photos (metres) — null if not available */
   visionCrushDepthM: number | null | undefined;
-  /** Total damage area from Stage 6 (m²) */
+  /** Total damage area from Stage 6 (m²) — NOT used for physics (see M3 notes) */
   totalDamageAreaM2: number | null | undefined;
-  /** Parts cost in USD (from RepairQuoteRecord) */
+  /** Parts cost in USD (from RepairQuoteRecord) — NOT used for physics (M2 disabled) */
   partsCostUsd: number | null | undefined;
   /** Whether structural damage was detected */
   structuralDamage: boolean;
@@ -489,10 +517,13 @@ export interface EnsembleInput {
   airbagDeployment: boolean;
   /** Whether seatbelt pretensioner deployment was recorded */
   seatbeltPretensioner: boolean;
-  /** Total deformation energy across all components from Stage 6 (Joules) */
+  /** Total deformation energy across all components from Stage 6 (Joules)
+   *  Only used by M5 Path B when damage is single-zone (not rollover/multi-impact) */
   totalDeformationEnergyJ?: number | null;
   /** Average vision confidence score (0–100) from Stage 6 LLM measurements */
   visionConfidenceScore?: number | null;
+  /** Number of distinct damage zones (from Stage 6). When > 2, M5 Path B is disabled. */
+  damagedZoneCount?: number | null;
 }
 
 export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceResult {
@@ -503,27 +534,30 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
     structuralDamage, airbagDeployment, seatbeltPretensioner,
   } = input;
 
-  // Choose crush depth for M1: prefer document value, fall back to inferred
-  const m1CrushDepth = (documentCrushDepthM && documentCrushDepthM >= 0.04)
-    ? documentCrushDepthM
-    : inferredCrushDepthM;
-  const m1IsExplicit = !!(documentCrushDepthM && documentCrushDepthM >= 0.04);
+  // Multi-zone damage check: if damage spans > 2 zones, M5 Path B is unreliable
+  const multiZoneDamage = (input.damagedZoneCount ?? 1) > 2;
+
+  // M1: Use document crush depth when available (explicit, defensible).
+  // Fall back to inferred crush depth for display only — weight = 0 (excluded from consensus).
+  const m1HasExplicit = !!(documentCrushDepthM && documentCrushDepthM >= 0.04);
+  const m1CrushDepth = m1HasExplicit ? documentCrushDepthM! : inferredCrushDepthM;
 
   // Run all five methods
-  const m1 = runCampbell(m1CrushDepth, massKg, bodyType, collisionDirection, structuralDamage, airbagDeployment, m1IsExplicit);
+  const m1 = runCampbell(m1CrushDepth, massKg, bodyType, collisionDirection, m1HasExplicit);
   const m2 = runEnergyMomentum(partsCostUsd ?? null, massKg, collisionDirection, airbagDeployment);
   const m3 = runImpulse(totalDamageAreaM2 ?? null, m1CrushDepth, massKg, collisionDirection);
-  const m4 = runDeploymentThreshold(airbagDeployment, seatbeltPretensioner);
+  const m4 = runDeploymentThreshold(airbagDeployment, seatbeltPretensioner, collisionDirection);
   const m5 = runVisionDeformation(
     visionCrushDepthM ?? null, massKg, bodyType, collisionDirection, structuralDamage, airbagDeployment,
     input.totalDeformationEnergyJ ?? null,
     input.visionConfidenceScore ?? null,
+    multiZoneDamage,
   );
 
   const methods: MethodEstimate[] = [m1, m2, m3, m4, m5];
 
-  // Collect point estimates (exclude lower-bound-only methods from mean)
-  const pointEstimates = methods.filter(m => m.ran && m.speedKmh !== null && !m.isLowerBoundOnly) as Array<MethodEstimate & { speedKmh: number }>;
+  // Collect point estimates (exclude lower-bound-only methods and zero-weight methods from mean)
+  const pointEstimates = methods.filter(m => m.ran && m.speedKmh !== null && !m.isLowerBoundOnly && m.confidenceWeight > 0) as Array<MethodEstimate & { speedKmh: number }>;
 
   // Hard lower bound from deployment thresholds
   const lowerBoundKmh = methods
@@ -540,8 +574,8 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
       overallConfidence: 'LOW',
       highDivergence: false,
       summary: lowerBoundKmh
-        ? `Insufficient data for a point estimate. Deployment threshold confirms impact speed ≥ ${lowerBoundKmh} km/h.`
-        : 'Insufficient data to estimate impact speed from available evidence.',
+        ? `Insufficient data for a point estimate. Deployment threshold confirms impact speed ≥ ${lowerBoundKmh} km/h. Document-stated crush depth or vehicle photos are required for a defensible speed estimate.`
+        : 'Insufficient data to estimate impact speed from available evidence. Document-stated crush depth or vehicle damage photographs are required.',
       methodsRan: 0,
     };
   }
@@ -573,7 +607,6 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
 
   // Cross-validation: check for high divergence between any two estimates
   let highDivergence = false;
-  // Track the most divergent pair for the explanation
   let maxGapKmh = 0;
   let maxGapPair: [number, number] = [0, 0]; // indices into pointEstimates
   for (let i = 0; i < pointEstimates.length; i++) {
@@ -614,22 +647,15 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
     const maxSpeed = Math.max(mA.speedKmh, mB.speedKmh);
     const gapPct = maxSpeed > 0 ? Math.round((gapKmh / maxSpeed) * 100) : 0;
 
-    // Determine the key input difference driving the gap
     let keyInputDifference = `${mA.label} used: ${mA.basis}. ${mB.label} used: ${mB.basis}.`;
     let explanation = `${mA.label} estimated ${mA.speedKmh} km/h while ${mB.label} estimated ${mB.speedKmh} km/h — a ${gapPct}% gap (${gapKmh} km/h). `;
 
-    // Specific explanation for the most common divergence patterns
     if ((mA.method === 'CAMPBELL' || mA.method === 'VISION_DEFORMATION') &&
         (mB.method === 'CAMPBELL' || mB.method === 'VISION_DEFORMATION')) {
-      // M1 vs M5: crush depth discrepancy between document and photos
       explanation += `Both methods use crush depth but from different sources. `;
       explanation += `If the document-stated crush depth differs from the photo-measured depth, this indicates the damage documentation may not accurately reflect the physical deformation. `;
       explanation += `The photo-measured value (${mB.method === 'VISION_DEFORMATION' ? mB.speedKmh : mA.speedKmh} km/h) is typically more reliable for recent impacts.`;
       keyInputDifference = `Document crush depth vs photo-measured crush depth discrepancy.`;
-    } else if (mA.method === 'IMPULSE' || mB.method === 'IMPULSE') {
-      explanation += `The impulse method uses total damage area as a proxy for contact force, which can overestimate speed for distributed low-energy damage. `;
-      explanation += `Consider whether the damage area is consistent with a single impact event.`;
-      keyInputDifference = `Damage area used by impulse method may not reflect a single concentrated impact.`;
     } else if (mA.method === 'DEPLOYMENT_THRESHOLD' || mB.method === 'DEPLOYMENT_THRESHOLD') {
       explanation += `The deployment threshold provides a hard lower bound (not a point estimate) based on airbag/pretensioner activation. `;
       explanation += `If the other method estimates a speed below the deployment threshold, the physical evidence (airbag deployed) overrides it.`;

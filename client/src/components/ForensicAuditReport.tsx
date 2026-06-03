@@ -2895,7 +2895,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             const methodDescriptions: Record<string, string> = {
               M1: 'Campbell formula: measures maximum crush depth from structural deformation and applies vehicle stiffness coefficient to derive impact speed.',
               M2: 'Disabled \u2014 repair cost is not a reliable physics proxy across different markets.',
-              M3: 'Impulse method: estimates impact force from total damaged panel area and contact duration, then derives speed from momentum change.',
+              M3: 'Impulse-momentum method: disabled — requires a vision-derived primary impact contact area. Total damage area (sum of all damaged components) is not a valid input because secondary damage from rollovers and multi-zone impacts inflates the area, producing unreliable speed estimates. Will be re-enabled when computer vision provides a measured primary contact patch area.',
               M4: 'Deployment threshold: airbag or seatbelt pretensioner activation confirms speed exceeded the system trigger threshold.',
               M5: 'Vision deformation: KINGA measures crush depth and deformation energy directly from damage photos. Two independent paths (Campbell + energy balance) are cross-validated.',
             };

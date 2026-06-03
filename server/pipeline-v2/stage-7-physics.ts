@@ -133,17 +133,31 @@ function inferCrushDepth(damageAnalysis: Stage6Output, claimRecord: ClaimRecord)
     return Math.min(0.55, Math.max(0.04, Math.max(energyDerived, airbagFloor)));
   }
 
-  // 4. Last-resort fallback: component count and damage area geometry.
-  //    Used only when Stage 6 did not extract numeric measurements
-  //    (e.g., text-only claims with no damage photos).
-  const componentBonus = Math.min(0.08, Math.max(0, (parts.length - 3) * 0.01));
-  const structuralBonus = damageAnalysis.structuralDamageDetected ? 0.06 : 0;
-  const damageArea = damageAnalysis.totalDamageArea ?? 0;
-  const areaBonus = Math.min(0.04, Math.max(0, (damageArea - 0.2) / 0.1 * 0.008));
+  // 4. Last-resort fallback: severity-based baseline ONLY.
+  //    Total damage area is NOT used here — it represents the total vehicle
+  //    damage footprint, not the primary impact crush depth. Using area as a
+  //    crush proxy produces wildly inflated speed estimates for multi-zone
+  //    damage (rollover, pothole + rollover, multi-impact) and cannot be
+  //    defended in court.
+  //
+  //    Severity baseline (from damage classification, not area):
+  //      cosmetic / minor  → 0.05 m  (~5 km/h)
+  //      moderate          → 0.12 m  (~20 km/h)
+  //      severe            → 0.19 m  (~30 km/h)
+  //      catastrophic      → 0.28 m  (~45 km/h)
+  //
+  //    Structural damage adds 0.04 m (chassis/frame deformation = higher energy).
+  //    Airbag floor: 0.15 m minimum (airbags deploy at ≥ 20 km/h equivalent).
+  //    Result is flagged as LOW confidence — excluded from consensus by M1.
+  const severityScore = damageAnalysis.overallSeverityScore ?? 50;
+  const severityBaseline =
+    severityScore >= 85 ? 0.28 :  // catastrophic
+    severityScore >= 65 ? 0.19 :  // severe
+    severityScore >= 35 ? 0.12 :  // moderate
+    0.05;                          // minor / cosmetic
+  const structuralBonus = damageAnalysis.structuralDamageDetected ? 0.04 : 0;
   const airbagFloor = claimRecord.accidentDetails.airbagDeployment ? 0.15 : 0;
-  // Area-based baseline: 0.10 m² ≈ 0.05 m crush, 0.30 m² ≈ 0.12 m, 0.60 m² ≈ 0.22 m
-  const areaBaseline = Math.min(0.38, Math.max(0.05, damageArea * 0.40));
-  const estimated = areaBaseline + componentBonus + structuralBonus + areaBonus;
+  const estimated = severityBaseline + structuralBonus;
   return Math.min(0.55, Math.max(0.04, Math.max(estimated, airbagFloor)));
 }
 
@@ -756,6 +770,15 @@ export async function runPhysicsStage(
         ? confidenceScores.reduce((sum, s) => sum + s, 0) / confidenceScores.length
         : null;
 
+      // Count distinct damage zones — used to determine if M5 Path B is valid
+      // (Path B is disabled for multi-zone damage: rollover, multi-impact, etc.)
+      const distinctZones = new Set(
+        damageAnalysis.damagedParts
+          .map((p: any) => (p.zone ?? p.damageZone ?? 'unknown').toLowerCase())
+          .filter((z: string) => z && z !== 'unknown')
+      );
+      const damagedZoneCount = distinctZones.size || 1;
+
       const ensembleResult = runSpeedInferenceEnsemble({
         massKg: claimRecord.vehicle.massKg,
         bodyType: claimRecord.vehicle.bodyType,
@@ -770,6 +793,7 @@ export async function runPhysicsStage(
         seatbeltPretensioner: seatbeltFired,
         totalDeformationEnergyJ,
         visionConfidenceScore: avgVisionConfidenceScore,
+        damagedZoneCount,
       });
       ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², airbag=${airbagDeployed}, seatbelt=${seatbeltFired}, visionDepth=${visionCrushDepthM}, deformEnergy=${totalDeformationEnergyJ?.toFixed(0)}J, visionConf=${avgVisionConfidenceScore?.toFixed(1)}`);
       output.speedInferenceEnsemble = ensembleResult;
