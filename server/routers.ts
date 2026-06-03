@@ -4793,6 +4793,15 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
             } catch { /* non-fatal */ }
             return null;
           })(),
+          // Stage 12.5: Report Readiness Gate — whether the claim can be exported as a report
+          _reportReadiness: (() => {
+            try {
+              if ((assessment as any).reportReadinessJson) {
+                return JSON.parse((assessment as any).reportReadinessJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
           // Photo counts — ForensicAuditReport expects these as NUMBERS (not booleans).
           // imageAnalysisTotalCount = all photos linked to the claim (including deferred by vision budget)
           // imageAnalysisSuccessCount = photos successfully processed by the vision LLM
@@ -5232,6 +5241,12 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
               reconstructionSummary: physicsJson?.reconstructionSummary ?? null,
               damageConsistencyScore: physicsJson?.damageConsistencyScore ?? null,
               accidentSeverity: physicsJson?.accidentSeverity ?? null,
+              // Physics execution status — EXECUTED / SKIPPED_NON_PHYSICAL / SKIPPED_NO_SPEED / ESTIMATED_FALLBACK
+              physicsStatus: physicsJson?.physicsStatus ?? null,
+              // Animal strike physics engine output (Section 2.1 animal strike block)
+              animalStrikePhysics: physicsJson?.animalStrikePhysics ?? null,
+              // Causal plausibility score (0–100)
+              causalPlausibility: physicsJson?.causalPlausibility ?? null,
             };
           })(),
           // Override photosDetected with numeric count so ForensicAuditReport renders correctly

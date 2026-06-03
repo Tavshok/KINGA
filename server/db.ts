@@ -1070,6 +1070,12 @@ export async function triggerAiAssessment(claimId: number) {
     speedInferenceEnsemble: (physicsAnalysis as any).speedInferenceEnsemble ?? null,
     // Speed forensics — claimed vs physics-inferred dual-speed comparison (Section 2.7)
     speedForensics: (physicsAnalysis as any).speedForensics ?? null,
+    // Physics execution status — EXECUTED / SKIPPED_NON_PHYSICAL / SKIPPED_NO_SPEED / ESTIMATED_FALLBACK
+    physicsStatus: (physicsAnalysis as any).physicsStatus ?? null,
+    // Animal strike physics engine output (Section 2.1 animal strike block)
+    animalStrikePhysics: (physicsAnalysis as any).animalStrikePhysics ?? null,
+    // Causal plausibility score (0–100) — used by Stage 10 to flag invalid physics runs
+    causalPlausibility: (physicsAnalysis as any).causalPlausibility ?? null,
   }) : null;
 
   // Build fraud indicators JSON

@@ -1384,7 +1384,12 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
 
   // Pull new ClaimRecord fields from the aiAssessment claimRecord0 (stored in DB)
   // NOTE: claimRecord0 (declared above) is identical — using it directly to avoid duplicate const
-  const narrativeAnalysis = claimRecord0?.accidentDetails?.narrativeAnalysis ?? null;
+  // Prefer the dedicated _narrativeAnalysis field (from narrativeAnalysisJson DB column) over
+  // the embedded value inside claimRecord0.accidentDetails.narrativeAnalysis.
+  // The dedicated column is always up-to-date; the embedded value may be stale for re-run assessments.
+  const narrativeAnalysis = (aiAssessment as any)?._narrativeAnalysis
+    ?? claimRecord0?.accidentDetails?.narrativeAnalysis
+    ?? null;
   const multiEventSequence = claimRecord0?.accidentDetails?.multiEventSequence ?? null;
   const accidentTime = claimRecord0?.accidentDetails?.time ?? null;
   const animalType = claimRecord0?.accidentDetails?.animalType ?? null;
@@ -2289,6 +2294,56 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                   <p className="text-[10px] mt-2 px-2 py-1" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)', borderRadius: '4px' }}>
                     One or more systems show elevated hidden damage risk — physical inspection recommended before final settlement.
                   </p>
+                )}
+              </div>
+            );
+          })()}
+          {/* Physics execution status badge */}
+          {(() => {
+            const ps: string | null = (_phys as any)?.physicsStatus ?? null;
+            if (!ps) return null;
+            const statusMap: Record<string, { label: string; bg: string; text: string; border: string }> = {
+              EXECUTED: { label: 'Physics engine executed', bg: 'var(--fp-success-bg)', text: 'var(--fp-success-text)', border: 'var(--fp-success-border)' },
+              ESTIMATED_FALLBACK: { label: 'Estimated fallback — speed not extracted', bg: 'var(--fp-warning-bg)', text: 'var(--fp-warning-text)', border: 'var(--fp-warning-border)' },
+              SKIPPED_NO_SPEED: { label: 'Physics skipped — no speed data', bg: 'var(--fp-locked-bg)', text: 'var(--fp-locked-text)', border: 'var(--fp-locked-border)' },
+              SKIPPED_NON_PHYSICAL: { label: 'Physics not applicable for this incident type', bg: 'var(--fp-info-bg)', text: 'var(--fp-info-text)', border: 'var(--fp-info-border)' },
+            };
+            const s = statusMap[ps] ?? { label: ps, bg: 'var(--fp-info-bg)', text: 'var(--fp-info-text)', border: 'var(--fp-info-border)' };
+            return (
+              <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
+                  {s.label}
+                </span>
+              </div>
+            );
+          })()}
+          {/* Animal strike physics block */}
+          {(() => {
+            const asp = (_phys as any)?.animalStrikePhysics;
+            if (!asp) return null;
+            return (
+              <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Animal Strike Physics</p>
+                <table className="w-full text-xs report-table">
+                  <tbody>
+                    {([
+                      ['Animal category', asp.animal_category ?? 'Unknown'],
+                      ['Estimated animal mass', asp.animal_mass_kg != null ? `${asp.animal_mass_kg} kg` : 'N/A'],
+                      ['Impact severity', asp.impact_severity ?? 'N/A'],
+                      ['Delta-V (animal strike)', asp.delta_v_kmh != null ? `${asp.delta_v_kmh.toFixed(1)} km/h` : 'N/A'],
+                      ['Impact force', asp.impact_force_kn != null ? `${asp.impact_force_kn.toFixed(1)} kN` : 'N/A'],
+                      ['Plausibility score', asp.plausibility_score != null ? `${asp.plausibility_score}/100` : 'N/A'],
+                      ['Bullbar present', asp.bullbar_present === 'true' ? 'Yes' : asp.bullbar_present === 'false' ? 'No' : 'Unknown'],
+                    ] as [string, string][]).map(([k, v], i) => (
+                      <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
+                        <td className="py-1.5 pr-3 font-semibold" style={{ color: '#64748b' }}>{k}</td>
+                        <td className="py-1.5 tabular-nums" style={{ color: '#0f172a' }}>{v}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {asp.engineering_notes && (
+                  <p className="text-[10px] mt-2" style={{ color: 'var(--muted-foreground)' }}>{asp.engineering_notes}</p>
                 )}
               </div>
             );
@@ -8405,8 +8460,173 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="decision_authority" pipelineRunId={pipelineRunId} />}
       <Section6Decision claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
 
-      {/* ── SECTION 7 — Approval Chain & Audit Signatures ── */}
-      <div className="section-heading" data-section="7">7 &nbsp; Approval Chain &amp; Audit Signatures</div>
+      {/* ══ SECTION 7 — Claim Quality Score ══ */}
+      {(() => {
+        const cq = (aiAssessment as any)?._claimQuality;
+        if (!cq) return null;
+        const gradeColor = (g: string) =>
+          g === 'A' ? '#16a34a' : g === 'B' ? '#2563eb' : g === 'C' ? '#d97706' : g === 'D' ? '#ea580c' : '#dc2626';
+        const dimOrder: string[] = [
+          'dataCompleteness', 'imageConfidence', 'costSource', 'classification', 'physics', 'consistency',
+        ];
+        return (
+          <>
+            <div className="section-heading" data-section="7">7 &nbsp; Claim Quality Score</div>
+            <div className="mb-4 space-y-4" style={{ marginBottom: 24 }}>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
+                <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
+                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>7.0 Assessment Quality Score</p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold" style={{ color: '#64748b' }}>{cq.overallScore}/100</span>
+                    <span className="text-sm font-black px-2 py-0.5 rounded" style={{ background: gradeColor(cq.grade) + '15', color: gradeColor(cq.grade), border: `1.5px solid ${gradeColor(cq.grade)}` }}>Grade {cq.grade}</span>
+                    {cq.requiresManualReview && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>Manual Review Required</span>
+                    )}
+                  </div>
+                </div>
+                <div className="p-4">
+                  <p className="text-xs leading-relaxed mb-3" style={{ color: '#374151' }}>{cq.adjusterGuidance}</p>
+                  <div className="mb-4">
+                    <div className="flex justify-between text-[10px] mb-1" style={{ color: '#64748b' }}>
+                      <span>Quality Score</span>
+                      <span>{cq.overallScore}/100</span>
+                    </div>
+                    <div className="h-2 rounded-full" style={{ background: '#f1f5f9' }}>
+                      <div className="h-2 rounded-full" style={{ width: `${cq.overallScore}%`, background: gradeColor(cq.grade) }} />
+                    </div>
+                  </div>
+                  <table className="w-full text-xs report-table">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: '#64748b' }}>Dimension</th>
+                        <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: '#64748b' }}>Score</th>
+                        <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: '#64748b' }}>Label</th>
+                        <th className="py-1.5 text-left font-semibold" style={{ color: '#64748b' }}>Issues</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dimOrder.map((key, i) => {
+                        const dim = (cq.dimensions as any)?.[key];
+                        if (!dim) return null;
+                        const dimColor = dim.score >= 70 ? '#16a34a' : dim.score >= 40 ? '#d97706' : '#dc2626';
+                        return (
+                          <tr key={key} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
+                            <td className="py-1.5 pr-3 font-semibold" style={{ color: '#0f172a' }}>{dim.name}</td>
+                            <td className="py-1.5 pr-3 tabular-nums font-bold" style={{ color: dimColor }}>{dim.score}</td>
+                            <td className="py-1.5 pr-3" style={{ color: '#64748b' }}>{dim.label}</td>
+                            <td className="py-1.5" style={{ color: '#64748b' }}>
+                              {(dim.issues ?? []).length > 0
+                                ? (dim.issues as string[]).join('; ')
+                                : <span style={{ fontStyle: 'italic' }}>None</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {(cq.mandatoryActions ?? []).length > 0 && (
+                    <div className="mt-3 pt-3" style={{ borderTop: '1px solid #e2e8f0' }}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#64748b' }}>Mandatory Adjuster Actions</p>
+                      <ul className="space-y-1">
+                        {(cq.mandatoryActions as string[]).map((action: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-xs" style={{ color: '#0f172a' }}>
+                            <span className="shrink-0 font-bold" style={{ color: 'var(--fp-critical-text)' }}>{i + 1}.</span>
+                            {action}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ══ SECTION 8 — Forensic Audit Validation (Stage 36) ══ */}
+      {(() => {
+        const fav = (aiAssessment as any)?._forensicAuditValidation;
+        if (!fav) return null;
+        const statusStyle = (s: string) =>
+          s === 'PASS' ? { bg: 'var(--fp-success-bg)', text: 'var(--fp-success-text)', border: 'var(--fp-success-border)' }
+          : s === 'WARNING' ? { bg: 'var(--fp-warning-bg)', text: 'var(--fp-warning-text)', border: 'var(--fp-warning-border)' }
+          : s === 'FAIL' ? { bg: 'var(--fp-critical-bg)', text: 'var(--fp-critical-text)', border: 'var(--fp-critical-border)' }
+          : { bg: 'var(--fp-info-bg)', text: 'var(--fp-info-text)', border: 'var(--fp-info-border)' };
+        const overallSt = statusStyle(fav.overallStatus);
+        const dimLabels: Record<string, string> = {
+          dataExtraction: 'Data Extraction',
+          incidentClassification: 'Incident Classification',
+          imageAnalysis: 'Image Analysis',
+          physics: 'Physics Engine',
+          costModel: 'Cost Model',
+          fraudAnalysis: 'Fraud Analysis',
+          crossStageConsistency: 'Cross-Stage Consistency',
+          assumptionRegistry: 'Assumption Registry',
+          reportCompleteness: 'Report Completeness',
+          claimQualityScore: 'Claim Quality Score',
+        };
+        const dimEntries = Object.entries(fav.dimensionResults ?? {}) as [string, string][];
+        const issueGroups: Array<{ label: string; items: any[]; style: { bg: string; text: string; border: string } }> = [
+          { label: 'Critical Failures', items: fav.criticalFailures ?? [], style: statusStyle('FAIL') },
+          { label: 'High Severity Issues', items: fav.highSeverityIssues ?? [], style: statusStyle('WARNING') },
+          { label: 'Medium Issues', items: fav.mediumIssues ?? [], style: { bg: 'var(--fp-info-bg)', text: 'var(--fp-info-text)', border: 'var(--fp-info-border)' } },
+        ].filter(g => g.items.length > 0);
+        return (
+          <>
+            <div className="section-heading" data-section="8">8 &nbsp; Forensic Audit Validation</div>
+            <div className="mb-4 space-y-4" style={{ marginBottom: 24 }}>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
+                <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
+                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>8.0 Validation Status</p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold" style={{ color: '#64748b' }}>Consistency: {fav.consistencyScore}/100</span>
+                    <span className="text-xs font-semibold" style={{ color: '#64748b' }}>Confidence: {fav.confidenceInAssessment}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: overallSt.bg, color: overallSt.text, border: `1px solid ${overallSt.border}` }}>{fav.overallStatus}</span>
+                  </div>
+                </div>
+                <div className="p-4">
+                  {fav.summary && (
+                    <p className="text-xs leading-relaxed mb-3" style={{ color: '#374151' }}>{fav.summary}</p>
+                  )}
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                    {dimEntries.map(([key, result]) => {
+                      const st = statusStyle(result);
+                      return (
+                        <div key={key} className="flex items-center justify-between py-1" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <span className="text-xs" style={{ color: '#64748b' }}>{dimLabels[key] ?? key}</span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: st.bg, color: st.text, border: `1px solid ${st.border}` }}>{result}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              {issueGroups.map((group, gi) => (
+                <div key={gi} className="rounded-xl overflow-hidden" style={{ border: `1px solid ${group.style.border}`, background: '#ffffff' }}>
+                  <div className="px-4 py-3" style={{ borderBottom: `1px solid ${group.style.border}`, background: group.style.bg }}>
+                    <p className="text-xs font-bold uppercase tracking-wide" style={{ color: group.style.text }}>8.{gi + 1} {group.label} ({group.items.length})</p>
+                  </div>
+                  <div className="p-4 space-y-2">
+                    {group.items.map((issue: any, ii: number) => (
+                      <div key={ii} className="text-xs" style={{ paddingLeft: 8, borderLeft: `2px solid ${group.style.border}` }}>
+                        <span className="font-semibold" style={{ color: '#0f172a' }}>[{issue.code}] {issue.dimension}</span>
+                        <span className="ml-2" style={{ color: '#374151' }}>{issue.description}</span>
+                        {issue.evidence && (
+                          <span className="ml-2 text-[10px]" style={{ color: '#64748b' }}>— {issue.evidence}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ── SECTION 9 — Approval Chain & Audit Signatures ── */}
+      <div className="section-heading" data-section="9">9 &nbsp; Approval Chain &amp; Audit Signatures</div>
       {(() => {
         const FAR_ROLE_LABELS: Record<string, string> = {
           claims_processor: "Claims Processor",
