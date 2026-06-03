@@ -945,7 +945,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         {(enforcement as any)?.kingaRef && (
           <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 6px', borderBottom: '1.5px solid #111', marginBottom: 4 }}>
             <span className="di-label" style={{ color: '#111', fontWeight: 800, fontSize: 10, letterSpacing: '0.08em' }}>KINGA REF</span>
-            <span style={{ fontFamily: 'Inter,sans-serif', fontSize: 13, fontWeight: 800, color: '#111', letterSpacing: '0.05em' }}>{(enforcement as any).kingaRef}-FR</span>
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 800, color: '#111', letterSpacing: '0.05em' }}>{(enforcement as any).kingaRef}-FR</span>
             <span style={{ marginLeft: 'auto', fontSize: 9, color: '#888', fontStyle: 'italic' }}>Forensic Audit Report</span>
           </div>
         )}
@@ -962,53 +962,74 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           })()}</div>
       </div>
 
-      {/* ── Verdict Banner — full-width decision above KPI strip ── */}
+      {/* ── Decision Strip — compact horizontal: verdict | score cluster | cost cluster ── */}
       {(() => {
         const vClass = fraudScore >= 70 ? 'decline' : fraudScore >= 40 ? 'review' : 'approve';
         const vText = fraudScore >= 70 ? 'DECLINE' : fraudScore >= 40 ? 'REVIEW REQUIRED' : 'APPROVED';
         const vSub = fraudScore >= 70
-          ? 'High fraud risk — do not settle without senior authorisation'
+          ? 'High fraud risk — senior authorisation required'
           : fraudScore >= 40
-          ? 'Moderate risk — human review required before settlement'
-          : 'Low risk — proceed to standard settlement checks';
-        // Plain-English rationale for the adjuster
-        const vRationale = fraudScore >= 70
-          ? `KINGA has identified a fraud risk score of ${Math.round(fraudScore)}/100, which exceeds the 70-point threshold for decline recommendation. The primary drivers are listed below. This recommendation must be reviewed by a senior adjuster before any action is taken.`
-          : fraudScore >= 40
-          ? `KINGA has identified a fraud risk score of ${Math.round(fraudScore)}/100, which falls in the moderate risk band (40–69). One or more indicators require human verification. Review the flagged items in Sections 2–5 before proceeding to settlement.`
-          : `KINGA has identified a fraud risk score of ${Math.round(fraudScore)}/100, which is within the low risk band (0–39). Standard settlement checks apply. Review the full report before authorising payment.`;
+          ? 'Moderate risk — human review required'
+          : 'Low risk — standard settlement checks apply';
+        const fraudClass = fraudScore >= 70 ? 'high' : fraudScore >= 40 ? 'mid' : 'low';
+        const physClass = physicsScore >= 70 ? 'low' : physicsScore >= 30 ? 'mid' : 'high';
+        const fcdiClass = fcdiTileScore >= 70 ? 'low' : fcdiTileScore >= 40 ? 'mid' : 'high';
+        const dataClass = dataCompleteness >= 75 ? 'low' : dataCompleteness >= 50 ? 'mid' : 'high';
+        const kingaOptTotal: number = co0?.l2CompositeOptimisedCostUsd ?? co0?.compositeOptimisedCostUsd ?? 0;
+        const agreedCostTotal: number = ci0?.documentedAgreedCostUsd ?? 0;
+        const marketValTotal: number = ci0?.marketValueUsd ?? 0;
+        const kingaSavingPct = quotedTotal > 0 && kingaOptTotal > 0 ? ((quotedTotal - kingaOptTotal) / quotedTotal * 100) : 0;
         return (
-          <div className={`verdict-banner ${vClass}`}>
-            <div>
-              <div className="vb-label">KINGA Decision</div>
-              <div className={`vb-decision ${vClass}`}>{vText}</div>
-              <div className="vb-meta">{vSub}</div>
+          <div className="decision-strip">
+            {/* Verdict block */}
+            <div className="verdict-block">
+              <div className="verdict-label">KINGA DECISION</div>
+              <div className={`verdict-value ${vClass}`}>{vText}</div>
+              <div className="verdict-sub">{vSub}</div>
             </div>
-            <div className="vb-right">
-              <div className="vb-label">Fraud Risk Score</div>
-              <div style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 28, fontWeight: 700, color: fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32', lineHeight: 1 }}>
-                {Math.round(fraudScore)}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>/100</span>
+            {/* Score cluster */}
+            <div className="score-cluster">
+              <div className="score-item">
+                <span className={`score-num ${fraudClass}`}>{Math.round(fraudScore)}</span>
+                <span className="score-lbl">FRAUD RISK</span>
               </div>
-              <div className="vb-meta" style={{ fontSize: 9 }}>0–39 Low · 40–69 Moderate · 70+ High</div>
-              <div className="vb-meta">Physics: {Math.round(physicsScore)}/100 · FCDI: {fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}/100</div>
+              <div className="score-item">
+                <span className={`score-num ${physClass}`}>{Math.round(physicsScore)}</span>
+                <span className="score-lbl">PHYSICS</span>
+              </div>
+              <div className="score-item">
+                <span className={`score-num ${fcdiClass}`}>{fcdiTileScore >= 0 ? fcdiTileScore : '—'}</span>
+                <span className="score-lbl">FCDI</span>
+              </div>
+              <div className="score-item">
+                <span className={`score-num ${dataClass}`}>{Math.round(dataCompleteness)}%</span>
+                <span className="score-lbl">DATA</span>
+              </div>
+            </div>
+            {/* Cost cluster */}
+            <div className="cost-cluster">
+              <div className="cost-item">
+                <span className="cost-lbl">SUBMITTED</span>
+                <span className="cost-val">{quotedTotal > 0 ? fmtMoney(quotedTotal) : '—'}</span>
+                <span className="cost-sub">{_quoteTotalsForL1.length > 0 ? `${_quoteTotalsForL1.length} quote${_quoteTotalsForL1.length === 1 ? '' : 's'}` : 'No quote'}</span>
+              </div>
+              <div className="cost-item">
+                <span className="cost-lbl">KINGA OPTIMISED</span>
+                <span className="cost-val">{kingaOptTotal > 0 ? fmtMoney(kingaOptTotal) : '—'}</span>
+                <span className="cost-sub">{kingaSavingPct > 0 ? `${kingaSavingPct.toFixed(1)}% saving` : 'Best price'}</span>
+              </div>
+              {agreedCostTotal > 0 && (
+                <div className="cost-item">
+                  <span className="cost-lbl">AGREED</span>
+                  <span className="cost-val">{fmtMoney(agreedCostTotal)}</span>
+                  <span className="cost-sub">{marketValTotal > 0 ? `${((agreedCostTotal / marketValTotal) * 100).toFixed(0)}% of value` : 'Settled'}</span>
+                </div>
+              )}
             </div>
           </div>
         );
       })()}
-      {/* ── Rationale paragraph ── */}
-      {(() => {
-        const vRationale2 = fraudScore >= 70
-          ? `KINGA has identified a fraud risk score of ${Math.round(fraudScore)}/100, which exceeds the 70-point threshold for a decline recommendation. The primary risk drivers are listed below. This recommendation must be reviewed by a senior adjuster before any action is taken on this claim.`
-          : fraudScore >= 40
-          ? `KINGA has identified a fraud risk score of ${Math.round(fraudScore)}/100, which falls in the moderate risk band (40–69). One or more indicators require human verification before settlement can proceed. Review the flagged items in Sections 2–5 of this report.`
-          : `KINGA has identified a fraud risk score of ${Math.round(fraudScore)}/100, which is within the low risk band (0–39). Standard settlement checks apply. Review the full report and confirm all data fields before authorising payment.`;
-        return (
-          <div style={{ fontSize: 11, color: '#444', lineHeight: 1.7, padding: '8px 14px', background: '#f8f8f8', borderLeft: '3px solid #aaa', marginBottom: 10 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '.08em', color: '#888', marginRight: 8 }}>Assessment Basis</span>
-            {vRationale2}
-          </div>
-        );
-      })()}
+
       {/* ── Alert banner (primary blockers) ── */}
       {keyDrivers.length > 0 && (
         <div className="alert-banner critical">
@@ -1017,71 +1038,30 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         </div>
       )}
 
-      {/* ── KPI tiles — 2×4 grid matching sample report ── */}
+      {/* ── Scorecard row — 5-cell grid with bars matching reference HTML ── */}
       {(() => {
-        const kingaOptTotal: number = co0?.l2CompositeOptimisedCostUsd ?? co0?.compositeOptimisedCostUsd ?? 0;
-        const agreedCostTotal: number = ci0?.documentedAgreedCostUsd ?? 0;
-        const marketValTotal: number = ci0?.marketValueUsd ?? 0;
-        const submittedQuoteCount = _quoteTotalsForL1.length;
-        const kingaSavingPct = quotedTotal > 0 && kingaOptTotal > 0 ? ((quotedTotal - kingaOptTotal) / quotedTotal * 100) : 0;
-        const agreedSavingPct = quotedTotal > 0 && agreedCostTotal > 0 ? ((quotedTotal - agreedCostTotal) / quotedTotal * 100) : 0;
-        const repairToValuePct = marketValTotal > 0 && quotedTotal > 0 ? (quotedTotal / marketValTotal * 100) : 0;
+        const kingaOptTotal2: number = co0?.l2CompositeOptimisedCostUsd ?? co0?.compositeOptimisedCostUsd ?? 0;
+        const agreedCostTotal2: number = ci0?.documentedAgreedCostUsd ?? 0;
+        const marketValTotal2: number = ci0?.marketValueUsd ?? 0;
+        const kingaSavingPct2 = quotedTotal > 0 && kingaOptTotal2 > 0 ? ((quotedTotal - kingaOptTotal2) / quotedTotal * 100) : 0;
+        const repairToValuePct = marketValTotal2 > 0 && quotedTotal > 0 ? (quotedTotal / marketValTotal2 * 100) : 0;
+        const cells = [
+          { label: 'FRAUD SCORE', val: `${Math.round(fraudScore)}`, unit: '/100', sub: fraudScore >= 70 ? 'High Risk' : fraudScore >= 40 ? 'Moderate' : 'Low Risk', pct: Math.min(100, Math.round(fraudScore)), fillClass: fraudScore >= 70 ? 'fill-red' : fraudScore >= 40 ? 'fill-amber' : 'fill-green', colClass: fraudScore >= 70 ? 'col-red' : fraudScore >= 40 ? 'col-amber' : 'col-green' },
+          { label: 'PHYSICS', val: `${Math.round(physicsScore)}`, unit: '/100', sub: physicsScore >= 70 ? 'Consistent' : physicsScore >= 30 ? 'Minor anomaly' : 'Anomaly', pct: Math.min(100, Math.round(physicsScore)), fillClass: physicsScore >= 70 ? 'fill-green' : physicsScore >= 30 ? 'fill-amber' : 'fill-red', colClass: physicsScore >= 70 ? 'col-green' : physicsScore >= 30 ? 'col-amber' : 'col-red' },
+          { label: 'FCDI', val: fcdiTileScore >= 0 ? `${fcdiTileScore}` : 'N/A', unit: fcdiTileScore >= 0 ? '/100' : '', sub: `${fcdiTileLabel} evidence`, pct: fcdiTileScore >= 0 ? Math.min(100, fcdiTileScore) : 0, fillClass: fcdiTileScore >= 70 ? 'fill-green' : fcdiTileScore >= 40 ? 'fill-amber' : 'fill-red', colClass: fcdiTileScore >= 70 ? 'col-green' : fcdiTileScore >= 40 ? 'col-amber' : 'col-red' },
+          { label: 'DATA COMPLETENESS', val: `${Math.round(dataCompleteness)}`, unit: '%', sub: dataCompleteness >= 75 ? 'Sufficient' : dataCompleteness >= 50 ? 'Partial' : 'Insufficient', pct: Math.min(100, Math.round(dataCompleteness)), fillClass: dataCompleteness >= 75 ? 'fill-green' : dataCompleteness >= 50 ? 'fill-amber' : 'fill-red', colClass: dataCompleteness >= 75 ? 'col-green' : dataCompleteness >= 50 ? 'col-amber' : 'col-red' },
+          { label: 'MARKET VALUE', val: marketValTotal2 > 0 ? fmtMoney(marketValTotal2) : '—', unit: '', sub: repairToValuePct > 0 ? `Repair ratio ${repairToValuePct.toFixed(0)}%` : 'Vehicle value', pct: Math.min(100, repairToValuePct), fillClass: repairToValuePct > 80 ? 'fill-red' : repairToValuePct > 50 ? 'fill-amber' : 'fill-green', colClass: '' },
+        ];
         return (
-          <div className="kpi-row">
-            {/* Row 1 */}
-            <div className="kpi-tile">
-              <div className="kpi-label">Fraud Score</div>
-              <div className="kpi-value">{Math.round(fraudScore)}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>/100</span></div>
-              <div className="kpi-sub">{fraudScore >= 70 ? 'High Risk' : fraudScore >= 40 ? 'Moderate' : 'Low Risk'}</div>
-              <div style={{ marginTop: 6, height: 3, background: '#eee', overflow: 'hidden' }}>
-                <div style={{ height: 3, width: `${Math.min(100, Math.round(fraudScore))}%`, background: '#555', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
+          <div className="scorecard-row">
+            {cells.map((c, i) => (
+              <div key={i} className="scorecard-cell">
+                <span className="sc-label">{c.label}</span>
+                <span className={`sc-val ${c.colClass}`}>{c.val}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--kr-muted)' }}>{c.unit}</span></span>
+                <div className="sc-bar-track"><div className={`sc-bar-fill ${c.fillClass}`} style={{ width: `${c.pct}%`, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} /></div>
+                <span className="sc-tag">{c.sub}</span>
               </div>
-            </div>
-            <div className="kpi-tile">
-              <div className="kpi-label">Physics Consistency</div>
-              <div className="kpi-value">{Math.round(physicsScore)}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>/100</span></div>
-              <div className="kpi-sub">{physicsScore >= 70 ? 'Consistent' : physicsScore >= 30 ? 'Minor anomaly' : 'Anomaly'}</div>
-              <div style={{ marginTop: 6, height: 3, background: '#eee', overflow: 'hidden' }}>
-                <div style={{ height: 3, width: `${Math.min(100, Math.round(physicsScore))}%`, background: '#555', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
-              </div>
-            </div>
-            <div className="kpi-tile">
-              <div className="kpi-label">FCDI Score</div>
-              <div className="kpi-value">{fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>{fcdiTileScore >= 0 ? '/100' : ''}</span></div>
-              <div className="kpi-sub">{fcdiTileLabel} evidence quality</div>
-              <div style={{ marginTop: 6, height: 3, background: '#eee', overflow: 'hidden' }}>
-                <div style={{ height: 3, width: fcdiTileScore >= 0 ? `${Math.min(100, fcdiTileScore)}%` : '0%', background: '#555', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
-              </div>
-            </div>
-            <div className="kpi-tile">
-              <div className="kpi-label">Data Completeness</div>
-              <div className="kpi-value">{Math.round(dataCompleteness)}<span style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>%</span></div>
-              <div className="kpi-sub">{dataCompleteness >= 75 ? 'Sufficient' : dataCompleteness >= 50 ? 'Partial' : 'Insufficient'}</div>
-              <div style={{ marginTop: 6, height: 3, background: '#eee', overflow: 'hidden' }}>
-                <div style={{ height: 3, width: `${Math.min(100, Math.round(dataCompleteness))}%`, background: '#555', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
-              </div>
-            </div>
-            {/* Row 2 */}
-            <div className="kpi-tile">
-              <div className="kpi-label">Submitted Quote</div>
-              <div className="kpi-value" style={{ fontSize: 18 }}>{quotedTotal > 0 ? fmtMoney(quotedTotal) : '—'}</div>
-              <div className="kpi-sub">{submittedQuoteCount > 0 ? `${submittedQuoteCount} quote${submittedQuoteCount === 1 ? '' : 's'} received` : 'No quote submitted'}</div>
-            </div>
-            <div className="kpi-tile">
-              <div className="kpi-label">KINGA Optimised</div>
-              <div className="kpi-value" style={{ fontSize: 18 }}>{kingaOptTotal > 0 ? fmtMoney(kingaOptTotal) : '—'}</div>
-              <div className="kpi-sub">{kingaSavingPct > 0 ? `${kingaSavingPct.toFixed(1)}% saving from submitted` : 'Best price per component'}</div>
-            </div>
-            <div className="kpi-tile">
-              <div className="kpi-label">Agreed Cost</div>
-              <div className="kpi-value" style={{ fontSize: 18 }}>{agreedCostTotal > 0 ? fmtMoney(agreedCostTotal) : '—'}</div>
-              <div className="kpi-sub">{agreedSavingPct > 0 ? `${agreedSavingPct.toFixed(1)}% below submitted` : 'Pending settlement'}</div>
-            </div>
-            <div className="kpi-tile">
-              <div className="kpi-label">Market Value</div>
-              <div className="kpi-value" style={{ fontSize: 18 }}>{marketValTotal > 0 ? fmtMoney(marketValTotal) : '—'}</div>
-              <div className="kpi-sub">{repairToValuePct > 0 ? `Repair ratio: ${repairToValuePct.toFixed(0)}%` : 'Vehicle market value'}</div>
-            </div>
+            ))}
           </div>
         );
       })()}
@@ -1708,13 +1688,16 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
         </div>
       )}
 
+      {/* 1.2 + 1.3 side-by-side grid */}
+      <div className="grid grid-cols-2 gap-4">
+
       {/* 1.2 Insurance & Policy Context */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
         <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.2 Insurance & Policy Context</p>
         </div>
         <div className="p-4">
-          <table className="w-full text-xs report-table">
+          <table className="compact-kv-table text-xs">
             <tbody>
               {[
                 ["Insurer", insurerName ?? "Not extracted"],
@@ -1738,7 +1721,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.3 Vehicle Details</p>
         </div>
         <div className="p-4">
-          <table className="w-full text-xs report-table">
+          <table className="compact-kv-table text-xs">
             <tbody>
               {[
                 ["Registration", claim?.vehicleRegistration ?? claimRecord0?.vehicle?.registration ?? "Not Provided"],
@@ -1766,6 +1749,8 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           </table>
         </div>
       </div>
+
+      </div>{/* end 1.2+1.3 grid */}
 
       {/* 1.4 Driver Details */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
@@ -1830,7 +1815,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           )}
         </div>
         <div className="p-4">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs report-table">
             <tbody>
               {([
                 ["Case / AR number", policeReportNumber ?? "Not provided"],
@@ -1843,9 +1828,9 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 ["Officer findings", claimRecord0?.policeReport?.officerFindings ?? "Not stated"],
                 ["Third-party account", claimRecord0?.policeReport?.thirdPartyAccountSummary ?? "Not provided"],
               ] as [string, string][]).map(([k, v], i) => (
-                <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
-                  <td className="py-1.5 pr-3 font-semibold w-48" style={{ color: "#64748b" }}>{k}</td>
-                  <td className="py-1.5" style={{ color: (v === "Not provided" || v === "Not stated") ? "var(--muted-foreground)" : "var(--foreground)" }}>{v}</td>
+                <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e0ddd8" : undefined }}>
+                  <td className="py-2 pr-4 font-semibold" style={{ color: "#6b6862", verticalAlign: "top", whiteSpace: "nowrap", width: "160px" }}>{k}</td>
+                  <td className="py-2" style={{ color: (v === "Not provided" || v === "Not stated") ? "#6b6862" : "#1a1916", verticalAlign: "top", whiteSpace: "normal", lineHeight: "1.6" }}>{v}</td>
                 </tr>
               ))}
             </tbody>
@@ -1969,7 +1954,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
               <thead>
                 <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
                   {["Check", "Status", "Corrections"].map(h => (
-                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>{h}</th>
+                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'DM Sans', sans-serif" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -4135,7 +4120,7 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
           <thead>
             <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
               {["Description", "Category", "Qty", "Unit Price", "Total", "KINGA Review"].map(h => (
-                <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>{h}</th>
+                <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'DM Sans', sans-serif" }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -5572,7 +5557,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
             <thead>
               <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
                 {["Document", "Type", "Extracted", "Confidence", "Note"].map(h => (
-                  <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>{h}</th>
+                  <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'DM Sans', sans-serif" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -6258,7 +6243,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
               <thead>
                 <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
                   {["Indicator", "Score", "Score Bar", "Triggered", "Mitigation Note"].map(h => (
-                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>{h}</th>
+                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'DM Sans', sans-serif" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -6438,7 +6423,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                 <thead>
                   <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
                     {["Source", "Date", "Status"].map(h => (
-                      <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>{h}</th>
+                      <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'DM Sans', sans-serif" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -7883,15 +7868,49 @@ const REPORT_CSS = `
   --kr-mono:'DM Mono',monospace;--kr-serif:'Instrument Serif',serif;--kr-sans:'DM Sans',sans-serif;
 }
 .kinga-report[data-draft="true"]::before{content:'DRAFT';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;font-weight:900;color:rgba(0,0,0,0.04);letter-spacing:0.15em;pointer-events:none;z-index:0;white-space:nowrap;user-select:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.kinga-report .decision-strip{display:grid;grid-template-columns:auto 1fr repeat(2,auto);gap:0;border-bottom:1px solid var(--kr-rule);padding:20px 0;align-items:center;margin-bottom:0}
+.kinga-report .verdict-block{padding-right:28px;border-right:1px solid var(--kr-rule);margin-right:28px}
+.kinga-report .verdict-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.12em;color:var(--kr-muted);margin-bottom:2px}
+.kinga-report .verdict-value{font-size:22px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
+.kinga-report .verdict-value.approve{color:var(--kr-green)}
+.kinga-report .verdict-value.review{color:var(--kr-amber)}
+.kinga-report .verdict-value.decline{color:var(--kr-red)}
+.kinga-report .verdict-sub{font-size:11px;color:var(--kr-muted);margin-top:2px}
+.kinga-report .score-cluster{display:flex;gap:20px;flex-wrap:wrap}
+.kinga-report .score-item{text-align:center}
+.kinga-report .score-num{font-family:var(--kr-mono);font-size:24px;font-weight:500;display:block;line-height:1}
+.kinga-report .score-num.low{color:var(--kr-green)}
+.kinga-report .score-num.mid{color:var(--kr-amber)}
+.kinga-report .score-num.high{color:var(--kr-red)}
+.kinga-report .score-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.08em;font-family:var(--kr-mono);display:block;margin-top:2px}
+.kinga-report .cost-cluster{display:flex;gap:20px;flex-wrap:wrap;border-left:1px solid var(--kr-rule);padding-left:28px}
+.kinga-report .cost-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.08em;font-family:var(--kr-mono);display:block}
+.kinga-report .cost-val{font-size:18px;font-weight:600;font-family:var(--kr-mono);display:block;letter-spacing:-.02em}
+.kinga-report .cost-sub{font-size:10px;color:var(--kr-muted)}
+.kinga-report .scorecard-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--kr-rule);margin:24px 0;border:1px solid var(--kr-rule)}
+.kinga-report .scorecard-cell{background:var(--kr-white);padding:14px 16px;position:relative}
+.kinga-report .sc-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;color:var(--kr-muted);margin-bottom:6px;display:block}
+.kinga-report .sc-bar-track{height:4px;background:var(--kr-off-white);border-radius:2px;margin:8px 0 4px;overflow:hidden}
+.kinga-report .sc-bar-fill{height:100%;border-radius:2px}
+.kinga-report .sc-val{font-family:var(--kr-mono);font-size:20px;font-weight:500}
+.kinga-report .sc-tag{font-size:10px;color:var(--kr-muted)}
+.kinga-report .fill-green{background:var(--kr-green)}
+.kinga-report .fill-amber{background:var(--kr-amber)}
+.kinga-report .fill-red{background:var(--kr-red)}
+.kinga-report .fill-blue{background:var(--kr-blue)}
+.kinga-report .col-green{color:var(--kr-green)}
+.kinga-report .col-amber{color:var(--kr-amber)}
+.kinga-report .col-red{color:var(--kr-red)}
+.kinga-report .col-blue{color:var(--kr-blue)}
 .kinga-report .verdict-banner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin-bottom:10px;border-left:6px solid #111}
-.kinga-report .verdict-banner.approve{border-color:#2e7d32;background:#f1f8f1}
-.kinga-report .verdict-banner.review{border-color:#c8a000;background:#fffde7}
-.kinga-report .verdict-banner.decline{border-color:#c00;background:#fff5f5}
+.kinga-report .verdict-banner.approve{border-color:var(--kr-green);background:var(--kr-green-light)}
+.kinga-report .verdict-banner.review{border-color:var(--kr-amber);background:var(--kr-amber-light)}
+.kinga-report .verdict-banner.decline{border-color:var(--kr-red);background:var(--kr-red-light)}
 .kinga-report .verdict-banner .vb-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:4px}
 .kinga-report .verdict-banner .vb-decision{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
-.kinga-report .verdict-banner .vb-decision.approve{color:#2e7d32}
-.kinga-report .verdict-banner .vb-decision.review{color:#c8a000}
-.kinga-report .verdict-banner .vb-decision.decline{color:#c00}
+.kinga-report .verdict-banner .vb-decision.approve{color:var(--kr-green)}
+.kinga-report .verdict-banner .vb-decision.review{color:var(--kr-amber)}
+.kinga-report .verdict-banner .vb-decision.decline{color:var(--kr-red)}
 .kinga-report .verdict-banner .vb-meta{font-size:10px;color:#555;margin-top:5px}
 .kinga-report .verdict-banner .vb-right{text-align:right;min-width:120px}
 .kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:7px 40px;background:var(--kr-black);border-bottom:none;font-family:var(--kr-mono);font-size:10px;color:#888;letter-spacing:0.06em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
