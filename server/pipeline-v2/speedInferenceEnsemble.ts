@@ -279,13 +279,19 @@ function runImpulse(
 
   // Average panel yield stress for distributed deformation over total damage area.
   // SAE 930899 cites 2–8 MPa LOCAL peak contact pressure at the primary impact point.
-  // However, applying this to the TOTAL damage area (e.g. 1.5 m²) produces
-  // contactForceN = 4e6 × 1.5 = 6,000,000 N → physically impossible 271 km/h.
-  // The correct value for distributed panel deformation is the average panel yield
-  // stress: ~0.3–0.8 MPa for automotive body panels (aluminium/steel at yield).
-  // We use 0.5 MPa as a conservative central estimate.
+  // However, applying this to the TOTAL damage area (e.g. 2.875 m²) produces
+  // contactForceN = 0.5e6 × 2.875 = 1,437,500 N → still too high (85 km/h).
+  //
+  // The totalDamageAreaM2 represents ALL damaged panels on the vehicle — not just the
+  // primary impact contact zone. For a single-impact event, the effective contact area
+  // (the zone where force is actually transferred) is typically 0.1–0.5 m²:
+  //   - Bumper + bonnet contact zone: ~0.3–0.5 m²
+  //   - Side swipe: ~0.1–0.3 m²
+  //   - Full-width frontal: ~0.4–0.6 m²
+  // Cap at 0.5 m² to prevent total-vehicle damage footprint from inflating the estimate.
   const contactPressurePa = 0.5e6; // 0.5 MPa — average panel yield stress (not peak local pressure)
-  const contactForceN = contactPressurePa * totalDamageAreaM2;
+  const effectiveDamageAreaM2 = Math.min(totalDamageAreaM2, 0.5); // cap: impact contact zone, not total damage footprint
+  const contactForceN = contactPressurePa * effectiveDamageAreaM2;
 
   // Contact duration: Δt = 2C / V (iterative — use initial estimate)
   // Start with a rough speed estimate from energy: V₀ = √(F×C/m × 2)
@@ -309,7 +315,7 @@ function runImpulse(
     isLowerBoundOnly: false,
     confidenceWeight: 0.40,
     confidence: 'MEDIUM',
-    basis: `Damage area: ${totalDamageAreaM2.toFixed(3)} m², avg panel yield stress: 0.5 MPa, crush depth: ${(crushDepthM * 100).toFixed(1)} cm`,
+    basis: `Damage area: ${totalDamageAreaM2.toFixed(3)} m², effective contact area: ${effectiveDamageAreaM2.toFixed(3)} m², avg panel yield stress: 0.5 MPa, crush depth: ${(crushDepthM * 100).toFixed(1)} cm`,
     ran: true,
   };
 }
