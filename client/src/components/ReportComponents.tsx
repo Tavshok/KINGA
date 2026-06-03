@@ -331,6 +331,8 @@ export interface PhotoExifResult {
   photoIndex: number;
   /** URL or label */
   label?: string;
+  /** Actual photo URL for thumbnail rendering */
+  url?: string | null;
   isSuspicious: boolean;
   exifPresent: boolean;
   gpsPresent: boolean;
@@ -452,9 +454,29 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
         );
 
         return (
-          <div key={i} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--border)', paddingTop: i === 0 ? 0 : 8 }}>
+          <div key={i} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--border)', paddingTop: i === 0 ? 0 : 10, marginTop: i === 0 ? 0 : 10 }}>
+            {/* Two-column layout: thumbnail left, analysis right */}
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              {/* Thumbnail */}
+              {r.url && (
+                <div style={{ flexShrink: 0, width: 96, height: 72, borderRadius: 4, overflow: 'hidden', border: `2px solid ${photoTier === 'high' ? '#dc2626' : photoTier === 'medium' ? '#d97706' : 'var(--border)'}`, background: '#f1f5f9' }}>
+                  <img
+                    src={r.url}
+                    alt={`Photo ${r.photoIndex}`}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
+              {/* Analysis text */}
+              <div style={{ flex: 1, minWidth: 0 }}>
             <p className="text-xs font-semibold mb-1" style={{ color: 'var(--foreground)' }}>
               Photo {r.photoIndex}{r.label ? ` — ${r.label}` : ''}
+              {photoTier !== 'clean' && (
+                <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '1px 5px', borderRadius: 3, background: photoTier === 'high' ? '#dc2626' : '#d97706', color: '#fff' }}>
+                  {photoTier === 'high' ? 'High Concern' : 'Medium Concern'}
+                </span>
+              )}
             </p>
             <ul className="text-xs space-y-0.5" style={{ listStyleType: 'disc', paddingLeft: 16 }}>
               <li style={{ color: 'var(--foreground)' }}>{observation}</li>
@@ -465,6 +487,8 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
                 <li key={fi} style={{ color: 'var(--muted-foreground)' }}>{f.replace(/\*\*/g, '').replace(/\*/g, '')}</li>
               ))}
             </ul>
+              </div>
+            </div>
           </div>
         );
       })}

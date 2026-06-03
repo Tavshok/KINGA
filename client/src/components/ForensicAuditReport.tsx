@@ -2163,7 +2163,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
         <div className="p-4">
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <table className="w-full text-xs report-table">
+              <table className="compact-kv-table text-xs">
                 <tbody>
                   {[
                     ["Delta-V (calculated)", deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : "N/A"],
@@ -2324,7 +2324,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             return (
               <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
                 <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Animal Strike Physics</p>
-                <table className="w-full text-xs report-table">
+                <table className="compact-kv-table text-xs">
                   <tbody>
                     {([
                       ['Animal category', asp.animal_category ?? 'Unknown'],
@@ -5129,7 +5129,7 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
         )}
       </div>
       <div className="p-4">
-        <table className="w-full text-xs report-table">
+        <table className="compact-kv-table text-xs">
           <tbody>            {([
               ["Market Value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Pending system benchmark"],
               // C-05: Show valuation source with explicit warning for assessor-stated values
@@ -5624,6 +5624,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           const manipScore = r.manipulation_indicators?.manipulation_score ?? 0;
           return {
             photoIndex: i + 1,
+            url: photo.url ?? photo.imageUrl ?? null,
             isSuspicious: r.is_suspicious ?? false,
             exifPresent: !!(r.capture_datetime || r.camera_make || r.camera_model),
             gpsPresent: !!(r.gps_coordinates),
@@ -7837,10 +7838,10 @@ function Section7Learning({
           </p>
         </div>
         <div className="p-4">
-          <table className="w-full text-xs report-table">
+          <table className="compact-kv-table text-xs">
             <tbody>
               <tr>
-                <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)', width: '40%' }}>Historical average repair cost</td>
+                <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)' }}>Historical average repair cost</td>
                 <td className="px-3 py-2 tabular-nums font-semibold" style={{ color: 'var(--foreground)' }}>{fmtMoney(avgCost)}</td>
               </tr>
               <tr style={{ borderTop: '1px solid var(--border)' }}>
@@ -7946,6 +7947,13 @@ const REPORT_CSS = `
 .kinga-report .section-heading{display:flex;align-items:baseline;gap:12px;padding-bottom:8px;border-bottom:2px solid var(--kr-black);margin:36px 0 16px;font-size:15px;font-weight:600;letter-spacing:-0.01em;color:var(--kr-black)}
 .kinga-report .sub-heading{font-size:13px;font-weight:600;color:var(--kr-black);margin:14px 0 8px;letter-spacing:-0.01em;font-family:var(--kr-mono);font-size:10px;letter-spacing:0.1em;color:var(--kr-muted)}
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
+.kinga-report .compact-kv-table{width:auto;max-width:520px;border-collapse:collapse;margin-bottom:14px;table-layout:auto}
+.kinga-report .compact-kv-table td{padding:5px 0;font-size:12px;border-bottom:1px solid var(--kr-rule);vertical-align:top;white-space:normal}
+.kinga-report .compact-kv-table td:first-child{font-size:11px;font-family:var(--kr-mono);color:var(--kr-muted);letter-spacing:0.06em;padding-right:24px;white-space:nowrap;min-width:160px}
+.kinga-report .compact-kv-table td:last-child{color:var(--kr-text);font-weight:500}
+.kinga-report .compact-kv-table tr:last-child td{border-bottom:none}
+.kinga-report .two-col-kv{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-bottom:14px}
+.kinga-report .two-col-kv .compact-kv-table{width:100%;max-width:none}
 .kinga-report .data-table td,.kinga-report .data-table th{padding:6px 0;font-size:12px !important;border-bottom:1px solid var(--kr-rule);vertical-align:top;word-break:break-word;overflow-wrap:break-word;white-space:normal}
 .kinga-report .data-table th{font-size:10px !important;font-weight:400;text-transform:uppercase;letter-spacing:.08em;color:var(--kr-muted);background:transparent;border-bottom:1px solid var(--kr-rule);font-family:var(--kr-mono);padding-right:8px}
 .kinga-report .data-table td:first-child{font-size:11px !important;font-family:var(--kr-mono);color:var(--kr-muted);letter-spacing:0.06em;width:44%;padding-right:8px}
