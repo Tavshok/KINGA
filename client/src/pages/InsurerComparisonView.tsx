@@ -473,16 +473,26 @@ export default function InsurerComparisonView() {
   const normFraud = aiAssessment?._normalised?.fraud ?? null;
 
   // Derive key metrics for the hero header
-  // Prefer normalised total cost; fall back to raw estimatedCost only if normalised is unavailable
-  const aiCostDollars = normCosts?.totalUsd ?? aiAssessment?.estimatedCost ?? 0;
-  // Derive the correct label for the primary cost KPI based on what source it came from
-  const aiCostLabel = (() => {
-    const src = normCosts?.source;
-    // Always show as KINGA Estimate — the primary KPI is KINGA's computed figure
-    if (src === 'original_quote') return 'Lowest Quote';
-    if (src === 'parts_labour_sum') return 'Parts + Labour';
-    return 'KINGA Estimate'; // agreed_cost, ai_estimate, fallback
-  })();
+  //
+  // KINGA Estimate = L2 composite optimised cost (per-component KINGA benchmark recommendation).
+  // This is always the primary KPI tile value. Agreed costs and original quotes from completed
+  // assessments must NOT override this value — they are test/historical data, not the AI output.
+  //
+  // Fallback chain (only used when L2 is unavailable):
+  //   costDecision.true_cost_usd → expectedRepairCostCents → estimatedCost
+  const costIntelligenceForKpi = aiAssessment?.costIntelligenceJson ?? null;
+  // L2 composite optimised cost — the per-component KINGA benchmark recommendation
+  const l2CompositeOptimisedCostUsd: number | null =
+    costIntelligenceForKpi?.compositeOptimisation?.l2CompositeOptimisedCostUsd ?? null;
+  // KINGA Estimate: always L2 when available, then AI-derived fallbacks only (never agreed/quoted docs)
+  const aiCostDollars = (
+    l2CompositeOptimisedCostUsd ??
+    normCosts?.aiEstimateUsd ??
+    (normCosts?.source === 'ai_estimate' || normCosts?.source === 'parts_labour_sum' ? normCosts?.totalUsd : null) ??
+    aiAssessment?.estimatedCost ??
+    0
+  );
+  const aiCostLabel = 'KINGA Estimate';
   // Currency sanity guard: flag when the stored cost appears to be in a different
   // currency unit than the claim's declared currency.
   // Heuristic: USD/GBP/EUR claims with a raw estimatedCost > 50,000 AND no normalised
@@ -612,14 +622,40 @@ export default function InsurerComparisonView() {
               <ClaimCurrencyHistory claimId={claimId} />
             </div>
 
-            {/* Hero KPI strip */}
+            {/* Hero KPI strip: individual quote totals | lowest quote | KINGA Estimate | confidence */}
             <div className="flex flex-wrap gap-3">
+              {/* Individual panel beater quote totals — each shown separately, lowest highlighted */}
+              {quotes && quotes.map((q: any, qi: number) => {
+                const qTotal = (q.quotedAmount || 0) / 100;
+                if (qTotal <= 0) return null;
+                const pbName = q.panelBeaterName || q.repairerName || `Quote ${qi + 1}`;
+                const isLowest = quotes.length > 1 && qTotal === lowestQuoteCents;
+                return (
+                  <div key={qi} className="text-center px-4 py-2 rounded-lg" style={{
+                    background: isLowest ? '#eff6ff' : '#ffffff',
+                    border: isLowest ? '1px solid #bfdbfe' : '1px solid #e5e7eb'
+                  }}>
+                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280', maxWidth: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={pbName}>
+                      {pbName.length > 14 ? pbName.slice(0, 13) + '…' : pbName}
+                    </p>
+                    <p className="text-lg font-bold tabular-nums" style={{ color: isLowest ? '#1d4ed8' : '#111827' }}>
+                      {csym}{qTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    {isLowest && <p style={{ fontSize: '0.5rem', color: '#1d4ed8', marginTop: 1, fontWeight: 600 }}>Lowest</p>}
+                  </div>
+                );
+              })}
+              {/* KINGA Estimate — always L2 composite optimised cost (AI per-component benchmark) */}
               {aiCostDollars > 0 && (
-                <div className="text-center px-4 py-2 rounded-lg" style={{ background: currencyMismatchWarning ? '#fffbeb' : '#ffffff', border: currencyMismatchWarning ? '1px solid #fde68a' : '1px solid #e5e7eb' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>
-                    {aiCostLabel}{currencyMismatchWarning ? ' ⚠️' : ''}
+                <div className="text-center px-4 py-2 rounded-lg" style={{
+                  background: currencyMismatchWarning ? '#fffbeb' : '#f0fdf4',
+                  border: currencyMismatchWarning ? '1px solid #fde68a' : '1px solid #bbf7d0'
+                }}>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: currencyMismatchWarning ? '#92400e' : '#166534' }}>
+                    KINGA Estimate{currencyMismatchWarning ? ' ⚠️' : ''}
                   </p>
-                  <p className="text-lg font-bold tabular-nums" style={{ color: currencyMismatchWarning ? '#b45309' : '#111827' }}>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: currencyMismatchWarning ? '#b45309' : '#15803d' }}>
                     {csym}{aiCostDollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                   {currencyMismatchWarning && (
@@ -627,22 +663,7 @@ export default function InsurerComparisonView() {
                   )}
                 </div>
               )}
-              {assessorCostCents > 0 && (
-                <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Assessor</p>
-                  <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
-                    {csym}{assessorCostCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                </div>
-              )}
-              {lowestQuoteCents > 0 && (
-                <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
-                  <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>Lowest Quote</p>
-                  <p className="text-lg font-bold tabular-nums" style={{ color: '#111827' }}>
-                    {csym}{lowestQuoteCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                </div>
-              )}
+              {/* KINGA Confidence */}
               {confidenceScore > 0 && (
                 <div className="text-center px-4 py-2 rounded-lg" style={{ background: '#ffffff', border: '1px solid #e5e7eb' }}>
                   <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: '#6b7280' }}>KINGA Confidence</p>

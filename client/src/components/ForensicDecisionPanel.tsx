@@ -40,6 +40,7 @@ import { toHumanLabel, stripStageRefs, formatIntegrityFlag } from "@/lib/labelUt
 interface ForensicDecisionPanelProps {
   aiAssessment: any;
   claim?: any;
+  quotes?: any[];
 }
 
 function safeParse(raw: any): any {
@@ -214,7 +215,7 @@ function TH({ children }: { children: React.ReactNode }) {
 // Main component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicDecisionPanelProps) {
+export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = [] }: ForensicDecisionPanelProps) {
   const { fmt, currencySymbol } = useTenantCurrency();
   const utils = trpc.useUtils();
   const [showPipelineTrace, setShowPipelineTrace] = useState(false);
@@ -287,15 +288,20 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   const quotesReceived   = Number(costIntel?.quotesReceived ?? 0);
   // Cost Decision Engine output — the authoritative cost figure
   const costDecision      = costIntel?.costDecision ?? null;
-  // Use normalised total as the single authoritative cost
+  // L2 composite optimised cost — the per-component KINGA benchmark recommendation.
+  // This is always the primary cost figure shown as "KINGA Estimate" in the decision header.
+  const l2OptimisedUsd    = Number(costIntel?.compositeOptimisation?.l2CompositeOptimisedCostUsd ?? 0);
+  // Use normalised total as fallback only when L2 is unavailable
   const trueCostUsd       = Number(normCosts?.totalUsd ?? costDecision?.true_cost_usd ?? 0);
   // Derive a human-readable cost basis label from the normalised source
-  const costBasisLabel    = normCosts?.source === 'agreed_cost' ? 'KINGA Estimate' :
+  const costBasisLabel    = l2OptimisedUsd > 0 ? 'KINGA Estimate' :
+                            normCosts?.source === 'agreed_cost' ? 'Agreed Cost' :
                             normCosts?.source === 'original_quote' ? 'Lowest Submitted Quote' :
                             normCosts?.source === 'parts_labour_sum' ? 'Parts + Labour' :
                             normCosts?.source === 'ai_estimate' ? 'KINGA Estimate' :
                             costDecision?.cost_basis ?? 'KINGA Estimate';
-  const costBasis         = trueCostUsd > 0 ? trueCostUsd : aiCost;
+  // costBasis: prefer L2 optimised, then AI estimate, then normalised total
+  const costBasis         = l2OptimisedUsd > 0 ? l2OptimisedUsd : (aiCost > 0 ? aiCost : trueCostUsd);
   const costRecommendation = costDecision?.recommendation ?? null;
   const costAnomalies     = Array.isArray(costDecision?.anomalies) ? costDecision.anomalies : [];
   const costNarrative     = costIntel?.costNarrative ?? null;
@@ -692,9 +698,19 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
           <Card title="Cost Comparison" icon={<DollarSign className="h-4 w-4" />}>
             <div className="space-y-4">
               {[
-                { label: costIntel?.panelBeaterName ? `Lowest Submitted Quote — ${costIntel.panelBeaterName}` : "Lowest Submitted Quote", value: originalQuote, note: quotesReceived > 0 ? `${quotesReceived} quote${quotesReceived > 1 ? "s" : ""} received` : "From claim document", colorCls: "bg-primary", primary: hasDocumentedQuote },
-                { label: "KINGA Estimate",     value: aiCost,      note: hasDocumentedQuote ? "KINGA computed fair repair cost" : "Physics-based component model",       colorCls: hasDocumentedQuote ? "bg-orange-400" : "bg-orange-400", primary: !hasDocumentedQuote },
-              ].filter(item => (item.value ?? 0) > 0).map(({ label, value, note, colorCls, primary }) => (
+                // Individual quote rows from panel_beater_quotes
+                ...(Array.isArray(quotes) ? quotes.map((q: any, qi: number) => {
+                  const qTotal = (q.quotedAmount || 0) / 100;
+                  const pbName = q.panelBeaterName || q.repairerName || `Quote ${qi + 1}`;
+                  const isLowest = Array.isArray(quotes) && quotes.length > 1 && qTotal === Math.min(...quotes.map((x: any) => (x.quotedAmount || 0) / 100).filter((t: number) => t > 0));
+                  return { label: pbName, value: qTotal, note: isLowest ? 'Lowest submitted quote' : 'Submitted quote', colorCls: isLowest ? 'bg-primary' : 'bg-slate-400', primary: isLowest };
+                }).filter((item: any) => item.value > 0) : [
+                  // Fallback: single lowest quote when quotes array not available
+                  { label: costIntel?.panelBeaterName ? `Lowest Submitted Quote — ${costIntel.panelBeaterName}` : 'Lowest Submitted Quote', value: originalQuote, note: quotesReceived > 0 ? `${quotesReceived} quote${quotesReceived > 1 ? 's' : ''} received` : 'From claim document', colorCls: 'bg-primary', primary: hasDocumentedQuote },
+                ]),
+                // KINGA Estimate — always L2 composite optimised cost
+                { label: 'KINGA Estimate', value: l2OptimisedUsd > 0 ? l2OptimisedUsd : aiCost, note: l2OptimisedUsd > 0 ? 'Per-component KINGA benchmark (L2 optimised)' : 'KINGA computed fair repair cost', colorCls: 'bg-orange-400', primary: true },
+              ].filter((item: any) => (item.value ?? 0) > 0).map(({ label, value, note, colorCls, primary }: any) => (
                 <div key={label} className={!primary ? "opacity-60" : ""}>
                   <div className="flex items-start justify-between mb-1.5 gap-2">
                     <div>

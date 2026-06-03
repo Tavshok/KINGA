@@ -1019,7 +1019,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
 
       {/* ── KPI tiles — 2×4 grid matching sample report ── */}
       {(() => {
-        const kingaOptTotal: number = co0?.totalOptimisedCostUsd ?? 0;
+        const kingaOptTotal: number = co0?.l2CompositeOptimisedCostUsd ?? co0?.compositeOptimisedCostUsd ?? 0;
         const agreedCostTotal: number = ci0?.documentedAgreedCostUsd ?? 0;
         const marketValTotal: number = ci0?.marketValueUsd ?? 0;
         const submittedQuoteCount = _quoteTotalsForL1.length;
@@ -4501,7 +4501,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const costComparisonData = (() => {
     const lowestQuote = pbQuotes.length > 0 ? Math.min(...pbQuotes.map(q => q.total).filter(t => t > 0)) : 0;
     const highestQuote = pbQuotes.length > 0 ? Math.max(...pbQuotes.map(q => q.total).filter(t => t > 0)) : 0;
-    const kingaOptimised = costIntel?.compositeOptimisation?.totalOptimisedCostUsd ?? 0;
+    const kingaOptimised = costIntel?.compositeOptimisation?.l2CompositeOptimisedCostUsd ?? costIntel?.compositeOptimisation?.compositeOptimisedCostUsd ?? 0;
     const benchmarkAvg = learningBenchmark3?.avgCostUsd ?? 0;
     return { lowestQuote, highestQuote, kingaOptimised, benchmarkAvg };
   })();

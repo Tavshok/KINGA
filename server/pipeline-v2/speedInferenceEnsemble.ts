@@ -277,9 +277,14 @@ function runImpulse(
     };
   }
 
-  // Contact pressure for vehicle body panels: ~2–8 MPa depending on material
-  // Use 4 MPa as a central estimate (SAE 930899)
-  const contactPressurePa = 4e6;
+  // Average panel yield stress for distributed deformation over total damage area.
+  // SAE 930899 cites 2–8 MPa LOCAL peak contact pressure at the primary impact point.
+  // However, applying this to the TOTAL damage area (e.g. 1.5 m²) produces
+  // contactForceN = 4e6 × 1.5 = 6,000,000 N → physically impossible 271 km/h.
+  // The correct value for distributed panel deformation is the average panel yield
+  // stress: ~0.3–0.8 MPa for automotive body panels (aluminium/steel at yield).
+  // We use 0.5 MPa as a conservative central estimate.
+  const contactPressurePa = 0.5e6; // 0.5 MPa — average panel yield stress (not peak local pressure)
   const contactForceN = contactPressurePa * totalDamageAreaM2;
 
   // Contact duration: Δt = 2C / V (iterative — use initial estimate)
@@ -292,6 +297,9 @@ function runImpulse(
   let speedKmh = deltaVMs * 3.6;
 
   speedKmh *= getAccidentMultiplier(collisionDirection);
+  // Physics cap: 150 km/h upper bound for distributed-damage impulse method.
+  // Speeds above this require highway-context evidence captured by other methods.
+  speedKmh = Math.min(speedKmh, 150);
   speedKmh = Math.round(speedKmh);
 
   return {
@@ -301,7 +309,7 @@ function runImpulse(
     isLowerBoundOnly: false,
     confidenceWeight: 0.40,
     confidence: 'MEDIUM',
-    basis: `Damage area: ${totalDamageAreaM2.toFixed(3)} m², contact pressure: 4 MPa (SAE 930899), crush depth: ${(crushDepthM * 100).toFixed(1)} cm`,
+    basis: `Damage area: ${totalDamageAreaM2.toFixed(3)} m², avg panel yield stress: 0.5 MPa, crush depth: ${(crushDepthM * 100).toFixed(1)} cm`,
     ran: true,
   };
 }

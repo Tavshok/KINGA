@@ -96,7 +96,13 @@ export default function ClaimsManagerDashboard() {
 
   useEffect(() => {
     if (selectedClaim && aiAssessment) {
-      const aiCost = aiAssessment.estimatedCost ? aiAssessment.estimatedCost : null;
+      // KINGA Estimate = L2 composite optimised cost (per-component benchmark).
+      // Fall back to AI estimate only when L2 is unavailable.
+      const ci = typeof aiAssessment.costIntelligenceJson === 'string'
+        ? (() => { try { return JSON.parse(aiAssessment.costIntelligenceJson); } catch { return null; } })()
+        : aiAssessment.costIntelligenceJson ?? null;
+      const l2 = ci?.compositeOptimisation?.l2CompositeOptimisedCostUsd ?? null;
+      const aiCost = l2 ?? (aiAssessment.estimatedCost ? aiAssessment.estimatedCost : null);
       const assessorCost = assessorEval?.estimatedRepairCost ? assessorEval.estimatedRepairCost : null;
       const avgQuoteCost = quotes && quotes.length > 0
         ? quotes.reduce((sum: number, q: any) => sum + (q.quotedAmount || 0), 0) / quotes.length

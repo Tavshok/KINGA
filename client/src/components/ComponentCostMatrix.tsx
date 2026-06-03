@@ -243,7 +243,7 @@ export function ComponentCostMatrix({
                   )}
                 </th>
               ))}
-              <th style={thKingaCost}>Cost</th>
+              <th style={thKingaCost}>KINGA Estimate</th>
               <th style={thKingaComment}>Source / Comment</th>
             </tr>
           </thead>
