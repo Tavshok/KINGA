@@ -13,6 +13,131 @@
  */
 
 import { runCostOptimisationStage } from './pipeline-v2/stage-9-cost';
+import type {
+  PipelineContext,
+  ClaimRecord,
+  Stage6Output,
+  Stage7Output,
+} from './pipeline-v2/types';
+
+// ── Minimal PipelineContext stub ─────────────────────────────────────────────
+const ctxStub: PipelineContext = {
+  claimId: 1,
+  tenantId: null,
+  assessmentId: 1,
+  claim: {},
+  pdfUrl: null,
+  damagePhotoUrls: [],
+  db: null,
+  log: (_stage: string, _msg: string) => { /* no-op for test */ },
+};
+
+// ── Minimal ClaimRecord stub ──────────────────────────────────────────────────
+const claimRecordStub: ClaimRecord = {
+  claimId: 1,
+  tenantId: null,
+  vehicle: {
+    make: 'Toyota',
+    model: 'Hilux',
+    year: 2020,
+    registration: null,
+    vin: null,
+    colour: null,
+    engineNumber: null,
+    mileageKm: null,
+    bodyType: 'pickup',
+    powertrain: 'ice',
+    massKg: 1800,
+    massTier: 'inferred_class',
+    valueUsd: null,
+    marketValueUsd: null,
+  },
+  driver: {
+    name: null,
+    claimantName: null,
+    licenseNumber: null,
+  },
+  accidentDetails: {
+    date: null,
+    time: null,
+    location: null,
+    description: null,
+    incidentType: 'collision',
+    incidentSubType: null,
+    incidentClassification: null,
+    collisionDirection: 'frontal',
+    impactPoint: null,
+    estimatedSpeedKmh: null,
+    maxCrushDepthM: null,
+    totalDamageAreaM2: null,
+    structuralDamage: false,
+    airbagDeployment: false,
+    animalType: null,
+    weatherConditions: null,
+    visibilityConditions: null,
+    roadSurface: null,
+    narrativeAnalysis: null,
+    collisionScenario: 'unknown',
+    isStruckParty: false,
+    thirdPartyClaimRequired: false,
+    isHitAndRun: false,
+    isParkingLotDamage: false,
+    multiEventSequence: null,
+  },
+  policeReport: {
+    reportNumber: null,
+    station: null,
+    officerName: null,
+    chargeNumber: null,
+    fineAmountCents: null,
+    reportDate: null,
+  },
+  damage: {
+    description: null,
+    components: [],
+    imageUrls: [],
+  },
+  repairQuote: {
+    repairerName: null,
+    repairerCompany: null,
+    assessorName: null,
+    quoteTotalCents: 4500000,
+    agreedCostCents: null,
+    labourCostCents: null,
+    partsCostCents: null,
+    lineItems: [],
+  },
+  insuranceContext: {
+    insurerName: null,
+    policyNumber: null,
+    productType: null,
+    claimReference: null,
+    excessAmountUsd: null,
+    bettermentUsd: null,
+  },
+  dataQuality: {
+    completenessScore: 70,
+    missingFields: [],
+    validationIssues: [],
+  },
+  marketRegion: 'ZA',
+  assumptions: [],
+};
+
+// ── Minimal Stage 6 damage analysis stub ─────────────────────────────────────
+const stage6Stub: Stage6Output = {
+  damagedParts: [],
+  damageZones: [],
+  overallSeverityScore: 60,
+  structuralDamageDetected: false,
+  totalDamageArea: 0.8,
+  photosAvailable: 0,
+  photosProcessed: 0,
+  photosDeferred: 0,
+  photosFailed: 0,
+  imageConfidenceScore: 0,
+  analysisFromPhotos: false,
+};
 
 // ── Minimal Stage 3 output (two extracted quotes) ────────────────────────────
 const stage3Output = {
@@ -72,17 +197,37 @@ const stage3Output = {
   confidence: 'high' as const,
   extraction_method: 'llm_text' as const,
   document_type: 'repair_quote' as const,
+  perDocumentExtractions: [],
 };
 
 // ── Minimal Stage 7 physics output ───────────────────────────────────────────
-const stage7Output = {
-  physicsValidation: {
-    overallStatus: 'PLAUSIBLE' as const,
-    componentValidations: [],
-    repairabilityScore: 82,
-    totalRepairCostPlausibility: 'PLAUSIBLE' as const,
-    flaggedAnomalies: [],
+const stage7Output: Stage7Output = {
+  impactForceKn: 45.2,
+  impactVector: {
+    direction: 'frontal',
+    magnitude: 45.2,
+    angle: 0,
   },
+  energyDistribution: {
+    kineticEnergyJ: 180000,
+    energyDissipatedJ: 162000,
+    energyDissipatedKj: 162,
+  },
+  estimatedSpeedKmh: 60,
+  deltaVKmh: 35,
+  decelerationG: 8.5,
+  accidentSeverity: 'moderate',
+  accidentReconstructionSummary: 'Moderate frontal collision at estimated 60 km/h.',
+  damageConsistencyScore: 82,
+  latentDamageProbability: {
+    engine: 0.15,
+    transmission: 0.10,
+    suspension: 0.20,
+    frame: 0.25,
+    electrical: 0.10,
+  },
+  physicsExecuted: true,
+  physicsStatus: 'EXECUTED',
 };
 
 // ── Minimal Stage 8 fraud output ─────────────────────────────────────────────
@@ -100,7 +245,13 @@ async function main() {
 
   let result: any;
   try {
-    result = await runCostOptimisationStage(stage3Output as any, stage7Output as any, stage8Output as any);
+    result = await runCostOptimisationStage(
+      ctxStub,
+      claimRecordStub,
+      stage6Stub,
+      stage7Output as Stage7Output,
+      stage3Output as Parameters<typeof runCostOptimisationStage>[4],
+    );
   } catch (err: any) {
     console.error('❌ ensureCostContract threw:', err.message);
     process.exit(1);
