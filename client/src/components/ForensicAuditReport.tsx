@@ -1596,125 +1596,112 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
               ))}
             </tbody>
           </table>
-          {/* Narrative Analysis Panel — shows reasoned narrative or falls back to raw description */}
+          {/* Narrative Analysis Panel — redesigned for visual clarity */}
           {(narrativeAnalysis || description) && (
-            <div className="mt-3 space-y-2">
-              {/* 1.1a Incident Narrative */}
-              <div className="p-3 rounded-lg text-xs" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "#64748b" }}>Claimant Statement</span>
-                  {narrativeAnalysis && narrativeAnalysis.consistency_verdict && (() => {
-                    const v = narrativeAnalysis.consistency_verdict;
-                    const isOk = v === "CONSISTENT";
-                    const isWarn = v === "MINOR_DISCREPANCY" || v === "PARTIAL";
-                    const verdictLabel = v === "CONSISTENT" ? "Consistent"
-                      : v === "MINOR_DISCREPANCY" ? "Minor discrepancy"
-                      : v === "INCONSISTENT" ? "Inconsistent"
-                      : v === "CONTAMINATED" ? "Contaminated"
-                      : toSentenceCase(v);
-                    const badgeBg = isOk ? "#dcfce7" : isWarn ? "#fef9c3" : "#fee2e2";
-                    const badgeColor = isOk ? "#166534" : isWarn ? "#854d0e" : "#991b1b";
-                    return (
-                      <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded" style={{ background: badgeBg, color: badgeColor }}>
-                        {verdictLabel}
-                      </span>
-                    );
-                  })()}
-                </div>
-                {(!description && !narrativeAnalysis?.cleaned_incident_narrative) ? (
-                  <div className="flex items-start gap-2 p-2 text-xs" style={{ background: "#fef9c3", borderRadius: "4px", color: "#854d0e" }}>
-                    <span className="shrink-0 font-bold">&#9888;</span>
-                    <p>Incident description could not be extracted from the submitted documents. Please verify source documents and re-submit with clearer scans.</p>
-                  </div>
-                ) : (
-                  <p className="leading-relaxed text-xs" style={{ color: "#0f172a", fontStyle: "italic" }}>
-                    {toSentenceCase(filterAssessorConclusions(sanitiseTextArtefacts(description || narrativeAnalysis?.cleaned_incident_narrative || '')).trim())}
-                  </p>
-                )}
-                {narrativeAnalysis?.was_contaminated && (
-                  <p className="mt-1 text-[10px]" style={{ color: "#b45309" }}>
-                    &#9888; Post-incident content (inspection findings, repair notes) was identified and excluded.
-                  </p>
-                )}
-                {narrativeAnalysis?.extracted_facts?.sequence_of_events && (
-                  <div className="mt-2 pt-2" style={{ borderTop: "1px solid #e2e8f0" }}>
-                    <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Reconstructed sequence &nbsp;</span>
-                    <span className="text-xs" style={{ color: "#334155" }}>{narrativeAnalysis.extracted_facts.sequence_of_events}</span>
-                  </div>
-                )}
+            <div className="narr-panel mt-3">
+              {/* Header row: label + overall verdict badge */}
+              <div className="narr-header">
+                <span className="narr-header-label">1.1a Incident Narrative</span>
+                {narrativeAnalysis?.consistency_verdict && (() => {
+                  const v = narrativeAnalysis.consistency_verdict;
+                  const isOk = v === 'CONSISTENT';
+                  const isWarn = v === 'MINOR_DISCREPANCY' || v === 'PARTIAL';
+                  const verdictLabel = v === 'CONSISTENT' ? 'Consistent'
+                    : v === 'MINOR_DISCREPANCY' ? 'Minor Discrepancy'
+                    : v === 'INCONSISTENT' ? 'Inconsistent'
+                    : v === 'CONTAMINATED' ? 'Contaminated'
+                    : toSentenceCase(v);
+                  const cls = isOk ? 'ok' : isWarn ? 'warn' : 'fail';
+                  return <span className={`narr-cv-badge ${cls}`}>{verdictLabel}</span>;
+                })()}
               </div>
 
-              {/* Cross-validation + Fraud signals + Reasoning — single compact panel */}
-              {(narrativeAnalysis?.cross_validation || (narrativeAnalysis?.fraud_signals?.length > 0) || narrativeAnalysis?.reasoning_summary) && (
-                <div className="text-xs" style={{ border: "1px solid #e2e8f0", borderRadius: "6px", overflow: "hidden", background: "#ffffff" }}>
-                  {/* Cross-validation rows */}
-                  {narrativeAnalysis?.cross_validation && (() => {
-                    const rows = [
-                      { label: "Physics", verdict: narrativeAnalysis.cross_validation.physics_verdict, notes: narrativeAnalysis.cross_validation.physics_notes },
-                      { label: "Damage", verdict: narrativeAnalysis.cross_validation.damage_verdict, notes: narrativeAnalysis.cross_validation.damage_notes },
-                      { label: "Crush depth", verdict: narrativeAnalysis.cross_validation.crush_depth_verdict, notes: narrativeAnalysis.cross_validation.crush_depth_notes },
-                    ].filter(r => r.verdict && r.verdict !== "NOT_ASSESSED");
-                    if (rows.length === 0) return null;
-                    return (
-                      <div style={{ borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="px-3 py-1.5" style={{ background: "#f8fafc", borderBottom: "1px solid #f1f5f9" }}>
-                          <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "#64748b" }}>Cross-Validation</span>
+              {/* Claimant statement — left-border quoted block */}
+              {(!description && !narrativeAnalysis?.cleaned_incident_narrative) ? (
+                <div style={{ margin: '10px 14px', padding: '8px 12px', background: '#fffbeb', border: '1px solid #d97706' }}>
+                  <span style={{ fontSize: 12, color: '#92400e' }}>&#9888; Incident description could not be extracted from the submitted documents. Please verify source documents and re-submit with clearer scans.</span>
+                </div>
+              ) : (
+                <div className="narr-quote">
+                  {toSentenceCase(filterAssessorConclusions(sanitiseTextArtefacts(description || narrativeAnalysis?.cleaned_incident_narrative || '')).trim())}
+                </div>
+              )}
+              {narrativeAnalysis?.was_contaminated && (
+                <div style={{ margin: '0 14px 8px', fontSize: 11, color: '#92400e' }}>
+                  &#9888; Post-incident content (inspection findings, repair notes) was identified and excluded from the statement above.
+                </div>
+              )}
+
+              {/* Reconstructed sequence — distinct strip */}
+              {narrativeAnalysis?.extracted_facts?.sequence_of_events && (
+                <div className="narr-seq">
+                  <span className="narr-seq-label">Reconstructed Sequence</span>
+                  <span className="narr-seq-text">{narrativeAnalysis.extracted_facts.sequence_of_events}</span>
+                </div>
+              )}
+
+              {/* Cross-validation — structured grid table */}
+              {narrativeAnalysis?.cross_validation && (() => {
+                const rows = [
+                  { label: 'Physics', verdict: narrativeAnalysis.cross_validation.physics_verdict, notes: narrativeAnalysis.cross_validation.physics_notes },
+                  { label: 'Damage', verdict: narrativeAnalysis.cross_validation.damage_verdict, notes: narrativeAnalysis.cross_validation.damage_notes },
+                  { label: 'Crush depth', verdict: narrativeAnalysis.cross_validation.crush_depth_verdict, notes: narrativeAnalysis.cross_validation.crush_depth_notes },
+                ].filter(r => r.verdict && r.verdict !== 'NOT_ASSESSED');
+                if (rows.length === 0) return null;
+                return (
+                  <div className="narr-cv">
+                    <div className="narr-cv-header">
+                      <span className="narr-header-label">Cross-Validation</span>
+                    </div>
+                    {rows.map((r, i) => {
+                      const isOk = r.verdict === 'CONSISTENT';
+                      const isWarn = r.verdict === 'PARTIAL' || r.verdict === 'MINOR_DISCREPANCY';
+                      const cls = isOk ? 'ok' : isWarn ? 'warn' : 'fail';
+                      const vt = isOk ? 'CONSISTENT' : isWarn ? r.verdict.replace(/_/g, ' ') : 'INCONSISTENT';
+                      return (
+                        <div key={i} className="narr-cv-row">
+                          <span className="narr-cv-dim">{r.label}</span>
+                          <span className={`narr-cv-badge ${cls}`}>{vt}</span>
+                          <span className="narr-cv-notes">{r.notes}</span>
                         </div>
-                        <div className="px-3 py-2 space-y-1.5">
-                          {rows.map((r, i) => {
-                            const isOk = r.verdict === "CONSISTENT";
-                            const isWarn = r.verdict === "PARTIAL" || r.verdict === "MINOR_DISCREPANCY";
-                            const dot = isOk ? "#22c55e" : isWarn ? "#f59e0b" : "#ef4444";
-                            const vt = isOk ? "Consistent" : isWarn ? toSentenceCase(r.verdict) : "Inconsistent";
-                            return (
-                              <div key={i} className="flex items-start gap-2">
-                                <span className="mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: dot, marginTop: "4px" }} />
-                                <span className="font-semibold shrink-0" style={{ color: "#334155", minWidth: "72px" }}>{r.label}</span>
-                                <span className="text-[10px] font-bold uppercase shrink-0" style={{ color: dot, minWidth: "68px" }}>{vt}</span>
-                                <span style={{ color: "#64748b" }}>{r.notes}</span>
-                              </div>
-                            );
-                          })}
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              {/* Narrative flags — severity-coded cards */}
+              {narrativeAnalysis?.fraud_signals && narrativeAnalysis.fraud_signals.length > 0 && (
+                <div className="narr-flags">
+                  <div className="narr-flags-header" style={{ background: '#fff7ed', borderBottom: '1px solid #fed7aa' }}>
+                    <span className="narr-header-label" style={{ color: '#c2410c' }}>Narrative Flags &nbsp;·&nbsp; {narrativeAnalysis.fraud_signals.length}</span>
+                  </div>
+                  {narrativeAnalysis.fraud_signals.map((sig: any, i: number) => {
+                    const isHigh = sig.severity === 'HIGH';
+                    const isMed = sig.severity === 'MEDIUM';
+                    const sevCls = isHigh ? 'high' : isMed ? 'medium' : 'low';
+                    const sevLabel = isHigh ? 'HIGH' : isMed ? 'MEDIUM' : 'LOW';
+                    return (
+                      <div key={i} className="narr-flag-row">
+                        <div><span className={`narr-flag-sev ${sevCls}`}>{sevLabel}</span></div>
+                        <div>
+                          <div className="narr-flag-title">{sig.code?.replace(/_/g, ' ')}</div>
+                          <div className="narr-flag-desc">{sig.description}</div>
+                          {sig.evidence && (
+                            <div className="narr-flag-evidence">Evidence: &ldquo;{sig.evidence}&rdquo;</div>
+                          )}
                         </div>
                       </div>
                     );
-                  })()}
+                  })}
+                </div>
+              )}
 
-                  {/* Fraud signals */}
-                  {narrativeAnalysis?.fraud_signals && narrativeAnalysis.fraud_signals.length > 0 && (
-                    <div style={{ borderBottom: narrativeAnalysis?.reasoning_summary ? "1px solid #f1f5f9" : undefined }}>
-                      <div className="px-3 py-1.5" style={{ background: "#fff7ed", borderBottom: "1px solid #fed7aa" }}>
-                        <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "#c2410c" }}>Narrative Flags &nbsp;·&nbsp; {narrativeAnalysis.fraud_signals.length}</span>
-                      </div>
-                      <div className="px-3 py-2 space-y-1.5">
-                        {narrativeAnalysis.fraud_signals.map((sig: any, i: number) => {
-                          const isHigh = sig.severity === "HIGH";
-                          const isMed = sig.severity === "MEDIUM";
-                          const dot = isHigh ? "#ef4444" : isMed ? "#f59e0b" : "#94a3b8";
-                          const sev = isHigh ? "High" : isMed ? "Medium" : "Low";
-                          return (
-                            <div key={i} className="flex items-start gap-2">
-                              <span className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: dot, marginTop: "4px" }} />
-                              <div>
-                                <span className="font-semibold text-[10px] uppercase tracking-wide" style={{ color: dot }}>{sev}: </span>
-                                <span className="font-semibold" style={{ color: "#0f172a" }}>{sig.code?.replace(/_/g, " ")}</span>
-                                <span style={{ color: "#334155" }}> — {sig.description}</span>
-                                {sig.evidence && <span className="block text-[10px] mt-0.5" style={{ color: "#64748b", fontStyle: "italic" }}>Evidence: "{sig.evidence}"</span>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Analyst reasoning */}
-                  {narrativeAnalysis?.reasoning_summary && (
-                    <div className="px-3 py-2" style={{ background: "#f8fafc" }}>
-                      <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "#64748b" }}>Analyst Reasoning &nbsp;</span>
-                      <span style={{ color: "#334155" }}>{narrativeAnalysis.reasoning_summary}</span>
-                    </div>
-                  )}
+              {/* Analyst reasoning — bottom callout */}
+              {narrativeAnalysis?.reasoning_summary && (
+                <div className="narr-reasoning">
+                  <span className="narr-reasoning-label">Analyst Reasoning</span>
+                  <p className="narr-reasoning-text">{narrativeAnalysis.reasoning_summary}</p>
                 </div>
               )}
             </div>
@@ -1857,94 +1844,109 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
 
       </div>{/* end 1.2+1.3 grid */}
 
-      {/* 1.4 Driver Details */}
-      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-        <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.4 Driver Details</p>
-        </div>
-        <div className="p-4">
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#64748b" }}>Insured Driver</p>
-              <table className="w-full text-xs">
-                <tbody>
-                  {([
-                    ["Name", driverName ?? claim?.claimantName ?? "Not Provided"],
-                    ["ID / Passport", claimRecord0?.driver?.idNumber ?? (claim as any)?.claimantIdNumber ?? "Not provided"],
-                    ["Licence no.", driverLicenseNumber ?? "Not provided"],
-                    ["Contact", claimRecord0?.driver?.phone ?? (claim as any)?.claimantPhone ?? "Not provided"],
-                    ["Email", claimRecord0?.driver?.email ?? (claim as any)?.claimantEmail ?? "Not provided"],
-                    ["Relationship to policyholder", claimRecord0?.driver?.relationshipToPolicyholder ?? "Not stated"],
-                    ["Injuries reported", claimRecord0?.driver?.injuriesReported ?? "Not stated"],
-                  ] as [string, string][]).map(([k, v], i) => (
-                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
-                      <td className="py-1.5 pr-3 font-semibold w-44" style={{ color: "#64748b" }}>{k}</td>
-                      <td className="py-1.5" style={{ color: "#0f172a" }}>{v}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {/* 1.4 + 1.5 — Driver Details & Police Report side-by-side */}
+      {(() => {
+        // Determine if this is a single-vehicle incident — no third party is applicable
+        const _itNorm = (incidentType ?? '').toUpperCase().replace(/ /g, '_');
+        const isSingleVehicle = /ROAD_HAZARD|SINGLE_VEHICLE|POTHOLE|DEPRESSION|FLOOD|FIRE|THEFT|HAIL|STORM|VANDAL|FALLING|DEBRIS|ANIMAL_STRIKE|HIT_AND_RUN/.test(_itNorm);
+        const NA_SINGLE = 'N/A — Single vehicle incident';
+        const thirdPartyName = (claimRecord0?.thirdParty as any)?.driverName ?? (claim as any)?.thirdPartyName;
+        const thirdPartyVehicle = (claimRecord0?.thirdParty as any)?.vehicleDescription ?? (claim as any)?.thirdPartyVehicle;
+        const thirdPartyReg = (claimRecord0?.thirdParty as any)?.registration ?? (claim as any)?.thirdPartyRegistration;
+        const thirdPartyInsurer = (claimRecord0?.thirdParty as any)?.insurerName ?? (claim as any)?.thirdPartyInsurer;
+        const thirdPartyPolicy = (claimRecord0?.thirdParty as any)?.policyNumber;
+        const liabilityAdmitted = (claimRecord0?.thirdParty as any)?.liabilityAdmitted;
+        return (
+          <div className="col-pair">
+            {/* 1.4 Driver Details */}
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>1.4 Driver Details</p>
+              </div>
+              <div className="p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#64748b' }}>Insured Driver</p>
+                <table className="w-full text-xs">
+                  <tbody>
+                    {([
+                      ['Name', driverName ?? claim?.claimantName ?? 'Not provided'],
+                      ['ID / Passport', claimRecord0?.driver?.idNumber ?? (claim as any)?.claimantIdNumber ?? 'Not provided'],
+                      ['Licence no.', driverLicenseNumber ?? 'Not provided'],
+                      ['Contact', claimRecord0?.driver?.phone ?? (claim as any)?.claimantPhone ?? 'Not provided'],
+                      ['Email', claimRecord0?.driver?.email ?? (claim as any)?.claimantEmail ?? 'Not provided'],
+                      ['Relationship to policyholder', claimRecord0?.driver?.relationshipToPolicyholder ?? 'Not stated'],
+                      ['Injuries reported', claimRecord0?.driver?.injuriesReported ?? 'Not stated'],
+                    ] as [string, string][]).map(([k, v], i) => (
+                      <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
+                        <td className="py-1.5 pr-3 font-semibold" style={{ color: '#64748b', width: '160px' }}>{k}</td>
+                        <td className="py-1.5" style={{ color: '#0f172a' }}>{v}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-[10px] font-bold uppercase tracking-widest mt-4 mb-2" style={{ color: '#64748b' }}>Third Party {isSingleVehicle && <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: '#94a3b8' }}>— Not applicable</span>}</p>
+                {isSingleVehicle ? (
+                  <p className="text-xs" style={{ color: '#94a3b8', fontStyle: 'italic' }}>No third party involved — {(incidentType ?? '').replace(/_/g, ' ').toLowerCase()} is a single-vehicle incident type.</p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <tbody>
+                      {([
+                        ['Name', thirdPartyName ?? 'Not provided'],
+                        ['Vehicle', thirdPartyVehicle ?? 'Not provided'],
+                        ['Registration', thirdPartyReg ?? 'Not provided'],
+                        ['Insurer', thirdPartyInsurer ?? 'Not provided'],
+                        ['Policy No.', thirdPartyPolicy ?? 'Not provided'],
+                        ['Liability admitted', liabilityAdmitted != null ? (liabilityAdmitted ? 'Yes' : 'No') : 'Not stated'],
+                        ['Witness name', claimRecord0?.witness?.name ?? (claim as any)?.witnessName ?? 'Not provided'],
+                        ['Witness contact', claimRecord0?.witness?.phone ?? (claim as any)?.witnessPhone ?? 'Not provided'],
+                      ] as [string, string][]).map(([k, v], i) => (
+                        <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
+                          <td className="py-1.5 pr-3 font-semibold" style={{ color: '#64748b', width: '160px' }}>{k}</td>
+                          <td className="py-1.5" style={{ color: '#0f172a' }}>{v}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#64748b" }}>Third Party</p>
-              <table className="w-full text-xs">
-                <tbody>
-                  {([
-                    ["Name", (claimRecord0?.thirdParty as any)?.driverName ?? (claim as any)?.thirdPartyName ?? "Not Provided"],
-                    ["Vehicle", (claimRecord0?.thirdParty as any)?.vehicleDescription ?? (claim as any)?.thirdPartyVehicle ?? "Not Provided"],
-                    ["Registration", (claimRecord0?.thirdParty as any)?.registration ?? (claim as any)?.thirdPartyRegistration ?? "Not provided"],
-                    ["Insurer", (claimRecord0?.thirdParty as any)?.insurerName ?? (claim as any)?.thirdPartyInsurer ?? "Not provided"],
-                    ["Policy No.", (claimRecord0?.thirdParty as any)?.policyNumber ?? "Not provided"],
-                    ["Liability admitted", (claimRecord0?.thirdParty as any)?.liabilityAdmitted != null ? ((claimRecord0?.thirdParty as any).liabilityAdmitted ? "Yes" : "No") : "Not stated"],
-                    ["Witness name", claimRecord0?.witness?.name ?? (claim as any)?.witnessName ?? "Not provided"],
-                    ["Witness contact", claimRecord0?.witness?.phone ?? (claim as any)?.witnessPhone ?? "Not provided"],
-                  ] as [string, string][]).map(([k, v], i) => (
-                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
-                      <td className="py-1.5 pr-3 font-semibold w-44" style={{ color: "#64748b" }}>{k}</td>
-                      <td className="py-1.5" style={{ color: "#0f172a" }}>{v}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            {/* 1.5 Police Report Details */}
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
+              <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>1.5 Police Report Details</p>
+                {!policeReportNumber && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: '#ffffff', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>CRITICAL BLOCKER</span>
+                )}
+              </div>
+              <div className="p-4">
+                <table className="w-full text-xs report-table">
+                  <tbody>
+                    {([
+                      ['Case / AR number', policeReportNumber ?? 'Not provided'],
+                      ['Police station', policeStation ?? claimRecord0?.policeReport?.station ?? (claim as any)?.policeStation ?? 'Not provided'],
+                      ['Reporting officer', claimRecord0?.policeReport?.officerName ?? 'Not provided'],
+                      ['Report date', claimRecord0?.policeReport?.reportDate ?? 'Not provided'],
+                      ['Charge number', claimRecord0?.policeReport?.chargeNumber ?? 'Not provided'],
+                      ['Charged party', claimRecord0?.policeReport?.chargedParty ?? 'Not stated'],
+                      ['Investigation status', claimRecord0?.policeReport?.investigationStatus ?? 'Not stated'],
+                      ['Officer findings', claimRecord0?.policeReport?.officerFindings ?? 'Not stated'],
+                      ['Third-party account', isSingleVehicle ? NA_SINGLE : (claimRecord0?.policeReport?.thirdPartyAccountSummary ?? 'Not provided')],
+                    ] as [string, string][]).map(([k, v], i) => (
+                      <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e0ddd8' : undefined }}>
+                        <td className="py-2 pr-4 font-semibold" style={{ color: '#6b6862', verticalAlign: 'top', whiteSpace: 'nowrap', width: '150px' }}>{k}</td>
+                        <td className="py-2" style={{ color: (v === 'Not provided' || v === 'Not stated') ? '#6b6862' : '#1a1916', verticalAlign: 'top', whiteSpace: 'normal', lineHeight: '1.6' }}>{v}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
-      {/* 1.5 Police Report Details */}
-      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.5 Police Report Details</p>
-          {!policeReportNumber && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: "#ffffff", color: "var(--fp-critical-text)", border: "1px solid var(--fp-critical-border)" }}>CRITICAL BLOCKER — NOT PROVIDED</span>
-          )}
-        </div>
-        <div className="p-4">
-          <table className="w-full text-xs report-table">
-            <tbody>
-              {([
-                ["Case / AR number", policeReportNumber ?? "Not provided"],
-                ["Police station", policeStation ?? claimRecord0?.policeReport?.station ?? (claim as any)?.policeStation ?? "Not provided"],
-                ["Reporting officer", claimRecord0?.policeReport?.officerName ?? "Not provided"],
-                ["Report date", claimRecord0?.policeReport?.reportDate ?? "Not provided"],
-                ["Charge number", claimRecord0?.policeReport?.chargeNumber ?? "Not provided"],
-                ["Charged party", claimRecord0?.policeReport?.chargedParty ?? "Not stated"],
-                ["Investigation status", claimRecord0?.policeReport?.investigationStatus ?? "Not stated"],
-                ["Officer findings", claimRecord0?.policeReport?.officerFindings ?? "Not stated"],
-                ["Third-party account", claimRecord0?.policeReport?.thirdPartyAccountSummary ?? "Not provided"],
-              ] as [string, string][]).map(([k, v], i) => (
-                <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e0ddd8" : undefined }}>
-                  <td className="py-2 pr-4 font-semibold" style={{ color: "#6b6862", verticalAlign: "top", whiteSpace: "nowrap", width: "160px" }}>{k}</td>
-                  <td className="py-2" style={{ color: (v === "Not provided" || v === "Not stated") ? "#6b6862" : "#1a1916", verticalAlign: "top", whiteSpace: "normal", lineHeight: "1.6" }}>{v}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* 1.6/1.7 Data Completeness + Confidence Bars — two-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px', margin: '16px 0' }}>
+      {/* 1.6/1.7/1.8 — Data Completeness, Extraction Confidence, Gap Attribution — three-column layout */}
+      <div className="three-col" style={{ alignItems: 'start' }}>
         {/* Completeness checklist */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -2004,39 +2006,56 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
             ))}
           </div>
         </div>
+
+        {/* 1.8 Data Gap Attribution — third column in the grid */}
+        {(() => {
+          const gapEntries: GapEntry[] = [];
+          if (!policeReportNumber) gapEntries.push({ field: 'Police Report Number', explanation: 'Police report number not provided in claim documents.', attribution: 'CLAIMANT_DEFICIENCY' });
+          if (!vehicleVin) gapEntries.push({ field: 'Vehicle VIN', explanation: 'VIN not extracted from claim documents.', attribution: 'DOCUMENT_LIMITATION' });
+          if (!driverLicenseNumber) gapEntries.push({ field: 'Driver Licence Number', explanation: 'Driver licence number not found in submitted documents.', attribution: 'CLAIMANT_DEFICIENCY' });
+          if (!marketValueUsd) gapEntries.push({ field: 'Market Value', explanation: 'Vehicle market value not provided by insurer or claimant.', attribution: 'INSURER_DATA_GAP' });
+          if (!excessAmountUsd) gapEntries.push({ field: 'Policy Excess', explanation: 'Policy excess amount not found in claim record.', attribution: 'INSURER_DATA_GAP' });
+          if (!policyNumber) gapEntries.push({ field: 'Policy Number', explanation: 'Policy number not extracted from submitted documents.', attribution: 'DOCUMENT_LIMITATION' });
+          const phase2 = (enforcement as any)?._phase2 as any;
+          if (phase2?.dataCompleteness != null && phase2.dataCompleteness < 60) {
+            gapEntries.push({ field: 'Data Completeness', explanation: `Overall data completeness is ${Math.round(phase2.dataCompleteness)}%, below the 60% threshold for reliable automated assessment.`, attribution: 'SYSTEM_EXTRACTION_FAILURE' });
+          }
+          return (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 10, fontFamily: 'var(--kr-mono)', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--kr-muted)' }}>1.8 Data Gap Attribution</span>
+                <span style={{ fontSize: 11, fontFamily: 'var(--kr-mono)', fontWeight: 500, color: gapEntries.length === 0 ? 'var(--kr-green)' : gapEntries.length <= 2 ? 'var(--kr-amber)' : 'var(--kr-red)' }}>{gapEntries.length} gap{gapEntries.length !== 1 ? 's' : ''}</span>
+              </div>
+              {gapEntries.length === 0 ? (
+                <p style={{ fontSize: 11, color: 'var(--kr-muted)', fontStyle: 'italic' }}>No data gaps identified — all critical fields extracted successfully.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {gapEntries.map((g, i) => {
+                    const attrColour = g.attribution === 'CLAIMANT_DEFICIENCY' ? 'var(--fp-critical-text)'
+                      : g.attribution === 'INSURER_DATA_GAP' ? 'var(--fp-warning-text)'
+                      : g.attribution === 'SYSTEM_EXTRACTION_FAILURE' ? 'var(--fp-locked-text)'
+                      : 'var(--kr-muted)';
+                    const attrLabel = g.attribution === 'CLAIMANT_DEFICIENCY' ? 'Claimant'
+                      : g.attribution === 'INSURER_DATA_GAP' ? 'Insurer'
+                      : g.attribution === 'SYSTEM_EXTRACTION_FAILURE' ? 'System'
+                      : g.attribution === 'DOCUMENT_LIMITATION' ? 'Document'
+                      : g.attribution;
+                    return (
+                      <div key={i} style={{ fontSize: 11, borderBottom: '1px solid var(--kr-rule)', paddingBottom: 5 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                          <span style={{ color: 'var(--kr-body)', fontWeight: 600 }}>{g.field}</span>
+                          <span style={{ fontSize: 9, fontFamily: 'var(--kr-mono)', fontWeight: 700, color: attrColour, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{attrLabel}</span>
+                        </div>
+                        <p style={{ color: 'var(--kr-muted)', margin: 0, lineHeight: 1.4 }}>{g.explanation}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
-
-
-
-      {/* 1.4 Gap Attribution Table — data quality gaps with attribution */}
-      {(() => {
-        // claimRecord0 is available from the outer Section1Incident scope
-        const gapEntries: GapEntry[] = [];
-        // Derive gaps from missing critical fields
-        if (!policeReportNumber) gapEntries.push({ field: "Police Report Number", explanation: "Police report number not provided in claim documents.", attribution: "CLAIMANT_DEFICIENCY" });
-        if (!vehicleVin) gapEntries.push({ field: "Vehicle VIN", explanation: "VIN not extracted from claim documents.", attribution: "DOCUMENT_LIMITATION" });
-        if (!driverLicenseNumber) gapEntries.push({ field: "Driver Licence Number", explanation: "Driver licence number not found in submitted documents.", attribution: "CLAIMANT_DEFICIENCY" });
-        if (!marketValueUsd) gapEntries.push({ field: "Market Value", explanation: "Vehicle market value not provided by insurer or claimant.", attribution: "INSURER_DATA_GAP" });
-        if (!excessAmountUsd) gapEntries.push({ field: "Policy Excess", explanation: "Policy excess amount not found in claim record.", attribution: "INSURER_DATA_GAP" });
-        if (!policyNumber) gapEntries.push({ field: "Policy Number", explanation: "Policy number not extracted from submitted documents.", attribution: "DOCUMENT_LIMITATION" });
-        // Add system-level gaps from phase2
-        const phase2 = (enforcement as any)?._phase2 as any;
-        if (phase2?.dataCompleteness != null && phase2.dataCompleteness < 60) {
-          gapEntries.push({ field: "Data Completeness", explanation: `Overall data completeness is ${Math.round(phase2.dataCompleteness)}%, below the 60% threshold for reliable automated assessment.`, attribution: "SYSTEM_EXTRACTION_FAILURE" });
-        }
-        if (gapEntries.length === 0) return null;
-        const gapData: GapAttributionData = { entries: gapEntries };
-        return (
-          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>1.8 Data Gap Attribution</p>
-            </div>
-            <div className="p-4">
-              <GapAttributionTable data={gapData} />
-            </div>
-          </div>
-        );
-      })()}
 
       {gates.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
@@ -2240,39 +2259,88 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
           <span className="text-xs font-semibold" style={{ color: "#64748b" }}>{Math.round(physicsScore)}% consistent</span>
         </div>
         <div className="p-4">
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <table className="compact-kv-table text-xs">
-                <tbody>
-                  {[
-                    ["Delta-V (calculated)", deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : "N/A"],
-                    ["Estimated impact speed", estimatedSpeedKmh > 0 ? `${fmt(estimatedSpeedKmh, 1)} km/h` : (claimedSpeed > 0 ? `${claimedSpeed} km/h (claimed)` : "Not stated")],
-                    ["Impact energy (KE)", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
-                    ["Impact force", impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : "N/A"],
-                    ["Vehicle mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
-                    ["Accident severity", toSentenceCase((severity ?? "").replace(/_/g, " "))],
-                    ["Incident type", toSentenceCase((incidentType ?? "").replace(/_/g, " "))],
-                    ...((_phys as any)?.decelerationG > 0 ? [["Deceleration", `${fmt((_phys as any).decelerationG, 2)} g`]] : []),
-                    ...((_phys as any)?.velocityRange?.low_kmh > 0 ? [["Velocity range (est.)", `${fmt((_phys as any).velocityRange.low_kmh, 1)}–${fmt((_phys as any).velocityRange.high_kmh, 1)} km/h`]] : []),
-                    ...((_phys as any)?.damageConsistencyScore != null ? [["Damage consistency score", `${Math.round((_phys as any).damageConsistencyScore)}/100`]] : []),
-                  ].map(([k, v], i) => (
-                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
-                      <td className="py-1.5 pr-3 font-semibold" style={{ color: "#64748b" }}>{k}</td>
-                      <td className="py-1.5 tabular-nums" style={{ color: "#0f172a" }}>{v}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex flex-col items-center justify-center">
-              <ArcGauge value={physicsScore} size={110} label="Physics consistency" />
-              <p className="text-xs text-center mt-1" style={{ color: "#64748b" }}>
-                {physicsScore >= 70 ? "Damage consistent with stated incident" :
-                 physicsScore >= 30 ? "Minor inconsistencies detected" :
-                 "Significant anomaly — engineering review required"}
-              </p>
-            </div>
-          </div>
+          {/* 2.1 main layout: physics table (left) | gauge + LDP chart (right) */}
+          {(() => {
+            const ldp = (_phys as any)?.latentDamageProbability;
+            const ldpEntries = ldp ? (Object.entries(ldp) as [string, number][]) : [];
+            const ldpScale = ldpEntries.length > 0 && Math.max(...ldpEntries.map(([,v]) => v)) <= 1 ? 100 : 1;
+            const ldpNorm = ldpEntries.map(([k, v]) => [k, Math.round(v * ldpScale)] as [string, number]);
+            const ldpSignificant = ldpNorm.filter(([,v]) => v >= 15);
+            const showLdp = ldpSignificant.length > 0;
+            const ldpSorted = [...ldpSignificant].sort(([,a],[,b]) => b - a);
+            const ldpColors = ldpSorted.map(([,pct]) => pct >= 60 ? '#dc2626' : pct >= 35 ? '#d97706' : '#16a34a');
+            const ldpChartData = showLdp ? {
+              labels: ldpSorted.map(([sys]) => sys.charAt(0).toUpperCase() + sys.slice(1)),
+              datasets: [{ label: 'Probability (%)', data: ldpSorted.map(([,pct]) => pct), backgroundColor: ldpColors, borderRadius: 3, borderWidth: 0 }],
+            } : null;
+            const ldpOpts: any = {
+              responsive: true, maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw}%` } },
+                annotation: { annotations: { threshold: { type: 'line', yMin: 40, yMax: 40, borderColor: '#d97706', borderWidth: 1, borderDash: [4, 3], label: { content: 'Elevated Risk Threshold', display: true, position: 'end', font: { size: 10 }, color: '#d97706' } } } },
+              },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                y: { min: 0, max: 100, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, callback: (v: any) => v + '%' } },
+              },
+            };
+            return (
+              <div className="physics-row mb-3">
+                {/* Left: physics KV table */}
+                <div className="physics-col-main">
+                  <table className="compact-kv-table text-xs w-full">
+                    <tbody>
+                      {[
+                        ["Delta-V (calculated)", deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : "N/A"],
+                        ["Estimated impact speed", estimatedSpeedKmh > 0 ? `${fmt(estimatedSpeedKmh, 1)} km/h` : (claimedSpeed > 0 ? `${claimedSpeed} km/h (claimed)` : "Not stated")],
+                        ["Impact energy (KE)", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
+                        ["Impact force", impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : "N/A"],
+                        ["Vehicle mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
+                        ["Accident severity", toSentenceCase((severity ?? "").replace(/_/g, " "))],
+                        ["Incident type", toSentenceCase((incidentType ?? "").replace(/_/g, " "))],
+                        ...((_phys as any)?.decelerationG > 0 ? [["Deceleration", `${fmt((_phys as any).decelerationG, 2)} g`]] : []),
+                        ...((_phys as any)?.velocityRange?.low_kmh > 0 ? [["Velocity range (est.)", `${fmt((_phys as any).velocityRange.low_kmh, 1)}–${fmt((_phys as any).velocityRange.high_kmh, 1)} km/h`]] : []),
+                        ...((_phys as any)?.damageConsistencyScore != null ? [["Damage consistency score", `${Math.round((_phys as any).damageConsistencyScore)}/100`]] : []),
+                      ].map(([k, v], i) => (
+                        <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
+                          <td className="py-1.5 pr-3 font-semibold" style={{ color: "#64748b" }}>{k}</td>
+                          <td className="py-1.5 tabular-nums" style={{ color: "#0f172a" }}>{v}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Right: gauge + LDP chart stacked */}
+                <div className="physics-col-side">
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <ArcGauge value={physicsScore} size={100} label="Physics consistency" />
+                    <p style={{ fontSize: 11, color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
+                      {physicsScore >= 70 ? "Damage consistent with stated incident" :
+                       physicsScore >= 30 ? "Minor inconsistencies detected" :
+                       "Significant anomaly — engineering review required"}
+                    </p>
+                    {showLdp && ldpChartData && (
+                      <div style={{ width: '100%', marginTop: 8, borderTop: '1px solid #e2e8f0', paddingTop: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <span className="kr-mono-label">Latent Damage Probability</span>
+                          <span style={{ fontSize: 11, color: '#64748b' }}>Hidden risk</span>
+                        </div>
+                        <div style={{ height: 200 }}>
+                          <Bar data={ldpChartData} options={ldpOpts} />
+                        </div>
+                        {ldpSorted.some(([,v]) => v >= 40) && (
+                          <p style={{ fontSize: 11, marginTop: 6, padding: '4px 8px', background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>
+                            One or more systems show elevated hidden damage risk — physical inspection recommended before final settlement.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {(claimedSpeed > 0 || deltaV > 0) && (
             <div className="space-y-2 mb-3">
@@ -2310,73 +2378,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               {directionMismatch ? "Direction mismatch: " : "Direction consistent: "}{directionExplanation}
             </div>
           )}
-          {/* Latent Damage Probability bars — engineer-grade hidden damage risk */}
-          {(() => {
-            const ldp = (_phys as any)?.latentDamageProbability;
-            if (!ldp) return null;
-            const entries = Object.entries(ldp) as [string, number][];
-            if (entries.length === 0) return null;
-            const maxRaw = Math.max(...entries.map(([,v]) => v));
-            const scale = maxRaw <= 1 ? 100 : 1;
-            const normalised = entries.map(([k, v]) => [k, Math.round(v * scale)] as [string, number]);
-            const anySignificant = normalised.some(([,v]) => v >= 15);
-            if (!anySignificant) return null;
-            const sorted = [...normalised].sort(([,a],[,b]) => b - a);
-            const ldpColors = sorted.map(([,pct]) =>
-              pct >= 60 ? '#dc2626' : pct >= 35 ? '#d97706' : '#16a34a'
-            );
-            const ldpChartData = {
-              labels: sorted.map(([sys]) => sys.charAt(0).toUpperCase() + sys.slice(1)),
-              datasets: [{
-                label: 'Probability (%)',
-                data: sorted.map(([,pct]) => pct),
-                backgroundColor: ldpColors,
-                borderRadius: 3,
-                borderWidth: 0,
-              }],
-            };
-            const ldpOpts: any = {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw}%` } },
-                annotation: {
-                  annotations: {
-                    threshold: {
-                      type: 'line',
-                      yMin: 40,
-                      yMax: 40,
-                      borderColor: '#d97706',
-                      borderWidth: 1,
-                      borderDash: [4, 3],
-                      label: { content: 'Elevated Risk Threshold', display: true, position: 'end', font: { size: 9 }, color: '#d97706' },
-                    },
-                  },
-                },
-              },
-              scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-                y: { min: 0, max: 100, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, callback: (v: any) => v + '%' } },
-              },
-            };
-            return (
-              <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Latent Damage Probability — By System</p>
-                  <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>Hidden damage risk</span>
-                </div>
-                <div style={{ height: 180 }}>
-                  <Bar data={ldpChartData} options={ldpOpts} />
-                </div>
-                {normalised.some(([,v]) => v >= 40) && (
-                  <p className="text-[10px] mt-2 px-2 py-1" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)', borderRadius: '4px' }}>
-                    One or more systems show elevated hidden damage risk — physical inspection recommended before final settlement.
-                  </p>
-                )}
-              </div>
-            );
-          })()}
+          {/* LDP chart is now integrated into the physics-row layout above */}
           {/* Physics execution status badge */}
           {(() => {
             const ps: string | null = (_phys as any)?.physicsStatus ?? null;
@@ -3004,14 +3006,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             );
            })()}
 
-          {/* 2.7 Speed Forensics — Claimed vs Physics-Inferred */}
-          <Section27SpeedForensics
-            speedForensics={(_phys as any)?.speedForensics ?? null}
-            claimedSpeed={claimedSpeed ?? null}
-            physicsSpeed={physicsInferredSpeed ?? null}
-          />
-
-          {/* 2.6 Speed Inference Ensemble */}
+          {/* 2.6 Speed Inference Ensemble — MUST render before 2.7 Speed Forensics */}
           {(() => {
             const ensemble = (_phys as any)?.speedInferenceEnsemble;
             if (!ensemble) return null;
@@ -3083,6 +3078,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             return (
               <div className="mt-6">
                 <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--foreground)' }}>2.6 Speed Inference Ensemble</p>
+                {/* Correct numbering: 2.6 = ensemble, 2.7 = speed forensics */}
                 <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: '#ffffff' }}>
 
                   {/* ── Header: Confidence badge + consensus number ── */}
@@ -3311,6 +3307,13 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               </div>
             );
           })()}
+          {/* 2.7 Speed Forensics — Claimed vs Physics-Inferred (correct position: after 2.6) */}
+          <Section27SpeedForensics
+            speedForensics={(_phys as any)?.speedForensics ?? null}
+            claimedSpeed={claimedSpeed ?? null}
+            physicsSpeed={physicsInferredSpeed ?? null}
+          />
+
           {/* 2.8 Severity Consensus */}
           <Section28SeverityConsensus severityConsensus={(_phys as any)?.severityConsensus ?? null} />
           {/* 2.9 Damage Pattern Validation */}
@@ -3670,7 +3673,10 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
 
         {/* ── Section header ── */}
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: '#ffffff' }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>2.7 Speed Forensics — Claimed vs Physics-Inferred</p>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>2.7 Speed Forensics</p>
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>Objective comparison of driver-stated speed against physics-derived evidence</p>
+          </div>
           {requiresVerification && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>
               Verification Required
@@ -3804,12 +3810,13 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
             </div>
           </div>
 
-          {/* ── Methodology note ── */}
-          <p className="text-[10px] mt-3" style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
-            Physics-inferred speed is derived from Campbell\'s structural stiffness formula applied to the observed crush depth and vehicle mass,
-            cross-validated by the Speed Inference Ensemble (Section 2.6). The claimed speed is the driver\'s stated speed from the claim form.
-            This comparison is an objective forensic measurement — the adjuster determines its significance.
-          </p>
+          {/* Methodology footnote */}
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
+              <span style={{ fontWeight: 700, fontFamily: 'var(--kr-mono)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Methodology: </span>
+              Physics-inferred speed is derived from Campbell\'s structural stiffness formula applied to the observed crush depth and vehicle mass, cross-validated by the Speed Inference Ensemble (Section 2.6). The claimed speed is the driver\'s stated speed from the claim form. This comparison is an objective forensic measurement — the adjuster determines its significance in the context of the full claim.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -3860,9 +3867,9 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
 
   // Source signal display
   const sourceRows: { label: string; key: string; icon: string }[] = [
-    { label: 'Physics model', key: 'physics', icon: '⚙' },
-    { label: 'Damage analysis', key: 'damage', icon: '🔍' },
-    { label: 'KINGA Vision', key: 'image', icon: '📷' },
+    { label: 'Physics model', key: 'physics', icon: 'PHY' },
+    { label: 'Damage analysis', key: 'damage', icon: 'DMG' },
+    { label: 'KINGA Vision', key: 'image', icon: 'IMG' },
   ];
 
   // Severity colour for individual source badges
@@ -3896,7 +3903,7 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
               <p className="text-lg font-bold capitalize" style={{ color: 'var(--foreground)' }}>{verdict}</p>
               <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 uppercase" style={{ background: verdictColour.bg, color: verdictColour.text, border: `1px solid ${verdictColour.border}` }}>{verdict}</span>
               {conservativeFallback && (
-                <p className="text-[9px] mt-1" style={{ color: 'var(--muted-foreground)' }}>Conservative fallback: <span className="font-semibold capitalize">{conservativeFallback}</span></p>
+                <p style={{ fontSize: 11, marginTop: 4, color: 'var(--muted-foreground)' }}>Conservative fallback: <span className="font-semibold capitalize">{conservativeFallback}</span></p>
               )}
             </div>
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
@@ -3929,7 +3936,10 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
                 const badge = srcBadge(signal);
                 return (
                   <tr key={key} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td className="py-1.5 pr-3" style={{ color: 'var(--muted-foreground)' }}>{icon} {label}</td>
+                    <td className="py-1.5 pr-3" style={{ color: 'var(--muted-foreground)' }}>
+                      <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, fontWeight: 700, marginRight: 6, padding: '1px 4px', background: '#f1f5f9', borderRadius: 2 }}>{icon}</span>
+                      {label}
+                    </td>
                     <td className="py-1.5 pr-3">
                       {signal
                         ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ background: badge.bg, color: badge.text, border: `1px solid ${badge.border}` }}>{signal}</span>
@@ -5179,22 +5189,27 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
         )}
       </div>
       <div className="p-4">
+        {/* Cross-reference note: market value is in Section 1.3 to avoid duplication */}
+        <div style={{ marginBottom: 12, padding: '6px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4 }}>
+          <p style={{ fontSize: 11, color: '#64748b' }}>
+            <span style={{ fontWeight: 700, color: '#0f172a' }}>Market Value: </span>
+            {marketValueUsd != null ? fmtMoney(marketValueUsd) : 'Pending system benchmark'}
+            {valuationMethod === 'document_stated'
+              ? ' — ⚠ Assessor document, not independently verified'
+              : valuationMethod === 'llm_estimate' || !valuationMethod
+              ? ' — KINGA system benchmark'
+              : ` — ${valuationMethod}`}
+            <span style={{ color: '#94a3b8' }}> (vehicle details in Section 1.3)</span>
+          </p>
+        </div>
         <table className="compact-kv-table text-xs">
-          <tbody>            {([
-              ["Market Value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Pending system benchmark"],
-              // C-05: Show valuation source with explicit warning for assessor-stated values
-              valuationMethod === "document_stated"
-                ? ["Valuation Basis", "⚠ Assessor document — not independently verified"]
-                : valuationMethod === "llm_estimate"
-                  ? ["Valuation Basis", "KINGA system benchmark"]
-                  : valuationMethod
-                    ? ["Valuation Basis", valuationMethod]
-                    : null,
+          <tbody>{([
               // Repair cost label: distinguish between KINGA-validated cost and raw quote
               costIntel?.totalEstimatedCost != null
                 ? ["Repair Cost (KINGA-Validated)", fmtMoney(costIntel.totalEstimatedCost)]
                 : ["Repair Cost (Quoted)", repairCost > 0 ? fmtMoney(repairCost) : "Not available"],
               ["Repair-to-Value Ratio", repairToValue != null ? `${repairToValue.toFixed(1)}%` : "Cannot calculate"],
+              ["Write-off Threshold", "75% of market value"],
               ["Excess / Deductible", excessUsd != null ? fmtMoney(excessUsd) : "Not stated"],
               ["Betterment / Depreciation", bettermentUsd != null ? fmtMoney(bettermentUsd) : "Not stated"],
               ["Net Claimant Liability", excessUsd != null && bettermentUsd != null ? fmtMoney(excessUsd + bettermentUsd) : excessUsd != null ? fmtMoney(excessUsd) : "Not available"],
@@ -5696,7 +5711,19 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           return false;
         };
         // Filter to vehicle damage photos only — re-index so panel shows Photo 1, 2, 3...
-        const vehiclePhotos = exifResults.filter(r => !r.isNonVehicle && !isDocumentVisionText(r.aiVisionDescription ?? ''));
+        // A photo is excluded only when BOTH conditions are true:
+        //   1. The photoForensicsEngine flagged it as non-vehicle (is_non_vehicle: true)
+        //   2. The AI vision description explicitly confirms it's a document/form page
+        // This prevents PDF-embedded vehicle photos from being incorrectly excluded
+        // when the engine marks them as non-vehicle due to document context.
+        const vehiclePhotos = exifResults.filter(r => {
+          const isDoc = isDocumentVisionText(r.aiVisionDescription ?? '');
+          // If vision confirms it's a document page, always exclude
+          if (isDoc) return false;
+          // If vision is absent or neutral, trust the photo — include it
+          // (isNonVehicle alone is not sufficient to exclude when vision is empty)
+          return true;
+        });
         const vehicleExifData: PhotoExifForensicsData = { results: vehiclePhotos.map((r, i) => ({ ...r, photoIndex: i + 1 })) };
         const totalAnalysed = vehiclePhotos.length;
         // Three-tier thresholds:
@@ -7932,7 +7959,7 @@ const REPORT_CSS = `
   --kr-mono:'DM Mono',monospace;--kr-serif:'Instrument Serif',serif;--kr-sans:'DM Sans',sans-serif;
 }
 .kinga-report[data-draft="true"]::before{content:'DRAFT';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;font-weight:900;color:rgba(0,0,0,0.04);letter-spacing:0.15em;pointer-events:none;z-index:0;white-space:nowrap;user-select:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.kinga-report .decision-strip{display:grid;grid-template-columns:auto 1fr repeat(2,auto);gap:0;border-bottom:1px solid var(--kr-rule);padding:14px 0;align-items:center;margin-bottom:0}
+.kinga-report .decision-strip{display:grid;grid-template-columns:auto auto 1fr;gap:0;border-bottom:2px solid var(--kr-black);padding:14px 0;align-items:start;margin-bottom:0}
 .kinga-report .verdict-block{padding-right:28px;border-right:1px solid var(--kr-rule);margin-right:28px}
 .kinga-report .verdict-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.12em;color:var(--kr-muted);margin-bottom:2px}
 .kinga-report .verdict-value{font-size:22px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
@@ -7940,21 +7967,21 @@ const REPORT_CSS = `
 .kinga-report .verdict-value.review{color:var(--kr-amber)}
 .kinga-report .verdict-value.decline{color:var(--kr-red)}
 .kinga-report .verdict-sub{font-size:11px;color:var(--kr-muted);margin-top:2px}
-.kinga-report .score-cluster{display:flex;gap:20px;flex-wrap:wrap}
-.kinga-report .score-item{text-align:center}
-.kinga-report .score-num{font-family:var(--kr-mono);font-size:24px;font-weight:500;display:block;line-height:1}
+.kinga-report .score-cluster{display:flex;gap:0;flex-wrap:nowrap;border-left:1px solid var(--kr-rule);border-right:1px solid var(--kr-rule);margin:0 24px;padding:0 24px}
+.kinga-report .score-item{text-align:center;padding:0 16px;border-right:1px solid var(--kr-rule)}.kinga-report .score-item:last-child{border-right:none}
+.kinga-report .score-num{font-family:var(--kr-mono);font-size:22px;font-weight:600;display:block;line-height:1}
 .kinga-report .score-num.low{color:var(--kr-green)}
 .kinga-report .score-num.mid{color:var(--kr-amber)}
 .kinga-report .score-num.high{color:var(--kr-red)}
 .kinga-report .score-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.08em;font-family:var(--kr-mono);display:block;margin-top:2px}
-.kinga-report .cost-cluster{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;border-left:1px solid var(--kr-rule);padding-left:28px}
-.kinga-report .cost-item{min-width:90px}
+.kinga-report .cost-cluster{display:flex;gap:0;flex-wrap:wrap;align-items:flex-start;padding-left:0}
+.kinga-report .cost-item{min-width:100px;padding:0 14px;border-right:1px solid var(--kr-rule)}.kinga-report .cost-item:last-child{border-right:none}
 .kinga-report .cost-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.08em;font-family:var(--kr-mono);display:flex;align-items:center;gap:5px;margin-bottom:2px}
 .kinga-report .cost-val{font-size:18px;font-weight:600;font-family:var(--kr-mono);display:block;letter-spacing:-.02em;color:var(--kr-text)}
 .kinga-report .cost-val-dim{font-size:16px;font-weight:400;color:var(--kr-muted)}
 .kinga-report .cost-sub{font-size:10px;color:var(--kr-muted);display:block;margin-top:1px}
 .kinga-report .cost-lowest-tag{font-size:8px;font-family:var(--kr-mono);letter-spacing:.08em;font-weight:600;color:var(--kr-green);background:var(--kr-green-light);border:1px solid var(--kr-green);padding:1px 4px;border-radius:2px;line-height:1.4}
-.kinga-report .cost-divider{width:1px;background:var(--kr-rule);align-self:stretch;margin:0 4px;flex-shrink:0}
+.kinga-report .cost-divider{width:1px;background:var(--kr-black);align-self:stretch;margin:0 8px;flex-shrink:0}
 .kinga-report .scorecard-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--kr-rule);margin:14px 0;border:1px solid var(--kr-rule)}
 .kinga-report .scorecard-cell{background:var(--kr-white);padding:10px 14px;position:relative}
 .kinga-report .sc-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;color:var(--kr-muted);margin-bottom:6px;display:block}
@@ -8133,6 +8160,10 @@ const REPORT_CSS = `
 .kinga-report .lc-step.done{background:var(--kr-green-light);color:#166534;border-color:var(--kr-green);border-bottom:3px solid var(--kr-green)}
 .kinga-report .conf-footer{font-size:10px;color:var(--kr-muted);text-align:center;padding:12px 20px;border-top:1px solid var(--kr-rule);line-height:1.5;background:var(--kr-white);font-family:var(--kr-mono)}
 .kinga-report .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.kinga-report .col-pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px}
+.kinga-report .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.kinga-report .physics-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;margin-bottom:14px}
+.kinga-report .col-pair > *,.kinga-report .three-col > *,.kinga-report .physics-row > *{min-width:0;page-break-inside:avoid;break-inside:avoid}
 .kinga-report .section-divider{border:none;border-top:1px solid var(--kr-rule);margin:16px 0}
 .kinga-report .text-muted{color:var(--kr-muted)}
 .kinga-report .mono{font-family:var(--kr-mono)}
@@ -8152,11 +8183,67 @@ const REPORT_CSS = `
 .kinga-report h2{font-size:14px}
 .kinga-report h3{font-size:13px}
 .kinga-report h4{font-size:12px}
-/* Body text: 12-13px throughout */
-.kinga-report p,.kinga-report td,.kinga-report li,.kinga-report span{font-size:12px}
-/* Sub-labels */
-.kinga-report .section-heading{font-size:15px}
-.kinga-report .kpi-label{font-size:10px}
+/* ── STRICT TYPOGRAPHIC SCALE — no font fluctuation allowed ──
+   Section heading: 14px bold (kr-sans)
+   Sub-section label: 10px mono uppercase (kr-mono)
+   Body / table cells: 12px (kr-sans)
+   Captions / secondary: 11px
+   Micro-labels: 10px mono
+   DO NOT use text-[9px], text-[8px] anywhere in the report
+── */
+.kinga-report p,.kinga-report td,.kinga-report li{font-size:12px;line-height:1.55}
+.kinga-report span{font-size:inherit}
+.kinga-report .section-heading{font-size:14px;font-weight:700;letter-spacing:.04em}
+.kinga-report .kpi-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;text-transform:uppercase}
+/* Enforce minimum readable sizes — override any Tailwind text-[Xpx] micro-sizes */
+.kinga-report [class*="text-[9px]"],.kinga-report [class*="text-[8px]"]{font-size:10px !important}
+.kinga-report [class*="text-[10px]"]{font-size:10px !important}
+.kinga-report [class*="text-xs"]{font-size:12px !important}
+.kinga-report [class*="text-sm"]{font-size:13px !important}
+/* Exception: mono labels that are intentionally small */
+.kinga-report .kr-mono-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--kr-muted)}
+/* Narrative panel classes */
+.kinga-report .narr-panel{border:1px solid var(--kr-rule);background:#fff;margin-bottom:12px}
+.kinga-report .narr-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--kr-rule);background:var(--kr-off-white)}
+.kinga-report .narr-header-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--kr-muted);font-weight:600}
+.kinga-report .narr-quote{font-size:12px;line-height:1.65;color:var(--kr-text);font-style:italic;padding:12px 14px;border-left:3px solid var(--kr-black);background:#fafafa;margin:10px 14px}
+.kinga-report .narr-seq{padding:10px 14px;border-top:1px solid var(--kr-rule)}
+.kinga-report .narr-seq-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--kr-muted);margin-bottom:6px;display:block}
+.kinga-report .narr-seq-text{font-size:12px;color:var(--kr-text);line-height:1.6}
+.kinga-report .narr-cv{border-top:1px solid var(--kr-rule)}
+.kinga-report .narr-cv-header{padding:6px 14px;background:var(--kr-off-white);border-bottom:1px solid var(--kr-rule)}
+.kinga-report .narr-cv-row{display:grid;grid-template-columns:80px 90px 1fr;gap:8px;padding:8px 14px;border-bottom:1px solid var(--kr-rule);align-items:start}
+.kinga-report .narr-cv-row:last-child{border-bottom:none}
+.kinga-report .narr-cv-dim{font-size:12px;font-weight:700;color:var(--kr-text)}
+.kinga-report .narr-cv-badge{font-size:10px;font-family:var(--kr-mono);font-weight:700;letter-spacing:.06em;padding:2px 7px;border:1px solid;display:inline-block}
+.kinga-report .narr-cv-badge.ok{color:#166534;border-color:#16a34a;background:#f0fdf4}
+.kinga-report .narr-cv-badge.warn{color:#92400e;border-color:#d97706;background:#fffbeb}
+.kinga-report .narr-cv-badge.fail{color:#991b1b;border-color:#dc2626;background:#fef2f2}
+.kinga-report .narr-cv-notes{font-size:12px;color:var(--kr-muted);line-height:1.5}
+.kinga-report .narr-flags{border-top:1px solid var(--kr-rule)}
+.kinga-report .narr-flags-header{padding:6px 14px;border-bottom:1px solid var(--kr-rule)}
+.kinga-report .narr-flag-row{display:grid;grid-template-columns:60px 1fr;gap:10px;padding:8px 14px;border-bottom:1px solid var(--kr-rule)}
+.kinga-report .narr-flag-row:last-child{border-bottom:none}
+.kinga-report .narr-flag-sev{font-size:10px;font-family:var(--kr-mono);font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border:1px solid;display:inline-block;text-align:center}
+.kinga-report .narr-flag-sev.high{color:#991b1b;border-color:#dc2626;background:#fef2f2}
+.kinga-report .narr-flag-sev.medium{color:#92400e;border-color:#d97706;background:#fffbeb}
+.kinga-report .narr-flag-sev.low{color:#374151;border-color:#9ca3af;background:#f9fafb}
+.kinga-report .narr-flag-title{font-size:12px;font-weight:700;color:var(--kr-text);margin-bottom:2px}
+.kinga-report .narr-flag-desc{font-size:12px;color:var(--kr-muted);line-height:1.5}
+.kinga-report .narr-flag-evidence{font-size:11px;color:var(--kr-muted);font-style:italic;margin-top:3px;padding-left:8px;border-left:2px solid var(--kr-rule)}
+.kinga-report .narr-reasoning{padding:10px 14px;background:#fafafa;border-top:1px solid var(--kr-rule)}
+.kinga-report .narr-reasoning-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--kr-muted);margin-bottom:4px;display:block}
+.kinga-report .narr-reasoning-text{font-size:12px;color:var(--kr-text);line-height:1.6}
+/* Physics 2-column layout: table left, gauge+chart right */
+.kinga-report .physics-row{display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:start}
+.kinga-report .physics-col-main{min-width:0}
+.kinga-report .physics-col-side{min-width:0}
+/* Print: keep physics-row side-by-side */
+@media print{
+  .kinga-report .physics-row{display:grid !important;grid-template-columns:1fr 200px !important;gap:12px !important}
+  .kinga-report .narr-cv-row{display:grid !important;grid-template-columns:80px 90px 1fr !important}
+  .kinga-report .narr-flag-row{display:grid !important;grid-template-columns:60px 1fr !important}
+}
 /* ── CSS variable overrides: map all dark-theme vars to white-document values ── */
 .kinga-report,.dark .kinga-report{color-scheme:light !important;background:#fff !important;color:var(--kr-text) !important;
   --background:#fff;
@@ -8482,12 +8569,27 @@ const REPORT_CSS = `
   .kinga-report .verdict-value.decline{color:var(--kr-red) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   .kinga-report .cost-lowest-tag{background:var(--kr-green-light) !important;color:var(--kr-green) !important;border:1px solid var(--kr-green) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   /* ── Section 6 score summary bars: keep together ── */
-  /* ── Phase 4: Keep two-col layout in print for side-by-side sections (saves ~2 pages) ── */
-  .kinga-report .two-col{grid-template-columns:1fr 1fr !important;gap:14px !important}
-  /* ── Phase 3: Ensure chart wrappers never overflow page width ── */
+  /* ── Keep multi-column layouts in print (saves ~8 pages) ── */
+  .kinga-report .two-col{display:grid !important;grid-template-columns:1fr 1fr !important;gap:14px !important}
+  .kinga-report .col-pair{display:grid !important;grid-template-columns:1fr 1fr !important;gap:16px !important}
+  .kinga-report .three-col{display:grid !important;grid-template-columns:1fr 1fr 1fr !important;gap:12px !important}
+  .kinga-report .physics-row{display:grid !important;grid-template-columns:1fr 1fr !important;gap:16px !important}
+  .kinga-report .party-grid{display:grid !important;grid-template-columns:1fr 1fr !important}
+  .kinga-report .col-pair > *,.kinga-report .three-col > *,.kinga-report .physics-row > *{page-break-inside:avoid;break-inside:avoid}
+  /* ── Chart wrappers: never overflow, minimum readable height ── */
   .kinga-report [class*="chart-wrap"],[class*="chart-section"]{width:100% !important;max-width:100% !important;overflow:visible !important}
-  /* ── Phase 4: Party grid keeps 2 columns in print ── */
-  .kinga-report .party-grid{grid-template-columns:1fr 1fr !important}
+  .kinga-report .chart-container{height:auto !important;min-height:200px !important;width:100% !important}
+  .kinga-report canvas{width:100% !important;height:auto !important;min-height:180px !important}
+  /* ── Minimum font sizes for print readability ── */
+  .kinga-report *{font-size:max(10px, inherit)}
+  .kinga-report .data-table td,.kinga-report .data-table th{font-size:11px !important}
+  .kinga-report .compact-kv-table td{font-size:11px !important}
+  .kinga-report .compact-kv-table td:first-child{font-size:10px !important}
+  .kinga-report .score-lbl,.kinga-report .cost-lbl,.kinga-report .kpi-label,.kinga-report .sc-label{font-size:10px !important}
+  /* ── Decision strip: keep 3-column grid in print ── */
+  .kinga-report .decision-strip{display:grid !important;grid-template-columns:auto auto 1fr !important;page-break-inside:avoid;break-inside:avoid}
+  .kinga-report .score-cluster{display:flex !important;flex-wrap:nowrap !important}
+  .kinga-report .cost-cluster{display:flex !important;flex-wrap:wrap !important}
 }
 `;
 
