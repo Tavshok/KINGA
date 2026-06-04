@@ -766,26 +766,38 @@ export default function ClaimsProcessorDashboard() {
                 </>
               )}
 
-              {/* COMPLETED: View only */}
+              {/* COMPLETED: Full report access */}
               {section === "completed" && (
                 <>
                   <Button
                     size="sm"
                     variant="default"
-                    onClick={() => handleViewDetails(claim.id)}
-                    className="w-full justify-start"
+                    onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=standard`; }}
+                    className="w-full justify-start bg-teal-600 hover:bg-teal-700"
                   >
                     <Eye className="h-4 w-4 mr-2" />
-                    View Details
+                    View KINGA Claims Report
+                    <ArrowRight className="h-3 w-3 ml-auto" />
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleDownloadReport(claim.id)}
-                    className="w-full justify-start"
+                    onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`; }}
+                    className="w-full justify-start border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:bg-teal-950/30"
                   >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Report
+                    <Eye className="h-4 w-4 mr-2" />
+                    View KINGA Forensic Report
+                    <ArrowRight className="h-3 w-3 ml-auto" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleTriggerAI(claim.id)}
+                    disabled={triggerAiMutation.isPending}
+                    className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
+                  >
+                    <Brain className="h-4 w-4 mr-2" />
+                    Re-run KINGA Assessment
                   </Button>
                 </>
               )}
