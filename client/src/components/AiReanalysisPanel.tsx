@@ -45,8 +45,11 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
   // Re-run KINGA analysis mutation
   const reRunAiAnalysis = trpc.aiReanalysis.reRunAiAnalysis.useMutation({
     onSuccess: (result) => {
-      toast.success("AI Re-Analysis Complete", {
-        description: result.message,
+      // The pipeline is fire-and-forget — the HTTP response returns immediately.
+      // Show "Started" not "Complete" to avoid misleading the user.
+      toast.info("KINGA Re-Analysis Started", {
+        description: result.message || "The report will update automatically when the analysis is complete (2–4 minutes).",
+        duration: 8000,
       });
       setReanalysisDialogOpen(false);
       setReanalysisReason("");

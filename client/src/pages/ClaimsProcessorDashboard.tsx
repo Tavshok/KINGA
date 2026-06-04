@@ -115,7 +115,11 @@ export default function ClaimsProcessorDashboard() {
         // This ensures the page auto-refreshes even after a browser refresh.
         refetchInterval: (data) => {
           const claims = (data as any)?.claims || (data as any)?.items || [];
-          const hasInProgress = claims.some((c: any) => c.status === "assessment_in_progress");
+          const hasInProgress = claims.some((c: any) =>
+            c.status === "assessment_in_progress" ||
+            c.documentProcessingStatus === "parsing" ||
+            c.documentProcessingStatus === "processing"
+          );
           // Poll every 2s when KINGA is actively running so stage transitions appear quickly,
           // fall back to 30s when idle to reduce server load.
           return (aiProcessingClaimIds.size > 0 || hasInProgress) ? 2_000 : 30_000;
@@ -422,7 +426,9 @@ export default function ClaimsProcessorDashboard() {
 
   // Claim Card component inline for better control
   const ClaimCardInline = ({ claim, section }: { claim: any; section: "pending" | "in_review" | "ai_flagged" | "completed" }) => {
-    const isProcessing = aiProcessingClaimIds.has(claim.id);
+    const isProcessing = aiProcessingClaimIds.has(claim.id) ||
+      claim.documentProcessingStatus === "parsing" ||
+      claim.documentProcessingStatus === "processing";
     const isTriggering = triggeringClaimId === claim.id;
 
     const getStatusBadge = () => {
@@ -766,39 +772,69 @@ export default function ClaimsProcessorDashboard() {
                 </>
               )}
 
-              {/* COMPLETED: Full report access */}
+              {/* COMPLETED: Full report access (or re-run in progress) */}
               {section === "completed" && (
                 <>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=standard`; }}
-                    className="w-full justify-start bg-teal-600 hover:bg-teal-700"
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View KINGA Claims Report
-                    <ArrowRight className="h-3 w-3 ml-auto" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`; }}
-                    className="w-full justify-start border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:bg-teal-950/30"
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View KINGA Forensic Report
-                    <ArrowRight className="h-3 w-3 ml-auto" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleTriggerAI(claim.id)}
-                    disabled={triggerAiMutation.isPending}
-                    className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
-                  >
-                    <Brain className="h-4 w-4 mr-2" />
-                    Re-run KINGA Assessment
-                  </Button>
+                  {/* Show live stage progress when re-run is in progress */}
+                  {(isProcessing || claim.documentProcessingStatus === "parsing" || claim.documentProcessingStatus === "processing") ? (
+                    <>
+                      <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/30 rounded-md p-3">
+                        <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                        <span className="truncate">
+                          {(claim as any).pipelineCurrentStage
+                            ? (() => {
+                                const raw: string = (claim as any).pipelineCurrentStage;
+                                return raw.replace(/^Stage (\d+)/, 'Stage $1 of 10');
+                              })()
+                            : "Re-running KINGA analysis..."}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleResetStuckClaim(claim.id)}
+                        disabled={resetStuckClaimMutation.isPending}
+                        className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
+                        title="Use this if the AI has been processing for more than 5 minutes without completing"
+                      >
+                        <RotateCcw className="h-3 w-3 mr-2" />
+                        Reset if Stuck
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=standard`; }}
+                        className="w-full justify-start bg-teal-600 hover:bg-teal-700"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View KINGA Claims Report
+                        <ArrowRight className="h-3 w-3 ml-auto" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`; }}
+                        className="w-full justify-start border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:bg-teal-950/30"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View KINGA Forensic Report
+                        <ArrowRight className="h-3 w-3 ml-auto" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleTriggerAI(claim.id)}
+                        disabled={triggerAiMutation.isPending}
+                        className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
+                      >
+                        <Brain className="h-4 w-4 mr-2" />
+                        Re-run KINGA Assessment
+                      </Button>
+                    </>
+                  )}
                 </>
               )}
             </div>

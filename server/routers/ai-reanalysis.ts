@@ -77,14 +77,8 @@ export const aiReanalysisRouter = router({
         });
       }
 
-      // 4. Validate user has access to claim state
-      const accessibleQueues = getAccessibleQueues(userRole);
-      if (!accessibleQueues.includes(claim.workflowState || "")) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: `Your role (${userRole}) does not have access to claims in ${claim.workflowState} state`,
-        });
-      }
+      // 4. Re-analysis is allowed on any non-cancelled claim regardless of workflowState.
+      // (The queue-access check is for routing, not for re-analysis permission.)
 
       // 5. Check rate limiting: 5 re-analyses per claim per day
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -161,6 +155,24 @@ export const aiReanalysisRouter = router({
         }),
         tenantId: tenantId || null,
       });
+
+      // 10b. Pre-flight: reset documentProcessingStatus to 'parsing' immediately so the
+      // AiStatusBadge switches from 'complete' to 'analysing' before the async job runs.
+      // This mirrors the pre-flight in the triggerAiAssessment mutation.
+      try {
+        const dbPreflight = await getDb();
+        if (dbPreflight) {
+          await dbPreflight.update(claims).set({
+            documentProcessingStatus: 'parsing',
+            aiAssessmentTriggered: 1,
+            aiAssessmentCompleted: 0,
+            aiAssessmentStartedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+            aiAssessmentCompletedAt: null,
+          }).where(eq(claims.id, input.claimId));
+        }
+      } catch (preflightErr) {
+        console.warn(`[AI Re-analysis] Pre-flight status reset failed for claim ${input.claimId} (non-fatal):`, preflightErr);
+      }
 
       // 11. Fire the REAL AI pipeline asynchronously (fire-and-forget).
       // triggerAiAssessment deletes old aiAssessments records and runs all pipeline stages.

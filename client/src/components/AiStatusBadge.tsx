@@ -27,6 +27,7 @@ interface Claim {
   workflowState?: string | null;
   aiAssessmentTriggered?: number | null;
   aiAssessmentCompleted?: number | null;
+  documentProcessingStatus?: string | null;
 }
 
 interface AiAssessment {
@@ -50,9 +51,25 @@ function deriveAiState(claim: Claim | null | undefined, aiAssessment: AiAssessme
 
   const status = claim.status ?? "";
   const workflowState = claim.workflowState ?? "";
+  const docStatus = claim.documentProcessingStatus ?? "";
 
   // Explicit failure states (extend as the workflow evolves)
   if (status === "ai_failed" || workflowState === "ai_failed") return "failed";
+
+  // Re-run in progress: documentProcessingStatus is parsing/processing even if
+  // an old assessment record exists. Check this BEFORE the complete check so
+  // re-runs show the spinner correctly.
+  if (
+    docStatus === "parsing" ||
+    docStatus === "processing" ||
+    docStatus === "extracting" ||
+    status === "assessment_in_progress" ||
+    status === "assessment_pending" ||
+    workflowState === "ai_assessment_pending" ||
+    claim.aiAssessmentTriggered === 1
+  ) {
+    return "analysing";
+  }
 
   // Complete: either the flag is set, the status is assessment_complete, or a
   // record already exists.
@@ -63,16 +80,6 @@ function deriveAiState(claim: Claim | null | undefined, aiAssessment: AiAssessme
     (aiAssessment != null)
   ) {
     return "complete";
-  }
-
-  // In-progress: status or workflowState signals the job is running
-  if (
-    status === "assessment_in_progress" ||
-    status === "assessment_pending" ||
-    workflowState === "ai_assessment_pending" ||
-    claim.aiAssessmentTriggered === 1
-  ) {
-    return "analysing";
   }
 
   return "waiting";
