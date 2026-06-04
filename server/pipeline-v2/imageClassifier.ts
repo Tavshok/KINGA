@@ -106,7 +106,7 @@ const LOW_CONFIDENCE_THRESHOLD = 0.25;   // Below this → trust heuristic (othe
 // Widened band ensures mid-size quote scans (0.4–0.8MP) reach the LLM for visual inspection
 
 /** Max images to send to LLM for classification */
-const MAX_LLM_CLASSIFICATION_BATCH = 8;
+const MAX_LLM_CLASSIFICATION_BATCH = 15;
 
 /** Diversity filter: images from the same page within this size ratio are considered duplicates */
 const DUPLICATE_SIZE_RATIO_THRESHOLD = 0.85;
@@ -202,17 +202,21 @@ function computeHeuristicScore(img: ExtractedImageInput): {
   score = Math.max(0, Math.min(1, score));
 
   // Determine likely category from heuristic
+  // IMPORTANT: text-heavy page_render images are NOT hard-classified as document_page.
+  // They are left as 'other' so the LLM can visually inspect them — a text-heavy page
+  // render may be a repair quotation (Swiss Motors, etc.) or a photo page with white
+  // background, both of which the LLM can correctly identify.
   let likelyCategory: ImageCategory;
   if (score >= HIGH_CONFIDENCE_THRESHOLD) {
     likelyCategory = 'damage_photo';
-  } else if (q.isTextHeavy && img.source === 'page_render') {
-    likelyCategory = 'document_page';
   } else if (q.isTextHeavy && img.source === 'embedded_image') {
     likelyCategory = 'quotation_scan';
-  } else if (score < LOW_CONFIDENCE_THRESHOLD) {
+  } else if (score < LOW_CONFIDENCE_THRESHOLD && !q.isTextHeavy) {
+    // Only hard-classify as document_page for low-score non-text-heavy images
+    // (e.g. tiny, uniform, extreme-aspect images that are clearly not documents or quotes)
     likelyCategory = 'document_page';
   } else {
-    likelyCategory = 'other'; // Ambiguous — needs LLM
+    likelyCategory = 'other'; // Ambiguous — needs LLM (includes text-heavy page renders)
   }
 
   return {
@@ -383,7 +387,7 @@ Classify each image into EXACTLY ONE of these categories:
 
 2. **vehicle_overview** — Shows a full or partial vehicle view WITHOUT visible damage. Could be a pre-accident photo, identification photo, or general vehicle shot.
 
-3. **quotation_scan** — Shows a repair quotation, invoice, or price list. May be handwritten or printed. Contains line items, prices, part numbers, or cost totals.
+3. **quotation_scan** — Shows a repair quotation, invoice, or price list. May be handwritten or printed. Contains line items, prices, part numbers, or cost totals. ALSO classify as quotation_scan if the page is a full-page render of a repair estimate from a panel beater or motor body repairer (e.g. Swiss Motors, Cedric Jonker, Kingfisher Auto Motors) — even if the page also contains a company letterhead, logo, or address block. The presence of a table with part descriptions and amounts is the key indicator.
 
 4. **document_page** — Shows a form, claim document, police report, ID document, or any text-heavy administrative page. Contains mostly text, checkboxes, signatures, stamps.
 
@@ -513,7 +517,12 @@ export async function classifyExtractedImages(
   const ambiguous: typeof deduplicated = [];
 
   for (const img of deduplicated) {
-    if (img.heuristicScore >= HIGH_CONFIDENCE_THRESHOLD || img.heuristicScore <= LOW_CONFIDENCE_THRESHOLD) {
+    // CRITICAL: text-heavy images MUST go to LLM regardless of heuristic score.
+    // A text-heavy page_render scores ~0.05 (below LOW_CONFIDENCE_THRESHOLD) but
+    // may be a repair quotation or a damage photo page with white background.
+    // Only the LLM can visually distinguish these from plain document pages.
+    const isTextHeavyPageRender = img.quality.isTextHeavy && img.source === 'page_render';
+    if (!isTextHeavyPageRender && (img.heuristicScore >= HIGH_CONFIDENCE_THRESHOLD || img.heuristicScore <= LOW_CONFIDENCE_THRESHOLD)) {
       confident.push(img);
     } else {
       ambiguous.push(img);

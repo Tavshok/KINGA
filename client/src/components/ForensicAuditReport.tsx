@@ -2374,8 +2374,10 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                 </div>
                 {/* Right: gauge + LDP chart stacked */}
                 <div className="physics-col-side">
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <ArcGauge value={physicsScore} size={100} label="Physics consistency" />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <ArcGauge value={physicsScore} size={110} label="Physics consistency" />
+                    </div>
                     <p style={{ fontSize: 11, color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
                       {physicsScore >= 70 ? "Damage consistent with stated incident" :
                        physicsScore >= 30 ? "Minor inconsistencies detected" :
@@ -2387,7 +2389,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                           <span className="kr-mono-label">Latent Damage Probability</span>
                           <span style={{ fontSize: 11, color: '#64748b' }}>Hidden risk</span>
                         </div>
-                        <div style={{ height: 200 }}>
+                        <div style={{ height: 220, width: '100%' }}>
                           <Bar data={ldpChartData} options={ldpOpts} />
                         </div>
                         {ldpSorted.some(([,v]) => v >= 40) && (
@@ -2913,125 +2915,9 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             );
           })()}
 
-          {/* 2.4c + 2.5 side-by-side grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
-          {/* 2.4c Damage Severity Distribution Chart */}
-          {(() => {
-            const damagedPartsRaw2 = (aiAssessment as any)?.damagedComponentsJson;
-            const damagedParts2: any[] = (() => {
-              if (!damagedPartsRaw2) return [];
-              try {
-                const raw = typeof damagedPartsRaw2 === 'string' ? JSON.parse(damagedPartsRaw2) : (Array.isArray(damagedPartsRaw2) ? damagedPartsRaw2 : []);
-                return raw.filter((p: any) => p.severity);
-              } catch { return []; }
-            })();
-            if (damagedParts2.length === 0) return null;
-            return (
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
-                <div className="px-4 py-3" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
-                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>2.4c Damage Severity Distribution</p>
-                  <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>Distribution of {damagedParts2.length} damaged component{damagedParts2.length > 1 ? 's' : ''} by severity level.</p>
-                </div>
-                <div className="p-4">
-                  <DamageSeverityChart components={damagedParts2.map((p: any) => ({ name: p.name, severity: p.severity }))} />
-                </div>
-              </div>
-            );
-          })()}
+          {/* 2.4c Damage Severity Distribution and 2.5 Quote Coverage moved to Section 2.5 Damage Analysis — see below */}
 
-          {/* 2.5 Quote Coverage — Damage vs Quote Reconciliation */}
-          {(() => {
-            // Parse partsReconciliationJson from Stage 9
-            const partsReconRaw = (aiAssessment as any)?.partsReconciliationJson;
-            const partsRecon: any[] = (() => {
-              if (!partsReconRaw) return [];
-              try { return typeof partsReconRaw === 'string' ? JSON.parse(partsReconRaw) : (Array.isArray(partsReconRaw) ? partsReconRaw : []); } catch { return []; }
-            })();
-            if (partsRecon.length === 0) return null;
-            const extraItems: any[] = (() => {
-              const reconSummaryRaw = (aiAssessment as any)?.costIntelligenceJson?.reconciliationSummary;
-              if (!reconSummaryRaw) return [];
-              try {
-                const rs = typeof reconSummaryRaw === 'string' ? JSON.parse(reconSummaryRaw) : reconSummaryRaw;
-                return Array.isArray(rs?.extra) ? rs.extra : [];
-              } catch { return []; }
-            })();
-            const matchedCount = partsRecon.filter((r: any) => r.reconciliation_status === 'matched').length;
-            const missingCount = partsRecon.filter((r: any) => r.reconciliation_status === 'missing_from_quote').length;
-            const noQuoteCount = partsRecon.filter((r: any) => r.reconciliation_status === 'no_quote_available').length;
-            const structuralCount = partsRecon.filter((r: any) => r.is_structural).length;
-            const coverageRatio = partsRecon.length > 0 ? matchedCount / partsRecon.length : 0;
-            const coverageColor = coverageRatio >= 0.8 ? 'var(--status-pass-text)' : coverageRatio >= 0.5 ? 'var(--status-review-text)' : 'var(--status-fail-text)';
-            const coverageBg = coverageRatio >= 0.8 ? 'var(--status-pass-bg)' : coverageRatio >= 0.5 ? 'var(--status-review-bg)' : 'var(--status-fail-bg)';
-            const pbName = (quotes ?? []).find((q: any) => q.panelBeaterName || q.repairerName)?.panelBeaterName
-              ?? (quotes ?? []).find((q: any) => q.panelBeaterName || q.repairerName)?.repairerName
-              ?? claimRecord0?.repairQuote?.repairerName
-              ?? aiAssessment?.panelBeaterName
-              ?? null;
-            const claimedRepairCostCents = claimRecord0?.repairQuote?.totalRepairCostCents
-              ?? (aiAssessment?.repairCostUsd != null ? Math.round(aiAssessment.repairCostUsd * 100) : null);
-            const quotedItemsTotal = partsRecon.reduce((sum: number, r: any) => sum + (r.quotedAmount ?? 0), 0);
-            const costDeltaCents = claimedRepairCostCents != null && quotedItemsTotal > 0
-              ? claimedRepairCostCents - Math.round(quotedItemsTotal * 100)
-              : null;
-            // Missing component names for adjuster note
-            const missingNames = partsRecon.filter((r: any) => r.reconciliation_status === 'missing_from_quote').map((r: any) => expandShorthand(r.component ?? ''));
-            return (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#64748b" }}>2.5 Quote Coverage Summary</p>
-                {pbName && (
-                  <p className="text-xs mb-2" style={{ color: "#0f172a" }}>
-                    <span style={{ color: 'var(--muted-foreground)' }}>Primary quoting repairer: </span>
-                    <strong>{pbName}</strong>
-                    {(quotes ?? []).length > 1 && <span style={{ color: 'var(--muted-foreground)', marginLeft: 6 }}>· {(quotes ?? []).length} quotes received — full comparison in Section 3.1</span>}
-                  </p>
-                )}
-                {/* Compact stat row */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: coverageBg, border: `1px solid ${coverageColor}` }}>
-                    <span style={{ fontSize: 18, fontWeight: 700, color: coverageColor }}>{Math.round(coverageRatio * 100)}%</span>
-                    <span style={{ fontSize: 10, color: coverageColor, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coverage</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--status-pass-bg)', border: '1px solid var(--status-pass-text)' }}>
-                    <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-pass-text)' }}>{matchedCount}</span>
-                    <span style={{ fontSize: 10, color: 'var(--status-pass-text)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Matched</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--status-fail-bg)', border: '1px solid var(--status-fail-text)' }}>
-                    <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-fail-text)' }}>{missingCount}</span>
-                    <span style={{ fontSize: 10, color: 'var(--status-fail-text)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Missing from Quote</span>
-                  </div>
-                  {extraItems.length > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--status-review-bg)', border: '1px solid var(--status-review-text)' }}>
-                      <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-review-text)' }}>{extraItems.length}</span>
-                      <span style={{ fontSize: 10, color: 'var(--status-review-text)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Extra in Quote</span>
-                    </div>
-                  )}
-                  {noQuoteCount > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--muted-foreground)' }}>{noQuoteCount}</span>
-                      <span style={{ fontSize: 10, color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>No Quote Available</span>
-                    </div>
-                  )}
-                </div>
-                {/* Missing components — compact badge list */}
-                {missingNames.length > 0 && (
-                  <div className="text-xs mb-2 p-2" style={{ background: 'var(--status-fail-bg)', borderRadius: 4, border: '1px solid var(--status-fail-text)' }}>
-                    <strong style={{ color: 'var(--status-fail-text)' }}>Components not covered by quote:</strong>{' '}
-                    <span style={{ color: 'var(--foreground)' }}>{missingNames.join(' · ')}</span>
-                  </div>
-                )}
-                {/* Structural risk note */}
-                {structuralCount > 0 && (
-                  <div className="text-xs mb-2 p-2" style={{ background: 'var(--fp-warning-bg, #fffbeb)', borderRadius: 4, border: '1px solid var(--fp-warning-border, #fbbf24)' }}>
-                    <strong style={{ color: 'var(--fp-warning-text, #92400e)' }}>⚠ {structuralCount} structural component{structuralCount > 1 ? 's' : ''} detected</strong>
-                    <span style={{ color: 'var(--muted-foreground)', marginLeft: 6 }}>— independent structural assessment required before settlement.</span>
-                  </div>
-                )}
-                <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>Full component breakdown with all quote prices and KINGA Optimised figures is in Section 3.1. Cost optimisation summary is in Section 3.1d.</p>
-              </div>
-            );
-           })()}
-          </div>{/* end 2.4c + 2.5 grid */}
+          {/* 2.5 Quote Coverage and 2.4c Damage Severity moved to Section 2.5 Damage Analysis — see SectionDamageAnalysis below */}
 
           {/* 2.6 Speed Inference Ensemble — MUST render before 2.7 Speed Forensics */}
           {(() => {
@@ -3228,11 +3114,9 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             physicsSpeed={physicsInferredSpeed ?? null}
           />
 
-          {/* 2.8 + 2.9 side-by-side grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
-            <Section28SeverityConsensus severityConsensus={(_phys as any)?.severityConsensus ?? null} />
-            <Section29DamagePatternValidation damagePatternValidation={(_phys as any)?.damagePatternValidation ?? null} />
-          </div>
+          {/* 2.8 Severity Consensus */}
+          <Section28SeverityConsensus severityConsensus={(_phys as any)?.severityConsensus ?? null} />
+          {/* 2.9 Damage Pattern Validation moved to Section 2.5 Damage Analysis — see SectionDamageAnalysis below */}
           {/* 2.10 Vehicle Structural Intelligence */}
           <Section210VehicleStructural claim={claim} />
         </div>
@@ -4145,9 +4029,9 @@ function LabourPartsRatioChart({
   const partsData = quotesWithSplit.map(q => q.parts);
   const labourData = quotesWithSplit.map(q => q.labour);
 
-  // Neutral palette — no red/green to avoid status noise
-  const partsColor = "rgba(100, 116, 139, 0.85)";   // slate-500
-  const labourColor = "rgba(148, 163, 184, 0.65)";  // slate-400 lighter
+  // Distinct colours: blue for parts, teal for labour — visually clear without status noise
+  const partsColor = "rgba(29, 78, 216, 0.85)";    // blue-700 — parts
+  const labourColor = "rgba(13, 148, 136, 0.80)";  // teal-600 — labour
 
   const chartData = {
     labels,
@@ -4327,6 +4211,144 @@ function NegotiationDeltaBlock({ costIntel, fmtMoney }: { costIntel: any; fmtMon
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{actionText}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Section 2.5 (Damage Analysis): Severity Distribution + Quote Coverage + Pattern Validation ──
+// Moved from Section 2 (where they were misplaced among physics forensics) to sit between
+// Technical Forensics and Financial Validation — the natural information flow.
+function SectionDamageAnalysis({ aiAssessment, quotes, claimRecord0, expandShorthand: _expandShorthand }: {
+  aiAssessment: any;
+  quotes?: any[];
+  claimRecord0?: any;
+  expandShorthand?: (s: string) => string;
+}) {
+  const expandShorthandFn = _expandShorthand ?? ((s: string) => s);
+
+  // ── 2.4c: Damage Severity Distribution ──────────────────────────────────────
+  const damagedPartsRaw = (aiAssessment as any)?.damagedComponentsJson;
+  const damagedParts: any[] = (() => {
+    if (!damagedPartsRaw) return [];
+    try {
+      const raw = typeof damagedPartsRaw === 'string' ? JSON.parse(damagedPartsRaw) : (Array.isArray(damagedPartsRaw) ? damagedPartsRaw : []);
+      return raw.filter((p: any) => p.severity);
+    } catch { return []; }
+  })();
+
+  // ── 2.5: Quote Coverage ──────────────────────────────────────────────────────
+  const partsReconRaw = (aiAssessment as any)?.partsReconciliationJson;
+  const partsRecon: any[] = (() => {
+    if (!partsReconRaw) return [];
+    try { return typeof partsReconRaw === 'string' ? JSON.parse(partsReconRaw) : (Array.isArray(partsReconRaw) ? partsReconRaw : []); } catch { return []; }
+  })();
+  const extraItems: any[] = (() => {
+    const reconSummaryRaw = (aiAssessment as any)?.costIntelligenceJson?.reconciliationSummary;
+    if (!reconSummaryRaw) return [];
+    try {
+      const rs = typeof reconSummaryRaw === 'string' ? JSON.parse(reconSummaryRaw) : reconSummaryRaw;
+      return Array.isArray(rs?.extra) ? rs.extra : [];
+    } catch { return []; }
+  })();
+  const matchedCount = partsRecon.filter((r: any) => r.reconciliation_status === 'matched').length;
+  const missingCount = partsRecon.filter((r: any) => r.reconciliation_status === 'missing_from_quote').length;
+  const noQuoteCount = partsRecon.filter((r: any) => r.reconciliation_status === 'no_quote_available').length;
+  const structuralCount = partsRecon.filter((r: any) => r.is_structural).length;
+  const coverageRatio = partsRecon.length > 0 ? matchedCount / partsRecon.length : 0;
+  const coverageColor = coverageRatio >= 0.8 ? 'var(--status-pass-text)' : coverageRatio >= 0.5 ? 'var(--status-review-text)' : 'var(--status-fail-text)';
+  const coverageBg = coverageRatio >= 0.8 ? 'var(--status-pass-bg)' : coverageRatio >= 0.5 ? 'var(--status-review-bg)' : 'var(--status-fail-bg)';
+  const pbName = (quotes ?? []).find((q: any) => q.panelBeaterName || q.repairerName)?.panelBeaterName
+    ?? (quotes ?? []).find((q: any) => q.panelBeaterName || q.repairerName)?.repairerName
+    ?? claimRecord0?.repairQuote?.repairerName
+    ?? (aiAssessment as any)?.panelBeaterName
+    ?? null;
+  const missingNames = partsRecon.filter((r: any) => r.reconciliation_status === 'missing_from_quote').map((r: any) => expandShorthandFn(r.component ?? ''));
+
+  // ── 2.9: Damage Pattern Validation (passed via prop) ─────────────────────────
+  const damagePatternValidation = (aiAssessment as any)?._physics?.damagePatternValidation ?? null;
+
+  const hasAnyContent = damagedParts.length > 0 || partsRecon.length > 0 || damagePatternValidation;
+  if (!hasAnyContent) return null;
+
+  return (
+    <div className="space-y-4">
+      {/* Row 1: Severity Distribution + Quote Coverage side by side */}
+      {(damagedParts.length > 0 || partsRecon.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+          {/* 2.4c Damage Severity Distribution */}
+          {damagedParts.length > 0 && (
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>2.4c Damage Severity Distribution</p>
+                <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>Distribution of {damagedParts.length} damaged component{damagedParts.length > 1 ? 's' : ''} by severity level.</p>
+              </div>
+              <div className="p-4">
+                <DamageSeverityChart components={damagedParts.map((p: any) => ({ name: p.name, severity: p.severity }))} />
+              </div>
+            </div>
+          )}
+          {/* 2.5 Quote Coverage Summary */}
+          {partsRecon.length > 0 && (
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>2.5 Quote Coverage Summary</p>
+                {pbName && (
+                  <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>
+                    Primary repairer: <strong style={{ color: '#0f172a' }}>{pbName}</strong>
+                    {(quotes ?? []).length > 1 && <span style={{ marginLeft: 6 }}>· {(quotes ?? []).length} quotes received — full comparison in Section 3.1</span>}
+                  </p>
+                )}
+              </div>
+              <div className="p-4">
+                {/* Coverage stat row */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: coverageBg, border: `1px solid ${coverageColor}` }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: coverageColor }}>{Math.round(coverageRatio * 100)}%</span>
+                    <span style={{ fontSize: 10, color: coverageColor, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coverage</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--status-pass-bg)', border: '1px solid var(--status-pass-text)' }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-pass-text)' }}>{matchedCount}</span>
+                    <span style={{ fontSize: 10, color: 'var(--status-pass-text)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Matched</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--status-fail-bg)', border: '1px solid var(--status-fail-text)' }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-fail-text)' }}>{missingCount}</span>
+                    <span style={{ fontSize: 10, color: 'var(--status-fail-text)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Missing</span>
+                  </div>
+                  {extraItems.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--status-review-bg)', border: '1px solid var(--status-review-text)' }}>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-review-text)' }}>{extraItems.length}</span>
+                      <span style={{ fontSize: 10, color: 'var(--status-review-text)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Extra</span>
+                    </div>
+                  )}
+                  {noQuoteCount > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--muted-foreground)' }}>{noQuoteCount}</span>
+                      <span style={{ fontSize: 10, color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>No Quote</span>
+                    </div>
+                  )}
+                </div>
+                {missingNames.length > 0 && (
+                  <div className="text-xs mb-2 p-2" style={{ background: 'var(--status-fail-bg)', borderRadius: 4, border: '1px solid var(--status-fail-text)' }}>
+                    <strong style={{ color: 'var(--status-fail-text)' }}>Not covered by quote:</strong>{' '}
+                    <span style={{ color: 'var(--foreground)' }}>{missingNames.join(' · ')}</span>
+                  </div>
+                )}
+                {structuralCount > 0 && (
+                  <div className="text-xs mb-2 p-2" style={{ background: 'var(--fp-warning-bg, #fffbeb)', borderRadius: 4, border: '1px solid var(--fp-warning-border, #fbbf24)' }}>
+                    <strong style={{ color: 'var(--fp-warning-text, #92400e)' }}>⚠ {structuralCount} structural component{structuralCount > 1 ? 's' : ''} detected</strong>
+                    <span style={{ color: 'var(--muted-foreground)', marginLeft: 6 }}>— independent structural assessment required before settlement.</span>
+                  </div>
+                )}
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Full breakdown in Section 3.1.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Row 2: 2.9 Damage Pattern Validation — full width */}
+      {damagePatternValidation && (
+        <Section29DamagePatternValidation damagePatternValidation={damagePatternValidation} />
+      )}
     </div>
   );
 }
@@ -7841,7 +7863,7 @@ const REPORT_CSS = `
 .kinga-report .compact-kv-table{width:auto;max-width:520px;border-collapse:collapse;margin-bottom:10px;table-layout:auto}
 .kinga-report .compact-kv-table td{padding:5px 0;font-size:12px;border-bottom:1px solid var(--kr-rule);vertical-align:top;white-space:normal}
 .kinga-report .compact-kv-table td:first-child{font-size:10px;font-family:var(--kr-mono);color:var(--kr-muted);letter-spacing:0.1em;text-transform:uppercase;padding-right:24px;white-space:nowrap;min-width:160px}
-.kinga-report .compact-kv-table td:last-child{color:var(--kr-text);font-weight:500}
+.kinga-report .compact-kv-table td:last-child{color:var(--kr-text);font-weight:600;font-size:12px;letter-spacing:0.01em}
 .kinga-report .compact-kv-table tr:last-child td{border-bottom:none}
 .kinga-report .two-col-kv{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-bottom:14px}
 .kinga-report .two-col-kv .compact-kv-table{width:100%;max-width:none}
@@ -8008,12 +8030,12 @@ const REPORT_CSS = `
 .kinga-report .narr-reasoning-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--kr-muted);margin-bottom:4px;display:block}
 .kinga-report .narr-reasoning-text{font-size:12px;color:var(--kr-text);line-height:1.6}
 /* Physics 2-column layout: table left, gauge+chart right */
-.kinga-report .physics-row{display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:start}
+.kinga-report .physics-row{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
 .kinga-report .physics-col-main{min-width:0}
-.kinga-report .physics-col-side{min-width:0}
+.kinga-report .physics-col-side{min-width:0;width:100%}
 /* Print: keep physics-row side-by-side */
 @media print{
-  .kinga-report .physics-row{display:grid !important;grid-template-columns:1fr 200px !important;gap:12px !important}
+  .kinga-report .physics-row{display:grid !important;grid-template-columns:1fr 280px !important;gap:16px !important}
   .kinga-report .narr-cv-row{display:grid !important;grid-template-columns:80px 90px 1fr !important}
   .kinga-report .narr-flag-row{display:grid !important;grid-template-columns:60px 1fr !important}
 }
@@ -8442,6 +8464,9 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       <div className="section-heading" data-section="2">2 &nbsp; Technical Forensics</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="physics" pipelineRunId={pipelineRunId} />}
       <Section2Physics claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
+
+      <div className="section-heading" data-section="2.5">2.5 &nbsp; Damage Analysis</div>
+      <SectionDamageAnalysis aiAssessment={aiAssessment} quotes={quotes} claimRecord0={(aiAssessment as any)?._claimRecord ?? claim} expandShorthand={expandShorthand} />
 
       <div className="section-heading" data-section="3">3 &nbsp; Financial Validation</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="financial_validation" pipelineRunId={pipelineRunId} />}

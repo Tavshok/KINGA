@@ -41,7 +41,11 @@ const MIN_DIM_PAGE_RENDER = 300;
 const MIN_DIM_EMBEDDED = 400;
 const MIN_PIXEL_AREA = 90_000;
 const BLUR_VARIANCE_THRESHOLD = 20;
-const TEXT_PAGE_WHITE_RATIO = 0.82;
+// Raised from 0.82 to 0.92: pages with photos on white backgrounds were being
+// incorrectly flagged as text-heavy, causing them to be classified as document_page
+// and excluded from photo forensics. Only truly text-dominated pages (>92% white)
+// should be marked as text-heavy.
+const TEXT_PAGE_WHITE_RATIO = 0.92;
 const UNIFORM_STDDEV_THRESHOLD = 8;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
