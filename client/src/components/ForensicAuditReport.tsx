@@ -5266,9 +5266,17 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
   const bettermentUsd = claimRecord0?.insuranceContext?.bettermentUsd ?? null;
   const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
   const agreedCostUsd = claimRecord0?.costs?.agreedCostUsd ?? null;
-  // Repair cost priority: costIntelligenceJson.totalEstimatedCost (validated) → LLM repairCostUsd → agreed cost → quoted total
-  // totalEstimatedCost is the KINGA-validated repair cost from the cost decision engine
-  const repairCost = costIntel?.totalEstimatedCost ?? llmValuation?.repairCostUsd ?? agreedCostUsd ?? quotedTotal;
+  // L2 composite optimised cost — same figure shown as "KINGA Optimised" on the cover page.
+  // This is the payable amount to a single repairer after KINGA's benchmark adjustments.
+  // L1 (totalEstimatedCost) is a theoretical cross-repairer minimum — not payable to any single repairer.
+  const l2OptimisedCost = costIntel?.compositeOptimisation?.l2CompositeOptimisedCostUsd
+    ?? costIntel?.compositeOptimisation?.compositeOptimisedCostUsd
+    ?? null;
+  // Repair cost: L2 composite optimised (KINGA Optimised) is the single authoritative figure.
+  // Do NOT fall back to L1 totalEstimatedCost — it is a theoretical cross-repairer minimum, not payable.
+  const repairCost = l2OptimisedCost ?? llmValuation?.repairCostUsd ?? agreedCostUsd ?? quotedTotal;
+  // isKingaOptimised: true when using L2 composite (the authoritative KINGA cost)
+  const isKingaOptimised = l2OptimisedCost != null;
   // Repair-to-value ratio: prefer LLM-computed ratio, then compute from costIntelligenceJson values
   const repairToValue = llmRepairToValue ?? (marketValueUsd && marketValueUsd > 0 && repairCost > 0 ? (repairCost / marketValueUsd) * 100 : null);
   const isWriteOff = llmVerdict === "WRITE_OFF" || (repairToValue != null && repairToValue >= 75);
@@ -5301,9 +5309,11 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
         <table className="compact-kv-table text-xs">
           <tbody>{([
               // Repair cost label: distinguish between KINGA-validated cost and raw quote
-              costIntel?.totalEstimatedCost != null
-                ? ["Repair Cost (KINGA-Validated)", fmtMoney(costIntel.totalEstimatedCost)]
-                : ["Repair Cost (Quoted)", repairCost > 0 ? fmtMoney(repairCost) : "Not available"],
+              isKingaOptimised
+                ? ["KINGA Optimised Cost", fmtMoney(repairCost)]
+                : repairCost > 0
+                  ? ["Repair Cost (Submitted)", fmtMoney(repairCost)]
+                  : null,
               ["Repair-to-Value Ratio", repairToValue != null ? `${repairToValue.toFixed(1)}%` : "Cannot calculate"],
               ["Write-off Threshold", "75% of market value"],
               ["Excess / Deductible", excessUsd != null ? fmtMoney(excessUsd) : "Not stated"],
