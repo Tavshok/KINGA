@@ -2384,6 +2384,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           aiConfidenceScore: claims.aiConfidenceScore,
           aiAssessmentTriggered: claims.aiAssessmentTriggered,
           aiAssessmentCompleted: claims.aiAssessmentCompleted,
+          aiAssessmentCompletedAt: claims.aiAssessmentCompletedAt,
+          pipelineCurrentStage: claims.pipelineCurrentStage,
         })
         .from(claims)
         .where(and(...conditions))
@@ -2734,6 +2736,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const asyncUserName = ctx.user.name || "Insurer";
         const asyncUserRole = ctx.user.role;
         const asyncTenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        // Detect re-run: if aiAssessmentCompleted=1 this is a re-analysis, not a first run.
+        const isRerun = currentClaim.aiAssessmentCompleted === 1;
 
         // ── PRE-FLIGHT: Mark pipeline as triggered BEFORE firing async job ──
         // This prevents the claim from appearing stuck in assessment_in_progress
@@ -2771,24 +2775,26 @@ If any value is not found, use 0 for numbers and empty string for text.`;
               const aiAssessment = await getAiAssessmentByClaimId(input.claimId, asyncTenantId);
 
               if (claim && aiAssessment) {
-                // Send email notification about KINGA assessment completion
-                await notifyAiAssessmentComplete({
-                  claimId: input.claimId,
-                  recipientEmail: asyncUserEmail,
-                  recipientName: asyncUserName,
-                  claimNumber: claim.claimNumber,
-                  estimatedCost: (aiAssessment.estimatedCost || 0).toString(),
-                  fraudRiskLevel: aiAssessment.fraudRiskLevel || "low",
-                  confidenceScore: (aiAssessment.confidenceScore || 0).toString(),
-                });
+                // Send email notification — skip on re-runs to avoid duplicate emails
+                if (!isRerun) {
+                  await notifyAiAssessmentComplete({
+                    claimId: input.claimId,
+                    recipientEmail: asyncUserEmail,
+                    recipientName: asyncUserName,
+                    claimNumber: claim.claimNumber,
+                    estimatedCost: (aiAssessment.estimatedCost || 0).toString(),
+                    fraudRiskLevel: aiAssessment.fraudRiskLevel || "low",
+                    confidenceScore: (aiAssessment.confidenceScore || 0).toString(),
+                  });
+                }
 
                 // Create in-app notification
                 const { createNotification } = await import("./db");
                 if (aiAssessment.fraudRiskLevel === "high") {
                   await createNotification({
                     userId: asyncUserId,
-                    title: "\u26a0\ufe0f High Fraud Risk Detected",
-                    message: `KINGA assessment flagged claim ${claim.claimNumber} as high fraud risk. Immediate review recommended.`,
+                    title: isRerun ? "\u26a0\ufe0f High Fraud Risk — Re-Analysis" : "\u26a0\ufe0f High Fraud Risk Detected",
+                    message: `KINGA ${isRerun ? 're-analysis' : 'assessment'} flagged claim ${claim.claimNumber} as high fraud risk. Immediate review recommended.`,
                     type: "fraud_detected",
                     claimId: input.claimId,
                     entityType: "ai_assessment",
@@ -2799,8 +2805,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                 } else {
                   await createNotification({
                     userId: asyncUserId,
-                    title: "KINGA Assessment Complete",
-                    message: `AI damage assessment completed for claim ${claim.claimNumber}. Estimated cost: $${(aiAssessment.estimatedCost || 0).toFixed(2)}`,
+                    title: isRerun ? "KINGA Re-Analysis Complete" : "KINGA Assessment Complete",
+                    message: isRerun
+                      ? `Re-analysis complete for claim ${claim.claimNumber}. Updated estimate: $${(aiAssessment.estimatedCost || 0).toFixed(2)}`
+                      : `AI damage assessment completed for claim ${claim.claimNumber}. Estimated cost: $${(aiAssessment.estimatedCost || 0).toFixed(2)}`,
                     type: "assessment_completed",
                     claimId: input.claimId,
                     entityType: "ai_assessment",

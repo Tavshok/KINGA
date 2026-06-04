@@ -63,6 +63,9 @@ export default function ClaimsProcessorDashboard() {
   // Only fire the failure toast after 2 consecutive polls (~10 s) to avoid false positives
   // during transient pipeline state transitions (e.g. intake_pending briefly before pipeline starts).
   const failureDebounceRef = useRef<Map<number, number>>(new Map());
+  // Track when each re-run was triggered (claimId → timestamp ms).
+  // Completion is only valid if aiAssessmentCompletedAt > rerunStartedAt.
+  const rerunStartedAtRef = useRef<Map<number, number>>(new Map());
   const [searchQuery, setSearchQuery] = useState("");
 
   // SLA helper: returns status based on claim age in hours
@@ -160,9 +163,22 @@ export default function ClaimsProcessorDashboard() {
     aiProcessingClaimIds.forEach(id => {
       const claim = allClaims.find((c: any) => c.id === id);
       if (!claim) return;
-      // Claim finished successfully
-      if (claim.status === "assessment_complete") {
-        completedIds.add(id);
+      // Claim finished successfully — but only if the completion timestamp is
+      // NEWER than when the re-run was triggered (avoids firing on stale state).
+      if (claim.status === "assessment_complete" && claim.documentProcessingStatus !== "parsing" && claim.documentProcessingStatus !== "processing") {
+        const rerunStartedAt = rerunStartedAtRef.current.get(id);
+        if (rerunStartedAt) {
+          // Re-run: only complete if aiAssessmentCompletedAt is after rerunStartedAt
+          const completedAt = claim.aiAssessmentCompletedAt ? new Date(claim.aiAssessmentCompletedAt).getTime() : 0;
+          if (completedAt > rerunStartedAt) {
+            completedIds.add(id);
+            rerunStartedAtRef.current.delete(id);
+          }
+          // else: pipeline still running — keep in processing set
+        } else {
+          // First-time run: no rerunStartedAt, complete normally
+          completedIds.add(id);
+        }
       }
       // Claim failed — backend reset it to intake_pending/intake_queue with failed doc status.
       // Use a 2-poll debounce to avoid false positives during transient state transitions.
@@ -231,10 +247,13 @@ export default function ClaimsProcessorDashboard() {
   // Trigger KINGA Assessment mutation
   const triggerAiMutation = trpc.claims.triggerAiAssessment.useMutation({ // eslint-disable-line react-hooks/rules-of-hooks
     onSuccess: (_data, variables) => {
+      // Record the timestamp so completion detection can ignore the pre-existing
+      // assessment_complete state and only fire the toast for the NEW result.
+      rerunStartedAtRef.current.set(variables.claimId, Date.now());
       setAiProcessingClaimIds(prev => new Set(prev).add(variables.claimId));
       setTriggeringClaimId(null);
-      toast.info("KINGA Assessment Started", {
-        description: "KINGA is analysing this claim. You'll be notified when it's complete. The claim has moved to 'In Review'.",
+      toast.info("KINGA Re-Analysis Started", {
+        description: "KINGA is re-analysing this claim. The report will update automatically when complete (2–4 min).",
         duration: 6000,
       });
       refetchAll();
@@ -731,44 +750,69 @@ export default function ClaimsProcessorDashboard() {
               {/* AI FLAGGED: View Report, Download, Escalate */}
               {section === "ai_flagged" && (
                 <>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => handleViewDetails(claim.id)}
-                    className="w-full justify-start bg-teal-600 hover:bg-teal-700"
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View KINGA Report
-                    <ArrowRight className="h-3 w-3 ml-auto" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleAssignAssessor(claim.id)}
-                    className="w-full justify-start border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:bg-blue-950/30"
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Assign Human Assessor
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleTriggerAI(claim.id)}
-                    disabled={triggerAiMutation.isPending}
-                    className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
-                  >
-                    <Brain className="h-4 w-4 mr-2" />
-                    Re-run KINGA Assessment
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleEscalate(claim.id)}
-                    className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30"
-                  >
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Escalate
-                  </Button>
+                  {isProcessing ? (
+                    <>
+                      <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/30 rounded-md p-3">
+                        <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                        <span className="truncate">
+                          {(claim as any).pipelineCurrentStage
+                            ? (claim as any).pipelineCurrentStage.replace(/^Stage (\d+)/, 'Stage $1 of 10')
+                            : "Re-running KINGA analysis..."}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleResetStuckClaim(claim.id)}
+                        disabled={resetStuckClaimMutation.isPending}
+                        className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
+                      >
+                        <RotateCcw className="h-3 w-3 mr-2" />
+                        Reset if Stuck
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleViewDetails(claim.id)}
+                        className="w-full justify-start bg-teal-600 hover:bg-teal-700"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View KINGA Report
+                        <ArrowRight className="h-3 w-3 ml-auto" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAssignAssessor(claim.id)}
+                        className="w-full justify-start border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:bg-blue-950/30"
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Assign Human Assessor
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleTriggerAI(claim.id)}
+                        disabled={triggerAiMutation.isPending}
+                        className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
+                      >
+                        <Brain className="h-4 w-4 mr-2" />
+                        Re-run KINGA Assessment
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEscalate(claim.id)}
+                        className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30"
+                      >
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Escalate
+                      </Button>
+                    </>
+                  )}
                 </>
               )}
 
