@@ -1031,26 +1031,61 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         const dataClass = dataCompleteness >= 75 ? 'low' : dataCompleteness >= 50 ? 'mid' : 'high';
         const kingaOptTotal: number = co0?.l2CompositeOptimisedCostUsd ?? co0?.compositeOptimisedCostUsd ?? 0;
         // Build per-quote list with name + total, sorted ascending by total
-        // Build per-quote list: deduplicate by normalised name (keep highest-total entry per name)
-        const _rawQuoteItems: { name: string; total: number }[] = (
+        // Build per-quote list: deduplicate by normalised name (keep LOWEST-total entry per name — the assessor-adjusted quote)
+        // Smart quote deduplication:
+        // 1. Group by panelBeaterId — same repairer, multiple submissions
+        // 2. If any entry in the group has modified=1 (assessor-adjusted), use that one and mark isAdjusted=true
+        // 3. If no modified=1 exists, keep ALL entries from that repairer (genuine separate quotes)
+        // 4. Fall back to name-based grouping for quotes without panelBeaterId
+        const _rawQuoteItems: { name: string; total: number; panelBeaterId?: number; modified?: number }[] = (
           (quotes && quotes.length > 0)
             ? quotes.map((q: any) => {
                 const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
                 const raw = (q.quotedAmount ?? 0) / 100;
                 const total = raw > 0 ? raw : lineTotal;
                 const name = q.panelBeaterName ?? q.repairerName ?? (q.panelBeaterId ? `Repairer #${q.panelBeaterId}` : 'Panel Beater');
-                return { name, total };
+                return { name, total, panelBeaterId: q.panelBeaterId, modified: q.modified ?? 0 };
               }).filter((q) => q.total >= 500)
             : _selectedQuoteTotals.map((t, i) => ({ name: `Quote ${i + 1}`, total: t }))
         );
-        // Deduplicate: normalise name to first 30 chars lowercase, keep the entry with the highest total per key
-        const _dedupeMap = new Map<string, { name: string; total: number }>();
+        // Group by panelBeaterId
+        const _pbIdGroups = new Map<number, typeof _rawQuoteItems>();
+        const _noIdItems: typeof _rawQuoteItems = [];
         for (const item of _rawQuoteItems) {
-          const key = item.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28);
-          const existing = _dedupeMap.get(key);
-          if (!existing || item.total > existing.total) _dedupeMap.set(key, item);
+          if (item.panelBeaterId) {
+            const grp = _pbIdGroups.get(item.panelBeaterId) ?? [];
+            grp.push(item);
+            _pbIdGroups.set(item.panelBeaterId, grp);
+          } else {
+            _noIdItems.push(item);
+          }
         }
-        const _allQuoteItems: { name: string; total: number }[] = [..._dedupeMap.values()].sort((a, b) => a.total - b.total);
+        const _resolvedItems: { name: string; total: number; isAdjusted: boolean }[] = [];
+        for (const [, grp] of _pbIdGroups) {
+          const adjustedEntry = grp.find(e => e.modified === 1);
+          if (adjustedEntry) {
+            // Assessor-adjusted quote exists — use it exclusively
+            _resolvedItems.push({ name: adjustedEntry.name, total: adjustedEntry.total, isAdjusted: true });
+          } else if (grp.length > 1) {
+            // Multiple quotes from same repairer, none assessor-adjusted — show all (genuine separate quotes)
+            for (const e of grp) _resolvedItems.push({ name: e.name, total: e.total, isAdjusted: false });
+          } else {
+            _resolvedItems.push({ name: grp[0].name, total: grp[0].total, isAdjusted: false });
+          }
+        }
+        // Handle quotes without panelBeaterId via name-based dedup
+        const _nameDedupeMap = new Map<string, { name: string; total: number; isAdjusted: boolean }>();
+        for (const item of _noIdItems) {
+          const key = item.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28);
+          const existing = _nameDedupeMap.get(key);
+          if (!existing || (item.modified === 1) || (item.modified === 0 && item.total < existing.total)) {
+            _nameDedupeMap.set(key, { name: item.name, total: item.total, isAdjusted: item.modified === 1 });
+          }
+        }
+        const _allQuoteItems: { name: string; total: number; isAdjusted: boolean }[] = [
+          ..._resolvedItems,
+          ..._nameDedupeMap.values(),
+        ].sort((a, b) => a.total - b.total);
         const lowestQuoteTotal: number = _allQuoteItems.length > 0 ? _allQuoteItems[0].total : 0;
         const potentialSavings: number = lowestQuoteTotal > 0 && kingaOptTotal > 0 && lowestQuoteTotal > kingaOptTotal ? lowestQuoteTotal - kingaOptTotal : 0;
         const savingsPct: number = lowestQuoteTotal > 0 && potentialSavings > 0 ? (potentialSavings / lowestQuoteTotal) * 100 : 0;
@@ -1090,9 +1125,10 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
                     <span className="cost-lbl">
                       {q.name.length > 22 ? q.name.slice(0, 20) + '…' : q.name}
                       {i === 0 && <span className="cost-lowest-tag">LOWEST</span>}
+                      {q.isAdjusted && <span className="cost-adjusted-tag">ADJ</span>}
                     </span>
                     <span className={`cost-val${i === 0 ? '' : ' cost-val-dim'}`}>{fmtMoney(q.total)}</span>
-                    <span className="cost-sub">Submitted quote</span>
+                    <span className="cost-sub">{q.isAdjusted ? 'Assessor adjusted' : 'Submitted quote'}</span>
                   </div>
                 ))
               ) : (
@@ -4487,7 +4523,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
     if (r.component) reconStatusMap[r.component.toLowerCase()] = r.reconciliation_status ?? 'no_quote_available';
   }
 
-  // Build pbQuotes with deduplication: same normalised name → keep highest-total entry
+  // Build pbQuotes with deduplication: same normalised name → keep LOWEST-total entry (assessor-adjusted quote is always lower)
   const _pbQuotesRaw = (quotes ?? []).map((q: any) => {
     const lineItemsTotal = (q.lineItems ?? []).reduce((sum: number, li: any) => sum + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
     const rawTotal = (q.quotedAmount ?? 0) / 100;
@@ -4506,7 +4542,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   for (const item of _pbQuotesRaw) {
     const key = item.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28);
     const existing = _pbDedupeMap.get(key);
-    if (!existing || item.total > existing.total) _pbDedupeMap.set(key, item);
+    if (!existing || item.total < existing.total) _pbDedupeMap.set(key, item);
   }
   const pbQuotes = [..._pbDedupeMap.values()];
 
@@ -7997,6 +8033,7 @@ const REPORT_CSS = `
 .kinga-report .cost-val-dim{font-size:16px;font-weight:400;color:var(--kr-muted)}
 .kinga-report .cost-sub{font-size:10px;color:var(--kr-muted);display:block;margin-top:1px}
 .kinga-report .cost-lowest-tag{font-size:8px;font-family:var(--kr-mono);letter-spacing:.08em;font-weight:600;color:var(--kr-green);background:var(--kr-green-light);border:1px solid var(--kr-green);padding:1px 4px;border-radius:2px;line-height:1.4}
+.kinga-report .cost-adjusted-tag{font-size:8px;font-family:var(--kr-mono);letter-spacing:.08em;font-weight:600;color:var(--kr-amber);background:var(--kr-amber-light);border:1px solid var(--kr-amber);padding:1px 4px;border-radius:2px;line-height:1.4}
 .kinga-report .cost-divider{width:1px;background:var(--kr-black);align-self:stretch;margin:0 8px;flex-shrink:0}
 .kinga-report .scorecard-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--kr-rule);margin:14px 0;border:1px solid var(--kr-rule)}
 .kinga-report .scorecard-cell{background:var(--kr-white);padding:10px 14px;position:relative}
@@ -8584,6 +8621,7 @@ const REPORT_CSS = `
   .kinga-report .verdict-value.review{color:var(--kr-amber) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   .kinga-report .verdict-value.decline{color:var(--kr-red) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   .kinga-report .cost-lowest-tag{background:var(--kr-green-light) !important;color:var(--kr-green) !important;border:1px solid var(--kr-green) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+  .kinga-report .cost-adjusted-tag{background:var(--kr-amber-light) !important;color:var(--kr-amber) !important;border:1px solid var(--kr-amber) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   /* ── Section 6 score summary bars: keep together ── */
   /* ── Keep multi-column layouts in print (saves ~8 pages) ── */
   .kinga-report .two-col{display:grid !important;grid-template-columns:1fr 1fr !important;gap:14px !important}

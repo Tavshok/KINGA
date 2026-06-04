@@ -4348,6 +4348,36 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return quotesWithItems;
       }),
 
+    // Assessor quote adjustment — sets modified=1, preserves original amount, records reason
+    adjustByAssessor: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+        adjustedAmount: z.number(), // in cents
+        modificationReason: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        const { panelBeaterQuotes: _pbq } = await import('../drizzle/schema');
+        const { eq: _eq } = await import('drizzle-orm');
+        // Fetch current quote to preserve original amount
+        const [current] = await db.select().from(_pbq).where(_eq(_pbq.id, input.quoteId)).limit(1);
+        if (!current) throw new Error(`Quote ${input.quoteId} not found`);
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        await db.update(_pbq).set({
+          modified: 1,
+          originalQuotedAmount: current.originalQuotedAmount ?? current.quotedAmount, // only set once
+          quotedAmount: input.adjustedAmount,
+          modificationReason: input.modificationReason ?? 'Assessor adjustment',
+          modifiedByAssessorId: ctx.user.id,
+          status: 'modified',
+          updatedAt: now,
+        }).where(_eq(_pbq.id, input.quoteId));
+        console.log(`[quotes.adjustByAssessor] Quote ${input.quoteId} adjusted by assessor ${ctx.user.id}: $${(current.quotedAmount ?? 0) / 100} → $${input.adjustedAmount / 100}`);
+        return { success: true, originalAmount: current.originalQuotedAmount ?? current.quotedAmount, adjustedAmount: input.adjustedAmount };
+      }),
+
     // Extract quote from handwritten image using OCR
     extractFromImage: protectedProcedure
       .input(z.object({ 
