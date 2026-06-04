@@ -976,9 +976,21 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         const fcdiClass = fcdiTileScore >= 70 ? 'low' : fcdiTileScore >= 40 ? 'mid' : 'high';
         const dataClass = dataCompleteness >= 75 ? 'low' : dataCompleteness >= 50 ? 'mid' : 'high';
         const kingaOptTotal: number = co0?.l2CompositeOptimisedCostUsd ?? co0?.compositeOptimisedCostUsd ?? 0;
-        const agreedCostTotal: number = ci0?.documentedAgreedCostUsd ?? 0;
-        const marketValTotal: number = ci0?.marketValueUsd ?? 0;
-        const kingaSavingPct = quotedTotal > 0 && kingaOptTotal > 0 ? ((quotedTotal - kingaOptTotal) / quotedTotal * 100) : 0;
+        // Build per-quote list with name + total, sorted ascending by total
+        const _allQuoteItems: { name: string; total: number }[] = (
+          (quotes && quotes.length > 0)
+            ? quotes.map((q: any) => {
+                const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
+                const raw = (q.quotedAmount ?? 0) / 100;
+                const total = raw > 0 ? raw : lineTotal;
+                const name = q.panelBeaterName ?? q.repairerName ?? (q.panelBeaterId ? `Repairer #${q.panelBeaterId}` : 'Panel Beater');
+                return { name, total };
+              }).filter((q) => q.total >= 500)
+            : _selectedQuoteTotals.map((t, i) => ({ name: `Quote ${i + 1}`, total: t }))
+        ).sort((a, b) => a.total - b.total);
+        const lowestQuoteTotal: number = _allQuoteItems.length > 0 ? _allQuoteItems[0].total : 0;
+        const potentialSavings: number = lowestQuoteTotal > 0 && kingaOptTotal > 0 && lowestQuoteTotal > kingaOptTotal ? lowestQuoteTotal - kingaOptTotal : 0;
+        const savingsPct: number = lowestQuoteTotal > 0 && potentialSavings > 0 ? (potentialSavings / lowestQuoteTotal) * 100 : 0;
         return (
           <div className="decision-strip">
             {/* Verdict block */}
@@ -1006,25 +1018,49 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
                 <span className="score-lbl">DATA</span>
               </div>
             </div>
-            {/* Cost cluster */}
+            {/* Cost cluster: all quotes (lowest tagged) + KINGA Optimised + Potential Savings */}
             <div className="cost-cluster">
-              <div className="cost-item">
-                <span className="cost-lbl">SUBMITTED</span>
-                <span className="cost-val">{quotedTotal > 0 ? fmtMoney(quotedTotal) : '—'}</span>
-                <span className="cost-sub">{_quoteTotalsForL1.length > 0 ? `${_quoteTotalsForL1.length} quote${_quoteTotalsForL1.length === 1 ? '' : 's'}` : 'No quote'}</span>
-              </div>
-              <div className="cost-item">
-                <span className="cost-lbl">KINGA OPTIMISED</span>
-                <span className="cost-val">{kingaOptTotal > 0 ? fmtMoney(kingaOptTotal) : '—'}</span>
-                <span className="cost-sub">{kingaSavingPct > 0 ? `${kingaSavingPct.toFixed(1)}% saving` : 'Best price'}</span>
-              </div>
-              {agreedCostTotal > 0 && (
+              {/* All submitted quotes — sorted ascending, lowest gets a tag */}
+              {_allQuoteItems.length > 0 ? (
+                _allQuoteItems.map((q, i) => (
+                  <div key={i} className="cost-item">
+                    <span className="cost-lbl">
+                      {q.name.length > 22 ? q.name.slice(0, 20) + '…' : q.name}
+                      {i === 0 && <span className="cost-lowest-tag">LOWEST</span>}
+                    </span>
+                    <span className={`cost-val${i === 0 ? '' : ' cost-val-dim'}`}>{fmtMoney(q.total)}</span>
+                    <span className="cost-sub">Submitted quote</span>
+                  </div>
+                ))
+              ) : (
                 <div className="cost-item">
-                  <span className="cost-lbl">AGREED</span>
-                  <span className="cost-val">{fmtMoney(agreedCostTotal)}</span>
-                  <span className="cost-sub">{marketValTotal > 0 ? `${((agreedCostTotal / marketValTotal) * 100).toFixed(0)}% of value` : 'Settled'}</span>
+                  <span className="cost-lbl">QUOTES</span>
+                  <span className="cost-val">—</span>
+                  <span className="cost-sub">No quotes received</span>
                 </div>
               )}
+              {/* Divider */}
+              <div className="cost-divider" />
+              {/* KINGA Optimised */}
+              <div className="cost-item">
+                <span className="cost-lbl">KINGA OPTIMISED</span>
+                <span className="cost-val col-blue">{kingaOptTotal > 0 ? fmtMoney(kingaOptTotal) : '—'}</span>
+                <span className="cost-sub">{kingaOptTotal > 0 ? 'AI-validated cost' : 'Pending analysis'}</span>
+              </div>
+              {/* Potential Savings */}
+              <div className="cost-item">
+                <span className="cost-lbl">POTENTIAL SAVINGS</span>
+                <span className={`cost-val${potentialSavings > 0 ? ' col-green' : ''}`}>
+                  {potentialSavings > 0 ? fmtMoney(potentialSavings) : '—'}
+                </span>
+                <span className="cost-sub">
+                  {savingsPct > 0
+                    ? `${savingsPct.toFixed(1)}% reduction`
+                    : potentialSavings === 0 && lowestQuoteTotal > 0 && kingaOptTotal > 0
+                    ? 'Already optimal'
+                    : 'Awaiting analysis'}
+                </span>
+              </div>
             </div>
           </div>
         );
@@ -7860,10 +7896,14 @@ const REPORT_CSS = `
 .kinga-report .score-num.mid{color:var(--kr-amber)}
 .kinga-report .score-num.high{color:var(--kr-red)}
 .kinga-report .score-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.08em;font-family:var(--kr-mono);display:block;margin-top:2px}
-.kinga-report .cost-cluster{display:flex;gap:20px;flex-wrap:wrap;border-left:1px solid var(--kr-rule);padding-left:28px}
-.kinga-report .cost-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.08em;font-family:var(--kr-mono);display:block}
-.kinga-report .cost-val{font-size:18px;font-weight:600;font-family:var(--kr-mono);display:block;letter-spacing:-.02em}
-.kinga-report .cost-sub{font-size:10px;color:var(--kr-muted)}
+.kinga-report .cost-cluster{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;border-left:1px solid var(--kr-rule);padding-left:28px}
+.kinga-report .cost-item{min-width:90px}
+.kinga-report .cost-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.08em;font-family:var(--kr-mono);display:flex;align-items:center;gap:5px;margin-bottom:2px}
+.kinga-report .cost-val{font-size:18px;font-weight:600;font-family:var(--kr-mono);display:block;letter-spacing:-.02em;color:var(--kr-text)}
+.kinga-report .cost-val-dim{font-size:16px;font-weight:400;color:var(--kr-muted)}
+.kinga-report .cost-sub{font-size:10px;color:var(--kr-muted);display:block;margin-top:1px}
+.kinga-report .cost-lowest-tag{font-size:8px;font-family:var(--kr-mono);letter-spacing:.08em;font-weight:600;color:var(--kr-green);background:var(--kr-green-light);border:1px solid var(--kr-green);padding:1px 4px;border-radius:2px;line-height:1.4}
+.kinga-report .cost-divider{width:1px;background:var(--kr-rule);align-self:stretch;margin:0 4px;flex-shrink:0}
 .kinga-report .scorecard-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--kr-rule);margin:24px 0;border:1px solid var(--kr-rule)}
 .kinga-report .scorecard-cell{background:var(--kr-white);padding:14px 16px;position:relative}
 .kinga-report .sc-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;color:var(--kr-muted);margin-bottom:6px;display:block}
