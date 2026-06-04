@@ -67,7 +67,7 @@ export function CostComparisonChart({
     const list: { label: string; value: number; color: string }[] = [];
     if (originalQuote > 0) list.push({ label: panelBeaterName ? `Lowest Quote (${panelBeaterName})` : "Lowest Submitted Quote", value: originalQuote, color: colors.blue });
     if (trueCost > 0 && trueCost !== originalQuote) list.push({ label: "KINGA Optimised", value: trueCost, color: colors.primary });
-    if (aiEstimate > 0 && aiEstimate !== trueCost) list.push({ label: "KINGA Estimate", value: aiEstimate, color: colors.muted });
+    if (aiEstimate > 0 && aiEstimate !== trueCost) list.push({ label: "KINGA Estimate", value: aiEstimate, color: "#0891b2" }); // teal — distinct from black muted
     return list;
   }, [originalQuote, aiEstimate, trueCost, panelBeaterName, colors]);
 
@@ -111,7 +111,7 @@ export function CostComparisonChart({
   };
 
   return (
-    <div style={{ height: `${Math.max(90, items.length * 36)}px` }}>
+    <div style={{ height: `${Math.max(110, items.length * 42)}px` }}>
       <Bar data={data} options={options} />
     </div>
   );
@@ -215,7 +215,9 @@ export function DamageSeverityChart({ components }: DamageSeverityChartProps) {
       data: counts.map(([_, v]) => v),
       backgroundColor: counts.map(([k]) => severityColors[k] ?? colors.muted),
       borderRadius: 0,
-      barThickness: 24,
+      barThickness: 32,
+      categoryPercentage: 0.7,
+      barPercentage: 0.85,
     }],
   };
 
@@ -233,19 +235,19 @@ export function DamageSeverityChart({ components }: DamageSeverityChartProps) {
     scales: {
       x: {
         grid: { display: false },
-        ticks: { color: colors.text, font: { size: 11 } },
+        ticks: { color: colors.text, font: { size: 12, weight: '600' as const } },
       },
       y: {
         grid: { color: colors.grid },
-        ticks: { color: colors.muted, stepSize: 1 },
+        ticks: { color: colors.muted, stepSize: 1, font: { size: 11 } },
         beginAtZero: true,
       },
     },
   };
 
   return (
-    <div style={{ height: "140px" }}>
-      <Bar data={data} options={options} />
+    <div style={{ height: "220px" }}>
+      <Bar data={data} options={options as any} />
     </div>
   );
 }

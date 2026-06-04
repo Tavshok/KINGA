@@ -2119,7 +2119,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
       </div>
 
       {gates.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff", pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Document Integrity Checks</p>
           </div>
@@ -3405,6 +3405,8 @@ function Section210VehicleStructural({ claim }: { claim: any }) {
 
   // Do not render section at all if no vehicle data on claim
   if (!make || !model) return null;
+  // Do not render a blank section during loading or when no data — avoids white space on PDF
+  if (isLoading) return null;
 
   const insured = data?.insuredVehicle;
   const thirdParty = data?.thirdPartyVehicle;
@@ -3423,7 +3425,7 @@ function Section210VehicleStructural({ claim }: { claim: any }) {
   };
 
   return (
-    <div style={{ marginTop: '24px', pageBreakInside: 'avoid' }}>
+    <div style={{ marginTop: '16px', pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakBefore: 'avoid', breakBefore: 'avoid' }}>
       {/* Section header — matches existing 2.x sub-section style */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '8px',
@@ -4880,16 +4882,17 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
             tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.dataset.label}: ${fmtMoney(ctx.raw)}` } },
           },
           scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 35, minRotation: 20 } },
-            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 }, callback: (v: any) => fmtMoney(v) } },
+            x: { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 40, minRotation: 25 } },
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, callback: (v: any) => fmtMoney(v) } },
           },
+          layout: { padding: { bottom: 16 } },
         };
         return (
           <div style={{ marginBottom: 16 }}>
             {chart4Rows.length > 0 && (
               <div style={{ padding: '12px 16px 0 16px' }}>
                 <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: 8 }}>Component-Level Quote Comparison (Top {chart4Rows.length})</p>
-                <div style={{ height: 220 }}>
+                <div style={{ height: 260 }}>
                   <Bar data={chart4Data} options={chart4Opts} />
                 </div>
               </div>
@@ -8527,14 +8530,19 @@ const REPORT_CSS = `
   .kinga-report table th{background:var(--kr-black) !important;color:var(--kr-white) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   /* Section 2.5 Quote Coverage table */
   .kinga-report .report-table,.kinga-report .report-table td,.kinga-report .report-table th{border:1px solid var(--kr-rule) !important;word-break:break-word !important;white-space:normal !important}
-  /* ── Page Break Strategy: Professional section-aware breaks ── */
-
-  /* 1. Section headings: always keep with the content that follows them */
+    /* ── Page Break Strategy: Natural flow, no forced blank pages ── */
+  /* Section headings: keep with following content but do NOT force a new page */
   .kinga-report .section-heading{
-    page-break-before:always;
+    page-break-before:auto;
     page-break-after:avoid;
-    break-before:page;
+    break-before:auto;
     break-after:avoid;
+    margin-top:16px;
+  }
+  /* Only the very first section heading (Section 1) should break after the cover */
+  .kinga-report .section-heading[data-section="1"]{
+    page-break-before:always;
+    break-before:page;
   }
   /* ReportSectionThread UI components: hidden in print (they are screen-only discussion threads) */
   .kinga-report [data-section-thread],
