@@ -2198,6 +2198,15 @@ export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
 	modificationReason: text("modification_reason"),
 	modifiedByAssessorId: int("modified_by_assessor_id"),
 	panelBeaterAgreed: tinyint("panel_beater_agreed"),
+	// Quote type: tracks the reason for this quote's existence in the claim lifecycle
+	// original — first submission by repairer
+	// strip_requote — insurer requested vehicle strip to expose latent damage; repairer requotes (often higher)
+	// assessor_adjusted — assessor printed and manually adjusted line items
+	// supplementary — additional damage found during repair not in original scope
+	// revised — repairer corrected an error or updated parts pricing
+	quoteType: mysqlEnum('quote_type', ['original','strip_requote','assessor_adjusted','supplementary','revised']).default('original').notNull(),
+	// Links a revised/adjusted quote back to the quote it supersedes
+	parentQuoteId: int("parent_quote_id"),
 	status: mysqlEnum(['draft','submitted','modified','accepted','rejected']).default('draft').notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),

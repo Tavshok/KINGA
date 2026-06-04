@@ -1032,21 +1032,27 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         const kingaOptTotal: number = co0?.l2CompositeOptimisedCostUsd ?? co0?.compositeOptimisedCostUsd ?? 0;
         // Build per-quote list with name + total, sorted ascending by total
         // Build per-quote list: deduplicate by normalised name (keep LOWEST-total entry per name — the assessor-adjusted quote)
-        // Smart quote deduplication:
-        // 1. Group by panelBeaterId — same repairer, multiple submissions
-        // 2. If any entry in the group has modified=1 (assessor-adjusted), use that one and mark isAdjusted=true
-        // 3. If no modified=1 exists, keep ALL entries from that repairer (genuine separate quotes)
-        // 4. Fall back to name-based grouping for quotes without panelBeaterId
-        const _rawQuoteItems: { name: string; total: number; panelBeaterId?: number; modified?: number }[] = (
+        // Smart quote deduplication using quoteType:
+        // - assessor_adjusted: show only this quote for the repairer (supersedes original), badge ADJ
+        // - strip_requote: show as authoritative (insurer-requested requote), badge STRIP
+        // - supplementary: always show alongside original (additive, not a replacement), badge SUPP
+        // - revised: show only the latest revision, badge REV
+        // - original: show unless superseded by assessor_adjusted, strip_requote, or revised
+        // Group by panelBeaterId first, then apply quoteType priority logic
+        type QuoteItem = { name: string; total: number; quoteType: string; parentQuoteId?: number; badge: string; sublabel: string };
+        const _rawQuoteItems: (QuoteItem & { panelBeaterId?: number; modified?: number })[] = (
           (quotes && quotes.length > 0)
             ? quotes.map((q: any) => {
                 const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
                 const raw = (q.quotedAmount ?? 0) / 100;
                 const total = raw > 0 ? raw : lineTotal;
                 const name = q.panelBeaterName ?? q.repairerName ?? (q.panelBeaterId ? `Repairer #${q.panelBeaterId}` : 'Panel Beater');
-                return { name, total, panelBeaterId: q.panelBeaterId, modified: q.modified ?? 0 };
+                const qt: string = q.quoteType ?? (q.modified === 1 ? 'assessor_adjusted' : 'original');
+                const badge = qt === 'assessor_adjusted' ? 'ADJ' : qt === 'strip_requote' ? 'STRIP' : qt === 'supplementary' ? 'SUPP' : qt === 'revised' ? 'REV' : '';
+                const sublabel = qt === 'assessor_adjusted' ? 'Assessor adjusted' : qt === 'strip_requote' ? 'Strip & requote' : qt === 'supplementary' ? 'Supplementary' : qt === 'revised' ? 'Revised quote' : 'Submitted quote';
+                return { name, total, quoteType: qt, parentQuoteId: q.parentQuoteId, badge, sublabel, panelBeaterId: q.panelBeaterId, modified: q.modified ?? 0 };
               }).filter((q) => q.total >= 500)
-            : _selectedQuoteTotals.map((t, i) => ({ name: `Quote ${i + 1}`, total: t }))
+            : _selectedQuoteTotals.map((t, i) => ({ name: `Quote ${i + 1}`, total: t, quoteType: 'original', badge: '', sublabel: 'Submitted quote' }))
         );
         // Group by panelBeaterId
         const _pbIdGroups = new Map<number, typeof _rawQuoteItems>();
@@ -1060,29 +1066,39 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
             _noIdItems.push(item);
           }
         }
-        const _resolvedItems: { name: string; total: number; isAdjusted: boolean }[] = [];
+        const _resolvedItems: QuoteItem[] = [];
         for (const [, grp] of _pbIdGroups) {
-          const adjustedEntry = grp.find(e => e.modified === 1);
-          if (adjustedEntry) {
-            // Assessor-adjusted quote exists — use it exclusively
-            _resolvedItems.push({ name: adjustedEntry.name, total: adjustedEntry.total, isAdjusted: true });
-          } else if (grp.length > 1) {
-            // Multiple quotes from same repairer, none assessor-adjusted — show all (genuine separate quotes)
-            for (const e of grp) _resolvedItems.push({ name: e.name, total: e.total, isAdjusted: false });
+          // Supplementary quotes are always additive — always show them
+          const supplementary = grp.filter(e => e.quoteType === 'supplementary');
+          // Priority order for the authoritative quote: assessor_adjusted > strip_requote > revised > original
+          const authoritative = grp.find(e => e.quoteType === 'assessor_adjusted')
+            ?? grp.find(e => e.quoteType === 'strip_requote')
+            ?? grp.find(e => e.quoteType === 'revised')
+            ?? (grp.length === 1 ? grp[0] : null);
+          if (authoritative) {
+            _resolvedItems.push({ name: authoritative.name, total: authoritative.total, quoteType: authoritative.quoteType, badge: authoritative.badge, sublabel: authoritative.sublabel });
           } else {
-            _resolvedItems.push({ name: grp[0].name, total: grp[0].total, isAdjusted: false });
+            // Multiple originals from same repairer — show all (genuine separate submissions, e.g. OEM vs aftermarket)
+            for (const e of grp.filter(e => e.quoteType === 'original')) {
+              _resolvedItems.push({ name: e.name, total: e.total, quoteType: e.quoteType, badge: e.badge, sublabel: e.sublabel });
+            }
+          }
+          // Always append supplementary quotes
+          for (const s of supplementary) {
+            _resolvedItems.push({ name: s.name, total: s.total, quoteType: s.quoteType, badge: s.badge, sublabel: s.sublabel });
           }
         }
         // Handle quotes without panelBeaterId via name-based dedup
-        const _nameDedupeMap = new Map<string, { name: string; total: number; isAdjusted: boolean }>();
+        const _nameDedupeMap = new Map<string, QuoteItem>();
         for (const item of _noIdItems) {
           const key = item.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28);
           const existing = _nameDedupeMap.get(key);
-          if (!existing || (item.modified === 1) || (item.modified === 0 && item.total < existing.total)) {
-            _nameDedupeMap.set(key, { name: item.name, total: item.total, isAdjusted: item.modified === 1 });
+          const priority = (qt: string) => qt === 'assessor_adjusted' ? 4 : qt === 'strip_requote' ? 3 : qt === 'revised' ? 2 : qt === 'supplementary' ? 1 : 0;
+          if (!existing || priority(item.quoteType) > priority(existing.quoteType)) {
+            _nameDedupeMap.set(key, { name: item.name, total: item.total, quoteType: item.quoteType, badge: item.badge, sublabel: item.sublabel });
           }
         }
-        const _allQuoteItems: { name: string; total: number; isAdjusted: boolean }[] = [
+        const _allQuoteItems: QuoteItem[] = [
           ..._resolvedItems,
           ..._nameDedupeMap.values(),
         ].sort((a, b) => a.total - b.total);
@@ -1125,10 +1141,10 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
                     <span className="cost-lbl">
                       {q.name.length > 22 ? q.name.slice(0, 20) + '…' : q.name}
                       {i === 0 && <span className="cost-lowest-tag">LOWEST</span>}
-                      {q.isAdjusted && <span className="cost-adjusted-tag">ADJ</span>}
+                      {q.badge && q.badge !== '' && <span className="cost-adjusted-tag">{q.badge}</span>}
                     </span>
                     <span className={`cost-val${i === 0 ? '' : ' cost-val-dim'}`}>{fmtMoney(q.total)}</span>
-                    <span className="cost-sub">{q.isAdjusted ? 'Assessor adjusted' : 'Submitted quote'}</span>
+                    <span className="cost-sub">{q.sublabel ?? 'Submitted quote'}</span>
                   </div>
                 ))
               ) : (
@@ -4523,28 +4539,53 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
     if (r.component) reconStatusMap[r.component.toLowerCase()] = r.reconciliation_status ?? 'no_quote_available';
   }
 
-  // Build pbQuotes with deduplication: same normalised name → keep LOWEST-total entry (assessor-adjusted quote is always lower)
-  const _pbQuotesRaw = (quotes ?? []).map((q: any) => {
+  // Build pbQuotes with quoteType-aware deduplication:
+  // - assessor_adjusted > strip_requote > revised > original (priority order per repairer)
+  // - supplementary quotes are always additive and shown alongside the authoritative quote
+  type PbQuoteItem = { name: string; total: number; parts: number; labour: number; status: string; lineItems: any[]; id: number; quoteType: string; badge: string; sublabel: string; panelBeaterId?: number };
+  const _pbQuotesRaw: PbQuoteItem[] = (quotes ?? []).map((q: any) => {
     const lineItemsTotal = (q.lineItems ?? []).reduce((sum: number, li: any) => sum + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
     const rawTotal = (q.quotedAmount ?? 0) / 100;
     const total = rawTotal > 0 ? rawTotal : lineItemsTotal;
+    const qt: string = q.quoteType ?? (q.modified === 1 ? 'assessor_adjusted' : 'original');
+    const badge = qt === 'assessor_adjusted' ? 'ADJ' : qt === 'strip_requote' ? 'STRIP' : qt === 'supplementary' ? 'SUPP' : qt === 'revised' ? 'REV' : '';
+    const sublabel = qt === 'assessor_adjusted' ? 'Assessor adjusted' : qt === 'strip_requote' ? 'Strip & requote' : qt === 'supplementary' ? 'Supplementary' : qt === 'revised' ? 'Revised' : 'Submitted';
     return {
       name: q.panelBeaterName ?? q.repairerName ?? (q.panelBeaterId ? `Repairer #${q.panelBeaterId}` : 'Panel Beater'),
-      total,
-      parts: (q.partsCost ?? 0) / 100,
-      labour: (q.laborCost ?? q.labourCost ?? 0) / 100,
-      status: q.status ?? 'submitted',
-      lineItems: q.lineItems ?? [],
-      id: q.id,
+      total, parts: (q.partsCost ?? 0) / 100, labour: (q.laborCost ?? q.labourCost ?? 0) / 100,
+      status: q.status ?? 'submitted', lineItems: q.lineItems ?? [], id: q.id,
+      quoteType: qt, badge, sublabel, panelBeaterId: q.panelBeaterId,
     };
   });
-  const _pbDedupeMap = new Map<string, typeof _pbQuotesRaw[0]>();
+  // Group by panelBeaterId for smart dedup
+  const _pb3Groups = new Map<number, PbQuoteItem[]>();
+  const _pb3NoId: PbQuoteItem[] = [];
   for (const item of _pbQuotesRaw) {
-    const key = item.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28);
-    const existing = _pbDedupeMap.get(key);
-    if (!existing || item.total < existing.total) _pbDedupeMap.set(key, item);
+    if (item.panelBeaterId) {
+      const grp = _pb3Groups.get(item.panelBeaterId) ?? [];
+      grp.push(item);
+      _pb3Groups.set(item.panelBeaterId, grp);
+    } else { _pb3NoId.push(item); }
   }
-  const pbQuotes = [..._pbDedupeMap.values()];
+  const _pb3Resolved: PbQuoteItem[] = [];
+  const _pb3Priority = (qt: string) => qt === 'assessor_adjusted' ? 4 : qt === 'strip_requote' ? 3 : qt === 'revised' ? 2 : qt === 'supplementary' ? 1 : 0;
+  for (const [, grp] of _pb3Groups) {
+    const supplementary = grp.filter(e => e.quoteType === 'supplementary');
+    const authoritative = grp.find(e => e.quoteType === 'assessor_adjusted')
+      ?? grp.find(e => e.quoteType === 'strip_requote')
+      ?? grp.find(e => e.quoteType === 'revised')
+      ?? (grp.length === 1 ? grp[0] : null);
+    if (authoritative) _pb3Resolved.push(authoritative);
+    else for (const e of grp.filter(e => e.quoteType === 'original')) _pb3Resolved.push(e);
+    for (const s of supplementary) _pb3Resolved.push(s);
+  }
+  const _pb3NameMap = new Map<string, PbQuoteItem>();
+  for (const item of _pb3NoId) {
+    const key = item.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28);
+    const existing = _pb3NameMap.get(key);
+    if (!existing || _pb3Priority(item.quoteType) > _pb3Priority(existing.quoteType)) _pb3NameMap.set(key, item);
+  }
+  const pbQuotes: PbQuoteItem[] = [..._pb3Resolved, ..._pb3NameMap.values()];
 
   const primaryQuote = pbQuotes[0];
   const quotedTotal = primaryQuote?.total ?? 0;

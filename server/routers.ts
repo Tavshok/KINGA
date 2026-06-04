@@ -4367,6 +4367,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
         await db.update(_pbq).set({
           modified: 1,
+          quoteType: 'assessor_adjusted',
           originalQuotedAmount: current.originalQuotedAmount ?? current.quotedAmount, // only set once
           quotedAmount: input.adjustedAmount,
           modificationReason: input.modificationReason ?? 'Assessor adjustment',
@@ -4376,6 +4377,87 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }).where(_eq(_pbq.id, input.quoteId));
         console.log(`[quotes.adjustByAssessor] Quote ${input.quoteId} adjusted by assessor ${ctx.user.id}: $${(current.quotedAmount ?? 0) / 100} → $${input.adjustedAmount / 100}`);
         return { success: true, originalAmount: current.originalQuotedAmount ?? current.quotedAmount, adjustedAmount: input.adjustedAmount };
+      }),
+
+    // Strip & requote — insurer requested vehicle strip to expose latent damage; repairer submits new (often higher) quote
+    submitStripRequote: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        panelBeaterId: z.number(),
+        quotedAmount: z.number(), // in cents
+        parentQuoteId: z.number(), // the original quote this supersedes
+        laborCost: z.number().optional(),
+        partsCost: z.number().optional(),
+        laborHours: z.number().optional(),
+        estimatedDuration: z.number().optional(),
+        itemizedBreakdown: z.array(z.object({ item: z.string(), cost: z.number() })).optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error('Not authenticated');
+        const db = await getDb();
+        if (!db) throw new Error('Database unavailable');
+        const { panelBeaterQuotes: _pbq } = await import('../drizzle/schema');
+        const { eq: _eq } = await import('drizzle-orm');
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        // Mark the parent quote as superseded
+        await db.update(_pbq).set({ status: 'modified', updatedAt: now }).where(_eq(_pbq.id, input.parentQuoteId));
+        // Insert the new strip-requote record
+        await db.insert(_pbq).values({
+          claimId: input.claimId,
+          panelBeaterId: input.panelBeaterId,
+          quotedAmount: input.quotedAmount,
+          laborCost: input.laborCost ?? null,
+          partsCost: input.partsCost ?? null,
+          laborHours: input.laborHours ?? null,
+          estimatedDuration: input.estimatedDuration ?? 0,
+          itemizedBreakdown: JSON.stringify(input.itemizedBreakdown ?? []),
+          notes: input.notes ?? null,
+          quoteType: 'strip_requote',
+          parentQuoteId: input.parentQuoteId,
+          modified: 0,
+          status: 'submitted',
+          tenantId: ctx.user.tenantId || 'default',
+          createdAt: now,
+          updatedAt: now,
+        });
+        console.log(`[quotes.submitStripRequote] Strip requote for claim ${input.claimId} panel beater ${input.panelBeaterId}: $${input.quotedAmount / 100} (parent quote ${input.parentQuoteId})`);
+        return { success: true };
+      }),
+
+    // Supplementary quote — additional damage found during repair not in original scope
+    submitSupplementary: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        panelBeaterId: z.number(),
+        quotedAmount: z.number(), // in cents — the ADDITIONAL amount only
+        parentQuoteId: z.number(),
+        notes: z.string().optional(),
+        itemizedBreakdown: z.array(z.object({ item: z.string(), cost: z.number() })).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error('Not authenticated');
+        const db = await getDb();
+        if (!db) throw new Error('Database unavailable');
+        const { panelBeaterQuotes: _pbq } = await import('../drizzle/schema');
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        await db.insert(_pbq).values({
+          claimId: input.claimId,
+          panelBeaterId: input.panelBeaterId,
+          quotedAmount: input.quotedAmount,
+          itemizedBreakdown: JSON.stringify(input.itemizedBreakdown ?? []),
+          notes: input.notes ?? null,
+          quoteType: 'supplementary',
+          parentQuoteId: input.parentQuoteId,
+          modified: 0,
+          estimatedDuration: 0,
+          status: 'submitted',
+          tenantId: ctx.user.tenantId || 'default',
+          createdAt: now,
+          updatedAt: now,
+        });
+        console.log(`[quotes.submitSupplementary] Supplementary quote for claim ${input.claimId}: +$${input.quotedAmount / 100}`);
+        return { success: true };
       }),
 
     // Extract quote from handwritten image using OCR
