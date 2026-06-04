@@ -839,6 +839,62 @@ async function runInputRecovery(
         }
       }
 
+      // MISSING-REPAIRER SCANNER: After all text-based and sparse-text vision extractions,
+      // scan the raw OCR text for known repairer names that were NOT extracted as quotes.
+      // This catches cases where a repairer's section was present in the OCR text but the
+      // LLM detection pass missed it (e.g. name appears only once, or text is fragmented).
+      // For each missing repairer found in the text, trigger a targeted vision pass.
+      if (allPdfDocs.length > 0 && extracted_quotes && extracted_quotes.length > 0) {
+        const extractedNamesNorm = new Set(
+          extracted_quotes.map(q => (q.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').trim())
+        );
+        // Known repairer patterns to scan for — normalised to lowercase
+        const KNOWN_REPAIRER_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
+          { pattern: /swiss\s*motors?/i, label: 'Swiss Motors' },
+          { pattern: /grand\s*auto/i, label: 'Grand Auto Premier' },
+          { pattern: /cedric\s*jonker/i, label: 'Cedric Jonker' },
+          { pattern: /kingfisher/i, label: 'Kingfisher Auto Motors' },
+          // Generic: company name followed by address/phone/VAT pattern
+          { pattern: /([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\s*(?:AUTO|MOTORS?|PANEL|BODY|SPRAY|REPAIRS?|WORKS?)/g, label: '' },
+        ];
+        const missingRepairers: string[] = [];
+        for (const { pattern, label } of KNOWN_REPAIRER_PATTERNS) {
+          if (!label) continue; // skip generic pattern for now
+          const normLabel = label.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const alreadyExtracted = [...extractedNamesNorm].some(n =>
+            n.includes(normLabel.slice(0, 6)) || normLabel.includes(n.slice(0, 6))
+          );
+          if (!alreadyExtracted && pattern.test(allText)) {
+            console.log(`[Stage3] Missing-repairer scanner: "${label}" found in OCR text but not in extracted quotes — triggering targeted vision pass`);
+            missingRepairers.push(label);
+          }
+        }
+        if (missingRepairers.length > 0) {
+          for (const missingName of missingRepairers) {
+            for (const pdfDoc of allPdfDocs) {
+              try {
+                const visionResult = await extractQuoteFromPdfVision(pdfDoc.sourceUrl, missingName, null, tenantCountry);
+                const visionHasPrices = visionResult.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
+                const visionHasTotal = visionResult.total_cost !== null && visionResult.total_cost > 0;
+                const visionName = (visionResult.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                const normMissing = missingName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const nameMatches = visionName.includes(normMissing.slice(0, 6)) || normMissing.includes(visionName.slice(0, 6));
+                if ((visionHasPrices || visionHasTotal) && nameMatches) {
+                  console.log(`[Stage3] Missing-repairer vision pass found "${visionResult.panel_beater}" in ${pdfDoc.fileName}: total=${visionResult.total_cost}, ${visionResult.line_items.length} line items`);
+                  extracted_quotes.push(visionResult);
+                  extractedNamesNorm.add(visionName);
+                  break; // Found this repairer — move to next missing repairer
+                } else {
+                  console.log(`[Stage3] Missing-repairer vision pass on ${pdfDoc.fileName} for "${missingName}": no match (name=${visionResult.panel_beater}, total=${visionResult.total_cost})`);
+                }
+              } catch (missingErr) {
+                console.error(`[Stage3] Missing-repairer vision pass failed for "${missingName}" on ${pdfDoc.fileName}:`, missingErr);
+              }
+            }
+          }
+        }
+      }
+
       // If LLM found a quote but regex did not, remove the quote_not_mapped flag
       const llmFoundQuote = (extracted_quotes ?? []).some(q => q.total_cost !== null && q.confidence !== 'low');
       if (!hasQuote && !recovered_quote && llmFoundQuote) {
