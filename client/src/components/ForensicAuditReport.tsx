@@ -1031,7 +1031,8 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         const dataClass = dataCompleteness >= 75 ? 'low' : dataCompleteness >= 50 ? 'mid' : 'high';
         const kingaOptTotal: number = co0?.l2CompositeOptimisedCostUsd ?? co0?.compositeOptimisedCostUsd ?? 0;
         // Build per-quote list with name + total, sorted ascending by total
-        const _allQuoteItems: { name: string; total: number }[] = (
+        // Build per-quote list: deduplicate by normalised name (keep highest-total entry per name)
+        const _rawQuoteItems: { name: string; total: number }[] = (
           (quotes && quotes.length > 0)
             ? quotes.map((q: any) => {
                 const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
@@ -1041,7 +1042,15 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
                 return { name, total };
               }).filter((q) => q.total >= 500)
             : _selectedQuoteTotals.map((t, i) => ({ name: `Quote ${i + 1}`, total: t }))
-        ).sort((a, b) => a.total - b.total);
+        );
+        // Deduplicate: normalise name to first 30 chars lowercase, keep the entry with the highest total per key
+        const _dedupeMap = new Map<string, { name: string; total: number }>();
+        for (const item of _rawQuoteItems) {
+          const key = item.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28);
+          const existing = _dedupeMap.get(key);
+          if (!existing || item.total > existing.total) _dedupeMap.set(key, item);
+        }
+        const _allQuoteItems: { name: string; total: number }[] = [..._dedupeMap.values()].sort((a, b) => a.total - b.total);
         const lowestQuoteTotal: number = _allQuoteItems.length > 0 ? _allQuoteItems[0].total : 0;
         const potentialSavings: number = lowestQuoteTotal > 0 && kingaOptTotal > 0 && lowestQuoteTotal > kingaOptTotal ? lowestQuoteTotal - kingaOptTotal : 0;
         const savingsPct: number = lowestQuoteTotal > 0 && potentialSavings > 0 ? (potentialSavings / lowestQuoteTotal) * 100 : 0;
@@ -4478,8 +4487,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
     if (r.component) reconStatusMap[r.component.toLowerCase()] = r.reconciliation_status ?? 'no_quote_available';
   }
 
-  const pbQuotes = (quotes ?? []).map((q: any) => {
-    // Compute total from lineItems if quotedAmount is 0 or missing
+  // Build pbQuotes with deduplication: same normalised name → keep highest-total entry
+  const _pbQuotesRaw = (quotes ?? []).map((q: any) => {
     const lineItemsTotal = (q.lineItems ?? []).reduce((sum: number, li: any) => sum + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
     const rawTotal = (q.quotedAmount ?? 0) / 100;
     const total = rawTotal > 0 ? rawTotal : lineItemsTotal;
@@ -4493,6 +4502,13 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
       id: q.id,
     };
   });
+  const _pbDedupeMap = new Map<string, typeof _pbQuotesRaw[0]>();
+  for (const item of _pbQuotesRaw) {
+    const key = item.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28);
+    const existing = _pbDedupeMap.get(key);
+    if (!existing || item.total > existing.total) _pbDedupeMap.set(key, item);
+  }
+  const pbQuotes = [..._pbDedupeMap.values()];
 
   const primaryQuote = pbQuotes[0];
   const quotedTotal = primaryQuote?.total ?? 0;
@@ -7959,7 +7975,7 @@ const REPORT_CSS = `
   --kr-mono:'DM Mono',monospace;--kr-serif:'Instrument Serif',serif;--kr-sans:'DM Sans',sans-serif;
 }
 .kinga-report[data-draft="true"]::before{content:'DRAFT';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;font-weight:900;color:rgba(0,0,0,0.04);letter-spacing:0.15em;pointer-events:none;z-index:0;white-space:nowrap;user-select:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.kinga-report .decision-strip{display:grid;grid-template-columns:auto auto 1fr;gap:0;border-bottom:2px solid var(--kr-black);padding:14px 0;align-items:start;margin-bottom:0}
+.kinga-report .decision-strip{display:grid;grid-template-columns:auto auto 1fr;gap:0;border-bottom:2px solid var(--kr-black);padding:14px 0;align-items:start;margin-bottom:0;min-height:0}
 .kinga-report .verdict-block{padding-right:28px;border-right:1px solid var(--kr-rule);margin-right:28px}
 .kinga-report .verdict-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.12em;color:var(--kr-muted);margin-bottom:2px}
 .kinga-report .verdict-value{font-size:22px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
@@ -7974,8 +7990,8 @@ const REPORT_CSS = `
 .kinga-report .score-num.mid{color:var(--kr-amber)}
 .kinga-report .score-num.high{color:var(--kr-red)}
 .kinga-report .score-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.08em;font-family:var(--kr-mono);display:block;margin-top:2px}
-.kinga-report .cost-cluster{display:flex;gap:0;flex-wrap:wrap;align-items:flex-start;padding-left:0}
-.kinga-report .cost-item{min-width:100px;padding:0 14px;border-right:1px solid var(--kr-rule)}.kinga-report .cost-item:last-child{border-right:none}
+.kinga-report .cost-cluster{display:flex;gap:0;flex-wrap:wrap;align-items:flex-start;padding-left:0;row-gap:10px}
+.kinga-report .cost-item{min-width:110px;max-width:160px;padding:0 12px;border-right:1px solid var(--kr-rule)}.kinga-report .cost-item:last-child{border-right:none}
 .kinga-report .cost-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.08em;font-family:var(--kr-mono);display:flex;align-items:center;gap:5px;margin-bottom:2px}
 .kinga-report .cost-val{font-size:18px;font-weight:600;font-family:var(--kr-mono);display:block;letter-spacing:-.02em;color:var(--kr-text)}
 .kinga-report .cost-val-dim{font-size:16px;font-weight:400;color:var(--kr-muted)}
@@ -8587,9 +8603,10 @@ const REPORT_CSS = `
   .kinga-report .compact-kv-table td:first-child{font-size:10px !important}
   .kinga-report .score-lbl,.kinga-report .cost-lbl,.kinga-report .kpi-label,.kinga-report .sc-label{font-size:10px !important}
   /* ── Decision strip: keep 3-column grid in print ── */
-  .kinga-report .decision-strip{display:grid !important;grid-template-columns:auto auto 1fr !important;page-break-inside:avoid;break-inside:avoid}
+  .kinga-report .decision-strip{display:grid !important;grid-template-columns:auto auto 1fr !important;page-break-inside:avoid;break-inside:avoid;min-height:0 !important}
   .kinga-report .score-cluster{display:flex !important;flex-wrap:nowrap !important}
-  .kinga-report .cost-cluster{display:flex !important;flex-wrap:wrap !important}
+  .kinga-report .cost-cluster{display:flex !important;flex-wrap:wrap !important;row-gap:8px !important}
+  .kinga-report .cost-item{min-width:100px !important;max-width:150px !important}
 }
 `;
 
