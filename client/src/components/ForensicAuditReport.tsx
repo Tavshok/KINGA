@@ -2353,9 +2353,9 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                   <table className="compact-kv-table text-xs w-full">
                     <tbody>
                       {[
-                        ["Delta-V (calculated)", deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : "N/A"],
+                        ["Speed Change at Impact (Delta-V)", deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : "N/A"],
                         ["Estimated impact speed", estimatedSpeedKmh > 0 ? `${fmt(estimatedSpeedKmh, 1)} km/h` : (claimedSpeed > 0 ? `${claimedSpeed} km/h (claimed)` : "Not stated")],
-                        ["Impact energy (KE)", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
+                        ["Kinetic Energy Released (Impact)", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
                         ["Impact force", impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : "N/A"],
                         ["Vehicle mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
                         ["Accident severity", toSentenceCase((severity ?? "").replace(/_/g, " "))],
@@ -2419,7 +2419,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               {deltaV > 0 && (
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span style={{ color: "#64748b" }}>Delta-V (calculated)</span>
+                    <span style={{ color: "#64748b" }}>Speed Change at Impact</span>
                     <span style={{ color: "#0f172a" }}>{deltaV} km/h</span>
                   </div>
                   <div className="h-2 rounded-full" style={{ background: "#ffffff" }}>
@@ -3038,26 +3038,10 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             const ensemble = (_phys as any)?.speedInferenceEnsemble;
             if (!ensemble) return null;
             const rawMethods: any[] = ensemble.methods ?? [];
-            const methods = rawMethods.map((m: any) => ({
-              id: m.method ?? m.id ?? '',
-              name: m.label ?? m.name ?? m.method ?? '',
-              estimateKmh: m.speedKmh ?? m.estimateKmh ?? null,
-              confidenceWeight: m.confidenceWeight ?? 0,
-              available: m.ran ?? m.available ?? false,
-              isLowerBoundOnly: m.isLowerBoundOnly ?? false,
-              basis: m.basis ?? m.note ?? '',
-              confidence: m.confidence ?? '',
-            }));
-            // Plain-English descriptions for each method (no formulas)
-            const methodDescriptions: Record<string, string> = {
-              M1: 'Campbell formula: measures maximum crush depth from structural deformation and applies vehicle stiffness coefficient to derive impact speed.',
-              M2: 'Disabled \u2014 repair cost is not a reliable physics proxy across different markets.',
-              M3: 'Impulse-momentum method: disabled — requires a vision-derived primary impact contact area. Total damage area (sum of all damaged components) is not a valid input because secondary damage from rollovers and multi-zone impacts inflates the area, producing unreliable speed estimates. Will be re-enabled when computer vision provides a measured primary contact patch area.',
-              M4: 'Deployment threshold: airbag or seatbelt pretensioner activation confirms speed exceeded the system trigger threshold.',
-              M5: 'Vision deformation: KINGA measures crush depth and deformation energy directly from damage photos. Two independent paths (Campbell + energy balance) are cross-validated.',
-            };
-            const availableMethods = methods.filter((m: any) => m.available && m.estimateKmh != null);
-            if (availableMethods.length === 0 && !(ensemble.consensusSpeedKmh ?? ensemble.consensusKmh)) return null;
+            // Count available analyses without exposing identities
+            const availableCount = rawMethods.filter((m: any) => (m.ran ?? m.available ?? false) && (m.speedKmh ?? m.estimateKmh) != null).length;
+            const totalCount = rawMethods.length;
+            if (availableCount === 0 && !(ensemble.consensusSpeedKmh ?? ensemble.consensusKmh)) return null;
             const consensusKmh: number = ensemble.consensusSpeedKmh ?? ensemble.consensusKmh ?? 0;
             const confidenceLevel: string = (ensemble.overallConfidence ?? ensemble.confidenceLevel ?? 'LOW').toLowerCase();
             const divergenceFlag: boolean = ensemble.highDivergence ?? ensemble.divergenceFlag ?? false;
@@ -3065,205 +3049,164 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             const ciHigh: number | null = ensemble.confidenceInterval?.[1] ?? null;
             const lowerBoundKmh: number | null = ensemble.lowerBoundKmh ?? null;
             const spread: number = ensemble.crossValidation?.spread ?? 0;
-            const outlierMethods: string[] = ensemble.crossValidation?.outlierMethods ?? [];
 
             // Speed scale: 0–120 km/h
             const SCALE_MAX = 120;
             const toScalePct = (v: number) => Math.min(100, Math.max(0, (v / SCALE_MAX) * 100));
 
-            // Confidence colour + icon (dual channel) — uses established fp- CSS tokens
+            // Confidence colour tokens
             const confColour = confidenceLevel === 'high' ? 'var(--fp-success-text)' : confidenceLevel === 'medium' ? 'var(--fp-warning-text)' : 'var(--fp-info-text)';
-            const confIcon = confidenceLevel === 'high' ? '✓' : confidenceLevel === 'medium' ? '!' : '?';
+            const confBg = confidenceLevel === 'high' ? 'var(--fp-success-bg)' : confidenceLevel === 'medium' ? 'var(--fp-warning-bg)' : 'var(--fp-info-bg)';
+            const confBorder = confidenceLevel === 'high' ? 'var(--fp-success-border)' : confidenceLevel === 'medium' ? 'var(--fp-warning-border)' : 'var(--fp-info-border)';
             const confLabel = confidenceLevel === 'high' ? 'High Confidence' : confidenceLevel === 'medium' ? 'Moderate Confidence' : 'Low Confidence';
 
-            // Speed zone classification for plain-English verdict
+            // Speed zone classification
             const speedZone = consensusKmh < 15 ? 'parking'
               : consensusKmh < 40 ? 'low_urban'
               : consensusKmh < 80 ? 'urban'
               : consensusKmh < 120 ? 'highway'
               : 'high_speed';
             const speedZoneLabel: Record<string, string> = {
-              parking: 'Very low-speed manoeuvre (parking / crawling)',
-              low_urban: 'Low-speed urban impact',
-              urban: 'Moderate urban-speed impact',
-              highway: 'High-speed impact — elevated injury risk',
-              high_speed: 'Very high-speed impact — critical injury risk',
+              parking: 'Very low-speed manoeuvre — consistent with parking or crawling traffic',
+              low_urban: 'Low-speed urban impact — consistent with residential or car park speeds',
+              urban: 'Moderate urban-speed impact — consistent with general road traffic',
+              highway: 'High-speed impact — consistent with highway or freeway travel',
+              high_speed: 'Very high-speed impact — consistent with high-speed highway travel',
             };
             const speedZoneColour: Record<string, string> = {
               parking: 'var(--fp-success-text)', low_urban: 'var(--fp-success-text)', urban: 'var(--fp-warning-text)', highway: 'var(--fp-locked-text)', high_speed: 'var(--fp-critical-text)',
             };
 
-            // Recommended action based on confidence + divergence
+            // Plain-English convergence statement (no method names)
+            const convergenceText = divergenceFlag
+              ? `Independent analyses produced divergent results (spread: ${spread.toFixed(0)} km/h). The consensus estimate carries reduced reliability.`
+              : availableCount >= 2
+              ? `${availableCount} independent analyses converged within ${spread > 0 ? `${spread.toFixed(0)} km/h` : 'acceptable tolerance'} of each other, confirming the estimate.`
+              : `${availableCount} analysis completed. Additional evidence would strengthen confidence in this estimate.`;
+
+            // Recommended action
             const recommendedAction = divergenceFlag
-              ? { icon: '!', label: 'Inconclusive — Independent Reconstruction Recommended', colour: 'var(--fp-locked-text)', bg: 'var(--fp-locked-bg)', border: 'var(--fp-locked-border)', text: 'Methods diverge significantly. The consensus estimate should not be used as a sole basis for settlement. An independent accident reconstruction specialist should be engaged before proceeding.' }
+              ? { icon: '!', label: 'Inconclusive — Independent Reconstruction Recommended', colour: 'var(--fp-locked-text)', bg: 'var(--fp-locked-bg)', border: 'var(--fp-locked-border)', text: 'The independent analyses produced divergent results. This consensus estimate should not be used as the sole basis for settlement. An independent accident reconstruction specialist should be engaged before proceeding.' }
               : confidenceLevel === 'high'
-              ? { icon: '✓', label: 'High Confidence — Proceed with Standard Assessment', colour: 'var(--fp-success-text)', bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'Multiple methods agree. The consensus speed estimate is reliable and can be used to support the claims assessment without further reconstruction.' }
+              ? { icon: '\u2713', label: 'High Confidence — Proceed with Standard Assessment', colour: 'var(--fp-success-text)', bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'Multiple independent analyses are in agreement. The consensus speed estimate is reliable and may be used to support the claims assessment without further reconstruction.' }
               : confidenceLevel === 'medium'
-              ? { icon: '!', label: 'Moderate Confidence — Assessor Verification Recommended', colour: 'var(--fp-warning-text)', bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'Only one or two methods contributed. The estimate is indicative but should be cross-checked against the physical damage evidence by the attending assessor.' }
-              : { icon: '?', label: 'Low Confidence — Insufficient Data for Reliable Estimate', colour: 'var(--fp-info-text)', bg: 'var(--fp-info-bg)', border: 'var(--fp-info-border)', text: 'Insufficient data for a reliable speed estimate. Do not use this figure for settlement decisions. Additional evidence (photos, witness statements, or site inspection) is required.' };
+              ? { icon: '!', label: 'Moderate Confidence — Assessor Verification Recommended', colour: 'var(--fp-warning-text)', bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'A limited number of analyses contributed to this estimate. The result is indicative and should be cross-checked against the physical damage evidence by the attending assessor.' }
+              : { icon: '?', label: 'Low Confidence — Insufficient Data for Reliable Estimate', colour: 'var(--fp-info-text)', bg: 'var(--fp-info-bg)', border: 'var(--fp-info-border)', text: 'Insufficient evidence was available to produce a reliable speed estimate. This figure should not be used for settlement decisions. Additional evidence — photographs, witness statements, or a site inspection — is required.' };
+
+            // Court-defensible category names (no method IDs or formulas)
+            const categoryMap: Record<string, string> = {
+              M1: 'Structural Deformation Analysis',
+              M2: 'Repair Cost Correlation',
+              M3: 'Contact Area Momentum Analysis',
+              M4: 'Safety System Activation Evidence',
+              M5: 'Photographic Deformation Analysis',
+            };
+            const speedMeaning = (kmh: number): string => {
+              if (kmh < 15) return 'Very low-speed — parking or stationary impact';
+              if (kmh < 40) return 'Low-speed — residential or car park conditions';
+              if (kmh < 80) return 'Moderate-speed — general urban road conditions';
+              if (kmh < 120) return 'High-speed — highway or freeway conditions';
+              return 'Very high-speed — above typical highway speeds';
+            };
 
             return (
               <div className="mt-6">
-                <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--foreground)' }}>2.6 Speed Inference Ensemble</p>
-                {/* Correct numbering: 2.6 = ensemble, 2.7 = speed forensics */}
+                <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--foreground)' }}>2.6 Forensic Speed Determination</p>
                 <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: '#ffffff' }}>
 
-                  {/* ── Header: Confidence badge + consensus number ── */}
-                  <div className="px-5 py-4 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid var(--border)', background: '#ffffff' }}>
+                  {/* ── Top strip: consensus speed (large) + confidence badge ── */}
+                  <div className="px-5 py-4 flex items-center justify-between gap-6" style={{ borderBottom: '1px solid var(--border)', background: '#ffffff' }}>
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: `${confColour}20`, color: confColour, border: `1px solid ${confColour}40` }}>
-                          {confIcon} {confLabel}
-                        </span>
-                        {divergenceFlag && (
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>⚠ High Divergence</span>
-                        )}
+                      <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Forensic Speed Estimate</p>
+                      <div className="flex items-end gap-2">
+                        <p className="text-4xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'monospace', lineHeight: 1 }}>{consensusKmh.toFixed(0)}</p>
+                        <p className="text-base font-semibold mb-0.5" style={{ color: 'var(--muted-foreground)' }}>km/h</p>
                       </div>
-                      <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        {availableMethods.length} of {methods.length} methods contributed &middot; {availableMethods.length === 0 ? 'No estimate available' : `Spread: ${spread.toFixed(0)} km/h`}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'monospace', lineHeight: 1 }}>{consensusKmh.toFixed(0)}<span className="text-base font-semibold ml-1" style={{ color: 'var(--muted-foreground)' }}>km/h</span></p>
                       {ciLow != null && ciHigh != null && (
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>Range: {ciLow.toFixed(0)}–{ciHigh.toFixed(0)} km/h</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>Estimated range: {ciLow.toFixed(0)}–{ciHigh.toFixed(0)} km/h</p>
                       )}
                       {lowerBoundKmh != null && !ciLow && (
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--fp-warning-text)', fontFamily: 'monospace' }}>≥ {lowerBoundKmh.toFixed(0)} km/h (lower bound)</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--fp-warning-text)', fontFamily: 'monospace' }}>Minimum: ≥ {lowerBoundKmh.toFixed(0)} km/h</p>
                       )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="inline-block text-xs font-bold px-3 py-1 rounded-full mb-2" style={{ background: confBg, color: confColour, border: `1px solid ${confBorder}` }}>
+                        {confLabel}
+                      </span>
+                      {divergenceFlag && (
+                        <div>
+                          <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>\u26a0 Analyses Diverge</span>
+                        </div>
+                      )}
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--muted-foreground)' }}>{availableCount} of {totalCount} analyses contributed</p>
                     </div>
                   </div>
 
-                  {/* ── Speed Range Scale ── */}
-                  <div className="px-5 pt-4 pb-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Speed Scale — Impact Severity Context</p>
-                    <div className="relative h-6 rounded-full overflow-hidden mb-1" style={{ background: '#ffffff' }}>
-                      {/* Zone bands — using fp- tokens */}
+                  {/* ── Plain-English convergence statement ── */}
+                  <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border)', background: '#f8fafc' }}>
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{convergenceText}</p>
+                  </div>
+
+                  {/* ── Speed scale ── */}
+                  <div className="px-5 pt-4 pb-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Impact Severity Context</p>
+                    <div className="relative h-6 rounded-full overflow-hidden mb-1" style={{ background: '#f1f5f9' }}>
                       <div className="absolute top-0 bottom-0" style={{ left: 0, width: `${toScalePct(15)}%`, background: 'var(--fp-success-text)', opacity: 0.18 }} />
                       <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(15)}%`, width: `${toScalePct(40) - toScalePct(15)}%`, background: 'var(--fp-success-text)', opacity: 0.12 }} />
                       <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(40)}%`, width: `${toScalePct(80) - toScalePct(40)}%`, background: 'var(--fp-warning-text)', opacity: 0.18 }} />
                       <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(80)}%`, right: 0, background: 'var(--fp-critical-text)', opacity: 0.18 }} />
-                      {/* CI band (dominant visual) */}
                       {ciLow != null && ciHigh != null && (
-                        <div className="absolute top-1 bottom-1 rounded-full" style={{ left: `${toScalePct(ciLow)}%`, width: `${toScalePct(ciHigh) - toScalePct(ciLow)}%`, background: confColour, opacity: 0.35 }} />
+                        <div className="absolute top-1 bottom-1 rounded-full" style={{ left: `${toScalePct(ciLow)}%`, width: `${toScalePct(ciHigh) - toScalePct(ciLow)}%`, background: confColour, opacity: 0.3 }} />
                       )}
-                      {/* Consensus point marker */}
                       <div className="absolute top-0 bottom-0 w-0.5" style={{ left: `${toScalePct(consensusKmh)}%`, background: speedZoneColour[speedZone], opacity: 0.9 }} />
-                      <div className="absolute" style={{ left: `calc(${toScalePct(consensusKmh)}% - 5px)`, top: '50%', transform: 'translateY(-50%)', width: 10, height: 10, borderRadius: '50%', background: speedZoneColour[speedZone], border: '2px solid white' }} />
+                      <div className="absolute" style={{ left: `calc(${toScalePct(consensusKmh)}% - 6px)`, top: '50%', transform: 'translateY(-50%)', width: 12, height: 12, borderRadius: '50%', background: speedZoneColour[speedZone], border: '2px solid white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
                     </div>
-                    {/* Scale labels */}
-                    <div className="flex justify-between text-[9px]" style={{ color: 'var(--muted-foreground)' }}>
-                      <span>0</span>
-                      <span>Parking (&lt;15)</span>
-                      <span>Low Urban (&lt;40)</span>
-                      <span>Urban (&lt;80)</span>
-                      <span>Highway (80+)</span>
-                      <span>120 km/h</span>
+                    <div className="flex justify-between text-[9px] mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                      <span>0</span><span>Parking</span><span>Low Urban</span><span>Urban</span><span>Highway</span><span>120 km/h</span>
                     </div>
-                    <p className="text-xs mt-2 font-semibold" style={{ color: 'var(--foreground)' }}>
+                    <p className="text-xs mt-2 font-semibold" style={{ color: speedZoneColour[speedZone] }}>
                       {speedZoneLabel[speedZone]}
                     </p>
                   </div>
 
-                  {/* ── Method Contribution Panel ── */}
+                  {/* ── Evidence categories (no method names or formulas) ── */}
                   <div className="px-5 pt-3 pb-4" style={{ borderTop: '1px solid var(--border)' }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--muted-foreground)' }}>Method Contributions — Ranked by Reliability</p>
-                    <div className="space-y-2">
-                      {methods.map((m: any) => {
-                        const isOutlier = outlierMethods.includes(m.id);
-                        const barPct = m.available && m.estimateKmh != null ? toScalePct(m.estimateKmh) : 0;
-                        // Bar opacity encodes confidence weight (0.3 min → 1.0 max)
-                        const barOpacity = m.available ? Math.max(0.35, Math.min(1, (m.confidenceWeight ?? 0) * 2.5 + 0.35)) : 0.15;
-                        const barColour = isOutlier ? 'var(--fp-locked-text)' : m.available ? confColour : 'var(--fp-info-text)';
-                        const statusIcon = m.available ? (isOutlier ? '!' : '✓') : '✕';
-                        const statusColour = m.available ? (isOutlier ? 'var(--fp-locked-text)' : 'var(--fp-success-text)') : 'var(--fp-info-text)';
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--muted-foreground)' }}>Evidence Categories Assessed</p>
+                    <div className="space-y-0">
+                      {rawMethods.map((m: any, idx: number) => {
+                        const ran: boolean = m.ran ?? m.available ?? false;
+                        const speedKmh: number | null = m.speedKmh ?? m.estimateKmh ?? null;
+                        const isOutlier: boolean = (ensemble.crossValidation?.outlierMethods ?? []).includes(m.method ?? m.id ?? '');
+                        const methodId: string = m.method ?? m.id ?? `A${idx + 1}`;
+                        const categoryName = categoryMap[methodId] ?? `Analysis ${idx + 1}`;
+                        const statusColour = ran ? (isOutlier ? 'var(--fp-locked-text)' : 'var(--fp-success-text)') : 'var(--muted-foreground)';
+                        const statusIcon = ran ? (isOutlier ? '!' : '\u2713') : '\u2014';
+                        const statusLabel = ran
+                          ? (isOutlier
+                            ? 'Excluded — result diverged from other analyses'
+                            : (speedKmh != null
+                              ? `${speedKmh.toFixed(0)} km/h — ${speedMeaning(speedKmh)}`
+                              : 'Evidence reviewed — no speed estimate produced'))
+                          : 'Insufficient evidence available';
                         return (
-                          <div key={m.id}>
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <span className="text-[10px] font-bold w-4 text-center" style={{ color: statusColour }}>{statusIcon}</span>
-                              <span className="text-xs font-semibold" style={{ color: m.available ? 'var(--foreground)' : 'var(--muted-foreground)' }}>{m.name}</span>
-                              {m.available && m.estimateKmh != null && (
-                                <span className="ml-auto text-xs font-mono font-bold" style={{ color: 'var(--foreground)' }}>{m.estimateKmh.toFixed(0)} km/h</span>
-                              )}
-                              {m.available && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: '#ffffff', color: 'var(--muted-foreground)', border: '1px solid var(--border)' }}>
-                                  {Math.round((m.confidenceWeight ?? 0) * 100)}% weight
-                                </span>
-                              )}
+                          <div key={methodId} className="py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-2">
+                                <span className="text-[10px] font-bold w-4 text-center shrink-0 mt-0.5" style={{ color: statusColour }}>{statusIcon}</span>
+                                <span className="text-xs font-semibold" style={{ color: ran ? 'var(--foreground)' : 'var(--muted-foreground)' }}>{categoryName}</span>
+                              </div>
+                              <span className="text-[10px] font-semibold shrink-0 text-right" style={{ color: statusColour, maxWidth: '55%' }}>{statusLabel}</span>
                             </div>
-                            {/* Bar on the speed scale */}
-                            <div className="relative h-2 rounded-full ml-6" style={{ background: '#ffffff' }}>
-                              {m.available && m.estimateKmh != null && (
-                                <div className="absolute top-0 left-0 h-2 rounded-full" style={{ width: `${barPct}%`, background: barColour, opacity: barOpacity }} />
-                              )}
-                              {/* Consensus reference line */}
-                              <div className="absolute top-0 bottom-0 w-px" style={{ left: `${toScalePct(consensusKmh)}%`, background: 'var(--muted-foreground)', opacity: 0.4 }} />
-                            </div>
-                            <p className="text-[10px] ml-6 mt-0.5" style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
-                              {m.available
-                                ? (m.basis || methodDescriptions[m.id] || '')
-                                : (m.basis || methodDescriptions[m.id] || 'Insufficient data for this method')}
-                            </p>
-                            {/* M5 dual-path cross-validation display */}
-                            {m.id === 'M5' && m.available && (() => {
-                              const pathA = (m as any).pathA;
-                              const pathB = (m as any).pathB;
-                              const crossVal = (m as any).crossValidation;
-                              if (!pathA && !pathB) return null;
-                              const agree = crossVal?.agreement === true;
-                              const agreeColour = agree ? 'var(--fp-success-text)' : 'var(--fp-warning-text)';
-                              const agreeBg = agree ? 'var(--fp-success-bg)' : 'var(--fp-warning-bg)';
-                              const agreeBorder = agree ? 'var(--fp-success-border)' : 'var(--fp-warning-border)';
-                              return (
-                                <div className="ml-6 mt-1.5 rounded" style={{ border: '1px solid var(--border)', background: '#ffffff', overflow: 'hidden', fontSize: 10 }}>
-                                  <div className="flex" style={{ borderBottom: '1px solid var(--border)' }}>
-                                    <div className="flex-1 px-2 py-1.5" style={{ borderRight: '1px solid var(--border)' }}>
-                                      <div style={{ color: 'var(--muted-foreground)', textTransform: 'uppercase', fontSize: 9, fontWeight: 600, letterSpacing: '0.05em' }}>Path A \u2014 Campbell</div>
-                                      {pathA?.crushDepthM != null && (
-                                        <div style={{ fontFamily: 'monospace', color: 'var(--foreground)' }}>C = {(pathA.crushDepthM * 100).toFixed(1)} cm</div>
-                                      )}
-                                      {pathA?.speedKmh != null && (
-                                        <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--foreground)' }}>{pathA.speedKmh.toFixed(0)} km/h</div>
-                                      )}
-                                      {!pathA && <div style={{ color: 'var(--muted-foreground)' }}>No crush depth data</div>}
-                                    </div>
-                                    <div className="flex-1 px-2 py-1.5">
-                                      <div style={{ color: 'var(--muted-foreground)', textTransform: 'uppercase', fontSize: 9, fontWeight: 600, letterSpacing: '0.05em' }}>Path B \u2014 Energy Balance</div>
-                                      {pathB?.deformationEnergyJ != null && (
-                                        <div style={{ fontFamily: 'monospace', color: 'var(--foreground)' }}>E = {(pathB.deformationEnergyJ / 1000).toFixed(2)} kJ</div>
-                                      )}
-                                      {pathB?.speedKmh != null && (
-                                        <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--foreground)' }}>{pathB.speedKmh.toFixed(0)} km/h</div>
-                                      )}
-                                      {!pathB && <div style={{ color: 'var(--muted-foreground)' }}>No energy data</div>}
-                                    </div>
-                                  </div>
-                                  <div className="px-2 py-1" style={{ background: agreeBg, borderTop: `1px solid ${agreeBorder}` }}>
-                                    <span style={{ color: agreeColour, fontWeight: 600 }}>
-                                      {agree ? '\u2713 Paths agree' : '! Paths diverge'}
-                                    </span>
-                                    {crossVal?.spreadKmh != null && (
-                                      <span style={{ color: 'var(--muted-foreground)', marginLeft: 6 }}>\u0394 {crossVal.spreadKmh.toFixed(0)} km/h</span>
-                                    )}
-                                    {crossVal?.confidenceUpgraded && (
-                                      <span style={{ color: 'var(--fp-success-text)', marginLeft: 6, fontSize: 9, fontWeight: 600 }}>CONFIDENCE UPGRADED</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })()}
                           </div>
                         );
                       })}
                     </div>
-                    {outlierMethods.length > 0 && (
-                      <p className="text-[10px] mt-3 px-2 py-1.5 rounded" style={{ background: 'var(--fp-locked-bg)', color: 'var(--fp-locked-text)', border: '1px solid var(--fp-locked-border)' }}>
-                        ⚠ Outlier method{outlierMethods.length > 1 ? 's' : ''} ({outlierMethods.join(', ')}) excluded from consensus — estimate may be higher or lower than indicated.
-                      </p>
-                    )}
+                    <p className="text-[10px] mt-3 italic" style={{ color: 'var(--muted-foreground)' }}>
+                      Detailed methodology is available to qualified experts under a confidentiality undertaking.
+                    </p>
                   </div>
 
-                  {/* ── Recommended Action — coloured badge only, body text black ── */}
+                  {/* ── Recommended Action ── */}
                   <div className="px-5 py-3" style={{ borderTop: '1px solid var(--border)', background: '#ffffff' }}>
                     <div className="flex items-start gap-3">
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0 mt-0.5" style={{ background: recommendedAction.bg, color: recommendedAction.colour, border: `1px solid ${recommendedAction.border}` }}>{recommendedAction.icon}</span>
@@ -3273,62 +3216,6 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                       </div>
                     </div>
                   </div>
-
-                  {/* ── Divergence Explanation — only shown when HIGH_DIVERGENCE is set ── */}
-                  {divergenceFlag && (() => {
-                    const divExpl: any[] = ensemble.divergenceExplanation ?? [];
-                    if (divExpl.length === 0) return null;
-                    return (
-                      <div className="px-5 py-4" style={{ borderTop: '1px solid var(--fp-locked-border)', background: 'var(--fp-locked-bg)' }}>
-                        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--fp-locked-text)' }}>Why Methods Diverge — Adjuster Explanation</p>
-                        {divExpl.map((d: any, i: number) => (
-                          <div key={i} className="rounded-lg overflow-hidden mb-2" style={{ border: '1px solid var(--fp-locked-border)', background: '#ffffff' }}>
-                            {/* Method pair header */}
-                            <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid var(--fp-locked-border)', background: 'var(--fp-locked-bg)' }}>
-                              <p className="text-xs font-bold" style={{ color: '#0f172a' }}>
-                                {d.methodPair?.[0]} vs {d.methodPair?.[1]}
-                              </p>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-[10px] font-mono" style={{ color: '#64748b' }}>
-                                  {d.speedsKmh?.[0]} km/h vs {d.speedsKmh?.[1]} km/h
-                                </span>
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#ffffff', color: 'var(--fp-locked-text)', border: '1px solid var(--fp-locked-border)' }}>
-                                  Δ{d.gapKmh} km/h ({d.gapPct}%)
-                                </span>
-                              </div>
-                            </div>
-                            {/* Explanation body */}
-                            <div className="px-3 py-2 space-y-1.5">
-                              <div>
-                                <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: '#64748b' }}>Key input difference</p>
-                                <p className="text-[10px]" style={{ color: '#0f172a' }}>{d.keyInputDifference}</p>
-                              </div>
-                              <div>
-                                <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: '#64748b' }}>Explanation</p>
-                                <p className="text-[10px] leading-relaxed" style={{ color: '#334155' }}>{d.explanation}</p>
-                              </div>
-                            </div>
-                            {/* Recommended action */}
-                            {d.recommendedAction && (
-                              <div className="px-3 py-1.5" style={{ borderTop: '1px solid var(--fp-locked-border)', background: '#f8fafc' }}>
-                                <p className="text-[10px]" style={{ color: '#64748b' }}>
-                                  <span className="font-semibold" style={{ color: '#0f172a' }}>Action: </span>
-                                  {d.recommendedAction}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        {/* Cross-validation summary */}
-                        {ensemble.crossValidation?.recommendation && (
-                          <p className="text-[10px] mt-2" style={{ color: 'var(--fp-locked-text)' }}>
-                            <span className="font-semibold">Cross-validation: </span>
-                            {ensemble.crossValidation.recommendation}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })()}
 
                 </div>
               </div>
@@ -3644,11 +3531,9 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
   claimedSpeed: number | null;
   physicsSpeed: number | null;
 }) {
-  // Derive values — prefer speedForensics object, fall back to raw numbers
   const sf = speedForensics;
   const claimed: number | null = sf?.claimedSpeedKmh ?? claimedSpeed;
   const physics: number | null = sf?.physicsSpeedKmh ?? physicsSpeed;
-  const ensemble: number | null = sf?.ensembleSpeedKmh ?? null;
   const devPct: number | null = sf?.deviationPct ?? null;
   const devKmh: number | null = sf?.deviationKmh ?? null;
   const devClass: string = sf?.deviationClass ?? (claimed == null ? 'no_claim' : 'consistent');
@@ -3656,46 +3541,40 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
   const requiresVerification: boolean = sf?.requiresVerification ?? false;
   const verificationPriority: string = sf?.verificationPriority ?? 'none';
   const interpretation: string = sf?.interpretation ?? '';
-  const severityUpgraded: boolean = sf?.severityUpgraded ?? false;
-  const injuryPhysics: string = sf?.injuryRiskFromPhysics ?? 'low';
-  const injuryClaimed: string = sf?.injuryRiskFromClaimed ?? 'low';
 
-  // If no physics speed at all, don't render
   if (!physics && !claimed) return null;
 
-  // Deviation visual aid colours — used ONLY on bar fills and badge backgrounds, never on body text
-  const devBadgeBg = devClass === 'consistent' ? 'var(--fp-success-bg)'
-    : devClass === 'moderate' ? 'var(--fp-warning-bg)'
-    : devClass === 'significant' ? 'var(--fp-locked-bg)'
-    : devClass === 'critical' ? 'var(--fp-critical-bg)'
-    : 'var(--fp-info-bg)';
-  const devBadgeBorder = devClass === 'consistent' ? 'var(--fp-success-border)'
-    : devClass === 'moderate' ? 'var(--fp-warning-border)'
-    : devClass === 'significant' ? 'var(--fp-locked-border)'
-    : devClass === 'critical' ? 'var(--fp-critical-border)'
-    : 'var(--fp-info-border)';
-  const devBadgeText = devClass === 'consistent' ? 'var(--fp-success-text)'
-    : devClass === 'moderate' ? 'var(--fp-warning-text)'
-    : devClass === 'significant' ? 'var(--fp-locked-text)'
-    : devClass === 'critical' ? 'var(--fp-critical-text)'
-    : 'var(--fp-info-text)';
-  const devBarFill = devBadgeText; // bar fill uses same token as badge text
+  // Deviation colour tokens
+  const devBadgeBg = devClass === 'consistent' ? 'var(--fp-success-bg)' : devClass === 'moderate' ? 'var(--fp-warning-bg)' : devClass === 'significant' ? 'var(--fp-locked-bg)' : devClass === 'critical' ? 'var(--fp-critical-bg)' : 'var(--fp-info-bg)';
+  const devBadgeBorder = devClass === 'consistent' ? 'var(--fp-success-border)' : devClass === 'moderate' ? 'var(--fp-warning-border)' : devClass === 'significant' ? 'var(--fp-locked-border)' : devClass === 'critical' ? 'var(--fp-critical-border)' : 'var(--fp-info-border)';
+  const devBadgeText = devClass === 'consistent' ? 'var(--fp-success-text)' : devClass === 'moderate' ? 'var(--fp-warning-text)' : devClass === 'significant' ? 'var(--fp-locked-text)' : devClass === 'critical' ? 'var(--fp-critical-text)' : 'var(--fp-info-text)';
 
-  // Speed scale helper
   const SCALE_MAX_27 = 120;
   const toScalePct27 = (v: number) => Math.min(100, Math.max(0, (v / SCALE_MAX_27) * 100));
 
-  // Occupant risk badge styles — badge only, text stays black
-  const injuryBadge = (r: string) => ({
-    bg: r === 'critical' ? 'var(--fp-critical-bg)' : r === 'high' ? 'var(--fp-locked-bg)' : r === 'medium' ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)',
-    border: r === 'critical' ? 'var(--fp-critical-border)' : r === 'high' ? 'var(--fp-locked-border)' : r === 'medium' ? 'var(--fp-warning-border)' : 'var(--fp-success-border)',
-    text: r === 'critical' ? 'var(--fp-critical-text)' : r === 'high' ? 'var(--fp-locked-text)' : r === 'medium' ? 'var(--fp-warning-text)' : 'var(--fp-success-text)',
-  });
+  // Plain-English verdict sentence (court-defensible)
+  const verdictSentence = (() => {
+    if (claimed == null && physics != null) {
+      return `No speed was stated by the driver. Structural evidence indicates the vehicle was travelling at approximately ${Math.round(physics)} km/h at the time of impact.`;
+    }
+    if (claimed != null && physics != null) {
+      const diff = Math.abs(claimed - physics);
+      const higher = claimed > physics ? 'higher' : 'lower';
+      if (devClass === 'consistent') {
+        return `The driver stated ${claimed} km/h. Structural evidence indicates approximately ${Math.round(physics)} km/h — a difference of ${diff.toFixed(0)} km/h. The stated speed is consistent with the physical evidence.`;
+      } else if (devClass === 'moderate') {
+        return `The driver stated ${claimed} km/h. Structural evidence indicates approximately ${Math.round(physics)} km/h — a difference of ${diff.toFixed(0)} km/h (${devPct}%). The stated speed is ${higher} than the evidence suggests. Assessor review is recommended.`;
+      } else {
+        return `The driver stated ${claimed} km/h. Structural evidence indicates approximately ${Math.round(physics)} km/h — a discrepancy of ${diff.toFixed(0)} km/h (${devPct}%). This is a significant inconsistency that requires verification before settlement.`;
+      }
+    }
+    return '';
+  })();
 
   // Recommended action
   const recAction = requiresVerification
-    ? { label: verificationPriority === 'high' ? 'Independent Reconstruction Required Before Settlement' : 'Assessor Verification Recommended', bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)', body: 'The speed discrepancy between the driver statement and physics evidence exceeds the acceptable tolerance threshold. The attending assessor should review the physical damage evidence before authorising settlement.' }
-    : { label: 'Speed Claim Consistent with Physics Evidence', bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'var(--fp-success-text)', body: 'The claimed speed falls within the expected range for this level of damage. No independent reconstruction is required on speed grounds alone.' };
+    ? { label: verificationPriority === 'high' ? 'Independent Reconstruction Required Before Settlement' : 'Assessor Verification Recommended', bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)', icon: '!', body: 'The speed discrepancy between the driver statement and structural evidence exceeds the acceptable tolerance threshold. The attending assessor should review the physical damage evidence before authorising settlement.' }
+    : { label: 'Speed Claim Consistent with Structural Evidence', bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'var(--fp-success-text)', icon: '\u2713', body: 'The claimed speed falls within the expected range for this level of structural damage. No independent reconstruction is required on speed grounds alone.' };
 
   return (
     <div className="mb-4">
@@ -3704,134 +3583,111 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
         {/* ── Section header ── */}
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: '#ffffff' }}>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>2.7 Speed Forensics</p>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>Objective comparison of driver-stated speed against physics-derived evidence</p>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>2.7 Speed Verification</p>
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>Comparison of driver-stated speed against structural evidence</p>
           </div>
-          {requiresVerification && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>
-              Verification Required
+          {devLabel !== 'N/A' && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: devBadgeBg, color: devBadgeText, border: `1px solid ${devBadgeBorder}` }}>
+              {devLabel}
             </span>
           )}
         </div>
 
         <div className="p-4">
 
-          {/* ── Speed comparison: two data columns + deviation badge ── */}
-          <div className="grid grid-cols-3 gap-4 mb-5">
+          {/* ── Plain-English verdict ── */}
+          {verdictSentence && (
+            <div className="rounded-lg px-4 py-3 mb-4" style={{ background: requiresVerification ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)', border: `1px solid ${requiresVerification ? 'var(--fp-warning-border)' : 'var(--fp-success-border)'}` }}>
+              <p className="text-xs font-semibold leading-relaxed" style={{ color: 'var(--foreground)' }}>{verdictSentence}</p>
+            </div>
+          )}
+
+          {/* ── Speed comparison: three data columns ── */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Claimed Speed</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Stated Speed</p>
               <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'monospace' }}>
                 {claimed != null ? claimed : '—'}
               </p>
-              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{claimed != null ? 'km/h — driver statement' : 'Not Provided'}</p>
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{claimed != null ? 'km/h — driver statement' : 'Not provided'}</p>
             </div>
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Physics-Inferred Speed</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Structural Evidence</p>
               <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'monospace' }}>
                 {physics != null ? Math.round(physics) : '—'}
               </p>
-              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                {ensemble != null ? `km/h — ensemble consensus` : 'km/h — Campbell\'s formula'}
-              </p>
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>km/h — derived from damage analysis</p>
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Deviation</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Discrepancy</p>
               <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'monospace' }}>
                 {devPct != null ? `${devPct}%` : '—'}
               </p>
               {devKmh != null && (
-                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{devKmh.toFixed(0)} km/h absolute</p>
-              )}
-              {devLabel !== 'N/A' && (
-                <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1" style={{ background: devBadgeBg, color: devBadgeText, border: `1px solid ${devBadgeBorder}` }}>{devLabel}</span>
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{devKmh.toFixed(0)} km/h difference</p>
               )}
             </div>
           </div>
 
-          {/* ── Speed scale visual aid ── */}
+          {/* ── Unified speed scale: both markers + acceptable range band ── */}
           {(claimed != null || physics != null) && (
-            <div className="mb-5">
+            <div className="mb-4">
               <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Speed Comparison — Impact Scale</p>
-              <div className="relative h-5 rounded-full overflow-hidden" style={{ background: '#ffffff' }}>
+              <div className="relative h-6 rounded-full overflow-hidden" style={{ background: '#f1f5f9' }}>
                 {/* Zone fills */}
                 <div className="absolute top-0 bottom-0" style={{ left: 0, width: `${toScalePct27(15)}%`, background: 'var(--fp-success-text)', opacity: 0.12 }} />
                 <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct27(15)}%`, width: `${toScalePct27(40) - toScalePct27(15)}%`, background: 'var(--fp-success-text)', opacity: 0.08 }} />
                 <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct27(40)}%`, width: `${toScalePct27(80) - toScalePct27(40)}%`, background: 'var(--fp-warning-text)', opacity: 0.12 }} />
                 <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct27(80)}%`, right: 0, background: 'var(--fp-critical-text)', opacity: 0.12 }} />
-                {/* Claimed speed marker */}
-                {claimed != null && (
-                  <div className="absolute" style={{ left: `calc(${toScalePct27(claimed)}% - 5px)`, top: '50%', transform: 'translateY(-50%)', width: 10, height: 10, borderRadius: '50%', background: 'var(--fp-info-text)', border: '2px solid white', zIndex: 2 }} />
+                {/* Acceptable range band between the two markers */}
+                {claimed != null && physics != null && (
+                  <div className="absolute top-1 bottom-1" style={{
+                    left: `${toScalePct27(Math.min(claimed, physics))}%`,
+                    width: `${Math.abs(toScalePct27(claimed) - toScalePct27(physics))}%`,
+                    background: devBadgeText,
+                    opacity: 0.15,
+                    borderRadius: 4,
+                  }} />
                 )}
-                {/* Physics speed marker */}
+                {/* Stated speed marker (blue) */}
+                {claimed != null && (
+                  <div className="absolute" style={{ left: `calc(${toScalePct27(claimed)}% - 6px)`, top: '50%', transform: 'translateY(-50%)', width: 12, height: 12, borderRadius: '50%', background: 'var(--fp-info-text)', border: '2px solid white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', zIndex: 2 }} />
+                )}
+                {/* Physics speed marker (coloured by deviation) */}
                 {physics != null && (
-                  <div className="absolute" style={{ left: `calc(${toScalePct27(physics)}% - 5px)`, top: '50%', transform: 'translateY(-50%)', width: 10, height: 10, borderRadius: '50%', background: devBarFill, border: '2px solid white', zIndex: 3 }} />
+                  <div className="absolute" style={{ left: `calc(${toScalePct27(physics)}% - 6px)`, top: '50%', transform: 'translateY(-50%)', width: 12, height: 12, borderRadius: '50%', background: devBadgeText, border: '2px solid white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', zIndex: 3 }} />
                 )}
               </div>
               <div className="flex justify-between text-[9px] mt-1" style={{ color: 'var(--muted-foreground)' }}>
-                <span>0</span><span>Parking</span><span>Urban</span><span>Highway</span><span>120 km/h</span>
+                <span>0</span><span>Parking (&lt;15)</span><span>Urban (&lt;80)</span><span>Highway (80+)</span><span>120 km/h</span>
               </div>
               {/* Legend */}
-              <div className="flex gap-4 mt-2 text-[10px]" style={{ color: 'var(--muted-foreground)' }}>
-                <span className="flex items-center gap-1">
-                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--fp-info-text)', border: '1.5px solid white', outline: '1px solid var(--fp-info-text)' }} />
-                  Claimed ({claimed != null ? claimed : '—'} km/h)
+              <div className="flex gap-5 mt-2 text-[10px]" style={{ color: 'var(--muted-foreground)' }}>
+                <span className="flex items-center gap-1.5">
+                  <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: 'var(--fp-info-text)', border: '2px solid white', boxShadow: '0 0 0 1px var(--fp-info-text)' }} />
+                  Stated by driver ({claimed != null ? claimed : '—'} km/h)
                 </span>
-                <span className="flex items-center gap-1">
-                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: devBarFill, border: '1.5px solid white', outline: `1px solid ${devBarFill}` }} />
-                  Physics-inferred ({physics != null ? Math.round(physics) : '—'} km/h)
+                <span className="flex items-center gap-1.5">
+                  <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: devBadgeText, border: '2px solid white', boxShadow: `0 0 0 1px ${devBadgeText}` }} />
+                  Structural evidence ({physics != null ? Math.round(physics) : '—'} km/h)
                 </span>
               </div>
             </div>
           )}
 
-          {/* ── Deviation bar — tolerance scale ── */}
-          {devPct != null && (
-            <div className="mb-5">
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Deviation Tolerance Scale</p>
-              <div className="h-3 rounded-full relative" style={{ background: '#ffffff' }}>
-                <div className="absolute top-0 bottom-0 rounded-l-full" style={{ left: 0, width: '15%', background: 'var(--fp-success-text)', opacity: 0.18 }} />
-                <div className="absolute top-0 bottom-0" style={{ left: '15%', width: '20%', background: 'var(--fp-warning-text)', opacity: 0.18 }} />
-                <div className="absolute top-0 bottom-0" style={{ left: '35%', width: '25%', background: 'var(--fp-locked-text)', opacity: 0.18 }} />
-                <div className="absolute top-0 bottom-0 rounded-r-full" style={{ left: '60%', right: 0, background: 'var(--fp-critical-text)', opacity: 0.18 }} />
-                <div className="absolute top-0 h-3 rounded-full" style={{ width: `${Math.min(100, devPct)}%`, background: devBarFill, opacity: 0.75 }} />
-              </div>
-              <div className="flex justify-between text-[9px] mt-1" style={{ color: 'var(--muted-foreground)' }}>
-                <span>0% Consistent</span><span>15%</span><span>35%</span><span>60%</span><span>100% Critical</span>
-              </div>
-            </div>
-          )}
-
-          {/* ── Occupant risk — badge only, label text black ── */}
-          {claimed != null && (
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Occupant Risk at Claimed Speed</p>
-                <p className="text-sm font-semibold capitalize" style={{ color: 'var(--foreground)' }}>{injuryClaimed}</p>
-                <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1" style={{ background: injuryBadge(injuryClaimed).bg, color: injuryBadge(injuryClaimed).text, border: `1px solid ${injuryBadge(injuryClaimed).border}` }}>{injuryClaimed.toUpperCase()}</span>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Occupant Risk at Physics Speed</p>
-                <p className="text-sm font-semibold capitalize" style={{ color: 'var(--foreground)' }}>
-                  {injuryPhysics}{severityUpgraded && <span className="ml-1 text-[10px]" style={{ color: 'var(--muted-foreground)' }}>(upgraded from claimed)</span>}
-                </p>
-                <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1" style={{ background: injuryBadge(injuryPhysics).bg, color: injuryBadge(injuryPhysics).text, border: `1px solid ${injuryBadge(injuryPhysics).border}` }}>{injuryPhysics.toUpperCase()}</span>
-              </div>
-            </div>
-          )}
-
-          {/* ── Interpretation — plain black text ── */}
+          {/* ── Forensic Interpretation ── */}
           {interpretation && (
-            <div className="rounded p-3 mb-4" style={{ background: '#ffffff', border: '1px solid var(--border)' }}>
+            <div className="rounded p-3 mb-4" style={{ background: '#f8fafc', border: '1px solid var(--border)' }}>
               <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Forensic Interpretation</p>
               <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{interpretation}</p>
             </div>
           )}
 
-          {/* ── Recommended action — badge only, body text black ── */}
+          {/* ── Recommended action ── */}
           <div className="rounded p-3" style={{ background: '#ffffff', border: '1px solid var(--border)' }}>
             <div className="flex items-start gap-3">
               <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0 mt-0.5" style={{ background: recAction.bg, color: recAction.text, border: `1px solid ${recAction.border}` }}>
-                {requiresVerification ? '!' : '✓'}
+                {recAction.icon}
               </span>
               <div>
                 <p className="text-xs font-bold" style={{ color: 'var(--foreground)' }}>{recAction.label}</p>
@@ -3840,13 +3696,6 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
             </div>
           </div>
 
-          {/* Methodology footnote */}
-          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
-              <span style={{ fontWeight: 700, fontFamily: 'var(--kr-mono)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Methodology: </span>
-              Physics-inferred speed is derived from Campbell\'s structural stiffness formula applied to the observed crush depth and vehicle mass, cross-validated by the Speed Inference Ensemble (Section 2.6). The claimed speed is the driver\'s stated speed from the claim form. This comparison is an objective forensic measurement — the adjuster determines its significance in the context of the full claim.
-            </p>
-          </div>
         </div>
       </div>
     </div>
