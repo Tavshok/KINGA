@@ -444,6 +444,11 @@ function resolveDirection(eventType: string): "front" | "rear" | "left" | "right
   if (/SIDESWIPE|SIDE_LEFT|DRIVER_SIDE/.test(n)) return "left";
   if (/SIDE_RIGHT|PASSENGER_SIDE/.test(n)) return "right";
   if (/ROLLOVER/.test(n)) return "rollover";
+  // Single-vehicle events: road hazard, pothole, depression, flood, fire, theft, hail, etc.
+  // Default to front impact direction as the most common single-vehicle impact zone
+  if (/ROAD_HAZARD|SINGLE_VEHICLE|POTHOLE|DEPRESSION|FLOOD|FIRE|THEFT|HAIL|STORM|VANDAL|FALLING|DEBRIS|ANIMAL_STRIKE|HIT_AND_RUN|UNKNOWN|N\/A/.test(n)) return "front";
+  // Any remaining unclassified type with a non-empty string: default to front
+  if (n.length > 0 && n !== "UNKNOWN" && n !== "N/A") return "front";
   return null;
 }
 
@@ -1547,105 +1552,120 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
             <div className="mt-3 space-y-2">
               {/* 1.1a Incident Narrative */}
               <div className="p-3 rounded-lg text-xs" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "#64748b" }}>Incident Narrative</span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "#64748b" }}>Claimant Statement</span>
                   {narrativeAnalysis && narrativeAnalysis.consistency_verdict && (() => {
                     const v = narrativeAnalysis.consistency_verdict;
-                    // Plain text verdict — no coloured badge
+                    const isOk = v === "CONSISTENT";
+                    const isWarn = v === "MINOR_DISCREPANCY" || v === "PARTIAL";
                     const verdictLabel = v === "CONSISTENT" ? "Consistent"
                       : v === "MINOR_DISCREPANCY" ? "Minor discrepancy"
                       : v === "INCONSISTENT" ? "Inconsistent"
                       : v === "CONTAMINATED" ? "Contaminated"
                       : toSentenceCase(v);
+                    const badgeBg = isOk ? "#dcfce7" : isWarn ? "#fef9c3" : "#fee2e2";
+                    const badgeColor = isOk ? "#166534" : isWarn ? "#854d0e" : "#991b1b";
                     return (
-                      <span className="text-[10px] font-semibold" style={{ color: "#0f172a" }}>
+                      <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded" style={{ background: badgeBg, color: badgeColor }}>
                         {verdictLabel}
                       </span>
                     );
                   })()}
                 </div>
                 {(!description && !narrativeAnalysis?.cleaned_incident_narrative) ? (
-                  <div className="flex items-start gap-2 p-2.5 text-xs" style={{ border: "1px solid #e2e8f0", color: "#0f172a" }}>
-                    <span className="shrink-0 font-bold text-[11px]">&#9888;</span>
-                    <div>
-                      <p className="font-semibold">Incident description not extracted</p>
-                      <p className="mt-0.5 opacity-80">The incident description could not be extracted from the submitted documents. This may be due to garbled OCR output, a missing narrative section, or an unsupported document format. The pipeline has flagged this field as unreadable and nullified it to prevent corrupted data from propagating. Please verify the source documents and consider re-submitting with clearer scans.</p>
-                    </div>
+                  <div className="flex items-start gap-2 p-2 text-xs" style={{ background: "#fef9c3", borderRadius: "4px", color: "#854d0e" }}>
+                    <span className="shrink-0 font-bold">&#9888;</span>
+                    <p>Incident description could not be extracted from the submitted documents. Please verify source documents and re-submit with clearer scans.</p>
                   </div>
                 ) : (
-                  <div className="leading-relaxed" style={{ color: "#0f172a", fontFamily: "inherit", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                    {/* Filter out assessor-authored conclusion phrases that are not engine-derived findings */}
-                    {filterAssessorConclusions(sanitiseTextArtefacts(description || narrativeAnalysis?.cleaned_incident_narrative || '')).split('\n').map((line: string, li: number) => (
-                      <p key={li} style={{ marginBottom: line.trim() === '' ? '0.5em' : '0', minHeight: line.trim() === '' ? '0.5em' : undefined }}>{line || '\u00a0'}</p>
-                    ))}
-                  </div>
+                  <p className="leading-relaxed text-xs" style={{ color: "#0f172a", fontStyle: "italic" }}>
+                    {toSentenceCase(filterAssessorConclusions(sanitiseTextArtefacts(description || narrativeAnalysis?.cleaned_incident_narrative || '')).trim())}
+                  </p>
                 )}
                 {narrativeAnalysis?.was_contaminated && (
-                  <p className="mt-1 text-[10px]" style={{ color: "var(--fp-warning-text)" }}>
-                    Note: Post-incident content (inspection findings, repair notes) was identified and excluded from the narrative above.
+                  <p className="mt-1 text-[10px]" style={{ color: "#b45309" }}>
+                    &#9888; Post-incident content (inspection findings, repair notes) was identified and excluded.
                   </p>
                 )}
                 {narrativeAnalysis?.extracted_facts?.sequence_of_events && (
                   <div className="mt-2 pt-2" style={{ borderTop: "1px solid #e2e8f0" }}>
-                    <p className="text-[10px] font-semibold mb-0.5" style={{ color: "#64748b" }}>Reconstructed Sequence of Events</p>
-                    <p className="leading-relaxed" style={{ color: "#64748b" }}>{narrativeAnalysis.extracted_facts.sequence_of_events}</p>
+                    <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Reconstructed sequence &nbsp;</span>
+                    <span className="text-xs" style={{ color: "#334155" }}>{narrativeAnalysis.extracted_facts.sequence_of_events}</span>
                   </div>
                 )}
               </div>
 
-              {/* Cross-validation panel */}
-              {narrativeAnalysis?.cross_validation && (
-                <div className="p-3 rounded-lg text-xs" style={{ background: "#ffffff", border: "1px solid #e2e8f0" }}>
-                  <p className="font-bold uppercase tracking-wide text-[10px] mb-2" style={{ color: "#64748b" }}>Narrative Cross-Validation</p>
-                  <div className="space-y-1.5">
-                    {[
-                      { label: "Physics alignment", verdict: narrativeAnalysis.cross_validation.physics_verdict, notes: narrativeAnalysis.cross_validation.physics_notes },
-                      { label: "Damage alignment", verdict: narrativeAnalysis.cross_validation.damage_verdict, notes: narrativeAnalysis.cross_validation.damage_notes },
-                      { label: "Crush depth alignment", verdict: narrativeAnalysis.cross_validation.crush_depth_verdict, notes: narrativeAnalysis.cross_validation.crush_depth_notes },
-                    ].filter(r => r.verdict && r.verdict !== "NOT_ASSESSED").map((r, i) => {
-                      // Plain text verdict — no coloured badge
-                      const verdictText = r.verdict === "CONSISTENT" ? "Consistent"
-                        : r.verdict === "PARTIAL" ? "Partial"
-                        : r.verdict === "INCONSISTENT" ? "Inconsistent"
-                        : toSentenceCase(r.verdict);
-                      return (
-                        <div key={i} className="flex items-start gap-2">
-                          <span className="shrink-0 text-[10px] font-semibold" style={{ color: "#0f172a", minWidth: "60px" }}>{verdictText}:</span>
-                          <span style={{ color: "#64748b" }}><span className="font-semibold" style={{ color: "#0f172a" }}>{r.label}:</span> {r.notes}</span>
+              {/* Cross-validation + Fraud signals + Reasoning — single compact panel */}
+              {(narrativeAnalysis?.cross_validation || (narrativeAnalysis?.fraud_signals?.length > 0) || narrativeAnalysis?.reasoning_summary) && (
+                <div className="text-xs" style={{ border: "1px solid #e2e8f0", borderRadius: "6px", overflow: "hidden", background: "#ffffff" }}>
+                  {/* Cross-validation rows */}
+                  {narrativeAnalysis?.cross_validation && (() => {
+                    const rows = [
+                      { label: "Physics", verdict: narrativeAnalysis.cross_validation.physics_verdict, notes: narrativeAnalysis.cross_validation.physics_notes },
+                      { label: "Damage", verdict: narrativeAnalysis.cross_validation.damage_verdict, notes: narrativeAnalysis.cross_validation.damage_notes },
+                      { label: "Crush depth", verdict: narrativeAnalysis.cross_validation.crush_depth_verdict, notes: narrativeAnalysis.cross_validation.crush_depth_notes },
+                    ].filter(r => r.verdict && r.verdict !== "NOT_ASSESSED");
+                    if (rows.length === 0) return null;
+                    return (
+                      <div style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <div className="px-3 py-1.5" style={{ background: "#f8fafc", borderBottom: "1px solid #f1f5f9" }}>
+                          <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "#64748b" }}>Cross-Validation</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Narrative fraud signals */}
-              {narrativeAnalysis?.fraud_signals && narrativeAnalysis.fraud_signals.length > 0 && (
-                <div className="p-3 rounded-lg text-xs" style={{ border: "1px solid #e2e8f0" }}>
-                  <p className="font-bold uppercase tracking-wide text-[10px] mb-2" style={{ color: "#64748b" }}>Narrative fraud signals ({narrativeAnalysis.fraud_signals.length})</p>
-                  <div className="space-y-1.5">
-                    {narrativeAnalysis.fraud_signals.map((sig: any, i: number) => {
-                      const severityLabel = sig.severity === "HIGH" ? "High" : sig.severity === "MEDIUM" ? "Medium" : "Low";
-                      return (
-                        <div key={i} className="flex items-start gap-2">
-                          <span className="shrink-0 text-[10px] font-semibold" style={{ color: "#0f172a", minWidth: "42px" }}>{severityLabel}:</span>
-                          <div>
-                            <span className="font-semibold" style={{ color: "#0f172a" }}>{sig.code?.replace(/_/g, " ")}: </span>
-                            <span style={{ color: "#0f172a" }}>{sig.description}</span>
-                            {sig.evidence && <span className="block text-[10px] mt-0.5" style={{ color: "#64748b" }}>Evidence: "{sig.evidence}"</span>}
-                          </div>
+                        <div className="px-3 py-2 space-y-1.5">
+                          {rows.map((r, i) => {
+                            const isOk = r.verdict === "CONSISTENT";
+                            const isWarn = r.verdict === "PARTIAL" || r.verdict === "MINOR_DISCREPANCY";
+                            const dot = isOk ? "#22c55e" : isWarn ? "#f59e0b" : "#ef4444";
+                            const vt = isOk ? "Consistent" : isWarn ? toSentenceCase(r.verdict) : "Inconsistent";
+                            return (
+                              <div key={i} className="flex items-start gap-2">
+                                <span className="mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: dot, marginTop: "4px" }} />
+                                <span className="font-semibold shrink-0" style={{ color: "#334155", minWidth: "72px" }}>{r.label}</span>
+                                <span className="text-[10px] font-bold uppercase shrink-0" style={{ color: dot, minWidth: "68px" }}>{vt}</span>
+                                <span style={{ color: "#64748b" }}>{r.notes}</span>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                      </div>
+                    );
+                  })()}
 
-              {/* Reasoning summary */}
-              {narrativeAnalysis?.reasoning_summary && (
-                <div className="p-3 rounded-lg text-xs" style={{ background: "#ffffff", border: "1px solid #e2e8f0" }}>
-                  <p className="text-[10px] font-semibold mb-1" style={{ color: "#64748b" }}>Analyst Reasoning</p>
-                  <p style={{ color: "#0f172a" }}>{narrativeAnalysis.reasoning_summary}</p>
+                  {/* Fraud signals */}
+                  {narrativeAnalysis?.fraud_signals && narrativeAnalysis.fraud_signals.length > 0 && (
+                    <div style={{ borderBottom: narrativeAnalysis?.reasoning_summary ? "1px solid #f1f5f9" : undefined }}>
+                      <div className="px-3 py-1.5" style={{ background: "#fff7ed", borderBottom: "1px solid #fed7aa" }}>
+                        <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "#c2410c" }}>Narrative Flags &nbsp;·&nbsp; {narrativeAnalysis.fraud_signals.length}</span>
+                      </div>
+                      <div className="px-3 py-2 space-y-1.5">
+                        {narrativeAnalysis.fraud_signals.map((sig: any, i: number) => {
+                          const isHigh = sig.severity === "HIGH";
+                          const isMed = sig.severity === "MEDIUM";
+                          const dot = isHigh ? "#ef4444" : isMed ? "#f59e0b" : "#94a3b8";
+                          const sev = isHigh ? "High" : isMed ? "Medium" : "Low";
+                          return (
+                            <div key={i} className="flex items-start gap-2">
+                              <span className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: dot, marginTop: "4px" }} />
+                              <div>
+                                <span className="font-semibold text-[10px] uppercase tracking-wide" style={{ color: dot }}>{sev}: </span>
+                                <span className="font-semibold" style={{ color: "#0f172a" }}>{sig.code?.replace(/_/g, " ")}</span>
+                                <span style={{ color: "#334155" }}> — {sig.description}</span>
+                                {sig.evidence && <span className="block text-[10px] mt-0.5" style={{ color: "#64748b", fontStyle: "italic" }}>Evidence: "{sig.evidence}"</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Analyst reasoning */}
+                  {narrativeAnalysis?.reasoning_summary && (
+                    <div className="px-3 py-2" style={{ background: "#f8fafc" }}>
+                      <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "#64748b" }}>Analyst Reasoning &nbsp;</span>
+                      <span style={{ color: "#334155" }}>{narrativeAnalysis.reasoning_summary}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
