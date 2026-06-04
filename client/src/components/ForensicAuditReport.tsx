@@ -3988,63 +3988,43 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
             </div>
           </div>
 
-          {/* Component table — expected vs found */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            {/* Expected primary */}
-            {expectedPrimary.length > 0 && (
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--muted-foreground)' }}>Expected primary components</p>
-                <div className="space-y-1">
-                  {expectedPrimary.map((comp) => {
-                    const matched = matchedPrimary.some(m => m.toLowerCase().includes(comp.toLowerCase()) || comp.toLowerCase().includes(m.toLowerCase()));
-                    return (
-                      <div key={comp} className="flex items-center gap-1.5 text-[10px]">
-                        <span style={{ color: matched ? 'var(--fp-success-text)' : 'var(--fp-critical-text)', fontWeight: 700 }}>{matched ? '✓' : '✗'}</span>
-                        <span className="capitalize" style={{ color: 'var(--foreground)' }}>{comp}</span>
-                        {!matched && <span className="text-[9px]" style={{ color: 'var(--fp-critical-text)' }}>missing</span>}
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* Component chips — compact inline groups */}
+          <div className="space-y-2 mb-3">
+            {/* Matched primary */}
+            {matchedPrimary.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-widest shrink-0" style={{ color: 'var(--fp-success-text)', minWidth: 56 }}>✓ Matched</span>
+                {matchedPrimary.map((comp) => (
+                  <span key={comp} className="text-[9px] px-1.5 py-0.5 rounded capitalize" style={{ background: 'var(--fp-success-bg)', color: 'var(--fp-success-text)', border: '1px solid var(--fp-success-border)' }}>{comp}</span>
+                ))}
               </div>
             )}
-            {/* Anomalies column */}
-            <div>
-              {missingExpected.length > 0 && (
-                <>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--fp-critical-text)' }}>Missing expected components</p>
-                  <div className="space-y-1 mb-3">
-                    {missingExpected.map((comp) => (
-                      <div key={comp} className="flex items-center gap-1.5 text-[10px]">
-                        <span style={{ color: 'var(--fp-critical-text)', fontWeight: 700 }}>✗</span>
-                        <span className="capitalize" style={{ color: 'var(--foreground)' }}>{comp}</span>
-                        <span className="text-[9px] px-1 rounded" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>fraud signal</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-              {unexpected.length > 0 && (
-                <>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--fp-warning-text)' }}>Unexpected components</p>
-                  <div className="space-y-1">
-                    {unexpected.map((comp) => (
-                      <div key={comp} className="flex items-center gap-1.5 text-[10px]">
-                        <span style={{ color: 'var(--fp-warning-text)', fontWeight: 700 }}>?</span>
-                        <span className="capitalize" style={{ color: 'var(--foreground)' }}>{comp}</span>
-                        <span className="text-[9px] px-1 rounded" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>billing anomaly</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-              {!missingExpected.length && !unexpected.length && (
-                <div className="flex items-center gap-1.5 text-[10px]" style={{ color: 'var(--fp-success-text)' }}>
-                  <span style={{ fontWeight: 700 }}>✓</span>
-                  <span>No anomalies detected</span>
-                </div>
-              )}
-            </div>
+            {/* Missing expected */}
+            {missingExpected.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-widest shrink-0" style={{ color: 'var(--fp-critical-text)', minWidth: 56 }}>✗ Missing</span>
+                {missingExpected.map((comp) => (
+                  <span key={comp} className="text-[9px] px-1.5 py-0.5 rounded capitalize" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>{comp}</span>
+                ))}
+                <span className="text-[9px] px-1 py-0.5 rounded" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)', fontWeight: 700 }}>fraud signal</span>
+              </div>
+            )}
+            {/* Unexpected */}
+            {unexpected.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-widest shrink-0" style={{ color: 'var(--fp-warning-text)', minWidth: 56 }}>? Extra</span>
+                {unexpected.map((comp) => (
+                  <span key={comp} className="text-[9px] px-1.5 py-0.5 rounded capitalize" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>{comp}</span>
+                ))}
+                <span className="text-[9px] px-1 py-0.5 rounded" style={{ background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)', fontWeight: 700 }}>billing anomaly</span>
+              </div>
+            )}
+            {!missingExpected.length && !unexpected.length && matchedPrimary.length === 0 && (
+              <div className="flex items-center gap-1.5 text-[10px]" style={{ color: 'var(--fp-success-text)' }}>
+                <span style={{ fontWeight: 700 }}>✓</span>
+                <span>No anomalies detected</span>
+              </div>
+            )}
           </div>
 
           {/* Reasoning — engineering derivation chain */}
