@@ -445,10 +445,52 @@ function resolveDirection(eventType: string): "front" | "rear" | "left" | "right
   if (/SIDE_RIGHT|PASSENGER_SIDE/.test(n)) return "right";
   if (/ROLLOVER/.test(n)) return "rollover";
   // Single-vehicle events: road hazard, pothole, depression, flood, fire, theft, hail, etc.
-  // Default to front impact direction as the most common single-vehicle impact zone
-  if (/ROAD_HAZARD|SINGLE_VEHICLE|POTHOLE|DEPRESSION|FLOOD|FIRE|THEFT|HAIL|STORM|VANDAL|FALLING|DEBRIS|ANIMAL_STRIKE|HIT_AND_RUN|UNKNOWN|N\/A/.test(n)) return "front";
-  // Any remaining unclassified type with a non-empty string: default to front
-  if (n.length > 0 && n !== "UNKNOWN" && n !== "N/A") return "front";
+  if (/ROAD_HAZARD|SINGLE_VEHICLE|POTHOLE|DEPRESSION|FLOOD|FIRE|THEFT|HAIL|STORM|VANDAL|FALLING|DEBRIS|ANIMAL_STRIKE|HIT_AND_RUN/.test(n)) return "front";
+  // Any remaining non-empty, non-unknown type: return null to allow smarter fallback
+  return null;
+}
+
+/**
+ * Infer impact direction from the actual damaged zones.
+ * Mirrors the server-side ZONE_DIRECTION_MAP in damagePhysicsCoherence.ts.
+ * Returns the most-voted direction across all damaged zones, or null if ambiguous.
+ */
+function inferDirectionFromZones(damageZones: string[]): "front" | "rear" | "left" | "right" | null {
+  if (!damageZones || damageZones.length === 0) return null;
+  const votes: Record<string, number> = { front: 0, rear: 0, left: 0, right: 0 };
+  for (const z of damageZones) {
+    const n = z.toLowerCase().replace(/[\s-]/g, "_");
+    // Front indicators
+    if (/front|bonnet|hood|bumper_front|grille|headlight|windshield|radiator|bumper(?!.*rear)/.test(n)) votes.front += 2;
+    // Rear indicators
+    if (/rear|boot|trunk|tailgate|taillight|bumper_rear|back/.test(n)) votes.rear += 2;
+    // Left/driver side indicators
+    if (/driver|left|lhs|l\.f|l\.r|front_left|rear_left|driver_door|driver_side/.test(n)) votes.left += 1;
+    // Right/passenger side indicators
+    if (/passenger|right|rhs|r\.f|r\.r|front_right|rear_right|passenger_door|passenger_side/.test(n)) votes.right += 1;
+  }
+  // Find the direction with the highest vote count
+  const best = (Object.entries(votes) as [string, number][]).reduce((a, b) => b[1] > a[1] ? b : a);
+  if (best[1] === 0) return null;
+  // If front+rear or left+right are tied, it's multi-impact — default to front
+  const sorted = (Object.entries(votes) as [string, number][]).sort((a, b) => b[1] - a[1]);
+  if (sorted[0][1] === sorted[1][1] && sorted[0][1] > 0) return "front";
+  return best[0] as "front" | "rear" | "left" | "right";
+}
+
+/**
+ * Map a canonical physics impactVector.direction (Stage 7 output) to the arrow direction.
+ * Physics directions: frontal | rear | side_driver | side_passenger | rollover | multi_impact | unknown
+ */
+function physicsDirectionToArrow(physDir: string | null | undefined): "front" | "rear" | "left" | "right" | "rollover" | null {
+  if (!physDir) return null;
+  const n = physDir.toLowerCase();
+  if (n === "frontal" || n === "front") return "front";
+  if (n === "rear") return "rear";
+  if (n === "side_driver" || n === "left") return "left";
+  if (n === "side_passenger" || n === "right") return "right";
+  if (n === "rollover") return "rollover";
+  if (n === "multi_impact") return "front"; // default to front for multi-impact
   return null;
 }
 
@@ -465,9 +507,10 @@ const ARROW_GEOM: Record<string, { x1:number; y1:number; x2:number; y2:number }>
 const EVENT_COLOURS = ["#ef4444", "#3b82f6", "#f59e0b", "#8b5cf6"];
 const EVENT_LABELS  = ["Event 1", "Event 2", "Event 3", "Event 4"];
 
-function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multiEventSequence, deltaV, energyKj, impactForceKn, decelerationG, velocityRange, energyAbsorptionRatio }: {
+function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsistencyLabel, multiEventSequence, deltaV, energyKj, impactForceKn, decelerationG, velocityRange, energyAbsorptionRatio }: {
   damageZones: string[];
   incidentType: string;
+  physicsDirection?: string | null;
   inconsistencyLabel?: string;
   multiEventSequence?: { is_multi_event: boolean; events: Array<{ event_order: number; event_type: string; involves_third_party: boolean; damage_contribution: string[] }> } | null;
   deltaV?: number;
@@ -517,8 +560,14 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multi
       }
     });
   } else {
-    // Single-event fallback: derive from incidentType
-    const dir = resolveDirection(incidentType);
+    // 3-tier direction inference:
+    // 1. Physics engine impactVector.direction (most authoritative — Stage 7 computed)
+    // 2. Damage zones (inferred from actual damaged parts)
+    // 3. Incident type string (last resort)
+    const physArrow = physicsDirectionToArrow(physicsDirection);
+    const zoneArrow = physArrow ? null : inferDirectionFromZones(damageZones);
+    const typeArrow = (physArrow || zoneArrow) ? null : resolveDirection(incidentType);
+    const dir = physArrow ?? zoneArrow ?? typeArrow;
     if (dir && dir !== "rollover") {
       arrowList.push({ dir, colour: EVENT_COLOURS[0], label: "Impact", dashed: false });
     }
@@ -2402,6 +2451,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               <VehicleDamageMap
                 damageZones={damageZones}
                 incidentType={incidentType}
+                physicsDirection={(_phys as any)?.impactVector?.direction ?? null}
                 multiEventSequence={multiEventSequence}
                 deltaV={deltaV > 0 ? deltaV : undefined}
                 energyKj={energyKj > 0 ? energyKj : undefined}
