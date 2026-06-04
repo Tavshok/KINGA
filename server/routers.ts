@@ -4330,6 +4330,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Tenant filtering via innerJoin was causing quotes to be silently dropped when the
         // user's tenantId didn't exactly match the claim's tenantId (e.g. "default" vs actual tenant).
         const quotes = await getQuotesByClaimId(input.claimId);
+        console.log(`[getWithLineItems] claimId=${input.claimId} quotes=${quotes.length} ids=${quotes.map(q=>q.id).join(',')} pbIds=${quotes.map(q=>q.panelBeaterId).join(',')}`);
         
         // Fetch panel beater details for name resolution
         const panelBeaterIds = [...new Set(quotes.map(q => q.panelBeaterId))];

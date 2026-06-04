@@ -1034,7 +1034,7 @@ export default function ClaimDecisionReport() {
   }, [claim, isPollingForPipeline]);
   const { data: quotesWithItems = [], isLoading: quotesLoading } = trpc.quotes.getWithLineItems.useQuery(
     { claimId },
-    { enabled: !!claimId }
+    { enabled: !!claimId, staleTime: 0, refetchOnMount: 'always' }
   );
 
   const { data: existingSignOff, refetch: refetchSignOff } = trpc.claims.getAdjusterSignOff.useQuery(

@@ -2347,6 +2347,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               },
             };
             return (
+              <>
               <div className="physics-row mb-3">
                 {/* Left: physics KV table */}
                 <div className="physics-col-main">
@@ -2372,36 +2373,36 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     </tbody>
                   </table>
                 </div>
-                {/* Right: gauge + LDP chart stacked */}
+                {/* Right: gauge only */}
                 <div className="physics-col-side">
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                      <ArcGauge value={physicsScore} size={110} label="Physics consistency" />
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <ArcGauge value={physicsScore} size={120} label="Physics consistency" />
                     <p style={{ fontSize: 11, color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
                       {physicsScore >= 70 ? "Damage consistent with stated incident" :
                        physicsScore >= 30 ? "Minor inconsistencies detected" :
                        "Significant anomaly — engineering review required"}
                     </p>
-                    {showLdp && ldpChartData && (
-                      <div style={{ width: '100%', marginTop: 8, borderTop: '1px solid #e2e8f0', paddingTop: 8 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <span className="kr-mono-label">Latent Damage Probability</span>
-                          <span style={{ fontSize: 11, color: '#64748b' }}>Hidden risk</span>
-                        </div>
-                        <div style={{ height: 220, width: '100%' }}>
-                          <Bar data={ldpChartData} options={ldpOpts} />
-                        </div>
-                        {ldpSorted.some(([,v]) => v >= 40) && (
-                          <p style={{ fontSize: 11, marginTop: 6, padding: '4px 8px', background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>
-                            One or more systems show elevated hidden damage risk — physical inspection recommended before final settlement.
-                          </p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
+              {/* LDP chart: full width below the physics table + gauge row */}
+              {showLdp && ldpChartData && (
+                <div style={{ width: '100%', marginTop: 12, borderTop: '1px solid #e2e8f0', paddingTop: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span className="kr-mono-label">Latent Damage Probability</span>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>Hidden risk</span>
+                  </div>
+                  <div style={{ height: 200, width: '100%' }}>
+                    <Bar data={ldpChartData} options={ldpOpts} />
+                  </div>
+                  {ldpSorted.some(([,v]) => v >= 40) && (
+                    <p style={{ fontSize: 11, marginTop: 6, padding: '4px 8px', background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>
+                      One or more systems show elevated hidden damage risk — physical inspection recommended before final settlement.
+                    </p>
+                  )}
+                </div>
+              )}
+              </>
             );
           })()}
 
@@ -7745,8 +7746,8 @@ function Section7Learning({
 // ─── Mockup v4.2 scoped CSS─────────────────────────────────────────
 const REPORT_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
-.kinga-report{font-family:'DM Sans',sans-serif;font-size:13px;color:#1a1916;background:#fff;line-height:1.5;padding:0;position:relative;
-  --kr-black:#0a0a0a;--kr-white:#ffffff;--kr-off-white:#f7f6f3;--kr-rule:#e0ddd8;--kr-muted:#6b6862;--kr-text:#1a1916;
+.kinga-report{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:450;color:#0f172a;background:#fff;line-height:1.5;padding:0;position:relative;
+  --kr-black:#0a0a0a;--kr-white:#ffffff;--kr-off-white:#f7f6f3;--kr-rule:#e0ddd8;--kr-muted:#6b6862;--kr-text:#0f172a;
   --kr-red:#c0392b;--kr-amber:#d97706;--kr-green:#16a34a;--kr-blue:#1d4ed8;
   --kr-red-light:#fef2f2;--kr-amber-light:#fffbeb;--kr-green-light:#f0fdf4;--kr-blue-light:#eff6ff;
   --kr-mono:'DM Mono',monospace;--kr-serif:'Instrument Serif',serif;--kr-sans:'DM Sans',sans-serif;
