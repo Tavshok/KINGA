@@ -7938,6 +7938,8 @@ const REPORT_CSS = `
 .kinga-report .cover-meta{text-align:right}
 .kinga-report .cover-meta .claim-id{font-family:var(--kr-mono);font-size:11px;color:#aaa;letter-spacing:0.08em}
 .kinga-report .cover-meta .meta-line{font-size:14px;color:var(--kr-white);font-weight:500;margin-top:4px}
+.kinga-report .claim-id{font-family:var(--kr-mono);font-size:11px;color:#aaa;letter-spacing:0.08em}
+.kinga-report .meta-line{font-size:14px;color:var(--kr-white);font-weight:500;margin-top:4px}
 .kinga-report .doc-identity{background:var(--kr-off-white);border:1px solid var(--kr-rule);padding:8px 40px;margin-bottom:0;font-size:11px;color:var(--kr-muted);display:flex;gap:20px;flex-wrap:wrap;font-family:var(--kr-mono);letter-spacing:0.06em}
 .kinga-report .di-label{font-weight:500;color:var(--kr-muted);text-transform:uppercase;font-size:9px;letter-spacing:.1em;display:block;margin-bottom:2px}
 .kinga-report .alert-banner{border-radius:2px;padding:10px 14px;margin-bottom:12px;font-size:12px;border-left:3px solid;line-height:1.5;display:flex;gap:8px;align-items:flex-start}
@@ -7972,6 +7974,9 @@ const REPORT_CSS = `
 .kinga-report .pipeline-box{display:none !important}
 .kinga-report .pipeline-box h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#111;margin-bottom:4px}
 .kinga-report .pipeline-box .run-meta{font-size:10px;color:#666;margin-bottom:12px}
+.kinga-report .run-meta{font-size:10px;color:var(--kr-muted);margin-bottom:12px;font-family:var(--kr-mono)}
+.kinga-report .pis-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--kr-muted);margin:0}
+.kinga-report .pis-text{font-size:12px;color:var(--kr-text);line-height:1.6;margin:0}
 .kinga-report .stage-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:14px}
 .kinga-report .stage-tile{padding:6px 4px;text-align:center;font-size:9px;font-weight:700;border-radius:3px;text-transform:uppercase;letter-spacing:.04em}
 .kinga-report .stage-tile.green{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
@@ -7981,7 +7986,7 @@ const REPORT_CSS = `
 .kinga-report .ps-value{font-size:22px;font-weight:700;color:#111}
 .kinga-report .ps-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.06em}
 .kinga-report .section-heading{display:flex;align-items:baseline;gap:12px;padding-bottom:8px;border-bottom:2px solid var(--kr-black);margin:36px 0 16px;font-size:15px;font-weight:600;letter-spacing:-0.01em;color:var(--kr-black)}
-.kinga-report .sub-heading{font-size:13px;font-weight:600;color:var(--kr-black);margin:14px 0 8px;letter-spacing:-0.01em;font-family:var(--kr-mono);font-size:10px;letter-spacing:0.1em;color:var(--kr-muted)}
+.kinga-report .sub-heading{font-family:var(--kr-mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--kr-muted);margin:14px 0 8px}
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
 .kinga-report .compact-kv-table{width:auto;max-width:520px;border-collapse:collapse;margin-bottom:14px;table-layout:auto}
 .kinga-report .compact-kv-table td{padding:5px 0;font-size:12px;border-bottom:1px solid var(--kr-rule);vertical-align:top;white-space:normal}
@@ -8151,6 +8156,13 @@ const REPORT_CSS = `
   --fp-text-primary:var(--kr-text);
   --fp-text-muted:var(--kr-muted);
   --fp-bg-section:var(--kr-off-white);
+  /* ── Locked/neutral state tokens (used in physics skipped, inconclusive states) ── */
+  --fp-locked-bg:#f8f8f8;
+  --fp-locked-border:#aaaaaa;
+  --fp-locked-text:#555555;
+  /* ── Status pass/fail text tokens (used in quote coverage section) ── */
+  --status-pass-text:#166534;
+  --status-fail-text:#991b1b;
 }
 /* Force white background and serif font on all child elements */
 .kinga-report, .kinga-report *:not(button):not(.no-print),
@@ -8307,7 +8319,9 @@ const REPORT_CSS = `
     widows:3;
   }
 
-  /* 3. KPI row, verdict banner, score summary: always keep together */
+  /* 3. KPI row, verdict banner, decision strip, scorecard row, score summary: always keep together */
+  .kinga-report .decision-strip,
+  .kinga-report .scorecard-row,
   .kinga-report .kpi-row,
   .kinga-report .verdict-banner,
   .kinga-report .score-summary-panel,
@@ -8410,6 +8424,12 @@ const REPORT_CSS = `
   .kinga-report .report-persistent-footer .footer-bar{background:var(--kr-black) !important;color:#888 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   .kinga-report .report-persistent-footer .footer-bar *{color:#888 !important}
   .kinga-report .report-persistent-footer .footer-bar .footer-decision-badge{border:1px solid #888 !important;color:#888 !important}
+  /* ── Decision strip: preserve colour coding in print ── */
+  .kinga-report .decision-strip{border-bottom:1px solid #ddd !important}
+  .kinga-report .verdict-value.approve{color:var(--kr-green) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+  .kinga-report .verdict-value.review{color:var(--kr-amber) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+  .kinga-report .verdict-value.decline{color:var(--kr-red) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+  .kinga-report .cost-lowest-tag{background:var(--kr-green-light) !important;color:var(--kr-green) !important;border:1px solid var(--kr-green) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   /* ── Section 6 score summary bars: keep together ── */
   /* ── Phase 4: Keep two-col layout in print for side-by-side sections (saves ~2 pages) ── */
   .kinga-report .two-col{grid-template-columns:1fr 1fr !important;gap:14px !important}
