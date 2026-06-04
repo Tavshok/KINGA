@@ -1437,7 +1437,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const claimantName = claimRecord0?.driver?.claimantName ?? claim?.claimantName ?? null;
 
   return (
-    <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
+    <div className="mb-2 space-y-3" style={{ marginBottom: "12px" }}>
       {/* 1.1 Incident Facts table */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
         <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
@@ -2143,7 +2143,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
   };
 
   return (
-    <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
+    <div className="mb-2 space-y-3" style={{ marginBottom: "12px" }}>
       {/* Section 2 Plain-English Summary */}
       {(() => {
         const consistencyVerdict = physicsScore >= 70
@@ -4562,7 +4562,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   })();
 
   return (
-    <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
+    <div className="mb-2 space-y-3" style={{ marginBottom: "12px" }}>
 
       {/* ── 3.0 Cost Summary Visual — quick at-a-glance comparison ── */}
       {pbQuotes.length > 0 && (
@@ -5403,7 +5403,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   ];
 
   return (
-    <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
+    <div className="mb-2 space-y-3" style={{ marginBottom: "12px" }}>
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>4.0 Photo Evidence</p>
@@ -5455,7 +5455,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
             const fraudFlagCount = pfPhotos.filter((p: any) => (p.analysisResult?.is_suspicious ?? false)).length;
             const exifStrippedCount = pfPhotos.filter((p: any) => {
               const r = p.analysisResult ?? {};
-              return !r.capture_datetime && !r.camera_make && !r.camera_model;
+              return !r.capture_datetime && !r.camera_make && !r.camera_model && !r._camera_make && !r._camera_model;
             }).length;
             const photoInventoryData = {
               labels: ['Detected', 'Processed', 'Damage\nConfirmed', 'Fraud Flags', 'EXIF Stripped'],
@@ -5626,7 +5626,8 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
             photoIndex: i + 1,
             url: photo.url ?? photo.imageUrl ?? null,
             isSuspicious: r.is_suspicious ?? false,
-            exifPresent: !!(r.capture_datetime || r.camera_make || r.camera_model),
+            // _camera_make/_camera_model are stored with underscore prefix by photoForensicsEngine
+            exifPresent: !!(r.capture_datetime || r.camera_make || r.camera_model || r._camera_make || r._camera_model),
             gpsPresent: !!(r.gps_coordinates),
             manipulationScore: Math.round(manipScore * 100),
             flags: r.flags ?? (photo.error ? [photo.error] : []),
@@ -5877,7 +5878,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
   const physicsScore = phase2?.physicsConsistency ?? e?.consistencyFlag?.score ?? 0;
 
   return (
-    <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
+    <div className="mb-2 space-y-3" style={{ marginBottom: "12px" }}>
       <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${fraudColor}40`, background: "#ffffff" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>5.1 Overall Fraud Risk Score</p>
@@ -6965,7 +6966,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   ];
 
   return (
-    <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
+    <div className="mb-2 space-y-3" style={{ marginBottom: "12px" }}>
       {/* 6.0 Decision Rationale — plain-English explanation of the decision */}
       {(() => {
         const decisionRationale = rawDecision === 'APPROVE' || rawDecision === 'APPROVED'
@@ -7827,7 +7828,7 @@ function Section7Learning({
     : `Within normal range (${variancePct > 0 ? '+' : ''}${variancePct.toFixed(0)}% vs historical average)`;
 
   return (
-    <div className="mb-4 space-y-4" style={{ marginBottom: "24px" }}>
+    <div className="mb-2 space-y-3" style={{ marginBottom: "12px" }}>
       <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: '#ffffff' }}>
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: '#ffffff' }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>7.1 Historical Cost Benchmark</p>
@@ -7881,7 +7882,7 @@ const REPORT_CSS = `
   --kr-mono:'DM Mono',monospace;--kr-serif:'Instrument Serif',serif;--kr-sans:'DM Sans',sans-serif;
 }
 .kinga-report[data-draft="true"]::before{content:'DRAFT';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;font-weight:900;color:rgba(0,0,0,0.04);letter-spacing:0.15em;pointer-events:none;z-index:0;white-space:nowrap;user-select:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.kinga-report .decision-strip{display:grid;grid-template-columns:auto 1fr repeat(2,auto);gap:0;border-bottom:1px solid var(--kr-rule);padding:20px 0;align-items:center;margin-bottom:0}
+.kinga-report .decision-strip{display:grid;grid-template-columns:auto 1fr repeat(2,auto);gap:0;border-bottom:1px solid var(--kr-rule);padding:14px 0;align-items:center;margin-bottom:0}
 .kinga-report .verdict-block{padding-right:28px;border-right:1px solid var(--kr-rule);margin-right:28px}
 .kinga-report .verdict-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.12em;color:var(--kr-muted);margin-bottom:2px}
 .kinga-report .verdict-value{font-size:22px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
@@ -7904,8 +7905,8 @@ const REPORT_CSS = `
 .kinga-report .cost-sub{font-size:10px;color:var(--kr-muted);display:block;margin-top:1px}
 .kinga-report .cost-lowest-tag{font-size:8px;font-family:var(--kr-mono);letter-spacing:.08em;font-weight:600;color:var(--kr-green);background:var(--kr-green-light);border:1px solid var(--kr-green);padding:1px 4px;border-radius:2px;line-height:1.4}
 .kinga-report .cost-divider{width:1px;background:var(--kr-rule);align-self:stretch;margin:0 4px;flex-shrink:0}
-.kinga-report .scorecard-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--kr-rule);margin:24px 0;border:1px solid var(--kr-rule)}
-.kinga-report .scorecard-cell{background:var(--kr-white);padding:14px 16px;position:relative}
+.kinga-report .scorecard-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--kr-rule);margin:14px 0;border:1px solid var(--kr-rule)}
+.kinga-report .scorecard-cell{background:var(--kr-white);padding:10px 14px;position:relative}
 .kinga-report .sc-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;color:var(--kr-muted);margin-bottom:6px;display:block}
 .kinga-report .sc-bar-track{height:4px;background:var(--kr-off-white);border-radius:2px;margin:8px 0 4px;overflow:hidden}
 .kinga-report .sc-bar-fill{height:100%;border-radius:2px}
@@ -7930,16 +7931,16 @@ const REPORT_CSS = `
 .kinga-report .verdict-banner .vb-decision.decline{color:var(--kr-red)}
 .kinga-report .verdict-banner .vb-meta{font-size:10px;color:#555;margin-top:5px}
 .kinga-report .verdict-banner .vb-right{text-align:right;min-width:120px}
-.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:7px 40px;background:var(--kr-black);border-bottom:none;font-family:var(--kr-mono);font-size:10px;color:#888;letter-spacing:0.06em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.kinga-report .page-header .brand{font-family:var(--kr-mono);font-weight:400;font-size:11px;color:#888;letter-spacing:.15em}
-.kinga-report .cover-title-row{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:start;padding:32px 40px 24px;background:var(--kr-black);margin:0}
-.kinga-report .cover-title-row h1{font-family:var(--kr-serif);font-size:28px;font-weight:400;color:var(--kr-white);line-height:1.2;margin-bottom:4px}
-.kinga-report .cover-title-row .subtitle{font-size:12px;color:#aaa;font-style:italic}
+.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 40px;background:var(--kr-white);border-bottom:1px solid var(--kr-rule);font-family:var(--kr-mono);font-size:10px;color:var(--kr-muted);letter-spacing:0.06em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.kinga-report .page-header .brand{font-family:var(--kr-mono);font-weight:400;font-size:11px;color:var(--kr-muted);letter-spacing:.15em}
+.kinga-report .cover-title-row{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:start;padding:20px 40px 16px;background:var(--kr-white);border-bottom:2px solid var(--kr-black);margin:0}
+.kinga-report .cover-title-row h1{font-family:var(--kr-serif);font-size:24px;font-weight:400;color:var(--kr-black);line-height:1.2;margin-bottom:4px}
+.kinga-report .cover-title-row .subtitle{font-size:11px;color:var(--kr-muted);font-style:italic}
 .kinga-report .cover-meta{text-align:right}
-.kinga-report .cover-meta .claim-id{font-family:var(--kr-mono);font-size:11px;color:#aaa;letter-spacing:0.08em}
-.kinga-report .cover-meta .meta-line{font-size:14px;color:var(--kr-white);font-weight:500;margin-top:4px}
-.kinga-report .claim-id{font-family:var(--kr-mono);font-size:11px;color:#aaa;letter-spacing:0.08em}
-.kinga-report .meta-line{font-size:14px;color:var(--kr-white);font-weight:500;margin-top:4px}
+.kinga-report .cover-meta .claim-id{font-family:var(--kr-mono);font-size:11px;color:var(--kr-muted);letter-spacing:0.08em}
+.kinga-report .cover-meta .meta-line{font-size:13px;color:var(--kr-black);font-weight:600;margin-top:4px}
+.kinga-report .claim-id{font-family:var(--kr-mono);font-size:11px;color:var(--kr-muted);letter-spacing:0.08em}
+.kinga-report .meta-line{font-size:13px;color:var(--kr-black);font-weight:600;margin-top:4px}
 .kinga-report .doc-identity{background:var(--kr-off-white);border:1px solid var(--kr-rule);padding:8px 40px;margin-bottom:0;font-size:11px;color:var(--kr-muted);display:flex;gap:20px;flex-wrap:wrap;font-family:var(--kr-mono);letter-spacing:0.06em}
 .kinga-report .di-label{font-weight:500;color:var(--kr-muted);text-transform:uppercase;font-size:9px;letter-spacing:.1em;display:block;margin-bottom:2px}
 .kinga-report .alert-banner{border-radius:2px;padding:10px 14px;margin-bottom:12px;font-size:12px;border-left:3px solid;line-height:1.5;display:flex;gap:8px;align-items:flex-start}
@@ -7947,8 +7948,8 @@ const REPORT_CSS = `
 .kinga-report .alert-banner.warn{background:var(--kr-amber-light);border-left-color:var(--kr-amber);color:#92400e}
 .kinga-report .alert-banner.info{background:var(--kr-blue-light);border-left-color:var(--kr-blue);color:#1e40af}
 .kinga-report .alert-banner.success{background:var(--kr-green-light);border-left-color:var(--kr-green);color:#166534}
-.kinga-report .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--kr-rule);border:1px solid var(--kr-rule);margin-bottom:24px}
-.kinga-report .kpi-tile{padding:14px 16px;background:var(--kr-white);position:relative;text-align:left}
+.kinga-report .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--kr-rule);border:1px solid var(--kr-rule);margin-bottom:12px}
+.kinga-report .kpi-tile{padding:10px 14px;background:var(--kr-white);position:relative;text-align:left}
 .kinga-report .kpi-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;color:var(--kr-muted);margin-bottom:6px;display:block}
 .kinga-report .kpi-value{font-family:var(--kr-mono);font-size:20px;font-weight:500;color:var(--kr-black);line-height:1}
 .kinga-report .kpi-sub{font-size:10px;color:var(--kr-muted);margin-top:4px}
@@ -7985,10 +7986,10 @@ const REPORT_CSS = `
 .kinga-report .ps-item{text-align:center}
 .kinga-report .ps-value{font-size:22px;font-weight:700;color:#111}
 .kinga-report .ps-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.06em}
-.kinga-report .section-heading{display:flex;align-items:baseline;gap:12px;padding-bottom:8px;border-bottom:2px solid var(--kr-black);margin:36px 0 16px;font-size:15px;font-weight:600;letter-spacing:-0.01em;color:var(--kr-black)}
-.kinga-report .sub-heading{font-family:var(--kr-mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--kr-muted);margin:14px 0 8px}
-.kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
-.kinga-report .compact-kv-table{width:auto;max-width:520px;border-collapse:collapse;margin-bottom:14px;table-layout:auto}
+.kinga-report .section-heading{display:flex;align-items:baseline;gap:12px;padding-bottom:6px;border-bottom:2px solid var(--kr-black);margin:24px 0 12px;font-size:14px;font-weight:600;letter-spacing:-0.01em;color:var(--kr-black)}
+.kinga-report .sub-heading{font-family:var(--kr-mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--kr-muted);margin:10px 0 6px}
+.kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed}
+.kinga-report .compact-kv-table{width:auto;max-width:520px;border-collapse:collapse;margin-bottom:10px;table-layout:auto}
 .kinga-report .compact-kv-table td{padding:5px 0;font-size:12px;border-bottom:1px solid var(--kr-rule);vertical-align:top;white-space:normal}
 .kinga-report .compact-kv-table td:first-child{font-size:10px;font-family:var(--kr-mono);color:var(--kr-muted);letter-spacing:0.1em;text-transform:uppercase;padding-right:24px;white-space:nowrap;min-width:160px}
 .kinga-report .compact-kv-table td:last-child{color:var(--kr-text);font-weight:500}
@@ -8004,16 +8005,16 @@ const REPORT_CSS = `
 .kinga-report .flag-amber{color:var(--kr-amber);font-weight:600;font-family:var(--kr-mono)}
 .kinga-report .flag-green{color:var(--kr-green);font-weight:600;font-family:var(--kr-mono)}
 .kinga-report .data-table .mismatch td{background:#fff;color:#c00;font-weight:700}
-.kinga-report .narrative-box{border:1px solid var(--kr-rule);padding:14px 16px;margin-bottom:8px;font-size:12px;color:var(--kr-text);line-height:1.6;background:var(--kr-white)}
+.kinga-report .narrative-box{border:1px solid var(--kr-rule);padding:10px 14px;margin-bottom:6px;font-size:12px;color:var(--kr-text);line-height:1.5;background:var(--kr-white)}
 .kinga-report .narr-label{font-size:10px;font-weight:400;text-transform:uppercase;letter-spacing:.1em;color:var(--kr-muted);margin-bottom:6px;font-family:var(--kr-mono)}
-.kinga-report .diagram-section{display:flex;gap:24px;align-items:flex-start;margin-bottom:16px;border:1px solid var(--kr-rule);padding:16px}
+.kinga-report .diagram-section{display:flex;gap:16px;align-items:flex-start;margin-bottom:10px;border:1px solid var(--kr-rule);padding:12px}
 .kinga-report .diagram-legend{flex:1}
 .kinga-report .legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--kr-text);margin-bottom:6px}
 .kinga-report .legend-swatch{width:18px;height:12px;border-radius:2px;flex-shrink:0}
 .kinga-report .diagram-caption{font-size:10px;color:var(--kr-muted);margin-top:8px;font-style:italic}
-.kinga-report .chart-container{position:relative;height:160px;width:100%;margin-bottom:10px}
-.kinga-report .chart-side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:16px}
-.kinga-report .bordered-block{border:1px solid var(--kr-rule);padding:14px 16px;margin-bottom:10px}
+.kinga-report .chart-container{position:relative;height:140px;width:100%;margin-bottom:8px}
+.kinga-report .chart-side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px}
+.kinga-report .bordered-block{border:1px solid var(--kr-rule);padding:10px 14px;margin-bottom:8px}
 .kinga-report .valuation-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--kr-rule);font-size:12px}
 .kinga-report .valuation-row:last-child{border-bottom:none}
 .kinga-report .valuation-row .vr-label{color:var(--kr-muted);font-family:var(--kr-mono);font-size:11px;letter-spacing:0.06em}
@@ -8087,7 +8088,7 @@ const REPORT_CSS = `
 .kinga-report .mono{font-family:var(--kr-mono)}
 .kinga-report .small{font-size:10px}
 .kinga-report .party-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--kr-rule);margin-bottom:14px}
-.kinga-report .party-col{padding:14px 16px}
+.kinga-report .party-col{padding:10px 14px}
 .kinga-report .party-col:first-child{border-right:1px solid var(--kr-rule)}
 .kinga-report .party-col-heading{font-size:10px;font-weight:400;text-transform:uppercase;letter-spacing:.1em;color:var(--kr-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--kr-rule);font-family:var(--kr-mono)}
 .kinga-report .party-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--kr-rule);font-size:11px}
@@ -8490,13 +8491,13 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
 
       {/* DRAFT Banner */}
       {isDraft && (
-        <div style={{ background: '#1a1916', borderLeft: '3px solid var(--kr-amber)', padding: '8px 40px', fontFamily: 'var(--kr-mono)', fontSize: 11, color: '#c9a227', letterSpacing: '0.08em' }}>
+        <div style={{ background: 'var(--kr-amber-light)', borderLeft: '3px solid var(--kr-amber)', padding: '7px 40px', fontFamily: 'var(--kr-mono)', fontSize: 11, color: '#92400e', letterSpacing: '0.08em' }}>
           ▲ DRAFT — {draftMissingFields.length > 0 ? `Missing: ${draftMissingFields.join(', ')}. ` : ''}Complete and re-export for final version.
         </div>
       )}
 
       {/* Body content wrapper */}
-      <div style={{ padding: '0 40px 40px' }}>
+      <div style={{ padding: '0 40px 24px' }}>
 
       <CongruencyPanel aiAssessment={aiAssessment} />
       <DataQualityPanel aiAssessment={aiAssessment} />
@@ -8538,7 +8539,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
         return (
           <>
             <div className="section-heading" data-section="7">7 &nbsp; Claim Quality Score</div>
-            <div className="mb-4 space-y-4" style={{ marginBottom: 24 }}>
+            <div className="mb-2 space-y-3" style={{ marginBottom: 24 }}>
               <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
                 <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
                   <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>7.0 Assessment Quality Score</p>
@@ -8641,7 +8642,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
         return (
           <>
             <div className="section-heading" data-section="8">8 &nbsp; Forensic Audit Validation</div>
-            <div className="mb-4 space-y-4" style={{ marginBottom: 24 }}>
+            <div className="mb-2 space-y-3" style={{ marginBottom: 24 }}>
               <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
                 <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
                   <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>8.0 Validation Status</p>

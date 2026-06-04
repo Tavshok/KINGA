@@ -574,6 +574,8 @@ export async function runFraudAnalysisStage(
               image_hash: p.analysisResult.image_hash,
               recommendations: p.analysisResult.recommendations,
               ai_vision_description: p.analysisResult.ai_vision_description,
+              // Persist is_non_vehicle so the report can filter document/form images correctly
+              is_non_vehicle: p.analysisResult.is_non_vehicle ?? false,
             } : null,
           })),
         };
