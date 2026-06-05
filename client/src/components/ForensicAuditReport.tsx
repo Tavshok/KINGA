@@ -330,7 +330,7 @@ function SectionDivider({ number, title, sectionKey, claimId, pipelineRunId }: {
         >
           {number}
         </div>
-        <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: 'var(--kr-text)' }}>
+        <h2 className="sub-heading" style={{ fontSize: 13 }}>
           {title}
         </h2>
         <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
@@ -801,7 +801,7 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
 
       {/* Legend — to the right of the diagram */}
       <div className="flex flex-col gap-2 text-xs pt-2 shrink-0">
-        <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--kr-muted)' }}>Legend</p>
+        <p className="micro-label">Legend</p>
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded" style={{ background: 'var(--kr-off-white)', border: "1px dashed #e0ddd8" }} />
           <span style={{ color: 'var(--kr-muted)' }}>Undamaged</span>
@@ -1697,7 +1697,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
       {/* 1.1 Incident Facts table */}
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3" >
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>1.1 Incident Facts</p>
+          <p className="sub-heading">1.1 Incident Facts</p>
         </div>
         <div className="p-4">
           <table className="w-full text-xs report-table">
@@ -1915,7 +1915,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
       {multiEventSequence?.is_multi_event && multiEventSequence.events?.length > 1 && (
         <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
           <div className="px-4 py-3 flex items-center gap-2" >
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>1.1b Multi-Event Incident Sequence</p>
+            <p className="sub-heading">1.1b Multi-Event Incident Sequence</p>
             <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>
               {multiEventSequence.events.length} events detected
             </span>
@@ -1988,7 +1988,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
       {/* 1.2 Insurance & Policy Context */}
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3" >
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>1.2 Insurance & Policy Context</p>
+          <p className="sub-heading">1.2 Insurance & Policy Context</p>
         </div>
         <div className="p-4">
           <table className="compact-kv-table text-xs">
@@ -2012,7 +2012,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
       {/* 1.3 Vehicle Details */}
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3" >
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>1.3 Vehicle Details</p>
+          <p className="sub-heading">1.3 Vehicle Details</p>
         </div>
         <div className="p-4">
           <table className="compact-kv-table text-xs">
@@ -2063,10 +2063,10 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
             {/* 1.4 Driver Details */}
             <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
               <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)' }}>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>1.4 Driver Details</p>
+                <p className="sub-heading">1.4 Driver Details</p>
               </div>
               <div className="p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--kr-muted)' }}>Insured Driver</p>
+                <p className="micro-label">Insured Driver</p>
                 <table className="w-full text-xs">
                   <tbody>
                     {([
@@ -2085,7 +2085,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                     ))}
                   </tbody>
                 </table>
-                <p className="text-[10px] font-bold uppercase tracking-widest mt-4 mb-2" style={{ color: 'var(--kr-muted)' }}>Third Party {isSingleVehicle && <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--kr-muted)' }}>— Not applicable</span>}</p>
+                <p className="micro-label" style={{ marginTop: 16 }}>Third Party {isSingleVehicle && <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--kr-muted)' }}>— Not applicable</span>}</p>
                 {isSingleVehicle ? (
                   <p className="text-xs" style={{ color: 'var(--kr-muted)', fontStyle: 'italic' }}>No third party involved — {(incidentType ?? '').replace(/_/g, ' ').toLowerCase()} is a single-vehicle incident type.</p>
                 ) : (
@@ -2115,7 +2115,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
             {/* 1.5 Police Report Details */}
             <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
               <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)' }}>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>1.5 Police Report Details</p>
+                <p className="sub-heading">1.5 Police Report Details</p>
                 {!policeReportNumber && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'var(--kr-white)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>CRITICAL BLOCKER</span>
                 )}
@@ -2166,8 +2166,15 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                               <span style={{ fontSize: 10, fontWeight: 700, color: consistencyColor, border: `1px solid ${consistencyColor}`, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>{consistencyLabel}</span>
                               {matchedKeywords.length > 0 && <span style={{ fontSize: 10, color: 'var(--kr-muted)' }}>Corroborating factors: {matchedKeywords.join(', ')}</span>}
                             </div>
-                            <p style={{ fontSize: 12, color: 'var(--kr-text)', fontStyle: 'italic', lineHeight: 1.6, borderLeft: '3px solid var(--kr-rule)', paddingLeft: 10, margin: 0 }}>{raw}</p>
-                            {hasContradiction && <p style={{ fontSize: 11, color: 'var(--kr-red)', marginTop: 6, fontWeight: 600 }}>Note: Officer account conflicts with claimant narrative — escalation recommended.</p>}
+                            <p style={{ fontSize: 11, color: 'var(--kr-text)', lineHeight: 1.6, margin: 0 }}>
+                              {hasContradiction
+                                ? `Officer account contains elements that conflict with the claimant narrative. ${matchedKeywords.length > 0 ? `Points of agreement: ${matchedKeywords.join(', ')}.` : ''} Adjuster review required before settlement.`
+                                : matchedKeywords.length >= 2
+                                  ? `Officer account is consistent with the claimant narrative across ${matchedKeywords.length} key factor${matchedKeywords.length > 1 ? 's' : ''} (${matchedKeywords.join(', ')}). No material contradictions identified.`
+                                  : `Officer account shows partial alignment with the claimant narrative. ${matchedKeywords.length > 0 ? `Shared elements: ${matchedKeywords.join(', ')}.` : 'Limited corroborating detail available.'} Further verification recommended.`
+                              }
+                            </p>
+                            {hasContradiction && <p style={{ fontSize: 11, color: 'var(--kr-red)', marginTop: 6, fontWeight: 600 }}>Escalation recommended — officer account conflicts with claimant narrative.</p>}
                           </td>
                         </tr>
                       );
@@ -2442,7 +2449,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
         return (
           <div className="" style={{ border: `1px solid ${consistencyVerdict.border}`, background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${consistencyVerdict.border}`, background: consistencyVerdict.bg }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>Section 2 Summary — Technical Forensics</p>
+              <p className="sub-heading">Section 2 Summary — Technical Forensics</p>
               <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: 'var(--kr-white)', color: 'var(--kr-text)', border: `1px solid ${consistencyVerdict.border}` }}>{consistencyVerdict.label}</span>
             </div>
             <div className="p-4">
@@ -2455,7 +2462,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
       {/* 2.1 Impact Physics */}
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3 flex items-center justify-between" >
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>2.1 Impact Physics</p>
+          <p className="sub-heading">2.1 Impact Physics</p>
           <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{Math.round(physicsScore)}% consistent</span>
         </div>
         <div className="p-4">
@@ -2590,7 +2597,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             if (!asp) return null;
             return (
               <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Animal Strike Physics</p>
+                <p className="micro-label">Animal Strike Physics</p>
                 <table className="compact-kv-table text-xs">
                   <tbody>
                     {([
@@ -2618,7 +2625,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
           {/* Reconstruction summary — engineering derivation chain */}
           {(_phys as any)?.reconstructionSummary && (
             <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Reconstruction Summary</p>
+              <p className="micro-label">Reconstruction Summary</p>
               <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{(_phys as any).reconstructionSummary}</p>
             </div>
           )}
@@ -2628,14 +2635,14 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
       {/* 2.2 Damage Consistency — 3-column spec table */}
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3 flex items-center justify-between" >
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>2.2 Damage Consistency</p>
+          <p className="sub-heading">2.2 Damage Consistency</p>
           <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{anomalyLevel === "none" ? "Consistent" : toTitleCase(anomalyLevel)}</span>
         </div>
         <div className="p-4">
           {/* Zone map + 2.4 pattern matching side by side */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--kr-muted)' }}>Damage Zone Map</p>
+              <p className="sub-heading">Damage Zone Map</p>
               <VehicleDamageMap
                 damageZones={damageZones}
                 incidentType={incidentType}
@@ -2697,7 +2704,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                 const unknownRows = rows.filter(r => r.matchStatus === 'unknown');
                 return (
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--kr-muted)' }}>2.4 Damage Pattern Matching</p>
+                    <p className="sub-heading">2.4 Damage Pattern Matching</p>
                     <DamagePatternTable data={damagePatternData} />
                     {(mismatchRows.length > 0 || unknownRows.length > 0) && (
                       <div className="mt-2 p-2 rounded text-xs" style={{ background: mismatchRows.length > 0 ? 'var(--status-review-bg)' : '#ffffff', border: `1px solid ${mismatchRows.length > 0 ? 'var(--status-review-border)' : 'var(--border)'}`, color: mismatchRows.length > 0 ? 'var(--status-review-text)' : 'var(--muted-foreground)' }}>
@@ -2801,7 +2808,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
 
             return (
               <div className="mb-4 p-3 rounded text-xs leading-relaxed" style={{ background: 'var(--kr-white)', color: 'var(--kr-text)', borderLeft: `3px solid ${summaryBorderColour}` }}>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--kr-muted)' }}>Physics Diagram Summary</p>
+                <p className="micro-label">Physics Diagram Summary</p>
                 {parts.map((p, i) => {
                   const isFlag = p === speedDiscrepancyFlag;
                   const isCrossValidationNote = p.startsWith('\u26a0 CROSS-VALIDATION NOTE:');
@@ -2828,7 +2835,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
           {/* Physics Constraint table — Expected / Actual / Verdict */}
           {constraints.length > 0 && (
             <>
-              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--kr-muted)' }}>2.3 Physics Constraint Status</p>
+              <p className="sub-heading">2.3 Physics Constraint Status</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs report-table">
                   <thead>
@@ -2914,7 +2921,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
 
             return (
               <div className="mt-6">
-                <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>2.4b Per-Component Physics Measurements</p>
+                <p className="sub-heading">2.4b Per-Component Physics Measurements</p>
                 <p className="text-xs mb-3" style={{ color: 'var(--muted-foreground)' }}>
                   Absolute numeric measurements extracted by KINGA vision analysis from damage photographs.
                   All values are SI-unit measurements — no qualitative proxies.
@@ -3120,13 +3127,13 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
 
             return (
               <div className="mt-6">
-                <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--foreground)' }}>2.6 Forensic Speed Determination</p>
+                <p className="sub-heading">2.6 Forensic Speed Determination</p>
                 <div className="" style={{ border: '1px solid var(--border)', background: 'var(--kr-white)' }}>
 
                   {/* ── Top strip: consensus speed (large) + confidence badge ── */}
                   <div className="px-5 py-4 flex items-center justify-between gap-6" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Forensic Speed Estimate</p>
+                      <p className="micro-label">Forensic Speed Estimate</p>
                       <div className="flex items-end gap-2">
                         <p className="text-4xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'var(--kr-mono)', lineHeight: 1 }}>{consensusKmh.toFixed(0)}</p>
                         <p className="text-base font-semibold mb-0.5" style={{ color: 'var(--muted-foreground)' }}>km/h</p>
@@ -3158,7 +3165,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
 
                   {/* ── Speed scale ── */}
                   <div className="px-5 pt-4 pb-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Impact Severity Context</p>
+                    <p className="micro-label">Impact Severity Context</p>
                     <div className="relative h-6 rounded-full overflow-hidden mb-1" style={{ background: '#f1f5f9' }}>
                       <div className="absolute top-0 bottom-0" style={{ left: 0, width: `${toScalePct(15)}%`, background: 'var(--fp-success-text)', opacity: 0.18 }} />
                       <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(15)}%`, width: `${toScalePct(40) - toScalePct(15)}%`, background: 'var(--fp-success-text)', opacity: 0.12 }} />
@@ -3180,7 +3187,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
 
                   {/* ── Evidence categories (no method names or formulas) ── */}
                   <div className="px-5 pt-3 pb-4" style={{ borderTop: '1px solid var(--border)' }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--muted-foreground)' }}>Evidence Categories Assessed</p>
+                    <p className="micro-label" style={{ marginBottom: 12 }}>Evidence Categories Assessed</p>
                     <div className="space-y-0">
                       {rawMethods.map((m: any, idx: number) => {
                         const ran: boolean = m.ran ?? m.available ?? false;
@@ -3269,7 +3276,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             ];
             return (
               <div style={{ marginTop: 12 }}>
-                <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--foreground)', borderBottom: '1.5px solid var(--border)', paddingBottom: 4 }}>2.11 Photo Forensics Summary</p>
+                <p className="sub-heading">2.11 Photo Forensics Summary</p>
                 {!hasPhotos && (
                   <div className="flex items-start gap-2 p-2.5 rounded mb-2" style={{ background: 'var(--fp-critical-bg)', borderLeft: '3px solid var(--fp-critical-text)' }}>
                     <span style={{ color: 'var(--fp-critical-text)', fontWeight: 700, fontSize: 11 }}>!</span>
@@ -3637,7 +3644,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
         {/* ── Section header ── */}
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>2.7 Speed Verification</p>
+            <p className="sub-heading">2.7 Speed Verification</p>
             <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>Comparison of driver-stated speed against structural evidence</p>
           </div>
           {devLabel !== 'N/A' && (
@@ -3659,21 +3666,21 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
           {/* ── Speed comparison: three data columns ── */}
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Stated Speed</p>
+              <p className="micro-label">Stated Speed</p>
               <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'var(--kr-mono)' }}>
                 {claimed != null ? claimed : '—'}
               </p>
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{claimed != null ? 'km/h — driver statement' : 'Not provided'}</p>
             </div>
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Structural Evidence</p>
+              <p className="micro-label">Structural Evidence</p>
               <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'var(--kr-mono)' }}>
                 {physics != null ? Math.round(physics) : '—'}
               </p>
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>km/h — derived from damage analysis</p>
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Discrepancy</p>
+              <p className="micro-label">Discrepancy</p>
               <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'var(--kr-mono)' }}>
                 {devPct != null ? `${devPct}%` : '—'}
               </p>
@@ -3686,7 +3693,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
           {/* ── Unified speed scale: both markers + acceptable range band ── */}
           {(claimed != null || physics != null) && (
             <div className="mb-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Speed Comparison — Impact Scale</p>
+              <p className="micro-label">Speed Comparison — Impact Scale</p>
               <div className="relative h-6 rounded-full overflow-hidden" style={{ background: '#f1f5f9' }}>
                 {/* Zone fills */}
                 <div className="absolute top-0 bottom-0" style={{ left: 0, width: `${toScalePct27(15)}%`, background: 'var(--fp-success-text)', opacity: 0.12 }} />
@@ -3732,7 +3739,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
           {/* ── Forensic Interpretation ── */}
           {interpretation && (
             <div className="rounded p-3 mb-4" style={{ background: 'var(--kr-off-white)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Forensic Interpretation</p>
+              <p className="micro-label">Forensic Interpretation</p>
               <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{interpretation}</p>
             </div>
           )}
@@ -3825,14 +3832,14 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
       <div className="" style={{ border: '1px solid var(--border)', background: 'var(--kr-white)' }}>
         {/* Header */}
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>2.8 Severity Consensus</p>
+          <p className="sub-heading">2.8 Severity Consensus</p>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: alignBadge.bg, color: alignBadge.text, border: `1px solid ${alignBadge.border}` }}>{alignBadge.label}</span>
         </div>
         <div className="p-4">
           {/* Verdict + Confidence — prominent for investigator */}
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Final Verdict</p>
+              <p className="micro-label">Final Verdict</p>
               <p className="text-lg font-bold capitalize" style={{ color: 'var(--foreground)' }}>{verdict}</p>
               <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 uppercase" style={{ background: verdictColour.bg, color: verdictColour.text, border: `1px solid ${verdictColour.border}` }}>{verdict}</span>
               {conservativeFallback && (
@@ -3840,14 +3847,14 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
               )}
             </div>
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Confidence</p>
+              <p className="micro-label">Confidence</p>
               <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--foreground)' }}>{Math.round(confidence)}%</p>
               <div className="h-1.5 rounded-full mt-2" style={{ background: 'var(--kr-white)' }}>
                 <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, confidence)}%`, background: confidence >= 70 ? 'var(--fp-success-text)' : confidence >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-critical-text)', opacity: 0.8 }} />
               </div>
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Sources Used</p>
+              <p className="micro-label">Sources Used</p>
               <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--foreground)' }}>{sourcesAvailable} / 3</p>
               <p className="text-[10px] mt-1" style={{ color: 'var(--muted-foreground)' }}>{sourcesAvailable === 3 ? 'Full triangulation' : sourcesAvailable === 2 ? 'Partial triangulation' : 'Single source'}</p>
             </div>
@@ -3896,7 +3903,7 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
           {/* Reasoning — engineering derivation chain */}
           {reasoning && (
             <div className="p-3 rounded mb-3" style={{ background: 'var(--kr-white)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Derivation</p>
+              <p className="micro-label">Derivation</p>
               <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{reasoning}</p>
             </div>
           )}
@@ -3954,7 +3961,7 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
       <div className="" style={{ border: '1px solid var(--border)', background: 'var(--kr-white)' }}>
         {/* Header */}
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>2.9 Damage Pattern Validation</p>
+          <p className="sub-heading">2.9 Damage Pattern Validation</p>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: matchBadge.bg, color: matchBadge.text, border: `1px solid ${matchBadge.border}` }}>{patternMatch} MATCH</span>
         </div>
         <div className="p-4">
@@ -4043,7 +4050,7 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
           {/* Reasoning — engineering derivation chain */}
           {reasoning && (
             <div className="p-3 rounded mb-3" style={{ background: 'var(--kr-white)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)' }}>Pattern Validation Reasoning</p>
+              <p className="micro-label">Pattern Validation Reasoning</p>
               <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{reasoning}</p>
             </div>
           )}
@@ -4051,7 +4058,7 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
           {/* Action instruction — plain English for adjuster/insurer */}
           {hasAnomalies ? (
             <div className="p-3 rounded" style={{ background: 'var(--fp-warning-bg)', border: '1px solid var(--fp-warning-border)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--fp-warning-text)' }}>Adjuster Action Required</p>
+              <p className="micro-label">Adjuster Action Required</p>
               <ul className="text-xs space-y-1" style={{ color: 'var(--foreground)' }}>
                 {missingExpected.length > 0 && <li>• Missing expected components ({missingExpected.join(', ')}) — verify whether these were omitted from the claim or genuinely absent from the damage.</li>}
                 {unexpected.length > 0 && <li>• Unexpected components ({unexpected.join(', ')}) — confirm these are consistent with the stated impact direction and speed before authorising payment.</li>}
@@ -4102,7 +4109,7 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
     <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
       <div className="px-4 py-3 flex items-center justify-between" >
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>
+          <p className="sub-heading">
             Quote Line Items — {quote.name}
           </p>
           {score != null && (
@@ -4258,7 +4265,7 @@ function LabourPartsRatioChart({
   return (
     <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
       <div className="px-4 py-3" >
-        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>Labour vs Parts Ratio</p>
+        <p className="sub-heading">Labour vs Parts Ratio</p>
         {learningBenchmark?.avgCostUsd && learningBenchmark.sampleSize >= 3 && (
           <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>
             Learning benchmark: {fmtMoney(learningBenchmark.avgCostUsd)} average across {learningBenchmark.sampleSize} historical claims for {learningBenchmark.vehicleDescriptor}
@@ -4337,7 +4344,7 @@ function NegotiationDeltaBlock({ costIntel, fmtMoney }: { costIntel: any; fmtMon
   return (
     <div className="" style={{ border: '1px solid var(--border)', background: 'var(--kr-white)' }}>
       <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>3.0 Settlement Cost Analysis</p>
+        <p className="sub-heading">3.0 Settlement Cost Analysis</p>
         <span className="text-xs font-semibold" style={{ color: verdictColor }}>{verdictLabel}</span>
       </div>
       <div className="p-3 space-y-3">
@@ -4449,7 +4456,7 @@ function SectionDamageAnalysis({ aiAssessment, quotes, claimRecord0, expandShort
           {damagedParts.length > 0 && (
             <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
               <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>2.4c Damage Severity Distribution</p>
+                <p className="sub-heading">2.4c Damage Severity Distribution</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Distribution of {damagedParts.length} damaged component{damagedParts.length > 1 ? 's' : ''} by severity level.</p>
               </div>
               <div className="p-4">
@@ -4461,7 +4468,7 @@ function SectionDamageAnalysis({ aiAssessment, quotes, claimRecord0, expandShort
           {partsRecon.length > 0 && (
             <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
               <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>2.5 Quote Coverage Summary</p>
+                <p className="sub-heading">2.5 Quote Coverage Summary</p>
                 {pbName && (
                   <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>
                     Primary repairer: <strong style={{ color: 'var(--kr-text)' }}>{pbName}</strong>
@@ -4731,7 +4738,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
       {pbQuotes.length > 0 && (
         <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
           <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>3.0 Cost at a Glance</p>
+            <p className="sub-heading">3.0 Cost at a Glance</p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Visual comparison of submitted quotes{costComparisonData.kingaOptimised > 0 ? ', KINGA optimised total' : ''}{costComparisonData.benchmarkAvg > 0 ? ', and historical benchmark' : ''}</p>
           </div>
           <div className="p-4">
@@ -4972,7 +4979,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
             {/* Header row: title + NFS badge */}
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-off-white)' }}>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>3.1d Cost Intelligence</p>
+                <p className="sub-heading">3.1d Cost Intelligence</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>{co.quotesEvaluated} quote{co.quotesEvaluated !== 1 ? 's' : ''} evaluated · KINGA four-tier benchmark hierarchy</p>
               </div>
               <div className="flex items-center gap-2">
@@ -5197,7 +5204,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>3.3 Historical Cost Benchmark</p>
+                <p className="sub-heading">3.3 Historical Cost Benchmark</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Based on {lb.sampleSize} validated claims for {lb.vehicleDescriptor ?? 'this vehicle type'} ({lb.collisionDirection ?? 'similar impact'}, {lb.marketRegion ?? 'same market'})</p>
               </div>
               {variancePct != null && (
@@ -5298,7 +5305,7 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
   return (
     <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
       <div className="px-4 py-3 flex items-center justify-between" >
-        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>3.2 Vehicle Valuation</p>
+        <p className="sub-heading">3.2 Vehicle Valuation</p>
         {isWriteOff != null && (
           <span className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>{isWriteOff ? "Potential write-off" : "Repairable"}</span>
         )}
@@ -5592,7 +5599,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
     <div className="mb-1 space-y-2" style={{ marginBottom: "8px" }}>
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3 flex items-center justify-between" >
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>4.0 Photo Evidence</p>
+          <p className="sub-heading">4.0 Photo Evidence</p>
           <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{toSentenceCase((photoStatus ?? "").replace(/_/g, " "))}</span>
         </div>
         <div className="p-4">
@@ -5667,7 +5674,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
             };
             return (
               <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted-foreground)' }}>Photo Evidence Inventory</p>
+                <p className="micro-label">Photo Evidence Inventory</p>
                 <div style={{ height: 160 }}>
                   <Bar data={photoInventoryData} options={photoInventoryOpts} />
                 </div>
@@ -5693,7 +5700,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
 
                 return (
                   <>
-                    <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--kr-muted)' }}>
+                    <p className="sub-heading">
                       4.1 Photo Forensics Grid ({damagePhotoUrls.length} damage/vehicle image{damagePhotoUrls.length !== 1 ? 's' : ''})
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
@@ -5822,7 +5829,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
               {/* C-09: Excluded document/form images section — screen only, hidden in print */}
               {excludedDocUrls.length > 0 && (
                 <div className="mt-3 rounded p-3 no-print" style={{ border: "1px solid #fbbf24", background: "#fffbeb" }}>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#92400e" }}>
+                  <p className="sub-heading" style={{ color: 'var(--kr-amber)' }}>
                     ⚠ {excludedDocUrls.length} image{excludedDocUrls.length !== 1 ? 's' : ''} excluded from damage gallery
                   </p>
                   <p className="text-xs mb-2" style={{ color: "#78350f" }}>
@@ -5850,7 +5857,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
 
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3" >
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>4.2 Document Extraction</p>
+          <p className="sub-heading">4.2 Document Extraction</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs report-table">
@@ -5968,7 +5975,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         return (
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" >
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>4.3 Photo Forensics — EXIF & Manipulation Analysis</p>
+              <p className="sub-heading">4.3 Photo Forensics — EXIF & Manipulation Analysis</p>
               <span className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>{pf.anySuspicious ? "Suspicious" : "Clean"}</span>
             </div>
             <div className="p-4">
@@ -6032,7 +6039,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         return (
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" >
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>4.4 Photo Quality Intelligence</p>
+              <p className="sub-heading">4.4 Photo Quality Intelligence</p>
               <div className="flex items-center gap-2">
                 {isScanned && (
                   <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>Scanned PDF</span>
@@ -6211,7 +6218,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         return (
           <div className="" style={{ border: `1px solid ${fraudColor}40`, background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" >
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>5.0 Fraud Risk Assessment</p>
+              <p className="sub-heading">5.0 Fraud Risk Assessment</p>
               <span className="text-xs font-semibold" style={{ color: fraudColor }}>{toSentenceCase(fraudBand)}</span>
             </div>
             <div className="p-3 grid gap-4" style={{ gridTemplateColumns: '220px 1fr 1fr' }}>
@@ -6239,12 +6246,12 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
               </div>
               {/* Col 2: Radar chart */}
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--kr-muted)' }}>Risk Profile (Radar)</p>
+                <p className="micro-label">Risk Profile (Radar)</p>
                 <FraudRadarChart data={radarData} />
               </div>
               {/* Col 3: Factor bar chart */}
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--kr-muted)' }}>Factor Contributions</p>
+                <p className="micro-label" style={{ marginBottom: 12 }}>Factor Contributions</p>
                 <div className="space-y-2">
                   {barAxes.map((ax, i) => {
                     const pct = Math.min(100, Math.round((ax.value / ax.max) * 100));
@@ -6291,7 +6298,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         return (
           <div className="" style={{ border: `1px solid ${devColor}40`, background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>5.2 Speed-Physics Evidence</p>
+              <p className="sub-heading">5.2 Speed-Physics Evidence</p>
               <span className="text-xs font-semibold" style={{ color: devColor }}>
                 {devClass === 'critical' ? 'CRITICAL DISCREPANCY' : devClass === 'significant' ? 'SIGNIFICANT DISCREPANCY' : 'MINOR DISCREPANCY'}
               </span>
@@ -6431,7 +6438,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         return (
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3" >
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>5.3 Statistical Pattern Analysis</p>
+              <p className="sub-heading">5.3 Statistical Pattern Analysis</p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Findings from automated comparison against {(enforcement as any)?._benchmarkSampleSize ?? 'historical'} validated claims of the same profile.</p>
             </div>
             <div className="p-3 space-y-2">
@@ -6457,7 +6464,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
       {contributions.length > 0 && (
         <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
           <div className="px-4 py-3" >
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>
+            <p className="sub-heading">
               5.4 Risk Indicator Breakdown {isSystemFailure ? "(system errors excluded from score)" : ""}
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Each indicator is scored out of 20 and contributes to the overall fraud risk score. A triggered indicator means the system detected a specific anomaly in this area.</p>
@@ -6608,7 +6615,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
       {advisories.length > 0 && (
         <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
           <div className="px-4 py-3" >
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>Advisories</p>
+            <p className="sub-heading">Advisories</p>
           </div>
           <div className="p-4 space-y-2">
             {advisories.map((a, i) => (
@@ -6625,7 +6632,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
       {dateCheck && (
         <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
           <div className="px-4 py-3 flex items-center justify-between" >
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>5.4 Accident Date Consistency</p>
+            <p className="sub-heading">5.4 Accident Date Consistency</p>
             {(() => {
               const v = dateCheck.verdict;
               const isOk = v === 'consistent';
@@ -6642,7 +6649,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
           <div className="p-3 space-y-3">
             {/* Three-source date comparison table */}
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--kr-muted)' }}>Date Source Comparison</p>
+              <p className="micro-label">Date Source Comparison</p>
               <table className="w-full text-xs report-table">
                 <thead>
                   <tr >
@@ -6717,7 +6724,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
             {/* Pre-incident images list */}
             {(dateCheck.preIncidentImages ?? []).length > 0 && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--fp-critical-text)' }}>
+                <p className="micro-label">
                   Pre-Incident Images Detected ({dateCheck.preIncidentImages.length})
                 </p>
                 <div className="space-y-1.5">
@@ -6786,7 +6793,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         return (
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>5.5 Fraud Signal Contribution Breakdown</p>
+              <p className="sub-heading">5.5 Fraud Signal Contribution Breakdown</p>
               <p className="text-[10px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>Proportional contribution of each fraud signal to the overall risk score</p>
             </div>
             <div className="p-4">
@@ -6858,7 +6865,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
             {/* Header */}
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)', background: panelBg }}>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>5.6 Cross-Engine Consistency — Physics ↔ Damage ↔ Fraud</p>
+                <p className="sub-heading">5.6 Cross-Engine Consistency — Physics ↔ Damage ↔ Fraud</p>
                 <p className="text-[10px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>Automated C1–C9 agreement/conflict checks across all three analysis engines</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -6884,7 +6891,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
               {/* Conflicts */}
               {conflicts.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--kr-text)' }}>Conflicts Detected ({conflicts.length})</p>
+                  <p className="micro-label">Conflicts Detected ({conflicts.length})</p>
                   <div className="space-y-2">
                     {conflicts.map((c: any, i: number) => (
                       <div key={i} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${severityBorder(c.severity)}`, background: 'var(--kr-white)' }}>
@@ -6899,15 +6906,15 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                         {/* Three-column engine breakdown */}
                         <div className="px-3 py-2 grid grid-cols-3 gap-3 text-[10px]" style={{ borderBottom: `1px solid ${severityBorder(c.severity)}` }}>
                           <div>
-                            <p className="font-semibold mb-0.5 uppercase tracking-wide" style={{ color: 'var(--kr-muted)', fontSize: 9 }}>Physics engine</p>
+                            <p className="micro-label" style={{ marginBottom: 2 }}>Physics engine</p>
                             <p style={{ color: 'var(--kr-text)' }}>{c.physics_says || '—'}</p>
                           </div>
                           <div>
-                            <p className="font-semibold mb-0.5 uppercase tracking-wide" style={{ color: 'var(--kr-muted)', fontSize: 9 }}>Damage engine</p>
+                            <p className="micro-label" style={{ marginBottom: 2 }}>Damage engine</p>
                             <p style={{ color: 'var(--kr-text)' }}>{c.damage_says || '—'}</p>
                           </div>
                           <div>
-                            <p className="font-semibold mb-0.5 uppercase tracking-wide" style={{ color: 'var(--kr-muted)', fontSize: 9 }}>Fraud engine</p>
+                            <p className="micro-label" style={{ marginBottom: 2 }}>Fraud engine</p>
                             <p style={{ color: 'var(--kr-text)' }}>{c.fraud_says || '—'}</p>
                           </div>
                         </div>
@@ -6929,7 +6936,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
               {/* Agreements */}
               {agreements.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--kr-text)' }}>Engine Agreements ({agreements.length})</p>
+                  <p className="micro-label">Engine Agreements ({agreements.length})</p>
                   <div className="space-y-1">
                     {agreements.map((a: any, i: number) => (
                       <div key={i} className="flex items-start gap-2 px-3 py-1.5 rounded" style={{ background: 'var(--fp-success-bg)', border: '1px solid var(--fp-success-border)' }}>
@@ -6975,12 +6982,12 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-off-white)' }}>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>5.7 Policy Exclusions &amp; Recovery Opportunities</p>
+                <p className="sub-heading">5.7 Policy Exclusions &amp; Recovery Opportunities</p>
                 <p className="text-[10px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>Sourced from policy document analysis and third-party evidence — Claim Truth Layer</p>
               </div>
               {excess !== null && (
                 <div className="text-right shrink-0">
-                  <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--kr-muted)' }}>Excess Applicable</p>
+                  <p className="micro-label">Excess Applicable</p>
                   <p className="text-sm font-bold" style={{ color: 'var(--kr-text)' }}>{excess > 0 ? `${excess.toLocaleString()}` : 'None'}</p>
                 </div>
               )}
@@ -6988,7 +6995,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
             <div className="p-3 space-y-3">
               {exclusions.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--kr-muted)' }}>Policy Exclusions Identified</p>
+                  <p className="sub-heading">Policy Exclusions Identified</p>
                   <div className="space-y-2">
                     {exclusions.map((ex: any, i: number) => (
                       <div key={i} className="rounded-lg px-3 py-2.5" style={{ border: '1px solid var(--fp-critical-border)', background: 'var(--fp-critical-bg)' }}>
@@ -7012,7 +7019,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
               )}
               {subrogation.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--kr-muted)' }}>Subrogation &amp; Recovery Leads</p>
+                  <p className="sub-heading">Subrogation &amp; Recovery Leads</p>
                   <div className="space-y-2">
                     {subrogation.map((lead: any, i: number) => (
                       <div key={i} className="rounded-lg px-3 py-2.5" style={{ border: '1px solid var(--fp-warning-border)', background: 'var(--fp-warning-bg)' }}>
@@ -7036,7 +7043,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
 
       <div className="" style={{ border: `1px solid ${fraudColor}40`, background: 'var(--kr-white)' }}>
         <div className="px-4 py-3" >
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>Final Risk Statement</p>
+          <p className="sub-heading">Final Risk Statement</p>
         </div>
         <div className="p-3 space-y-2">
           <p className="text-sm leading-relaxed" style={{ color: 'var(--kr-text)' }}>
@@ -7197,14 +7204,14 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
         return (
           <div className="" style={{ border: `1px solid ${borderColor}`, background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${borderColor}`, background: bgColor }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>6.0 Decision Rationale</p>
+              <p className="sub-heading">6.0 Decision Rationale</p>
               <div className="px-3 py-1 rounded font-bold text-xs" style={{ background: 'var(--kr-white)', color: decisionColor, border: `1.5px solid ${decisionColor}` }}>{decisionText}</div>
             </div>
             <div className="p-4">
               <p className="text-sm leading-relaxed" style={{ color: 'var(--kr-text)' }}>{decisionRationale}</p>
               {nextSteps.length > 0 && (
                 <div className="mt-3">
-                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--kr-muted)' }}>Required Next Steps</p>
+                  <p className="sub-heading">Required Next Steps</p>
                   <ol className="space-y-1.5">
                     {nextSteps.slice(0, 5).map((step, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs">
@@ -7235,7 +7242,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
       {/* SVG Decision Flowchart — horizontal left-to-right layout */}
       <div className="" style={{ border: `2px solid ${decisionColor}`, background: 'var(--kr-white)' }}>
         <div className="px-4 py-3 flex items-center justify-between" >
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>Decision Flowchart</p>
+          <p className="sub-heading">Decision Flowchart</p>
           <div className="px-3 py-1.5 rounded font-bold text-sm"
             style={{ background: `${decisionColor}20`, color: decisionColor, border: `1px solid ${decisionColor}` }}>
             {decisionText}
@@ -7418,7 +7425,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
         return (
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3" >
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--kr-text)' }}>6.4 Decision Lifecycle</p>
+              <p className="sub-heading">6.4 Decision Lifecycle</p>
             </div>
             <div className="p-4">
               <DecisionLifecycleTracker data={lifecycleData} />
@@ -7985,7 +7992,7 @@ function Section7Learning({
     <div className="mb-1 space-y-2" style={{ marginBottom: "8px" }}>
       <div className="" style={{ border: '1px solid var(--border)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>7.1 Historical Cost Benchmark</p>
+          <p className="sub-heading">7.1 Historical Cost Benchmark</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
             Based on {lb!.sampleSize} anonymised validated claims for {lb!.vehicleDescriptor} ({lb!.collisionDirection} impact, {lb!.marketRegion} market)
           </p>
@@ -8171,6 +8178,7 @@ const REPORT_CSS = `
 .kinga-report .data-table .mismatch td{background:#fff;color:#c00;font-weight:700}
 .kinga-report .narrative-box{border:1px solid var(--kr-rule);padding:10px 14px;margin-bottom:6px;font-size:12px;color:var(--kr-text);line-height:1.5;background:var(--kr-white)}
 .kinga-report .narr-label{font-size:10px;font-weight:400;text-transform:uppercase;letter-spacing:.1em;color:var(--kr-muted);margin-bottom:6px;font-family:var(--kr-mono)}
+.kinga-report .micro-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--kr-muted);font-weight:600;margin-bottom:6px;display:block}
 .kinga-report .diagram-section{display:flex;gap:16px;align-items:flex-start;margin-bottom:10px;border:1px solid var(--kr-rule);padding:12px}
 .kinga-report .diagram-legend{flex:1}
 .kinga-report .legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--kr-text);margin-bottom:6px}
@@ -8292,10 +8300,10 @@ const REPORT_CSS = `
 /* Narrative panel classes */
 .kinga-report .narr-panel{border:1px solid var(--kr-rule);background:#fff;margin-bottom:12px}
 .kinga-report .narr-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--kr-rule);background:var(--kr-off-white)}
-.kinga-report .narr-header-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--kr-muted);font-weight:600}
+.kinga-report .narr-header-label{font-size:11px;font-family:var(--kr-sans);letter-spacing:0;text-transform:none;color:var(--kr-navy);font-weight:700;border-bottom:1px solid var(--kr-rule);padding-bottom:3px;margin-bottom:6px;display:block}
 .kinga-report .narr-quote{font-size:12px;line-height:1.65;color:var(--kr-text);font-style:italic;padding:12px 14px;border-left:3px solid var(--kr-black);background:#fafafa;margin:10px 14px}
 .kinga-report .narr-seq{padding:10px 14px;border-top:1px solid var(--kr-rule)}
-.kinga-report .narr-seq-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--kr-muted);margin-bottom:6px;display:block}
+.kinga-report .narr-seq-label{font-size:11px;font-family:var(--kr-sans);letter-spacing:0;text-transform:none;color:var(--kr-navy);font-weight:700;margin-bottom:6px;display:block}
 .kinga-report .narr-seq-text{font-size:12px;color:var(--kr-text);line-height:1.6}
 .kinga-report .narr-cv{border-top:1px solid var(--kr-rule)}
 .kinga-report .narr-cv-header{padding:6px 14px;background:var(--kr-off-white);border-bottom:1px solid var(--kr-rule)}
@@ -8319,7 +8327,7 @@ const REPORT_CSS = `
 .kinga-report .narr-flag-desc{font-size:12px;color:var(--kr-muted);line-height:1.5}
 .kinga-report .narr-flag-evidence{font-size:11px;color:var(--kr-muted);font-style:italic;margin-top:3px;padding-left:8px;border-left:2px solid var(--kr-rule)}
 .kinga-report .narr-reasoning{padding:10px 14px;background:#fafafa;border-top:1px solid var(--kr-rule)}
-.kinga-report .narr-reasoning-label{font-size:10px;font-family:var(--kr-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--kr-muted);margin-bottom:4px;display:block}
+.kinga-report .narr-reasoning-label{font-size:11px;font-family:var(--kr-sans);letter-spacing:0;text-transform:none;color:var(--kr-navy);font-weight:700;margin-bottom:4px;display:block}
 .kinga-report .narr-reasoning-text{font-size:12px;color:var(--kr-text);line-height:1.6}
 /* Physics 2-column layout: table left, gauge+chart right */
 .kinga-report .physics-row{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
