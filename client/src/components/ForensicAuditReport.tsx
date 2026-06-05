@@ -7333,58 +7333,36 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
         </div>
       </div>
 
-      {/* Trigger Conditions + Blocked Actions + Required Next Steps — 3-column layout */}
-      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(3, 1fr)", alignItems: 'start' }}>
-        {(keyDrivers.length > 0 || primaryReason) && (
-          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>6.1 Trigger Conditions</p>
-            </div>
-            <div className="p-4 space-y-2">
-              {[primaryReason, ...keyDrivers].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 5).map((d, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs">
-                  <span className="font-bold shrink-0 w-4" style={{ color: decisionColor }}>{i + 1}.</span>
-                  <span style={{ color: "#0f172a" }}>{d}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {blocked.length > 0 && (
-          <div className="rounded-xl overflow-hidden" style={{ border: `1px solid var(--fp-critical-border)`, background: "#ffffff" }}>
-            <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>6.2 Blocked Actions</p>
-            </div>
-            <div className="p-4 space-y-2">
+      {/* 6.1 Trigger Conditions | 6.3 Required Next Steps — two-col-kv matching mock layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginTop: 6, marginBottom: 8 }}>
+        {/* Left col: 6.1 Trigger Conditions */}
+        <div>
+          <p style={{ fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#0f172a' }}>6.1 Trigger Conditions</p>
+          {[primaryReason, ...keyDrivers].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 6).map((d, i) => (
+            <p key={i} style={{ fontSize: 11, color: '#0f172a', marginBottom: 3, lineHeight: 1.45 }}>{i + 1}. {d}</p>
+          ))}
+          {blocked.length > 0 && (
+            <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '3px solid var(--fp-critical-border)' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--fp-critical-text)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>6.2 Blocked Actions</p>
               {blocked.map((b, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs p-2" style={{ borderBottom: '1px solid var(--border)' }}>
-                  <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "var(--fp-critical-text)" }} />
-                  <span style={{ color: "var(--fp-critical-text)", fontWeight: 600 }}>
-                    {b === "APPROVE" ? "APPROVE — cannot approve while anomalies remain unexplained" :
-                     b === "REJECT" ? "REJECT — no evidence of malicious intent" : b}
-                  </span>
-                </div>
+                <p key={i} style={{ fontSize: 11, color: 'var(--fp-critical-text)', marginBottom: 2 }}>
+                  {b === 'APPROVE' ? 'APPROVE — cannot approve while anomalies remain unexplained' :
+                   b === 'REJECT' ? 'REJECT — no evidence of malicious intent' : b}
+                </p>
               ))}
             </div>
-          </div>
-        )}
-
-        {nextSteps.length > 0 && (
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
-            <div className="px-4 py-3" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>6.3 Required Next Steps</p>
-            </div>
-            <div className="p-4 space-y-2">
-              {nextSteps.slice(0, 5).map((step, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs">
-                  <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: decisionColor, color: '#fff' }}>{i + 1}</span>
-                  <span style={{ color: '#334155' }}>{step}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
+        {/* Right col: 6.3 Required Next Steps */}
+        <div>
+          <p style={{ fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#0f172a' }}>6.3 Required Next Steps</p>
+          {nextSteps.length > 0
+            ? nextSteps.slice(0, 6).map((step, i) => (
+                <p key={i} style={{ fontSize: 11, color: '#0f172a', marginBottom: 3, lineHeight: 1.45 }}>{i + 1}. {step}</p>
+              ))
+            : <p style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>No mandatory actions required.</p>
+          }
+        </div>
       </div>
 
       {/* 6.4 + 6.5 side-by-side grid */}
@@ -8769,73 +8747,61 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
         return (
           <>
             <div className="section-heading" data-section="7">7 &nbsp; Claim Quality Score</div>
-            <div className="mb-1 space-y-2" style={{ marginBottom: 12 }}>
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
-                <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
-                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>7.0 Assessment Quality Score</p>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-semibold" style={{ color: '#64748b' }}>{cq.overallScore}/100</span>
-                    <span className="text-sm font-black px-2 py-0.5 rounded" style={{ background: gradeColor(cq.grade) + '15', color: gradeColor(cq.grade), border: `1.5px solid ${gradeColor(cq.grade)}` }}>Grade {cq.grade}</span>
-                    {cq.requiresManualReview && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>Manual Review Required</span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-4">
-                  <p className="text-xs leading-relaxed mb-3" style={{ color: '#374151' }}>{cq.adjusterGuidance}</p>
-                  <div className="mb-4">
-                    <div className="flex justify-between text-[10px] mb-1" style={{ color: '#64748b' }}>
-                      <span>Quality Score</span>
-                      <span>{cq.overallScore}/100</span>
-                    </div>
-                    <div className="h-2 rounded-full" style={{ background: '#f1f5f9' }}>
-                      <div className="h-2 rounded-full" style={{ width: `${cq.overallScore}%`, background: gradeColor(cq.grade) }} />
-                    </div>
-                  </div>
-                  <table className="w-full text-xs report-table">
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: '#64748b' }}>Dimension</th>
-                        <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: '#64748b' }}>Score</th>
-                        <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: '#64748b' }}>Label</th>
-                        <th className="py-1.5 text-left font-semibold" style={{ color: '#64748b' }}>Issues</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dimOrder.map((key, i) => {
-                        const dim = (cq.dimensions as any)?.[key];
-                        if (!dim) return null;
-                        const dimColor = dim.score >= 70 ? '#16a34a' : dim.score >= 40 ? '#d97706' : '#dc2626';
-                        return (
-                          <tr key={key} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
-                            <td className="py-1.5 pr-3 font-semibold" style={{ color: '#0f172a' }}>{dim.name}</td>
-                            <td className="py-1.5 pr-3 tabular-nums font-bold" style={{ color: dimColor }}>{dim.score}</td>
-                            <td className="py-1.5 pr-3" style={{ color: '#64748b' }}>{dim.label}</td>
-                            <td className="py-1.5" style={{ color: '#64748b' }}>
-                              {(dim.issues ?? []).length > 0
-                                ? (dim.issues as string[]).join('; ')
-                                : <span style={{ fontStyle: 'italic' }}>None</span>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  {(cq.mandatoryActions ?? []).length > 0 && (
-                    <div className="mt-3 pt-3" style={{ borderTop: '1px solid #e2e8f0' }}>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#64748b' }}>Mandatory Adjuster Actions</p>
-                      <ul className="space-y-1">
-                        {(cq.mandatoryActions as string[]).map((action: string, i: number) => (
-                          <li key={i} className="flex items-start gap-2 text-xs" style={{ color: '#0f172a' }}>
-                            <span className="shrink-0 font-bold" style={{ color: 'var(--fp-critical-text)' }}>{i + 1}.</span>
-                            {action}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+            {/* 7.0 Assessment Quality Score — subsection header + data-table matching mock */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>7.0 Assessment Quality Score</span>
+                <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 6px', background: gradeColor(cq.grade), color: '#fff', borderRadius: 2 }}>
+                    {cq.overallScore}/100 — Grade {cq.grade}
+                  </span>
+                  {cq.requiresManualReview && (
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 6px', background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)', borderRadius: 2 }}>Manual Review Required</span>
                   )}
-                </div>
+                </span>
               </div>
+              {cq.adjusterGuidance && (
+                <p style={{ fontSize: 11, color: '#0f172a', marginBottom: 6, lineHeight: 1.5 }}>{cq.adjusterGuidance}</p>
+              )}
+              {/* data-table: Dimension | Score | Label | Issues */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #C0C0C0', marginBottom: 6, fontSize: 11 }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '4px 6px', fontWeight: 700, color: '#fff', background: '#0a0a0a', textAlign: 'left', fontSize: 11, borderRight: '1px solid #444' }}>Dimension</th>
+                    <th style={{ padding: '4px 6px', fontWeight: 700, color: '#fff', background: '#0a0a0a', textAlign: 'left', fontSize: 11, borderRight: '1px solid #444', width: 60 }}>Score</th>
+                    <th style={{ padding: '4px 6px', fontWeight: 700, color: '#fff', background: '#0a0a0a', textAlign: 'left', fontSize: 11, borderRight: '1px solid #444', width: 100 }}>Label</th>
+                    <th style={{ padding: '4px 6px', fontWeight: 700, color: '#fff', background: '#0a0a0a', textAlign: 'left', fontSize: 11 }}>Issues</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dimOrder.map((key, i) => {
+                    const dim = (cq.dimensions as any)?.[key];
+                    if (!dim) return null;
+                    const dimColor = dim.score >= 70 ? '#16a34a' : dim.score >= 40 ? '#d97706' : '#dc2626';
+                    const rowBorder = '1px solid #D4D4D4';
+                    return (
+                      <tr key={key} style={{ borderBottom: rowBorder, background: '#fff' }}>
+                        <td style={{ padding: '4px 6px', color: '#0f172a', borderRight: rowBorder, verticalAlign: 'top' }}>{dim.name}</td>
+                        <td style={{ padding: '4px 6px', fontWeight: 700, color: dimColor, borderRight: rowBorder, verticalAlign: 'top', fontVariantNumeric: 'tabular-nums' }}>{dim.score}</td>
+                        <td style={{ padding: '4px 6px', color: '#374151', borderRight: rowBorder, verticalAlign: 'top' }}>{dim.label}</td>
+                        <td style={{ padding: '4px 6px', color: '#374151', verticalAlign: 'top' }}>
+                          {(dim.issues ?? []).length > 0
+                            ? (dim.issues as string[]).join('; ')
+                            : <span style={{ fontStyle: 'italic', color: '#9ca3af' }}>None</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {(cq.mandatoryActions ?? []).length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, marginBottom: 3, color: '#0f172a' }}>Mandatory Adjuster Actions</p>
+                  {(cq.mandatoryActions as string[]).map((action: string, i: number) => (
+                    <p key={i} style={{ fontSize: 11, color: '#0f172a', marginBottom: 2, lineHeight: 1.45 }}>{i + 1}. {action}</p>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         );
@@ -8872,49 +8838,45 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
         return (
           <>
             <div className="section-heading" data-section="8">8 &nbsp; Forensic Audit Validation</div>
-            <div className="mb-1 space-y-2" style={{ marginBottom: 12 }}>
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e2e8f0', background: '#ffffff' }}>
-                <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
-                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#0f172a' }}>8.0 Validation Status</p>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-semibold" style={{ color: '#64748b' }}>Consistency: {fav.consistencyScore}/100</span>
-                    <span className="text-xs font-semibold" style={{ color: '#64748b' }}>Confidence: {fav.confidenceInAssessment}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: overallSt.bg, color: overallSt.text, border: `1px solid ${overallSt.border}` }}>{fav.overallStatus}</span>
-                  </div>
-                </div>
-                <div className="p-4">
-                  {fav.summary && (
-                    <p className="text-xs leading-relaxed mb-3" style={{ color: '#374151' }}>{fav.summary}</p>
-                  )}
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                    {dimEntries.map(([key, result]) => {
-                      const st = statusStyle(result);
-                      return (
-                        <div key={key} className="flex items-center justify-between py-1" style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <span className="text-xs" style={{ color: '#64748b' }}>{dimLabels[key] ?? key}</span>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: st.bg, color: st.text, border: `1px solid ${st.border}` }}>{result}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+            <div style={{ marginBottom: 12 }}>
+              {/* 8.0 Validation Status — subsection header matching mock */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>8.0 Validation Status</span>
+                <span style={{ fontSize: 11, color: '#374151' }}>
+                  Consistency: {fav.consistencyScore}/100 &nbsp;·&nbsp; Confidence: {fav.confidenceInAssessment} &nbsp;
+                  <span style={{ fontWeight: 700, padding: '1px 6px', background: overallSt.bg, color: overallSt.text, border: `1px solid ${overallSt.border}`, borderRadius: 2 }}>{fav.overallStatus}</span>
+                </span>
               </div>
+              {fav.summary && (
+                <p style={{ fontSize: 11, color: '#0f172a', marginBottom: 6, lineHeight: 1.5 }}>{fav.summary}</p>
+              )}
+              {/* Validation grid: 2-col grid of dimension badges matching mock validation-grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, marginBottom: 8 }}>
+                {dimEntries.map(([key, result]) => {
+                  const st = statusStyle(result);
+                  return (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 5px', border: '1px solid #D4D4D4', fontSize: 11, background: '#fff' }}>
+                      <span style={{ fontWeight: 600, color: '#0f172a' }}>{dimLabels[key] ?? key}</span>
+                      <span style={{ fontWeight: 700, padding: '1px 5px', background: st.bg, color: st.text, border: `1px solid ${st.border}`, borderRadius: 2, fontSize: 10 }}>{result}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Issue groups: plain issue-block style matching mock */}
               {issueGroups.map((group, gi) => (
-                <div key={gi} className="rounded-xl overflow-hidden" style={{ border: `1px solid ${group.style.border}`, background: '#ffffff' }}>
-                  <div className="px-4 py-3" style={{ borderBottom: `1px solid ${group.style.border}`, background: group.style.bg }}>
-                    <p className="text-xs font-bold uppercase tracking-wide" style={{ color: group.style.text }}>8.{gi + 1} {group.label} ({group.items.length})</p>
+                <div key={gi} style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: group.style.text, marginBottom: 4, paddingBottom: 3, borderBottom: `1px solid ${group.style.border}` }}>
+                    8.{gi + 1} {group.label} ({group.items.length})
                   </div>
-                  <div className="p-4 space-y-2">
-                    {group.items.map((issue: any, ii: number) => (
-                      <div key={ii} className="text-xs" style={{ paddingLeft: 8, borderLeft: `2px solid ${group.style.border}` }}>
-                        <span className="font-semibold" style={{ color: '#0f172a' }}>[{issue.code}] {issue.dimension}</span>
-                        <span className="ml-2" style={{ color: '#374151' }}>{issue.description}</span>
-                        {issue.evidence && (
-                          <span className="ml-2 text-[10px]" style={{ color: '#64748b' }}>— {issue.evidence}</span>
-                        )}
+                  {group.items.map((issue: any, ii: number) => (
+                    <div key={ii} style={{ borderLeft: `3px solid ${group.style.border}`, padding: '5px 8px', marginBottom: 4, background: '#fff' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, fontFamily: 'monospace', color: '#0f172a', marginBottom: 2 }}>[{issue.code}] {issue.dimension}</div>
+                      <div style={{ fontSize: 11, lineHeight: 1.45, color: '#0f172a' }}>
+                        {issue.description}
+                        {issue.evidence && <span style={{ color: '#64748b' }}> — {issue.evidence}</span>}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
