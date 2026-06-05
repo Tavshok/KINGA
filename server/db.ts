@@ -2226,16 +2226,22 @@ export async function createPanelBeaterQuote(data: InsertPanelBeaterQuote) {
 export async function getQuotesByClaimId(claimId: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return [];
-
+  // Always join panelBeaters so repairerName is available for the forensic report column headers
   if (tenantId) {
-    // Join with claims to enforce tenant filtering
-    const result = await db.select({ quote: panelBeaterQuotes })
+    const result = await db
+      .select({ quote: panelBeaterQuotes, pbName: panelBeaters.businessName })
       .from(panelBeaterQuotes)
       .innerJoin(claims, eq(panelBeaterQuotes.claimId, claims.id))
+      .leftJoin(panelBeaters, eq(panelBeaterQuotes.panelBeaterId, panelBeaters.id))
       .where(and(eq(panelBeaterQuotes.claimId, claimId), eq(claims.tenantId, tenantId)));
-    return result.map(r => r.quote);
+    return result.map(r => ({ ...r.quote, repairerName: r.pbName ?? undefined }));
   } else {
-    return await db.select().from(panelBeaterQuotes).where(eq(panelBeaterQuotes.claimId, claimId));
+    const result = await db
+      .select({ quote: panelBeaterQuotes, pbName: panelBeaters.businessName })
+      .from(panelBeaterQuotes)
+      .leftJoin(panelBeaters, eq(panelBeaterQuotes.panelBeaterId, panelBeaters.id))
+      .where(eq(panelBeaterQuotes.claimId, claimId));
+    return result.map(r => ({ ...r.quote, repairerName: r.pbName ?? undefined }));
   }
 }
 
