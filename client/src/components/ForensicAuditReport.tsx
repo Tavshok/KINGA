@@ -1189,6 +1189,145 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         </div>
       )}
 
+      {/* ── Cover Grid — 4-cell summary ── */}
+      {(() => {
+        const cr0cg = (aiAssessment as any)?._claimRecord;
+        const claimRefCg = (() => {
+          const rawRef = cr0cg?.insuranceContext?.claimReference;
+          const isValidRef = rawRef && /[0-9\/\-]/.test(rawRef) && rawRef.length >= 4;
+          return (isValidRef ? rawRef : null) ?? cr0cg?.insuranceContext?.policyNumber ?? claim?.claimNumber ?? claim?.claimReference ?? '—';
+        })();
+        const claimTypeCg = (phase2?.incidentType ?? (aiAssessment as any)?._normalised?.incidentType ?? claim?.incidentType ?? 'Motor Vehicle').toString().replace(/_/g,' ').replace(/\b\w/g,(c:string)=>c.toUpperCase());
+        const dcColor = dataCompleteness >= 75 ? '#16a34a' : dataCompleteness >= 50 ? '#d97706' : '#dc2626';
+        const dcLabel = dataCompleteness >= 75 ? 'Sufficient' : dataCompleteness >= 50 ? 'Partial' : 'Insufficient';
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: '#e2e8f0', border: '1px solid #e2e8f0', margin: '12px 0 0' }}>
+            {[
+              { label: 'Claim Reference', value: <span style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 11 }}>{claimRefCg}</span> },
+              { label: 'Claim Type', value: claimTypeCg },
+              { label: 'Incident Date', value: fmtDate(incidentDate) },
+              { label: 'Data Completeness', value: <span style={{ color: dcColor, fontWeight: 700 }}>{Math.round(dataCompleteness)}% — {dcLabel}</span> },
+            ].map((cell, i) => (
+              <div key={i} style={{ background: '#fff', padding: '8px 12px' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#888', marginBottom: 3 }}>{cell.label}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#111' }}>{cell.value}</div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+      {/* ── Vehicle & Policyholder two-col-kv ── */}
+      {(() => {
+        const cr0vp = (aiAssessment as any)?._claimRecord;
+        const _valEngineResultCov = (enforcement as any)?._vehicleValuation ?? null;
+        const marketValueUsdCov = _valEngineResultCov?.marketValueUsd ?? cr0vp?.vehicle?.marketValueUsd ?? null;
+        const policyNumberCov = cr0vp?.insuranceContext?.policyNumber ?? claim?.policyNumber ?? null;
+        const driverNameCov = cr0vp?.driver?.name ?? claim?.driverName ?? null;
+        const claimantNameCov = claim?.claimantName ?? cr0vp?.insuranceContext?.policyholderName ?? null;
+        const vehicleRows: [string, React.ReactNode][] = [
+          ['Registration', claim?.vehicleRegistration ?? cr0vp?.vehicle?.registration ?? '—'],
+          ['Make / Model', [claim?.vehicleMake, claim?.vehicleModel].filter(Boolean).join(' ') || '—'],
+          ['Year', String(claim?.vehicleYear ?? cr0vp?.vehicle?.year ?? '—')],
+          ['Colour', String(claim?.vehicleColour ?? cr0vp?.vehicle?.colour ?? '—')],
+          ['VIN', claim?.vehicleVin ?? cr0vp?.vehicle?.vin ?? <span style={{ color: '#dc2626', fontWeight: 600 }}>Not provided</span>],
+          ['Odometer', cr0vp?.vehicle?.odometerKm ? `${Number(cr0vp.vehicle.odometerKm).toLocaleString()} km` : '—'],
+          ['Market value', marketValueUsdCov != null ? fmtMoney(marketValueUsdCov) : '—'],
+        ];
+        const policyRows: [string, React.ReactNode][] = [
+          ['Policyholder', claimantNameCov ?? '—'],
+          ['Driver', driverNameCov ? String(driverNameCov).replace(/\b\w/g,(c:string)=>c.toUpperCase()) : '—'],
+          ['Policy number', policyNumberCov ?? <span style={{ color: '#dc2626', fontWeight: 600 }}>Not provided</span>],
+          ['Insurer', String(cr0vp?.insuranceContext?.insurerName ?? claim?.insurerName ?? '—')],
+          ['Claim submitted', fmtDate(claim?.createdAt ?? aiAssessment?.createdAt)],
+          ['Incident location', String((aiAssessment as any)?._normalised?.incidentLocation ?? claim?.incidentLocation ?? '—')],
+          ['Collision type', String((phase2?.incidentType ?? '—')).replace(/_/g,' ').replace(/\b\w/g,(c:string)=>c.toUpperCase())],
+          ['Reported speed', claimedSpeed > 0 ? `${Math.round(claimedSpeed)} km/h` : '—'],
+        ];
+        const thS: React.CSSProperties = { padding: '3px 8px 3px 0', fontSize: 10, fontWeight: 700, color: '#555', whiteSpace: 'nowrap', verticalAlign: 'top', width: 110 };
+        const tdS: React.CSSProperties = { padding: '3px 0', fontSize: 11, color: '#111', verticalAlign: 'top' };
+        const secHdr = (label: string) => (
+          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#888', marginBottom: 4, borderBottom: '1.5px solid #111', paddingBottom: 3 }}>{label}</div>
+        );
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, margin: '12px 0 0' }}>
+            <div>
+              {secHdr('Vehicle Details')}
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
+                {vehicleRows.map(([k,v],i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={thS}>{k}</td>
+                    <td style={tdS}>{v}</td>
+                  </tr>
+                ))}
+              </tbody></table>
+            </div>
+            <div>
+              {secHdr('Policyholder & Claim Details')}
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
+                {policyRows.map(([k,v],i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={thS}>{k}</td>
+                    <td style={tdS}>{v}</td>
+                  </tr>
+                ))}
+              </tbody></table>
+            </div>
+          </div>
+        );
+      })()}
+      {/* ── Repair Quote Summary table ── */}
+      {quotes && quotes.length > 0 && (() => {
+        const kingaOptTotal3: number = co0?.l2CompositeOptimisedCostUsd ?? co0?.compositeOptimisedCostUsd ?? 0;
+        type QSRow = { name: string; labour: number; parts: number; total: number; status: string };
+        const qsRows: QSRow[] = quotes.map((q: any) => {
+          const items = q.lineItems ?? [];
+          const labour = items.filter((li: any) => /labour|labor/i.test(li.category ?? li.description ?? '')).reduce((s: number, li: any) => s + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
+          const parts = items.filter((li: any) => !/labour|labor/i.test(li.category ?? li.description ?? '')).reduce((s: number, li: any) => s + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
+          const raw = (q.quotedAmount ?? 0) / 100;
+          const total = raw > 0 ? raw : labour + parts;
+          const name = q.panelBeaterName ?? q.repairerName ?? `Repairer #${q.panelBeaterId ?? '?'}`;
+          const qt = q.quoteType ?? 'original';
+          const status = qt === 'assessor_adjusted' ? 'Adjusted' : qt === 'strip_requote' ? 'Strip & Requote' : 'Submitted';
+          return { name, labour, parts, total, status };
+        });
+        const thC: React.CSSProperties = { padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#fff', background: '#111', textAlign: 'left', whiteSpace: 'nowrap' };
+        const tdC: React.CSSProperties = { padding: '3px 8px', fontSize: 11, color: '#111', borderBottom: '1px solid #f1f5f9' };
+        const tdN: React.CSSProperties = { ...tdC, textAlign: 'right', fontFamily: "'IBM Plex Mono','Courier New',monospace" };
+        return (
+          <div style={{ margin: '12px 0 0' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#888', marginBottom: 4, borderBottom: '1.5px solid #111', paddingBottom: 3 }}>Repair Quote Summary</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr>
+                <th style={thC}>Repairer</th>
+                <th style={{ ...thC, textAlign: 'right' }}>Labour</th>
+                <th style={{ ...thC, textAlign: 'right' }}>Parts</th>
+                <th style={{ ...thC, textAlign: 'right' }}>Total</th>
+                <th style={thC}>Status</th>
+              </tr></thead>
+              <tbody>
+                {qsRows.map((r, i) => (
+                  <tr key={i}>
+                    <td style={tdC}>{r.name}</td>
+                    <td style={tdN}>{r.labour > 0 ? fmtMoney(r.labour) : '—'}</td>
+                    <td style={tdN}>{r.parts > 0 ? fmtMoney(r.parts) : '—'}</td>
+                    <td style={{ ...tdN, fontWeight: 700 }}>{fmtMoney(r.total)}</td>
+                    <td style={tdC}><span style={{ fontSize: 10, fontWeight: 600, color: '#555' }}>{r.status}</span></td>
+                  </tr>
+                ))}
+                {kingaOptTotal3 > 0 && (
+                  <tr style={{ borderTop: '2px solid #111' }}>
+                    <td style={{ ...tdC, fontWeight: 700, color: '#16a34a' }}>KINGA AI Estimate</td>
+                    <td style={tdN}>—</td>
+                    <td style={tdN}>—</td>
+                    <td style={{ ...tdN, fontWeight: 700, color: '#16a34a' }}>{fmtMoney(kingaOptTotal3)}</td>
+                    <td style={{ ...tdC, fontWeight: 700, color: '#16a34a' }}>AI Optimised</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
       {/* ── Scorecard row — 5-cell grid with bars matching reference HTML ── */}
       {(() => {
         const kingaOptTotal2: number = co0?.l2CompositeOptimisedCostUsd ?? co0?.compositeOptimisedCostUsd ?? 0;
@@ -1310,35 +1449,37 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         );
       })()}
 
-      {/* ── FCDI block ── */}
-      <div className="fcdi-block">
-        <div>
-          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginBottom: 4 }}>FCDI Score</div>
-          <div><span className="fcdi-score-big" style={{ color: fcdiBarColor }}>{fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}</span><span className="fcdi-score-denom"> / 100</span></div>
-          <div style={{ fontSize: 11, color: '#555', marginTop: 4 }}>{fcdiTileLabel} evidence quality</div>
-          <div style={{ fontSize: 9, color: '#aaa', marginTop: 2, fontStyle: 'italic' }}>Higher score = more reliable</div>
-        </div>
-        <div style={{ fontSize: 12, color: '#444', lineHeight: 1.7, flex: 1, paddingTop: 4 }}>
-          {(aiAssessment as any)?._forensicAnalysis?.fcdi?.narrative ??
-            `Forensic Confidence & Data Integrity reflects overall evidence quality across all pipeline stages. ${fcdiTileScore >= 0 ? fcdiTileScore + '/100' : 'N/A'} indicates ${fcdiTileLabel.toLowerCase()} evidence quality. Results carry ${fcdiTileScore >= 80 ? 'high' : fcdiTileScore >= 55 ? 'moderate' : 'low'} confidence and ${fcdiTileScore >= 80 ? 'may proceed to settlement.' : 'require human verification before settlement.'}`}
-        </div>
-      </div>
-
-      {/* ── Claim Timeline ── */}
-      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginBottom: 10 }}>Claim Timeline</div>
-      <div className="timeline">
-        {[
-          { label: 'Incident', date: incidentDate },
-          { label: 'Inspection', date: aiAssessment?.assessmentDate },
-          { label: 'Quote', date: claim?.createdAt },
-          { label: 'Report', date: reportDate },
-        ].map((item, i) => (
-          <div key={i} className="tl-item">
-            <div className={`tl-dot${item.date ? '' : ' inactive'}`} />
-            <div className="tl-label">{item.label}</div>
-            <div className="tl-date">{item.date ? fmtDate(item.date) : 'N/A'}</div>
+            {/* ── FCDI + Timeline two-col ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, margin: '12px 0' }}>
+        {/* Left: FCDI block */}
+        <div className="fcdi-block" style={{ margin: 0 }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginBottom: 4 }}>FCDI Score</div>
+            <div><span className="fcdi-score-big" style={{ color: fcdiBarColor }}>{fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}</span><span className="fcdi-score-denom"> / 100</span></div>
+            <div style={{ fontSize: 11, color: '#555', marginTop: 4 }}>{fcdiTileLabel} evidence quality</div>
+            <div style={{ fontSize: 9, color: '#aaa', marginTop: 2, fontStyle: 'italic' }}>Higher score = more reliable</div>
           </div>
-        ))}
+          <div style={{ fontSize: 11, color: '#444', lineHeight: 1.7, flex: 1, paddingTop: 4 }}>
+            {(aiAssessment as any)?._forensicAnalysis?.fcdi?.narrative ??
+              `FCDI ${fcdiTileScore >= 0 ? fcdiTileScore + '/100' : 'N/A'} — ${fcdiTileLabel.toLowerCase()} evidence quality. Results carry ${fcdiTileScore >= 80 ? 'high' : fcdiTileScore >= 55 ? 'moderate' : 'low'} confidence and ${fcdiTileScore >= 80 ? 'may proceed to settlement.' : 'require human verification before settlement.'}`}
+          </div>
+        </div>
+        {/* Right: Claim Timeline */}
+        <div style={{ border: '1px solid #e2e8f0', padding: '12px 14px' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginBottom: 8 }}>Claim Timeline</div>
+          {[
+            { label: 'Incident', date: incidentDate },
+            { label: 'Inspection', date: aiAssessment?.assessmentDate },
+            { label: 'Quote submitted', date: claim?.createdAt },
+            { label: 'Report generated', date: reportDate },
+          ].map((item, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: i < 3 ? '1px solid #f1f5f9' : 'none' }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: item.date ? '#111' : '#d1d5db', flexShrink: 0 }} />
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#111', flex: 1 }}>{item.label}</div>
+              <div style={{ fontSize: 11, color: '#555', fontFamily: "'IBM Plex Mono','Courier New',monospace" }}>{item.date ? fmtDate(item.date) : 'N/A'}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ── Executive Summary ── */}
@@ -2006,157 +2147,122 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
         );
       })()}
 
-      {/* 1.6/1.7/1.8 — Data Completeness, Extraction Confidence, Gap Attribution — three-column layout */}
-      <div className="three-col" style={{ alignItems: 'start' }}>
-        {/* Completeness checklist */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 10, fontFamily: 'var(--kr-mono)', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--kr-muted)' }}>1.6 Data Completeness</span>
-            <span style={{ fontSize: 11, fontFamily: 'var(--kr-mono)', fontWeight: 500, color: dataCompleteness >= 70 ? 'var(--kr-green)' : dataCompleteness >= 40 ? 'var(--kr-amber)' : 'var(--kr-red)' }}>{Math.round(dataCompleteness)}%</span>
-          </div>
-          {/* Overall completeness bar */}
-          <div style={{ height: 3, background: 'var(--kr-off-white)', marginBottom: 12, overflow: 'hidden' }}>
-            <div style={{ height: 3, width: `${Math.min(100, dataCompleteness)}%`, background: dataCompleteness >= 70 ? 'var(--kr-green)' : dataCompleteness >= 40 ? 'var(--kr-amber)' : 'var(--kr-red)', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {checklist.map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, borderBottom: '1px solid var(--kr-rule)', paddingBottom: 5 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: item.ok ? 'var(--kr-green)' : 'var(--kr-red)', fontFamily: 'var(--kr-mono)', fontSize: 10 }}>{item.ok ? '✓' : '✗'}</span>
-                  <span style={{ color: 'var(--kr-body)' }}>{item.label}</span>
-                </div>
-                <span style={{ color: 'var(--kr-muted)', fontSize: 10, fontFamily: 'var(--kr-mono)' }}>{item.detail}</span>
-              </div>
+      {/* 1.6 Data Completeness Checklist — full-width table matching mock layout */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#888', marginBottom: 8, borderBottom: '1.5px solid #111', paddingBottom: 3 }}>1.6 Data Completeness Checklist</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+          <thead>
+            <tr style={{ background: '#111' }}>
+              {['Data Item', 'Status', 'Impact'].map(h => (
+                <th key={h} style={{ padding: '5px 8px', textAlign: 'left', color: '#fff', fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {((): Array<{ item: string; ok: 'pass' | 'warn' | 'fail'; statusLabel: string; impact: string }> => [
+              { item: 'Incident type & narrative', ok: (incidentType !== 'N/A' && incidentType !== 'unknown') ? 'pass' : 'fail', statusLabel: (incidentType !== 'N/A' && incidentType !== 'unknown') ? '✓ Complete' : '✗ Missing', impact: (incidentType !== 'N/A' && incidentType !== 'unknown') ? 'No impact' : 'Critical — incident cannot be classified' },
+              { item: 'Cost data (repair quotes)', ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost) ? 'pass' : 'fail', statusLabel: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost) ? '✓ Complete' : '✗ Not submitted', impact: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost) ? 'No impact' : 'Critical — cost validation cannot proceed' },
+              { item: 'Damage photographs', ok: !!(ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected) ? 'pass' : 'fail', statusLabel: !!(ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected) ? `✓ ${ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected} submitted` : '✗ Not submitted', impact: !!(ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected) ? 'No impact' : 'Critical — +12–18 confidence points if provided' },
+              { item: 'Police report', ok: !!(aiAssessment?.policeReportNumber) ? 'pass' : claimRecord0?.policeReport?.station ? 'warn' : 'fail', statusLabel: aiAssessment?.policeReportNumber ? `✓ ${aiAssessment.policeReportNumber}` : claimRecord0?.policeReport?.station ? '⚠ Case number only' : '✗ Not provided', impact: aiAssessment?.policeReportNumber ? 'No impact' : claimRecord0?.policeReport?.station ? 'Moderate — full report required' : 'High — third-party verification incomplete' },
+              { item: 'Vehicle VIN', ok: vehicleVin ? 'pass' : 'fail', statusLabel: vehicleVin ? `✓ ${vehicleVin}` : '✗ Not provided', impact: vehicleVin ? 'No impact' : 'Document gap — identity verification incomplete' },
+              { item: 'Policy number', ok: policyNumber ? 'pass' : 'fail', statusLabel: policyNumber ? `✓ ${policyNumber}` : '✗ Not provided', impact: policyNumber ? 'No impact' : 'Document gap — policy verification incomplete' },
+              { item: 'Driver licence', ok: driverLicenseNumber ? 'pass' : 'fail', statusLabel: driverLicenseNumber ? `✓ ${driverLicenseNumber}` : '✗ Not submitted', impact: driverLicenseNumber ? 'No impact' : 'Identity verification incomplete' },
+              { item: 'Cost corrections applied', ok: corrections.length > 0 ? 'warn' : 'pass', statusLabel: corrections.length > 0 ? `${corrections.length} correction${corrections.length !== 1 ? 's' : ''}` : 'None required', impact: corrections.length > 0 ? 'Minor — terminology standardisation' : 'No impact' },
+            ])().map((row, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '5px 8px', color: '#111' }}>{row.item}</td>
+                <td style={{ padding: '5px 8px', fontWeight: 600, color: row.ok === 'pass' ? '#16a34a' : row.ok === 'warn' ? '#d97706' : '#dc2626' }}>{row.statusLabel}</td>
+                <td style={{ padding: '5px 8px', color: '#555' }}>{row.impact}</td>
+              </tr>
             ))}
-          </div>
-        </div>
-
-        {/* Confidence bars */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 10, fontFamily: 'var(--kr-mono)', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--kr-muted)' }}>1.7 Extraction Confidence</span>
-            <ConfidenceGauge
-              score={Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4)}
-              size={40}
-            />
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--kr-muted)', marginBottom: 12, lineHeight: 1.5 }}>
-            {Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4) >= 70
-              ? 'Data quality is sufficient for automated assessment.'
-              : Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4) >= 40
-              ? 'Some fields had low extraction confidence — manual verification recommended.'
-              : 'Data quality is below threshold — manual review required before settlement.'}
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {confidenceBars.map((bar, i) => (
-              <div key={i}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontFamily: 'var(--kr-mono)', marginBottom: 3 }}>
-                  <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{bar.label}</span>
-                  <span style={{ color: bar.value >= 70 ? 'var(--kr-green)' : bar.value >= 40 ? 'var(--kr-amber)' : 'var(--kr-red)', fontWeight: 500 }}>{Math.round(bar.value)}%</span>
-                </div>
-                <div style={{ height: 3, background: 'var(--kr-off-white)', overflow: 'hidden' }}>
-                  <div style={{
-                    height: 3,
-                    width: `${Math.min(100, bar.value)}%`,
-                    background: bar.value >= 70 ? 'var(--kr-green)' : bar.value >= 40 ? 'var(--kr-amber)' : 'var(--kr-red)',
-                    WebkitPrintColorAdjust: 'exact',
-                    printColorAdjust: 'exact'
-                  } as React.CSSProperties} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 1.8 Data Gap Attribution — third column in the grid */}
-        {(() => {
-          const gapEntries: GapEntry[] = [];
-          if (!policeReportNumber) gapEntries.push({ field: 'Police Report Number', explanation: 'Police report number not provided in claim documents.', attribution: 'CLAIMANT_DEFICIENCY' });
-          if (!vehicleVin) gapEntries.push({ field: 'Vehicle VIN', explanation: 'VIN not extracted from claim documents.', attribution: 'DOCUMENT_LIMITATION' });
-          if (!driverLicenseNumber) gapEntries.push({ field: 'Driver Licence Number', explanation: 'Driver licence number not found in submitted documents.', attribution: 'CLAIMANT_DEFICIENCY' });
-          if (!marketValueUsd) gapEntries.push({ field: 'Market Value', explanation: 'Vehicle market value not provided by insurer or claimant.', attribution: 'INSURER_DATA_GAP' });
-          if (!excessAmountUsd) gapEntries.push({ field: 'Policy Excess', explanation: 'Policy excess amount not found in claim record.', attribution: 'INSURER_DATA_GAP' });
-          if (!policyNumber) gapEntries.push({ field: 'Policy Number', explanation: 'Policy number not extracted from submitted documents.', attribution: 'DOCUMENT_LIMITATION' });
-          const phase2 = (enforcement as any)?._phase2 as any;
-          if (phase2?.dataCompleteness != null && phase2.dataCompleteness < 60) {
-            gapEntries.push({ field: 'Data Completeness', explanation: `Overall data completeness is ${Math.round(phase2.dataCompleteness)}%, below the 60% threshold for reliable automated assessment.`, attribution: 'SYSTEM_EXTRACTION_FAILURE' });
-          }
-          return (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 10, fontFamily: 'var(--kr-mono)', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--kr-muted)' }}>1.8 Data Gap Attribution</span>
-                <span style={{ fontSize: 11, fontFamily: 'var(--kr-mono)', fontWeight: 500, color: gapEntries.length === 0 ? 'var(--kr-green)' : gapEntries.length <= 2 ? 'var(--kr-amber)' : 'var(--kr-red)' }}>{gapEntries.length} gap{gapEntries.length !== 1 ? 's' : ''}</span>
-              </div>
-              {gapEntries.length === 0 ? (
-                <p style={{ fontSize: 11, color: 'var(--kr-muted)', fontStyle: 'italic' }}>No data gaps identified — all critical fields extracted successfully.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {gapEntries.map((g, i) => {
-                    const attrColour = g.attribution === 'CLAIMANT_DEFICIENCY' ? 'var(--fp-critical-text)'
-                      : g.attribution === 'INSURER_DATA_GAP' ? 'var(--fp-warning-text)'
-                      : g.attribution === 'SYSTEM_EXTRACTION_FAILURE' ? 'var(--fp-locked-text)'
-                      : 'var(--kr-muted)';
-                    const attrLabel = g.attribution === 'CLAIMANT_DEFICIENCY' ? 'Claimant'
-                      : g.attribution === 'INSURER_DATA_GAP' ? 'Insurer'
-                      : g.attribution === 'SYSTEM_EXTRACTION_FAILURE' ? 'System'
-                      : g.attribution === 'DOCUMENT_LIMITATION' ? 'Document'
-                      : g.attribution;
-                    return (
-                      <div key={i} style={{ fontSize: 11, borderBottom: '1px solid var(--kr-rule)', paddingBottom: 5 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                          <span style={{ color: 'var(--kr-body)', fontWeight: 600 }}>{g.field}</span>
-                          <span style={{ fontSize: 9, fontFamily: 'var(--kr-mono)', fontWeight: 700, color: attrColour, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{attrLabel}</span>
-                        </div>
-                        <p style={{ color: 'var(--kr-muted)', margin: 0, lineHeight: 1.4 }}>{g.explanation}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+          </tbody>
+        </table>
       </div>
-
-      {gates.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0", background: "#ffffff", pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          <div className="px-4 py-3" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Document Integrity Checks</p>
+      {/* 1.7 + 1.8 — two-col layout matching mock */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        {/* 1.7 Extraction Confidence — left col */}
+        <div style={{ border: '1px solid #e2e8f0', padding: '12px 14px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#888', marginBottom: 8, borderBottom: '1.5px solid #111', paddingBottom: 3 }}>1.7 Extraction Confidence</div>
+          {/* Gauge + score */}
+          <div style={{ textAlign: 'center', marginBottom: 10 }}>
+            <ConfidenceGauge score={Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4)} size={60} />
+            <div style={{ fontSize: 18, fontWeight: 700, color: Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4) >= 70 ? '#16a34a' : Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4) >= 40 ? '#d97706' : '#dc2626', marginTop: 4 }}>
+              {Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4)}%
+            </div>
+            <div style={{ fontSize: 9, color: '#555', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              {Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4) >= 70 ? 'SUFFICIENT — Evidence quality acceptable' : Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4) >= 40 ? 'PARTIAL — Manual verification recommended' : 'CRITICAL — Evidence quality insufficient'}
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs report-table">
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
-                  {["Check", "Status", "Corrections"].map(h => (
-                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b", fontFamily: "'DM Sans', sans-serif" }}>{h}</th>
-                  ))}
+          {/* KV table of confidence breakdown */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+            <tbody>
+              {[
+                { label: 'Overall Extraction', value: `${Math.round((ocrConfidence + costConfidence + photoConfidence + dataCompleteness) / 4)}%` },
+                { label: 'OCR / Document Read', value: `${Math.round(ocrConfidence)}%` },
+                { label: 'Cost Extraction', value: `${Math.round(costConfidence > 0 ? costConfidence : confidenceScore * 0.9)}%` },
+                { label: 'Photo Analysis', value: photoConfidence > 0 ? `${Math.round(photoConfidence)}%` : '0%', warn: photoConfidence === 0 },
+              ].map((row, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '4px 6px', color: '#555' }}>{row.label}</td>
+                  <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 600, color: (row as any).warn ? '#dc2626' : '#111' }}>{row.value}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {gates.map((g: any, i: number) => (
-                  <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined, background: "#ffffff" }}>
-                    <td className="px-3 py-2 font-semibold" style={{ color: "var(--primary)" }}>{({
-                        G1_TEMPORAL: 'Date & Timeline Consistency',
-                        G2_COST_RECONCILIATION: 'Cost Reconciliation',
-                        G3_UNIT_CORRECTION: 'Currency & Unit Normalisation',
-                        G4_SANITISATION: 'Data Sanitisation',
-                        G5_TERMINOLOGY: 'Terminology Standardisation',
-                      } as Record<string, string>)[g.gate] ?? (g.gate ? g.gate.replace(/^G\d+_?/i, '').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : `Check ${i + 1}`)}</td>
-                    <td className="px-3 py-2">
-                      <span className="text-xs font-semibold" style={{ color: "#64748b" }}>{toSentenceCase((g.status ?? "Unknown").toLowerCase())}</span>
-                    </td>
-                    <td className="px-3 py-2" style={{ color: "#64748b" }}>{g.corrections?.length ?? 0}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+        {/* 1.8 Data Gap Attribution — right col */}
+        <div style={{ border: '1px solid #e2e8f0', padding: '12px 14px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#888', marginBottom: 4, borderBottom: '1.5px solid #111', paddingBottom: 3 }}>1.8 Data Gap Attribution</div>
+          <div style={{ fontSize: 10, color: '#555', marginBottom: 8 }}>Source of identified data gaps</div>
+          {(() => {
+            const gapRows: Array<{ field: string; source: string; type: 'Critical' | 'Moderate' | 'Minor' }> = [];
+            if (!vehicleVin) gapRows.push({ field: 'Vehicle VIN', source: 'DOCUMENT', type: 'Critical' });
+            if (!policyNumber) gapRows.push({ field: 'Policy Number', source: 'DOCUMENT', type: 'Critical' });
+            if (!(ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected)) gapRows.push({ field: 'Damage Photos', source: 'CLAIMANT', type: 'Critical' });
+            if (!driverLicenseNumber) gapRows.push({ field: 'Driver Licence', source: 'CLAIMANT', type: 'Moderate' });
+            if (!policeReportNumber && !claimRecord0?.policeReport?.station) gapRows.push({ field: 'Police Report', source: 'CLAIMANT', type: 'Moderate' });
+            if (!marketValueUsd) gapRows.push({ field: 'Market Value', source: 'INSURER', type: 'Moderate' });
+            const phase2g = (enforcement as any)?._phase2 as any;
+            if (phase2g?.dataCompleteness != null && phase2g.dataCompleteness < 60) gapRows.push({ field: 'Data Completeness', source: 'SYSTEM', type: 'Critical' });
+            return gapRows.length === 0 ? (
+              <p style={{ fontSize: 11, color: '#16a34a', fontStyle: 'italic' }}>No data gaps identified — all critical fields extracted successfully.</p>
+            ) : (
+              <>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, marginBottom: 10 }}>
+                  <thead>
+                    <tr style={{ background: '#111' }}>
+                      {['Gap', 'Source', 'Type'].map(h => (
+                        <th key={h} style={{ padding: '4px 6px', textAlign: 'left', color: '#fff', fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.06em' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gapRows.map((row, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '4px 6px', color: '#111' }}>{row.field}</td>
+                        <td style={{ padding: '4px 6px', color: '#555', fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 9 }}>{row.source}</td>
+                        <td style={{ padding: '4px 6px', fontWeight: 600, color: row.type === 'Critical' ? '#dc2626' : row.type === 'Moderate' ? '#d97706' : '#16a34a' }}>{row.type}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {gates.length > 0 && (
+                  <div style={{ borderLeft: '3px solid #dc2626', paddingLeft: 8, fontSize: 10, color: '#111', lineHeight: 1.5 }}>
+                    <span style={{ fontWeight: 700 }}>Document Integrity: </span>
+                    {gates.filter((g: any) => g.status !== 'PASS').map((g: any) => (
+                      <span key={g.gate}>{(g.gate ?? '').replace(/^G\d+_?/i, '').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())} — {g.status}. </span>
+                    ))}
+                    {gates.filter((g: any) => g.status === 'PASS').length === gates.length && 'All checks passed.'}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      </div>
     </div>
   );
 }
-
 // ─── Section 2: Technical Forensics ──────────────────────────────────────────
 
 function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = fmtUsd }: { claim: any; aiAssessment: any; enforcement: any; quotes?: any[]; fmtMoney?: (n: number | null | undefined) => string }) {
