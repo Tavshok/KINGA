@@ -607,10 +607,10 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
   // No legacy single-arrow variables needed — arrowList drives rendering
 
   return (
-    <div className="flex justify-center items-start gap-4">
-      {/* SVG diagram */}
-      <div className="flex flex-col items-center shrink-0">
-        <svg viewBox="-50 -36 420 360" width="100%" style={{ display: 'block', maxWidth: '100%', aspectRatio: '420/360' }}>
+    <div className="flex justify-center items-stretch gap-4">
+      {/* SVG diagram — stretches to fill the height of the adjacent content */}
+      <div className="flex flex-col items-center" style={{ flex: '1 1 auto', minWidth: 0 }}>
+        <svg viewBox="-50 -36 420 360" width="100%" style={{ display: 'block', maxWidth: '100%', height: '100%', minHeight: 220, aspectRatio: '420/360' }}>
           <defs>
             <marker id="tp-arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
               <polygon points="0 0, 7 3.5, 0 7" fill="#ef4444" />
@@ -5511,46 +5511,145 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
               {photoClassifying && (
                 <p className="text-xs mb-2" style={{ color: "#64748b" }}>⏳ Classifying photos…</p>
               )}
-              {/* Damage photos gallery */}
-              {damagePhotoUrls.length > 0 && (
-                <>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#64748b" }}>
-                    4.1 Photo Grid ({damagePhotoUrls.length} damage/vehicle image{damagePhotoUrls.length !== 1 ? 's' : ''})
-                  </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {damagePhotoUrls.slice(0, 9).map((url, i) => {
-                      // Use enriched photo metadata when available — AI-verified caption
-                      const enrichedIdx = photoUrls.indexOf(url);
-                      const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
-                      const zoneLabel = enriched
-                        ? enriched.caption
-                        : (() => {
-                            const damagedZones = (phase2?.damageZones ?? []) as string[];
-                            return damagedZones[i]
-                              ? (damagedZones[i] ?? "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
-                              : `View ${i + 1}`;
-                          })();
-                      const subLabel = enriched
-                        ? `${(enriched.impactZone ?? "").replace(/_/g, " ")} · ${enriched.severity ?? ""}`
-                        : `Photo ${i + 1}`;
-                      return (
-                        <div key={i} className="rounded overflow-hidden relative" data-photo-card style={{ border: "1px solid #e2e8f0", background: "#ffffff" }}>
-                          <div style={{ aspectRatio: "1", position: "relative" }}>
-                            <img src={url} alt={`Photo ${i + 1} — ${zoneLabel}`} className="w-full h-full object-cover" />
-                            <div className="absolute bottom-0 left-0 right-0 bg-black/55 px-1.5 py-0.5">
-                              <p className="text-xs font-semibold truncate text-white">{zoneLabel}</p>
-                              <p className="text-xs text-white/75">{subLabel}</p>
+              {/* Damage photos gallery — tiled forensic grid with per-photo analysis bullets */}
+              {damagePhotoUrls.length > 0 && (() => {
+                // Build a merged per-photo data object combining enriched metadata + EXIF forensics
+                const pfData = (enforcement as any)?._photoForensics as any;
+                const pfPhotos: any[] = pfData?.photos ?? [];
+
+                // Find matching forensics record by URL
+                const getForensics = (url: string) => pfPhotos.find((p: any) =>
+                  (p.url ?? p.imageUrl ?? '') === url
+                );
+
+                return (
+                  <>
+                    <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#64748b" }}>
+                      4.1 Photo Forensics Grid ({damagePhotoUrls.length} damage/vehicle image{damagePhotoUrls.length !== 1 ? 's' : ''})
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                      {damagePhotoUrls.slice(0, 9).map((url, i) => {
+                        const enrichedIdx = photoUrls.indexOf(url);
+                        const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
+                        const forensics = getForensics(url);
+                        const fr = forensics?.analysisResult ?? {};
+
+                        // Caption / zone label
+                        const caption = enriched?.caption
+                          ?? (enriched?.detectedComponents?.slice(0, 2).join(', '))
+                          ?? (() => {
+                              const dz = (phase2?.damageZones ?? []) as string[];
+                              return dz[i] ? dz[i].replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : `Photo ${i + 1}`;
+                            })();
+
+                        // Severity colour
+                        const sevColour: Record<string, string> = {
+                          catastrophic: '#ef4444', severe: '#f97316',
+                          moderate: '#f59e0b', minor: '#22c55e', cosmetic: '#3b82f6',
+                        };
+                        const sev = (enriched?.severity ?? '').toLowerCase();
+                        const sevBg = sevColour[sev] ?? '#94a3b8';
+
+                        // EXIF status
+                        const exifPresent = !!(fr.capture_datetime || fr.camera_make || fr.camera_model || fr._camera_make || fr._camera_model);
+                        const gpsPresent = !!(fr.gps_coordinates);
+                        const manipScore = Math.round((fr.manipulation_indicators?.manipulation_score ?? 0) * 100);
+                        const isSuspicious = fr.is_suspicious ?? false;
+                        const flags: string[] = fr.flags ?? (forensics?.error ? [forensics.error] : []);
+                        const aiDesc = fr.ai_vision_description ?? null;
+
+                        return (
+                          <div key={i} style={{ border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden', background: '#ffffff', display: 'flex', flexDirection: 'column' }}>
+                            {/* Photo */}
+                            <div style={{ position: 'relative', aspectRatio: '4/3', overflow: 'hidden', flexShrink: 0 }}>
+                              <img
+                                src={url}
+                                alt={`Photo ${i + 1} — ${caption}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                              {/* Photo number badge */}
+                              <div style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3 }}>
+                                #{i + 1}
+                              </div>
+                              {/* Severity badge */}
+                              {sev && (
+                                <div style={{ position: 'absolute', top: 6, right: 6, background: sevBg, color: '#fff', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  {sev}
+                                </div>
+                              )}
+                              {/* Suspicious flag overlay */}
+                              {isSuspicious && (
+                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(220,38,38,0.85)', color: '#fff', fontSize: 9, fontWeight: 700, textAlign: 'center', padding: '2px 4px', letterSpacing: '0.04em' }}>
+                                  ⚠ SUSPICIOUS
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Analysis bullets */}
+                            <div style={{ padding: '8px 10px', flex: 1 }}>
+                              {/* Caption */}
+                              <p style={{ fontSize: 11, fontWeight: 600, color: '#0f172a', marginBottom: 5, lineHeight: 1.4 }}>{caption}</p>
+
+                              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                {/* Impact zone */}
+                                {enriched?.impactZone && enriched.impactZone !== 'unknown' && (
+                                  <li style={{ fontSize: 10, color: '#334155', display: 'flex', gap: 5 }}>
+                                    <span style={{ color: '#94a3b8', flexShrink: 0 }}>Zone</span>
+                                    <span style={{ fontWeight: 600 }}>{enriched.impactZone.replace(/_/g, ' ')}</span>
+                                  </li>
+                                )}
+                                {/* Detected components */}
+                                {enriched?.detectedComponents && enriched.detectedComponents.length > 0 && (
+                                  <li style={{ fontSize: 10, color: '#334155', display: 'flex', gap: 5, alignItems: 'flex-start' }}>
+                                    <span style={{ color: '#94a3b8', flexShrink: 0 }}>Parts</span>
+                                    <span style={{ fontWeight: 500 }}>{enriched.detectedComponents.slice(0, 4).join(', ')}{enriched.detectedComponents.length > 4 ? ` +${enriched.detectedComponents.length - 4}` : ''}</span>
+                                  </li>
+                                )}
+                                {/* EXIF status */}
+                                {forensics && (
+                                  <li style={{ fontSize: 10, color: '#334155', display: 'flex', gap: 5 }}>
+                                    <span style={{ color: '#94a3b8', flexShrink: 0 }}>EXIF</span>
+                                    <span style={{ fontWeight: 600, color: exifPresent ? '#16a34a' : '#dc2626' }}>
+                                      {exifPresent ? 'Present' : 'Stripped'}
+                                    </span>
+                                    {gpsPresent && <span style={{ color: '#3b82f6', fontWeight: 600 }}>· GPS</span>}
+                                  </li>
+                                )}
+                                {/* Manipulation score */}
+                                {forensics && (
+                                  <li style={{ fontSize: 10, color: '#334155', display: 'flex', gap: 5 }}>
+                                    <span style={{ color: '#94a3b8', flexShrink: 0 }}>Manip.</span>
+                                    <span style={{ fontWeight: 600, color: manipScore > 40 ? '#dc2626' : manipScore > 20 ? '#d97706' : '#16a34a' }}>
+                                      {manipScore}%{manipScore > 40 ? ' — HIGH' : manipScore > 20 ? ' — REVIEW' : ' — CLEAN'}
+                                    </span>
+                                  </li>
+                                )}
+                                {/* Forensic flags */}
+                                {flags.length > 0 && (
+                                  <li style={{ fontSize: 10, color: '#dc2626', display: 'flex', gap: 5, alignItems: 'flex-start' }}>
+                                    <span style={{ color: '#94a3b8', flexShrink: 0 }}>Flags</span>
+                                    <span style={{ fontWeight: 500 }}>{flags.slice(0, 2).join('; ')}</span>
+                                  </li>
+                                )}
+                                {/* AI vision description — truncated */}
+                                {aiDesc && !fr.is_non_vehicle && (
+                                  <li style={{ fontSize: 10, color: '#475569', marginTop: 2, lineHeight: 1.4 }}>
+                                    {aiDesc.length > 90 ? aiDesc.slice(0, 90) + '…' : aiDesc}
+                                  </li>
+                                )}
+                              </ul>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {damagePhotoUrls.length > 9 && (
-                    <p className="text-xs mt-2 font-medium" style={{ color: "#64748b" }}>+{damagePhotoUrls.length - 9} more images not shown</p>
-                  )}
-                </>
-              )}
+                        );
+                      })}
+                    </div>
+                    {damagePhotoUrls.length > 9 && (
+                      <p className="text-xs mt-2 font-medium" style={{ color: "#64748b" }}>+{damagePhotoUrls.length - 9} more images not shown</p>
+                    )}
+                  </>
+                );
+              })()}
               {/* C-09: Excluded document/form images section — screen only, hidden in print */}
               {excludedDocUrls.length > 0 && (
                 <div className="mt-3 rounded p-3 no-print" style={{ border: "1px solid #fbbf24", background: "#fffbeb" }}>
@@ -6868,16 +6967,20 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
     { id: "", label: "Critical Blockers", result: blocked.length === 0 ? "None" : `${blocked.length} found`, pass: blocked.length === 0 },
   ];
 
-  // SVG flowchart dimensions
-  const nodeW = 160;
-  const nodeH = 44;
-  const diamondW = 180;
-  const diamondH = 52;
-  const gapY = 60;
-  const startX = 200;
-  const totalNodes = gates.length + 2; // start + 4 gates + final
-  const svgH = (totalNodes) * (diamondH + gapY) + 60;
-  const svgW = 420;
+  // ── Horizontal flowchart dimensions ──────────────────────────────────────────
+  // Layout: START → gate0 → gate1 → gate2 → gate3 → FINAL DECISION (left to right)
+  // FAIL branches drop downward from each gate diamond
+  const nodeW = 110;   // width of START / FINAL rect nodes
+  const nodeH = 40;    // height of rect nodes
+  const diamondW = 100; // half-width of diamond (full = 2×)
+  const diamondH = 44; // half-height of diamond (full = 2×)
+  const gapX = 56;     // horizontal gap between nodes
+  const totalCols = gates.length + 2; // START + gates + FINAL
+  const colW = diamondW * 2 + gapX;   // width per column
+  const svgW = totalCols * colW + 40; // total SVG width
+  const svgH = 180;    // fixed height: main rail (80px) + fail branch space (100px)
+  const railY = 70;    // Y centre of the main horizontal rail
+  const failY = railY + 90; // Y centre of fail branch boxes
 
   // Helper: diamond path centred at (cx, cy)
   const diamond = (cx: number, cy: number, w: number, h: number) =>
@@ -6895,8 +6998,8 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   const textColor = "var(--foreground)";
   const mutedColor = "var(--muted-foreground)";
 
-  // Y positions for each row
-  const rowY = (i: number) => 40 + i * (diamondH + gapY);
+  // X centre of each column (0 = START, 1..n = gates, n+1 = FINAL)
+  const colX = (i: number) => 20 + nodeW / 2 + i * colW;
 
   // Score summary bars for the executive panel
   const scoreBars = [
@@ -6960,7 +7063,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
           </div>
         );
       })()}
-      {/* SVG Decision Flowchart */}
+      {/* SVG Decision Flowchart — horizontal left-to-right layout */}
       <div className="rounded-xl overflow-hidden" style={{ border: `2px solid ${decisionColor}`, background: "#ffffff" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #e2e8f0", background: "#ffffff" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0f172a" }}>Decision Flowchart</p>
@@ -6973,90 +7076,123 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
           <svg
             viewBox={`0 0 ${svgW} ${svgH}`}
             width="100%"
-            style={{ maxWidth: svgW, display: "block", margin: "0 auto" }}
+            style={{ minWidth: Math.min(svgW, 600), display: "block", margin: "0 auto" }}
             aria-label="Decision flowchart"
           >
-            {/* START node */}
-            <path d={rect(startX, rowY(0), nodeW, nodeH)} fill={nodeColor} stroke="var(--border)" strokeWidth="1.5" />
-            <text x={startX} y={rowY(0)} textAnchor="middle" dominantBaseline="middle"
-              fontSize="11" fontWeight="700" fill={textColor}>START ASSESSMENT</text>
+            <defs>
+              <marker id="fc-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L0,8 L8,4 Z" fill="#94a3b8" />
+              </marker>
+              <marker id="fc-arrow-pass" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L0,8 L8,4 Z" fill={passColor} />
+              </marker>
+              <marker id="fc-arrow-fail" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L0,8 L8,4 Z" fill={failColor} />
+              </marker>
+            </defs>
 
-            {/* Arrow from START to G1 */}
-            <line x1={startX} y1={rowY(0) + nodeH / 2} x2={startX} y2={rowY(1) - diamondH / 2 - 4}
-              stroke="var(--border)" strokeWidth="1.5" markerEnd="url(#arrow)" />
+            {/* START node */}
+            <path d={rect(colX(0), railY, nodeW, nodeH)} fill={nodeColor} stroke="#94a3b8" strokeWidth="1.5" />
+            <text x={colX(0)} y={railY - 5} textAnchor="middle" dominantBaseline="middle"
+              fontSize="9" fontWeight="700" fill={textColor}>START</text>
+            <text x={colX(0)} y={railY + 7} textAnchor="middle" dominantBaseline="middle"
+              fontSize="8" fill={mutedColor}>ASSESSMENT</text>
+
+            {/* Arrow: START → first gate */}
+            <line
+              x1={colX(0) + nodeW / 2} y1={railY}
+              x2={colX(1) - diamondW - 4} y2={railY}
+              stroke="#94a3b8" strokeWidth="1.5" markerEnd="url(#fc-arrow)" />
 
             {/* Gate nodes */}
             {gates.map((gate, i) => {
-              const cy = rowY(i + 1);
+              const cx = colX(i + 1);
               const gateColor = gate.pass ? passColor : failColor;
-              const nextY = rowY(i + 2);
               const isLast = i === gates.length - 1;
+              const nextCx = colX(i + 2);
               return (
                 <g key={`gate-${i}`}>
-                  {/* Diamond — white fill with coloured border only */}
-                  <path d={diamond(startX, cy, diamondW, diamondH)}
-                    fill="#fff" stroke={gateColor} strokeWidth="1.5" />
-                  {/* Gate label in diamond — G-codes removed, label centred */}
-                  <text x={startX} y={cy - 5} textAnchor="middle" dominantBaseline="middle"
-                    fontSize="10" fontWeight="600" fill={textColor}>{gate.label}</text>
-                  {/* Result value */}
-                  <text x={startX} y={cy + 11} textAnchor="middle" dominantBaseline="middle"
-                    fontSize="9" fill={gateColor}>{String(gate.result)}</text>
+                  {/* Diamond */}
+                  <path d={diamond(cx, railY, diamondW, diamondH)}
+                    fill="#ffffff" stroke={gateColor} strokeWidth="1.5" />
+                  {/* Gate label — two lines inside diamond */}
+                  <text x={cx} y={railY - 7} textAnchor="middle" dominantBaseline="middle"
+                    fontSize="8.5" fontWeight="600" fill={textColor}>{gate.label}</text>
+                  <text x={cx} y={railY + 7} textAnchor="middle" dominantBaseline="middle"
+                    fontSize="8" fill={gateColor} fontWeight="700">{String(gate.result)}</text>
 
-                  {/* PASS label on arrow down */}
+                  {/* Arrow to next gate or FINAL */}
                   {!isLast && (
                     <>
-                      <line x1={startX} y1={cy + diamondH / 2} x2={startX} y2={nextY - diamondH / 2 - 4}
-                        stroke={gate.pass ? passColor : "var(--border)"} strokeWidth="1.5"
+                      <line
+                        x1={cx + diamondW} y1={railY}
+                        x2={nextCx - diamondW - 4} y2={railY}
+                        stroke={gate.pass ? passColor : "#94a3b8"}
+                        strokeWidth="1.5"
                         strokeDasharray={gate.pass ? undefined : "4 3"}
-                        markerEnd="url(#arrow)" />
-                      <text x={startX + 6} y={(cy + diamondH / 2 + nextY - diamondH / 2) / 2}
-                        fontSize="9" fill={gate.pass ? passColor : mutedColor} fontWeight="600">
+                        markerEnd={gate.pass ? "url(#fc-arrow-pass)" : "url(#fc-arrow)"} />
+                      <text
+                        x={(cx + diamondW + nextCx - diamondW) / 2}
+                        y={railY - 7}
+                        textAnchor="middle" fontSize="8" fontWeight="700"
+                        fill={gate.pass ? passColor : mutedColor}>
                         {gate.pass ? "PASS" : "FAIL"}
                       </text>
                     </>
                   )}
 
-                  {/* FAIL side branch (right arrow to ESCALATE box) */}
-                  {!gate.pass && (
+                  {/* Arrow to FINAL from last gate */}
+                  {isLast && (
                     <>
-                      <line x1={startX + diamondW / 2} y1={cy} x2={startX + diamondW / 2 + 30} y2={cy}
-                        stroke={failColor} strokeWidth="1.5" markerEnd="url(#arrowRed)" />
-                      <rect x={startX + diamondW / 2 + 31} y={cy - 12} width={80} height={24} rx="4"
-                        fill={`${failColor}18`} stroke={failColor} strokeWidth="1" />
-                      <text x={startX + diamondW / 2 + 71} y={cy} textAnchor="middle" dominantBaseline="middle"
-                        fontSize="9" fontWeight="700" fill={failColor}>{decisionText}</text>
+                      <line
+                        x1={cx + diamondW} y1={railY}
+                        x2={colX(gates.length + 1) - nodeW / 2 - 4} y2={railY}
+                        stroke={gate.pass ? passColor : "#94a3b8"}
+                        strokeWidth="1.5"
+                        strokeDasharray={gate.pass ? undefined : "4 3"}
+                        markerEnd={gate.pass ? "url(#fc-arrow-pass)" : "url(#fc-arrow)"} />
+                      <text
+                        x={(cx + diamondW + colX(gates.length + 1) - nodeW / 2) / 2}
+                        y={railY - 7}
+                        textAnchor="middle" fontSize="8" fontWeight="700"
+                        fill={gate.pass ? passColor : mutedColor}>
+                        {gate.pass ? "PASS" : "FAIL"}
+                      </text>
                     </>
                   )}
 
-                  {/* Arrow from last gate to FINAL */}
-                  {isLast && (
-                    <line x1={startX} y1={cy + diamondH / 2} x2={startX} y2={rowY(gates.length + 1) - nodeH / 2 - 4}
-                      stroke={gate.pass ? passColor : "var(--border)"} strokeWidth="1.5"
-                      strokeDasharray={gate.pass ? undefined : "4 3"}
-                      markerEnd="url(#arrow)" />
+                  {/* FAIL branch — drops downward from diamond bottom */}
+                  {!gate.pass && (
+                    <>
+                      {/* Vertical drop line */}
+                      <line
+                        x1={cx} y1={railY + diamondH / 2}
+                        x2={cx} y2={failY - 14}
+                        stroke={failColor} strokeWidth="1.5"
+                        markerEnd="url(#fc-arrow-fail)" />
+                      {/* FAIL label on drop */}
+                      <text x={cx + 4} y={railY + diamondH / 2 + 14}
+                        fontSize="8" fontWeight="700" fill={failColor}>FAIL</text>
+                      {/* Escalate box */}
+                      <rect
+                        x={cx - 46} y={failY - 14}
+                        width={92} height={28} rx="4"
+                        fill={`${failColor}15`} stroke={failColor} strokeWidth="1" />
+                      <text x={cx} y={failY} textAnchor="middle" dominantBaseline="middle"
+                        fontSize="8.5" fontWeight="700" fill={failColor}>{decisionText}</text>
+                    </>
                   )}
                 </g>
               );
             })}
 
             {/* FINAL DECISION node */}
-            <path d={rect(startX, rowY(gates.length + 1), nodeW + 20, nodeH)}
-              fill={`${decisionColor}20`} stroke={decisionColor} strokeWidth="2" />
-            <text x={startX} y={rowY(gates.length + 1) - 7} textAnchor="middle" dominantBaseline="middle"
-              fontSize="9" fill={decisionColor} fontWeight="600">FINAL DECISION</text>
-            <text x={startX} y={rowY(gates.length + 1) + 7} textAnchor="middle" dominantBaseline="middle"
-              fontSize="13" fontWeight="800" fill={decisionColor}>{decisionText}</text>
-
-            {/* Arrow markers */}
-            <defs>
-              <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <path d="M0,0 L0,8 L8,4 Z" fill="var(--border)" />
-              </marker>
-              <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <path d="M0,0 L0,8 L8,4 Z" fill={failColor} />
-              </marker>
-            </defs>
+            <path d={rect(colX(gates.length + 1), railY, nodeW + 10, nodeH)}
+              fill={`${decisionColor}18`} stroke={decisionColor} strokeWidth="2" />
+            <text x={colX(gates.length + 1)} y={railY - 7} textAnchor="middle" dominantBaseline="middle"
+              fontSize="8" fill={decisionColor} fontWeight="600">FINAL DECISION</text>
+            <text x={colX(gates.length + 1)} y={railY + 8} textAnchor="middle" dominantBaseline="middle"
+              fontSize="11" fontWeight="800" fill={decisionColor}>{decisionText}</text>
           </svg>
         </div>
       </div>

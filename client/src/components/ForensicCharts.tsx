@@ -186,68 +186,90 @@ interface DamageSeverityChartProps {
   components: Array<{ name?: string; component?: string; severity?: string }>;
 }
 
+/**
+ * DamageSeverityChart — horizontal stacked bar.
+ * Each severity band is a proportional segment of the full bar.
+ * Inline count labels appear inside segments wide enough to hold them.
+ * A compact legend row sits below the bar.
+ *
+ * Design rationale: a single horizontal bar makes the severity distribution
+ * immediately readable — the viewer sees at a glance which band dominates
+ * without needing to read axis values.
+ */
 export function DamageSeverityChart({ components }: DamageSeverityChartProps) {
-  const colors = useChartColors();
+  const BANDS: Array<{ key: string; label: string; color: string; textColor: string }> = [
+    { key: 'catastrophic', label: 'Catastrophic', color: '#ef4444', textColor: '#fff' },
+    { key: 'severe',       label: 'Severe',       color: '#f97316', textColor: '#fff' },
+    { key: 'moderate',     label: 'Moderate',     color: '#f59e0b', textColor: '#fff' },
+    { key: 'minor',        label: 'Minor',        color: '#22c55e', textColor: '#fff' },
+    { key: 'cosmetic',     label: 'Cosmetic',     color: '#3b82f6', textColor: '#fff' },
+    { key: 'none',         label: 'None',         color: '#e2e8f0', textColor: '#64748b' },
+  ];
 
   const counts = useMemo(() => {
-    const map: Record<string, number> = { cosmetic: 0, minor: 0, moderate: 0, severe: 0, catastrophic: 0 };
+    const map: Record<string, number> = {};
+    BANDS.forEach(b => { map[b.key] = 0; });
     components.forEach(c => {
-      const s = (c.severity ?? "minor").toLowerCase();
+      const s = (c.severity ?? 'minor').toLowerCase().trim();
       if (s in map) map[s]++;
-      else map.minor++;
+      else map['minor']++;
     });
-    return Object.entries(map).filter(([_, v]) => v > 0);
+    return map;
   }, [components]);
 
-  if (counts.length === 0) return null;
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  if (total === 0) return null;
 
-  const severityColors: Record<string, string> = {
-    cosmetic: colors.blue,
-    minor: colors.green,
-    moderate: colors.amber,
-    severe: colors.orange,
-    catastrophic: colors.red,
-  };
-
-  const data = {
-    labels: counts.map(([k]) => k.charAt(0).toUpperCase() + k.slice(1)),
-    datasets: [{
-      data: counts.map(([_, v]) => v),
-      backgroundColor: counts.map(([k]) => severityColors[k] ?? colors.muted),
-      borderRadius: 0,
-      barThickness: 32,
-      categoryPercentage: 0.7,
-      barPercentage: 0.85,
-    }],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (ctx: any) => `${ctx.raw} component${ctx.raw > 1 ? "s" : ""}`,
-        },
-      },
-    },
-    scales: {
-      x: {
-        grid: { display: false },
-        ticks: { color: colors.text, font: { size: 12, weight: '600' as const } },
-      },
-      y: {
-        grid: { color: colors.grid },
-        ticks: { color: colors.muted, stepSize: 1, font: { size: 11 } },
-        beginAtZero: true,
-      },
-    },
-  };
+  const activeBands = BANDS.filter(b => counts[b.key] > 0);
 
   return (
-    <div style={{ height: "220px" }}>
-      <Bar data={data} options={options as any} />
+    <div style={{ width: '100%' }}>
+      {/* Stacked bar */}
+      <div style={{ display: 'flex', height: 36, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+        {activeBands.map((band, i) => {
+          const pct = (counts[band.key] / total) * 100;
+          const showLabel = pct >= 10; // only label segments ≥10% wide
+          return (
+            <div
+              key={band.key}
+              title={`${band.label}: ${counts[band.key]} component${counts[band.key] !== 1 ? 's' : ''} (${Math.round(pct)}%)`}
+              style={{
+                width: `${pct}%`,
+                background: band.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRight: i < activeBands.length - 1 ? '1px solid rgba(255,255,255,0.3)' : undefined,
+                transition: 'width 0.3s ease',
+                overflow: 'hidden',
+                flexShrink: 0,
+              }}
+            >
+              {showLabel && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: band.textColor, whiteSpace: 'nowrap' }}>
+                  {counts[band.key]}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legend row */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', marginTop: 8 }}>
+        {activeBands.map(band => (
+          <span key={band.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: band.color, flexShrink: 0 }} />
+            <span style={{ color: '#334155' }}>
+              {band.label}
+              <span style={{ color: '#64748b', marginLeft: 3 }}>({counts[band.key]})</span>
+            </span>
+          </span>
+        ))}
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#64748b' }}>
+          {total} component{total !== 1 ? 's' : ''} total
+        </span>
+      </div>
     </div>
   );
 }
