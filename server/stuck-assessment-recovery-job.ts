@@ -44,13 +44,16 @@
  *   CASE 7 — assessment_in_progress, any dps, >30 min
  *     Hard wall-clock guard. No matter what state the claim is in, if it has been in
  *     assessment_in_progress for more than 30 minutes without completing, something is
- *     fundamentally wrong. Reset and re-trigger.
- *     Action: Reset to intake_pending.
+ *     fundamentally wrong. Reset to failed — do NOT auto-re-trigger (requires manual action).
+ *     Action: Reset to intake_pending with dps=failed. Manual re-trigger required.
  *
- * NOTE: The infinite loop that previously occurred when PipelineIncompleteError was thrown
- * is now fixed at the source in db.ts — the error handler now correctly sets
- * documentProcessingStatus='failed' and status='intake_pending', so claims no longer
- * get stuck in 'parsing' state indefinitely.
+ * PERSISTENT RETRY COUNTER:
+ *   Each claim has a recoveryRetryCount column in the DB. Every time the recovery job
+ *   re-triggers a claim, it increments this counter. When the counter reaches
+ *   MAX_RECOVERY_RETRIES (3), the claim is marked as permanently failed and the recovery
+ *   job will NOT re-trigger it again — even across server restarts. The counter is only
+ *   reset when a claim successfully completes (aiAssessmentCompleted=1) or when the user
+ *   manually resets it via the "Reset if Stuck" button.
  *
  * TIMEZONE FIX: All time comparisons use DB-side SQL expressions (DATE_SUB(NOW(), INTERVAL N MINUTE))
  * instead of JavaScript's new Date(). This is critical because the DB server clock may be in a
@@ -61,9 +64,10 @@
 
 import { getDb, withDbRetry, triggerAiAssessment } from "./db";
 import { claims } from "../drizzle/schema";
-import { eq, and, or, notInArray, inArray, sql } from "drizzle-orm";
+import { eq, and, or, notInArray, inArray, sql, lt } from "drizzle-orm";
 
 const TEN_MINUTES_MS    = 10 * 60 * 1000;
+const MAX_RECOVERY_RETRIES = 3;
 
 /**
  * Build a DB-side "older than N minutes" condition using NOW() from the database.
@@ -75,28 +79,44 @@ function olderThanMinutes(column: any, minutes: number) {
 }
 
 /**
- * In-memory retry cap — prevents infinite re-trigger loops.
- * Tracks how many times each claim (by id) has been re-triggered by the
- * recovery job in the current server session. Capped at MAX_RECOVERY_RETRIES.
- * Resets on server restart (which is fine — a fresh server run is a clean slate).
+ * Check if a claim can be re-triggered based on its persistent DB retry counter.
+ * Returns true if recoveryRetryCount < MAX_RECOVERY_RETRIES.
  */
-const MAX_RECOVERY_RETRIES = 3;
-const recoveryRetryMap = new Map<number, number>();
-
-function canRetrigger(claimId: number): boolean {
-  const count = recoveryRetryMap.get(claimId) ?? 0;
-  return count < MAX_RECOVERY_RETRIES;
+async function canRetrigger(claimId: number): Promise<boolean> {
+  try {
+    const db = await getDb();
+    if (!db) return false;
+    const rows = await db
+      .select({ recoveryRetryCount: claims.recoveryRetryCount })
+      .from(claims)
+      .where(eq(claims.id, claimId))
+      .limit(1);
+    const count = rows[0]?.recoveryRetryCount ?? 0;
+    return count < MAX_RECOVERY_RETRIES;
+  } catch {
+    return false;
+  }
 }
 
-function recordRetrigger(claimId: number): void {
-  const count = recoveryRetryMap.get(claimId) ?? 0;
-  recoveryRetryMap.set(claimId, count + 1);
-  if (count + 1 >= MAX_RECOVERY_RETRIES) {
-    console.warn(
-      `[StuckRecovery] Claim ${claimId} has been re-triggered ${count + 1} times — ` +
-      `reached max retries (${MAX_RECOVERY_RETRIES}). Will not re-trigger again this session. ` +
-      `Use 'Reset if Stuck' in the UI to manually re-queue after investigating.`
-    );
+/**
+ * Increment the persistent DB retry counter for a claim.
+ * Returns the new count.
+ */
+async function incrementRetryCount(claimId: number): Promise<number> {
+  try {
+    const db = await getDb();
+    if (!db) return 0;
+    await db.update(claims)
+      .set({ recoveryRetryCount: sql`COALESCE(${claims.recoveryRetryCount}, 0) + 1` })
+      .where(eq(claims.id, claimId));
+    const rows = await db
+      .select({ recoveryRetryCount: claims.recoveryRetryCount })
+      .from(claims)
+      .where(eq(claims.id, claimId))
+      .limit(1);
+    return rows[0]?.recoveryRetryCount ?? 0;
+  } catch {
+    return 0;
   }
 }
 
@@ -105,10 +125,10 @@ function recordRetrigger(claimId: number): void {
  * intake_pending so it appears in the UI as a failed claim that needs manual attention.
  * This prevents claims from being silently stuck forever.
  */
-async function markAsFailedAfterMaxRetries(claimId: number, caseName: string): Promise<void> {
+async function markAsFailedAfterMaxRetries(claimId: number, claimNumber: string, caseName: string): Promise<void> {
   console.warn(
-    `[StuckRecovery] Claim ${claimId} — max retries (${MAX_RECOVERY_RETRIES}) reached in ${caseName}. ` +
-    `Marking as processing_failed so it surfaces in the UI.`
+    `[StuckRecovery] Claim ${claimNumber} (id=${claimId}) — max retries (${MAX_RECOVERY_RETRIES}) reached in ${caseName}. ` +
+    `Marking as processing_failed so it surfaces in the UI. Use 'Reset if Stuck' to manually re-queue.`
   );
   try {
     await withDbRetry(async () => {
@@ -125,6 +145,50 @@ async function markAsFailedAfterMaxRetries(claimId: number, caseName: string): P
     }, 3, 2000, `StuckRecovery markFailed claim ${claimId}`);
   } catch (err) {
     console.error(`[StuckRecovery] Failed to mark claim ${claimId} as failed:`, err);
+  }
+}
+
+/**
+ * Re-trigger a claim's AI pipeline with persistent retry tracking.
+ * Increments the DB retry counter before triggering.
+ * If max retries reached, marks as failed instead.
+ */
+async function retriggerWithTracking(
+  claimId: number,
+  claimNumber: string,
+  caseName: string,
+  preResetFn?: () => Promise<void>
+): Promise<boolean> {
+  const ok = await canRetrigger(claimId);
+  if (!ok) {
+    await markAsFailedAfterMaxRetries(claimId, claimNumber, caseName);
+    return false;
+  }
+
+  try {
+    // Run any pre-reset (e.g. clearing aiAssessmentTriggered) before incrementing counter
+    if (preResetFn) await preResetFn();
+
+    const newCount = await incrementRetryCount(claimId);
+    console.log(
+      `[StuckRecovery] ${caseName}: Re-triggering claim ${claimNumber} (id=${claimId}) ` +
+      `[retry ${newCount}/${MAX_RECOVERY_RETRIES}]`
+    );
+
+    if (newCount >= MAX_RECOVERY_RETRIES) {
+      console.warn(
+        `[StuckRecovery] Claim ${claimNumber} (id=${claimId}) has now reached max retries. ` +
+        `This will be the last automatic re-trigger.`
+      );
+    }
+
+    triggerAiAssessment(claimId).catch((err: unknown) => {
+      console.error(`[StuckRecovery] Re-trigger failed for claim ${claimId}:`, err);
+    });
+    return true;
+  } catch (err) {
+    console.error(`[StuckRecovery] Failed to re-trigger claim ${claimId}:`, err);
+    return false;
   }
 }
 
@@ -148,8 +212,6 @@ export async function runStartupCleanup(): Promise<void> {
           inArray(claims.documentProcessingStatus, ["extracting", "analysing", "parsing"]),
           // Use 1 minute threshold — any claim in a transient state for >1 min on server
           // start is guaranteed orphaned (the pipeline process was killed with the server).
-          // Previously 5 minutes, which caused claims to slip through if the server restarted
-          // within 5 minutes of the pipeline starting.
           olderThanMinutes(claims.updatedAt, 1)
         )
       )
@@ -160,6 +222,17 @@ export async function runStartupCleanup(): Promise<void> {
     }
     console.log(`[StartupCleanup] Found ${orphaned.length} orphaned claim(s) in active transient state — resetting to pending.`);
     for (const claim of orphaned) {
+      // Only reset if under retry limit — don't loop forever on persistently broken claims
+      const ok = await canRetrigger(claim.id);
+      if (!ok) {
+        console.warn(`[StartupCleanup] Claim ${claim.claimNumber} (id=${claim.id}) has reached max retries — skipping reset.`);
+        await db.update(claims).set({
+          documentProcessingStatus: "failed",
+          aiAssessmentTriggered: 0,
+          updatedAt: new Date().toISOString() as any,
+        }).where(eq(claims.id, claim.id));
+        continue;
+      }
       await db.update(claims).set({
         documentProcessingStatus: "pending",
         aiAssessmentTriggered: 0,
@@ -208,6 +281,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             return db.update(claims).set({
               status: "assessment_complete",
               documentProcessingStatus: "extracted",
+              // Reset retry counter on successful completion
+              recoveryRetryCount: 0,
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery finalise claim ${claim.id}`);
@@ -248,33 +323,21 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `with pipeline ran but incomplete — re-triggering`
       );
       for (const claim of ranButIncomplete) {
-        if (!canRetrigger(claim.id)) {
-          await markAsFailedAfterMaxRetries(claim.id, 'Case5B');
-          totalFixed++;
-          continue;
-        }
-        try {
-          // Reset to allow re-trigger
-          await withDbRetry(async () => {
+        const triggered = await retriggerWithTracking(
+          claim.id, claim.claimNumber, 'Case5B',
+          async () => {
             const db = await getDb();
             if (!db) return;
-            return db.update(claims).set({
+            await db.update(claims).set({
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
               documentProcessingStatus: "pending",
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
-          }, 3, 2000, `StuckRecovery reset-for-retrigger claim ${claim.id}`);
-          // Re-trigger the pipeline (fire-and-forget)
-          recordRetrigger(claim.id);
-          triggerAiAssessment(claim.id).catch((err: unknown) => {
-            console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
-          });
-          console.log(`[StuckRecovery] Re-triggered claim ${claim.claimNumber} (id=${claim.id}) [ran but incomplete]`);
-          totalFixed++;
-        } catch (err) {
-          console.error(`[StuckRecovery] Failed to re-trigger claim ${claim.id}:`, err);
-        }
+          }
+        );
+        if (triggered) totalFixed++;
+        else totalFixed++; // also count the markAsFailed action
       }
     }
 
@@ -302,29 +365,14 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `with ai_assessment_triggered=0 — re-triggering pipeline`
       );
       for (const claim of neverStarted) {
-        if (!canRetrigger(claim.id)) {
-          await markAsFailedAfterMaxRetries(claim.id, 'Case1');
-          totalFixed++;
-          continue;
-        }
-        try {
-          // Fire-and-forget pipeline trigger
-          recordRetrigger(claim.id);
-          triggerAiAssessment(claim.id).catch((err: unknown) => {
-            console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
-          });
-          console.log(`[StuckRecovery] Re-triggered claim ${claim.claimNumber} (id=${claim.id}) [pipeline never started]`);
-          totalFixed++;
-        } catch (err) {
-          console.error(`[StuckRecovery] Failed to re-trigger claim ${claim.id}:`, err);
-        }
+        const triggered = await retriggerWithTracking(claim.id, claim.claimNumber, 'Case1');
+        if (triggered) totalFixed++;
+        else totalFixed++;
       }
     }
 
     // ── CASE 2: assessment_in_progress + triggered=1 + completed=0 + dps='parsing' + >20 min ──
     // Pipeline started but timed out or crashed. Re-trigger.
-    // NOTE: With the PipelineIncompleteError fix in db.ts, this case should now be rare —
-    // pipeline failures correctly set dps='failed' instead of leaving it as 'parsing'.
     const timedOut = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -349,36 +397,21 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `after 20min — re-triggering`
       );
       for (const claim of timedOut) {
-        if (!canRetrigger(claim.id)) {
-          await markAsFailedAfterMaxRetries(claim.id, 'Case2');
-          totalFixed++;
-          continue;
-        }
-        try {
-          // Reset flags to allow clean re-trigger
-          await withDbRetry(async () => {
+        const triggered = await retriggerWithTracking(
+          claim.id, claim.claimNumber, 'Case2',
+          async () => {
             const db = await getDb();
             if (!db) return;
-            return db.update(claims).set({
+            await db.update(claims).set({
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
               documentProcessingStatus: "pending",
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
-          }, 3, 2000, `StuckRecovery timeout-reset claim ${claim.id}`);
-          // Re-trigger the pipeline
-          recordRetrigger(claim.id);
-          triggerAiAssessment(claim.id).catch((err: unknown) => {
-            console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
-          });
-          console.log(
-            `[StuckRecovery] Re-triggered claim ${claim.claimNumber} (id=${claim.id}) ` +
-            `[pipeline timed out after 20min]`
-          );
-          totalFixed++;
-        } catch (err) {
-          console.error(`[StuckRecovery] Failed to re-trigger claim ${claim.id}:`, err);
-        }
+          }
+        );
+        if (triggered) totalFixed++;
+        else totalFixed++;
       }
     }
 
@@ -412,17 +445,12 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `with ai_assessment_triggered=1 and dps=failed — re-triggering pipeline`
       );
       for (const claim of crashedAndReset) {
-        if (!canRetrigger(claim.id)) {
-          await markAsFailedAfterMaxRetries(claim.id, 'Case4');
-          totalFixed++;
-          continue;
-        }
-        try {
-          // Reset to clean state before re-trigger
-          await withDbRetry(async () => {
+        const triggered = await retriggerWithTracking(
+          claim.id, claim.claimNumber, 'Case4',
+          async () => {
             const db = await getDb();
             if (!db) return;
-            return db.update(claims).set({
+            await db.update(claims).set({
               status: "assessment_in_progress",
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
@@ -430,27 +458,15 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               workflowState: "under_assessment",
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
-          }, 3, 2000, `StuckRecovery case-4 reset claim ${claim.id}`);
-          // Re-trigger the pipeline
-          recordRetrigger(claim.id);
-          triggerAiAssessment(claim.id).catch((err: unknown) => {
-            console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
-          });
-          console.log(`[StuckRecovery] Re-triggered claim ${claim.claimNumber} (id=${claim.id}) [crashed and reset]`);
-          totalFixed++;
-        } catch (err) {
-          console.error(`[StuckRecovery] Failed to re-trigger claim ${claim.id}:`, err);
-        }
+          }
+        );
+        if (triggered) totalFixed++;
+        else totalFixed++;
       }
     }
 
     // ── CASE 6: assessment_in_progress + dps='parsing'|'extracting'|'analysing' + >10 min ─────
-    // Pipeline set dps to an active transient state but then died (DB error, OOM, unhandled
-    // promise rejection, or event-loop block) without triggering the safety net.
-    // 'parsing' is included here because the watchdog timer (8 min) may not fire if the
-    // server process that started the pipeline is no longer running or the event loop is blocked.
-    // Startup cleanup handles this on server restart, but if the server stays up the claim
-    // is stuck forever. This case catches all three transient states.
+    // Pipeline set dps to an active transient state but then died without triggering the safety net.
     const stuckInActiveTransient = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -473,40 +489,29 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `(extracting/analysing) >10min — resetting and re-triggering`
       );
       for (const claim of stuckInActiveTransient) {
-        if (!canRetrigger(claim.id)) {
-          await markAsFailedAfterMaxRetries(claim.id, 'Case6');
-          totalFixed++;
-          continue;
-        }
-        try {
-          await withDbRetry(async () => {
+        const triggered = await retriggerWithTracking(
+          claim.id, claim.claimNumber, 'Case6',
+          async () => {
             const db = await getDb();
             if (!db) return;
-            return db.update(claims).set({
+            await db.update(claims).set({
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
               documentProcessingStatus: "pending",
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
-          }, 3, 2000, `StuckRecovery case-6 reset claim ${claim.id}`);
-          recordRetrigger(claim.id);
-          triggerAiAssessment(claim.id).catch((err: unknown) => {
-            console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
-          });
-          console.log(`[StuckRecovery] Re-triggered claim ${claim.claimNumber} (id=${claim.id}) [stuck in ${claim.documentProcessingStatus} >10min]`);
-          totalFixed++;
-        } catch (err) {
-          console.error(`[StuckRecovery] Failed to reset/re-trigger claim ${claim.id}:`, err);
-        }
+          }
+        );
+        if (triggered) totalFixed++;
+        else totalFixed++;
       }
     }
 
-    // ── CASE 7: assessment_in_progress + any dps + >20 min (hard wall-clock guard) ──────────
-    // No matter what state the claim is in, if it has been in assessment_in_progress for
-    // more than 20 minutes without completing, something is fundamentally wrong.
-    // IMPORTANT: Uses aiAssessmentStartedAt (not updatedAt) so that onStageStart callbacks
-    // that refresh updatedAt cannot reset the 20-minute clock. If aiAssessmentStartedAt is
-    // null (older claims), falls back to updatedAt.
+    // ── CASE 7: assessment_in_progress + any dps + >30 min (hard wall-clock guard) ──────────
+    // Hard wall-clock guard. Claims stuck >30 min are reset to failed.
+    // IMPORTANT: This case does NOT auto-re-trigger. The claim must be manually re-queued
+    // via the "Reset if Stuck" button in the UI. This prevents infinite loops where
+    // CASE 7 resets to intake_pending and CASE 4 immediately re-triggers it.
     const hardWallClock = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -519,7 +524,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             eq(claims.aiAssessmentCompleted, 0),
             // Use aiAssessmentStartedAt if available, otherwise fall back to updatedAt.
             // This prevents onStageStart updatedAt refreshes from resetting the clock.
-            sql`COALESCE(${claims.aiAssessmentStartedAt}, ${claims.updatedAt}) < DATE_SUB(NOW(), INTERVAL 20 MINUTE)`
+            sql`COALESCE(${claims.aiAssessmentStartedAt}, ${claims.updatedAt}) < DATE_SUB(NOW(), INTERVAL 30 MINUTE)`
           )
         )
         .limit(20);
@@ -528,7 +533,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
     if (hardWallClock.length > 0) {
       console.log(
         `[StuckRecovery] CASE 7: Found ${hardWallClock.length} claim(s) stuck in assessment_in_progress ` +
-        `for >30 minutes — hard reset and re-trigger`
+        `for >30 minutes — hard reset to failed (manual re-trigger required)`
       );
       for (const claim of hardWallClock) {
         try {
@@ -538,13 +543,18 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             return db.update(claims).set({
               status: "intake_pending",
               workflowState: "intake_queue",
+              // Use 'failed' so it surfaces in the UI as needing attention
+              // but set aiAssessmentTriggered=0 so CASE 4 does NOT re-trigger it
               documentProcessingStatus: "failed",
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-7 reset claim ${claim.id}`);
-          console.log(`[StuckRecovery] CASE 7: Hard-reset claim ${claim.claimNumber} (id=${claim.id}) [stuck >30min in ${claim.documentProcessingStatus}] → intake_pending`);
+          console.log(
+            `[StuckRecovery] CASE 7: Hard-reset claim ${claim.claimNumber} (id=${claim.id}) ` +
+            `[stuck >30min in ${claim.documentProcessingStatus}] → intake_pending/failed. Manual re-trigger required.`
+          );
           totalFixed++;
         } catch (err) {
           console.error(`[StuckRecovery] Failed to hard-reset claim ${claim.id}:`, err);
@@ -554,8 +564,6 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
 
     // ── CASE 8: status='submitted' OR workflowState='created', >2 hours, no ai_assessment_triggered ──
     // Claims that were submitted but never picked up by the intake pipeline.
-    // The intake escalation job only looks for workflowState='intake_queue', so 'created'
-    // claims are completely invisible to it. This case re-triggers the AI pipeline for them.
     const stuckSubmitted = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -578,16 +586,12 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `for >2 hours without AI pipeline trigger — re-triggering`
       );
       for (const claim of stuckSubmitted) {
-        if (!canRetrigger(claim.id)) {
-          await markAsFailedAfterMaxRetries(claim.id, 'Case8');
-          totalFixed++;
-          continue;
-        }
-        try {
-          await withDbRetry(async () => {
+        const triggered = await retriggerWithTracking(
+          claim.id, claim.claimNumber, 'Case8',
+          async () => {
             const db = await getDb();
             if (!db) return;
-            return db.update(claims).set({
+            await db.update(claims).set({
               status: "assessment_in_progress",
               workflowState: "under_assessment",
               documentProcessingStatus: "pending",
@@ -595,16 +599,10 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               aiAssessmentCompleted: 0,
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
-          }, 3, 2000, `StuckRecovery case-8 reset claim ${claim.id}`);
-          recordRetrigger(claim.id);
-          triggerAiAssessment(claim.id).catch((err: unknown) => {
-            console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
-          });
-          console.log(`[StuckRecovery] CASE 8: Re-triggered claim ${claim.claimNumber} (id=${claim.id}) [stuck submitted >2h]`);
-          totalFixed++;
-        } catch (err) {
-          console.error(`[StuckRecovery] Failed to re-trigger claim ${claim.id}:`, err);
-        }
+          }
+        );
+        if (triggered) totalFixed++;
+        else totalFixed++;
       }
     }
 

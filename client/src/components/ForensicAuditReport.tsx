@@ -3110,12 +3110,24 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               : { icon: '?', label: 'Low Confidence — Insufficient Data for Reliable Estimate', colour: 'var(--fp-info-text)', bg: 'var(--fp-info-bg)', border: 'var(--fp-info-border)', text: 'Insufficient evidence was available to produce a reliable speed estimate. This figure should not be used for settlement decisions. Additional evidence — photographs, witness statements, or a site inspection — is required.' };
 
             // Court-defensible category names (no method IDs or formulas)
+            // Maps pipeline method IDs (as output by speedInferenceEnsemble.ts) to
+            // KINGA proprietary display names. The pipeline emits string IDs like
+            // 'CAMPBELL', 'ENERGY_MOMENTUM', etc. — NOT 'M1', 'M2'.
+            // Display names are intentionally plain-English (no formulas) for
+            // court-defensibility, but must be specific enough to convey authority.
             const categoryMap: Record<string, string> = {
-              M1: 'Structural Deformation Analysis',
-              M2: 'Repair Cost Correlation',
-              M3: 'Contact Area Momentum Analysis',
-              M4: 'Safety System Activation Evidence',
-              M5: 'Photographic Deformation Analysis',
+              // Primary method IDs from speedInferenceEnsemble.ts
+              CAMPBELL:             'KINGA K-SDM — Structural Deformation',
+              ENERGY_MOMENTUM:      'KINGA K-EMB — Energy-Momentum Balance',
+              IMPULSE:              'KINGA K-CIA — Contact Impulse Analysis',
+              DEPLOYMENT_THRESHOLD: 'KINGA K-SSA — Safety System Activation',
+              VISION_DEFORMATION:   'KINGA K-VAD — Vision Deformation',
+              // Legacy M1–M5 keys kept as fallback for older assessment records
+              M1: 'KINGA K-SDM — Structural Deformation',
+              M2: 'KINGA K-EMB — Energy-Momentum Balance',
+              M3: 'KINGA K-CIA — Contact Impulse Analysis',
+              M4: 'KINGA K-SSA — Safety System Activation',
+              M5: 'KINGA K-VAD — Vision Deformation',
             };
             const speedMeaning = (kmh: number): string => {
               if (kmh < 15) return 'Very low-speed — parking or stationary impact';

@@ -935,6 +935,12 @@ export const claims = mysqlTable("claims", {
 	claimantDepartment: varchar("claimant_department", { length: 255 }),
 	// Vehicle fleet number or asset tag assigned by the company.
 	fleetVehicleRef: varchar("fleet_vehicle_ref", { length: 100 }),
+	// Persistent recovery retry counter — incremented each time the stuck-recovery job re-triggers
+	// this claim. Survives server restarts (unlike the in-memory recoveryRetryMap). When this
+	// reaches MAX_RECOVERY_RETRIES (3), the recovery job stops re-triggering and marks the claim
+	// as failed so it surfaces in the UI for manual attention. Reset to 0 when a claim completes
+	// successfully or is manually reset via 'Reset if Stuck'.
+	recoveryRetryCount: int("recovery_retry_count").default(0).notNull(),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),
