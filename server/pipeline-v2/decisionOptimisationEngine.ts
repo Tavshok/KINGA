@@ -4,9 +4,7 @@
  * DECISION OPTIMISATION ENGINE (DOE) — Phase 3C
  *
  * Produces a single "optimal defensible repair decision" from multiple competing
- * quotes and contextual signals. This is NOT a cheapest-quote selector — it is
- * a multi-objective optimisation that balances cost, quality, turnaround,
- * panel beater reliability, and fraud risk.
+ * quotes and contextual signals.
  *
  * PIPELINE ROLE: Called at the end of Stage 9, after:
  *   - quoteOptimisationEngine (structural completeness + cost spread)
@@ -14,28 +12,25 @@
  *   - IFE (input completeness + DOE eligibility gate)
  *   - FCDI (confidence gate)
  *
- * DESIGN RULES:
- *   1. DOE is GATED by FCDI score and input completeness (hard gates, not warnings)
- *   2. Fraud-disqualified panel beaters are NEVER selected — and the disqualification
- *      is recorded in the Forensic Audit Report with the triggering signal
- *   3. The output is "optimal defensible repair decision" — not just cheapest
- *   4. All exclusions and penalties are recorded in the audit trail
- *   5. The DOE output is a separate field from the cost engine output — it does
- *      not overwrite the cost engine, it supplements it
- *
- * MULTI-OBJECTIVE SCORING:
- *   Factor              Weight    Notes
- *   ─────────────────── ───────   ──────────────────────────────────────────
- *   Cost efficiency     0.30      Lower cost vs benchmark = higher score
- *   Repair quality      0.25      Structural completeness from quoteOptimisation
- *   Turnaround time     0.15      Days to repair (from stage-9b)
- *   Panel reliability   0.20      Historical reliability score (from learning DB)
- *   Fraud risk          0.10      Inverse of fraud risk score
+ * SELECTION RULE (cost-first, deviation-gated):
+ *   1. Compute each quote's deviation from the L2 KINGA benchmark.
+ *   2. Disqualify quotes whose cost is suspiciously far BELOW the peer median
+ *      (>50% below median — likely an extraction error, not a genuine low quote).
+ *   3. Disqualify quotes with HIGH or ELEVATED fraud risk.
+ *   4. From remaining eligible candidates, SELECT THE LOWEST-COST QUOTE.
+ *   5. Multi-objective scores (cost, quality, turnaround, reliability, fraud)
+ *      are computed for ALL candidates and stored in the audit trail ONLY —
+ *      they do NOT drive the selection decision.
  *
  * FRAUD DISQUALIFICATION RULE:
  *   If a panel beater's fraud risk is HIGH or ELEVATED → disqualify
- *   → Select next optimal
+ *   → Select next cheapest eligible
  *   → Record disqualification in audit trail with triggering signal
+ *
+ * ANOMALY DISQUALIFICATION RULE:
+ *   If a quote's cost is >50% below the peer median → disqualify as likely
+ *   extraction error. The threshold is intentionally generous to avoid
+ *   excluding genuinely cheap quotes.
  *
  * FCDI GATE:
  *   If FCDI score < 40 (CRITICAL) → DOE disabled, route to manual review
@@ -89,6 +84,13 @@ export interface DOEDisqualification {
 
 export interface DOEScoreBreakdown {
   panelBeater: string;
+  /** Total quoted cost for this candidate */
+  totalCost: number;
+  /** Deviation from L2 benchmark in percent (negative = below benchmark = favourable) */
+  benchmarkDeviationPct: number | null;
+  /** Deviation from peer-group median in percent (negative = below median) */
+  medianDeviationPct: number | null;
+  /** Multi-objective scores — audit trail only, do NOT drive selection */
   totalScore: number;
   costScore: number;
   qualityScore: number;
@@ -134,12 +136,19 @@ export interface DOEResult {
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Multi-objective weights — must sum to 1.0 */
+/** Multi-objective weights — used for audit trail only, NOT for selection */
 const W_COST         = 0.30;
 const W_QUALITY      = 0.25;
 const W_TURNAROUND   = 0.15;
 const W_RELIABILITY  = 0.20;
 const W_FRAUD_RISK   = 0.10;
+
+/**
+ * Anomaly threshold: a quote whose cost is more than this % BELOW the peer
+ * median is treated as a likely extraction error and disqualified.
+ * Set generously (50%) to avoid excluding genuinely cheap quotes.
+ */
+const ANOMALY_BELOW_MEDIAN_PCT = 50;
 
 /** FCDI hard gate — below this, DOE is disabled */
 const DOE_FCDI_MIN = 40;
@@ -280,7 +289,14 @@ export function runDOE(input: DOEInput): DOEResult {
     };
   }
 
-  // ── Score all candidates ───────────────────────────────────────────────────
+  // ── Compute peer-group median for anomaly detection ──────────────────────
+  const allCosts = candidates.map(c => c.totalCost).sort((a, b) => a - b);
+  const mid = Math.floor(allCosts.length / 2);
+  const peerMedian = allCosts.length % 2 !== 0
+    ? allCosts[mid]
+    : (allCosts[mid - 1] + allCosts[mid]) / 2;
+
+  // ── Benchmark for cost scoring (L2 if provided, else peer average) ────────
   const benchmark = benchmarkCost ?? (
     candidates.reduce((sum, c) => sum + c.totalCost, 0) / candidates.length
   );
@@ -289,9 +305,9 @@ export function runDOE(input: DOEInput): DOEResult {
   const scoreBreakdown: DOEScoreBreakdown[] = [];
 
   for (const candidate of candidates) {
-    const isDisqualified = DISQUALIFYING_FRAUD_RISKS.has(candidate.fraudRisk);
-
-    if (isDisqualified) {
+    // Fraud disqualification
+    const isFraudDisqualified = DISQUALIFYING_FRAUD_RISKS.has(candidate.fraudRisk);
+    if (isFraudDisqualified) {
       disqualifications.push({
         panelBeater: candidate.panelBeater,
         reason: `Panel beater disqualified: fraud risk level is '${candidate.fraudRisk}'. This candidate cannot be selected for any repair decision.`,
@@ -300,6 +316,28 @@ export function runDOE(input: DOEInput): DOEResult {
       });
     }
 
+    // Anomaly disqualification: suspiciously far below peer median
+    const medianDeviationPct = peerMedian > 0
+      ? Math.round(((candidate.totalCost - peerMedian) / peerMedian) * 100 * 10) / 10
+      : null;
+    const isAnomalyLow = medianDeviationPct !== null && medianDeviationPct < -ANOMALY_BELOW_MEDIAN_PCT;
+    if (isAnomalyLow && !isFraudDisqualified) {
+      disqualifications.push({
+        panelBeater: candidate.panelBeater,
+        reason: `Quote cost (${candidate.currency} ${candidate.totalCost.toLocaleString()}) is ${Math.abs(medianDeviationPct!).toFixed(1)}% below the peer median (${candidate.currency} ${peerMedian.toLocaleString()}). This is likely an extraction error and the quote cannot be reliably selected.`,
+        triggeringSignal: `Cost anomaly: ${Math.abs(medianDeviationPct!).toFixed(1)}% below peer median (threshold: ${ANOMALY_BELOW_MEDIAN_PCT}%)`,
+        fraudRisk: candidate.fraudRisk,
+      });
+    }
+
+    const isDisqualified = isFraudDisqualified || isAnomalyLow;
+
+    // Per-quote benchmark deviation
+    const benchmarkDeviationPctForCandidate = benchmark > 0
+      ? Math.round(((candidate.totalCost - benchmark) / benchmark) * 100 * 10) / 10
+      : null;
+
+    // Multi-objective scores — audit trail only, NOT used for selection
     const costScore       = scoreCost(candidate.totalCost, benchmark);
     const qualityScoreVal = scoreQuality(candidate.structuralCompleteness, candidate.coverageRatio);
     const turnaroundScoreVal = scoreTurnaround(candidate.turnaroundDays);
@@ -307,7 +345,7 @@ export function runDOE(input: DOEInput): DOEResult {
     const fraudRiskScoreVal = scoreFraudRisk(candidate.fraudRisk);
 
     const totalScore = isDisqualified
-      ? -1 // Disqualified candidates get a sentinel score
+      ? -1
       : (costScore * W_COST) +
         (qualityScoreVal * W_QUALITY) +
         (turnaroundScoreVal * W_TURNAROUND) +
@@ -316,6 +354,9 @@ export function runDOE(input: DOEInput): DOEResult {
 
     scoreBreakdown.push({
       panelBeater: candidate.panelBeater,
+      totalCost: candidate.totalCost,
+      benchmarkDeviationPct: benchmarkDeviationPctForCandidate,
+      medianDeviationPct,
       totalScore: Math.round(totalScore * 1000) / 1000,
       costScore: Math.round(costScore * 1000) / 1000,
       qualityScore: Math.round(qualityScoreVal * 1000) / 1000,
@@ -324,15 +365,21 @@ export function runDOE(input: DOEInput): DOEResult {
       fraudRiskScore: Math.round(fraudRiskScoreVal * 1000) / 1000,
       disqualified: isDisqualified,
       disqualificationReason: isDisqualified
-        ? `Fraud risk: ${candidate.fraudRisk}. Signal: ${candidate.fraudSignal ?? "elevated fraud indicators"}`
+        ? (isFraudDisqualified
+            ? `Fraud risk: ${candidate.fraudRisk}. Signal: ${candidate.fraudSignal ?? "elevated fraud indicators"}`
+            : `Cost anomaly: ${Math.abs(medianDeviationPct!).toFixed(1)}% below peer median — likely extraction error`)
         : null,
     });
   }
 
-  // ── Select optimal candidate ───────────────────────────────────────────────
-  const eligibleBreakdown = scoreBreakdown.filter(s => !s.disqualified);
+  // ── Select lowest-cost eligible candidate ─────────────────────────────────
+  // Selection rule: lowest-cost quote that is not fraud-disqualified and not
+  // a cost anomaly outlier. Multi-objective scores are informational only.
+  const eligibleCandidates = candidates.filter(
+    c => !scoreBreakdown.find(s => s.panelBeater === c.panelBeater)?.disqualified
+  );
 
-  if (eligibleBreakdown.length === 0) {
+  if (eligibleCandidates.length === 0) {
     return {
       status: "ALL_DISQUALIFIED",
       selectedPanelBeater: null,
@@ -344,32 +391,37 @@ export function runDOE(input: DOEInput): DOEResult {
       decisionConfidence: "low",
       scoreBreakdown,
       disqualifications,
-      rationale: `All ${candidates.length} repair quote${candidates.length !== 1 ? "s" : ""} were disqualified on fraud risk grounds. Manual assessor review is required. Disqualified: ${disqualifications.map(d => `${d.panelBeater} (${d.fraudRisk})`).join(", ")}.`,
+      rationale: `All ${candidates.length} repair quote${candidates.length !== 1 ? "s" : ""} were disqualified (fraud risk or cost anomaly). Manual assessor review is required. Disqualified: ${disqualifications.map(d => `${d.panelBeater} (${d.triggeringSignal})`).join(", ")}.`,
       fcdiScoreAtExecution: fcdiScore,
       inputCompletenessAtExecution: inputCompletenessScore,
       computedAt: now,
     };
   }
 
-  const best = eligibleBreakdown.reduce((a, b) => a.totalScore > b.totalScore ? a : b);
-  const selectedCandidate = candidates.find(c => c.panelBeater === best.panelBeater)!;
+  // Select the cheapest eligible candidate
+  const selectedCandidate = eligibleCandidates.reduce((a, b) => a.totalCost <= b.totalCost ? a : b);
+  const selectedBreakdown = scoreBreakdown.find(s => s.panelBeater === selectedCandidate.panelBeater)!;
 
   const benchmarkDeviationPct = benchmark > 0
     ? Math.round(((selectedCandidate.totalCost - benchmark) / benchmark) * 100 * 10) / 10
     : null;
 
+  // Decision confidence: based on number of eligible quotes and extraction confidence
   const decisionConfidence: "high" | "medium" | "low" =
-    best.totalScore >= 0.75 ? "high" :
-    best.totalScore >= 0.50 ? "medium" :
+    eligibleCandidates.length >= 2 && selectedCandidate.confidence === "high" ? "high" :
+    eligibleCandidates.length >= 1 && selectedCandidate.confidence !== "low" ? "medium" :
     "low";
 
   const rationale = buildRationale(
     selectedCandidate,
-    best,
+    selectedBreakdown,
     benchmarkDeviationPct,
     disqualifications,
     fcdiScore,
     candidates.length,
+    eligibleCandidates.length,
+    peerMedian,
+    scoreBreakdown,
   );
 
   return {
@@ -378,7 +430,7 @@ export function runDOE(input: DOEInput): DOEResult {
     selectedCost: selectedCandidate.totalCost,
     currency: selectedCandidate.currency,
     benchmarkDeviationPct,
-    qualityScore: best.qualityScore,
+    qualityScore: selectedBreakdown.qualityScore,
     fraudRisk: selectedCandidate.fraudRisk,
     decisionConfidence,
     scoreBreakdown,
@@ -401,34 +453,53 @@ function buildRationale(
   disqualifications: DOEDisqualification[],
   fcdiScore: number,
   totalCandidates: number,
+  eligibleCount: number,
+  peerMedian: number,
+  allScores: DOEScoreBreakdown[],
 ): string {
   const parts: string[] = [];
 
   const deviationStr = benchmarkDeviationPct != null
     ? benchmarkDeviationPct <= 0
-      ? `${Math.abs(benchmarkDeviationPct)}% below benchmark`
-      : `${benchmarkDeviationPct}% above benchmark`
+      ? `${Math.abs(benchmarkDeviationPct)}% below KINGA benchmark`
+      : `${benchmarkDeviationPct}% above KINGA benchmark`
     : "benchmark deviation unavailable";
 
   parts.push(
-    `Optimal repair decision: ${selected.panelBeater}. ` +
+    `Selected repairer: ${selected.panelBeater}. ` +
     `Quoted cost: ${selected.currency} ${selected.totalCost.toLocaleString()} (${deviationStr}). ` +
-    `Quality score: ${Math.round(scores.qualityScore * 100)}%. ` +
     `Fraud risk: ${selected.fraudRisk}. ` +
-    `Decision confidence: ${scores.totalScore >= 0.75 ? "high" : scores.totalScore >= 0.50 ? "medium" : "low"}.`
+    `Decision confidence: ${eligibleCount >= 2 && selected.confidence === "high" ? "high" : eligibleCount >= 1 && selected.confidence !== "low" ? "medium" : "low"}.`
   );
+
+  // Per-quote deviation summary for all eligible candidates
+  const eligibleScores = allScores.filter(s => !s.disqualified);
+  if (eligibleScores.length > 1) {
+    const deviationSummary = eligibleScores
+      .sort((a, b) => a.totalCost - b.totalCost)
+      .map(s => {
+        const dev = s.benchmarkDeviationPct != null
+          ? (s.benchmarkDeviationPct <= 0
+              ? `${Math.abs(s.benchmarkDeviationPct)}% below benchmark`
+              : `${s.benchmarkDeviationPct}% above benchmark`)
+          : "no benchmark";
+        return `${s.panelBeater}: ${selected.currency} ${s.totalCost.toLocaleString()} (${dev})`;
+      }).join("; ");
+    parts.push(`All eligible quotes: ${deviationSummary}.`);
+  }
 
   if (disqualifications.length > 0) {
     parts.push(
-      `${disqualifications.length} candidate${disqualifications.length !== 1 ? "s" : ""} were disqualified on fraud risk grounds: ` +
-      disqualifications.map(d => `${d.panelBeater} (${d.fraudRisk} — ${d.triggeringSignal})`).join("; ") + "."
+      `${disqualifications.length} candidate${disqualifications.length !== 1 ? "s" : ""} were disqualified: ` +
+      disqualifications.map(d => `${d.panelBeater} — ${d.triggeringSignal}`).join("; ") + "."
     );
   }
 
   parts.push(
-    `Evaluated ${totalCandidates} quote${totalCandidates !== 1 ? "s" : ""}. ` +
-    `FCDI at execution: ${fcdiScore}%. ` +
-    `Multi-objective scoring: cost (30%), quality (25%), reliability (20%), turnaround (15%), fraud risk (10%).`
+    `Selection method: lowest-cost eligible quote. ` +
+    `Evaluated ${totalCandidates} quote${totalCandidates !== 1 ? "s" : ""} (${eligibleCount} eligible). ` +
+    `Peer median: ${selected.currency} ${peerMedian.toLocaleString()}. ` +
+    `FCDI at execution: ${fcdiScore}%.`
   );
 
   return parts.join(" ");

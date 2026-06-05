@@ -85,6 +85,12 @@ const NON_PART_LINE_ITEM_CATEGORIES = new Set([
   "discount", "credit", "deposit", "excess", "deductible",
   "delivery", "transport", "freight",
   "supply", "supplies",
+  // Catch-all summary rows — these are aggregate totals, not individual parts
+  // They inflate L2 composite cost if treated as components
+  "spares", "spare parts total", "parts total", "parts subtotal",
+  "all parts", "all spares", "vehicle parts", "parts & materials",
+  "materials", "material",
+  "items", "line items", "components",
 ]);
 
 /**
