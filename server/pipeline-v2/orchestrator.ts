@@ -394,6 +394,39 @@ export async function runPipelineV2(
   });
   recordStage("1_ingestion", s1);
   stage1Data = s1.data; // May be degraded but always has data
+
+  // ── POST-STAGE 1: Persist embedded image URLs to DB ────────────────────────
+  // Stage 1 extracts embedded images via pdfimages CLI (works in production) and
+  // uploads them to S3. Persist the extracted URLs back to claims.damagePhotos so
+  // that future re-runs have a populated DB cache and imageNormSource is set
+  // correctly. Without this, the DB cache is never updated from Stage 1 extractions
+  // and every re-run starts with an empty cache (triggering re-extraction, which is
+  // fine but wastes time). We only persist when Stage 1 found new images AND the
+  // current DB cache is empty or stale (fewer URLs than what Stage 1 found).
+  if (ctx.extractedImagesWithMetadata && ctx.extractedImagesWithMetadata.length > 0) {
+    try {
+      const stage1ImageUrls = ctx.extractedImagesWithMetadata.map((img: any) => img.url).filter(Boolean);
+      const existingCacheSize = ctx.damagePhotoUrls?.length ?? 0;
+      // Only update if Stage 1 found MORE images than the current DB cache
+      // (avoids overwriting a richer cache with a partial Stage 1 result)
+      if (stage1ImageUrls.length > 0 && stage1ImageUrls.length >= existingCacheSize) {
+        const { getDb: _getDb } = await import('../db');
+        const dbInst = await _getDb();
+        if (dbInst) {
+          const { claims: claimsTable } = await import('../../drizzle/schema');
+          const { eq } = await import('drizzle-orm');
+          await dbInst.update(claimsTable)
+            .set({ damagePhotos: JSON.stringify(stage1ImageUrls) })
+            .where(eq(claimsTable.id, ctx.claimId))
+            .catch(() => {});
+          ctx.log('Stage 1', `Persisted ${stage1ImageUrls.length} embedded image URL(s) to DB cache (was ${existingCacheSize})`);
+        }
+      }
+    } catch (persistErr: any) {
+      ctx.log('Stage 1', `Non-fatal: failed to persist embedded image URLs to DB: ${persistErr.message}`);
+    }
+  }
+
   // ── STAGE 2: OCR & Text Extraction ─────────────────────────────────────────
   if (stage1Data) {
     ctx.onStageStart?.("Stage 2 — Extracting");
@@ -666,8 +699,16 @@ export async function runPipelineV2(
   // NORMALISATION GATE: When imageNormSource === 'cache_rehydration', the photos were
   // already classified and trusted in a previous pipeline run. Bypass the classifier
   // entirely — re-classifying with synthetic metadata produces worse selections.
-  if (ctx.imageNormSource === 'cache_rehydration' && ctx.damagePhotoUrls.length > 0) {
-    ctx.log('Stage 2.6', `Bypassing classifier — cache_rehydration: ${ctx.damagePhotoUrls.length} trusted cached photo(s) used directly (no re-classification needed)`);
+  //
+  // IMPORTANT: Stage 1 always re-extracts embedded images via pdfimages CLI (works in
+  // production) and populates ctx.extractedImagesWithMetadata with fresh metadata.
+  // If Stage 1 found fresh images, we MUST run the classifier regardless of
+  // imageNormSource — otherwise quotation_scan images (e.g. Swiss Motors CamScanner
+  // pages) are never classified and Stage 2.7 quote extraction is skipped.
+  // Only bypass when Stage 1 produced no fresh metadata (truly a cache-only run).
+  const _hasFreshEmbeddedImages = (ctx.extractedImagesWithMetadata?.length ?? 0) > 0;
+  if (ctx.imageNormSource === 'cache_rehydration' && ctx.damagePhotoUrls.length > 0 && !_hasFreshEmbeddedImages) {
+    ctx.log('Stage 2.6', `Bypassing classifier — cache_rehydration: ${ctx.damagePhotoUrls.length} trusted cached photo(s) used directly (no fresh embedded images from Stage 1)`);
     // Record as assumption so the forensic report knows the source
     allAssumptions.push({
       field: 'imageClassification',
