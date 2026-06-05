@@ -2454,101 +2454,84 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             };
             return (
               <>
-              <div className="physics-row mb-3">
-                {/* Left: physics KV table */}
-                <div className="physics-col-main">
-                  <table className="compact-kv-table text-xs w-full">
-                    <tbody>
-                      {[
-                        ["Speed Change at Impact (Delta-V)", deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : "N/A"],
-                        ["Estimated impact speed", estimatedSpeedKmh > 0 ? `${fmt(estimatedSpeedKmh, 1)} km/h` : (claimedSpeed > 0 ? `${claimedSpeed} km/h (claimed)` : "Not stated")],
-                        ["Kinetic Energy Released (Impact)", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
-                        ["Impact force", impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : "N/A"],
-                        ["Vehicle mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
-                        ["Accident severity", toSentenceCase((severity ?? "").replace(/_/g, " "))],
-                        ["Incident type", toSentenceCase((incidentType ?? "").replace(/_/g, " "))],
-                        ...((_phys as any)?.decelerationG > 0 ? [["Deceleration", `${fmt((_phys as any).decelerationG, 2)} g`]] : []),
-                        ...((_phys as any)?.velocityRange?.low_kmh > 0 ? [["Velocity range (est.)", `${fmt((_phys as any).velocityRange.low_kmh, 1)}–${fmt((_phys as any).velocityRange.high_kmh, 1)} km/h`]] : []),
-                        ...((_phys as any)?.damageConsistencyScore != null ? [["Damage consistency score", `${Math.round((_phys as any).damageConsistencyScore)}/100`]] : []),
-                      ].map(([k, v], i) => (
-                        <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
-                          <td className="py-1.5 pr-3 font-semibold" style={{ color: "#64748b" }}>{k}</td>
-                          <td className="py-1.5 tabular-nums" style={{ color: "#0f172a" }}>{v}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {/* Right: gauge only */}
-                <div className="physics-col-side">
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <ArcGauge value={physicsScore} size={120} label="Physics consistency" />
-                    <p style={{ fontSize: 11, color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
-                      {physicsScore >= 70 ? "Damage consistent with stated incident" :
-                       physicsScore >= 30 ? "Minor inconsistencies detected" :
-                       "Significant anomaly — engineering review required"}
-                    </p>
-                  </div>
-                </div>
+              {/* two-col-kv: physics data split across two tables */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: 12 }}>
+                <table className="compact-kv-table text-xs w-full">
+                  <tbody>
+                    {[
+                      ["Impact Severity", toSentenceCase((severity ?? "").replace(/_/g, " "))],
+                      ["Estimated Speed", estimatedSpeedKmh > 0 ? `${fmt(estimatedSpeedKmh, 1)} km/h (driver stated)` : (claimedSpeed > 0 ? `${claimedSpeed} km/h (claimed)` : "Not stated")],
+                      ["Impact Direction", directionMismatch ? `${toSentenceCase(((_phys as any)?.impactDirection ?? "Unknown").replace(/_/g, " "))} (document) / Frontal (damage)` : toSentenceCase(((_phys as any)?.impactDirection ?? "Unknown").replace(/_/g, " "))],
+                      ["Delta-V Estimate", deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : "N/A"],
+                      ["Kinetic Energy", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
+                      ["Force", impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : "N/A"],
+                    ].map(([k, v], i) => (
+                      <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
+                        <td className="py-1.5 pr-3 font-semibold" style={{ color: "#64748b" }}>{k}</td>
+                        <td className="py-1.5 tabular-nums" style={{ color: "#0f172a" }}>{v}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <table className="compact-kv-table text-xs w-full">
+                  <tbody>
+                    {[
+                      ["Vehicle Mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
+                      ["Deceleration", (_phys as any)?.decelerationG > 0 ? `${fmt((_phys as any).decelerationG, 2)} g` : "N/A"],
+                      ["Structural Deformation", (_phys as any)?.structuralDeformation ?? "N/A"],
+                      ["Airbag Deployment", (_phys as any)?.airbagDeployment ?? "N/A"],
+                      ["Physics Confidence", `${Math.round(physicsScore)}% (${physicsScore >= 70 ? "consistent" : physicsScore >= 30 ? "direction conflict" : "anomaly"})`],
+                      ["Damage Consistency", (_phys as any)?.damageConsistencyScore != null ? `${Math.round((_phys as any).damageConsistencyScore)}/100 — ${(_phys as any).damageConsistencyScore >= 70 ? "Good" : (_phys as any).damageConsistencyScore >= 40 ? "Moderate" : "Poor"}` : `${Math.round(physicsScore)}/100`],
+                      ["Severity Classification", toSentenceCase((severity ?? "").replace(/_/g, " "))],
+                    ].map(([k, v], i) => (
+                      <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
+                        <td className="py-1.5 pr-3 font-semibold" style={{ color: "#64748b" }}>{k}</td>
+                        <td className="py-1.5 tabular-nums" style={{ color: "#0f172a" }}>{v}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              {/* LDP chart: full width below the physics table + gauge row */}
-              {showLdp && ldpChartData && (
-                <div style={{ width: '100%', marginTop: 12, borderTop: '1px solid #e2e8f0', paddingTop: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span className="kr-mono-label">Latent Damage Probability</span>
-                    <span style={{ fontSize: 11, color: '#64748b' }}>Hidden risk</span>
-                  </div>
-                  <div style={{ height: 200, width: '100%' }}>
-                    <Bar data={ldpChartData} options={ldpOpts} />
-                  </div>
+              {/* two-col-charts: gauge left | LDP chart right */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12, alignItems: 'start' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>Physics Confidence Index</span>
+                  <ArcGauge value={physicsScore} size={120} label="Physics consistency" />
+                  <p style={{ fontSize: 11, color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
+                    {Math.round(physicsScore)}/100 — {physicsScore >= 70 ? "High confidence" : physicsScore >= 30 ? "Moderate confidence" : "Low confidence"}
+                  </p>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: 4 }}>Latent Damage Probability</span>
+                  <span style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 6 }}>Hidden risk — co-occurrence based probability</span>
+                  {showLdp && ldpChartData ? (
+                    <div style={{ height: 120, position: 'relative' }}>
+                      <Bar data={ldpChartData} options={ldpOpts} />
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 11, color: '#64748b' }}>No significant latent damage risk identified.</p>
+                  )}
                   {ldpSorted.some(([,v]) => v >= 40) && (
-                    <p style={{ fontSize: 11, marginTop: 6, padding: '4px 8px', background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>
-                      One or more systems show elevated hidden damage risk — physical inspection recommended before final settlement.
+                    <p style={{ fontSize: 10, marginTop: 4, padding: '3px 6px', background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>
+                      Elevated hidden damage risk — inspection recommended.
                     </p>
                   )}
                 </div>
-              )}
+              </div>
               </>
             );
           })()}
 
-          {(claimedSpeed > 0 || deltaV > 0) && (
-            <div className="space-y-2 mb-3">
-              {claimedSpeed > 0 && (
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span style={{ color: "#64748b" }}>Claimed speed</span>
-                    <span style={{ color: "#0f172a" }}>{claimedSpeed} km/h</span>
-                  </div>
-                  <div className="h-2 rounded-full" style={{ background: "#ffffff" }}>
-                    <div className="h-2 rounded-full" style={{ width: `${Math.min(100, (claimedSpeed / 150) * 100)}%`, background: "var(--fp-warning-text)" }} />
-                  </div>
-                </div>
-              )}
-              {deltaV > 0 && (
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span style={{ color: "#64748b" }}>Speed Change at Impact</span>
-                    <span style={{ color: "#0f172a" }}>{deltaV} km/h</span>
-                  </div>
-                  <div className="h-2 rounded-full" style={{ background: "#ffffff" }}>
-                    <div className="h-2 rounded-full" style={{ width: `${Math.min(100, (deltaV / 150) * 100)}%`, background: "var(--fp-success-text)" }} />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
+                    {/* Direction conflict alert — matching mock layout */}
           {directionExplanation && (
-            <div className="p-2 rounded-lg text-xs" style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              color: "#0f172a",
-            }}>
-              {directionMismatch ? "Direction mismatch: " : "Direction consistent: "}{directionExplanation}
+            <div style={{ display: 'flex', gap: 0, border: '1px solid #e2e8f0', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{ width: 4, background: directionMismatch ? '#D97706' : '#16a34a', flexShrink: 0 }} />
+              <div style={{ padding: '6px 10px', fontSize: 11, color: '#0f172a', lineHeight: 1.5 }}>
+                <span style={{ fontWeight: 700 }}>{directionMismatch ? 'Direction Conflict: ' : 'Direction Consistent: '}</span>
+                {directionExplanation}
+              </div>
             </div>
           )}
-          {/* LDP chart is now integrated into the physics-row layout above */}
           {/* Physics execution status badge */}
           {(() => {
             const ps: string | null = (_phys as any)?.physicsStatus ?? null;
