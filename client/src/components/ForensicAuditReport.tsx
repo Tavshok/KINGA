@@ -8933,14 +8933,14 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
           <div style={{ marginBottom: 16 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: '#ffffff' }}>
-                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '5%' }}>#</th>
-                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '18%' }}>Role</th>
-                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '20%' }}>Stage</th>
-                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '12%' }}>Decision</th>
-                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '18%' }}>Officer Name</th>
-                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '15%' }}>Date &amp; Time</th>
-                  <th style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', width: '12%' }}>Signature</th>
+                <tr>
+                  <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#fff', background: '#0a0a0a', width: '5%' }}>#</th>
+                  <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#fff', background: '#0a0a0a', width: '18%' }}>Role</th>
+                  <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#fff', background: '#0a0a0a', width: '20%' }}>Stage</th>
+                  <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#fff', background: '#0a0a0a', width: '12%' }}>Decision</th>
+                  <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#fff', background: '#0a0a0a', width: '18%' }}>Officer Name</th>
+                  <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#fff', background: '#0a0a0a', width: '15%' }}>Date &amp; Time</th>
+                  <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#fff', background: '#0a0a0a', width: '12%' }}>Signature</th>
                 </tr>
               </thead>
               <tbody>
