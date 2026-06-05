@@ -147,7 +147,7 @@ function decisionColour(d: string): string {
     ESCALATE_INVESTIGATION: "var(--fp-warning-text)",
     REJECT: "var(--fp-critical-text)",
   };
-  return map[d] ?? "var(--muted-foreground)";
+  return map[d] ?? "var(--kr-muted)";
 }
 
 function decisionLabel(d: string): string {
@@ -397,7 +397,7 @@ function ArcGauge({ value, max = 100, label, size = 100 }: { value: number; max?
           {Math.round(pctVal)}%
         </text>
         {label && (
-          <text x={cx} y={cy + 10} textAnchor="middle" fontSize="7" fill="var(--muted-foreground)">
+          <text x={cx} y={cy + 10} textAnchor="middle" fontSize="7" fill="var(--kr-muted)">
             {label}
           </text>
         )}
@@ -621,16 +621,16 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
           </defs>
 
           {/* Compass labels */}
-          <text x="160" y="-8" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">N — FRONT</text>
+          <text x="160" y="-8" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">N — FRONT</text>
           {/* Velocity range confidence band — placed above compass label */}
           {velocityRange && velocityRange.low_kmh > 0 ? (
             <text x="160" y="-20" textAnchor="middle" fontSize="7.5" fill="#6366f1" fontStyle="italic">
               {`Speed est. ${velocityRange.low_kmh.toFixed(0)}–${velocityRange.high_kmh.toFixed(0)} km/h`}
             </text>
           ) : null}
-          <text x="160" y="300" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">S — REAR</text>
-          <text x="-8" y="144" textAnchor="end" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">L</text>
-          <text x="328" y="144" textAnchor="start" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">R</text>
+          <text x="160" y="300" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">S — REAR</text>
+          <text x="-8" y="144" textAnchor="end" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">L</text>
+          <text x="328" y="144" textAnchor="start" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">R</text>
 
           {/* Vehicle body */}
           <rect x="76" y="52" width="168" height="176" rx="20"
@@ -674,7 +674,7 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
                 <text
                   x={zone.x + zone.w / 2} y={zone.y + zone.h / 2 + 4}
                   textAnchor="middle" fontSize="9"
-                  fill={sev > 0 ? SEVERITY_STROKE[sev] : "var(--muted-foreground)"}
+                  fill={sev > 0 ? SEVERITY_STROKE[sev] : "var(--kr-muted)"}
                   fontWeight={sev > 0 ? "bold" : "normal"}
                 >
                   {zone.label}
@@ -779,7 +779,7 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
           {(deltaV != null && deltaV > 0) || (energyKj != null && energyKj > 0) || (impactForceKn != null && impactForceKn > 0) ? (
             <g>
               <rect x="52" y="272" width="216" height="28" rx="3" fill="var(--muted)" stroke="var(--border)" strokeWidth="1" opacity="0.9" />
-              <text x="160" y="283" textAnchor="middle" fontSize="7.5" fill="var(--muted-foreground)">
+              <text x="160" y="283" textAnchor="middle" fontSize="7.5" fill="var(--kr-muted)">
                 {[
                   deltaV != null && deltaV > 0 ? `ΔV ${deltaV.toFixed(1)} km/h` : null,
                   energyKj != null && energyKj > 0 ? `KE ${energyKj.toFixed(1)} kJ` : null,
@@ -787,7 +787,7 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
                 ].filter(Boolean).join('  ·  ')}
               </text>
               {(decelerationG && decelerationG > 0) || (energyAbsorptionRatio && energyAbsorptionRatio > 0) ? (
-                <text x="160" y="295" textAnchor="middle" fontSize="7" fill="var(--muted-foreground)" opacity="0.85">
+                <text x="160" y="295" textAnchor="middle" fontSize="7" fill="var(--kr-muted)" opacity="0.85">
                   {[
                     decelerationG && decelerationG > 0 ? `${decelerationG.toFixed(1)} g decel.` : null,
                     energyAbsorptionRatio && energyAbsorptionRatio > 0 ? `${Math.round(energyAbsorptionRatio * 100)}% energy absorbed` : null,
@@ -930,7 +930,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const fcdiTileScore: number = typeof fcdiRaw === 'number' ? Math.round(fcdiRaw) : -1;
   // fcdiTileScore is 0–100 where 100 = fully reliable, 0 = fully degraded
   const fcdiTileLabel = fcdiTileScore < 0 ? "N/A" : fcdiTileScore >= 80 ? "HIGH" : fcdiTileScore >= 55 ? "MEDIUM" : fcdiTileScore >= 30 ? "LOW" : "CRITICAL";
-  const fcdiTileColor = fcdiTileScore < 0 ? "var(--muted-foreground)" : fcdiTileScore >= 80 ? "var(--fp-success-text)" : fcdiTileScore >= 55 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
+  const fcdiTileColor = fcdiTileScore < 0 ? "var(--kr-muted)" : fcdiTileScore >= 80 ? "var(--fp-success-text)" : fcdiTileScore >= 55 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
 
   // Photo Integrity tier — derived from EXIF forensics results (same logic as Section 4.3)
   const pfCover = (enforcement as any)?._photoForensics as any;
@@ -1717,7 +1717,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                           className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
                           style={{
                             background: classifiedConfidence >= 80 ? "var(--status-approve-bg)" : classifiedConfidence >= 60 ? "var(--status-review-bg)" : "#ffffff",
-                            color: classifiedConfidence >= 80 ? "var(--status-approve-text)" : classifiedConfidence >= 60 ? "var(--status-review-text)" : "var(--muted-foreground)",
+                            color: classifiedConfidence >= 80 ? "var(--status-approve-text)" : classifiedConfidence >= 60 ? "var(--status-review-text)" : "var(--kr-muted)",
                             border: `1px solid ${classifiedConfidence >= 80 ? "var(--status-approve-border)" : classifiedConfidence >= 60 ? "var(--status-review-border)" : "var(--border)"}`
                           }}
                         >
@@ -1765,7 +1765,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                       : 'inferred from deformation depth';
                     return (
                       <span className="flex flex-col gap-0.5">
-                        <span style={{ color: 'var(--muted-foreground)' }}>Not stated on claim form</span>
+                        <span style={{ color: 'var(--kr-muted)' }}>Not stated on claim form</span>
                         <span className="text-[10px] font-semibold" style={{ color: 'var(--status-review-text)' }}>
                           Physics estimate: ~{Math.round(physicsInferredSpeed)} km/h ({note})
                         </span>
@@ -1950,7 +1950,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                         {event.event_sub_type ? ` — ${event.event_sub_type.replace(/_/g, " ")}` : ""}
                       </span>
                       {event.involves_third_party && (
-                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--fp-info-bg, var(--muted))", color: "var(--fp-info-text, var(--muted-foreground))" }}>
+                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--fp-info-bg, var(--muted))", color: "var(--fp-info-text, var(--kr-muted))" }}>
                           3rd party
                         </span>
                       )}
@@ -2617,7 +2617,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                   </tbody>
                 </table>
                 {asp.engineering_notes && (
-                  <p className="text-[10px] mt-2" style={{ color: 'var(--muted-foreground)' }}>{asp.engineering_notes}</p>
+                  <p className="text-[10px] mt-2" style={{ color: 'var(--kr-muted)' }}>{asp.engineering_notes}</p>
                 )}
               </div>
             );
@@ -2626,7 +2626,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
           {(_phys as any)?.reconstructionSummary && (
             <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
               <p className="micro-label">Reconstruction Summary</p>
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{(_phys as any).reconstructionSummary}</p>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-text)' }}>{(_phys as any).reconstructionSummary}</p>
             </div>
           )}
         </div>
@@ -2707,7 +2707,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     <p className="sub-heading">2.4 Damage Pattern Matching</p>
                     <DamagePatternTable data={damagePatternData} />
                     {(mismatchRows.length > 0 || unknownRows.length > 0) && (
-                      <div className="mt-2 p-2 rounded text-xs" style={{ background: mismatchRows.length > 0 ? 'var(--status-review-bg)' : '#ffffff', border: `1px solid ${mismatchRows.length > 0 ? 'var(--status-review-border)' : 'var(--border)'}`, color: mismatchRows.length > 0 ? 'var(--status-review-text)' : 'var(--muted-foreground)' }}>
+                      <div className="mt-2 p-2 rounded text-xs" style={{ background: mismatchRows.length > 0 ? 'var(--status-review-bg)' : '#ffffff', border: `1px solid ${mismatchRows.length > 0 ? 'var(--status-review-border)' : 'var(--border)'}`, color: mismatchRows.length > 0 ? 'var(--status-review-text)' : 'var(--kr-muted)' }}>
                         {mismatchRows.length > 0 && (
                           <p><strong>Damage mismatch detected:</strong> {mismatchRows.length} expected damage zone{mismatchRows.length > 1 ? 's' : ''} ({mismatchRows.map(r => r.expected).join(', ')}) {mismatchRows.length > 1 ? 'are' : 'is'} not corroborated by the reported damage zones.</p>
                         )}
@@ -2922,14 +2922,14 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             return (
               <div className="mt-6">
                 <p className="sub-heading">2.4b Per-Component Physics Measurements</p>
-                <p className="text-xs mb-3" style={{ color: 'var(--muted-foreground)' }}>
+                <p className="text-xs mb-3" style={{ color: 'var(--kr-muted)' }}>
                   Absolute numeric measurements extracted by KINGA vision analysis from damage photographs.
                   All values are SI-unit measurements — no qualitative proxies.
                 </p>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', minWidth: 620 }}>
                     <thead>
-                      <tr style={{ background: 'var(--kr-white)', color: 'var(--muted-foreground)' }}>
+                      <tr style={{ background: 'var(--kr-white)', color: 'var(--kr-muted)' }}>
                         <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Component</th>
                         <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Crush Depth</th>
                         <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Deformation Energy</th>
@@ -2951,7 +2951,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                         return (
                           <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--muted)' }}>
                             <td style={{ padding: '6px 8px' }}>
-                              <span style={{ fontWeight: 600, color: 'var(--foreground)' }}>{p.name}</span>
+                              <span style={{ fontWeight: 600, color: 'var(--kr-text)' }}>{p.name}</span>
                               {p.isStructural && (
                                 <span style={{ marginLeft: 4, fontSize: 9, color: 'var(--fp-critical-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>STRUCTURAL</span>
                               )}
@@ -2960,29 +2960,29 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                             <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                               {crushCm != null ? (
                                 <div>
-                                  <span style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--foreground)' }}>{crushCm} cm</span>
+                                  <span style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)' }}>{crushCm} cm</span>
                                   <div style={{ marginTop: 3, height: 4, borderRadius: 2, background: 'var(--kr-white)', width: 60, margin: '3px auto 0' }}>
                                     <div style={{ height: 4, borderRadius: 2, background: colour, width: `${crushBarPct}%`, opacity: 0.8 }} />
                                   </div>
                                 </div>
-                              ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                              ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
                             </td>
                             <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                               {energyKj != null ? (
                                 <div>
-                                  <span style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--foreground)' }}>{energyKj} kJ</span>
+                                  <span style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)' }}>{energyKj} kJ</span>
                                   <div style={{ marginTop: 3, height: 4, borderRadius: 2, background: 'var(--kr-white)', width: 60, margin: '3px auto 0' }}>
                                     <div style={{ height: 4, borderRadius: 2, background: colour, width: `${energyBarPct}%`, opacity: 0.8 }} />
                                   </div>
                                 </div>
-                              ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                              ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
                             </td>
                             <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                               {dispMm != null ? (
-                                <span style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: parseFloat(dispMm) > 20 ? 'var(--fp-critical-text)' : parseFloat(dispMm) > 5 ? 'var(--fp-warning-text)' : 'var(--foreground)' }}>
+                                <span style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: parseFloat(dispMm) > 20 ? 'var(--fp-critical-text)' : parseFloat(dispMm) > 5 ? 'var(--fp-warning-text)' : 'var(--kr-text)' }}>
                                   {dispMm} mm
                                 </span>
-                              ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                              ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
                             </td>
                             <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                               {conf != null ? (
@@ -2990,9 +2990,9 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                                   <div style={{ width: 32, height: 4, borderRadius: 2, background: 'var(--kr-white)', overflow: 'hidden' }}>
                                     <div style={{ height: 4, borderRadius: 2, background: conf >= 70 ? 'var(--fp-success-text)' : conf >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-info-text)', width: `${conf}%` }} />
                                   </div>
-                                  <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, color: 'var(--foreground)' }}>{conf}%</span>
+                                  <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, color: 'var(--kr-text)' }}>{conf}%</span>
                                 </div>
-                              ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                              ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
                             </td>
                             <td style={{ padding: '6px 8px' }}>
                               {frac != null ? (
@@ -3000,9 +3000,9 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                                   <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--kr-white)', overflow: 'hidden', maxWidth: 50 }}>
                                     <div style={{ height: 4, borderRadius: 2, background: colour, width: `${frac}%`, opacity: 0.8 }} />
                                   </div>
-                                  <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, color: 'var(--foreground)' }}>{frac}%</span>
+                                  <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, color: 'var(--kr-text)' }}>{frac}%</span>
                                 </div>
-                              ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                              ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
                             </td>
                           </tr>
                         );
@@ -3022,20 +3022,20 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                   return (
                     <div className="mt-2 px-3 py-2 rounded flex flex-wrap gap-6" style={{ background: 'var(--kr-white)', border: '1px solid var(--border)', fontSize: 11 }}>
                       <div>
-                        <span style={{ color: 'var(--muted-foreground)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Max Crush Depth</span>
-                        <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--foreground)', fontSize: 14 }}>{maxCrushCm.toFixed(1)} cm</div>
-                        <div style={{ fontSize: 9, color: 'var(--muted-foreground)' }}>Used as M5 Campbell input</div>
+                        <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Max Crush Depth</span>
+                        <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)', fontSize: 14 }}>{maxCrushCm.toFixed(1)} cm</div>
+                        <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>Used as M5 Campbell input</div>
                       </div>
                       <div>
-                        <span style={{ color: 'var(--muted-foreground)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Total Deformation Energy</span>
-                        <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--foreground)', fontSize: 14 }}>{totalEnergyKj.toFixed(2)} kJ</div>
-                        <div style={{ fontSize: 9, color: 'var(--muted-foreground)' }}>Used as M5 energy-balance input</div>
+                        <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Total Deformation Energy</span>
+                        <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)', fontSize: 14 }}>{totalEnergyKj.toFixed(2)} kJ</div>
+                        <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>Used as M5 energy-balance input</div>
                       </div>
                       {avgConf != null && (
                         <div>
-                          <span style={{ color: 'var(--muted-foreground)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Avg Vision Confidence</span>
+                          <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Avg Vision Confidence</span>
                           <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: avgConf >= 70 ? 'var(--fp-success-text)' : avgConf >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-info-text)', fontSize: 14 }}>{Math.round(avgConf)}%</div>
-                          <div style={{ fontSize: 9, color: 'var(--muted-foreground)' }}>M5 confidence weight: {((Math.min(90, Math.max(30, avgConf)) / 100)).toFixed(2)}</div>
+                          <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>M5 confidence weight: {((Math.min(90, Math.max(30, avgConf)) / 100)).toFixed(2)}</div>
                         </div>
                       )}
                     </div>
@@ -3147,11 +3147,11 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     <div>
                       <p className="micro-label">Forensic Speed Estimate</p>
                       <div className="flex items-end gap-2">
-                        <p className="text-4xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'var(--kr-mono)', lineHeight: 1 }}>{consensusKmh.toFixed(0)}</p>
-                        <p className="text-base font-semibold mb-0.5" style={{ color: 'var(--muted-foreground)' }}>km/h</p>
+                        <p className="text-4xl font-black" style={{ color: 'var(--kr-text)', fontFamily: 'var(--kr-mono)', lineHeight: 1 }}>{consensusKmh.toFixed(0)}</p>
+                        <p className="text-base font-semibold mb-0.5" style={{ color: 'var(--kr-muted)' }}>km/h</p>
                       </div>
                       {ciLow != null && ciHigh != null && (
-                        <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)', fontFamily: 'var(--kr-mono)' }}>Estimated range: {ciLow.toFixed(0)}–{ciHigh.toFixed(0)} km/h</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)', fontFamily: 'var(--kr-mono)' }}>Estimated range: {ciLow.toFixed(0)}–{ciHigh.toFixed(0)} km/h</p>
                       )}
                       {lowerBoundKmh != null && !ciLow && (
                         <p className="text-xs mt-1" style={{ color: 'var(--fp-warning-text)', fontFamily: 'var(--kr-mono)' }}>Minimum: ≥ {lowerBoundKmh.toFixed(0)} km/h</p>
@@ -3166,19 +3166,19 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                           <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>\u26a0 Analyses Diverge</span>
                         </div>
                       )}
-                      <p className="text-[10px] mt-1" style={{ color: 'var(--muted-foreground)' }}>{availableCount} of {totalCount} analyses contributed</p>
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--kr-muted)' }}>{availableCount} of {totalCount} analyses contributed</p>
                     </div>
                   </div>
 
                   {/* ── Plain-English convergence statement ── */}
                   <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-off-white)' }}>
-                    <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{convergenceText}</p>
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-text)' }}>{convergenceText}</p>
                   </div>
 
                   {/* ── Speed scale ── */}
                   <div className="px-5 pt-4 pb-3">
                     <p className="micro-label">Impact Severity Context</p>
-                    <div className="relative h-6 rounded-full overflow-hidden mb-1" style={{ background: '#f1f5f9' }}>
+                    <div className="relative h-6 rounded-full overflow-hidden mb-1" style={{ background: 'var(--kr-off-white)' }}>
                       <div className="absolute top-0 bottom-0" style={{ left: 0, width: `${toScalePct(15)}%`, background: 'var(--fp-success-text)', opacity: 0.18 }} />
                       <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(15)}%`, width: `${toScalePct(40) - toScalePct(15)}%`, background: 'var(--fp-success-text)', opacity: 0.12 }} />
                       <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(40)}%`, width: `${toScalePct(80) - toScalePct(40)}%`, background: 'var(--fp-warning-text)', opacity: 0.18 }} />
@@ -3189,7 +3189,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                       <div className="absolute top-0 bottom-0 w-0.5" style={{ left: `${toScalePct(consensusKmh)}%`, background: speedZoneColour[speedZone], opacity: 0.9 }} />
                       <div className="absolute" style={{ left: `calc(${toScalePct(consensusKmh)}% - 6px)`, top: '50%', transform: 'translateY(-50%)', width: 12, height: 12, borderRadius: '50%', background: speedZoneColour[speedZone], border: '2px solid white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
                     </div>
-                    <div className="flex justify-between text-[9px] mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                    <div className="flex justify-between text-[9px] mt-1" style={{ color: 'var(--kr-muted)' }}>
                       <span>0</span><span>Parking</span><span>Low Urban</span><span>Urban</span><span>Highway</span><span>120 km/h</span>
                     </div>
                     <p className="text-xs mt-2 font-semibold" style={{ color: speedZoneColour[speedZone] }}>
@@ -3207,7 +3207,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                         const isOutlier: boolean = (ensemble.crossValidation?.outlierMethods ?? []).includes(m.method ?? m.id ?? '');
                         const methodId: string = m.method ?? m.id ?? `A${idx + 1}`;
                         const categoryName = categoryMap[methodId] ?? `Analysis ${idx + 1}`;
-                        const statusColour = ran ? (isOutlier ? 'var(--fp-locked-text)' : 'var(--fp-success-text)') : 'var(--muted-foreground)';
+                        const statusColour = ran ? (isOutlier ? 'var(--fp-locked-text)' : 'var(--fp-success-text)') : 'var(--kr-muted)';
                         const statusIcon = ran ? (isOutlier ? '!' : '\u2713') : '\u2014';
                         const statusLabel = ran
                           ? (isOutlier
@@ -3221,7 +3221,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-start gap-2">
                                 <span className="text-[10px] font-bold w-4 text-center shrink-0 mt-0.5" style={{ color: statusColour }}>{statusIcon}</span>
-                                <span className="text-xs font-semibold" style={{ color: ran ? 'var(--foreground)' : 'var(--muted-foreground)' }}>{categoryName}</span>
+                                <span className="text-xs font-semibold" style={{ color: ran ? 'var(--kr-text)' : 'var(--kr-muted)' }}>{categoryName}</span>
                               </div>
                               <span className="text-[10px] font-semibold shrink-0 text-right" style={{ color: statusColour, maxWidth: '55%' }}>{statusLabel}</span>
                             </div>
@@ -3229,7 +3229,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                         );
                       })}
                     </div>
-                    <p className="text-[10px] mt-3 italic" style={{ color: 'var(--muted-foreground)' }}>
+                    <p className="text-[10px] mt-3 italic" style={{ color: 'var(--kr-muted)' }}>
                       Detailed methodology is available to qualified experts under a confidentiality undertaking.
                     </p>
                   </div>
@@ -3239,8 +3239,8 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     <div className="flex items-start gap-3">
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0 mt-0.5" style={{ background: recommendedAction.bg, color: recommendedAction.colour, border: `1px solid ${recommendedAction.border}` }}>{recommendedAction.icon}</span>
                       <div>
-                        <p className="text-xs font-bold" style={{ color: 'var(--foreground)' }}>{recommendedAction.label}</p>
-                        <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{recommendedAction.text}</p>
+                        <p className="text-xs font-bold" style={{ color: 'var(--kr-text)' }}>{recommendedAction.label}</p>
+                        <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--kr-muted)' }}>{recommendedAction.text}</p>
                       </div>
                     </div>
                   </div>
@@ -3292,15 +3292,15 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                 {!hasPhotos && (
                   <div className="flex items-start gap-2 p-2.5 rounded mb-2" style={{ background: 'var(--fp-critical-bg)', borderLeft: '3px solid var(--fp-critical-text)' }}>
                     <span style={{ color: 'var(--fp-critical-text)', fontWeight: 700, fontSize: 11 }}>!</span>
-                    <p className="text-xs" style={{ color: 'var(--foreground)' }}><strong>Photo Evidence — Not Applicable:</strong> No photographs were submitted with this claim. Image-based fraud detection and damage zone validation could not be performed. Damage analysis is based on text extraction only.</p>
+                    <p className="text-xs" style={{ color: 'var(--kr-text)' }}><strong>Photo Evidence — Not Applicable:</strong> No photographs were submitted with this claim. Image-based fraud detection and damage zone validation could not be performed. Damage analysis is based on text extraction only.</p>
                   </div>
                 )}
                 <table className="w-full text-xs report-table">
                   <tbody>
                     {rows.map(([label, val], i) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td className="py-1.5 pr-3 font-medium" style={{ color: 'var(--muted-foreground)', width: '40%' }}>{label}</td>
-                        <td className="py-1.5" style={{ color: 'var(--foreground)' }}>{val}</td>
+                        <td className="py-1.5 pr-3 font-medium" style={{ color: 'var(--kr-muted)', width: '40%' }}>{label}</td>
+                        <td className="py-1.5" style={{ color: 'var(--kr-text)' }}>{val}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3358,10 +3358,10 @@ function Section210VehicleStructural({ claim }: { claim: any }) {
         display: 'flex', alignItems: 'center', gap: '8px',
         borderBottom: '1px solid var(--border)', paddingBottom: '6px', marginBottom: '12px'
       }}>
-        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', letterSpacing: '0.05em' }}>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--kr-muted)', letterSpacing: '0.05em' }}>
           2.10
         </span>
-        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)' }}>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--kr-text)' }}>
           Vehicle Structural Intelligence
         </span>
         {insured?.hasInferredData && (
@@ -3376,11 +3376,11 @@ function Section210VehicleStructural({ claim }: { claim: any }) {
       </div>
 
       {isLoading ? (
-        <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+        <p style={{ fontSize: '11px', color: 'var(--kr-muted)', fontStyle: 'italic' }}>
           Loading structural intelligence data…
         </p>
       ) : !insured ? (
-        <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+        <p style={{ fontSize: '11px', color: 'var(--kr-muted)', fontStyle: 'italic' }}>
           Structural intelligence analysis could not be completed. Ensure vehicle make, model, and year are recorded on the claim.
         </p>
       ) : (
@@ -3547,10 +3547,10 @@ function Section210VehicleStructural({ claim }: { claim: any }) {
               </>
             ) : (
               <div>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '6px' }}>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--kr-text)', marginBottom: '6px' }}>
                   Structural Assessment Notes
                 </p>
-                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.6 }}>
+                <p style={{ fontSize: '11px', color: 'var(--kr-muted)', lineHeight: 1.6 }}>
                   {insured.ancapInferenceReason || (
                     insured.crash3Class?.inferenceReason
                       ? `CRASH3 class inferred: ${insured.crash3Class.inferenceReason}`
@@ -3574,7 +3574,7 @@ function Section210VehicleStructural({ claim }: { claim: any }) {
           marginTop: '14px', padding: '10px 12px', borderRadius: '6px',
           background: 'var(--fp-neutral-bg)', border: '1px solid var(--border)'
         }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '6px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--kr-text)', marginBottom: '6px' }}>
             Structural Intelligence Narrative
             {insured.hasInferredData && (
               <span style={{ fontWeight: 400, color: 'var(--fp-warning-text)', marginLeft: '8px', fontSize: '10px' }}>
@@ -3582,14 +3582,14 @@ function Section210VehicleStructural({ claim }: { claim: any }) {
               </span>
             )}
           </p>
-          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+          <p style={{ fontSize: '11px', color: 'var(--kr-muted)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
             {insured.structuralNarrative}
           </p>
         </div>
       )}
 
       {/* Source attribution */}
-      <p style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '8px', fontStyle: 'italic' }}>
+      <p style={{ fontSize: '9px', color: 'var(--kr-muted)', marginTop: '8px', fontStyle: 'italic' }}>
         Sources: ANCAP (ancap.com.au); Global NCAP Africa (globalncap.org); CRASH3 stiffness coefficients — Campbell 1974, Prasad 1990, Nystrom et al. (JSHeld). Coefficients are class averages for frontal impacts. Estimated values are derived from vehicle class characteristics and are not equivalent to formal crash test results.
       </p>
     </div>
@@ -3657,7 +3657,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
           <div>
             <p className="sub-heading">2.7 Speed Verification</p>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>Comparison of driver-stated speed against structural evidence</p>
+            <p style={{ fontSize: 11, color: 'var(--kr-muted)', marginTop: 2 }}>Comparison of driver-stated speed against structural evidence</p>
           </div>
           {devLabel !== 'N/A' && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: devBadgeBg, color: devBadgeText, border: `1px solid ${devBadgeBorder}` }}>
@@ -3671,7 +3671,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
           {/* ── Plain-English verdict ── */}
           {verdictSentence && (
             <div className="rounded-lg px-4 py-3 mb-4" style={{ background: requiresVerification ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)', border: `1px solid ${requiresVerification ? 'var(--fp-warning-border)' : 'var(--fp-success-border)'}` }}>
-              <p className="text-xs font-semibold leading-relaxed" style={{ color: 'var(--foreground)' }}>{verdictSentence}</p>
+              <p className="text-xs font-semibold leading-relaxed" style={{ color: 'var(--kr-text)' }}>{verdictSentence}</p>
             </div>
           )}
 
@@ -3679,25 +3679,25 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
               <p className="micro-label">Stated Speed</p>
-              <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'var(--kr-mono)' }}>
+              <p className="text-3xl font-black" style={{ color: 'var(--kr-text)', fontFamily: 'var(--kr-mono)' }}>
                 {claimed != null ? claimed : '—'}
               </p>
-              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{claimed != null ? 'km/h — driver statement' : 'Not provided'}</p>
+              <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>{claimed != null ? 'km/h — driver statement' : 'Not provided'}</p>
             </div>
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
               <p className="micro-label">Structural Evidence</p>
-              <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'var(--kr-mono)' }}>
+              <p className="text-3xl font-black" style={{ color: 'var(--kr-text)', fontFamily: 'var(--kr-mono)' }}>
                 {physics != null ? Math.round(physics) : '—'}
               </p>
-              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>km/h — derived from damage analysis</p>
+              <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>km/h — derived from damage analysis</p>
             </div>
             <div>
               <p className="micro-label">Discrepancy</p>
-              <p className="text-3xl font-black" style={{ color: 'var(--foreground)', fontFamily: 'var(--kr-mono)' }}>
+              <p className="text-3xl font-black" style={{ color: 'var(--kr-text)', fontFamily: 'var(--kr-mono)' }}>
                 {devPct != null ? `${devPct}%` : '—'}
               </p>
               {devKmh != null && (
-                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{devKmh.toFixed(0)} km/h difference</p>
+                <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>{devKmh.toFixed(0)} km/h difference</p>
               )}
             </div>
           </div>
@@ -3706,7 +3706,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
           {(claimed != null || physics != null) && (
             <div className="mb-4">
               <p className="micro-label">Speed Comparison — Impact Scale</p>
-              <div className="relative h-6 rounded-full overflow-hidden" style={{ background: '#f1f5f9' }}>
+              <div className="relative h-6 rounded-full overflow-hidden" style={{ background: 'var(--kr-off-white)' }}>
                 {/* Zone fills */}
                 <div className="absolute top-0 bottom-0" style={{ left: 0, width: `${toScalePct27(15)}%`, background: 'var(--fp-success-text)', opacity: 0.12 }} />
                 <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct27(15)}%`, width: `${toScalePct27(40) - toScalePct27(15)}%`, background: 'var(--fp-success-text)', opacity: 0.08 }} />
@@ -3731,11 +3731,11 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
                   <div className="absolute" style={{ left: `calc(${toScalePct27(physics)}% - 6px)`, top: '50%', transform: 'translateY(-50%)', width: 12, height: 12, borderRadius: '50%', background: devBadgeText, border: '2px solid white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', zIndex: 3 }} />
                 )}
               </div>
-              <div className="flex justify-between text-[9px] mt-1" style={{ color: 'var(--muted-foreground)' }}>
+              <div className="flex justify-between text-[9px] mt-1" style={{ color: 'var(--kr-muted)' }}>
                 <span>0</span><span>Parking (&lt;15)</span><span>Urban (&lt;80)</span><span>Highway (80+)</span><span>120 km/h</span>
               </div>
               {/* Legend */}
-              <div className="flex gap-5 mt-2 text-[10px]" style={{ color: 'var(--muted-foreground)' }}>
+              <div className="flex gap-5 mt-2 text-[10px]" style={{ color: 'var(--kr-muted)' }}>
                 <span className="flex items-center gap-1.5">
                   <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: 'var(--fp-info-text)', border: '2px solid white', boxShadow: '0 0 0 1px var(--fp-info-text)' }} />
                   Stated by driver ({claimed != null ? claimed : '—'} km/h)
@@ -3752,7 +3752,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
           {interpretation && (
             <div className="rounded p-3 mb-4" style={{ background: 'var(--kr-off-white)', border: '1px solid var(--border)' }}>
               <p className="micro-label">Forensic Interpretation</p>
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{interpretation}</p>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-text)' }}>{interpretation}</p>
             </div>
           )}
 
@@ -3763,8 +3763,8 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
                 {recAction.icon}
               </span>
               <div>
-                <p className="text-xs font-bold" style={{ color: 'var(--foreground)' }}>{recAction.label}</p>
-                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{recAction.body}</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--kr-text)' }}>{recAction.label}</p>
+                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--kr-muted)' }}>{recAction.body}</p>
               </div>
             </div>
           </div>
@@ -3852,23 +3852,23 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
               <p className="micro-label">Final Verdict</p>
-              <p className="text-lg font-bold capitalize" style={{ color: 'var(--foreground)' }}>{verdict}</p>
+              <p className="text-lg font-bold capitalize" style={{ color: 'var(--kr-text)' }}>{verdict}</p>
               <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 uppercase" style={{ background: verdictColour.bg, color: verdictColour.text, border: `1px solid ${verdictColour.border}` }}>{verdict}</span>
               {conservativeFallback && (
-                <p style={{ fontSize: 11, marginTop: 4, color: 'var(--muted-foreground)' }}>Conservative fallback: <span className="font-semibold capitalize">{conservativeFallback}</span></p>
+                <p style={{ fontSize: 11, marginTop: 4, color: 'var(--kr-muted)' }}>Conservative fallback: <span className="font-semibold capitalize">{conservativeFallback}</span></p>
               )}
             </div>
             <div style={{ borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
               <p className="micro-label">Confidence</p>
-              <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--foreground)' }}>{Math.round(confidence)}%</p>
+              <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--kr-text)' }}>{Math.round(confidence)}%</p>
               <div className="h-1.5 rounded-full mt-2" style={{ background: 'var(--kr-white)' }}>
                 <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, confidence)}%`, background: confidence >= 70 ? 'var(--fp-success-text)' : confidence >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-critical-text)', opacity: 0.8 }} />
               </div>
             </div>
             <div>
               <p className="micro-label">Sources Used</p>
-              <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--foreground)' }}>{sourcesAvailable} / 3</p>
-              <p className="text-[10px] mt-1" style={{ color: 'var(--muted-foreground)' }}>{sourcesAvailable === 3 ? 'Full triangulation' : sourcesAvailable === 2 ? 'Partial triangulation' : 'Single source'}</p>
+              <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--kr-text)' }}>{sourcesAvailable} / 3</p>
+              <p className="text-[10px] mt-1" style={{ color: 'var(--kr-muted)' }}>{sourcesAvailable === 3 ? 'Full triangulation' : sourcesAvailable === 2 ? 'Partial triangulation' : 'Single source'}</p>
             </div>
           </div>
 
@@ -3876,9 +3876,9 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
           <table className="w-full text-xs report-table mb-4">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: 'var(--muted-foreground)' }}>Source</th>
-                <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: 'var(--muted-foreground)' }}>Signal</th>
-                <th className="py-1.5 text-left font-semibold" style={{ color: 'var(--muted-foreground)' }}>Agrees with verdict</th>
+                <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: 'var(--kr-muted)' }}>Source</th>
+                <th className="py-1.5 pr-3 text-left font-semibold" style={{ color: 'var(--kr-muted)' }}>Signal</th>
+                <th className="py-1.5 text-left font-semibold" style={{ color: 'var(--kr-muted)' }}>Agrees with verdict</th>
               </tr>
             </thead>
             <tbody>
@@ -3888,19 +3888,19 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
                 const badge = srcBadge(signal);
                 return (
                   <tr key={key} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td className="py-1.5 pr-3" style={{ color: 'var(--muted-foreground)' }}>
-                      <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, fontWeight: 700, marginRight: 6, padding: '1px 4px', background: '#f1f5f9', borderRadius: 2 }}>{icon}</span>
+                    <td className="py-1.5 pr-3" style={{ color: 'var(--kr-muted)' }}>
+                      <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, fontWeight: 700, marginRight: 6, padding: '1px 4px', background: 'var(--kr-off-white)', borderRadius: 2 }}>{icon}</span>
                       {label}
                     </td>
                     <td className="py-1.5 pr-3">
                       {signal
                         ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ background: badge.bg, color: badge.text, border: `1px solid ${badge.border}` }}>{signal}</span>
-                        : <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>Not available</span>
+                        : <span className="text-[10px]" style={{ color: 'var(--kr-muted)' }}>Not available</span>
                       }
                     </td>
                     <td className="py-1.5">
                       {signal == null
-                        ? <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>—</span>
+                        ? <span className="text-[10px]" style={{ color: 'var(--kr-muted)' }}>—</span>
                         : agrees
                         ? <span className="text-[10px] font-bold" style={{ color: 'var(--fp-success-text)' }}>✓ Yes</span>
                         : <span className="text-[10px] font-bold" style={{ color: 'var(--fp-critical-text)' }}>✗ No — {signal}</span>
@@ -3916,14 +3916,14 @@ function Section28SeverityConsensus({ severityConsensus }: { severityConsensus: 
           {reasoning && (
             <div className="p-3 rounded mb-3" style={{ background: 'var(--kr-white)', border: '1px solid var(--border)' }}>
               <p className="micro-label">Derivation</p>
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{reasoning}</p>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-text)' }}>{reasoning}</p>
             </div>
           )}
 
           {/* Action instruction — plain English for adjuster/insurer */}
           <div className="flex items-start gap-3 p-3 rounded" style={{ background: isConflicted ? 'var(--fp-critical-bg)' : isPartial ? 'var(--fp-warning-bg)' : 'var(--fp-success-bg)', border: `1px solid ${isConflicted ? 'var(--fp-critical-border)' : isPartial ? 'var(--fp-warning-border)' : 'var(--fp-success-border)'}` }}>
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5" style={{ background: alignBadge.bg, color: alignBadge.text, border: `1px solid ${alignBadge.border}` }}>{alignment === 'FULL' ? '✓' : alignment === 'PARTIAL' ? '!' : '⚠'}</span>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{actionInstruction}</p>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-text)' }}>{actionInstruction}</p>
           </div>
         </div>
       </div>
@@ -3981,7 +3981,7 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
           {structuralDetected && (
             <div className="flex items-center gap-2 p-2.5 rounded mb-3" style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)' }}>
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>⚠ STRUCTURAL</span>
-              <p className="text-xs" style={{ color: 'var(--foreground)' }}>
+              <p className="text-xs" style={{ color: 'var(--kr-text)' }}>
                 Structural damage components detected: {structuralFound.length > 0 ? structuralFound.join(', ') : 'present'}.
                 Frame/chassis integrity may be compromised — independent structural assessment required before settlement.
               </p>
@@ -3992,7 +3992,7 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
           {imageContradiction && (
             <div className="flex items-center gap-2 p-2.5 rounded mb-3" style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)' }}>
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>⚠ IMAGE CONFLICT</span>
-              <p className="text-xs" style={{ color: 'var(--foreground)' }}>{imageContradictionReason || 'Image evidence contradicts claimed damage pattern.'}</p>
+              <p className="text-xs" style={{ color: 'var(--kr-text)' }}>{imageContradictionReason || 'Image evidence contradicts claimed damage pattern.'}</p>
             </div>
           )}
 
@@ -4000,23 +4000,23 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <div className="flex justify-between text-[10px] mb-1">
-                <span style={{ color: 'var(--muted-foreground)' }}>Primary zone coverage</span>
-                <span className="tabular-nums font-semibold" style={{ color: 'var(--foreground)' }}>{primaryCovPct}%</span>
+                <span style={{ color: 'var(--kr-muted)' }}>Primary zone coverage</span>
+                <span className="tabular-nums font-semibold" style={{ color: 'var(--kr-text)' }}>{primaryCovPct}%</span>
               </div>
               <div className="h-2 rounded-full" style={{ background: 'var(--kr-white)' }}>
                 <div className="h-2 rounded-full" style={{ width: `${Math.min(100, primaryCovPct)}%`, background: primaryCovPct >= 70 ? 'var(--fp-success-text)' : primaryCovPct >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-critical-text)', opacity: 0.8 }} />
               </div>
-              <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{matchedPrimary.length}/{expectedPrimary.length} expected primary components matched</p>
+              <p className="text-[9px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>{matchedPrimary.length}/{expectedPrimary.length} expected primary components matched</p>
             </div>
             <div>
               <div className="flex justify-between text-[10px] mb-1">
-                <span style={{ color: 'var(--muted-foreground)' }}>Secondary zone coverage</span>
-                <span className="tabular-nums font-semibold" style={{ color: 'var(--foreground)' }}>{secondaryCovPct}%</span>
+                <span style={{ color: 'var(--kr-muted)' }}>Secondary zone coverage</span>
+                <span className="tabular-nums font-semibold" style={{ color: 'var(--kr-text)' }}>{secondaryCovPct}%</span>
               </div>
               <div className="h-2 rounded-full" style={{ background: 'var(--kr-white)' }}>
                 <div className="h-2 rounded-full" style={{ width: `${Math.min(100, secondaryCovPct)}%`, background: secondaryCovPct >= 70 ? 'var(--fp-success-text)' : secondaryCovPct >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-critical-text)', opacity: 0.8 }} />
               </div>
-              <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{matchedSecondary.length}/{expectedSecondary.length} expected secondary components matched</p>
+              <p className="text-[9px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>{matchedSecondary.length}/{expectedSecondary.length} expected secondary components matched</p>
             </div>
           </div>
 
@@ -4063,7 +4063,7 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
           {reasoning && (
             <div className="p-3 rounded mb-3" style={{ background: 'var(--kr-white)', border: '1px solid var(--border)' }}>
               <p className="micro-label">Pattern Validation Reasoning</p>
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>{reasoning}</p>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-text)' }}>{reasoning}</p>
             </div>
           )}
 
@@ -4071,7 +4071,7 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
           {hasAnomalies ? (
             <div className="p-3 rounded" style={{ background: 'var(--fp-warning-bg)', border: '1px solid var(--fp-warning-border)' }}>
               <p className="micro-label">Adjuster Action Required</p>
-              <ul className="text-xs space-y-1" style={{ color: 'var(--foreground)' }}>
+              <ul className="text-xs space-y-1" style={{ color: 'var(--kr-text)' }}>
                 {missingExpected.length > 0 && <li>• Missing expected components ({missingExpected.join(', ')}) — verify whether these were omitted from the claim or genuinely absent from the damage.</li>}
                 {unexpected.length > 0 && <li>• Unexpected components ({unexpected.join(', ')}) — confirm these are consistent with the stated impact direction and speed before authorising payment.</li>}
                 {structuralDetected && <li>• Structural damage detected — independent structural assessment required before settlement.</li>}
@@ -4081,7 +4081,7 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
           ) : (
             <div className="flex items-start gap-2 p-3 rounded" style={{ background: 'var(--fp-success-bg)', border: '1px solid var(--fp-success-border)' }}>
               <span style={{ color: 'var(--fp-success-text)', fontWeight: 700 }}>✓</span>
-              <p className="text-xs" style={{ color: 'var(--foreground)' }}>Damage pattern is consistent with the claimed incident type and impact direction. No anomalies requiring adjuster action.</p>
+              <p className="text-xs" style={{ color: 'var(--kr-text)' }}>Damage pattern is consistent with the claimed incident type and impact direction. No anomalies requiring adjuster action.</p>
             </div>
           )}
         </div>
@@ -4171,7 +4171,7 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
                 <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--kr-text)' }}>{li.quantity ?? 1}</td>
                 <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(Number(li.unitPrice ?? 0))}</td>
                 <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(Number(li.lineTotal ?? li.unitPrice ?? 0))}</td>
-                <td className="px-3 py-2" style={{ color: li.aiReview && li.aiReview !== 'Consistent' ? "var(--muted-foreground)" : "var(--muted-foreground)", fontStyle: li.aiReview ? 'normal' : 'italic' }}>
+                <td className="px-3 py-2" style={{ color: li.aiReview && li.aiReview !== 'Consistent' ? "var(--kr-muted)" : "var(--kr-muted)", fontStyle: li.aiReview ? 'normal' : 'italic' }}>
                   {li.aiReview ?? '—'}
                 </td>
               </tr>
@@ -4339,7 +4339,7 @@ function NegotiationDeltaBlock({ costIntel, fmtMoney }: { costIntel: any; fmtMon
     } else {
       verdictLabel = 'MINOR ADJUSTMENT';
       verdictNote = `${deltaPct.toFixed(1)}% reduction — minor adjustment, likely rounding or small scope change.`;
-      verdictColor = 'var(--muted-foreground)';
+      verdictColor = 'var(--kr-muted)';
       actionText = 'Minor adjustment — no further review required on cost basis.';
     }
   } else {
@@ -4365,18 +4365,18 @@ function NegotiationDeltaBlock({ costIntel, fmtMoney }: { costIntel: any; fmtMon
           {/* Original Quote row */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Original Submitted Quote</span>
-              <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--foreground)' }}>{fmtMoney(originalQuote)}</span>
+              <span className="text-xs" style={{ color: 'var(--kr-muted)' }}>Original Submitted Quote</span>
+              <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(originalQuote)}</span>
             </div>
             <div className="rounded-full overflow-hidden" style={{ height: 8, background: 'var(--kr-white)' }}>
-              <div style={{ width: `${originalPct}%`, height: '100%', background: 'var(--muted-foreground)', borderRadius: 4 }} />
+              <div style={{ width: `${originalPct}%`, height: '100%', background: 'var(--kr-muted)', borderRadius: 4 }} />
             </div>
           </div>
           {/* Agreed Cost row */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Agreed / Settled Cost</span>
-              <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--foreground)' }}>{fmtMoney(agreedCost)}</span>
+              <span className="text-xs" style={{ color: 'var(--kr-muted)' }}>Agreed / Settled Cost</span>
+              <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(agreedCost)}</span>
             </div>
             <div className="rounded-full overflow-hidden" style={{ height: 8, background: 'var(--kr-white)' }}>
               <div style={{ width: `${agreedPct}%`, height: '100%', background: isReduction ? 'var(--fp-success-text)' : 'var(--fp-critical-text)', borderRadius: 4 }} />
@@ -4387,17 +4387,17 @@ function NegotiationDeltaBlock({ costIntel, fmtMoney }: { costIntel: any; fmtMon
         {/* Delta summary row */}
         <div className="flex items-start gap-4 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
           <div className="flex-1">
-            <p className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>
+            <p className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>
               {isReduction ? 'Reduction' : 'Increase'}: {fmtMoney(deltaAbs)} ({deltaPct.toFixed(1)}%)
             </p>
-            <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{verdictNote}</p>
+            <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--kr-muted)' }}>{verdictNote}</p>
           </div>
         </div>
 
         {/* Recommended action strip */}
         <div className="px-3 py-2 rounded" style={{ background: 'var(--kr-white)', borderLeft: `3px solid ${verdictColor}` }}>
-          <p className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>Recommended Action</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{actionText}</p>
+          <p className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>Recommended Action</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>{actionText}</p>
         </div>
       </div>
     </div>
@@ -4511,24 +4511,24 @@ function SectionDamageAnalysis({ aiAssessment, quotes, claimRecord0, expandShort
                   )}
                   {noQuoteCount > 0 && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--muted-foreground)' }}>{noQuoteCount}</span>
-                      <span style={{ fontSize: 10, color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>No Quote</span>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--kr-muted)' }}>{noQuoteCount}</span>
+                      <span style={{ fontSize: 10, color: 'var(--kr-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>No Quote</span>
                     </div>
                   )}
                 </div>
                 {missingNames.length > 0 && (
                   <div className="text-xs mb-2 p-2" style={{ background: 'var(--status-fail-bg)', borderRadius: 4, border: '1px solid var(--status-fail-text)' }}>
                     <strong style={{ color: 'var(--status-fail-text)' }}>Not covered by quote:</strong>{' '}
-                    <span style={{ color: 'var(--foreground)' }}>{missingNames.join(' · ')}</span>
+                    <span style={{ color: 'var(--kr-text)' }}>{missingNames.join(' · ')}</span>
                   </div>
                 )}
                 {structuralCount > 0 && (
                   <div className="text-xs mb-2 p-2" style={{ background: 'var(--fp-warning-bg, #fffbeb)', borderRadius: 4, border: '1px solid var(--fp-warning-border, #fbbf24)' }}>
                     <strong style={{ color: 'var(--fp-warning-text, #92400e)' }}>⚠ {structuralCount} structural component{structuralCount > 1 ? 's' : ''} detected</strong>
-                    <span style={{ color: 'var(--muted-foreground)', marginLeft: 6 }}>— independent structural assessment required before settlement.</span>
+                    <span style={{ color: 'var(--kr-muted)', marginLeft: 6 }}>— independent structural assessment required before settlement.</span>
                   </div>
                 )}
-                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Full breakdown in Section 3.1.</p>
+                <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>Full breakdown in Section 3.1.</p>
               </div>
             </div>
           )}
@@ -4801,13 +4801,13 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
             <p className="text-xs font-bold" style={{ color: quoteSimilarity.overall_verdict === 'confirmed' ? 'var(--fp-critical-text)' : 'var(--fp-warning-text, #92400e)' }}>
               {quoteSimilarity.overall_verdict === 'confirmed' ? 'COPY QUOTATION DETECTED' : 'SUSPICIOUS QUOTE SIMILARITY'}
             </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--foreground)' }}>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--kr-text)' }}>
               {quoteSimilarity.overall_verdict === 'confirmed'
                 ? `Structural fingerprint analysis indicates these quotes were likely authored by the same source. Highest pair similarity: ${Math.round((quoteSimilarity.highest_pair_similarity ?? 0) * 100)}%.`
                 : `Quote comparison reveals unusually high structural similarity between submitted quotes. Highest pair similarity: ${Math.round((quoteSimilarity.highest_pair_similarity ?? 0) * 100)}%. Independent verification recommended.`}
             </p>
             {(quoteSimilarity.copy_pairs ?? []).length > 0 && (
-              <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+              <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)' }}>
                 Flagged pairs: {(quoteSimilarity.copy_pairs as any[]).map((p: any) => `${p.quote_a} ↔ ${p.quote_b} (${Math.round((p.overall_similarity ?? 0) * 100)}%)`).join(', ')}
               </p>
             )}
@@ -5233,7 +5233,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                     <span style={{ color: 'var(--kr-muted)' }}>Historical average ({lb.sampleSize} claims)</span>
                     <span className="font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(avgCost)}</span>
                   </div>
-                  <div className="h-3 rounded-full" style={{ background: '#f1f5f9' }}>
+                  <div className="h-3 rounded-full" style={{ background: 'var(--kr-off-white)' }}>
                     <div className="h-3 rounded-full" style={{ width: `${avgBarWidth}%`, background: '#64748b', maxWidth: '100%' }} />
                   </div>
                 </div>
@@ -5243,7 +5243,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                       <span style={{ color: 'var(--kr-muted)' }}>Submitted quote</span>
                       <span className="font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(primaryQuoteTotal)}</span>
                     </div>
-                    <div className="h-3 rounded-full" style={{ background: '#f1f5f9' }}>
+                    <div className="h-3 rounded-full" style={{ background: 'var(--kr-off-white)' }}>
                       <div className="h-3 rounded-full" style={{ width: `${Math.min(100, barWidth)}%`, background: colorMap[varianceLevel], maxWidth: '100%' }} />
                     </div>
                   </div>
@@ -5360,7 +5360,7 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
         {repairToValue != null && (
           <div className="mt-3 p-2 rounded text-xs" style={{
             background: isWriteOff ? "var(--status-reject-bg)" : "#ffffff",
-            color: isWriteOff ? "var(--fp-critical-text)" : "var(--foreground)",
+            color: isWriteOff ? "var(--fp-critical-text)" : "var(--kr-text)",
             border: `1px solid ${isWriteOff ? "var(--fp-critical-border)" : "var(--border)"}`,
           }}>
             {isWriteOff
@@ -5493,7 +5493,7 @@ function PhotoReextractButton({ assessmentId, claimId }: { assessmentId?: number
           className="shrink-0 px-3 py-1.5 rounded text-xs font-semibold transition-opacity"
           style={{
             background: isRunning ? "var(--muted)" : "var(--fp-warning-text)",
-            color: isRunning ? "var(--muted-foreground)" : "#fff",
+            color: isRunning ? "var(--kr-muted)" : "#fff",
             opacity: isRunning ? 0.6 : 1,
             cursor: isRunning ? "not-allowed" : "pointer",
             border: "none",
@@ -5629,12 +5629,12 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           </div>
           {isSystemFailure && (
             <div className="p-2 text-xs mb-2" style={{ borderTop: '1px solid var(--border)', color: 'var(--kr-muted)' }}>
-              <strong style={{ color: 'var(--foreground)' }}>System error</strong> — Photo ingestion failed due to a pipeline error. Not attributed to the claimant. Photo-related fraud points excluded from score.
+              <strong style={{ color: 'var(--kr-text)' }}>System error</strong> — Photo ingestion failed due to a pipeline error. Not attributed to the claimant. Photo-related fraud points excluded from score.
             </div>
           )}
           {photoStatus === "CLAIMANT_OMISSION" && (
             <div className="p-2 text-xs mb-2" style={{ borderTop: '1px solid var(--border)', color: 'var(--kr-muted)' }}>
-              <strong style={{ color: 'var(--foreground)' }}>Photos not provided</strong> — Claimant did not submit photo evidence. Contributes to fraud risk score.
+              <strong style={{ color: 'var(--kr-text)' }}>Photos not provided</strong> — Claimant did not submit photo evidence. Contributes to fraud risk score.
             </div>
           )}
           {photoStatus === "ANALYSED" && (
@@ -5994,7 +5994,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
               {/* Hedged integrity summary — three-tier: clean / medium concern / high concern */}
               <div className="photo-integrity-summary" style={{ marginBottom: '14px', padding: '10px 14px', background: tier === 'high' ? '#fef2f2' : tier === 'medium' ? '#fffbeb' : 'var(--muted)', borderRadius: '6px', border: `1px solid ${summaryAccent}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <p className="pis-label text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)', margin: 0 }}>Photo Integrity Summary</p>
+                  <p className="pis-label text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--kr-muted)', margin: 0 }}>Photo Integrity Summary</p>
                   {tier !== 'none' && (
                     <span style={{
                       fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -6006,7 +6006,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                     </span>
                   )}
                 </div>
-                <p className="pis-text text-sm" style={{ color: 'var(--foreground)', lineHeight: '1.6', margin: 0 }}>{summaryVerdict}</p>
+                <p className="pis-text text-sm" style={{ color: 'var(--kr-text)', lineHeight: '1.6', margin: 0 }}>{summaryVerdict}</p>
               </div>
               <PhotoExifForensicsPanel data={vehicleExifData} />
             </div>
@@ -6069,9 +6069,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                 {[
                   { label: "Total found", value: totalExtracted, color: 'var(--kr-text)' },
                   { label: "Damage photos", value: damageCount, color: damageCount > 0 ? "var(--fp-success-text)" : "var(--fp-warning-text)" },
-                  { label: "Non-vehicle excluded", value: nonVehicleCount, color: nonVehicleCount > 0 ? "var(--fp-warning-text)" : "var(--muted-foreground)" },
-                  { label: "Rejected (size)", value: rejectedSmall, color: rejectedSmall > 0 ? "var(--fp-warning-text)" : "var(--muted-foreground)" },
-                  { label: "Blurry / low-res", value: blurryCount, color: blurryCount > 0 ? "var(--fp-warning-text)" : "var(--muted-foreground)" },
+                  { label: "Non-vehicle excluded", value: nonVehicleCount, color: nonVehicleCount > 0 ? "var(--fp-warning-text)" : "var(--kr-muted)" },
+                  { label: "Rejected (size)", value: rejectedSmall, color: rejectedSmall > 0 ? "var(--fp-warning-text)" : "var(--kr-muted)" },
+                  { label: "Blurry / low-res", value: blurryCount, color: blurryCount > 0 ? "var(--fp-warning-text)" : "var(--kr-muted)" },
                 ].map((m, i) => (
                   <div key={i} className="text-center p-2 rounded" style={{ background: 'var(--kr-white)' }}>
                     <p className="text-lg font-bold" style={{ color: m.color }}>{m.value}</p>
@@ -6302,7 +6302,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         const isElevated = devClass === 'significant' || devClass === 'critical';
         const devColor = devClass === 'critical' ? 'var(--fp-critical-text)'
           : devClass === 'significant' ? 'var(--fp-warning-text)'
-          : 'var(--muted-foreground)';
+          : 'var(--kr-muted)';
         // Visual: two bars on same scale (0 to max(clm, inf) * 1.3)
         const scaleMax = Math.max(clm, inf) * 1.3 || 50;
         const clmPct = Math.min(100, (clm / scaleMax) * 100);
@@ -6319,17 +6319,17 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
               <div className="space-y-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Claimed speed (driver statement)</span>
-                    <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--foreground)' }}>{clm} km/h</span>
+                    <span className="text-xs" style={{ color: 'var(--kr-muted)' }}>Claimed speed (driver statement)</span>
+                    <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{clm} km/h</span>
                   </div>
                   <div className="rounded-full overflow-hidden" style={{ height: 8, background: 'var(--kr-white)' }}>
-                    <div style={{ width: `${clmPct}%`, height: '100%', background: 'var(--muted-foreground)', borderRadius: 4 }} />
+                    <div style={{ width: `${clmPct}%`, height: '100%', background: 'var(--kr-muted)', borderRadius: 4 }} />
                   </div>
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Physics-inferred speed (ensemble)</span>
-                    <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--foreground)' }}>{inf} km/h</span>
+                    <span className="text-xs" style={{ color: 'var(--kr-muted)' }}>Physics-inferred speed (ensemble)</span>
+                    <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{inf} km/h</span>
                   </div>
                   <div className="rounded-full overflow-hidden" style={{ height: 8, background: 'var(--kr-white)' }}>
                     <div style={{ width: `${infPct}%`, height: '100%', background: devColor, borderRadius: 4 }} />
@@ -6338,10 +6338,10 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
               </div>
               <div className="flex items-start gap-4 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
                 <div className="flex-1">
-                  <p className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>
                     Discrepancy: {devKmh.toFixed(1)} km/h ({sf.deviationPct != null ? `${sf.deviationPct}%` : 'N/A'})
                   </p>
-                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--kr-muted)' }}>
                     {sf.verdict ?? (isElevated
                       ? `Physics evidence suggests a higher impact speed than claimed. This discrepancy is a material fraud indicator and warrants independent engineering review before settlement.`
                       : `Speed discrepancy is within acceptable uncertainty bounds for the methods used.`)}
@@ -6349,8 +6349,8 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                 </div>
               </div>
               <div className="px-3 py-2 rounded" style={{ background: 'var(--kr-white)', borderLeft: `3px solid ${devColor}` }}>
-                <p className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>Recommended Action</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                <p className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>Recommended Action</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>
                   {devClass === 'critical'
                     ? 'Significant speed discrepancy detected — independent accident reconstruction required before settlement can be authorised.'
                     : devClass === 'significant'
@@ -6496,7 +6496,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                   const isExcluded = isPhotoFactor && isSystemFailure;
                   const score = c.value ?? 0;
                   const maxScore = 20; // each indicator max is 20
-                  const scoreColor = isExcluded ? "var(--muted-foreground)" : score > 10 ? "var(--fp-critical-text)" : score > 5 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
+                  const scoreColor = isExcluded ? "var(--kr-muted)" : score > 10 ? "var(--fp-critical-text)" : score > 5 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
 
                   // Plain-English factor label map
                   const factorLabelMap: Record<string, string> = {
@@ -6599,7 +6599,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                     const severity = c.severity ?? 'MINOR';
                     const scoreMap: Record<string, number> = { CRITICAL: 20, SIGNIFICANT: 12, MINOR: 4 };
                     const score = scoreMap[severity] ?? 4;
-                    const scoreColor = severity === 'CRITICAL' ? 'var(--fp-critical-text)' : severity === 'SIGNIFICANT' ? 'var(--fp-warning-text)' : 'var(--muted-foreground)';
+                    const scoreColor = severity === 'CRITICAL' ? 'var(--fp-critical-text)' : severity === 'SIGNIFICANT' ? 'var(--fp-warning-text)' : 'var(--kr-muted)';
                     return (
                       <tr key={`cec-${i}`} style={{ borderTop: '1px solid var(--kr-rule)', background: severity === 'CRITICAL' ? 'var(--fp-critical-bg)' : severity === 'SIGNIFICANT' ? 'var(--fp-warning-bg)' : '#ffffff' }}>
                         <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)' }}>
@@ -6649,7 +6649,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
               const v = dateCheck.verdict;
               const isOk = v === 'consistent';
               const isInsufficient = v === 'insufficient_data';
-              const color = isOk ? 'var(--fp-success-text)' : isInsufficient ? 'var(--muted-foreground)' : 'var(--fp-critical-text)';
+              const color = isOk ? 'var(--fp-success-text)' : isInsufficient ? 'var(--kr-muted)' : 'var(--fp-critical-text)';
               const border = isOk ? 'var(--fp-success-border)' : isInsufficient ? 'var(--border)' : 'var(--fp-critical-border)';
               const bg = isOk ? 'var(--fp-success-bg)' : isInsufficient ? '#ffffff' : 'var(--fp-critical-bg)';
               const label = isOk ? 'CONSISTENT' : isInsufficient ? 'INSUFFICIENT DATA' : v === 'mismatch' ? 'DATE MISMATCH' : v === 'pre_incident_image' ? 'PRE-INCIDENT IMAGE' : 'MULTIPLE FLAGS';
@@ -6697,7 +6697,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                     const statusColor =
                       row.status === 'match' || row.status === 'consistent' || row.status === 'extracted' ? 'var(--fp-success-text)'
                       : row.status === 'mismatch' || row.status === 'flagged' ? 'var(--fp-critical-text)'
-                      : 'var(--muted-foreground)';
+                      : 'var(--kr-muted)';
                     const statusLabel =
                       row.status === 'match' ? 'Match'
                       : row.status === 'mismatch' ? 'Mismatch'
@@ -6708,8 +6708,8 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                       : 'No EXIF data';
                     return (
                       <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined, background: 'var(--background)' }}>
-                        <td className="px-3 py-2 font-medium" style={{ color: 'var(--foreground)' }}>{row.source}</td>
-                        <td className="px-3 py-2 font-mono" style={{ color: 'var(--foreground)' }}>{row.date}</td>
+                        <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)' }}>{row.source}</td>
+                        <td className="px-3 py-2 font-mono" style={{ color: 'var(--kr-text)' }}>{row.date}</td>
                         <td className="px-3 py-2">
                           <span className="text-[10px] font-bold" style={{ color: statusColor }}>{statusLabel}</span>
                         </td>
@@ -6723,12 +6723,12 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
             {/* Claim–Police day difference */}
             {dateCheck.claimPoliceDayDiff !== null && dateCheck.claimPoliceDayDiff !== undefined && (
               <div className="flex items-center gap-2 text-xs p-2 rounded" style={{ background: 'var(--kr-white)', border: '1px solid var(--border)' }}>
-                <span style={{ color: 'var(--muted-foreground)' }}>Claim form vs police report difference:</span>
+                <span style={{ color: 'var(--kr-muted)' }}>Claim form vs police report difference:</span>
                 <span className="font-bold" style={{ color: dateCheck.claimPoliceDayDiff > 1 ? 'var(--fp-critical-text)' : 'var(--fp-success-text)' }}>
                   {dateCheck.claimPoliceDayDiff} day{dateCheck.claimPoliceDayDiff !== 1 ? 's' : ''}
                 </span>
                 {dateCheck.claimPoliceDayDiff <= 1 && (
-                  <span style={{ color: 'var(--muted-foreground)' }}>(within tolerance)</span>
+                  <span style={{ color: 'var(--kr-muted)' }}>(within tolerance)</span>
                 )}
               </div>
             )}
@@ -6743,8 +6743,8 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                   {(dateCheck.preIncidentImages as any[]).map((img: any, i: number) => (
                     <div key={i} className="flex items-start justify-between gap-3 text-xs p-2 rounded" style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)' }}>
                       <div className="flex-1 min-w-0">
-                        <p className="font-mono truncate" style={{ color: 'var(--foreground)' }}>{img.url?.split('/').pop() ?? img.url}</p>
-                        <p className="mt-0.5" style={{ color: 'var(--muted-foreground)' }}>EXIF: {img.exifDate ?? 'Unknown'}</p>
+                        <p className="font-mono truncate" style={{ color: 'var(--kr-text)' }}>{img.url?.split('/').pop() ?? img.url}</p>
+                        <p className="mt-0.5" style={{ color: 'var(--kr-muted)' }}>EXIF: {img.exifDate ?? 'Unknown'}</p>
                       </div>
                       <span className="shrink-0 font-bold text-[10px]" style={{ color: 'var(--fp-critical-text)' }}>
                         {img.daysBeforeIncident} day{img.daysBeforeIncident !== 1 ? 's' : ''} before incident
@@ -6757,7 +6757,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
 
             {/* Summary narrative */}
             {dateCheck.summary && (
-              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{dateCheck.summary}</p>
+              <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>{dateCheck.summary}</p>
             )}
           </div>
         </div>
@@ -6863,7 +6863,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         const severityColor = (sev: string) =>
           sev === 'CRITICAL' ? 'var(--fp-critical-text)'
           : sev === 'SIGNIFICANT' ? 'var(--fp-warning-text)'
-          : 'var(--muted-foreground)';
+          : 'var(--kr-muted)';
         const severityBg = (sev: string) =>
           sev === 'CRITICAL' ? 'var(--fp-critical-bg)'
           : sev === 'SIGNIFICANT' ? 'var(--fp-warning-bg)'
@@ -7183,8 +7183,8 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   const passColor = "var(--fp-success-text)";
   const failColor = "var(--fp-critical-text)";
   const nodeColor = "var(--muted)";
-  const textColor = "var(--foreground)";
-  const mutedColor = "var(--muted-foreground)";
+  const textColor = "var(--kr-text)";
+  const mutedColor = "var(--kr-muted)";
 
   // X centre of each column (0 = START, 1..n = gates, n+1 = FINAL)
   const colX = (i: number) => 20 + nodeW / 2 + i * colW;
@@ -7681,7 +7681,7 @@ function CongruencyPanel({ aiAssessment }: { aiAssessment: any }) {
             className="text-xs px-2 py-0.5 rounded font-medium"
             style={{
               background: plainLanguage ? panelColor : 'transparent',
-              color: plainLanguage ? 'white' : 'var(--muted-foreground)',
+              color: plainLanguage ? 'white' : 'var(--kr-muted)',
               border: `1px solid ${panelColor}60`,
               cursor: 'pointer',
             }}
@@ -7966,12 +7966,12 @@ function Section7Learning({
   if (!hasBenchmark) {
     return (
       <div className="mb-4">
-        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+        <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>
           A historical cost benchmark for this vehicle type and collision pattern is not yet available.
           The system requires at least 3 validated claims of the same profile before a benchmark can be
           presented. Data is currently accumulating.
         </p>
-        <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
+        <p className="text-xs mt-2" style={{ color: 'var(--kr-muted)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
           Benchmark data is derived from anonymised historical claims. No personally identifiable
           information is used in cost pattern analysis.
         </p>
@@ -8005,7 +8005,7 @@ function Section7Learning({
       <div className="" style={{ border: '1px solid var(--border)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
           <p className="sub-heading">7.1 Historical Cost Benchmark</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>
             Based on {lb!.sampleSize} anonymised validated claims for {lb!.vehicleDescriptor} ({lb!.collisionDirection} impact, {lb!.marketRegion} market)
           </p>
         </div>
@@ -8013,28 +8013,28 @@ function Section7Learning({
           <table className="compact-kv-table text-xs">
             <tbody>
               <tr>
-                <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)' }}>Historical average repair cost</td>
-                <td className="px-3 py-2 tabular-nums font-semibold" style={{ color: 'var(--foreground)' }}>{fmtMoney(avgCost)}</td>
+                <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-muted)' }}>Historical average repair cost</td>
+                <td className="px-3 py-2 tabular-nums font-semibold" style={{ color: 'var(--kr-text)' }}>{fmtMoney(avgCost)}</td>
               </tr>
               <tr style={{ borderTop: '1px solid var(--border)' }}>
-                <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)' }}>Sample size</td>
-                <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--foreground)' }}>{lb!.sampleSize} validated claims</td>
+                <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-muted)' }}>Sample size</td>
+                <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--kr-text)' }}>{lb!.sampleSize} validated claims</td>
               </tr>
               {primaryQuoteTotal != null && (
                 <tr style={{ borderTop: '1px solid var(--border)' }}>
-                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)' }}>Submitted quote</td>
-                  <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--foreground)' }}>{fmtMoney(primaryQuoteTotal)}</td>
+                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-muted)' }}>Submitted quote</td>
+                  <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(primaryQuoteTotal)}</td>
                 </tr>
               )}
               {varianceLabel && (
                 <tr style={{ borderTop: '1px solid var(--border)' }}>
-                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)' }}>Variance assessment</td>
-                  <td className="px-3 py-2" style={{ color: 'var(--foreground)' }}>{varianceLabel}</td>
+                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-muted)' }}>Variance assessment</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--kr-text)' }}>{varianceLabel}</td>
                 </tr>
               )}
             </tbody>
           </table>
-          <p className="text-xs mt-3 pt-3" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
+          <p className="text-xs mt-3 pt-3" style={{ borderTop: '1px solid var(--border)', color: 'var(--kr-muted)' }}>
             Benchmark data is derived from anonymised historical claims. No personally identifiable information is used in cost pattern analysis.
           </p>
         </div>
@@ -8059,6 +8059,17 @@ const REPORT_CSS = `
   --kr-mono:'DM Mono',monospace;--kr-serif:'Instrument Serif',serif;--kr-sans:'DM Sans',sans-serif;
   /* ── KINGA Size Tokens ── */
   --kr-sz-xs:10px;--kr-sz-sm:11px;--kr-sz-body:12px;--kr-sz-md:13px;--kr-sz-sub:12px;--kr-sz-sec:14px;--kr-sz-lg:18px;--kr-sz-xl:22px;
+  /* ── Pin app theme tokens to print-safe values (overrides dark mode) ── */
+  --foreground:#1a1a1a;--background:#ffffff;--muted-foreground:#6b6862;
+  --muted:#f7f6f3;--border:#e0ddd8;--card:#ffffff;--card-foreground:#1a1a1a;
+  --popover:#ffffff;--popover-foreground:#1a1a1a;--primary:#1A2B4A;
+  --primary-foreground:#ffffff;--secondary:#f7f6f3;--secondary-foreground:#1a1a1a;
+  --accent:#f0f4fa;--accent-foreground:#1A2B4A;
+  /* ── Status tokens (always explicit) ── */
+  --fp-success-text:#166534;--fp-warning-text:#92400e;--fp-critical-text:#c0392b;
+  --fp-success-bg:#f0fdf4;--fp-warning-bg:#fffbeb;--fp-critical-bg:#fef2f2;
+  --fp-success-border:#bbf7d0;--fp-warning-border:#fde68a;--fp-critical-border:#fecaca;
+  --status-pass-text:#166534;--status-review-text:#92400e;--status-fail-text:#c0392b;
 }
 .kinga-report[data-draft="true"]::before{content:'DRAFT';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;font-weight:900;color:rgba(0,0,0,0.04);letter-spacing:0.15em;pointer-events:none;z-index:0;white-space:nowrap;user-select:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .kinga-report .decision-strip{display:grid;grid-template-columns:auto auto 1fr;gap:0;border-bottom:2px solid var(--kr-black);padding:14px 0;align-items:start;margin-bottom:0;min-height:0}
@@ -8423,16 +8434,16 @@ const REPORT_CSS = `
 .kinga-report [class*="rounded"]{
   border-radius:0 !important;
 }
-.kinga-report [class*="bg-card"],.kinga-report [style*="var(--card)"]{
+.kinga-report [class*="bg-card"],.kinga-report [style*="var(--kr-white)"]{
   background:#fff !important;
 }
 .kinga-report [class*="bg-muted"],.kinga-report [style*="var(--muted)"]{
   background:#fff !important;
 }
-.kinga-report [class*="text-muted"],.kinga-report [style*="var(--muted-foreground)"]{
+.kinga-report [class*="text-muted"],.kinga-report [style*="var(--kr-muted)"]{
   color:#666 !important;
 }
-.kinga-report [class*="text-foreground"],.kinga-report [style*="var(--foreground)"]{
+.kinga-report [class*="text-foreground"],.kinga-report [style*="var(--kr-text)"]{
   color:#111 !important;
 }
 .kinga-report [class*="border-border"],.kinga-report [style*="var(--border)"]{
@@ -8649,8 +8660,8 @@ const REPORT_CSS = `
   .kinga-report svg rect[stroke="var(--fp-critical-text)"]{stroke:#111111 !important}
   .kinga-report svg rect[fill="var(--muted)"]{fill:#f3f4f6 !important}
   .kinga-report svg rect[stroke="var(--border)"]{stroke:#d1d5db !important}
-  .kinga-report svg text[fill="var(--muted-foreground)"]{fill:#6b7280 !important}
-  .kinga-report svg text[fill="var(--foreground)"]{fill:#111 !important}
+  .kinga-report svg text[fill="var(--kr-muted)"]{fill:#6b7280 !important}
+  .kinga-report svg text[fill="var(--kr-text)"]{fill:#111 !important}
   /* Hide UI chrome that is not part of the report */
   .kinga-report .no-print,.no-print{display:none !important}
   /* Radix Collapsible: force open */
