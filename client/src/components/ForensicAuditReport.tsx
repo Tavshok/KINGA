@@ -3209,6 +3209,53 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
           {/* 2.9 Damage Pattern Validation moved to Section 2.5 Damage Analysis — see SectionDamageAnalysis below */}
           {/* 2.10 Vehicle Structural Intelligence */}
           <Section210VehicleStructural claim={claim} />
+          {/* 2.11 Photo Forensics Summary — matches mock section 2.10 */}
+          {(() => {
+            const photoCount = (claimRecord0 as any)?.evidence?.photoCount ?? aiAssessment?.photosDetected ?? 0;
+            const photosProcessed = (enforcement as any)?._photoForensics?.photosProcessed ?? photoCount;
+            const hasPhotos = photoCount > 0;
+            const pfData = (enforcement as any)?._photoForensics as any;
+            const manipScore = pfData?.overallManipulationScore ?? null;
+            const gpsFound = pfData?.gpsCoordinatesFound ?? false;
+            const exifStripped = pfData?.exifStripped ?? !hasPhotos;
+            const rows: [string, React.ReactNode][] = [
+              ['Photos Submitted', hasPhotos
+                ? <span style={{ color: 'var(--fp-success-text)', fontWeight: 600 }}>{photoCount} submitted</span>
+                : <span style={{ color: 'var(--fp-critical-text)', fontWeight: 600 }}>0 — None submitted</span>],
+              ['Photos Processed', <span>{photosProcessed}</span>],
+              ['EXIF Status', exifStripped
+                ? <span style={{ color: 'var(--fp-critical-text)' }}>Stripped / Not available</span>
+                : <span style={{ color: 'var(--fp-success-text)' }}>Present{gpsFound ? ' · GPS coordinates found' : ''}</span>],
+              ['Image-Based Fraud Detection', hasPhotos
+                ? <span style={{ color: 'var(--fp-success-text)' }}>Available{manipScore != null ? ` — Manipulation score: ${manipScore}%` : ''}</span>
+                : <span style={{ color: 'var(--fp-critical-text)' }}>Not available — text analysis only</span>],
+              ['Recommended Action', hasPhotos
+                ? <span>Review photo evidence in Section 4</span>
+                : <span>Request 3+ photos: front, rear, primary impact zone</span>],
+              ...(!hasPhotos ? [['FCDI Impact if Submitted', <span style={{ color: 'var(--fp-success-text)' }}>+12–18 points estimated</span>] as [string, React.ReactNode]] : []),
+            ];
+            return (
+              <div style={{ marginTop: 12 }}>
+                <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--foreground)', borderBottom: '1.5px solid var(--border)', paddingBottom: 4 }}>2.11 Photo Forensics Summary</p>
+                {!hasPhotos && (
+                  <div className="flex items-start gap-2 p-2.5 rounded mb-2" style={{ background: 'var(--fp-critical-bg)', borderLeft: '3px solid var(--fp-critical-text)' }}>
+                    <span style={{ color: 'var(--fp-critical-text)', fontWeight: 700, fontSize: 11 }}>!</span>
+                    <p className="text-xs" style={{ color: 'var(--foreground)' }}><strong>Photo Evidence — Not Applicable:</strong> No photographs were submitted with this claim. Image-based fraud detection and damage zone validation could not be performed. Damage analysis is based on text extraction only.</p>
+                  </div>
+                )}
+                <table className="w-full text-xs report-table">
+                  <tbody>
+                    {rows.map(([label, val], i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td className="py-1.5 pr-3 font-medium" style={{ color: 'var(--muted-foreground)', width: '40%' }}>{label}</td>
+                        <td className="py-1.5" style={{ color: 'var(--foreground)' }}>{val}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
