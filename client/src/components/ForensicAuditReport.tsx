@@ -2485,12 +2485,13 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               plugins: {
                 legend: { display: false },
                 tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw}%` } },
-                annotation: { annotations: { threshold: { type: 'line', yMin: 40, yMax: 40, borderColor: '#d97706', borderWidth: 1, borderDash: [4, 3], label: { content: 'Elevated Risk Threshold', display: true, position: 'end', font: { size: 10 }, color: 'var(--kr-amber)' } } } },
+                annotation: { annotations: { threshold: { type: 'line', yMin: 40, yMax: 40, borderColor: '#d97706', borderWidth: 1, borderDash: [4, 3], label: { content: 'Elevated Risk Threshold', display: true, position: 'end', font: { size: 9 }, color: 'var(--kr-amber)' } } } },
               },
               scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-                y: { min: 0, max: 100, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, callback: (v: any) => v + '%' } },
+                x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 30, autoSkip: false } },
+                y: { min: 0, max: 100, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, callback: (v: any) => v + '%' } },
               },
+              layout: { padding: { bottom: 8 } },
             };
             return (
               <>
@@ -4244,6 +4245,10 @@ function LabourPartsRatioChart({
     ],
   };
 
+  // Compute max label length to set left padding for y-axis
+  const maxLabelLen = quotesWithSplit.reduce((m, q) => Math.max(m, q.name.length), 0);
+  const yAxisLeftPad = Math.min(Math.max(maxLabelLen * 6, 80), 200);
+
   const options: any = {
     indexAxis: "y" as const,
     responsive: true,
@@ -4270,6 +4275,7 @@ function LabourPartsRatioChart({
         stacked: true,
         grid: { display: false },
         ticks: { font: { size: 10 } },
+        afterFit: (axis: any) => { axis.width = yAxisLeftPad; },
       },
     },
   };
@@ -4736,11 +4742,16 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
 
   // Build cost comparison data for CostComparisonChart
   const costComparisonData = (() => {
-    const lowestQuote = pbQuotes.length > 0 ? Math.min(...pbQuotes.map(q => q.total).filter(t => t > 0)) : 0;
-    const highestQuote = pbQuotes.length > 0 ? Math.max(...pbQuotes.map(q => q.total).filter(t => t > 0)) : 0;
+    const validQuotes = pbQuotes.filter(q => q.total > 0);
+    const lowestQuote = validQuotes.length > 0 ? Math.min(...validQuotes.map(q => q.total)) : 0;
+    const highestQuote = validQuotes.length > 0 ? Math.max(...validQuotes.map(q => q.total)) : 0;
+    // Find the actual repairer with the lowest total — used for the chart label
+    const lowestQuoteRepairer = validQuotes.length > 0
+      ? (validQuotes.reduce((best, q) => q.total < best.total ? q : best, validQuotes[0])?.name ?? null)
+      : null;
     const kingaOptimised = costIntel?.compositeOptimisation?.l2CompositeOptimisedCostUsd ?? costIntel?.compositeOptimisation?.compositeOptimisedCostUsd ?? 0;
     const benchmarkAvg = learningBenchmark3?.avgCostUsd ?? 0;
-    return { lowestQuote, highestQuote, kingaOptimised, benchmarkAvg };
+    return { lowestQuote, highestQuote, lowestQuoteRepairer, kingaOptimised, benchmarkAvg };
   })();
 
   return (
@@ -4759,7 +4770,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
               agreedCost={costComparisonData.kingaOptimised}
               aiEstimate={costComparisonData.highestQuote}
               trueCost={costComparisonData.kingaOptimised > 0 ? costComparisonData.kingaOptimised : costComparisonData.lowestQuote}
-              panelBeaterName={pbQuotes[0]?.name ?? null}
+              panelBeaterName={costComparisonData.lowestQuoteRepairer}
               currencySymbol={fmtMoney(1).replace(/[\d.,\s]/g, '').trim() || '$'}
             />
             {/* Legend */}
@@ -4909,10 +4920,10 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
             tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.dataset.label}: ${fmtMoney(ctx.raw)}` } },
           },
           scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 40, minRotation: 25 } },
-            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, callback: (v: any) => fmtMoney(v) } },
+            x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 55, minRotation: 45, autoSkip: false } },
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, callback: (v: any) => fmtMoney(v) } },
           },
-          layout: { padding: { bottom: 16 } },
+          layout: { padding: { bottom: 24 } },
         };
         return (
           <div style={{ marginBottom: 16 }}>
@@ -5766,12 +5777,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                                   {sev}
                                 </div>
                               )}
-                              {/* Suspicious flag overlay */}
-                              {isSuspicious && (
-                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(220,38,38,0.85)', color: 'var(--kr-white)', fontSize: 9, fontWeight: 700, textAlign: 'center', padding: '2px 4px', letterSpacing: '0.04em' }}>
-                                  ⚠ SUSPICIOUS
-                                </div>
-                              )}
+                              {/* Suspicious overlay removed — forensic flags shown in Section 4.3 only */}
                             </div>
 
                             {/* Analysis bullets */}
@@ -5794,10 +5800,15 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                                     <span style={{ fontWeight: 500 }}>{enriched.detectedComponents.slice(0, 4).join(', ')}{enriched.detectedComponents.length > 4 ? ` +${enriched.detectedComponents.length - 4}` : ''}</span>
                                   </li>
                                 )}
-                                {/* AI damage description — full text, no truncation */}
+                                {/* AI damage description — capped at 3 lines, no EXIF/manip/flag text */}
                                 {aiDesc && !fr.is_non_vehicle && (
-                                  <li style={{ fontSize: 10, color: 'var(--kr-muted)', marginTop: 2, lineHeight: 1.5 }}>
-                                    {aiDesc.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/^[A-Z][A-Z\s]+:\s*/gm, '').trim()}
+                                  <li style={{ fontSize: 10, color: 'var(--kr-muted)', marginTop: 2, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                    {aiDesc
+                                      .replace(/\*\*([^*]+)\*\*/g, '$1')
+                                      .replace(/\*([^*]+)\*/g, '$1')
+                                      .replace(/^[A-Z][A-Z\s]+:\s*/gm, '')
+                                      .replace(/\b(EXIF|exif|manipulation|Manipulation|suspicious|SUSPICIOUS|flag|Flag|FLAG)[^.\n]*/gi, '')
+                                      .trim()}
                                   </li>
                                 )}
                               </ul>

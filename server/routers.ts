@@ -4346,10 +4346,12 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           quotes.map(async (quote) => {
             const lineItems = await getQuoteLineItemsByQuoteId(quote.id);
             const pb = pbMap.get(quote.panelBeaterId);
+            // Fall back to repairerName from the base quote (populated by getQuotesByClaimId join)
+            const resolvedName = pb?.businessName || pb?.name || (quote as any).repairerName || null;
             return {
               ...quote,
               lineItems,
-              panelBeaterName: pb?.businessName || pb?.name || null,
+              panelBeaterName: resolvedName,
             };
           })
         );

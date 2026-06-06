@@ -109,10 +109,12 @@ export function ComponentCostMatrix({
   // ── Column width calculation ──────────────────────────────────────────────
   // Fixed widths: Repair Item=180, Zone=60, Category=80 (optional)
   // Each panel beater column: equal share of remaining space, min 90px
-  // KINGA Cost column: 90px, KINGA Comment column: 120px
+  // KINGA Cost column: 90px, KINGA Comment column: 140px (wider to avoid cut-off)
   const fixedColWidth = 180 + 60 + (showCategory ? 80 : 0);
-  const kingaWidth = 90 + 120; // cost + comment
-  const pbColWidth = Math.max(90, Math.floor((700 - fixedColWidth - kingaWidth) / Math.max(quotes.length, 1)));
+  const kingaWidth = 90 + 140; // cost + comment
+  const pbColWidth = Math.max(90, Math.floor((800 - fixedColWidth - kingaWidth) / Math.max(quotes.length, 1)));
+  // Minimum table width ensures last column is never clipped
+  const minTableWidth = fixedColWidth + kingaWidth + pbColWidth * quotes.length;
 
   // ── Table styles ─────────────────────────────────────────────────────────
   // Scale font size down when there are many quotes (wide table)
@@ -200,7 +202,7 @@ export function ComponentCostMatrix({
   };
 
   return (
-    <div style={{ fontFamily: "inherit", width: "100%", overflowX: "hidden" }}>
+    <div style={{ fontFamily: "inherit", width: "100%", overflowX: "auto" }}>
 
       {/* ── Copy-quote alert ── */}
       {isCopyQuote && (
@@ -213,8 +215,8 @@ export function ComponentCostMatrix({
       )}
 
       {/* ── Matrix table ── */}
-      <div style={{ width: "100%", overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 16 }}>
-        <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", fontSize: 12 }}>
+      <div style={{ width: "100%", overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 16, minWidth: 0 }}>
+        <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", fontSize: 12, minWidth: minTableWidth }}>
           <colgroup>
             <col style={{ width: 180 }} />
             <col style={{ width: 60 }} />
@@ -224,7 +226,7 @@ export function ComponentCostMatrix({
             ))}
             {/* KINGA: cost col + comment col */}
             <col style={{ width: isWideTable ? 80 : 90 }} />
-            <col style={{ width: isWideTable ? 100 : 120 }} />
+            <col style={{ width: isWideTable ? 120 : 140 }} />
           </colgroup>
           <thead>
             <tr>
@@ -232,9 +234,9 @@ export function ComponentCostMatrix({
               <th style={{ ...th, width: 60 }}>Zone</th>
               {showCategory && <th style={{ ...th, width: 80 }}>Category</th>}
               {quotes.map((q, qi) => (
-                <th key={qi} style={{ ...thRight, width: pbColWidth }}>
+                <th key={qi} style={{ ...thRight, width: pbColWidth }} title={q.name || 'Panel Beater'}>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {truncateName(q.name)}
+                    {q.name ? truncateName(q.name) : `Quote ${qi + 1}`}
                   </div>
                   {q.isFlagged && (
                     <div style={{ fontSize: 9, fontWeight: 700, color: "#92400e", marginTop: 1 }}>
