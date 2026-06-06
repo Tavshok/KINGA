@@ -27,9 +27,9 @@ function useChartColors() {
   return useMemo(() => {
     // Always use the new design system tokens — report is always light
     return {
-      text: "#1a1916",
-      muted: "#6b6862",
-      grid: "rgba(0,0,0,0.06)",
+      text: "#111827",
+      muted: "#374151",
+      grid: "rgba(0,0,0,0.08)",
       green: "#16a34a",
       amber: "#d97706",
       red: "#c0392b",
@@ -99,13 +99,15 @@ export function CostComparisonChart({
       x: {
         grid: { color: colors.grid },
         ticks: {
-          color: colors.muted,
+          color: colors.text,
+          font: { size: 12, weight: 'bold' as const },
           callback: (v: any) => `${currencySymbol}${Number(v).toLocaleString()}`,
+          maxTicksLimit: 6,
         },
       },
       y: {
         grid: { display: false },
-        ticks: { color: colors.text, font: { size: 12 } },
+        ticks: { color: colors.text, font: { size: 12, weight: 'bold' as const } },
       },
     },
   };
@@ -173,7 +175,7 @@ export function FraudBreakdownChart({ fraudScore, indicators }: FraudBreakdownCh
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ marginRight: "80px" }}>
         <div className="text-center">
           <p style={{ fontFamily: "'DM Mono',monospace", fontSize: 22, fontWeight: 500, color: fraudScore <= 35 ? '#16a34a' : fraudScore <= 60 ? '#d97706' : '#c0392b', lineHeight: 1 }}>{fraudScore}</p>
-          <p style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: '#6b6862' }}>/100</p>
+          <p style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: '#374151', fontWeight: 600 }}>/100</p>
         </div>
       </div>
     </div>
@@ -330,8 +332,8 @@ export function ConfidenceGauge({ score, size = 120 }: ConfidenceGaugeProps) {
     ctx.fillText(`${score}`, cx, cy - 2);
 
     // Label
-    ctx.fillStyle = "#6b6862";
-    ctx.font = `400 ${size * 0.08}px 'DM Mono',monospace`;
+    ctx.fillStyle = "#374151";
+    ctx.font = `600 ${size * 0.09}px 'DM Mono',monospace`;
     ctx.fillText("CONFIDENCE", cx, cy + size * 0.12);
   }, [score, size]);
 

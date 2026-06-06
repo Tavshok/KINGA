@@ -49,9 +49,9 @@ function getThemeColors() {
   // KINGA Design Prompt v2 exact hex values
   // Light mode: exact prompt hex | Dark mode: KINGA engine palette
   return {
-    text: isDark ? "#e5e7eb" : "#1a1a1a",
-    muted: isDark ? "#9ca3af" : "#888888",
-    grid: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
+    text: isDark ? "#e5e7eb" : "#111827",
+    muted: isDark ? "#9ca3af" : "#374151",
+    grid: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)",
     // Pass green: #2a7a2a (light) / #3fb950 engine pass (dark)
     green: isDark ? "#3fb950" : "#2a7a2a",
     // Warn amber: #8a5c00 (light) / #e3b341 engine warn (dark)

@@ -690,17 +690,18 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
             const markerId = `ev-arrow-${idx}`;
             // Physics force label: show alongside arrow
             const isFirst = idx === 0;
-            // Label position: offset from arrow midpoint
+            // Label position: place labels OUTSIDE the vehicle body, near the arrow tip
             const midX = (g.x1 + g.x2) / 2;
             const midY = (g.y1 + g.y2) / 2;
             const isHoriz = Math.abs(g.y1 - g.y2) < 5;
-            // Place label beside the arrow, clear of the zone rectangles
+            // For vertical arrows (front/rear): place label at the arrow start (outside vehicle)
+            // For horizontal arrows (left/right): place label above the arrow midpoint
             const lblX = isHoriz
               ? midX
-              : (arrow.dir === 'front' ? midX + 36 : midX + 36);
+              : (arrow.dir === 'front' ? g.x1 + 36 : g.x1 + 36);
             const lblY = isHoriz
-              ? midY - 10
-              : (arrow.dir === 'front' ? midY - 4 : midY + 12);
+              ? midY - 8
+              : (arrow.dir === 'front' ? g.y1 + 10 : g.y1 - 4);
             return (
               <g key={idx}>
                 <defs>
@@ -2485,13 +2486,13 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               plugins: {
                 legend: { display: false },
                 tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw}%` } },
-                annotation: { annotations: { threshold: { type: 'line', yMin: 40, yMax: 40, borderColor: '#d97706', borderWidth: 1, borderDash: [4, 3], label: { content: 'Elevated Risk Threshold', display: true, position: 'end', font: { size: 9 }, color: 'var(--kr-amber)' } } } },
+                annotation: { annotations: { threshold: { type: 'line', yMin: 40, yMax: 40, borderColor: '#d97706', borderWidth: 1.5, borderDash: [4, 3], label: { content: '40% Threshold', display: true, position: 'start', yAdjust: -10, font: { size: 9, weight: 'bold' }, color: '#92400e', backgroundColor: 'rgba(255,251,235,0.9)', padding: { x: 4, y: 2 } } } } },
               },
               scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 30, autoSkip: false } },
-                y: { min: 0, max: 100, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, callback: (v: any) => v + '%' } },
+                x: { grid: { display: false }, ticks: { color: '#1f2937', font: { size: 10 }, maxRotation: 40, minRotation: 30, autoSkip: false }, border: { display: false } },
+                y: { min: 0, max: 100, grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { color: '#374151', font: { size: 10 }, callback: (v: any) => v + '%' }, border: { display: false } },
               },
-              layout: { padding: { bottom: 8 } },
+              layout: { padding: { top: 20, bottom: 4, left: 4, right: 4 } },
             };
             return (
               <>
@@ -2546,7 +2547,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--kr-text)', display: 'block', marginBottom: 4 }}>Latent Damage Probability</span>
                   <span style={{ fontSize: 10, color: 'var(--kr-muted)', display: 'block', marginBottom: 6 }}>Hidden risk — co-occurrence based probability</span>
                   {showLdp && ldpChartData ? (
-                    <div style={{ height: 120, position: 'relative' }}>
+                    <div style={{ height: 180, position: 'relative' }}>
                       <Bar data={ldpChartData} options={ldpOpts} />
                     </div>
                   ) : (
@@ -8033,10 +8034,10 @@ function Section7Learning({
 // ─── Mockup v4.2 scoped CSS─────────────────────────────────────────
 const REPORT_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400;1,9..40,500&family=Instrument+Serif:ital@0;1&display=swap');
-.kinga-report{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:400;color:var(--kr-text);background:#fff;line-height:1.55;padding:0;position:relative;
+.kinga-report{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--kr-text);background:#fff;line-height:1.6;padding:0;position:relative;
   /* ── KINGA Brand Colour Tokens ── */
   --kr-black:#0a0a0a;--kr-white:#ffffff;--kr-off-white:#f7f6f3;--kr-rule:#e0ddd8;
-  --kr-text:#1a1a1a;--kr-dark:#334155;--kr-muted:#6b6862;
+  --kr-text:#111827;--kr-dark:#1f2937;--kr-muted:#374151;
   --kr-navy:#1A2B4A;--kr-navy-light:#f0f4fa;
   --kr-red:#c0392b;--kr-amber:#d97706;--kr-green:#166534;--kr-blue:#1d4ed8;
   --kr-red-light:#fef2f2;--kr-amber-light:#fffbeb;--kr-green-light:#f0fdf4;--kr-blue-light:#eff6ff;
@@ -8045,7 +8046,7 @@ const REPORT_CSS = `
   /* ── KINGA Size Tokens ── */
   --kr-sz-xs:10px;--kr-sz-sm:11px;--kr-sz-body:12px;--kr-sz-md:13px;--kr-sz-sub:12px;--kr-sz-sec:14px;--kr-sz-lg:18px;--kr-sz-xl:22px;
   /* ── Pin app theme tokens to print-safe values (overrides dark mode) ── */
-  --foreground:#1a1a1a;--background:#ffffff;--muted-foreground:#6b6862;
+  --foreground:#111827;--background:#ffffff;--muted-foreground:#374151;
   --muted:#f7f6f3;--border:#e0ddd8;--card:#ffffff;--card-foreground:#1a1a1a;
   --popover:#ffffff;--popover-foreground:#1a1a1a;--primary:#1A2B4A;
   --primary-foreground:#ffffff;--secondary:#f7f6f3;--secondary-foreground:#1a1a1a;
@@ -8071,19 +8072,19 @@ const REPORT_CSS = `
 .kinga-report .score-num.low{color:var(--kr-green)}
 .kinga-report .score-num.mid{color:var(--kr-amber)}
 .kinga-report .score-num.high{color:var(--kr-red)}
-.kinga-report .score-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.04em;font-family:var(--kr-sans);display:block;margin-top:2px;font-weight:600}
+.kinga-report .score-lbl{font-size:11px;color:var(--kr-dark);letter-spacing:.04em;font-family:var(--kr-sans);display:block;margin-top:2px;font-weight:700}
 .kinga-report .cost-cluster{display:flex;gap:0;flex-wrap:wrap;align-items:flex-start;padding-left:0;row-gap:10px}
 .kinga-report .cost-item{min-width:110px;max-width:160px;padding:0 12px;border-right:1px solid var(--kr-rule)}.kinga-report .cost-item:last-child{border-right:none}
-.kinga-report .cost-lbl{font-size:10px;color:var(--kr-muted);letter-spacing:.04em;font-family:var(--kr-sans);display:flex;align-items:center;gap:5px;margin-bottom:2px;font-weight:600}
+.kinga-report .cost-lbl{font-size:11px;color:var(--kr-dark);letter-spacing:.04em;font-family:var(--kr-sans);display:flex;align-items:center;gap:5px;margin-bottom:2px;font-weight:700}
 .kinga-report .cost-val{font-size:18px;font-weight:600;font-family:var(--kr-mono);display:block;letter-spacing:-.02em;color:var(--kr-text)}
 .kinga-report .cost-val-dim{font-size:16px;font-weight:400;color:var(--kr-muted)}
-.kinga-report .cost-sub{font-size:10px;color:var(--kr-muted);display:block;margin-top:1px}
+.kinga-report .cost-sub{font-size:11px;color:var(--kr-dark);display:block;margin-top:1px;font-weight:500}
 .kinga-report .cost-lowest-tag{font-size:8px;font-family:var(--kr-mono);letter-spacing:.08em;font-weight:600;color:var(--kr-green);background:var(--kr-green-light);border:1px solid var(--kr-green);padding:1px 4px;border-radius:2px;line-height:1.4}
 .kinga-report .cost-adjusted-tag{font-size:8px;font-family:var(--kr-mono);letter-spacing:.08em;font-weight:600;color:var(--kr-amber);background:var(--kr-amber-light);border:1px solid var(--kr-amber);padding:1px 4px;border-radius:2px;line-height:1.4}
 .kinga-report .cost-divider{width:1px;background:var(--kr-black);align-self:stretch;margin:0 8px;flex-shrink:0}
 .kinga-report .scorecard-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--kr-rule);margin:14px 0;border:1px solid var(--kr-rule)}
 .kinga-report .scorecard-cell{background:var(--kr-white);padding:10px 14px;position:relative}
-.kinga-report .sc-label{font-size:10px;font-family:var(--kr-sans);letter-spacing:.04em;color:var(--kr-muted);margin-bottom:6px;display:block;font-weight:600}
+.kinga-report .sc-label{font-size:11px;font-family:var(--kr-sans);letter-spacing:.04em;color:var(--kr-dark);margin-bottom:6px;display:block;font-weight:700}
 .kinga-report .sc-bar-track{height:4px;background:var(--kr-off-white);border-radius:2px;margin:8px 0 4px;overflow:hidden}
 .kinga-report .sc-bar-fill{height:100%;border-radius:2px}
 .kinga-report .sc-val{font-family:var(--kr-mono);font-size:20px;font-weight:500}
@@ -8126,12 +8127,12 @@ const REPORT_CSS = `
 .kinga-report .alert-banner.success{background:var(--kr-green-light);border-left-color:var(--kr-green);color:#166534}
 .kinga-report .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--kr-rule);border:1px solid var(--kr-rule);margin-bottom:12px}
 .kinga-report .kpi-tile{padding:10px 14px;background:var(--kr-white);position:relative;text-align:left}
-.kinga-report .kpi-label{font-size:10px;font-family:var(--kr-sans);letter-spacing:.04em;text-transform:uppercase;font-weight:600;color:var(--kr-muted);margin-bottom:6px;display:block}
+.kinga-report .kpi-label{font-size:11px;font-family:var(--kr-sans);letter-spacing:.04em;text-transform:uppercase;font-weight:700;color:var(--kr-dark);margin-bottom:6px;display:block}
 .kinga-report .kpi-value{font-family:var(--kr-mono);font-size:20px;font-weight:500;color:var(--kr-black);line-height:1}
-.kinga-report .kpi-sub{font-size:10px;color:var(--kr-muted);margin-top:4px}
+.kinga-report .kpi-sub{font-size:11px;color:var(--kr-dark);margin-top:4px;font-weight:500}
 .kinga-report .kpi-polarity{font-size:10px;color:var(--kr-muted);margin-top:2px}
 .kinga-report .dim-grid{display:grid;grid-template-columns:repeat(2,1fr);border:1px solid var(--kr-rule);margin-bottom:14px}
-.kinga-report .dim-row{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--kr-rule);font-size:11px}
+.kinga-report .dim-row{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--kr-rule);font-size:13px;font-weight:500}
 .kinga-report .dim-row:nth-child(odd){border-right:1px solid var(--kr-rule)}
 .kinga-report .dim-badge{font-size:9px;font-weight:600;padding:2px 7px;border-radius:2px;text-transform:uppercase;letter-spacing:.04em;font-family:var(--kr-sans)}
 .kinga-report .dim-badge.pass{background:var(--kr-green-light);color:var(--kr-green)}
@@ -8169,16 +8170,16 @@ const REPORT_CSS = `
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed}
 .kinga-report .compact-kv-table{width:auto;max-width:520px;border-collapse:collapse;margin-bottom:10px;table-layout:auto}
 .kinga-report .compact-kv-table td{padding:5px 0;font-size:12px;border-bottom:1px solid var(--kr-rule);vertical-align:top;white-space:normal}
-.kinga-report .compact-kv-table td:first-child{font-size:var(--kr-sz-sm);font-family:var(--kr-sans);color:var(--kr-dark);font-weight:600;text-transform:none;letter-spacing:0;padding-right:24px;white-space:nowrap;min-width:160px}
-.kinga-report .compact-kv-table td:last-child{color:var(--kr-text);font-weight:400;font-size:var(--kr-sz-body);letter-spacing:0}
+.kinga-report .compact-kv-table td:first-child{font-size:12px;font-family:var(--kr-sans);color:var(--kr-dark);font-weight:700;text-transform:none;letter-spacing:0;padding-right:24px;white-space:nowrap;min-width:160px}
+.kinga-report .compact-kv-table td:last-child{color:var(--kr-text);font-weight:600;font-size:13px;letter-spacing:0}
 .kinga-report .compact-kv-table tr:last-child td{border-bottom:none}
 .kinga-report .two-col-kv{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;margin-bottom:14px}
 .kinga-report .two-col-kv .compact-kv-table{width:100%;max-width:none}
 .kinga-report .physics-col-main .compact-kv-table{width:100%;max-width:none}
-.kinga-report .data-table td,.kinga-report .data-table th{padding:6px 0;font-size:12px !important;border-bottom:1px solid var(--kr-rule);vertical-align:top;word-break:break-word;overflow-wrap:break-word;white-space:normal}
+.kinga-report .data-table td,.kinga-report .data-table th{padding:7px 0;font-size:13px !important;border-bottom:1px solid var(--kr-rule);vertical-align:top;word-break:break-word;overflow-wrap:break-word;white-space:normal;font-weight:500}
 .kinga-report .data-table th{font-size:var(--kr-sz-xs) !important;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--kr-white);background:var(--kr-navy);border-bottom:none;font-family:var(--kr-sans);padding:6px 8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.kinga-report .data-table td:first-child{font-size:11px !important;font-family:var(--kr-sans);color:var(--kr-muted);letter-spacing:0;width:44%;padding-right:8px}
-.kinga-report .data-table td:last-child{color:var(--kr-text);font-weight:500;font-size:12px !important}
+.kinga-report .data-table td:first-child{font-size:12px !important;font-family:var(--kr-sans);color:var(--kr-dark);font-weight:600;letter-spacing:0;width:44%;padding-right:8px}
+.kinga-report .data-table td:last-child{color:var(--kr-text);font-weight:600;font-size:13px !important}
 .kinga-report .data-table tr:last-child td{border-bottom:none}
 .kinga-report .flag-red{color:var(--kr-red);font-weight:600;font-family:var(--kr-sans)}
 .kinga-report .flag-amber{color:var(--kr-amber);font-weight:600;font-family:var(--kr-sans)}
@@ -8192,7 +8193,7 @@ const REPORT_CSS = `
 .kinga-report .legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--kr-text);margin-bottom:6px}
 .kinga-report .legend-swatch{width:18px;height:12px;border-radius:2px;flex-shrink:0}
 .kinga-report .diagram-caption{font-size:10px;color:var(--kr-muted);margin-top:8px;font-style:italic}
-.kinga-report .chart-container{position:relative;height:140px;width:100%;margin-bottom:8px}
+.kinga-report .chart-container{position:relative;height:220px;width:100%;margin-bottom:8px}
 .kinga-report .chart-side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px}
 .kinga-report .bordered-block{border:1px solid var(--kr-rule);padding:10px 14px;margin-bottom:8px}
 .kinga-report .valuation-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--kr-rule);font-size:12px}
@@ -8226,7 +8227,7 @@ const REPORT_CSS = `
 .kinga-report .ml-glimpse h4{font-size:11px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--kr-navy);margin-bottom:10px;font-family:var(--kr-sans)}
 .kinga-report .ml-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--kr-rule);font-size:11px}
 .kinga-report .ml-row:last-child{border-bottom:none}
-.kinga-report .ml-label{color:var(--kr-muted);flex:1;font-family:var(--kr-sans);font-size:11px}
+.kinga-report .ml-label{color:var(--kr-dark);flex:1;font-family:var(--kr-sans);font-size:12px;font-weight:600}
 .kinga-report .ml-value{font-weight:500;color:var(--kr-black);text-align:right;flex:0 0 120px;font-family:var(--kr-mono)}
 .kinga-report .ml-badge{font-size:9px;font-weight:600;padding:2px 7px;border-radius:2px;text-transform:uppercase;letter-spacing:.04em;margin-left:8px;font-family:var(--kr-sans)}
 .kinga-report .ml-badge.normal{background:var(--kr-green-light);color:var(--kr-green)}
@@ -8277,8 +8278,8 @@ const REPORT_CSS = `
 .kinga-report .party-col-heading{font-size:11px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--kr-navy);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--kr-rule);font-family:var(--kr-sans)}
 .kinga-report .party-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--kr-rule);font-size:11px}
 .kinga-report .party-row:last-child{border-bottom:none}
-.kinga-report .party-row .pr-label{color:var(--kr-muted);font-family:var(--kr-sans);font-size:11px;letter-spacing:0}
-.kinga-report .party-row .pr-value{font-weight:500;color:var(--kr-text);text-align:right;max-width:160px}
+.kinga-report .party-row .pr-label{color:var(--kr-dark);font-family:var(--kr-sans);font-size:12px;letter-spacing:0;font-weight:600}
+.kinga-report .party-row .pr-value{font-weight:700;color:var(--kr-text);text-align:right;max-width:160px}
 /* Override any Tailwind/dark-mode variables inside the report */
 .kinga-report *{box-sizing:border-box}
 .kinga-report h1,.kinga-report h2,.kinga-report h3,.kinga-report h4{font-family:var(--kr-sans);font-weight:600}
@@ -8294,7 +8295,7 @@ const REPORT_CSS = `
    Micro-labels: 10px mono
    DO NOT use text-[9px], text-[8px] anywhere in the report
 ── */
-.kinga-report p,.kinga-report td,.kinga-report li{font-size:12px;line-height:1.55}
+.kinga-report p,.kinga-report td,.kinga-report li{font-size:13px;line-height:1.6;font-weight:500}
 .kinga-report span{font-size:inherit}
 .kinga-report .section-heading{font-size:var(--kr-sz-sec);font-weight:700;letter-spacing:0.01em}
 .kinga-report .kpi-label{font-size:10px;font-family:var(--kr-sans);letter-spacing:.04em;text-transform:uppercase;font-weight:600;color:var(--kr-muted)}
@@ -8332,8 +8333,8 @@ const REPORT_CSS = `
 .kinga-report .narr-flag-sev.medium{color:#92400e;border-color:#d97706;background:#fffbeb}
 .kinga-report .narr-flag-sev.low{color:#374151;border-color:#9ca3af;background:#f9fafb}
 .kinga-report .narr-flag-title{font-size:12px;font-weight:700;color:var(--kr-text);margin-bottom:2px}
-.kinga-report .narr-flag-desc{font-size:12px;color:var(--kr-muted);line-height:1.5}
-.kinga-report .narr-flag-evidence{font-size:11px;color:var(--kr-muted);font-style:italic;margin-top:3px;padding-left:8px;border-left:2px solid var(--kr-rule)}
+.kinga-report .narr-flag-desc{font-size:13px;color:var(--kr-text);line-height:1.55;font-weight:500}
+.kinga-report .narr-flag-evidence{font-size:12px;color:var(--kr-dark);font-style:italic;margin-top:3px;padding-left:8px;border-left:2px solid var(--kr-rule);font-weight:500}
 .kinga-report .narr-reasoning{padding:10px 14px;background:#fafafa;border-top:1px solid var(--kr-rule)}
 .kinga-report .narr-reasoning-label{font-size:11px;font-family:var(--kr-sans);letter-spacing:0;text-transform:none;color:var(--kr-navy);font-weight:700;margin-bottom:4px;display:block}
 .kinga-report .narr-reasoning-text{font-size:12px;color:var(--kr-text);line-height:1.6}
