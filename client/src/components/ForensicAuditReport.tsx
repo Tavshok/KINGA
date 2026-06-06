@@ -5585,7 +5585,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         .map(c => c.url)
     : photoUrls; // Before classification completes, show all photos
   const excludedDocUrls: Array<{ url: string; category: string; confidence: number; reasoning: string }> =
-    classifiedPhotos.filter(c => c.category === 'document_page' || c.category === 'quotation_scan' || c.category === 'other');
+    classifiedPhotos.filter(c => c.category === 'document_page' || c.category === 'quotation_scan');
 
   // CTL-aware evidence inventory: use unified truth when available
   const ctlQuoteCount = ctl4?.costBasis?.quotes?.length ?? 0;
@@ -5794,36 +5794,10 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                                     <span style={{ fontWeight: 500 }}>{enriched.detectedComponents.slice(0, 4).join(', ')}{enriched.detectedComponents.length > 4 ? ` +${enriched.detectedComponents.length - 4}` : ''}</span>
                                   </li>
                                 )}
-                                {/* EXIF status */}
-                                {forensics && (
-                                  <li style={{ fontSize: 10, color: 'var(--kr-muted)', display: 'flex', gap: 5 }}>
-                                    <span style={{ color: 'var(--kr-muted)', flexShrink: 0 }}>EXIF</span>
-                                    <span style={{ fontWeight: 600, color: exifPresent ? '#16a34a' : '#dc2626' }}>
-                                      {exifPresent ? 'Present' : 'Stripped'}
-                                    </span>
-                                    {gpsPresent && <span style={{ color: 'var(--kr-blue)', fontWeight: 600 }}>· GPS</span>}
-                                  </li>
-                                )}
-                                {/* Manipulation score */}
-                                {forensics && (
-                                  <li style={{ fontSize: 10, color: 'var(--kr-muted)', display: 'flex', gap: 5 }}>
-                                    <span style={{ color: 'var(--kr-muted)', flexShrink: 0 }}>Manip.</span>
-                                    <span style={{ fontWeight: 600, color: manipScore > 40 ? '#dc2626' : manipScore > 20 ? '#d97706' : '#16a34a' }}>
-                                      {manipScore}%{manipScore > 40 ? ' — HIGH' : manipScore > 20 ? ' — REVIEW' : ' — CLEAN'}
-                                    </span>
-                                  </li>
-                                )}
-                                {/* Forensic flags */}
-                                {flags.length > 0 && (
-                                  <li style={{ fontSize: 10, color: 'var(--kr-red)', display: 'flex', gap: 5, alignItems: 'flex-start' }}>
-                                    <span style={{ color: 'var(--kr-muted)', flexShrink: 0 }}>Flags</span>
-                                    <span style={{ fontWeight: 500 }}>{flags.slice(0, 2).join('; ')}</span>
-                                  </li>
-                                )}
-                                {/* AI vision description — truncated */}
+                                {/* AI damage description — full text, no truncation */}
                                 {aiDesc && !fr.is_non_vehicle && (
-                                  <li style={{ fontSize: 10, color: 'var(--kr-muted)', marginTop: 2, lineHeight: 1.4 }}>
-                                    {aiDesc.length > 90 ? aiDesc.slice(0, 90) + '…' : aiDesc}
+                                  <li style={{ fontSize: 10, color: 'var(--kr-muted)', marginTop: 2, lineHeight: 1.5 }}>
+                                    {aiDesc.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/^[A-Z][A-Z\s]+:\s*/gm, '').trim()}
                                   </li>
                                 )}
                               </ul>

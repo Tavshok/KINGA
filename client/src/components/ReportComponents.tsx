@@ -415,13 +415,9 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
             // Strip section headers like "DAMAGE DESCRIPTION:", "PHOTO AUTHENTICITY:"
             .replace(/^[A-Z][A-Z\s]+:\s*/gm, '')
             .trim();
-          // Extract first 2 sentences (split on sentence-ending punctuation followed by space or end)
-          const sentences = rawDesc.match(/[^.!?]+[.!?]+(?=\s|$)/g) ?? [];
-          const twoSentences = sentences.slice(0, 2).join(' ').trim();
-          observation = twoSentences
-            ? twoSentences
-            : rawDesc
-            ? rawDesc.slice(0, 220) + (rawDesc.length > 220 ? '\u2026' : '')
+          // Show full description — no truncation
+          observation = rawDesc
+            ? rawDesc
             : r.label
             ? `Documents ${r.label.toLowerCase()} area`
             : 'Damage area documented';
