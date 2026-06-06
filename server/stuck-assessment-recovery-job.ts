@@ -249,9 +249,13 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
   let totalFixed = 0;
 
   try {
-    // ── CASE 3 & 5A: assessment_in_progress + ai_assessment_completed=1 ──────
+    // ── CASE 3 & 5A: ai_assessment_completed=1 but status is NOT assessment_complete ──────
     // Pipeline completed and wrote the assessment record, but the final
     // claims.status update to 'assessment_complete' failed silently.
+    // This can happen when:
+    //   a) status is still 'assessment_in_progress' (classic Case 3)
+    //   b) status was reset to 'intake_pending' by Case 7 (30-min hard wall-clock guard)
+    //      AFTER the pipeline completed — the pipeline finished but Case 7 ran first.
     // Direct fix: set status='assessment_complete' without re-running the pipeline.
     const completedButNotFinalised = await withDbRetry(async () => {
       const db = await getDb();
@@ -261,7 +265,11 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         .from(claims)
         .where(
           and(
-            eq(claims.status, "assessment_in_progress"),
+            // Catch both assessment_in_progress (classic) and intake_pending (Case-7 reset)
+            or(
+              eq(claims.status, "assessment_in_progress"),
+              eq(claims.status, "intake_pending"),
+            ),
             eq(claims.aiAssessmentCompleted, 1),
           )
         )

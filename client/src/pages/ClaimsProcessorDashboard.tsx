@@ -445,9 +445,17 @@ export default function ClaimsProcessorDashboard() {
 
   // Claim Card component inline for better control
   const ClaimCardInline = ({ claim, section }: { claim: any; section: "pending" | "in_review" | "ai_flagged" | "completed" }) => {
-    const isProcessing = aiProcessingClaimIds.has(claim.id) ||
+    // A claim is only "processing" if it is NOT yet complete.
+    // assessment_complete and closed claims must NEVER show the processing spinner,
+    // even if documentProcessingStatus is stale (e.g. still 'parsing' or 'processing').
+    // The stuck-recovery job (Case 9) fixes the stale dps in the background, but the
+    // UI must not block report access in the meantime.
+    const isAlreadyComplete = claim.status === "assessment_complete" || claim.status === "closed";
+    const isProcessing = !isAlreadyComplete && (
+      aiProcessingClaimIds.has(claim.id) ||
       claim.documentProcessingStatus === "parsing" ||
-      claim.documentProcessingStatus === "processing";
+      claim.documentProcessingStatus === "processing"
+    );
     const isTriggering = triggeringClaimId === claim.id;
 
     const getStatusBadge = () => {
@@ -819,8 +827,10 @@ export default function ClaimsProcessorDashboard() {
               {/* COMPLETED: Full report access (or re-run in progress) */}
               {section === "completed" && (
                 <>
-                  {/* Show live stage progress when re-run is in progress */}
-                  {(isProcessing || claim.documentProcessingStatus === "parsing" || claim.documentProcessingStatus === "processing") ? (
+                  {/* Show live stage progress when re-run is in progress.
+                       NOTE: isProcessing already guards against assessment_complete/closed claims,
+                       so we do NOT re-check documentProcessingStatus directly here. */}
+                  {isProcessing ? (
                     <>
                       <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/30 rounded-md p-3">
                         <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
