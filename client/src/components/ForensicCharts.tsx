@@ -174,8 +174,8 @@ export function FraudBreakdownChart({ fraudScore, indicators }: FraudBreakdownCh
       <Doughnut data={data} options={options} />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ marginRight: "80px" }}>
         <div className="text-center">
-          <p style={{ fontFamily: "'DM Mono',monospace", fontSize: 22, fontWeight: 500, color: fraudScore <= 35 ? '#16a34a' : fraudScore <= 60 ? '#d97706' : '#c0392b', lineHeight: 1 }}>{fraudScore}</p>
-          <p style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: '#374151', fontWeight: 600 }}>/100</p>
+          <p style={{ fontFamily: "'DM Sans',Inter,sans-serif", fontSize: 22, fontWeight: 700, color: fraudScore <= 35 ? '#16a34a' : fraudScore <= 60 ? '#d97706' : '#c0392b', lineHeight: 1 }}>{fraudScore}</p>
+          <p style={{ fontFamily: "'DM Sans',Inter,sans-serif", fontSize: 10, color: '#374151', fontWeight: 600 }}>/100</p>
         </div>
       </div>
     </div>
@@ -326,14 +326,14 @@ export function ConfidenceGauge({ score, size = 120 }: ConfidenceGaugeProps) {
 
     // Score text
     ctx.fillStyle = "#0a0a0a";
-    ctx.font = `500 ${size * 0.18}px 'DM Mono',monospace`;
+    ctx.font = `600 ${size * 0.18}px 'DM Sans',Inter,sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     ctx.fillText(`${score}`, cx, cy - 2);
 
     // Label
     ctx.fillStyle = "#374151";
-    ctx.font = `600 ${size * 0.09}px 'DM Mono',monospace`;
+    ctx.font = `700 ${size * 0.09}px 'DM Sans',Inter,sans-serif`;
     ctx.fillText("CONFIDENCE", cx, cy + size * 0.12);
   }, [score, size]);
 

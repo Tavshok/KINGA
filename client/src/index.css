@@ -1456,30 +1456,30 @@
    All currency, percentage, and numeric values in report tables
    use tabular-nums + monospace font for vertical alignment
    ============================================================ */
-/* KINGA Design Prompt v2: Courier New for all monospace/numeric elements */
+/* Numeric elements use DM Sans with tabular nums */
 .num {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: 'DM Sans', Inter, sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
 
-/* Auto-apply to table cells that contain only numeric content */
+/* Value cells use the same sans-serif font as the rest of the report */
 .report-table td:not(:first-child),
 .report-table th:not(:first-child) {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: 'DM Sans', Inter, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
 /* Currency values */
 .currency {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: 'DM Sans', Inter, sans-serif;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 /* Percentage values */
 .pct {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: 'DM Sans', Inter, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 

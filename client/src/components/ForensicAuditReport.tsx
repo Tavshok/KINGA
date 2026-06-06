@@ -8042,7 +8042,7 @@ const REPORT_CSS = `
   --kr-red:#c0392b;--kr-amber:#d97706;--kr-green:#166534;--kr-blue:#1d4ed8;
   --kr-red-light:#fef2f2;--kr-amber-light:#fffbeb;--kr-green-light:#f0fdf4;--kr-blue-light:#eff6ff;
   /* ── KINGA Font Tokens ── */
-  --kr-mono:'DM Mono',monospace;--kr-serif:'Instrument Serif',serif;--kr-sans:'DM Sans',sans-serif;
+  --kr-mono:'DM Sans',Inter,sans-serif;--kr-serif:'Instrument Serif',serif;--kr-sans:'DM Sans',sans-serif;
   /* ── KINGA Size Tokens ── */
   --kr-sz-xs:10px;--kr-sz-sm:11px;--kr-sz-body:12px;--kr-sz-md:13px;--kr-sz-sub:12px;--kr-sz-sec:14px;--kr-sz-lg:18px;--kr-sz-xl:22px;
   /* ── Pin app theme tokens to print-safe values (overrides dark mode) ── */
