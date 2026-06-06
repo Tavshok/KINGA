@@ -1915,6 +1915,19 @@ export async function triggerAiAssessment(claimId: number) {
     }
   }
 
+  // ── Safety-net: ensure dps='extracted' and pipelineCurrentStage=null are always set ──
+  // Even if the main claimUpdate above partially failed (e.g. varchar truncation on a
+  // backfilled field causing MySQL to skip some columns in non-strict mode), the UI
+  // spinner depends on dps != 'parsing'. This minimal update is idempotent and safe.
+  try {
+    await db.update(claims).set({
+      documentProcessingStatus: "extracted",
+      pipelineCurrentStage: null,
+    }).where(eq(claims.id, claimId));
+  } catch (safetyNetErr: any) {
+    console.warn(`[KINGA Assessment] Claim ${claimId}: Safety-net dps update failed (non-fatal, stuck-recovery will fix):`, safetyNetErr?.message ?? safetyNetErr);
+  }
+
   console.log(`[KINGA Assessment] Claim ${claimId}: DB insert + claim update complete. Pipeline v2 finished. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
 
   // ── Fast-Track Routing: fire-and-forget (non-blocking) ───────────────────
