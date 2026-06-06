@@ -8060,12 +8060,12 @@ const REPORT_CSS = `
 .kinga-report[data-draft="true"]::before{content:'DRAFT';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;font-weight:900;color:rgba(0,0,0,0.04);letter-spacing:0.15em;pointer-events:none;z-index:0;white-space:nowrap;user-select:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .kinga-report .decision-strip{display:grid;grid-template-columns:auto auto 1fr;gap:0;border-bottom:2px solid var(--kr-black);padding:14px 0;align-items:start;margin-bottom:0;min-height:0}
 .kinga-report .verdict-block{padding-right:28px;border-right:1px solid var(--kr-rule);margin-right:28px}
-.kinga-report .verdict-label{font-size:10px;font-family:var(--kr-sans);letter-spacing:.04em;color:var(--kr-muted);margin-bottom:2px;font-weight:600}
+.kinga-report .verdict-label{font-size:10px;font-family:var(--kr-sans);letter-spacing:.04em;color:var(--kr-dark);margin-bottom:2px;font-weight:700}
 .kinga-report .verdict-value{font-size:22px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
 .kinga-report .verdict-value.approve{color:var(--kr-green)}
 .kinga-report .verdict-value.review{color:var(--kr-amber)}
 .kinga-report .verdict-value.decline{color:var(--kr-red)}
-.kinga-report .verdict-sub{font-size:11px;color:var(--kr-muted);margin-top:2px}
+.kinga-report .verdict-sub{font-size:11px;color:var(--kr-dark);margin-top:2px;font-weight:500}
 .kinga-report .score-cluster{display:flex;gap:0;flex-wrap:nowrap;border-left:1px solid var(--kr-rule);border-right:1px solid var(--kr-rule);margin:0 24px;padding:0 24px}
 .kinga-report .score-item{text-align:center;padding:0 16px;border-right:1px solid var(--kr-rule)}.kinga-report .score-item:last-child{border-right:none}
 .kinga-report .score-num{font-family:var(--kr-mono);font-size:22px;font-weight:600;display:block;line-height:1}
@@ -8088,7 +8088,7 @@ const REPORT_CSS = `
 .kinga-report .sc-bar-track{height:4px;background:var(--kr-off-white);border-radius:2px;margin:8px 0 4px;overflow:hidden}
 .kinga-report .sc-bar-fill{height:100%;border-radius:2px}
 .kinga-report .sc-val{font-family:var(--kr-mono);font-size:20px;font-weight:500}
-.kinga-report .sc-tag{font-size:10px;color:var(--kr-muted)}
+.kinga-report .sc-tag{font-size:10px;color:var(--kr-dark);font-weight:500}
 .kinga-report .fill-green{background:var(--kr-green)}
 .kinga-report .fill-amber{background:var(--kr-amber)}
 .kinga-report .fill-red{background:var(--kr-red)}
@@ -8101,25 +8101,25 @@ const REPORT_CSS = `
 .kinga-report .verdict-banner.approve{border-color:var(--kr-green);background:var(--kr-green-light)}
 .kinga-report .verdict-banner.review{border-color:var(--kr-amber);background:var(--kr-amber-light)}
 .kinga-report .verdict-banner.decline{border-color:var(--kr-red);background:var(--kr-red-light)}
-.kinga-report .verdict-banner .vb-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:4px}
+.kinga-report .verdict-banner .vb-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#374151;margin-bottom:4px}
 .kinga-report .verdict-banner .vb-decision{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
 .kinga-report .verdict-banner .vb-decision.approve{color:var(--kr-green)}
 .kinga-report .verdict-banner .vb-decision.review{color:var(--kr-amber)}
 .kinga-report .verdict-banner .vb-decision.decline{color:var(--kr-red)}
-.kinga-report .verdict-banner .vb-meta{font-size:10px;color:#555;margin-top:5px}
+.kinga-report .verdict-banner .vb-meta{font-size:10px;color:#1f2937;margin-top:5px;font-weight:500}
 .kinga-report .verdict-banner .vb-right{text-align:right;min-width:120px}
-.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 40px;background:var(--kr-white);border-bottom:1px solid var(--kr-rule);font-family:var(--kr-mono);font-size:10px;color:var(--kr-muted);letter-spacing:0.06em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.kinga-report .page-header .brand{font-family:var(--kr-mono);font-weight:400;font-size:11px;color:var(--kr-muted);letter-spacing:.15em}
+.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 40px;background:var(--kr-white);border-bottom:1px solid var(--kr-rule);font-family:var(--kr-mono);font-size:10px;color:var(--kr-dark);letter-spacing:0.06em;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-weight:500}
+.kinga-report .page-header .brand{font-family:var(--kr-mono);font-weight:600;font-size:11px;color:var(--kr-dark);letter-spacing:.15em}
 .kinga-report .cover-title-row{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:start;padding:20px 40px 16px;background:var(--kr-white);border-bottom:2px solid var(--kr-black);margin:0}
 .kinga-report .cover-title-row h1{font-family:var(--kr-serif);font-size:24px;font-weight:400;color:var(--kr-black);line-height:1.2;margin-bottom:4px}
-.kinga-report .cover-title-row .subtitle{font-size:11px;color:var(--kr-muted);font-style:italic}
+.kinga-report .cover-title-row .subtitle{font-size:11px;color:var(--kr-dark);font-style:italic;font-weight:500}
 .kinga-report .cover-meta{text-align:right}
-.kinga-report .cover-meta .claim-id{font-family:var(--kr-mono);font-size:11px;color:var(--kr-muted);letter-spacing:0.08em}
+.kinga-report .cover-meta .claim-id{font-family:var(--kr-mono);font-size:11px;color:var(--kr-dark);letter-spacing:0.08em;font-weight:500}
 .kinga-report .cover-meta .meta-line{font-size:13px;color:var(--kr-black);font-weight:600;margin-top:4px}
-.kinga-report .claim-id{font-family:var(--kr-mono);font-size:11px;color:var(--kr-muted);letter-spacing:0.08em}
+.kinga-report .claim-id{font-family:var(--kr-mono);font-size:11px;color:var(--kr-dark);letter-spacing:0.08em;font-weight:500}
 .kinga-report .meta-line{font-size:13px;color:var(--kr-black);font-weight:600;margin-top:4px}
-.kinga-report .doc-identity{background:var(--kr-off-white);border:1px solid var(--kr-rule);padding:8px 40px;margin-bottom:0;font-size:11px;color:var(--kr-muted);display:flex;gap:20px;flex-wrap:wrap;font-family:var(--kr-mono);letter-spacing:0.06em}
-.kinga-report .di-label{font-weight:500;color:var(--kr-muted);text-transform:uppercase;font-size:9px;letter-spacing:.1em;display:block;margin-bottom:2px}
+.kinga-report .doc-identity{background:var(--kr-off-white);border:1px solid var(--kr-rule);padding:8px 40px;margin-bottom:0;font-size:11px;color:var(--kr-dark);display:flex;gap:20px;flex-wrap:wrap;font-family:var(--kr-mono);letter-spacing:0.06em;font-weight:500}
+.kinga-report .di-label{font-weight:700;color:var(--kr-dark);text-transform:uppercase;font-size:9px;letter-spacing:.1em;display:block;margin-bottom:2px}
 .kinga-report .alert-banner{border-radius:2px;padding:10px 14px;margin-bottom:12px;font-size:12px;border-left:3px solid;line-height:1.5;display:flex;gap:8px;align-items:flex-start}
 .kinga-report .alert-banner.critical{background:var(--kr-red-light);border-left-color:var(--kr-red);color:#991b1b}
 .kinga-report .alert-banner.warn{background:var(--kr-amber-light);border-left-color:var(--kr-amber);color:#92400e}
@@ -8130,7 +8130,7 @@ const REPORT_CSS = `
 .kinga-report .kpi-label{font-size:11px;font-family:var(--kr-sans);letter-spacing:.04em;text-transform:uppercase;font-weight:700;color:var(--kr-dark);margin-bottom:6px;display:block}
 .kinga-report .kpi-value{font-family:var(--kr-mono);font-size:20px;font-weight:500;color:var(--kr-black);line-height:1}
 .kinga-report .kpi-sub{font-size:11px;color:var(--kr-dark);margin-top:4px;font-weight:500}
-.kinga-report .kpi-polarity{font-size:10px;color:var(--kr-muted);margin-top:2px}
+.kinga-report .kpi-polarity{font-size:10px;color:var(--kr-dark);margin-top:2px;font-weight:500}
 .kinga-report .dim-grid{display:grid;grid-template-columns:repeat(2,1fr);border:1px solid var(--kr-rule);margin-bottom:14px}
 .kinga-report .dim-row{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--kr-rule);font-size:13px;font-weight:500}
 .kinga-report .dim-row:nth-child(odd){border-right:1px solid var(--kr-rule)}
@@ -8140,20 +8140,20 @@ const REPORT_CSS = `
 .kinga-report .dim-badge.fail{background:var(--kr-red-light);color:var(--kr-red)}
 .kinga-report .fcdi-block{display:flex;gap:24px;align-items:flex-start;border:1px solid var(--kr-rule);padding:14px 16px;margin-bottom:14px}
 .kinga-report .fcdi-score-big{font-size:32px;font-weight:500;color:var(--kr-black);line-height:1;font-family:var(--kr-mono)}
-.kinga-report .fcdi-score-denom{font-size:18px;color:var(--kr-muted);font-family:var(--kr-mono)}
+.kinga-report .fcdi-score-denom{font-size:18px;color:var(--kr-dark);font-family:var(--kr-mono);font-weight:500}
 .kinga-report .timeline{display:flex;align-items:center;gap:0;margin:16px 0 24px;overflow-x:auto}
 .kinga-report .tl-item{flex-shrink:0;text-align:center}
 .kinga-report .tl-line{flex:1;height:1px;background:var(--kr-rule);min-width:30px}
 .kinga-report .tl-dot{width:10px;height:10px;border-radius:50%;background:var(--kr-black);margin:0 auto 4px}
 .kinga-report .tl-dot.inactive{background:var(--kr-rule)}
-.kinga-report .tl-label{font-family:var(--kr-sans);font-size:10px;letter-spacing:0;color:var(--kr-muted);font-weight:600}
+.kinga-report .tl-label{font-family:var(--kr-sans);font-size:10px;letter-spacing:0;color:var(--kr-dark);font-weight:700}
 .kinga-report .tl-date{font-family:var(--kr-sans);font-size:11px;font-weight:500;margin-top:2px}
 .kinga-report .exec-summary{border:1px solid var(--kr-rule);padding:14px 16px;margin-bottom:10px;font-size:12px;color:var(--kr-text);line-height:1.6;background:var(--kr-white)}
 .kinga-report .pipeline-box{display:none !important}
 .kinga-report .pipeline-box h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#111;margin-bottom:4px}
 .kinga-report .pipeline-box .run-meta{font-size:10px;color:#666;margin-bottom:12px}
-.kinga-report .run-meta{font-size:10px;color:var(--kr-muted);margin-bottom:12px;font-family:var(--kr-sans)}
-.kinga-report .pis-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--kr-muted);margin:0}
+.kinga-report .run-meta{font-size:10px;color:var(--kr-dark);margin-bottom:12px;font-family:var(--kr-sans);font-weight:500}
+.kinga-report .pis-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--kr-dark);margin:0}
 .kinga-report .pis-text{font-size:12px;color:var(--kr-text);line-height:1.6;margin:0}
 .kinga-report .stage-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:14px}
 .kinga-report .stage-tile{padding:6px 4px;text-align:center;font-size:9px;font-weight:700;border-radius:3px;text-transform:uppercase;letter-spacing:.04em}
@@ -8186,42 +8186,42 @@ const REPORT_CSS = `
 .kinga-report .flag-green{color:var(--kr-green);font-weight:600;font-family:var(--kr-sans)}
 .kinga-report .data-table .mismatch td{background:#fff;color:#c00;font-weight:700}
 .kinga-report .narrative-box{border:1px solid var(--kr-rule);padding:10px 14px;margin-bottom:6px;font-size:12px;color:var(--kr-text);line-height:1.5;background:var(--kr-white)}
-.kinga-report .narr-label{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--kr-muted);margin-bottom:6px;font-family:var(--kr-sans)}
-.kinga-report .micro-label{font-size:10px;font-family:var(--kr-sans);letter-spacing:0;text-transform:none;color:var(--kr-muted);font-weight:600;margin-bottom:6px;display:block}
+.kinga-report .narr-label{font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--kr-dark);margin-bottom:6px;font-family:var(--kr-sans)}
+.kinga-report .micro-label{font-size:10px;font-family:var(--kr-sans);letter-spacing:0;text-transform:none;color:var(--kr-dark);font-weight:700;margin-bottom:6px;display:block}
 .kinga-report .diagram-section{display:flex;gap:16px;align-items:flex-start;margin-bottom:10px;border:1px solid var(--kr-rule);padding:12px}
 .kinga-report .diagram-legend{flex:1}
 .kinga-report .legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--kr-text);margin-bottom:6px}
 .kinga-report .legend-swatch{width:18px;height:12px;border-radius:2px;flex-shrink:0}
-.kinga-report .diagram-caption{font-size:10px;color:var(--kr-muted);margin-top:8px;font-style:italic}
+.kinga-report .diagram-caption{font-size:10px;color:var(--kr-dark);margin-top:8px;font-style:italic;font-weight:500}
 .kinga-report .chart-container{position:relative;height:220px;width:100%;margin-bottom:8px}
 .kinga-report .chart-side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px}
 .kinga-report .bordered-block{border:1px solid var(--kr-rule);padding:10px 14px;margin-bottom:8px}
 .kinga-report .valuation-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--kr-rule);font-size:12px}
 .kinga-report .valuation-row:last-child{border-bottom:none}
-.kinga-report .valuation-row .vr-label{color:var(--kr-muted);font-family:var(--kr-sans);font-size:11px;letter-spacing:0}
+.kinga-report .valuation-row .vr-label{color:var(--kr-dark);font-family:var(--kr-sans);font-size:11px;letter-spacing:0;font-weight:600}
 .kinga-report .valuation-row .vr-value{font-weight:600;font-family:var(--kr-mono)}
 .kinga-report .valuation-row .vr-value.good{color:var(--kr-green)}
 .kinga-report .valuation-row .vr-value.na{color:var(--kr-amber)}
 .kinga-report .photo-tiles{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--kr-rule);margin-bottom:14px}
 .kinga-report .photo-tile{padding:14px;text-align:center;border-right:1px solid var(--kr-rule)}
 .kinga-report .photo-tile:last-child{border-right:none}
-.kinga-report .pt-label{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--kr-muted);margin-bottom:6px;font-family:var(--kr-sans)}
+.kinga-report .pt-label{font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--kr-dark);margin-bottom:6px;font-family:var(--kr-sans)}
 .kinga-report .pt-value{font-size:28px;font-weight:500;color:var(--kr-black);font-family:var(--kr-mono)}
-.kinga-report .pt-sub{font-size:10px;color:var(--kr-muted);margin-top:2px;font-family:var(--kr-sans)}
+.kinga-report .pt-sub{font-size:10px;color:var(--kr-dark);margin-top:2px;font-family:var(--kr-sans);font-weight:500}
 .kinga-report .photo-forensics-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
 .kinga-report .photo-forensics-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--kr-white);background:var(--kr-navy);border-bottom:none;padding:6px 8px;text-align:left;word-break:break-word;white-space:normal;font-family:var(--kr-sans);-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .kinga-report .photo-forensics-table td{padding:6px 8px;font-size:11px;border-bottom:1px solid var(--kr-rule);vertical-align:top;word-break:break-word;overflow-wrap:break-word;white-space:normal}
 .kinga-report .photo-forensics-table tr:last-child td{border-bottom:none}
 .kinga-report .photo-forensics-table .photo-finding{font-size:12px;color:var(--kr-text);line-height:1.5}
-.kinga-report .photo-forensics-table .photo-detail{font-size:10px;color:var(--kr-muted);margin-top:3px;font-style:italic;line-height:1.4}
+.kinga-report .photo-forensics-table .photo-detail{font-size:10px;color:var(--kr-dark);margin-top:3px;font-style:italic;line-height:1.4;font-weight:500}
 .kinga-report .photo-forensics-table tr.flagged-row td{background:var(--kr-red-light);color:var(--kr-red);font-weight:600}
 /* Photo Integrity Summary box — print-safe override */
 .kinga-report .photo-integrity-summary{background:var(--kr-off-white) !important;border:1px solid var(--kr-rule) !important;border-radius:0 !important;padding:14px 16px !important;margin-bottom:14px !important}
-.kinga-report .photo-integrity-summary .pis-label{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--kr-muted);margin-bottom:4px;font-family:var(--kr-sans)}
+.kinga-report .photo-integrity-summary .pis-label{font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--kr-dark);margin-bottom:4px;font-family:var(--kr-sans)}
 .kinga-report .photo-integrity-summary .pis-text{font-size:12px;color:var(--kr-text);line-height:1.6}
 .kinga-report .fraud-score-block{display:flex;gap:16px;align-items:flex-start;margin-bottom:10px}
 .kinga-report .fraud-big{font-size:44px;font-weight:500;color:var(--kr-black);line-height:1;font-family:var(--kr-mono)}
-.kinga-report .fraud-denom{font-size:22px;color:var(--kr-muted);font-family:var(--kr-mono)}
+.kinga-report .fraud-denom{font-size:22px;color:var(--kr-dark);font-family:var(--kr-mono);font-weight:500}
 .kinga-report .fraud-explain{font-size:12px;color:var(--kr-text);line-height:1.7;flex:1;padding-top:8px}
 .kinga-report .ml-glimpse{background:var(--kr-white);border:1px solid var(--kr-rule);padding:14px 16px;margin-bottom:10px}
 .kinga-report .ml-glimpse h4{font-size:11px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--kr-navy);margin-bottom:10px;font-family:var(--kr-sans)}
@@ -8234,9 +8234,9 @@ const REPORT_CSS = `
 .kinga-report .ml-badge.anomaly{background:var(--kr-amber-light);color:var(--kr-amber)}
 .kinga-report .ml-badge.cluster{background:var(--kr-blue-light);color:var(--kr-blue)}
 .kinga-report .decision-box{border:1px solid var(--kr-rule);padding:20px 28px;margin-bottom:14px;text-align:left;background:var(--kr-off-white)}
-.kinga-report .db-label{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--kr-muted);margin-bottom:4px;font-family:var(--kr-sans)}
+.kinga-report .db-label{font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--kr-dark);margin-bottom:4px;font-family:var(--kr-sans)}
 .kinga-report .db-value{font-size:22px;font-weight:600;color:var(--kr-black);letter-spacing:-0.02em}
-.kinga-report .db-sub{font-size:11px;color:var(--kr-muted);margin-top:6px}
+.kinga-report .db-sub{font-size:11px;color:var(--kr-dark);margin-top:6px;font-weight:500}
 .kinga-report .flowchart{display:flex;flex-direction:column;align-items:center;gap:0;margin-bottom:12px}
 .kinga-report .fc-box{width:340px;padding:10px 18px;text-align:center;border:1px solid #ccc;font-size:11px;background:#fff}
 .kinga-report .fc-box.start{background:#fff;font-weight:700;border:2px solid #111}
@@ -8245,20 +8245,20 @@ const REPORT_CSS = `
 .kinga-report .fc-box.red-box{background:#fff;border-color:#c62828;color:#b71c1c}
 .kinga-report .fc-box.decision-final{background:#fff;border:2px solid #111;font-size:16px;font-weight:700;color:#111}
 .kinga-report .fc-score{font-size:11px;opacity:.8;margin-top:3px}
-.kinga-report .fc-arrow{font-size:18px;color:#888;line-height:1;padding:2px 0}
+.kinga-report .fc-arrow{font-size:18px;color:#374151;line-height:1;padding:2px 0}
 .kinga-report .blockers-list{margin-bottom:16px;list-style:none;padding:0}
-.kinga-report .blockers-list li{font-size:12px;color:#333;padding:4px 0 4px 16px;position:relative;border-bottom:1px solid #f0f0f0}
-.kinga-report .blockers-list li::before{content:'•';position:absolute;left:0;color:#888}
+.kinga-report .blockers-list li{font-size:12px;color:#111827;padding:4px 0 4px 16px;position:relative;border-bottom:1px solid #f0f0f0}
+.kinga-report .blockers-list li::before{content:'•';position:absolute;left:0;color:#374151}
 .kinga-report .next-steps{margin-bottom:12px;list-style:none;padding:0}
-.kinga-report .next-steps li{font-size:11px;color:#333;padding:5px 0 5px 26px;position:relative;border-bottom:1px solid #f0f0f0}
-.kinga-report .ns-num{position:absolute;left:0;font-weight:700;color:#888;font-size:11px}
+.kinga-report .next-steps li{font-size:11px;color:#111827;padding:5px 0 5px 26px;position:relative;border-bottom:1px solid #f0f0f0}
+.kinga-report .ns-num{position:absolute;left:0;font-weight:700;color:#374151;font-size:11px}
 .kinga-report .integrity-table{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
 .kinga-report .integrity-table td{padding:6px 0;font-size:12px;border-bottom:1px solid var(--kr-rule);word-break:break-word;overflow-wrap:break-word;white-space:normal}
-.kinga-report .integrity-table td:first-child{color:var(--kr-muted);width:210px;font-size:11px;font-family:var(--kr-sans);letter-spacing:0}
-.kinga-report .hash-block{font-family:var(--kr-mono);font-size:10px;color:var(--kr-muted);background:var(--kr-off-white);padding:10px 14px;border:1px solid var(--kr-rule);margin-bottom:10px;word-break:break-all}
-.kinga-report .tamper-note{font-size:11px;color:var(--kr-muted);font-style:italic;margin-bottom:16px}
+.kinga-report .integrity-table td:first-child{color:var(--kr-dark);width:210px;font-size:11px;font-family:var(--kr-sans);letter-spacing:0;font-weight:600}
+.kinga-report .hash-block{font-family:var(--kr-mono);font-size:10px;color:var(--kr-dark);background:var(--kr-off-white);padding:10px 14px;border:1px solid var(--kr-rule);margin-bottom:10px;word-break:break-all}
+.kinga-report .tamper-note{font-size:11px;color:var(--kr-dark);font-style:italic;margin-bottom:16px}
 .kinga-report .lifecycle-bar{display:flex;margin-bottom:8px}
-.kinga-report .lc-step{flex:1;padding:10px 8px;text-align:center;font-size:11px;font-weight:700;background:#fff;color:#888;border:1px solid #ddd;border-right:none}
+.kinga-report .lc-step{flex:1;padding:10px 8px;text-align:center;font-size:11px;font-weight:700;background:#fff;color:#374151;border:1px solid #ddd;border-right:none}
 .kinga-report .lc-step:last-child{border-right:1px solid #ddd}
 .kinga-report .lc-step.active{background:var(--kr-amber-light);color:#92400e;border-color:var(--kr-amber);border-bottom:3px solid var(--kr-amber)}
 .kinga-report .lc-step.done{background:var(--kr-green-light);color:#166534;border-color:var(--kr-green);border-bottom:3px solid var(--kr-green)}
@@ -8298,7 +8298,7 @@ const REPORT_CSS = `
 .kinga-report p,.kinga-report td,.kinga-report li{font-size:13px;line-height:1.6;font-weight:500}
 .kinga-report span{font-size:inherit}
 .kinga-report .section-heading{font-size:var(--kr-sz-sec);font-weight:700;letter-spacing:0.01em}
-.kinga-report .kpi-label{font-size:10px;font-family:var(--kr-sans);letter-spacing:.04em;text-transform:uppercase;font-weight:600;color:var(--kr-muted)}
+.kinga-report .kpi-label{font-size:10px;font-family:var(--kr-sans);letter-spacing:.04em;text-transform:uppercase;font-weight:700;color:var(--kr-dark)}
 /* Enforce minimum readable sizes — override any Tailwind text-[Xpx] micro-sizes */
 .kinga-report [class*="text-[9px]"],.kinga-report [class*="text-[8px]"]{font-size:10px !important}
 .kinga-report [class*="text-[10px]"]{font-size:10px !important}
@@ -8427,7 +8427,7 @@ const REPORT_CSS = `
   background:#fff !important;
 }
 .kinga-report [class*="text-muted"],.kinga-report [style*="var(--kr-muted)"]{
-  color:#666 !important;
+  color:#374151 !important;
 }
 .kinga-report [class*="text-foreground"],.kinga-report [style*="var(--kr-text)"]{
   color:#111 !important;
@@ -8658,7 +8658,7 @@ const REPORT_CSS = `
   /* Verdict banner: B&W — use heavy border + uppercase weight to convey decision severity */
   .kinga-report .verdict-banner{background:#fff !important;border:2px solid #111 !important;color:#111 !important;page-break-inside:avoid}
   .kinga-report .verdict-banner .verdict-label{color:#111 !important;font-weight:900 !important}
-  .kinga-report .verdict-banner .verdict-reason{color:#555 !important}
+  .kinga-report .verdict-banner .verdict-reason{color:#1f2937 !important;font-weight:500 !important}
   .kinga-report .verdict-banner .verdict-confidence{color:#111 !important;font-weight:700 !important}
   /* ── Score summary bars: keep together, B&W bars ── */
   .kinga-report .score-summary-panel{page-break-inside:avoid;border:1px solid #ddd !important;background:#fff !important}
@@ -8668,9 +8668,9 @@ const REPORT_CSS = `
   .kinga-report .fraud-signal-bar > div{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   /* ── Persistent footer: always show at bottom, preserve dark background ── */
   .kinga-report .report-persistent-footer{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;page-break-inside:avoid;margin-top:24px !important}
-  .kinga-report .report-persistent-footer .footer-bar{background:var(--kr-black) !important;color:#888 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
-  .kinga-report .report-persistent-footer .footer-bar *{color:#888 !important}
-  .kinga-report .report-persistent-footer .footer-bar .footer-decision-badge{border:1px solid #888 !important;color:#888 !important}
+  .kinga-report .report-persistent-footer .footer-bar{background:var(--kr-black) !important;color:#e5e7eb !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+  .kinga-report .report-persistent-footer .footer-bar *{color:#e5e7eb !important}
+  .kinga-report .report-persistent-footer .footer-bar .footer-decision-badge{border:1px solid #e5e7eb !important;color:#e5e7eb !important}
   /* ── Decision strip: preserve colour coding in print ── */
   .kinga-report .decision-strip{border-bottom:1px solid #ddd !important}
   .kinga-report .verdict-value.approve{color:var(--kr-green) !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
