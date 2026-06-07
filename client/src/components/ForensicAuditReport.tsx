@@ -1989,10 +1989,10 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 policyNumber ? ["Policy number", policyNumber] : null,
                 claimReference ? ["Claim reference", claimReference] : null,
                 excessAmountUsd != null ? ["Policy excess", fmtMoney(excessAmountUsd)] : null,
-              ].filter(Boolean).map(([k, v], i) => (
+              ].filter((x): x is [string, React.ReactNode] => x !== null).map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
-                  <td className="py-2 pr-4 font-semibold w-40" style={{ color: 'var(--kr-muted)' }}>{k as string}</td>
-                  <td className="py-2" style={{ color: 'var(--kr-text)' }}>{v as React.ReactNode}</td>
+                  <td className="py-2 pr-4 font-semibold w-40" style={{ color: 'var(--kr-muted)' }}>{k}</td>
+                  <td className="py-2" style={{ color: 'var(--kr-text)' }}>{v}</td>
                 </tr>
               ))}
             </tbody>
