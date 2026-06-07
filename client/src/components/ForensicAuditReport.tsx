@@ -1447,7 +1447,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         {/* Left: FCDI block */}
         <div className="fcdi-block" style={{ margin: 0 }}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--kr-muted)', marginBottom: 4, fontFamily: 'var(--kr-sans)' }}>FCDI Score</div>
+            <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--kr-muted)', marginBottom: 4, fontFamily: 'var(--kr-sans)' }}>Forensic Confidence &amp; Data Integrity (FCDI)</div>
             <div><span className="fcdi-score-big" style={{ color: fcdiBarColor }}>{fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}</span><span className="fcdi-score-denom"> / 100</span></div>
             <div style={{ fontSize: 11, color: 'var(--kr-muted)', marginTop: 4 }}>{fcdiTileLabel} evidence quality</div>
             <div style={{ fontSize: 9, color: 'var(--kr-muted)', marginTop: 2, fontStyle: 'italic' }}>Higher score = more reliable</div>
@@ -1489,6 +1489,29 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         );
       })()}
 
+      {/* ── Risk Flags Strip — shown when fraud score >= 40 ── */}
+      {canonicalScore0 != null && canonicalScore0 >= 40 && (() => {
+        const signals = (fraudBreakdown0?.signals ?? []) as Array<{ label: string; weight: number; triggered: boolean }>;
+        const top3 = signals.filter((s: any) => s.triggered).sort((a: any, b: any) => b.weight - a.weight).slice(0, 3);
+        if (top3.length === 0) return null;
+        const riskColor = canonicalScore0 >= 70 ? '#dc2626' : '#d97706';
+        return (
+          <div style={{ margin: '0 0 8px 0', padding: '8px 16px', background: `${riskColor}10`, borderLeft: `3px solid ${riskColor}`, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: riskColor, whiteSpace: 'nowrap', paddingTop: 1 }}>
+              Risk Flags
+            </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
+              {top3.map((s: any, i: number) => (
+                <span key={i} style={{ fontSize: 11, color: riskColor, fontWeight: 600 }}>
+                  {i > 0 && <span style={{ color: '#94a3b8', fontWeight: 400, marginRight: 12 }}>·</span>}
+                  {s.label}
+                </span>
+              ))}
+              <span style={{ fontSize: 11, color: '#64748b', marginLeft: 4 }}>— Full breakdown in Section 5</span>
+            </div>
+          </div>
+        );
+      })()}
       {/* ── Physics Snapshot — condensed one-liner for insurer reading the cover ── */}
       {(() => {
         const _covPhys = (enforcement as any)?._physics as any;
@@ -2209,8 +2232,10 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           </tbody>
         </table>
       </div>
-      {/* 1.7 + 1.8 — two-col layout matching mock */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      {/* 1.7 + 1.8 removed — data gaps and extraction confidence are fully covered by
+           Section 1.6 Data Completeness Checklist and the FCDI block in Section 0.
+           Keeping them here would duplicate the same information three times. */}
+      {false && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         {/* 1.7 Extraction Confidence — left col */}
         <div style={{ border: '1px solid var(--kr-rule)', padding: '12px 14px' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--kr-navy)', marginBottom: 8, borderBottom: '1.5px solid var(--kr-navy)', paddingBottom: 3 }}>1.7 Extraction Confidence</div>
@@ -2290,7 +2315,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
             );
           })()}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -3131,7 +3156,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
 
             return (
               <div className="mt-6">
-                <p className="sub-heading">2.6 Forensic Speed Determination</p>
+                <p className="sub-heading">2.1b Speed Determination</p>
                 <div className="" style={{ border: '1px solid var(--border)', background: 'var(--kr-white)' }}>
 
                   {/* ── Top strip: consensus speed (large) + confidence badge ── */}
@@ -3248,7 +3273,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               </div>
             );
           })()}
-          {/* 2.7 Speed Forensics — side-by-side with 2.6 */}
+          {/* 2.1c Speed Verification */}
           <Section27SpeedForensics
             speedForensics={(_phys as any)?.speedForensics ?? null}
             claimedSpeed={claimedSpeed ?? null}
@@ -3618,7 +3643,7 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
         {/* ── Section header ── */}
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
           <div>
-            <p className="sub-heading">2.7 Speed Verification</p>
+            <p className="sub-heading">2.1c Speed Verification</p>
             <p style={{ fontSize: 11, color: 'var(--kr-muted)', marginTop: 2 }}>Comparison of driver-stated speed against structural evidence</p>
           </div>
           {devLabel !== 'N/A' && (
@@ -4722,7 +4747,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
       {pbQuotes.length > 0 && (
         <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
           <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-            <p className="sub-heading">3.0 Cost at a Glance</p>
+            <p className="sub-heading">3.1 Cost at a Glance</p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Visual comparison of submitted quotes{costComparisonData.kingaOptimised > 0 ? ', KINGA optimised total' : ''}{costComparisonData.benchmarkAvg > 0 ? ', and historical benchmark' : ''}</p>
           </div>
           <div className="p-4">
@@ -5588,7 +5613,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
     <div className="mb-1 space-y-2" style={{ marginBottom: "8px" }}>
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3 flex items-center justify-between" >
-          <p className="sub-heading">4.0 Photo Evidence</p>
+          <p className="sub-heading">4.0 Evidence Inventory</p>
           <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{toSentenceCase((photoStatus ?? "").replace(/_/g, " "))}</span>
         </div>
         <div className="p-4">
@@ -5690,7 +5715,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                 return (
                   <>
                     <p className="sub-heading">
-                      4.1 Photo Forensics Grid ({damagePhotoUrls.length} damage/vehicle image{damagePhotoUrls.length !== 1 ? 's' : ''})
+                      4.1 Damage Photo Gallery ({damagePhotoUrls.length} image{damagePhotoUrls.length !== 1 ? 's' : ''})
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
                       {damagePhotoUrls.slice(0, 9).map((url, i) => {
@@ -5821,7 +5846,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
       {docs.length > 0 && (
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3" >
-          <p className="sub-heading">4.2 Document Extraction</p>
+          <p className="sub-heading">4.2 Supporting Documents</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs report-table">
@@ -5933,7 +5958,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         return (
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" >
-              <p className="sub-heading">4.3 Photo Forensics — EXIF & Manipulation Analysis</p>
+              <p className="sub-heading">4.3 Photo Forensics & Quality</p>
               <span className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>{pf.anySuspicious ? "Suspicious" : "Clean"}</span>
             </div>
             <div className="p-4">
@@ -5997,7 +6022,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         return (
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" >
-              <p className="sub-heading">4.4 Photo Quality Intelligence</p>
+              <p className="sub-heading">4.3b Photo Quality Intelligence</p>
               <div className="flex items-center gap-2">
                 {isScanned && (
                   <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>Scanned PDF</span>
@@ -6254,57 +6279,13 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         const clmPct = Math.min(100, (clm / scaleMax) * 100);
         const infPct = Math.min(100, (inf / scaleMax) * 100);
         return (
-          <div className="" style={{ border: `1px solid ${devColor}40`, background: 'var(--kr-white)' }}>
-            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-              <p className="sub-heading">5.2 Speed-Physics Evidence</p>
-              <span className="text-xs font-semibold" style={{ color: devColor }}>
-                {devClass === 'critical' ? 'CRITICAL DISCREPANCY' : devClass === 'significant' ? 'SIGNIFICANT DISCREPANCY' : 'MINOR DISCREPANCY'}
-              </span>
-            </div>
-            <div className="p-3 space-y-3">
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs" style={{ color: 'var(--kr-muted)' }}>Claimed speed (driver statement)</span>
-                    <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{clm} km/h</span>
-                  </div>
-                  <div className="rounded-full overflow-hidden" style={{ height: 8, background: 'var(--kr-white)' }}>
-                    <div style={{ width: `${clmPct}%`, height: '100%', background: 'var(--kr-muted)', borderRadius: 4 }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs" style={{ color: 'var(--kr-muted)' }}>Physics-inferred speed (ensemble)</span>
-                    <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{inf} km/h</span>
-                  </div>
-                  <div className="rounded-full overflow-hidden" style={{ height: 8, background: 'var(--kr-white)' }}>
-                    <div style={{ width: `${infPct}%`, height: '100%', background: devColor, borderRadius: 4 }} />
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-start gap-4 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
-                <div className="flex-1">
-                  <p className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>
-                    Discrepancy: {devKmh.toFixed(1)} km/h ({sf.deviationPct != null ? `${sf.deviationPct}%` : 'N/A'})
-                  </p>
-                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--kr-muted)' }}>
-                    {sf.verdict ?? (isElevated
-                      ? `Physics evidence suggests a higher impact speed than claimed. This discrepancy is a material fraud indicator and warrants independent engineering review before settlement.`
-                      : `Speed discrepancy is within acceptable uncertainty bounds for the methods used.`)}
-                  </p>
-                </div>
-              </div>
-              <div className="px-3 py-2 rounded" style={{ background: 'var(--kr-white)', borderLeft: `3px solid ${devColor}` }}>
-                <p className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>Recommended Action</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>
-                  {devClass === 'critical'
-                    ? 'Significant speed discrepancy detected — independent accident reconstruction required before settlement can be authorised.'
-                    : devClass === 'significant'
-                    ? 'Speed discrepancy exceeds uncertainty threshold — senior assessor review of Section 2.6 and 2.7 findings required before settlement.'
-                    : 'Minor speed discrepancy — within acceptable uncertainty range. No additional action required on speed basis.'}
-                </p>
-              </div>
-            </div>
+          <div className="px-4 py-2" style={{ border: `1px solid ${devColor}30`, background: 'var(--kr-white)', borderLeft: `3px solid ${devColor}` }}>
+            <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>
+              <span className="font-semibold" style={{ color: devColor }}>5.2 Speed discrepancy: {devKmh.toFixed(1)} km/h</span>
+              {' '}— Claimed {clm} km/h vs physics-inferred {inf} km/h
+              {devClass !== 'minor' && <span style={{ fontWeight: 600 }}> ({devClass === 'critical' ? 'Critical — reconstruction required' : 'Significant — senior review required'})</span>}.
+              {' '}Full analysis in Section 2.1.
+            </p>
           </div>
         );
       })()}
@@ -7365,32 +7346,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
 
       {/* 6.4 + 6.5 side-by-side grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
-      {/* 6.4 Decision Lifecycle Tracker */}
-      {(() => {
-        // Derive lifecycle state from claim and assessment status
-        const claimStatus = claim?.status ?? "submitted";
-        const isDraft = claimStatus === "submitted" || claimStatus === "intake_queue" || claimStatus === "processing";
-        const isReviewed = claimStatus === "review" || claimStatus === "under_review" || claimStatus === "pending_review";
-        const isFinalised = claimStatus === "approved" || claimStatus === "rejected" || claimStatus === "finalised" || claimStatus === "settled";
-        const isLocked = claimStatus === "closed" || claimStatus === "archived";
-        const lifecycleStates: LifecycleState[] = [
-          { state: "draft", completed: true, isCurrent: isDraft, adjusterName: "KINGA Engine", timestamp: aiAssessment?.createdAt ?? null },
-          { state: "reviewed", completed: isReviewed || isFinalised || isLocked, isCurrent: isReviewed, adjusterName: isReviewed ? "Pending adjuster" : null, timestamp: null },
-          { state: "finalised", completed: isFinalised || isLocked, isCurrent: isFinalised, adjusterName: null, timestamp: null },
-          { state: "locked", completed: isLocked, isCurrent: isLocked, adjusterName: null, timestamp: null },
-        ];
-        const lifecycleData: DecisionLifecycleData = { states: lifecycleStates, auditLogEnabled: true };
-        return (
-          <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-            <div className="px-4 py-3" >
-              <p className="sub-heading">6.4 Decision Lifecycle</p>
-            </div>
-            <div className="p-4">
-              <DecisionLifecycleTracker data={lifecycleData} />
-            </div>
-          </div>
-        );
-      })()}
+      {/* 6.4 Decision Lifecycle Tracker — removed; lifecycle stage folded into 6.5 Audit Trail */}
 
       <div style={{ border: '1px solid var(--fp-border)', background: 'var(--kr-white)', borderRadius: 8, overflow: 'hidden' }}>
         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--fp-border)', background: 'var(--fp-section-bg)' }}>
@@ -7401,6 +7357,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
             <tbody>
               {[
                 ["Analysed by", `KINGA Engine ${engineVersion}`],
+                ["Workflow stage", (() => { const s = claim?.status ?? "submitted"; if (s === "closed" || s === "archived") return "Locked"; if (s === "approved" || s === "rejected" || s === "finalised" || s === "settled") return "Finalised"; if (s === "review" || s === "under_review" || s === "pending_review") return "Under Review"; return "Draft"; })()],
                 ["Data sources", `Claim form, Photos (${aiAssessment?.photosDetected ?? 0} detected), Quote`],
                 ["Extraction confidence", `${Math.round(aiAssessment?.confidenceScore ?? 0)}% overall`],
                 ["Human review", rawDecision === "APPROVE" || rawDecision === "FINALISE_CLAIM" ? "Optional" : "REQUIRED"],
@@ -7418,7 +7375,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
           </table>
         </div>
       </div>
-      </div>{/* end 6.4 + 6.5 grid */}
+      </div>{/* end 6.5 Audit Trail */}
 
     </div>
   );
@@ -7795,7 +7752,7 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
             </span>
           )}
         </div>
-        <span className="text-xs" style={{ color: 'var(--kr-muted)' }}>Forensic Confidence Degradation Index</span>
+        <span className="text-xs" style={{ color: 'var(--kr-muted)' }}>Forensic Confidence &amp; Data Integrity (FCDI)</span>
       </div>
       <div className="px-5 py-3 space-y-3 text-xs">
         {fcdi?.explanation && (
@@ -9110,7 +9067,51 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
               </div>
             </div>
             {/* Disclaimer */}
-            <div style={{ padding: '8px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            
+
+      {/* ─── Appendix B: Glossary of Technical Terms ─────────────────────────── */}
+      <div className="section-heading" data-section="B">B &nbsp; Glossary of Technical Terms</div>
+      <div className="mb-1" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)' }}>
+          <p className="sub-heading">B.1 Definitions</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Technical terms used in this report</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs report-table">
+            <thead>
+              <tr>
+                {["Term", "Full Name", "Definition"].map(h => (
+                  <th key={h} className="text-left px-3 py-2 font-semibold">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ["FCDI", "Forensic Confidence & Data Integrity", "A composite score (0–100%) measuring the reliability of the AI assessment. It degrades when key evidence is missing, extraction fails, or pipeline stages produce low-confidence outputs. A score below 60% requires mandatory human adjuster review."],
+                ["Delta-v", "Change in Velocity", "The change in velocity experienced by a vehicle during a collision, measured in km/h. Higher delta-v values indicate more severe impacts and correlate with greater structural damage."],
+                ["EBS", "Energy-Based Severity", "A severity classification derived from the kinetic energy transferred during impact. Categories: Cosmetic (<2 kJ), Minor (2–8 kJ), Moderate (8–20 kJ), Severe (20–50 kJ), Catastrophic (>50 kJ)."],
+                ["Crush Depth", "Crush Depth (m)", "The measured or estimated depth of permanent deformation in the vehicle structure at the point of impact, used as a primary input for physics-based speed estimation."],
+                ["M1", "Campbell Method", "A physics-based speed estimation method using crush depth measurements and vehicle stiffness coefficients. Requires crush depth input; uses document or vision-derived measurements."],
+                ["M2", "NHTSA Barrier Equivalent", "Speed estimation using National Highway Traffic Safety Administration barrier-equivalent velocity tables, calibrated to vehicle make/model crash test data."],
+                ["M3", "Energy Balance Method", "Estimates impact speed by calculating the kinetic energy required to produce the observed structural deformation, accounting for vehicle mass and crush geometry."],
+                ["M4", "Momentum Conservation", "Uses conservation of momentum principles with both vehicle masses and post-impact trajectories to estimate pre-impact speeds for multi-vehicle collisions."],
+                ["M5", "Vision Deformation Analysis", "Computer vision-based speed estimation using AI analysis of damage photographs to estimate crush depth and deformation severity without physical measurements."],
+                ["KINGA Vision", "KINGA Computer Vision", "The AI image analysis subsystem that processes damage photographs to detect components, classify severity, measure deformation, and extract forensic metadata (EXIF, GPS, manipulation indicators)."],
+                ["EDS", "Ensemble Decision Score", "The weighted consensus speed estimate produced by combining multiple physics methods (M1–M5). Methods with higher confidence receive greater weight in the final estimate."],
+                ["CTL", "Claim Truth Layer", "The unified data model that reconciles information from multiple sources (claim form, documents, AI extraction, photos) into a single authoritative record for each claim attribute."],
+                ["EXIF", "Exchangeable Image File Format", "Metadata embedded in digital photographs containing capture date/time, GPS coordinates, camera make/model, and other technical parameters used for photo authenticity verification."],
+              ].map(([term, full, def], i) => (
+                <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined, background: 'var(--kr-white)' }}>
+                  <td className="px-3 py-2 font-semibold" style={{ color: 'var(--kr-text)', whiteSpace: 'nowrap', width: 60 }}>{term}</td>
+                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)', whiteSpace: 'nowrap', width: 220 }}>{full}</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--kr-muted)', lineHeight: 1.5 }}>{def}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style={{ padding: '8px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 9, color: 'var(--kr-muted)', lineHeight: 1.5 }}>
                 CONFIDENTIAL — For authorised insurer use only. This report is generated by KINGA Engine v{aiAssessment?.engineVersion ?? '4.2'} and must be reviewed by a qualified human adjuster before any claim decision is finalised. KINGA does not constitute legal advice.
               </span>
