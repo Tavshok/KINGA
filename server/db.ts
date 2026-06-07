@@ -1267,6 +1267,13 @@ export async function triggerAiAssessment(claimId: number) {
   if (pipelineCtx.classifiedImages) {
     (result as any).classifiedImages = pipelineCtx.classifiedImages;
   }
+  // Also inject enrichedPhotosJson from ctx when the orchestrator return missed it
+  // (happens on cache_rehydration runs where classifiedImages is null but Stage 6 still
+  // set enrichedPhotosJson on ctx). Without this, imageAnalysisTotalCount = 0 even
+  // though photos were processed, causing the report to say "no images extracted".
+  if (!(result as any).enrichedPhotosJson && (pipelineCtx as any).enrichedPhotosJson) {
+    (result as any).enrichedPhotosJson = (pipelineCtx as any).enrichedPhotosJson;
+  }
   let forensicAuditValidationResult: import('./pipeline-v2/forensicAuditValidator').ForensicAuditValidationReport | null = null;
   try {
     const { runForensicAuditValidation } = await import('./pipeline-v2/forensicAuditValidator');
@@ -1395,10 +1402,20 @@ export async function triggerAiAssessment(claimId: number) {
     // Image analysis monitoring — tracks vision success rate per assessment run
     // Derived from enrichedPhotosJson set by Stage 6 on ctx and passed through orchestrator return.
     // Used to detect systemic failures and alert the team when success rate drops below threshold.
-    // Use classified damage photo count if available, otherwise fall back to raw damagePhotos count
-    imageAnalysisTotalCount: safeInt(result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length),
+    // Use classified damage photo count if available, otherwise use enrichedPhotosJson length,
+    // then fall back to raw damagePhotos count. The enrichedPhotosJson fallback handles
+    // cache_rehydration runs where classifiedImages is null but Stage 6 still ran.
+    imageAnalysisTotalCount: safeInt((() => {
+      if (result.classifiedImages?.summary?.damagePhotoCount) return result.classifiedImages.summary.damagePhotoCount;
+      try {
+        const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : null;
+        if (Array.isArray(enriched) && enriched.length > 0) return enriched.length;
+      } catch { /* ignore */ }
+      return damagePhotos.length;
+    })()),
     imageAnalysisSuccessCount: (() => {
-      const total = result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length;
+      const total = result.classifiedImages?.summary?.damagePhotoCount
+        ?? (() => { try { const e = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : null; return Array.isArray(e) && e.length > 0 ? e.length : damagePhotos.length; } catch { return damagePhotos.length; } })();
       if (total === 0) return 0;
       try {
         const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
@@ -1406,7 +1423,8 @@ export async function triggerAiAssessment(claimId: number) {
       } catch { return 0; }
     })(),
     imageAnalysisFailedCount: (() => {
-      const total = result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length;
+      const total = result.classifiedImages?.summary?.damagePhotoCount
+        ?? (() => { try { const e = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : null; return Array.isArray(e) && e.length > 0 ? e.length : damagePhotos.length; } catch { return damagePhotos.length; } })();
       if (total === 0) return 0;
       try {
         const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
@@ -1415,7 +1433,8 @@ export async function triggerAiAssessment(claimId: number) {
       } catch { return safeInt(total) ?? 0; }
     })(),
     imageAnalysisSuccessRate: (() => {
-      const total = result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length;
+      const total = result.classifiedImages?.summary?.damagePhotoCount
+        ?? (() => { try { const e = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : null; return Array.isArray(e) && e.length > 0 ? e.length : damagePhotos.length; } catch { return damagePhotos.length; } })();
       if (total === 0) return null;
       try {
         const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];

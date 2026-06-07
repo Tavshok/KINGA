@@ -5375,6 +5375,12 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           // Override photosDetected with numeric count so ForensicAuditReport renders correctly
           photosDetected: photosDetectedCount > 0 ? photosDetectedCount : (bridge.photosDetected ? phase2PhotoUrls.length : 0),
           photosProcessedCount: photosProcessedCount > 0 ? photosProcessedCount : phase2PhotoUrls.length,
+          // Expose enrichedPhotosJson from DB so Section 4 can render per-photo vision metadata.
+          // The `result` spread above comes from IntelligenceEnforcementResult which does NOT
+          // include DB columns — we must explicitly pull this from the `assessment` row.
+          enrichedPhotosJson: (assessment as any).enrichedPhotosJson ?? null,
+          // Also expose damagePhotosJson as fallback for photo URL resolution
+          damagePhotosJson: (assessment as any).damagePhotosJson ?? null,
         };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
         // Wrapped in try-catch: validation warnings are logged server-side but never block the UI.

@@ -1768,20 +1768,18 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                   return 'Not stated';
                 })()],
                 ["Incident date", fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)],
-                ["Incident time", accidentTime ?? "Not Provided"],
-                ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not Provided"],
-                ["Weather conditions", weatherConditions ? toSentenceCase(weatherConditions) : "Not Provided"],
-                ["Road surface", roadSurface ? toSentenceCase(roadSurface) : "Not Provided"],
+                accidentTime ? ["Incident time", accidentTime] : null,
+                (aiAssessment?.incidentLocation ?? claim?.incidentLocation) ? ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation] : null,
+                weatherConditions ? ["Weather conditions", toSentenceCase(weatherConditions)] : null,
+                roadSurface ? ["Road surface", toSentenceCase(roadSurface)] : null,
                 animalType ? ["Animal type", <span className="font-semibold capitalize">{animalType}</span>] : null,
-                ["Driver", driverName ? toTitleCase(driverName) : "Not Provided"],
-                ["Driver licence", driverLicenseNumber ?? "Not provided"],
-                ["Claimant", claimantName ?? claim?.claimantName ?? "Not Provided"],
-                ["Inspection date", fmtDate(aiAssessment?.assessmentDate)],
-                ["Assessor", aiAssessment?.assessorName ?? claimRecord0?.repairQuote?.assessorName ?? "Not assigned"],
-                ["Repairer", toTitleCase(aiAssessment?.panelBeaterName ?? claimRecord0?.repairQuote?.repairerName ?? claim?.repairerName) || "Not specified"],
-                ["Police report No.", policeReportNumber
-                  ? policeReportNumber
-                  : (<span className="text-[10px] font-semibold" style={{ color: 'var(--kr-muted)' }}>Not extracted</span>)],
+                driverName ? ["Driver", toTitleCase(driverName)] : null,
+                driverLicenseNumber ? ["Driver licence", driverLicenseNumber] : null,
+                (claimantName ?? claim?.claimantName) ? ["Claimant", claimantName ?? claim?.claimantName] : null,
+                aiAssessment?.assessmentDate ? ["Inspection date", fmtDate(aiAssessment.assessmentDate)] : null,
+                (aiAssessment?.assessorName ?? claimRecord0?.repairQuote?.assessorName) ? ["Assessor", aiAssessment?.assessorName ?? claimRecord0?.repairQuote?.assessorName] : null,
+                (aiAssessment?.panelBeaterName ?? claimRecord0?.repairQuote?.repairerName ?? claim?.repairerName) ? ["Repairer", toTitleCase(aiAssessment?.panelBeaterName ?? claimRecord0?.repairQuote?.repairerName ?? claim?.repairerName)] : null,
+                policeReportNumber ? ["Police report No.", policeReportNumber] : null,
                 policeStation ? ["Police station", policeStation + (policeReportNumber ? "" : " — case number not extracted")] : null,
               ].filter(Boolean).map((row: any, i: number) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
@@ -1987,11 +1985,11 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           <table className="compact-kv-table text-xs">
             <tbody>
               {[
-                ["Insurer", insurerName ?? "Not extracted"],
-                ["Policy number", policyNumber ?? "Not provided"],
-                ["Claim reference", claimReference ?? "Not extracted"],
-                ["Policy excess", excessAmountUsd != null ? fmtMoney(excessAmountUsd) : "Not extracted"],
-              ].map(([k, v], i) => (
+                insurerName ? ["Insurer", insurerName] : null,
+                policyNumber ? ["Policy number", policyNumber] : null,
+                claimReference ? ["Claim reference", claimReference] : null,
+                excessAmountUsd != null ? ["Policy excess", fmtMoney(excessAmountUsd)] : null,
+              ].filter(Boolean).map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
                   <td className="py-2 pr-4 font-semibold w-40" style={{ color: 'var(--kr-muted)' }}>{k as string}</td>
                   <td className="py-2" style={{ color: 'var(--kr-text)' }}>{v as React.ReactNode}</td>
@@ -2011,11 +2009,11 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           <table className="compact-kv-table text-xs">
             <tbody>
               {[
-                ["Registration", claim?.vehicleRegistration ?? claimRecord0?.vehicle?.registration ?? "Not Provided"],
+                (claim?.vehicleRegistration ?? claimRecord0?.vehicle?.registration) ? ["Registration", claim?.vehicleRegistration ?? claimRecord0?.vehicle?.registration] : null,
                 // C-04: VIN is structurally critical — flag absence explicitly
-                ["VIN", vehicleVin ?? "NOT PROVIDED — required for vehicle verification"],
-                ["Engine number", vehicleEngineNumber ?? "Not provided"],
-                ["Odometer", vehicleMileage != null ? `${vehicleMileage.toLocaleString()} km` : "Not provided"],
+                vehicleVin ? ["VIN", vehicleVin] : ["VIN", <span style={{ color: 'var(--kr-red)', fontWeight: 600 }}>Not provided — required for vehicle verification</span>],
+                vehicleEngineNumber ? ["Engine number", vehicleEngineNumber] : null,
+                vehicleMileage != null ? ["Odometer", `${vehicleMileage.toLocaleString()} km`] : null,
                 ["Market value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Pending system benchmark"],
                 // C-05: Show valuation basis with explicit warning for assessor-stated values
                 marketValueSource
@@ -2063,14 +2061,14 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 <table className="w-full text-xs">
                   <tbody>
                     {([
-                      ['Name', driverName ?? claim?.claimantName ?? 'Not provided'],
-                      ['ID / Passport', claimRecord0?.driver?.idNumber ?? (claim as any)?.claimantIdNumber ?? 'Not provided'],
-                      ['Licence no.', driverLicenseNumber ?? 'Not provided'],
-                      ['Contact', claimRecord0?.driver?.phone ?? (claim as any)?.claimantPhone ?? 'Not provided'],
-                      ['Email', claimRecord0?.driver?.email ?? (claim as any)?.claimantEmail ?? 'Not provided'],
-                      ['Relationship to policyholder', claimRecord0?.driver?.relationshipToPolicyholder ?? 'Not stated'],
-                      ['Injuries reported', claimRecord0?.driver?.injuriesReported ?? 'Not stated'],
-                    ] as [string, string][]).map(([k, v], i) => (
+                      (driverName ?? claim?.claimantName) ? ['Name', driverName ?? claim?.claimantName] : null,
+                      (claimRecord0?.driver?.idNumber ?? (claim as any)?.claimantIdNumber) ? ['ID / Passport', claimRecord0?.driver?.idNumber ?? (claim as any)?.claimantIdNumber] : null,
+                      driverLicenseNumber ? ['Licence no.', driverLicenseNumber] : null,
+                      (claimRecord0?.driver?.phone ?? (claim as any)?.claimantPhone) ? ['Contact', claimRecord0?.driver?.phone ?? (claim as any)?.claimantPhone] : null,
+                      (claimRecord0?.driver?.email ?? (claim as any)?.claimantEmail) ? ['Email', claimRecord0?.driver?.email ?? (claim as any)?.claimantEmail] : null,
+                      claimRecord0?.driver?.relationshipToPolicyholder ? ['Relationship to policyholder', claimRecord0.driver.relationshipToPolicyholder] : null,
+                      claimRecord0?.driver?.injuriesReported ? ['Injuries reported', claimRecord0.driver.injuriesReported] : null,
+                    ].filter(Boolean) as [string, string][]).map(([k, v], i) => (
                       <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
                         <td className="py-1.5 pr-3 font-semibold" style={{ color: 'var(--kr-muted)', width: '160px' }}>{k}</td>
                         <td className="py-1.5" style={{ color: 'var(--kr-text)' }}>{v}</td>
@@ -2085,15 +2083,15 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                   <table className="w-full text-xs">
                     <tbody>
                       {([
-                        ['Name', thirdPartyName ?? 'Not provided'],
-                        ['Vehicle', thirdPartyVehicle ?? 'Not provided'],
-                        ['Registration', thirdPartyReg ?? 'Not provided'],
-                        ['Insurer', thirdPartyInsurer ?? 'Not provided'],
-                        ['Policy No.', thirdPartyPolicy ?? 'Not provided'],
-                        ['Liability admitted', liabilityAdmitted != null ? (liabilityAdmitted ? 'Yes' : 'No') : 'Not stated'],
-                        ['Witness name', claimRecord0?.witness?.name ?? (claim as any)?.witnessName ?? 'Not provided'],
-                        ['Witness contact', claimRecord0?.witness?.phone ?? (claim as any)?.witnessPhone ?? 'Not provided'],
-                      ] as [string, string][]).map(([k, v], i) => (
+                        thirdPartyName ? ['Name', thirdPartyName] : null,
+                        thirdPartyVehicle ? ['Vehicle', thirdPartyVehicle] : null,
+                        thirdPartyReg ? ['Registration', thirdPartyReg] : null,
+                        thirdPartyInsurer ? ['Insurer', thirdPartyInsurer] : null,
+                        thirdPartyPolicy ? ['Policy No.', thirdPartyPolicy] : null,
+                        liabilityAdmitted != null ? ['Liability admitted', liabilityAdmitted ? 'Yes' : 'No'] : null,
+                        (claimRecord0?.witness?.name ?? (claim as any)?.witnessName) ? ['Witness name', claimRecord0?.witness?.name ?? (claim as any)?.witnessName] : null,
+                        (claimRecord0?.witness?.phone ?? (claim as any)?.witnessPhone) ? ['Witness contact', claimRecord0?.witness?.phone ?? (claim as any)?.witnessPhone] : null,
+                      ].filter(Boolean) as [string, string][]).map(([k, v], i) => (
                         <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
                           <td className="py-1.5 pr-3 font-semibold" style={{ color: 'var(--kr-muted)', width: '160px' }}>{k}</td>
                           <td className="py-1.5" style={{ color: 'var(--kr-text)' }}>{v}</td>
@@ -2117,15 +2115,15 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 <table className="w-full text-xs report-table">
                   <tbody>
                     {([
-                      ['Case / AR number', policeReportNumber ?? 'Not provided'],
-                      ['Police station', policeStation ?? claimRecord0?.policeReport?.station ?? (claim as any)?.policeStation ?? 'Not provided'],
-                      ['Reporting officer', claimRecord0?.policeReport?.officerName ?? 'Not provided'],
-                      ['Report date', claimRecord0?.policeReport?.reportDate ?? 'Not provided'],
-                      ['Charge number', claimRecord0?.policeReport?.chargeNumber ?? 'Not provided'],
-                      ['Charged party', claimRecord0?.policeReport?.chargedParty ?? 'Not stated'],
-                      ['Investigation status', claimRecord0?.policeReport?.investigationStatus ?? 'Not stated'],
-                      ['Third-party account', isSingleVehicle ? NA_SINGLE : (claimRecord0?.policeReport?.thirdPartyAccountSummary ?? 'Not provided')],
-                    ] as [string, string][]).map(([k, v], i) => (
+                      policeReportNumber ? ['Case / AR number', policeReportNumber] : null,
+                      (policeStation ?? claimRecord0?.policeReport?.station ?? (claim as any)?.policeStation) ? ['Police station', policeStation ?? claimRecord0?.policeReport?.station ?? (claim as any)?.policeStation] : null,
+                      claimRecord0?.policeReport?.officerName ? ['Reporting officer', claimRecord0.policeReport.officerName] : null,
+                      claimRecord0?.policeReport?.reportDate ? ['Report date', claimRecord0.policeReport.reportDate] : null,
+                      claimRecord0?.policeReport?.chargeNumber ? ['Charge number', claimRecord0.policeReport.chargeNumber] : null,
+                      claimRecord0?.policeReport?.chargedParty ? ['Charged party', claimRecord0.policeReport.chargedParty] : null,
+                      claimRecord0?.policeReport?.investigationStatus ? ['Investigation status', claimRecord0.policeReport.investigationStatus] : null,
+                      !isSingleVehicle && claimRecord0?.policeReport?.thirdPartyAccountSummary ? ['Third-party account', claimRecord0.policeReport.thirdPartyAccountSummary] : null,
+                    ].filter(Boolean) as [string, string][]).map(([k, v], i) => (
                       <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e0ddd8' : undefined }}>
                         <td className="py-2 pr-4" style={{ color: 'var(--kr-dark)', fontWeight: 600, verticalAlign: 'top', whiteSpace: 'nowrap', width: '150px', fontSize: 11 }}>{k}</td>
                         <td className="py-2" style={{ color: (v === 'Not provided' || v === 'Not stated') ? 'var(--kr-muted)' : 'var(--kr-text)', verticalAlign: 'top', whiteSpace: 'normal', lineHeight: '1.6', fontSize: 12 }}>{v}</td>
@@ -3192,44 +3190,48 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                   </div>
 
                   {/* ── Evidence categories (no method names or formulas) ── */}
-                  <div className="px-5 pt-3 pb-4" style={{ borderTop: '1px solid var(--border)' }}>
-                    <p className="micro-label" style={{ marginBottom: 12 }}>Evidence Categories Assessed</p>
-                    <div className="space-y-0">
-                      {rawMethods.map((m: any, idx: number) => {
-                        const ran: boolean = m.ran ?? m.available ?? false;
-                        const speedKmh: number | null = m.speedKmh ?? m.estimateKmh ?? null;
-                        const isOutlier: boolean = (ensemble.crossValidation?.outlierMethods ?? []).includes(m.method ?? m.id ?? '');
-                        const methodId: string = m.method ?? m.id ?? `A${idx + 1}`;
-                        const categoryName = categoryMap[methodId] ?? `Analysis ${idx + 1}`;
-                        const statusColour = ran ? (isOutlier ? 'var(--fp-locked-text)' : 'var(--fp-success-text)') : 'var(--kr-muted)';
-                        const statusIcon = ran ? (isOutlier ? '!' : '\u2713') : '\u2014';
-                        const isDeploymentMethod = methodId === 'DEPLOYMENT_THRESHOLD' || methodId === 'M4';
-                        const statusLabel = ran
-                          ? (isOutlier
+                  {/* Only show methods that actually ran — never expose disabled or inferred-only rows */}
+                  {(() => {
+                    const activeMethods = rawMethods.filter((m: any) => !!(m.ran ?? m.available ?? false));
+                    if (activeMethods.length === 0) return null;
+                    return (
+                    <div className="px-5 pt-3 pb-4" style={{ borderTop: '1px solid var(--border)' }}>
+                      <p className="micro-label" style={{ marginBottom: 12 }}>Evidence Categories Assessed</p>
+                      <div className="space-y-0">
+                        {activeMethods.map((m: any, idx: number) => {
+                          const speedKmh: number | null = m.speedKmh ?? m.estimateKmh ?? null;
+                          const isOutlier: boolean = (ensemble.crossValidation?.outlierMethods ?? []).includes(m.method ?? m.id ?? '');
+                          const methodId: string = m.method ?? m.id ?? `A${idx + 1}`;
+                          const categoryName = categoryMap[methodId] ?? `Analysis ${idx + 1}`;
+                          const statusColour = isOutlier ? 'var(--fp-locked-text)' : 'var(--fp-success-text)';
+                          const statusIcon = isOutlier ? '!' : '\u2713';
+                          const isDeploymentMethod = methodId === 'DEPLOYMENT_THRESHOLD' || methodId === 'M4';
+                          const statusLabel = isOutlier
                             ? 'Excluded — result diverged from other analyses'
                             : (speedKmh != null
                               ? `${speedKmh.toFixed(0)} km/h — ${speedMeaning(speedKmh)}`
                               : isDeploymentMethod
                               ? 'Safety system activation threshold corroborated — speed consistent with deployment range'
-                              : 'Evidence assessed — insufficient data for a standalone speed estimate'))
-                          : 'Insufficient evidence available';
-                        return (
-                          <div key={methodId} className="py-2" style={{ borderBottom: '1px solid var(--border)' }}>
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-start gap-2">
-                                <span className="text-[10px] font-bold w-4 text-center shrink-0 mt-0.5" style={{ color: statusColour }}>{statusIcon}</span>
-                                <span className="text-xs font-semibold" style={{ color: ran ? 'var(--kr-text)' : 'var(--kr-muted)' }}>{categoryName}</span>
+                              : 'Evidence assessed — corroborates speed range');
+                          return (
+                            <div key={methodId} className="py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-2">
+                                  <span className="text-[10px] font-bold w-4 text-center shrink-0 mt-0.5" style={{ color: statusColour }}>{statusIcon}</span>
+                                  <span className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>{categoryName}</span>
+                                </div>
+                                <span className="text-[10px] font-semibold shrink-0 text-right" style={{ color: statusColour, maxWidth: '55%' }}>{statusLabel}</span>
                               </div>
-                              <span className="text-[10px] font-semibold shrink-0 text-right" style={{ color: statusColour, maxWidth: '55%' }}>{statusLabel}</span>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] mt-3 italic" style={{ color: 'var(--kr-muted)' }}>
+                        Detailed methodology is available to qualified experts under a confidentiality undertaking.
+                      </p>
                     </div>
-                    <p className="text-[10px] mt-3 italic" style={{ color: 'var(--kr-muted)' }}>
-                      Detailed methodology is available to qualified experts under a confidentiality undertaking.
-                    </p>
-                  </div>
+                    );
+                  })()}
 
                   {/* ── Recommended Action ── */}
                   <div className="px-5 py-3" style={{ borderTop: '1px solid var(--border)', background: 'var(--kr-white)' }}>
@@ -5559,7 +5561,10 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
 
   // CTL-aware evidence inventory: use unified truth when available
   const ctlQuoteCount = ctl4?.costBasis?.quotes?.length ?? 0;
-  const docs = [
+  // Build docs array — only include rows that have been extracted/provided.
+  // Rows with extracted=false are suppressed: they expose missing data and create
+  // duplication with the fraud risk indicators that already flag missing documents.
+  const docsAll = [
     { id: "Claim Form", type: "Primary", extracted: true, note: "Submitted by claimant" },
     { id: "Police Report", type: "Supporting", extracted: !!(ctl4?.evidence?.policeReportPresent ?? aiAssessment?.policeReportNumber), note: aiAssessment?.policeReportNumber ? `Case: ${aiAssessment.policeReportNumber}` : (ctl4?.evidence?.policeReportPresent ? "Present in file" : "Not provided") },
     { id: "Repair Quote", type: "Financial", extracted: ctlQuoteCount > 0 || !!(aiAssessment?.estimatedCost), note: (() => {
@@ -5574,8 +5579,10 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
     { id: "Photos", type: "Visual", extracted: photosDetected > 0, note: isSystemFailure ? "SYSTEM ERROR \u2014 not claimant fault" : photosDetected > 0 ? `${photosDetected} detected, ${photosProcessed} processed` : "Not submitted" },
     { id: "Driver Licence", type: "Identity", extracted: !!(claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber), note: claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber ?? "Not Provided" },
     { id: "Vehicle Registration", type: "Identity", extracted: !!(claim?.vehicleRegistration), note: claim?.vehicleRegistration ?? "Not Provided" },
-    { id: "Witness Statement", type: "Supporting", extracted: false, note: ctl4?.evidence?.witnessStatementNote ?? "Optional" },
+    { id: "Witness Statement", type: "Supporting", extracted: !!(ctl4?.evidence?.witnessStatementNote && ctl4.evidence.witnessStatementNote !== 'Optional'), note: ctl4?.evidence?.witnessStatementNote ?? "Optional" },
   ];
+  // Only show rows that were actually extracted/provided — suppress missing-data rows
+  const docs = docsAll.filter(d => d.extracted);
 
   return (
     <div className="mb-1 space-y-2" style={{ marginBottom: "8px" }}>
@@ -5811,6 +5818,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         </div>
       </div>
 
+      {docs.length > 0 && (
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3" >
           <p className="sub-heading">4.2 Document Extraction</p>
@@ -5819,38 +5827,31 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           <table className="w-full text-xs report-table">
             <thead>
               <tr>
-                {["Document", "Type", "Extracted", "Confidence", "Note"].map(h => (
+                {["Document", "Type", "Confidence", "Detail"].map(h => (
                   <th key={h} className="text-left px-3 py-2 font-semibold">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {docs.map((doc, i) => {
-                // Assign confidence based on extraction status and document type
-                const conf = doc.extracted
-                  ? doc.type === "Primary" ? 95
+                // All rows in docs are extracted=true — assign confidence by type
+                const conf = doc.type === "Primary" ? 95
                   : doc.type === "Financial" ? 85
                   : doc.type === "Visual" ? (isSystemFailure ? 0 : 80)
                   : doc.type === "Identity" ? 90
-                  : 75
-                  : 0;
+                  : 75;
                 const confColor = conf >= 70 ? "var(--fp-success-text)" : conf >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
                 return (
                   <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined, background: 'var(--kr-white)' }}>
                     <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)' }}>{doc.id}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--kr-muted)' }}>{doc.type}</td>
-                    <td className="px-3 py-2"><span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{doc.extracted ? "Yes" : "No"}</span></td>
                     <td className="px-3 py-2" style={{ minWidth: 100 }}>
-                      {doc.extracted ? (
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full" style={{ background: 'var(--kr-white)' }}>
-                            <div className="h-1.5 rounded-full" style={{ width: `${conf}%`, background: confColor }} />
-                          </div>
-                          <span className="text-xs font-semibold shrink-0" style={{ color: confColor }}>{conf}%</span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 rounded-full" style={{ background: 'var(--kr-white)' }}>
+                          <div className="h-1.5 rounded-full" style={{ width: `${conf}%`, background: confColor }} />
                         </div>
-                      ) : (
-                        <span style={{ color: 'var(--kr-muted)' }}>—</span>
-                      )}
+                        <span className="text-xs font-semibold shrink-0" style={{ color: confColor }}>{conf}%</span>
+                      </div>
                     </td>
                     <td className="px-3 py-2" style={{ color: 'var(--kr-muted)' }}>{doc.note}</td>
                   </tr>
@@ -5860,6 +5861,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           </table>
         </div>
       </div>
+      )}
 
       {/* 4.3 + 4.4 side-by-side grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>

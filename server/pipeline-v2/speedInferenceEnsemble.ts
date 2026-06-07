@@ -186,11 +186,12 @@ function getAccidentMultiplier(direction: string | null | undefined): number {
 // Source: Campbell (1974), NHTSA crash test correlation.
 //
 // IMPORTANT NOTES ON CONFIDENCE:
-// - When crush depth is document-stated (explicit measurement): HIGH confidence
-// - When crush depth is inferred from damage severity: LOW confidence only.
-//   Inferred crush depth is derived from damage severity, which is itself
-//   partially determined by speed — this creates circular reasoning that
-//   cannot be defended in court. LOW-confidence M1 is excluded from consensus.
+// - 'document': document-stated crush depth → HIGH confidence, weight 0.80
+// - 'vision':   computer-vision extracted crush depth → MEDIUM confidence, weight 0.55
+//               Vision depth is a real measurement (not circular) so it participates
+//               in the consensus at reduced weight relative to document-stated depth.
+// - 'inferred': derived from damage severity (circular reasoning) → LOW confidence,
+//               weight 0.00 — shown for transparency but excluded from consensus.
 //
 // The internal airbag floor has been removed — M4 (Deployment Threshold)
 // handles the lower bound independently. Applying it inside M1 would
@@ -205,6 +206,7 @@ function runCampbell(
   bodyType: string | null | undefined,
   collisionDirection: string | null | undefined,
   isExplicitDepth: boolean,
+  depthSource: 'document' | 'vision' | 'inferred' = 'inferred',
 ): MethodEstimate {
   if (crushDepthM <= 0 || massKg <= 0) {
     return {
@@ -226,13 +228,17 @@ function runCampbell(
 
   speedKmh = Math.round(speedKmh);
 
-  // Confidence and weight:
-  // - Explicit (document-stated) crush depth: HIGH confidence, weight 0.80
-  // - Inferred crush depth (from damage severity): LOW confidence, weight 0.00
-  //   LOW-confidence M1 is excluded from the weighted consensus — it is shown
-  //   in the report for transparency but does not influence the speed estimate.
-  const confidence: MethodConfidence = isExplicitDepth ? 'HIGH' : 'LOW';
-  const weight = isExplicitDepth ? 0.80 : 0.00;
+  // Confidence and weight by depth source:
+  // - 'document': HIGH confidence, weight 0.80 (court-defensible measurement)
+  // - 'vision':   MEDIUM confidence, weight 0.55 (real measurement, not circular)
+  // - 'inferred': LOW confidence, weight 0.00 (excluded from consensus)
+  const confidence: MethodConfidence = depthSource === 'document' ? 'HIGH' : depthSource === 'vision' ? 'MEDIUM' : 'LOW';
+  const weight = depthSource === 'document' ? 0.80 : depthSource === 'vision' ? 0.55 : 0.00;
+  const basisNote = depthSource === 'document'
+    ? 'document-stated measurement'
+    : depthSource === 'vision'
+    ? 'computer-vision extracted measurement — MEDIUM confidence'
+    : 'inferred from damage severity — LOW confidence, excluded from consensus';
 
   return {
     method: 'CAMPBELL',
@@ -241,8 +247,8 @@ function runCampbell(
     isLowerBoundOnly: false,
     confidenceWeight: weight,
     confidence,
-    basis: `Crush depth: ${(crushDepthM * 100).toFixed(1)} cm (${isExplicitDepth ? 'document-stated measurement' : 'inferred from damage severity — LOW confidence, excluded from consensus'}), stiffness: ${getStiffnessKnm(bodyType)} kN/m (${bodyType ?? 'default'}), mass: ${massKg} kg`,
-    ran: isExplicitDepth, // Only counts as "ran" when explicit — inferred is shown but not used
+    basis: `Crush depth: ${(crushDepthM * 100).toFixed(1)} cm (${basisNote}), stiffness: ${getStiffnessKnm(bodyType)} kN/m (${bodyType ?? 'default'}), mass: ${massKg} kg`,
+    ran: depthSource !== 'inferred', // Counts as "ran" for document and vision depths
   };
 }
 
@@ -537,13 +543,21 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
   // Multi-zone damage check: if damage spans > 2 zones, M5 Path B is unreliable
   const multiZoneDamage = (input.damagedZoneCount ?? 1) > 2;
 
-  // M1: Use document crush depth when available (explicit, defensible).
-  // Fall back to inferred crush depth for display only — weight = 0 (excluded from consensus).
-  const m1HasExplicit = !!(documentCrushDepthM && documentCrushDepthM >= 0.04);
-  const m1CrushDepth = m1HasExplicit ? documentCrushDepthM! : inferredCrushDepthM;
+  // M1: Crush depth priority chain:
+  //   1. Document-stated crush depth (explicit, highest defensibility) → HIGH confidence
+  //   2. Vision-extracted crush depth (computer vision measurement)   → MEDIUM confidence
+  //   3. Inferred crush depth (from damage severity — circular)       → LOW, excluded
+  const m1HasDocument = !!(documentCrushDepthM && documentCrushDepthM >= 0.04);
+  const m1HasVision   = !!(visionCrushDepthM && visionCrushDepthM >= 0.04);
+  const m1CrushDepth  = m1HasDocument ? documentCrushDepthM!
+                      : m1HasVision   ? visionCrushDepthM!
+                      : inferredCrushDepthM;
+  const m1DepthSource: 'document' | 'vision' | 'inferred' =
+    m1HasDocument ? 'document' : m1HasVision ? 'vision' : 'inferred';
+  const m1HasExplicit = m1HasDocument || m1HasVision; // kept for downstream compat
 
   // Run all five methods
-  const m1 = runCampbell(m1CrushDepth, massKg, bodyType, collisionDirection, m1HasExplicit);
+  const m1 = runCampbell(m1CrushDepth, massKg, bodyType, collisionDirection, m1HasExplicit, m1DepthSource);
   const m2 = runEnergyMomentum(partsCostUsd ?? null, massKg, collisionDirection, airbagDeployment);
   const m3 = runImpulse(totalDamageAreaM2 ?? null, m1CrushDepth, massKg, collisionDirection);
   const m4 = runDeploymentThreshold(airbagDeployment, seatbeltPretensioner, collisionDirection);
