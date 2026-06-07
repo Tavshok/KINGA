@@ -362,12 +362,23 @@ function computeSpeedForensics(params: {
   let riskScoreContribution = 0;
   let interpretation = 'No claimed speed was recorded. Physics-inferred speed used for all calculations.'
 
+  // Whether the ensemble produced any reliable point estimate
+  // (ensembleSpeedKmh is null when no physics method yielded a point estimate)
+  const hasReliablePhysicsEstimate = ensembleSpeedKmh !== null;
+
   if (claimedSpeedKmh !== null && claimedSpeedKmh > 0) {
     const maxSpeed = Math.max(bestPhysicsKmh, claimedSpeedKmh);
     deviationPct = maxSpeed > 0 ? Math.round(Math.abs(bestPhysicsKmh - claimedSpeedKmh) / maxSpeed * 100) : 0;
     deviationKmh = Math.round(bestPhysicsKmh - claimedSpeedKmh);
 
-    if (deviationPct <= 15) {
+    if (!hasReliablePhysicsEstimate) {
+      // No physics method produced a point estimate — cannot confirm or contradict the claimed speed
+      deviationClass = 'consistent'; // treat as non-escalating for risk score
+      deviationLabel = 'Not Independently Verified';
+      verificationPriority = 'low';
+      riskScoreContribution = 0;
+      interpretation = `The claimed speed of ${claimedSpeedKmh} km/h could not be independently verified from the available physical evidence. No physics method produced a standalone speed estimate for this incident — document-stated crush depth or vehicle damage photographs with measurable deformation are required to perform an independent speed calculation. The claimed speed is not contradicted by the available evidence, but this should not be treated as corroboration.`;
+    } else if (deviationPct <= 15) {
       deviationClass = 'consistent';
       deviationLabel = 'Consistent';
       verificationPriority = 'none';

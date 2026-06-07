@@ -292,6 +292,7 @@ CRITICAL RULES — ANTI-FABRICATION CONTRACT
 - The sequence_of_events MUST only describe what is explicitly stated or directly implied by the raw text.
 - Every factual claim in your output must be traceable to a specific phrase in the raw description.
 - If information is not available, use null or "not stated" — never fabricate.
+- CORRECT OCR ERRORS: The raw description was extracted from a PDF and may contain OCR artefacts. Silently correct obvious OCR errors in the cleaned_incident_narrative (e.g. "load" → "road", "tbe" → "the", "aod" → "and", "tbat" → "that", "witb" → "with", "tbe" → "the", "tbey" → "they", "tbis" → "this", "bave" → "have"). Do NOT correct words that are genuinely ambiguous — only fix clear OCR character substitutions (b/h, r/l, 0/O, 1/I).
 
 CLAIM CONTEXT
 -------------

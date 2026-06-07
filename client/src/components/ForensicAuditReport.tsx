@@ -179,18 +179,10 @@ function sanitiseTextArtefacts(text: string): string {
     // Fix period-inserted mid-word breaks: "threshold.ered" → "thresholded"
     // Only when the period is surrounded by lowercase letters (not sentence boundaries)
     .replace(/([a-z])\.([a-z])/g, '$1$2')
-    // Fix double-space word splits: "recommende ed" → "recommended"
-    // Pattern: lowercase letters, space, lowercase letters where the split looks like a broken word
-    .replace(/([a-z]{3,})\s([a-z]{2,})(?=\s|$)/g, (match, p1, p2) => {
-      // Only merge if it looks like a broken word (second part is a suffix or continuation)
-      const merged = p1 + p2;
-      // Simple heuristic: if the second part starts with a vowel or common suffix, merge
-      const COMMON_SUFFIXES = ['ed', 'ing', 'ion', 'tion', 'ation', 'ness', 'ment', 'er', 'est', 'ly', 'al', 'ful', 'less', 'ous', 'ive'];
-      if (COMMON_SUFFIXES.some(s => p2 === s || p2.startsWith(s)) && p2.length <= 5) {
-        return merged;
-      }
-      return match;
-    })
+    // NOTE: The previous word-merge regex (/([a-z]{3,})\s([a-z]{2,})/) was removed.
+    // It was too aggressive and caused real words to be merged incorrectly
+    // (e.g. "on road" → "onroad", "the road" → "theroad") producing garbled text.
+    // OCR suffix-merging should only be done at the pipeline/LLM level, not in the UI.
     // Fix repeated punctuation from OCR
     .replace(/\.{2,}/g, '.')
     .replace(/,{2,}/g, ',')
@@ -2774,7 +2766,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               } else if (alignment === 'CONFLICTED') {
                 parts.push(`The available signals produce conflicting severity assessments. The physics model indicates ${toSentenceCase(consensusSeverity)} severity, but this is not corroborated by all sources. This claim requires senior assessor review before settlement.`);
                 // B-03: Cross-validation note — severity is INCONCLUSIVE when sources conflict
-                parts.push(`⚠ CROSS-VALIDATION NOTE: Because the severity signals are in conflict, the severity finding is INCONCLUSIVE and must not be used as the sole basis for the cost assessment or settlement decision. The conservative fallback severity (${toSentenceCase(consensusSeverity)}) has been recorded for reserve purposes only. Refer to Section 2.8 Severity Consensus for the full signal breakdown.`);
+                parts.push(`⚠ CROSS-VALIDATION NOTE: Because the severity signals are in conflict, the severity finding is INCONCLUSIVE and must not be used as the sole basis for the cost assessment or settlement decision. The conservative fallback severity (${toSentenceCase(consensusSeverity)}) has been recorded for reserve purposes only. Refer to Section 2.4c Damage Severity Distribution for the full signal breakdown.`);
               } else {
                 parts.push(`The assessed impact severity is ${toSentenceCase(consensusSeverity)}.`);
               }
@@ -3211,12 +3203,15 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                         const categoryName = categoryMap[methodId] ?? `Analysis ${idx + 1}`;
                         const statusColour = ran ? (isOutlier ? 'var(--fp-locked-text)' : 'var(--fp-success-text)') : 'var(--kr-muted)';
                         const statusIcon = ran ? (isOutlier ? '!' : '\u2713') : '\u2014';
+                        const isDeploymentMethod = methodId === 'DEPLOYMENT_THRESHOLD' || methodId === 'M4';
                         const statusLabel = ran
                           ? (isOutlier
                             ? 'Excluded — result diverged from other analyses'
                             : (speedKmh != null
                               ? `${speedKmh.toFixed(0)} km/h — ${speedMeaning(speedKmh)}`
-                              : 'Evidence reviewed — no speed estimate produced'))
+                              : isDeploymentMethod
+                              ? 'Safety system activation threshold corroborated — speed consistent with deployment range'
+                              : 'Evidence assessed — insufficient data for a standalone speed estimate'))
                           : 'Insufficient evidence available';
                         return (
                           <div key={methodId} className="py-2" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -3258,58 +3253,11 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             physicsSpeed={physicsInferredSpeed ?? null}
           />
 
-          {/* 2.8 Severity Consensus */}
-          <Section28SeverityConsensus severityConsensus={(_phys as any)?.severityConsensus ?? null} />
+          {/* 2.8 Severity Consensus — removed (covered by 2.4c Damage Severity Distribution) */}
           {/* 2.9 Damage Pattern Validation moved to Section 2.5 Damage Analysis — see SectionDamageAnalysis below */}
           {/* 2.10 Vehicle Structural Intelligence */}
           <Section210VehicleStructural claim={claim} />
-          {/* 2.11 Photo Forensics Summary — matches mock section 2.10 */}
-          {(() => {
-            const photoCount = (claimRecord0 as any)?.evidence?.photoCount ?? aiAssessment?.photosDetected ?? 0;
-            const photosProcessed = (enforcement as any)?._photoForensics?.photosProcessed ?? photoCount;
-            const hasPhotos = photoCount > 0;
-            const pfData = (enforcement as any)?._photoForensics as any;
-            const manipScore = pfData?.overallManipulationScore ?? null;
-            const gpsFound = pfData?.gpsCoordinatesFound ?? false;
-            const exifStripped = pfData?.exifStripped ?? !hasPhotos;
-            const rows: [string, React.ReactNode][] = [
-              ['Photos Submitted', hasPhotos
-                ? <span style={{ color: 'var(--fp-success-text)', fontWeight: 600 }}>{photoCount} submitted</span>
-                : <span style={{ color: 'var(--fp-critical-text)', fontWeight: 600 }}>0 — None submitted</span>],
-              ['Photos Processed', <span>{photosProcessed}</span>],
-              ['EXIF Status', exifStripped
-                ? <span style={{ color: 'var(--fp-critical-text)' }}>Stripped / Not available</span>
-                : <span style={{ color: 'var(--fp-success-text)' }}>Present{gpsFound ? ' · GPS coordinates found' : ''}</span>],
-              ['Image-Based Fraud Detection', hasPhotos
-                ? <span style={{ color: 'var(--fp-success-text)' }}>Available{manipScore != null ? ` — Manipulation score: ${manipScore}%` : ''}</span>
-                : <span style={{ color: 'var(--fp-critical-text)' }}>Not available — text analysis only</span>],
-              ['Recommended Action', hasPhotos
-                ? <span>Review photo evidence in Section 4</span>
-                : <span>Request 3+ photos: front, rear, primary impact zone</span>],
-              ...(!hasPhotos ? [['FCDI Impact if Submitted', <span style={{ color: 'var(--fp-success-text)' }}>+12–18 points estimated</span>] as [string, React.ReactNode]] : []),
-            ];
-            return (
-              <div style={{ marginTop: 12 }}>
-                <p className="sub-heading">2.11 Photo Forensics Summary</p>
-                {!hasPhotos && (
-                  <div className="flex items-start gap-2 p-2.5 rounded mb-2" style={{ background: 'var(--fp-critical-bg)', borderLeft: '3px solid var(--fp-critical-text)' }}>
-                    <span style={{ color: 'var(--fp-critical-text)', fontWeight: 700, fontSize: 11 }}>!</span>
-                    <p className="text-xs" style={{ color: 'var(--kr-text)' }}><strong>Photo Evidence — Not Applicable:</strong> No photographs were submitted with this claim. Image-based fraud detection and damage zone validation could not be performed. Damage analysis is based on text extraction only.</p>
-                  </div>
-                )}
-                <table className="w-full text-xs report-table">
-                  <tbody>
-                    {rows.map(([label, val], i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td className="py-1.5 pr-3 font-medium" style={{ color: 'var(--kr-muted)', width: '40%' }}>{label}</td>
-                        <td className="py-1.5" style={{ color: 'var(--kr-text)' }}>{val}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })()}
+          {/* 2.11 Photo Forensics Summary — removed (covered in full by Section 4 Photo Evidence) */}
         </div>
       </div>
     </div>
@@ -3619,10 +3567,13 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
 
   if (!physics && !claimed) return null;
 
+  // Whether the ensemble produced a reliable point estimate (null ensemble = no physics methods ran)
+  const hasReliableEstimate = sf?.ensembleSpeedKmh != null;
+
   // Deviation colour tokens
-  const devBadgeBg = devClass === 'consistent' ? 'var(--fp-success-bg)' : devClass === 'moderate' ? 'var(--fp-warning-bg)' : devClass === 'significant' ? 'var(--fp-locked-bg)' : devClass === 'critical' ? 'var(--fp-critical-bg)' : 'var(--fp-info-bg)';
-  const devBadgeBorder = devClass === 'consistent' ? 'var(--fp-success-border)' : devClass === 'moderate' ? 'var(--fp-warning-border)' : devClass === 'significant' ? 'var(--fp-locked-border)' : devClass === 'critical' ? 'var(--fp-critical-border)' : 'var(--fp-info-border)';
-  const devBadgeText = devClass === 'consistent' ? 'var(--fp-success-text)' : devClass === 'moderate' ? 'var(--fp-warning-text)' : devClass === 'significant' ? 'var(--fp-locked-text)' : devClass === 'critical' ? 'var(--fp-critical-text)' : 'var(--fp-info-text)';
+  const devBadgeBg = !hasReliableEstimate ? 'var(--fp-info-bg)' : devClass === 'consistent' ? 'var(--fp-success-bg)' : devClass === 'moderate' ? 'var(--fp-warning-bg)' : devClass === 'significant' ? 'var(--fp-locked-bg)' : devClass === 'critical' ? 'var(--fp-critical-bg)' : 'var(--fp-info-bg)';
+  const devBadgeBorder = !hasReliableEstimate ? 'var(--fp-info-border)' : devClass === 'consistent' ? 'var(--fp-success-border)' : devClass === 'moderate' ? 'var(--fp-warning-border)' : devClass === 'significant' ? 'var(--fp-locked-border)' : devClass === 'critical' ? 'var(--fp-critical-border)' : 'var(--fp-info-border)';
+  const devBadgeText = !hasReliableEstimate ? 'var(--fp-info-text)' : devClass === 'consistent' ? 'var(--fp-success-text)' : devClass === 'moderate' ? 'var(--fp-warning-text)' : devClass === 'significant' ? 'var(--fp-locked-text)' : devClass === 'critical' ? 'var(--fp-critical-text)' : 'var(--fp-info-text)';
 
   const SCALE_MAX_27 = 120;
   const toScalePct27 = (v: number) => Math.min(100, Math.max(0, (v / SCALE_MAX_27) * 100));
@@ -3632,24 +3583,31 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
     if (claimed == null && physics != null) {
       return `No speed was stated by the driver. Structural evidence indicates the vehicle was travelling at approximately ${Math.round(physics)} km/h at the time of impact.`;
     }
-    if (claimed != null && physics != null) {
-      const diff = Math.abs(claimed - physics);
-      const higher = claimed > physics ? 'higher' : 'lower';
-      if (devClass === 'consistent') {
-        return `The driver stated ${claimed} km/h. Structural evidence indicates approximately ${Math.round(physics)} km/h — a difference of ${diff.toFixed(0)} km/h. The stated speed is consistent with the physical evidence.`;
-      } else if (devClass === 'moderate') {
-        return `The driver stated ${claimed} km/h. Structural evidence indicates approximately ${Math.round(physics)} km/h — a difference of ${diff.toFixed(0)} km/h (${devPct}%). The stated speed is ${higher} than the evidence suggests. Assessor review is recommended.`;
-      } else {
-        return `The driver stated ${claimed} km/h. Structural evidence indicates approximately ${Math.round(physics)} km/h — a discrepancy of ${diff.toFixed(0)} km/h (${devPct}%). This is a significant inconsistency that requires verification before settlement.`;
+    if (claimed != null) {
+      if (!hasReliableEstimate) {
+        return `The driver stated ${claimed} km/h. No independent physics estimate could be produced from the available evidence — crush depth measurements or vehicle damage photographs with measurable deformation are required. The stated speed is not contradicted by the available evidence, but has not been independently verified.`;
+      }
+      if (physics != null) {
+        const diff = Math.abs(claimed - physics);
+        const higher = claimed > physics ? 'higher' : 'lower';
+        if (devClass === 'consistent') {
+          return `The driver stated ${claimed} km/h. Structural evidence indicates approximately ${Math.round(physics)} km/h — a difference of ${diff.toFixed(0)} km/h. The stated speed is consistent with the physical evidence.`;
+        } else if (devClass === 'moderate') {
+          return `The driver stated ${claimed} km/h. Structural evidence indicates approximately ${Math.round(physics)} km/h — a difference of ${diff.toFixed(0)} km/h (${devPct}%). The stated speed is ${higher} than the evidence suggests. Assessor review is recommended.`;
+        } else {
+          return `The driver stated ${claimed} km/h. Structural evidence indicates approximately ${Math.round(physics)} km/h — a discrepancy of ${diff.toFixed(0)} km/h (${devPct}%). This is a significant inconsistency that requires verification before settlement.`;
+        }
       }
     }
     return '';
   })();
 
   // Recommended action
-  const recAction = requiresVerification
-    ? { label: verificationPriority === 'high' ? 'Independent Reconstruction Required Before Settlement' : 'Assessor Verification Recommended', bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)', icon: '!', body: 'The speed discrepancy between the driver statement and structural evidence exceeds the acceptable tolerance threshold. The attending assessor should review the physical damage evidence before authorising settlement.' }
-    : { label: 'Speed Claim Consistent with Structural Evidence', bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'var(--fp-success-text)', icon: '\u2713', body: 'The claimed speed falls within the expected range for this level of structural damage. No independent reconstruction is required on speed grounds alone.' };
+  const recAction = !hasReliableEstimate && claimed != null
+    ? { label: 'Insufficient Evidence for Independent Speed Verification', bg: 'var(--fp-info-bg)', border: 'var(--fp-info-border)', text: 'var(--fp-info-text)', icon: 'i', body: 'No physics method produced a standalone speed estimate for this incident. To enable independent speed verification, submit: (1) a repair estimate with document-stated crush depth, or (2) clear vehicle damage photographs showing measurable deformation at the primary impact zone.' }
+    : requiresVerification
+      ? { label: verificationPriority === 'high' ? 'Independent Reconstruction Required Before Settlement' : 'Assessor Verification Recommended', bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)', icon: '!', body: 'The speed discrepancy between the driver statement and structural evidence exceeds the acceptable tolerance threshold. The attending assessor should review the physical damage evidence before authorising settlement.' }
+      : { label: 'Speed Claim Consistent with Structural Evidence', bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'var(--fp-success-text)', icon: '\u2713', body: 'The claimed speed falls within the expected range for this level of structural damage. No independent reconstruction is required on speed grounds alone.' };
 
   return (
     <div className="mb-4">
