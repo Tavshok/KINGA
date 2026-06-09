@@ -830,10 +830,20 @@ export async function runFraudAnalysisStage(
       ctx.log("Stage 8/43", `Cross-engine consistency validator failed: ${String(crossErr)} — skipping`);
     }
 
+    // ── Recalculate final score AFTER cross-engine injection ──────────────────
+    // The cross-engine loop may have pushed additional indicators into allIndicators.
+    // We must recompute here so the stored fraudRiskScore matches the full indicator set
+    // and the cover card, executive summary, and breakdown table all read the same value.
+    const finalFraudRiskScore = Math.min(100, allIndicators.reduce((sum, i) => sum + i.score, 0));
+    const finalFraudRiskLevel = scoreToLevel(finalFraudRiskScore);
+    if (finalFraudRiskScore !== fraudRiskScore) {
+      ctx.log("Stage 8", `Fraud score updated after cross-engine injection: ${fraudRiskScore} → ${finalFraudRiskScore}/100`);
+    }
+
     // Stage 26: apply defensive contract — ensure score, level, and at least 1 indicator
     const output = ensureFraudContract({
-      fraudRiskScore,
-      fraudRiskLevel,
+      fraudRiskScore: finalFraudRiskScore,
+      fraudRiskLevel: finalFraudRiskLevel,
       indicators: allIndicators,
       quoteDeviation: null,
       repairerHistory: { flagged: false, notes: "No repairer history data available for analysis." },
@@ -848,7 +858,7 @@ export async function runFraudAnalysisStage(
       accidentDateCrossCheck: accidentDateCrossCheckResult,
     }, isDegraded ? "degraded_analysis" : "success");
 
-    ctx.log("Stage 8", `Fraud analysis complete. Risk: ${fraudRiskLevel} (${fraudRiskScore}/100), Indicators: ${allIndicators.length}, Consistency: ${consistency.score}/100`);
+    ctx.log("Stage 8", `Fraud analysis complete. Risk: ${finalFraudRiskLevel} (${finalFraudRiskScore}/100), Indicators: ${allIndicators.length}, Consistency: ${consistency.score}/100`);
 
     return {
       status: isDegraded ? "degraded" : "success",

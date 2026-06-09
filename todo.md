@@ -12357,3 +12357,23 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Ensure all monetary values use the same currency formatter
 - [ ] Ensure all date values use the same date formatter
 - [ ] Reduce excessive whitespace between sub-sections
+
+## Hallucination / Inconsistency / Fraud Score Fixes (DOC-20260608-C6D5F2CE)
+- [ ] Fix fraud score inconsistency: cover card shows 83, executive summary says 100 — reconcile to single authoritative source
+- [ ] Fix severity inconsistency: impact physics table says "Minor", physics diagram summary says "Severe" — one authoritative severity field
+- [ ] Fix evidence inventory counters showing 0/0/0 when documents are clearly present
+- [ ] Fix speed verification wording: "No independent estimate" yet "Structural evidence: 13 km/h — derived from damage analysis" shown simultaneously
+- [ ] Investigate direction mismatch scoring for sideswipe: 15/20 may be too aggressive when rear-quarter ambiguity exists
+- [ ] Fix fraud factor contributions total (61) not matching displayed fraud score (83)
+- [ ] Fix Severity vs Physics factor: page 13 shows 16/20, page 14 shows 0/20 — same report, contradictory values
+- [ ] Calibrate missing-data fraud penalty: 10/20 for absent police report + policy number may be disproportionate
+
+## Comprehensive Report Quality Audit (Jun 2026)
+- [ ] Fix physics consistency contradiction: physicsScore used as "Consistent" (>=70) in cover card but "Minor anomaly" (>=30) in Section 2 — unify threshold and source variable across all sections
+- [ ] Fix severity label inconsistency: "Impact Severity" row reads from structuralDamageSeverity (Stage 6) while narrative reads from severityConsensus.final_severity (Stage 7) — unify to consensus when available
+- [ ] Fix "No independent estimate" banner shown simultaneously with a physics-derived speed in the narrative — suppress banner when valid speed IS available
+- [ ] Spelling/grammar audit: scan all static strings in ForensicAuditReport.tsx for typos
+- [ ] Narrative consistency: Section 1, Section 2, and Section 6 executive summary must use same severity/speed/direction values
+- [ ] Remove or qualify statements that present inferred/estimated values as confirmed facts
+- [ ] Fix physics label in Section 2 table: "Estimated Speed: X km/h (driver stated)" is wrong when the value is physics-inferred, not driver-stated
+- [ ] Fix executive summary fraud score text: uses adjustedFraudScore (can be 100) while cover card shows stored DB score (83) — align both to same value

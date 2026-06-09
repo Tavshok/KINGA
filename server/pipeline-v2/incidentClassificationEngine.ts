@@ -156,7 +156,7 @@ Respond ONLY with a JSON object in this exact format:
   "incident_type": "<type>",
   "sub_type": "<sub_type or null>",
   "confidence": <0-100>,
-  "reasoning": "<2-3 sentence explanation citing specific evidence from the narrative>",
+  "reasoning": "<2-3 sentence professional explanation citing evidence from the narrative. NEVER quote raw OCR text or parts-list items verbatim — paraphrase all evidence in clean professional English>",
   "claim_form_matches": <true/false>,
   "signals": ["<signal1>", "<signal2>", ...]
 }`;
@@ -812,13 +812,26 @@ export async function classifyIncident(
       arbitrationOverride = true;
     }
 
+    // Sanitise reasoning: strip any verbatim OCR artefacts (raw parts-list items quoted
+    // directly from the damage description) before storing — these look unprofessional
+    // and can expose internal data in the report.
+    // Pattern: remove anything that looks like an all-caps parts list (e.g. 'REAR TONDER; REAR BUMPER; REMOVE AND REFIT TRIM')
+    const sanitisedReasoning = finalReasoning
+      .replace(/'[A-Z][A-Z\s;,\.\-\/&]+'/g, (match) => {
+        // Only strip if the quoted string looks like a parts list (contains semicolons or multiple caps words)
+        return match.includes(';') || (match.match(/[A-Z]{2,}/g) ?? []).length > 3
+          ? '(damage description)'
+          : match;
+      })
+      .replace(/\s{2,}/g, ' ')
+      .trim();
     return {
       incident_type: finalType,
       sub_type: arbitrationOverride ? null : llmResult.sub_type,
       confidence: finalConfidence,
       sources_used: sourcesUsed,
       conflict_detected: conflictDetected || arbitrationOverride,
-      reasoning: finalReasoning,
+      reasoning: sanitisedReasoning,
       source_detail: sourceDetail,
       canonical_type: finalCanonical,
       method: arbitrationOverride ? "physical_arbitration" : "llm",

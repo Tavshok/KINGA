@@ -188,6 +188,12 @@ function sanitiseTextArtefacts(text: string): string {
     .replace(/,{2,}/g, ',')
     // Fix space before punctuation
     .replace(/ ([.,;:!?])/g, '$1')
+    // Strip verbatim raw parts-list quotes that the LLM may have copied from the damage description.
+    // Pattern: single-quoted strings that are all-caps with semicolons (e.g. 'REAR TONDER; REAR BUMPER; TRIM')
+    // These are raw repair-quote line items and should never appear verbatim in analysis text.
+    .replace(/'([A-Z][A-Z\s;,\.\-\/&0-9]{8,})'/g, (match, inner) =>
+      inner.includes(';') || (inner.match(/[A-Z]{2,}/g) ?? []).length > 3 ? '(damage description)' : match
+    )
     // Normalise multiple spaces
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
@@ -866,7 +872,12 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
     : null;
   const wfLevel = fraudBreakdown0?.level ?? wf?.level ?? "minimal";
   const canonicalScore0 = fraudBreakdown0?.overallScore ?? (aiAssessment as any)?.fraudScore ?? null;
-  const wfScore = canonicalScore0 != null && canonicalScore0 > 0 ? Number(canonicalScore0) : (wf?.score ?? 0);
+  // Use the enforcement-adjusted fraud score when available so the cover card and executive summary
+  // both reflect the same final value (base score + consistency/direction adjustments).
+  // fraudScoreAdjustment is returned by applyIntelligenceEnforcement and attached to the result.
+  const _enforcementAdjustment: number = (e as any)?.fraudScoreAdjustment ?? 0;
+  const _baseScore0 = canonicalScore0 != null && canonicalScore0 > 0 ? Number(canonicalScore0) : (wf?.score ?? 0);
+  const wfScore = _enforcementAdjustment > 0 ? Math.min(100, _baseScore0 + _enforcementAdjustment) : _baseScore0;
   // Map canonical fraud score to a decision string
   const wfDecision = wfScore >= 70 ? "DECLINE" : wfScore >= 40 ? "REVIEW_REQUIRED" : null;
   // ── Claim Truth Layer override (unified source of truth) ──
@@ -1781,7 +1792,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                     )}
                     {isClassifiedByLLM && classifiedReasoning && (
                       <span className="text-[10px] italic" style={{ color: 'var(--kr-muted)' }}>
-                        {classifiedReasoning}
+                        {sanitiseTextArtefacts(classifiedReasoning)}
                       </span>
                     )}
                   </span>
@@ -1851,9 +1862,19 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                   <span style={{ fontSize: 12, color: 'var(--kr-amber)' }}>&#9888; Incident description could not be extracted from the submitted documents. Please verify source documents and re-submit with clearer scans.</span>
                 </div>
               ) : (
-                <div className="narr-quote">
-                  {toSentenceCase(filterAssessorConclusions(sanitiseTextArtefacts(description || narrativeAnalysis?.cleaned_incident_narrative || '')).trim())}
-                </div>
+                <>
+                  <div className="narr-quote">
+                    {/* Prefer the LLM-cleaned narrative (OCR-corrected) over the raw description field */}
+                    {toSentenceCase(filterAssessorConclusions(sanitiseTextArtefacts(narrativeAnalysis?.cleaned_incident_narrative || description || '')).trim())}
+                  </div>
+                  {/* Low-confidence disclaimer — shown when the narrative engine has low confidence in the extraction */}
+                  {narrativeAnalysis?.confidence != null && narrativeAnalysis.confidence < 50 && (
+                    <div style={{ margin: '0 14px 8px', fontSize: 11, padding: '6px 10px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 3 }}>
+                      <span style={{ color: 'var(--kr-amber)', fontWeight: 600 }}>&#9888; Low confidence extraction (confidence: {narrativeAnalysis.confidence}/100)</span>
+                      <span style={{ color: 'var(--kr-muted)' }}> — the source narrative may contain OCR artefacts, incomplete text, or insufficient detail. This narrative should be independently verified before settlement.</span>
+                    </div>
+                  )}
+                </>
               )}
               {narrativeAnalysis?.was_contaminated && (
                 <div style={{ margin: '0 14px 8px', fontSize: 11, color: 'var(--kr-amber)' }}>
@@ -1862,9 +1883,14 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
               )}
 
               {/* Reconstructed sequence — distinct strip */}
-              {narrativeAnalysis?.extracted_facts?.sequence_of_events && (
+              {narrativeAnalysis?.extracted_facts?.sequence_of_events && narrativeAnalysis.extracted_facts.sequence_of_events !== 'Insufficient data to reconstruct sequence of events.' && (
                 <div className="narr-seq">
-                  <span className="narr-seq-label">Reconstructed Sequence</span>
+                  <span className="narr-seq-label">
+                    Reconstructed Sequence
+                    {narrativeAnalysis?.confidence != null && narrativeAnalysis.confidence < 50 && (
+                      <span style={{ fontWeight: 400, color: 'var(--kr-amber)', marginLeft: 6, fontSize: 10 }}>(low confidence — interpretation only)</span>
+                    )}
+                  </span>
                   <span className="narr-seq-text">{narrativeAnalysis.extracted_facts.sequence_of_events}</span>
                 </div>
               )}
@@ -1891,7 +1917,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                         <div key={i} className="narr-cv-row">
                           <span className="narr-cv-dim">{r.label}</span>
                           <span className={`narr-cv-badge ${cls}`}>{vt}</span>
-                          <span className="narr-cv-notes">{r.notes}</span>
+                          <span className="narr-cv-notes">{sanitiseTextArtefacts(r.notes ?? '')}</span>
                         </div>
                       );
                     })}
@@ -1917,7 +1943,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                           <div className="narr-flag-title">{toTitleCase(sig.code)}</div>
                           <div className="narr-flag-desc">{sig.description}</div>
                           {sig.evidence && (
-                            <div className="narr-flag-evidence">Evidence: &ldquo;{sig.evidence}&rdquo;</div>
+                            <div className="narr-flag-evidence">Evidence: &ldquo;{sanitiseTextArtefacts(sig.evidence)}&rdquo;</div>
                           )}
                         </div>
                       </div>
@@ -2369,7 +2395,10 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
   const estimatedSpeedKmh = (_phys?.estimatedSpeedKmh ?? 0) > 0 ? _phys!.estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? 0);
   // physicsInferredSpeed: the best available physics-derived speed estimate
   const physicsInferredSpeed = estimatedSpeedKmh > 0 ? estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? null);
-  const severity = aiAssessment?.structuralDamageSeverity ?? "unknown";
+  // Prefer severityConsensus.final_severity (Stage 7 three-source consensus) over
+  // structuralDamageSeverity (Stage 6 single-source DB enum) to avoid inter-section contradictions.
+  const _sc2 = (_phys as any)?.severityConsensus;
+  const severity = _sc2?.final_severity ?? aiAssessment?.structuralDamageSeverity ?? "unknown";
 
   // damageZones is at the top level of the enforcement result — NOT inside directionFlag
   // (IntelligenceEnforcementResult.directionFlag only has mismatch/explanation/possibleExplanations)
@@ -2470,11 +2499,16 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
     <div className="mb-1 space-y-2" style={{ marginBottom: "8px" }}>
       {/* Section 2 Plain-English Summary */}
       {(() => {
-        const consistencyVerdict = physicsScore >= 70
+        // When severity consensus signals are CONFLICTED, escalate the banner regardless of physicsScore
+        // to avoid the contradiction of showing "Minor Inconsistencies" while Section 2.4c shows "INCONCLUSIVE".
+        const _sc2sum = (_phys as any)?.severityConsensus;
+        const _scAlign = _sc2sum?.source_alignment ?? null;
+        const _scConflicted = _scAlign && _scAlign !== 'FULL' && _scAlign !== 'FULLY_ALIGNED' && _scAlign !== 'ALIGNED' && _scAlign !== 'PARTIAL';
+        const consistencyVerdict = physicsScore >= 70 && !_scConflicted
           ? { label: 'Physics Consistent', text: `The physical damage evidence is consistent with the reported incident. The calculated impact speed and energy are proportional to the observed damage. No significant anomalies were detected.`, bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', icon: '\u2713' }
-          : physicsScore >= 30
+          : (physicsScore >= 30 && !_scConflicted)
           ? { label: 'Minor Inconsistencies', text: `The physical damage evidence shows some inconsistencies with the reported incident. The overall physics score is ${Math.round(physicsScore)}%. These inconsistencies do not necessarily indicate fraud but should be reviewed by the attending assessor before settlement.`, bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', icon: '!' }
-          : { label: 'Significant Anomaly — Engineering Review Required', text: `The physical damage evidence is significantly inconsistent with the reported incident. The physics score of ${Math.round(physicsScore)}% is below the acceptable threshold. An independent engineering assessment is required before this claim can proceed to settlement.`, bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', icon: '\u26a0' };
+          : { label: 'Significant Anomaly — Engineering Review Required', text: `The physical damage evidence is significantly inconsistent with the reported incident. The physics score of ${Math.round(physicsScore)}% is below the acceptable threshold${_scConflicted ? ', and the severity signals from multiple sources are in conflict' : ''}. An independent engineering assessment is required before this claim can proceed to settlement.`, bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', icon: '\u26a0' };
         return (
           <div className="" style={{ border: `1px solid ${consistencyVerdict.border}`, background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${consistencyVerdict.border}`, background: consistencyVerdict.bg }}>
@@ -2530,7 +2564,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                   <tbody>
                     {[
                       ["Impact Severity", toSentenceCase((severity ?? "").replace(/_/g, " "))],
-                      ["Estimated Speed", estimatedSpeedKmh > 0 ? `${fmt(estimatedSpeedKmh, 1)} km/h (driver stated)` : (claimedSpeed > 0 ? `${claimedSpeed} km/h (claimed)` : "Not stated")],
+                      ["Estimated Speed", estimatedSpeedKmh > 0 ? `${fmt(estimatedSpeedKmh, 1)} km/h (physics estimate)` : (claimedSpeed > 0 ? `${claimedSpeed} km/h (driver stated)` : "Not stated")],
                       ["Impact Direction", directionMismatch ? `${toSentenceCase(((_phys as any)?.impactDirection ?? "Unknown").replace(/_/g, " "))} (document) / Frontal (damage)` : toSentenceCase(((_phys as any)?.impactDirection ?? "Unknown").replace(/_/g, " "))],
                       ["Delta-V Estimate", deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : "N/A"],
                       ["Kinetic Energy", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
@@ -2550,7 +2584,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                       ["Deceleration", (_phys as any)?.decelerationG > 0 ? `${fmt((_phys as any).decelerationG, 2)} g` : "N/A"],
                       ["Structural Deformation", (_phys as any)?.structuralDeformation ?? "N/A"],
                       ["Airbag Deployment", (_phys as any)?.airbagDeployment ?? "N/A"],
-                      ["Physics Confidence", `${Math.round(physicsScore)}% (${physicsScore >= 70 ? "consistent" : physicsScore >= 30 ? "direction conflict" : "anomaly"})`],
+                      ["Physics Confidence", `${Math.round(physicsScore)}% (${physicsScore >= 70 ? "consistent" : physicsScore >= 30 ? "minor anomaly" : "anomaly"})`],
                       ["Damage Consistency", (_phys as any)?.damageConsistencyScore != null ? `${Math.round((_phys as any).damageConsistencyScore)}/100 — ${(_phys as any).damageConsistencyScore >= 70 ? "Good" : (_phys as any).damageConsistencyScore >= 40 ? "Moderate" : "Poor"}` : `${Math.round(physicsScore)}/100`],
                       ["Severity Classification", toSentenceCase((severity ?? "").replace(/_/g, " "))],
                     ].map(([k, v], i) => (
@@ -3643,7 +3677,9 @@ function Section27SpeedForensics({ speedForensics, claimedSpeed, physicsSpeed }:
   })();
 
   // Recommended action
-  const recAction = !hasReliableEstimate && claimed != null
+  // Suppress "Insufficient Evidence" banner when a physics speed IS available (even without ensemble).
+  // The banner should only fire when there is truly no physics-derived speed at all.
+  const recAction = (!hasReliableEstimate && physics == null && claimed != null)
     ? { label: 'Insufficient Evidence for Independent Speed Verification', bg: 'var(--fp-info-bg)', border: 'var(--fp-info-border)', text: 'var(--fp-info-text)', icon: 'i', body: 'No physics method produced a standalone speed estimate for this incident. To enable independent speed verification, submit: (1) a repair estimate with document-stated crush depth, or (2) clear vehicle damage photographs showing measurable deformation at the primary impact zone.' }
     : requiresVerification
       ? { label: verificationPriority === 'high' ? 'Independent Reconstruction Required Before Settlement' : 'Assessor Verification Recommended', bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'var(--fp-warning-text)', icon: '!', body: 'The speed discrepancy between the driver statement and structural evidence exceeds the acceptable tolerance threshold. The attending assessor should review the physical damage evidence before authorising settlement.' }
@@ -6152,10 +6188,13 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
   // 1. fraudScoreBreakdownJson.overallScore (Stage 8 pipeline output, stored in DB)
   // 2. aiAssessment.fraudScore (same Stage 8 score, from the normalised bridge)
   // 3. weightedFraud.score (supplementary enforcement-time engine — fallback only)
+  // Apply enforcement adjustment (consistency + direction mismatch) to match the cover card score.
   const canonicalFraudScore = fraudScoreBreakdown5?.overallScore ?? (aiAssessment as any)?.fraudScore ?? null;
-  const fraudScore = canonicalFraudScore != null && canonicalFraudScore > 0
+  const _sec5BaseScore = canonicalFraudScore != null && canonicalFraudScore > 0
     ? Number(canonicalFraudScore)
     : (wf?.score ?? 0);
+  const _sec5Adjustment: number = (e as any)?.fraudScoreAdjustment ?? 0;
+  const fraudScore = _sec5Adjustment > 0 ? Math.min(100, _sec5BaseScore + _sec5Adjustment) : _sec5BaseScore;
   const fraudLevel = fraudScoreBreakdown5?.level ?? wf?.level ?? "minimal";
   // Build fraud label from canonical score and triggered factors — do NOT use stored explanation
   // text which may embed a stale sub-score number from an older pipeline run.

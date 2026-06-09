@@ -293,6 +293,7 @@ CRITICAL RULES — ANTI-FABRICATION CONTRACT
 - Every factual claim in your output must be traceable to a specific phrase in the raw description.
 - If information is not available, use null or "not stated" — never fabricate.
 - CORRECT OCR ERRORS: The raw description was extracted from a PDF and may contain OCR artefacts. Silently correct obvious OCR errors in the cleaned_incident_narrative (e.g. "load" → "road", "tbe" → "the", "aod" → "and", "tbat" → "that", "witb" → "with", "tbe" → "the", "tbey" → "they", "tbis" → "this", "bave" → "have"). Do NOT correct words that are genuinely ambiguous — only fix clear OCR character substitutions (b/h, r/l, 0/O, 1/I).
+- NO RAW QUOTING IN ANALYSIS TEXT: In cross_validation notes, fraud_signals evidence, and reasoning_summary, NEVER quote raw OCR text or parts-list items verbatim (e.g. do NOT write 'REAR TONDER; REAR BUMPER; TRIM'). Always paraphrase in clean professional English. Use descriptions like 'rear and side components' instead of quoting raw parts lists.
 
 CLAIM CONTEXT
 -------------
