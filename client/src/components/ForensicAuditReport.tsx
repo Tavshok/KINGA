@@ -638,10 +638,9 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
             <rect key={i} x={wx} y={wy} width="20" height="36" rx="6"
               fill="#1a1916" opacity="0.55" />
           ))}
-          {/* Damage zones — unexplained zones get a dashed red border overlay */}
+          {/* Damage zones — rects only; text labels are rendered AFTER arrows so they sit on top */}
           {zones.map(zone => {
             const sev = getSeverity(zone.id);
-            // A zone is "unexplained" when: it has damage AND multiEventSequence is present AND it's not in explainedZones
             const isUnexplained = events !== null && sev > 0 && !explainedZones.has(zone.id);
             return (
               <g key={zone.id}>
@@ -663,14 +662,6 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
                     opacity="0.8"
                   />
                 )}
-                <text
-                  x={zone.x + zone.w / 2} y={zone.y + zone.h / 2 + 4}
-                  textAnchor="middle" fontSize="9"
-                  fill={sev > 0 ? SEVERITY_STROKE[sev] : "var(--kr-muted)"}
-                  fontWeight={sev > 0 ? "bold" : "normal"}
-                >
-                  {zone.label}
-                </text>
               </g>
             );
           })}
@@ -718,6 +709,28 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
                   </text>
                 ) : null}
               </g>
+            );
+          })}
+
+          {/* Zone text labels — rendered AFTER arrows so they always appear on top.
+               white stroke halo (paintOrder) creates a clean gap between text and any arrow line. */}
+          {zones.map(zone => {
+            const sev = getSeverity(zone.id);
+            return (
+              <text
+                key={`lbl-${zone.id}`}
+                x={zone.x + zone.w / 2}
+                y={zone.y + zone.h / 2 + 4}
+                textAnchor="middle"
+                fontSize="9"
+                fill={sev > 0 ? SEVERITY_STROKE[sev] : "var(--kr-muted)"}
+                fontWeight={sev > 0 ? "bold" : "normal"}
+                stroke="white"
+                strokeWidth="2.5"
+                paintOrder="stroke fill"
+              >
+                {zone.label}
+              </text>
             );
           })}
 
