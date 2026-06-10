@@ -5052,3 +5052,63 @@ export const componentBenchmarks = mysqlTable("component_benchmarks", {
 ]);
 export type ComponentBenchmarkRow = typeof componentBenchmarks.$inferSelect;
 export type InsertComponentBenchmark = typeof componentBenchmarks.$inferInsert;
+
+// ── Pipeline Observability Tables (Phase 1) ───────────────────────────────
+// pipeline_runs: one row per full pipeline execution
+// pipeline_jobs: one row per (runId, stageId) pair
+// All writes are non-blocking fire-and-forget from the pipeline orchestrator.
+
+export const pipelineRuns = mysqlTable("pipeline_runs", {
+  id: int().autoincrement().notNull(),
+  runId: varchar("run_id", { length: 64 }).notNull(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }),
+  triggeredBy: varchar("triggered_by", { length: 255 }),
+  triggerReason: varchar("trigger_reason", { length: 255 }),
+  status: mysqlEnum("pipeline_run_status", ["running", "completed", "failed", "partial"]).default("running").notNull(),
+  isRerun: tinyint("is_rerun").default(0).notNull(),
+  stagesCompleted: int("stages_completed").default(0).notNull(),
+  stagesFailed: int("stages_failed").default(0).notNull(),
+  stagesDegraded: int("stages_degraded").default(0).notNull(),
+  totalDurationMs: int("total_duration_ms"),
+  totalLlmTokens: int("total_llm_tokens"),
+  startedAt: timestamp("started_at", { mode: "string" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  completedAt: timestamp("completed_at", { mode: "string" }),
+}, (table) => [
+  index("idx_pr_claim_id").on(table.claimId),
+  index("idx_pr_run_id").on(table.runId),
+  index("idx_pr_status").on(table.status),
+  index("idx_pr_started_at").on(table.startedAt),
+]);
+export type PipelineRunRow = typeof pipelineRuns.$inferSelect;
+export type InsertPipelineRun = typeof pipelineRuns.$inferInsert;
+
+export const pipelineJobs = mysqlTable("pipeline_jobs", {
+  id: int().autoincrement().notNull(),
+  claimId: int("claim_id").notNull(),
+  runId: varchar("run_id", { length: 64 }).notNull(),
+  stageId: varchar("stage_id", { length: 100 }).notNull(),
+  stageLabel: varchar("stage_label", { length: 255 }).notNull(),
+  stageIndex: int("stage_index").default(0).notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }),
+  status: mysqlEnum("pipeline_job_status", ["running", "completed", "failed", "skipped", "degraded"]).default("running").notNull(),
+  isDegraded: tinyint("is_degraded").default(0).notNull(),
+  isTimeout: tinyint("is_timeout").default(0).notNull(),
+  errorMessage: text("error_message"),
+  durationMs: int("duration_ms"),
+  llmTokensInput: int("llm_tokens_input"),
+  llmTokensOutput: int("llm_tokens_output"),
+  llmModel: varchar("llm_model", { length: 100 }),
+  assumptionCount: int("assumption_count").default(0).notNull(),
+  recoveryActionCount: int("recovery_action_count").default(0).notNull(),
+  startedAt: timestamp("started_at", { mode: "string" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  completedAt: timestamp("completed_at", { mode: "string" }),
+}, (table) => [
+  index("idx_pj_claim_id").on(table.claimId),
+  index("idx_pj_run_id").on(table.runId),
+  index("idx_pj_stage_id").on(table.stageId),
+  index("idx_pj_status").on(table.status),
+  uniqueIndex("idx_pj_run_stage").on(table.runId, table.stageId),
+]);
+export type PipelineJobRow = typeof pipelineJobs.$inferSelect;
+export type InsertPipelineJob = typeof pipelineJobs.$inferInsert;

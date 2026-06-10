@@ -118,6 +118,7 @@ import { intakeGateRouter } from "./routers/intake-gate";
 import { aiAnalysisRouter } from "./routers/ai-analysis";
 import { notificationsRouter } from "./routers/notifications";
 import { adminRouter } from "./routers/admin";
+import { pipelineObservabilityRouter } from "./routers/pipeline-observability";
 import { routingPolicyVersionRouter } from "./routers/routing-policy-version";
 import { policyManagementRouter } from "./routers/policy-management";
 import { panelBeaterAnalyticsRouter } from './routers/panel-beater-analytics';
@@ -306,6 +307,7 @@ export const appRouter = router({
   aiAnalysis: aiAnalysisRouter,
   notifications: notificationsRouter,
   admin: adminRouter,
+  pipelineObservability: pipelineObservabilityRouter,
   routingPolicyVersion: routingPolicyVersionRouter,
   policyManagement: policyManagementRouter,
   panelBeaterAnalytics: panelBeaterAnalyticsRouter,

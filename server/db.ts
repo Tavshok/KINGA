@@ -900,6 +900,19 @@ export async function triggerAiAssessment(claimId: number) {
   } catch (rateErr) {
     console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to load tenant rates (non-fatal):`, rateErr);
   }
+  // ── Phase 1 Observability: generate a unique runId for this pipeline execution ──
+  const _pipelineRunId = `${claimId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // Record the run start (fire-and-forget — never blocks the pipeline)
+  import('./db-pipeline').then(({ recordRunStart }) => {
+    recordRunStart({
+      runId: _pipelineRunId,
+      claimId,
+      tenantId: claim.tenantId ?? null,
+      triggeredBy: 'system',
+      triggerReason: 'ai_assessment',
+    }).catch(() => {});
+  }).catch(() => {});
+
   const pipelineCtx = {
     claimId,
     tenantId: claim.tenantId ? Number(claim.tenantId) : null,
@@ -921,6 +934,8 @@ export async function triggerAiAssessment(claimId: number) {
     imageNormSource: _imageNormSource,
     // Explicit photo availability count for forensic validator tracking
     photosAvailable: damagePhotos.length,
+    // Phase 1 Observability: runId for grouping all stage records
+    runId: _pipelineRunId,
     // Stage progress callback — updates pipeline_current_stage in DB so UI can show real-time progress.
     // Stage labels are generic (no proprietary details exposed).
     onStageStart: async (stageLabel: string) => {
@@ -935,6 +950,27 @@ export async function triggerAiAssessment(claimId: number) {
       } catch (stageErr: any) {
         console.warn(`[KINGA Assessment] Claim ${claimId}: onStageStart DB write failed (non-fatal): ${stageErr?.message ?? stageErr}`);
       }
+    },
+    // Phase 1 Observability: per-stage completion callback (fire-and-forget)
+    onStageComplete: (stageId: string, stageResult: {
+      durationMs: number;
+      status: 'completed' | 'failed' | 'skipped' | 'degraded';
+      isDegraded?: boolean;
+      isTimeout?: boolean;
+      errorMessage?: string | null;
+      assumptionCount?: number;
+      recoveryActionCount?: number;
+    }) => {
+      import('./db-pipeline').then(({ recordStageComplete }) => {
+        recordStageComplete({
+          claimId,
+          runId: _pipelineRunId,
+          stageId,
+          stageLabel: stageId,
+          tenantId: claim.tenantId ?? null,
+          ...stageResult,
+        }).catch(() => {});
+      }).catch(() => {});
     },
   };
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
@@ -964,6 +1000,10 @@ export async function triggerAiAssessment(claimId: number) {
       // to exit the transient 'parsing' state. Without this, the stuck recovery
       // job re-triggers the pipeline every 20 minutes (infinite loop).
       console.error(`[KINGA Assessment] Claim ${claimId}: Pipeline incomplete — ${pipelineErr.message}`);
+      // Phase 1 Observability: record run as failed (fire-and-forget)
+      import('./db-pipeline').then(({ recordRunComplete }) => {
+        recordRunComplete(_pipelineRunId, 'failed').catch(() => {});
+      }).catch(() => {});
       await db.update(claims).set({
         documentProcessingStatus: "failed",
         status: "intake_pending",
@@ -1911,6 +1951,10 @@ export async function triggerAiAssessment(claimId: number) {
   pipelineSucceeded = true;
   // Clear the watchdog timer — pipeline completed successfully.
   if (watchdogTimer) { clearTimeout(watchdogTimer); watchdogTimer = null; }
+  // Phase 1 Observability: record run completion (fire-and-forget)
+  import('./db-pipeline').then(({ recordRunComplete }) => {
+    recordRunComplete(_pipelineRunId, 'completed').catch(() => {});
+  }).catch(() => {});
 
   console.log(`[KINGA Assessment] Claim ${claimId}: claimUpdate keys = ${Object.keys(claimUpdate).join(', ')}`);
   try {

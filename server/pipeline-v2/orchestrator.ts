@@ -326,7 +326,7 @@ export async function runPipelineV2(
   let claimTruth: ClaimTruth | null = null;
 
   // Helper to record stage summary
-  const recordStage = (key: string, result: { status: string; durationMs: number; savedToDb: boolean; error?: string; assumptions?: Assumption[]; recoveryActions?: RecoveryAction[]; degraded?: boolean }) => {
+  const recordStage = (key: string, result: { status: string; durationMs: number; savedToDb: boolean; error?: string; assumptions?: Assumption[]; recoveryActions?: RecoveryAction[]; degraded?: boolean; isTimeout?: boolean }) => {
     stages[key] = {
       status: result.status as any,
       durationMs: result.durationMs,
@@ -336,6 +336,24 @@ export async function runPipelineV2(
       assumptionCount: result.assumptions?.length || 0,
       recoveryActionCount: result.recoveryActions?.length || 0,
     };
+    // ── Observability hook (Phase 1) ─────────────────────────────────────────
+    // Fire-and-forget: never awaited, never allowed to throw into the pipeline.
+    if (ctx.onStageComplete) {
+      try {
+        ctx.onStageComplete(key, {
+          durationMs: result.durationMs,
+          status: result.status === 'success' ? 'completed'
+            : result.status === 'degraded' ? 'degraded'
+            : result.status === 'failed' ? 'failed'
+            : 'skipped',
+          isDegraded: result.degraded ?? false,
+          isTimeout: result.isTimeout ?? false,
+          errorMessage: result.error ?? null,
+          assumptionCount: result.assumptions?.length ?? 0,
+          recoveryActionCount: result.recoveryActions?.length ?? 0,
+        });
+      } catch { /* observability must never break the pipeline */ }
+    }
     // Advance state machine based on completed stage
     psm.markStageCompleted(key);
     if (result.status === "success" || result.status === "degraded") {

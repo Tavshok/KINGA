@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -402,6 +403,204 @@ function DetailPanel({ row }: { row: AssessmentRow }) {
 
 // ─── Main page ──────────────────────────────────────────────────────────────
 
+// ─── Run History Tab ───────────────────────────────────────────────────────
+
+function RunStatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    completed: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    failed:    "bg-red-500/10 text-red-600 border-red-500/20",
+    partial:   "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+    running:   "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  };
+  return (
+    <span className={`inline-flex px-2 py-0.5 rounded border text-xs font-medium ${map[status] ?? "bg-muted text-muted-foreground border-border"}`}>
+      {status}
+    </span>
+  );
+}
+
+function RunHistoryTab() {
+  const { data: summary } = trpc.pipelineObservability.getDashboardSummary.useQuery({ days: 7 });
+  const { data: runs = [], isLoading: runsLoading, refetch: refetchRuns, isFetching: runsFetching } =
+    trpc.pipelineObservability.getRecentRuns.useQuery({ limit: 100 });
+  const { data: stageHealth = [], isLoading: healthLoading } =
+    trpc.pipelineObservability.getStageHealth.useQuery({ days: 7 });
+  const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
+  const { data: runDetail } = trpc.pipelineObservability.getRunDetail.useQuery(
+    { runId: expandedRunId! },
+    { enabled: !!expandedRunId }
+  );
+
+  const successRate = summary && summary.totalRuns > 0
+    ? Math.round((summary.completedRuns / summary.totalRuns) * 100)
+    : null;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Total Runs (7d)", value: summary?.totalRuns ?? "—", color: "text-foreground" },
+          { label: "Success Rate", value: successRate != null ? `${successRate}%` : "—", color: successRate == null ? "text-muted-foreground" : successRate >= 95 ? "text-emerald-500" : successRate >= 80 ? "text-yellow-500" : "text-red-500" },
+          { label: "Failed Runs", value: summary?.failedRuns ?? "—", color: (summary?.failedRuns ?? 0) > 0 ? "text-red-500" : "text-muted-foreground" },
+          { label: "Currently Running", value: summary?.runningRuns ?? "—", color: (summary?.runningRuns ?? 0) > 0 ? "text-blue-500" : "text-muted-foreground" },
+        ].map(s => (
+          <Card key={s.label} className="border-border bg-card">
+            <CardContent className="pt-4 pb-3">
+              <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
+              <p className={`text-2xl font-bold ${s.color}`}>{String(s.value)}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Stage health table */}
+      {!healthLoading && stageHealth.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Stage Health (last 7 days)</h3>
+          <div className="rounded-lg border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-xs font-semibold">Stage</TableHead>
+                  <TableHead className="text-xs font-semibold text-right">Total</TableHead>
+                  <TableHead className="text-xs font-semibold text-right">Completed</TableHead>
+                  <TableHead className="text-xs font-semibold text-right">Failed</TableHead>
+                  <TableHead className="text-xs font-semibold text-right">Degraded</TableHead>
+                  <TableHead className="text-xs font-semibold text-right">Avg Duration</TableHead>
+                  <TableHead className="text-xs font-semibold text-right">Success Rate</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stageHealth.map((s: any) => {
+                  const rate = s.total > 0 ? Math.round((s.completed / s.total) * 100) : null;
+                  return (
+                    <TableRow key={s.stageId}>
+                      <TableCell className="text-xs font-mono text-foreground">{s.stageLabel || s.stageId}</TableCell>
+                      <TableCell className="text-xs text-right text-muted-foreground">{s.total}</TableCell>
+                      <TableCell className="text-xs text-right text-emerald-500">{s.completed}</TableCell>
+                      <TableCell className="text-xs text-right">
+                        <span className={s.failed > 0 ? "text-red-500" : "text-muted-foreground"}>{s.failed}</span>
+                      </TableCell>
+                      <TableCell className="text-xs text-right">
+                        <span className={s.degraded > 0 ? "text-orange-500" : "text-muted-foreground"}>{s.degraded}</span>
+                      </TableCell>
+                      <TableCell className="text-xs text-right text-muted-foreground">
+                        {s.avgDurationMs != null ? `${Math.round(s.avgDurationMs)}ms` : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-right">
+                        {rate != null ? (
+                          <span className={rate >= 95 ? "text-emerald-500" : rate >= 80 ? "text-yellow-500" : "text-red-500"}>
+                            {rate}%
+                          </span>
+                        ) : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+      {!healthLoading && stageHealth.length === 0 && (
+        <div className="rounded-lg border border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+          No stage health data yet. Stage data will appear here after the first claim is processed.
+        </div>
+      )}
+
+      {/* Recent runs */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-foreground">Recent Pipeline Runs</h3>
+          <Button variant="outline" size="sm" onClick={() => refetchRuns()} disabled={runsFetching} className="gap-1.5 h-7 text-xs">
+            <RefreshCw className={`h-3 w-3 ${runsFetching ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+        </div>
+        {runsLoading ? (
+          <div className="flex items-center justify-center py-10 text-muted-foreground gap-2 text-sm">
+            <RefreshCw className="h-4 w-4 animate-spin" /> Loading run history…
+          </div>
+        ) : runs.length === 0 ? (
+          <div className="rounded-lg border border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+            No pipeline runs recorded yet. Runs will appear here after the first claim is processed.
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="w-8" />
+                  <TableHead className="text-xs font-semibold">Run ID</TableHead>
+                  <TableHead className="text-xs font-semibold">Claim</TableHead>
+                  <TableHead className="text-xs font-semibold">Status</TableHead>
+                  <TableHead className="text-xs font-semibold">Started</TableHead>
+                  <TableHead className="text-xs font-semibold">Duration</TableHead>
+                  <TableHead className="text-xs font-semibold">Trigger</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(runs as any[]).map((run: any) => {
+                  const isExpanded = expandedRunId === run.runId;
+                  return (
+                    <>
+                      <TableRow
+                        key={`run-${run.runId}`}
+                        className={`cursor-pointer hover:bg-muted/30 transition-colors ${run.status === 'failed' ? 'bg-red-500/5' : ''} ${isExpanded ? 'bg-muted/20' : ''}`}
+                        onClick={() => setExpandedRunId(isExpanded ? null : run.runId)}
+                      >
+                        <TableCell className="py-2 pl-3 pr-0">
+                          {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </TableCell>
+                        <TableCell className="py-2 font-mono text-xs text-muted-foreground max-w-[180px] truncate">{run.runId}</TableCell>
+                        <TableCell className="py-2 font-mono text-xs text-foreground">#{run.claimId}</TableCell>
+                        <TableCell className="py-2"><RunStatusBadge status={run.status} /></TableCell>
+                        <TableCell className="py-2 text-xs text-muted-foreground whitespace-nowrap">
+                          {run.startedAt ? new Date(run.startedAt).toLocaleString() : "—"}
+                        </TableCell>
+                        <TableCell className="py-2 text-xs text-muted-foreground">
+                          {run.totalDurationMs != null ? `${(run.totalDurationMs / 1000).toFixed(1)}s` : run.status === 'running' ? <span className="text-blue-500">running…</span> : "—"}
+                        </TableCell>
+                        <TableCell className="py-2 text-xs text-muted-foreground">{run.triggerReason ?? "—"}</TableCell>
+                      </TableRow>
+                      {isExpanded && runDetail && runDetail.run?.runId === run.runId && (
+                        <TableRow key={`run-detail-${run.runId}`} className="hover:bg-transparent">
+                          <TableCell colSpan={7} className="p-0">
+                            <div className="px-4 py-4 bg-muted/20 border-t border-border space-y-3">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stage Execution Detail</p>
+                              {runDetail.jobs.length === 0 ? (
+                                <p className="text-xs text-muted-foreground">No stage records for this run.</p>
+                              ) : (
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                                  {(runDetail.jobs as any[]).map((job: any) => (
+                                    <div key={job.id} className="bg-card border border-border rounded p-2">
+                                      <p className="text-[10px] font-semibold text-foreground truncate mb-1">{job.stageLabel || job.stageId}</p>
+                                      <StageBadge
+                                        status={job.status as StageStatus}
+                                        durationMs={job.durationMs ?? undefined}
+                                        error={job.errorMessage ?? undefined}
+                                        timedOut={job.isTimeout ?? false}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PipelineHealthDashboard() {
   const { logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -481,6 +680,17 @@ export default function PipelineHealthDashboard() {
       </header>
 
       <main className="max-w-screen-xl mx-auto px-4 py-6">
+        <Tabs defaultValue="assessments" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="assessments">Assessment Intelligence</TabsTrigger>
+            <TabsTrigger value="runs">Run History</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="runs">
+            <RunHistoryTab />
+          </TabsContent>
+
+          <TabsContent value="assessments">
         <SummaryBar rows={rows as AssessmentRow[]} />
 
         {/* Controls */}
@@ -621,6 +831,8 @@ export default function PipelineHealthDashboard() {
             Showing {filtered.length} of {(rows as AssessmentRow[]).length} assessments
           </p>
         )}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
