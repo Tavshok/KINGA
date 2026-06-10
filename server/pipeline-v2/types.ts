@@ -1594,4 +1594,13 @@ export interface PipelineContext {
     assumptionCount?: number;
     recoveryActionCount?: number;
   }) => void;
+
+  /**
+   * Per-stage input validation reports (Phase 2 guards).
+   * Keyed by stage ID (e.g. '6_damage_analysis', '7_unified', '8_fraud', '9_cost').
+   * Populated by the orchestrator before each stage runs.
+   * Stage engines can read `ctx.stageInputReports?.[stageKey]?.promptPreamble`
+   * and prepend it to their LLM system prompt to flag data gaps.
+   */
+  stageInputReports?: Record<string, import('./stageInputGuards').StageInputReport>;
 }

@@ -5103,6 +5103,8 @@ export const pipelineJobs = mysqlTable("pipeline_jobs", {
   recoveryActionCount: int("recovery_action_count").default(0).notNull(),
   startedAt: timestamp("started_at", { mode: "string" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
   completedAt: timestamp("completed_at", { mode: "string" }),
+  /** Serialised stage output JSON for partial resume (Phase 5) */
+  resultJson: longtext("result_json"),
 }, (table) => [
   index("idx_pj_claim_id").on(table.claimId),
   index("idx_pj_run_id").on(table.runId),

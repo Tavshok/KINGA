@@ -279,3 +279,82 @@ export async function getPipelineOverallStats() {
     return null;
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PARTIAL RESUME HELPERS (Phase 5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Serialise and persist a stage's output JSON to the pipeline_jobs row.
+ * Called after a stage completes successfully so that a retry can skip it.
+ * Fire-and-forget — never throws, never blocks the pipeline.
+ */
+export async function saveStageResult(
+  runId: string,
+  stageId: string,
+  resultJson: unknown
+): Promise<void> {
+  try {
+    const db = await getDb();
+    const serialised = JSON.stringify(resultJson);
+    await db
+      .update(pipelineJobs)
+      .set({ resultJson: serialised })
+      .where(
+        and(
+          eq(pipelineJobs.runId, runId),
+          eq(pipelineJobs.stageId, stageId)
+        )
+      );
+  } catch (err) {
+    console.warn(
+      "[db-pipeline] saveStageResult failed (non-fatal):",
+      err instanceof Error ? err.message : String(err)
+    );
+  }
+}
+
+/**
+ * Load all completed stage results for a given run.
+ * Returns a map of stageId → parsed result object (or null if result_json is absent).
+ * Used at pipeline start to determine which stages can be skipped on retry.
+ */
+export async function loadCompletedStages(
+  runId: string
+): Promise<Record<string, unknown>> {
+  try {
+    const db = await getDb();
+    const rows = await db
+      .select({
+        stageId: pipelineJobs.stageId,
+        status: pipelineJobs.status,
+        resultJson: pipelineJobs.resultJson,
+      })
+      .from(pipelineJobs)
+      .where(
+        and(
+          eq(pipelineJobs.runId, runId),
+          // Only load rows that completed successfully (not degraded/failed)
+          eq(pipelineJobs.status, "completed")
+        )
+      );
+
+    const map: Record<string, unknown> = {};
+    for (const row of rows) {
+      if (row.resultJson) {
+        try {
+          map[row.stageId] = JSON.parse(row.resultJson as string);
+        } catch {
+          // Corrupt JSON — treat as absent
+        }
+      }
+    }
+    return map;
+  } catch (err) {
+    console.warn(
+      "[db-pipeline] loadCompletedStages failed (non-fatal):",
+      err instanceof Error ? err.message : String(err)
+    );
+    return {};
+  }
+}

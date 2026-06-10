@@ -158,6 +158,17 @@ import { calculatePhysicsDeviationScore, parsePhysicsAnalysis } from "../physics
 import { checkClaimConsistency } from "./claimConsistencyChecker";
 import { detectContradictions } from "./contradictionDetectionEngine";
 import { buildClaimTruth, enrichClaimTruthWithPhysics, type ClaimTruth } from "./claimTruthLayer";
+import {
+  checkStage6Inputs,
+  checkStage7Inputs,
+  checkStage8Inputs,
+  checkStage9Inputs,
+  type StageInputReport,
+} from "./stageInputGuards";
+import {
+  saveStageResult,
+  loadCompletedStages,
+} from "../db-pipeline";
 
 
 /**
@@ -324,6 +335,25 @@ export async function runPipelineV2(
   let reconciliationLog: ReconciliationLog | null = null;
   let schemaValidationResult: ClaimRecordValidationResult | null = null;
   let claimTruth: ClaimTruth | null = null;
+  // Per-stage input validation reports (Phase 2 guards)
+  const stageInputReports: Record<string, StageInputReport> = {};
+  // Assign to ctx so stage engines can read ctx.stageInputReports?.[stageKey]?.promptPreamble
+  ctx.stageInputReports = stageInputReports;
+
+  // ── PARTIAL RESUME (Phase 5) ─────────────────────────────────────────────
+  // On retry, load any previously completed stage results from the DB so we
+  // can skip those stages and avoid redundant LLM calls.
+  // This map is keyed by stageId and contains the deserialised stage output.
+  let _resumeCache: Record<string, unknown> = {};
+  if (ctx.runId) {
+    try {
+      _resumeCache = await loadCompletedStages(ctx.runId);
+      const cachedCount = Object.keys(_resumeCache).length;
+      if (cachedCount > 0) {
+        ctx.log("PartialResume", `Loaded ${cachedCount} cached stage(s) from prior run: ${Object.keys(_resumeCache).join(", ")}`);
+      }
+    } catch { /* resume cache load must never block the pipeline */ }
+  }
 
   // Helper to record stage summary
   const recordStage = (key: string, result: { status: string; durationMs: number; savedToDb: boolean; error?: string; assumptions?: Assumption[]; recoveryActions?: RecoveryAction[]; degraded?: boolean; isTimeout?: boolean }) => {
@@ -977,11 +1007,28 @@ export async function runPipelineV2(
 
   // ── STAGE 6: Damage Analysis ─────────────────────────────────────────
   ctx.onStageStart?.("Stage 6 — Damage Analysis");
+  // Input validation guard (Phase 2) — never blocks, annotates prompt preamble only
+  try {
+    const s6Guard = checkStage6Inputs(claimRecord);
+    stageInputReports["6_damage_analysis"] = s6Guard;
+    if (s6Guard.hasCriticalGaps) {
+      ctx.log("Stage6Guard", `CRITICAL gaps: ${s6Guard.gaps.filter(g => g.severity === "critical").map(g => g.field).join(", ")}`);
+    } else if (s6Guard.hasMajorGaps) {
+      ctx.log("Stage6Guard", `Major gaps: ${s6Guard.gaps.filter(g => g.severity === "major").map(g => g.field).join(", ")}`);
+    }
+  } catch { /* guard must never break the pipeline */ }
   // claimRecord is guaranteed non-null here: Stage 5 (assembly) either
   // produced a valid ClaimRecord or the pipeline would have flagged an exception.
   // The non-null assertion is intentional — if claimRecord is null, Stage 5 failed
   // and the pipeline state machine will have already flagged FLAGGED_EXCEPTION.
-  const s6 = await runWithTimeout("6_damage_analysis", () => runDamageAnalysisStage(ctx, claimRecord!)).catch((err) => {
+  // Partial resume: if this stage completed in a prior run, restore its output and skip re-running.
+  const _s6Cached = _resumeCache["6_damage_analysis"] as Stage6Output | undefined;
+  const s6 = _s6Cached
+    ? (() => {
+        ctx.log("PartialResume", "Stage 6 — restoring from cache, skipping re-run");
+        return { status: "success" as const, data: _s6Cached, durationMs: 0, savedToDb: true, degraded: false };
+      })()
+    : await runWithTimeout("6_damage_analysis", () => runDamageAnalysisStage(ctx, claimRecord!)).catch((err) => {
     const isTimeout = err instanceof StageTimeoutError;
     const reason = isTimeout
       ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
@@ -1015,6 +1062,12 @@ export async function runPipelineV2(
   });
   recordStage("6_damage_analysis", s6);
   stage6Data = s6.data; // Always has data (self-healing)
+  // Partial resume: persist result for potential retry (fire-and-forget).
+  // QUALITY GATE: only cache clean successful runs — never cache degraded/fallback output.
+  // A degraded result (sentinel zone, estimated values) must always be re-run on retry.
+  if (ctx.runId && s6.status === "success" && !s6.degraded && !_s6Cached) {
+    saveStageResult(ctx.runId, "6_damage_analysis", stage6Data).catch(() => {});
+  }
 
   // ── SOURCE TRUTH RESOLUTION (Stage 6 → Stage 7) ─────────────────────
   // Resolve direction/zone/severity conflicts across photo and document sources.
@@ -1041,10 +1094,27 @@ export async function runPipelineV2(
 
   // ── STAGE 7 (UNIFIED): Physics + Severity Consensus + Causal Reasoning + Narrative ───
   ctx.onStageStart?.("Stage 7 — Physics & Causality");
+  // Input validation guard (Phase 2) — never blocks, annotates prompt preamble only
+  try {
+    const s7Guard = checkStage7Inputs(claimRecord, stage6Data);
+    stageInputReports["7_unified"] = s7Guard;
+    if (s7Guard.hasCriticalGaps) {
+      ctx.log("Stage7Guard", `CRITICAL gaps: ${s7Guard.gaps.filter(g => g.severity === "critical").map(g => g.field).join(", ")}`);
+    } else if (s7Guard.hasMajorGaps) {
+      ctx.log("Stage7Guard", `Major gaps: ${s7Guard.gaps.filter(g => g.severity === "major").map(g => g.field).join(", ")}`);
+    }
+  } catch { /* guard must never break the pipeline */ }
+  // Partial resume: if this stage completed in a prior run, restore its output and skip re-running.
+  const _s7Cached = _resumeCache["7_unified"] as import("./stage-7-unified").UnifiedStage7Output | undefined;
   // Single function call replacing the sequential cluster of:
   //   Stage 7 (physics), Stage 7b Pass 1 (causal), Stage 7c (severity), Stage 7e (narrative)
   // Stage 7b Pass 2 (re-run with fraud+cost scores) remains separate below.
-  const s7Unified = await runWithTimeout("7_unified", () => runUnifiedStage7(
+  const s7Unified = _s7Cached
+    ? (() => {
+        ctx.log("PartialResume", "Stage 7 — restoring from cache, skipping re-run");
+        return { status: "success" as const, data: _s7Cached, durationMs: 0, savedToDb: true, degraded: false };
+      })()
+    : await runWithTimeout("7_unified", () => runUnifiedStage7(
     ctx,
     claimRecord!,
     stage6Data!,
@@ -1090,6 +1160,11 @@ export async function runPipelineV2(
   recordStage("7_unified", s7Unified);
   stage7Data = s7Unified.data?.physicsAnalysis ?? null;
   causalVerdict = s7Unified.data?.causalVerdict ?? null;
+  // Partial resume: persist result for potential retry (fire-and-forget).
+  // QUALITY GATE: only cache clean successful runs — never cache degraded/fallback output.
+  if (ctx.runId && s7Unified.status === "success" && !s7Unified.degraded && !_s7Cached) {
+    saveStageResult(ctx.runId, "7_unified", s7Unified.data).catch(() => {});
+  }
 
   // Attach narrative analysis to claimRecord so Stage 8 fraud engine can consume it
   if (s7Unified.data?.narrativeAnalysis && claimRecord) {
@@ -1199,10 +1274,37 @@ export async function runPipelineV2(
   // dependency on each other. Running them in parallel saves ~15–30s per claim.
   // Stage 7d (confidence aggregation) and Stage 7b re-run both need S8 output
   // and therefore run AFTER this Promise.all resolves.
+  // Input validation guards (Phase 2) for S8 and S9 — run before parallel block
+  try {
+    const s8Guard = checkStage8Inputs(claimRecord, stage6Data, stage7Data);
+    stageInputReports["8_fraud"] = s8Guard;
+    if (s8Guard.hasCriticalGaps) {
+      ctx.log("Stage8Guard", `CRITICAL gaps: ${s8Guard.gaps.filter(g => g.severity === "critical").map(g => g.field).join(", ")}`);
+    } else if (s8Guard.hasMajorGaps) {
+      ctx.log("Stage8Guard", `Major gaps: ${s8Guard.gaps.filter(g => g.severity === "major").map(g => g.field).join(", ")}`);
+    }
+  } catch { /* guard must never break the pipeline */ }
+  try {
+    const s9Guard = checkStage9Inputs(claimRecord, stage6Data, stage7Data);
+    stageInputReports["9_cost"] = s9Guard;
+    if (s9Guard.hasCriticalGaps) {
+      ctx.log("Stage9Guard", `CRITICAL gaps: ${s9Guard.gaps.filter(g => g.severity === "critical").map(g => g.field).join(", ")}`);
+    } else if (s9Guard.hasMajorGaps) {
+      ctx.log("Stage9Guard", `Major gaps: ${s9Guard.gaps.filter(g => g.severity === "major").map(g => g.field).join(", ")}`);
+    }
+  } catch { /* guard must never break the pipeline */ }
   ctx.log("Pipeline", "Starting S8 (fraud) ‖ S9 (cost) in parallel...");
   ctx.onStageStart?.("Stage 8 — Analysis");
+  // Partial resume: check cache for both stages before launching the parallel block
+  const _s8Cached = _resumeCache["8_fraud"] as Stage8Output | undefined;
+  const _s9Cached = _resumeCache["9_cost"] as Stage9Output | undefined;
   const [s8, s9] = await Promise.all([
-    runWithTimeout("8_fraud", () => runFraudAnalysisStage(ctx, claimRecord!, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
+    _s8Cached
+      ? Promise.resolve((() => {
+          ctx.log("PartialResume", "Stage 8 — restoring from cache, skipping re-run");
+          return { status: "success" as const, data: _s8Cached, durationMs: 0, savedToDb: true, degraded: false };
+        })())
+      : runWithTimeout("8_fraud", () => runFraudAnalysisStage(ctx, claimRecord!, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
       const isTimeout = err instanceof StageTimeoutError;
       const reason = isTimeout
         ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
@@ -1234,7 +1336,12 @@ export async function runPipelineV2(
         degraded: true,
       };
     }),
-    runWithTimeout("9_cost", () => runCostOptimisationStage(ctx, claimRecord!, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
+    _s9Cached
+      ? Promise.resolve((() => {
+          ctx.log("PartialResume", "Stage 9 — restoring from cache, skipping re-run");
+          return { status: "success" as const, data: _s9Cached, durationMs: 0, savedToDb: true, degraded: false };
+        })())
+      : runWithTimeout("9_cost", () => runCostOptimisationStage(ctx, claimRecord!, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
       const isTimeout = err instanceof StageTimeoutError;
       const reason = isTimeout
         ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
@@ -1269,8 +1376,15 @@ export async function runPipelineV2(
   ]);
   recordStage("8_fraud", s8);
   stage8Data = s8.data; // Always has data (self-healing)
+  // QUALITY GATE: only cache clean successful runs — never cache degraded/fallback output.
+  if (ctx.runId && s8.status === "success" && !s8.degraded && !_s8Cached) {
+    saveStageResult(ctx.runId, "8_fraud", stage8Data).catch(() => {});
+  }
   recordStage("9_cost", s9);
   stage9Data = s9.data; // Always has data (self-healing)
+  if (ctx.runId && s9.status === "success" && !s9.degraded && !_s9Cached) {
+    saveStageResult(ctx.runId, "9_cost", stage9Data).catch(() => {});
+  }
   ctx.log("Pipeline", `S8 fraud: ${stage8Data?.fraudRiskLevel ?? "N/A"} (score=${stage8Data?.fraudRiskScore ?? "N/A"}). S9 cost: deviation=${stage9Data?.quoteDeviationPct?.toFixed(1) ?? "N/A"}%.`);
 
   // ── GC HINT: Release memory from parallel S8+S9 before final aggregation ──
