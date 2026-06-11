@@ -293,13 +293,50 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
     for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
       try {
         const page = await pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: SCALE });
+
+        // ── FIX 1: Respect PDF metadata rotation (/Rotate entry) ──────────────
+        // pdf.js exposes the declared rotation on page.rotate (0 | 90 | 180 | 270).
+        // Passing it to getViewport makes the canvas match the intended orientation.
+        // This corrects pages that were scanned/saved with a rotation tag in the PDF.
+        const declaredRotation: number = page.rotate ?? 0;
+        const viewport = page.getViewport({ scale: SCALE, rotation: declaredRotation });
+
         const napiCanvas = await getCanvas();
         const canvas = napiCanvas.createCanvas(Math.round(viewport.width), Math.round(viewport.height));
         const ctx = canvas.getContext('2d');
         await page.render({ canvasContext: ctx as any, viewport }).promise;
-        const pngBuffer = canvas.toBuffer('image/png');
+        let pngBuffer = canvas.toBuffer('image/png');
         pagesRendered++;
+
+        // ── FIX 2: Heuristic rotation for un-tagged scanned pages ─────────────
+        // Some scanners produce portrait pages saved as landscape (or vice versa)
+        // WITHOUT setting the /Rotate metadata entry.  We detect this by comparing
+        // the rendered aspect ratio against the expected orientation for the page:
+        //   - A4 / Letter portrait → height > width  (ratio < 1)
+        //   - A4 / Letter landscape → width > height (ratio > 1)
+        // If the rendered image is sideways (ratio > 1.4 when portrait is expected,
+        // or ratio < 0.7 when landscape is expected) AND the PDF is scanned, we
+        // rotate the PNG 90° clockwise using sharp so the LLM receives an upright image.
+        // We only apply this to scanned PDFs to avoid mis-rotating intentional
+        // landscape pages in native PDFs (e.g. wide tables, panoramic photos).
+        if (isScanned && declaredRotation === 0) {
+          try {
+            const sharpInst = await getSharp();
+            const meta = await sharpInst(pngBuffer).metadata();
+            const rw = meta.width ?? 1;
+            const rh = meta.height ?? 1;
+            const ratio = rw / rh;
+            // Detect 90° or 270° mis-rotation: image is wider than it is tall
+            // for a document that should be portrait (typical claim form / letter).
+            // Threshold 1.3 avoids false positives on slightly-wide pages.
+            if (ratio > 1.3) {
+              console.log(`[PDF Extractor] Page ${pageNum}: heuristic rotation applied (ratio=${ratio.toFixed(2)}, rotating 90° CCW to portrait)`);
+              pngBuffer = await sharpInst(pngBuffer).rotate(90).toBuffer();
+            }
+          } catch (rotErr: any) {
+            console.warn(`[PDF Extractor] Page ${pageNum}: heuristic rotation check failed: ${rotErr.message}`);
+          }
+        }
 
         // Process page render immediately (uploads to S3, releases buffer)
         const pageResult = await processBuffer(pngBuffer, 'page_render', MIN_DIM_PAGE_RENDER, pageNum, sessionId, isScanned, renderDpi);
