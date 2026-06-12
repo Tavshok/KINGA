@@ -608,7 +608,7 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
     <div className="flex justify-center items-stretch gap-4">
       {/* SVG diagram — stretches to fill the height of the adjacent content */}
       <div className="flex flex-col items-center" style={{ flex: '1 1 auto', minWidth: 0 }}>
-        <svg viewBox="-50 -36 420 360" width="100%" style={{ display: 'block', maxWidth: '100%', height: '100%', minHeight: 220, aspectRatio: '420/360' }}>
+        <svg viewBox="-50 -60 420 400" width="100%" style={{ display: 'block', maxWidth: '100%', height: '100%', minHeight: 220, aspectRatio: '420/400' }}>
           <defs>
             <marker id="tp-arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
               <polygon points="0 0, 7 3.5, 0 7" fill="#ef4444" />
@@ -618,15 +618,17 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
             </marker>
           </defs>
 
-          {/* Compass labels */}
-          <text x="160" y="-8" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">N — FRONT</text>
-          {/* Velocity range confidence band — placed above compass label */}
+          {/* Compass labels — kept well clear of arrow start/end points.
+               Front arrow: y1=-28 → compass at y=-50 gives 22px clear gap.
+               Rear arrow:  y1=308 → compass at y=324 gives 16px clear gap.
+               Speed band:  placed above compass at y=-50 using dy=-12. */}
+          <text x="160" y="-50" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">N — FRONT</text>
           {velocityRange && velocityRange.low_kmh > 0 ? (
-            <text x="160" y="-20" textAnchor="middle" fontSize="7.5" fill="#6366f1" fontStyle="italic">
+            <text x="160" y="-50" dy="-12" textAnchor="middle" fontSize="7.5" fill="#6366f1" fontStyle="italic">
               {`Speed est. ${velocityRange.low_kmh.toFixed(0)}–${velocityRange.high_kmh.toFixed(0)} km/h`}
             </text>
           ) : null}
-          <text x="160" y="300" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">S — REAR</text>
+          <text x="160" y="324" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">S — REAR</text>
           <text x="-8" y="144" textAnchor="end" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">L</text>
           <text x="328" y="144" textAnchor="start" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">R</text>
 
@@ -679,25 +681,13 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
             const markerId = `ev-arrow-${idx}`;
             // Physics force label: show alongside arrow
             const isFirst = idx === 0;
-            // Label position: place labels OUTSIDE the vehicle body, near the arrow tip
-            const midX = (g.x1 + g.x2) / 2;
-            const midY = (g.y1 + g.y2) / 2;
-            const isHoriz = Math.abs(g.y1 - g.y2) < 5;
-            // Label placement strategy:
-            // - Horizontal arrows (left/right): label at arrow start, outside vehicle body
-            // - Vertical arrows (front/rear): label placed BESIDE the arrow (x-offset),
-            //   NOT above/below, to avoid overlapping zone labels and vehicle body.
-            //   front arrow: y1=-28 (above SVG), label beside at x+22, y1+8
-            //   rear arrow:  y1=308 (below vehicle), label beside at x+22, y1-8
-            const lblX = isHoriz
-              ? (arrow.dir === 'left' ? g.x1 - 4 : g.x1 + 4)
-              : g.x1 + 22;  // always place beside the arrow for vertical
-            const lblAnchor = isHoriz
-              ? (arrow.dir === 'left' ? 'end' : 'start')
-              : 'start';  // left-aligned beside the arrow
-            const lblY = isHoriz
-              ? midY - 8
-              : (arrow.dir === 'front' ? g.y1 + 10 : g.y1 - 6);
+            // ── Arrow labels are intentionally NOT placed inside the SVG ──────────
+            // The front arrow (y1=-28) and rear arrow (y1=308) have no safe space
+            // for text: they sit between the compass label and the vehicle zone boxes.
+            // Any text placed there overlaps the arrow, compass, or zone label.
+            // Arrow identity + force data are shown in the legend panel to the right.
+            // For horizontal arrows (left/right) we also omit inline labels —
+            // the legend is the single source of truth for all arrow annotations.
             return (
               <g key={idx}>
                 <defs>
@@ -712,15 +702,6 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
                   strokeDasharray={arrow.dashed ? "6 3" : undefined}
                   markerEnd={`url(#${markerId})`}
                 />
-                {/* Arrow label — event name + force + decel for primary arrow */}
-                <text x={lblX} y={lblY} fontSize="8" fontWeight="bold" fill={arrow.colour} textAnchor={lblAnchor}>
-                  {arrow.label}
-                </text>
-                {isFirst && impactForceKn && impactForceKn > 0 ? (
-                  <text x={lblX} y={lblY + 10} fontSize="7.5" fill={arrow.colour} textAnchor={lblAnchor} opacity="0.9">
-                    {`${impactForceKn.toFixed(1)} kN${decelerationG && decelerationG > 0 ? ` · ${decelerationG.toFixed(1)} g` : ''}`}
-                  </text>
-                ) : null}
               </g>
             );
           })}
@@ -832,12 +813,25 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
           </span>
         ))}
         {arrowList.map((arrow, idx) => (
-          <span key={idx} className="flex items-center gap-1.5">
-            <svg width="20" height="10">
+          <span key={idx} className="flex items-start gap-1.5">
+            <svg width="20" height="10" style={{ marginTop: 2, flexShrink: 0 }}>
               <line x1="0" y1="5" x2="14" y2="5" stroke={arrow.colour} strokeWidth={idx === 0 ? 2.5 : 2} strokeDasharray={arrow.dashed ? "4 2" : undefined} />
               <polygon points="14,2 20,5 14,8" fill={arrow.colour} />
             </svg>
-            <span style={{ color: 'var(--kr-muted)' }}>{arrow.label}{arrow.dashed ? " (insured)" : " (3rd party)"}</span>
+            <span style={{ color: 'var(--kr-muted)', lineHeight: '1.4' }}>
+              <span style={{ fontWeight: 600, color: arrow.colour }}>{arrow.label}</span>
+              {arrow.dashed ? " (insured)" : " (3rd party)"}
+              {idx === 0 && arrow.dir ? (
+                <span style={{ display: 'block', fontSize: 9, marginTop: 1 }}>
+                  {arrow.dir.charAt(0).toUpperCase() + arrow.dir.slice(1)} impact
+                </span>
+              ) : null}
+              {idx === 0 && impactForceKn && impactForceKn > 0 ? (
+                <span style={{ display: 'block', fontSize: 9, fontFamily: 'var(--kr-mono)', marginTop: 1 }}>
+                  {`${impactForceKn.toFixed(1)} kN${decelerationG && decelerationG > 0 ? ` · ${decelerationG.toFixed(1)} g` : ''}`}
+                </span>
+              ) : null}
+            </span>
           </span>
         ))}
         {events && (
