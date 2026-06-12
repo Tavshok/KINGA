@@ -1644,9 +1644,12 @@ export async function extractMultipleQuotesFromPageImages(
       (w.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '') ===
       (q.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
     );
-    if (!alreadyPresent && (q.total_cost ?? 0) > 0) {
+    // Include quotes with valid line items even if total_cost is null —
+    // the total can be computed from line items downstream.
+    const hasValue = (q.total_cost ?? 0) > 0 || q.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
+    if (!alreadyPresent && hasValue) {
       merged.push(q);
-      plog(`[QuoteExtractionEngine] Merged additional quote from losing path: "${q.panel_beater}" total=${q.total_cost}`);
+      plog(`[QuoteExtractionEngine] Merged additional quote from losing path: "${q.panel_beater}" total=${q.total_cost} line_items=${q.line_items.length}`);
     }
   }
 

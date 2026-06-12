@@ -75,9 +75,19 @@ export async function persistExtractedQuote(input: ExtractedQuoteInput): Promise
     }
 
     // Convert whole-unit amounts to cents for storage (DB stores amounts as int cents)
-    const quotedAmountCents = Math.round((input.quotedAmountUnits ?? 0) * 100);
+    // If quotedAmountUnits is null/0 but line items have prices, compute total from line items
+    // so a handwritten quote with readable line items but unclear total is not silently dropped.
+    let resolvedAmountUnits = input.quotedAmountUnits ?? 0;
+    if (resolvedAmountUnits <= 0 && input.lineItems && input.lineItems.length > 0) {
+      const lineItemSum = input.lineItems.reduce((sum, li) => sum + (li.lineTotal ?? li.unitCost ?? 0), 0);
+      if (lineItemSum > 0) {
+        console.log(`${tag}: quotedAmountUnits=0 but line items sum to ${lineItemSum} — using line item sum as total`);
+        resolvedAmountUnits = lineItemSum;
+      }
+    }
+    const quotedAmountCents = Math.round(resolvedAmountUnits * 100);
     if (quotedAmountCents <= 0) {
-      console.warn(`${tag}: quotedAmountUnits=${input.quotedAmountUnits} → 0 cents — skipping`);
+      console.warn(`${tag}: quotedAmountUnits=${input.quotedAmountUnits} and no line item prices — skipping`);
       return null;
     }
     const labourCostCents = input.labourCostUnits != null ? Math.round(input.labourCostUnits * 100) : null;
