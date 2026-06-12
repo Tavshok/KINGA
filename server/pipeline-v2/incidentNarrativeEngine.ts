@@ -356,6 +356,14 @@ YOUR TASKS
    - "NARRATIVE_PRE_EXISTING_DAMAGE": narrative may be describing pre-existing damage as incident damage
    - "NARRATIVE_CONTAMINATED_COST": post-incident cost justifications mixed into incident description
    - "NARRATIVE_MISSING_KEY_FACTS": critical facts (location, time, sequence) suspiciously absent
+   AFRICAN-CONTEXT SIGNALS (calibrated for Southern/Eastern African insurance markets):
+   - "NARRATIVE_GHOST_THIRD_PARTY": third party vehicle cannot be traced, no registration mentioned, or fled scene with no identifying details — common in staged collision fraud in ZW/ZA/ZM
+   - "NARRATIVE_KOMBI_FRAUD_PATTERN": incident involves a kombi/minibus with vague or inconsistent account — kombi operators are a recognised high-frequency fraud vector
+   - "NARRATIVE_RAPID_INCEPTION_PATTERN": narrative context suggests policy may have been taken out specifically for this incident (references to 'just insured', 'new policy', or incident shortly after coverage started)
+   - "NARRATIVE_UNVERIFIABLE_LOCATION": incident location is described vaguely (e.g. 'on the road to X') with no street name, landmark, or GPS reference — reduces verifiability
+   - "NARRATIVE_WITNESS_ABSENCE": narrative explicitly states no witnesses were present in a location where witnesses would normally be expected
+   - "NARRATIVE_SCRIPTED_ACCOUNT": narrative reads as if rehearsed or legally coached — unusually formal language, avoids specific details, mirrors policy wording
+   - "NARRATIVE_VIN_CONCERN": narrative contains references to vehicle identity concerns, recent engine/chassis changes, or vehicle sourcing that may indicate VIN alteration
 
 5. ANALYSE STAKEHOLDER VOICES — reason like a senior loss adjuster:
    - Summarise what the claimant says happened

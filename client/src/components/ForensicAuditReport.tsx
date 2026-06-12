@@ -683,17 +683,21 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
             const midX = (g.x1 + g.x2) / 2;
             const midY = (g.y1 + g.y2) / 2;
             const isHoriz = Math.abs(g.y1 - g.y2) < 5;
-            // For vertical arrows (front/rear): place label beside the arrow start (outside vehicle)
-            // For horizontal arrows (left/right): place label AT the arrow start (outside vehicle body)
+            // Label placement strategy:
+            // - Horizontal arrows (left/right): label at arrow start, outside vehicle body
+            // - Vertical arrows (front/rear): label placed BESIDE the arrow (x-offset),
+            //   NOT above/below, to avoid overlapping zone labels and vehicle body.
+            //   front arrow: y1=-28 (above SVG), label beside at x+22, y1+8
+            //   rear arrow:  y1=308 (below vehicle), label beside at x+22, y1-8
             const lblX = isHoriz
-              ? (arrow.dir === 'left' ? g.x1 - 2 : g.x1 + 2)
-              : (arrow.dir === 'front' ? g.x1 + 36 : g.x1 + 36);
+              ? (arrow.dir === 'left' ? g.x1 - 4 : g.x1 + 4)
+              : g.x1 + 22;  // always place beside the arrow for vertical
             const lblAnchor = isHoriz
               ? (arrow.dir === 'left' ? 'end' : 'start')
-              : 'middle';
+              : 'start';  // left-aligned beside the arrow
             const lblY = isHoriz
               ? midY - 8
-              : (arrow.dir === 'front' ? g.y1 + 10 : g.y1 - 4);
+              : (arrow.dir === 'front' ? g.y1 + 10 : g.y1 - 6);
             return (
               <g key={idx}>
                 <defs>
@@ -6461,7 +6465,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
             <p className="sub-heading">
               5.4 Risk Indicator Breakdown {isSystemFailure ? "(system errors excluded from score)" : ""}
             </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Each indicator is scored out of 20 and contributes to the overall fraud risk score. A triggered indicator means the system detected a specific anomaly in this area.</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Indicators are grouped into six weighted categories (Physical Consistency 28%, Scenario Intelligence 22%, Financial Anomaly 20%, Documentation 15%, Entity Intelligence 10%, Photo Forensics 5%). The final fraud score is a normalised composite — no single indicator can dominate the result.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs report-table">
@@ -6477,8 +6481,11 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                   const isPhotoFactor = c.factor?.toLowerCase().includes("photo");
                   const isExcluded = isPhotoFactor && isSystemFailure;
                   const score = c.value ?? 0;
-                  const maxScore = 20; // each indicator max is 20
-                  const scoreColor = isExcluded ? "var(--kr-muted)" : score > 10 ? "var(--fp-critical-text)" : score > 5 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
+                  // Actual indicator scores vary by type (5–35 pts raw). Display the raw score
+                  // with a bar scaled against the indicator's actual maximum (not a fixed 20).
+                  // The final fraud score is a weighted composite, not a sum of these raw scores.
+                  const maxScore = Math.max(score, 35); // scale bar against realistic max
+                  const scoreColor = isExcluded ? "var(--kr-muted)" : score > 20 ? "var(--fp-critical-text)" : score > 10 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
 
                   // Plain-English factor label map
                   const factorLabelMap: Record<string, string> = {
@@ -6534,7 +6541,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                         {factorLabel}
                         {isExcluded && <span className="ml-1 text-xs" style={{ color: 'var(--kr-muted)' }}>(excluded)</span>}
                       </td>
-                      <td className="px-3 py-2 font-bold" style={{ color: scoreColor }}>{isExcluded ? "0 (adj)" : `${score}/${maxScore}`}</td>
+                      <td className="px-3 py-2 font-bold" style={{ color: scoreColor }}>{isExcluded ? "0 (adj)" : `${score} pts`}</td>
                       <td className="px-3 py-2" style={{ minWidth: 80 }}>
                         <div className="h-1.5 rounded-full" style={{ background: 'var(--kr-white)' }}>
                           <div className="h-1.5 rounded-full" style={{ width: `${isExcluded ? 0 : Math.min(100, (score / maxScore) * 100)}%`, background: scoreColor }} />
@@ -6745,82 +6752,110 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         </div>
       )}
 
-      {/* 5.5 Fraud Signal Contribution — Stacked Bar Chart */}
+      {/* 5.5 Weighted Category Breakdown — 6-category composite framework */}
       {(() => {
-        // Build signal segments from contributions + derived signals
-        const quoteSim = (() => {
-          const qs = fraudScoreBreakdown5?.quoteSimilarity;
-          if (!qs) return 0;
-          if (qs.overall_verdict === 'confirmed') return 20;
-          if (qs.overall_verdict === 'suspected') return 12;
-          return 0;
+        // The weighted fraud score is computed from 6 independent categories.
+        // Each category has a budget (max pts it can contribute to the final score).
+        // Raw indicator points within each category are normalised against a calibrated
+        // maximum, then scaled to the category budget.
+        //
+        // Category definitions (must match CATEGORY_BUDGET in stage-8-fraud.ts):
+        const CATEGORY_META: Record<string, { label: string; budget: number; color: string; description: string }> = {
+          physical_consistency:   { label: 'Physical Consistency',   budget: 28, color: '#c0392b', description: 'Physics, damage direction, damage pattern' },
+          scenario_intelligence:  { label: 'Scenario Intelligence',  budget: 22, color: '#e67e22', description: 'Scenario-aware flags, narrative analysis' },
+          financial_anomaly:      { label: 'Financial Anomaly',      budget: 20, color: '#d35400', description: 'Quote similarity, cost deviation, inflation' },
+          documentation_integrity:{ label: 'Documentation',          budget: 15, color: '#7f8c8d', description: 'Police report, photos, date cross-check' },
+          entity_intelligence:    { label: 'Entity Intelligence',    budget: 10, color: '#2c3e50', description: 'Officer/assessor/driver history patterns' },
+          photo_forensics:        { label: 'Photo Forensics',        budget:  5, color: '#8e44ad', description: 'EXIF manipulation, GPS inconsistency' },
+        };
+
+        // Build category scores from the fraud indicators in the breakdown
+        // (approximation from available UI data — exact values are in the server output)
+        const allFraudIndicators: any[] = (() => {
+          const raw = fraudScoreBreakdown5?.indicators ?? [];
+          return Array.isArray(raw) ? raw : [];
         })();
-        const physicsAnomaly = Math.max(0, Math.round(20 - (physicsScore / 100) * 20));
-        const imageIncon = (() => {
-          const c = contributions.find((c: any) => c.factor?.toLowerCase().includes('photo') || c.factor?.toLowerCase().includes('image') || c.factor?.toLowerCase().includes('damage'));
-          return c ? Math.min(20, c.value ?? 0) : 0;
-        })();
-        const fcdiInverse = (() => {
-          const fcdi = (enforcement as any)?._fcdi?.score ?? (enforcement as any)?.fcdiScore ?? null;
-          if (fcdi == null) return 0;
-          // FCDI is reliability (higher = better) — invert to get risk contribution
-          return Math.max(0, Math.round((1 - fcdi / 100) * 20));
-        })();
-        const costDev = (() => {
-          const c = contributions.find((c: any) => c.factor?.toLowerCase().includes('cost'));
-          return c ? Math.min(20, c.value ?? 0) : 0;
-        })();
-        const missingData = (() => {
-          const c = contributions.find((c: any) => c.factor?.toLowerCase().includes('missing') || c.factor?.toLowerCase().includes('police') || c.factor?.toLowerCase().includes('report'));
-          return c ? Math.min(20, c.value ?? 0) : 0;
-        })();
-        const segments = [
-          { label: 'Quote Similarity',    value: quoteSim,      color: 'var(--kr-red)',    textColor: '#fff' },
-          { label: 'Physics Anomaly',     value: physicsAnomaly, color: 'var(--kr-amber)', textColor: '#fff' },
-          { label: 'Image Inconsistency', value: imageIncon,    color: 'var(--kr-amber)', textColor: '#fff' },
-          { label: 'Data Reliability Gap',  value: fcdiInverse,   color: '#1A2B4A', textColor: '#fff' },
-          { label: 'Cost Deviation',      value: costDev,       color: '#c0392b', textColor: '#fff' },
-          { label: 'Missing Data',        value: missingData,   color: '#6b6862', textColor: '#fff' },
-        ].filter(s => s.value > 0);
-        const total = segments.reduce((sum, s) => sum + s.value, 0);
-        if (segments.length === 0 || total === 0) return null;
+
+        // Map indicator categories to our 6-category framework
+        function mapToCategory(ind: any): string {
+          const cat = (ind.category ?? '').toLowerCase();
+          const code = (ind.indicator ?? '').toLowerCase();
+          if (cat === 'photo_forensics' || cat === 'forensics' || code.startsWith('photo_') || code.startsWith('gps_') || code.startsWith('exif_') || code.includes('manipulation')) return 'photo_forensics';
+          if (cat === 'consistency' || code.startsWith('damage_direction') || code.startsWith('severity_physics') || code.startsWith('damage_pattern') || code.startsWith('damage_image') || code.startsWith('cross_engine_')) return 'physical_consistency';
+          if (cat === 'financial' || code.startsWith('quote_similarity') || code.startsWith('cost_deviation') || code.startsWith('inflated_') || code === 'financed_vehicle_total_loss_risk' || code === 'non_panel_repairer_requested') return 'financial_anomaly';
+          if (cat === 'documentation' || cat === 'date_crosscheck' || code.startsWith('missing_police') || code.startsWith('police_report') || code.startsWith('no_damage_photos') || code.startsWith('photos_not_ingested') || code.startsWith('low_data_completeness') || code === 'accident_date_inconsistency' || code.startsWith('late_submission')) return 'documentation_integrity';
+          if (cat === 'cross_entity_intelligence' || cat === 'entity' || code === 'officer_concentration' || code === 'assessor_routing_bias' || code === 'driver_history_pattern') return 'entity_intelligence';
+          return 'scenario_intelligence';
+        }
+
+        // Raw caps per category (must match CATEGORY_RAW_CAP in stage-8-fraud.ts)
+        const RAW_CAP: Record<string, number> = {
+          physical_consistency: 130, scenario_intelligence: 100,
+          financial_anomaly: 60, documentation_integrity: 65,
+          entity_intelligence: 90, photo_forensics: 50,
+        };
+
+        // Accumulate raw scores per category
+        const rawByCategory: Record<string, number> = {};
+        for (const cat of Object.keys(CATEGORY_META)) rawByCategory[cat] = 0;
+        for (const ind of allFraudIndicators) {
+          const cat = mapToCategory(ind);
+          rawByCategory[cat] = (rawByCategory[cat] ?? 0) + (ind.score ?? 0);
+        }
+
+        // Compute normalised contribution per category
+        const categoryRows = Object.entries(CATEGORY_META).map(([key, meta]) => {
+          const raw = rawByCategory[key] ?? 0;
+          const cap = RAW_CAP[key] ?? 100;
+          const capped = Math.min(raw, cap);
+          const normScore = (capped / cap) * meta.budget;
+          const pctOfBudget = meta.budget > 0 ? (normScore / meta.budget) * 100 : 0;
+          return { key, ...meta, raw, normScore, pctOfBudget };
+        });
+
+        const activeRows = categoryRows.filter(r => r.raw > 0);
+        if (activeRows.length === 0) return null;
+
         return (
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-              <p className="sub-heading">5.5 Fraud Signal Contribution Breakdown</p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>Proportional contribution of each fraud signal to the overall risk score</p>
+              <p className="sub-heading">5.5 Weighted Category Score Breakdown</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>Each category contributes a maximum fixed number of points to the final score. Raw indicator points within a category are normalised against the category ceiling — preventing any single category from dominating.</p>
             </div>
             <div className="p-4">
-              {/* Stacked horizontal bar */}
-              <div style={{ display: 'flex', height: 28, borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
-                {segments.map((s, i) => (
-                  <div
-                    key={i}
-                    style={{ width: `${(s.value / total) * 100}%`, background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: s.value / total > 0.08 ? 0 : 0, overflow: 'hidden' }}
-                    title={`${s.label}: ${s.value} pts`}
-                  >
-                    {s.value / total > 0.1 && (
-                      <span style={{ fontSize: 9, fontWeight: 700, color: s.textColor, whiteSpace: 'nowrap', padding: '0 4px' }}>{Math.round((s.value / total) * 100)}%</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {/* Legend */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 16px' }}>
-                {segments.map((s, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
-                    <div>
-                      <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--kr-text)' }}>{s.label}</span>
-                      <span style={{ fontSize: 9, color: 'var(--kr-muted)', marginLeft: 4, fontFamily: 'var(--kr-mono)' }}>{s.value} pts</span>
+              {/* Category rows */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {categoryRows.map((row) => {
+                  const barPct = row.budget > 0 ? Math.min(100, (row.normScore / row.budget) * 100) : 0;
+                  const barColor = barPct > 70 ? 'var(--fp-critical-text)' : barPct > 40 ? 'var(--fp-warning-text)' : barPct > 0 ? '#3b82f6' : 'var(--kr-rule)';
+                  return (
+                    <div key={row.key}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
+                        <div>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: row.raw > 0 ? 'var(--kr-text)' : 'var(--kr-muted)' }}>{row.label}</span>
+                          <span style={{ fontSize: 9, color: 'var(--kr-muted)', marginLeft: 6 }}>{row.description}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                          <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 11, fontWeight: 700, color: row.raw > 0 ? barColor : 'var(--kr-muted)' }}>
+                            {row.normScore.toFixed(1)}
+                          </span>
+                          <span style={{ fontSize: 9, color: 'var(--kr-muted)' }}>/ {row.budget} pts</span>
+                        </div>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 3, background: 'var(--kr-rule)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${barPct}%`, background: row.raw > 0 ? barColor : 'transparent', borderRadius: 3, transition: 'width 0.3s' }} />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               {/* Score tally */}
-              <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--kr-rule)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 10, color: 'var(--kr-muted)' }}>Signal total (pre-normalisation)</span>
-                <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 13, fontWeight: 700, color: fraudColor }}>{total} pts → {Math.round(fraudScore)}/100</span>
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--kr-rule)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontSize: 10, color: 'var(--kr-muted)' }}>Composite score (weighted, normalised)</span>
+                  <span style={{ fontSize: 9, color: 'var(--kr-muted)', marginLeft: 8 }}>Corroboration across {activeRows.length} categor{activeRows.length === 1 ? 'y' : 'ies'} detected</span>
+                </div>
+                <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 14, fontWeight: 700, color: fraudColor }}>{Math.round(fraudScore)}/100</span>
               </div>
             </div>
           </div>

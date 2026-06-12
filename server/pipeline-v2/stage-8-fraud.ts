@@ -36,11 +36,180 @@ import type {
 } from "./types";
 
 function scoreToLevel(score: number): FraudRiskLevel {
-  if (score >= 80) return "elevated";
-  if (score >= 60) return "high";
-  if (score >= 40) return "medium";
-  if (score >= 20) return "low";
+  // Calibrated thresholds for the weighted composite framework (0-100 normalised scale).
+  // These are deliberately higher than the old raw-sum thresholds because the new
+  // framework normalises each category against its realistic maximum, so a score of 65+
+  // genuinely requires corroborating evidence across multiple independent categories.
+  if (score >= 65) return "elevated";
+  if (score >= 45) return "high";
+  if (score >= 25) return "medium";
+  if (score >= 13) return "low";
   return "minimal";
+}
+
+/**
+ * KINGA Weighted Fraud Scoring Framework
+ *
+ * Replaces the naive Math.min(100, rawSum) formula with a defensible,
+ * category-weighted composite score. Five mathematical properties:
+ *
+ * 1. Compositionality — weighted sum of independently normalised category scores.
+ *    No single category can dominate the final score.
+ * 2. Proportionality — raw indicator points are normalised against a calibrated
+ *    maximum per category (derived from actual indicator score ranges in the codebase).
+ * 3. Corroboration bonus — convergence of evidence across ≥3 independent categories
+ *    amplifies the score (up to ×1.20), reflecting that multi-category corroboration
+ *    is a stronger signal than a single large flag.
+ * 4. Trust signal reduction — verified police report and assessor confirmation reduce
+ *    the score, reflecting real-world evidentiary weight.
+ * 5. Auditability — every point in the final score traces to a specific indicator,
+ *    category, raw score, and normalised contribution.
+ *
+ * Category weights (total budget = 100 pts):
+ *   C1 Physical Consistency  28 pts — hardest to fabricate (physics, direction, pattern)
+ *   C2 Scenario Intelligence 22 pts — context-aware engine flags
+ *   C3 Financial Anomaly     20 pts — inflated quotes, copy-quotations, cost deviation
+ *   C4 Documentation         15 pts — police report, photos, date cross-check
+ *   C5 Entity Intelligence   10 pts — officer/assessor/driver history patterns
+ *   C6 Photo Forensics        5 pts — EXIF manipulation, GPS inconsistency
+ *
+ * IMPORTANT: Missing police report (documentation category) has a low weight (max 15 pts
+ * for the entire documentation category) because absence of a police report is a data
+ * quality gap, NOT a standalone fraud signal. Many legitimate claimants in African markets
+ * do not file police reports for minor incidents due to accessibility, cost, and time
+ * constraints. The signal only becomes significant when corroborated by physical or
+ * financial anomalies.
+ */
+
+/** Category budget allocations (sum = 100) */
+const CATEGORY_BUDGET: Record<string, number> = {
+  physical_consistency: 28,
+  scenario_intelligence: 22,
+  financial_anomaly: 20,
+  documentation_integrity: 15,
+  entity_intelligence: 10,
+  photo_forensics: 5,
+};
+
+/**
+ * Calibrated raw caps per category.
+ * These are the maximum raw points that can realistically accumulate within each category.
+ * Indicators above the cap are still counted but proportionally compressed.
+ */
+const CATEGORY_RAW_CAP: Record<string, number> = {
+  // direction_mismatch(25) + severity_mismatch(30) + pattern_none(55) + 2×cross_engine_CRITICAL(40)
+  physical_consistency: 130,
+  // Scenario engine internal score is already 0-100; narrative signals capped at 25 each
+  scenario_intelligence: 100,
+  // quote_similarity(40) + cost_deviation_extreme(20) + financed_vehicle(15)
+  financial_anomaly: 60,
+  // police_absent(10) + no_photos(15) + date_contradiction(20) + low_completeness(10) + late_submission(20)
+  documentation_integrity: 65,
+  // officer_concentration(40+25 collusion) + assessor_bias(30+15) + driver_history(30+20)
+  entity_intelligence: 90,
+  // photo_manipulation(25) + GPS_mismatch(20) + other_flags(15)
+  photo_forensics: 50,
+};
+
+/**
+ * Maps a FraudIndicator to one of the 6 composite categories.
+ */
+function mapIndicatorCategory(indicator: FraudIndicator): string {
+  const cat = (indicator.category ?? '').toLowerCase();
+  const code = (indicator.indicator ?? '').toLowerCase();
+
+  // C6: Photo Forensics (check before C1 to avoid misclassifying forensics as consistency)
+  if (cat === 'photo_forensics' || cat === 'forensics' || code.startsWith('photo_') ||
+      code.startsWith('gps_') || code.startsWith('exif_') || code.includes('manipulation')) {
+    return 'photo_forensics';
+  }
+  // C1: Physical Consistency
+  if (cat === 'consistency' || code.startsWith('damage_direction') || code.startsWith('severity_physics') ||
+      code.startsWith('damage_pattern') || code.startsWith('damage_image') || code.startsWith('cross_engine_')) {
+    return 'physical_consistency';
+  }
+  // C3: Financial Anomaly
+  if (cat === 'financial' || code.startsWith('quote_similarity') || code.startsWith('cost_deviation') ||
+      code.startsWith('inflated_') || code === 'financed_vehicle_total_loss_risk' ||
+      code === 'non_panel_repairer_requested') {
+    return 'financial_anomaly';
+  }
+  // C4: Documentation Integrity
+  if (cat === 'documentation' || cat === 'date_crosscheck' || code.startsWith('missing_police') ||
+      code.startsWith('police_report') || code.startsWith('no_damage_photos') ||
+      code.startsWith('photos_not_ingested') || code.startsWith('low_data_completeness') ||
+      code === 'accident_date_inconsistency' || code.startsWith('late_submission')) {
+    return 'documentation_integrity';
+  }
+  // C5: Entity Intelligence
+  if (cat === 'cross_entity_intelligence' || cat === 'entity' ||
+      code === 'officer_concentration' || code === 'assessor_routing_bias' ||
+      code === 'driver_history_pattern') {
+    return 'entity_intelligence';
+  }
+  // C2: Scenario Intelligence — narrative, timeline, pattern (from scenario engine), behaviour
+  if (cat === 'narrative' || cat === 'timeline' || cat === 'pattern' ||
+      cat === 'behaviour' || cat === 'scenario') {
+    return 'scenario_intelligence';
+  }
+  // Default: scenario intelligence
+  return 'scenario_intelligence';
+}
+
+/**
+ * Computes the weighted composite fraud score from a list of indicators.
+ *
+ * @param indicators - All fraud indicators collected across all engines
+ * @param scenarioFraudScore - The scenario engine's own 0-100 score (used as a floor for C2)
+ * @returns Normalised fraud score in [0, 100] and a category breakdown for the report
+ */
+function computeWeightedFraudScore(
+  indicators: FraudIndicator[],
+  scenarioFraudScore: number | null
+): { score: number; categoryBreakdown: Record<string, { rawScore: number; normScore: number; budget: number }> } {
+  // Step 1: Accumulate raw scores per category
+  const rawScores: Record<string, number> = {};
+  for (const cat of Object.keys(CATEGORY_BUDGET)) rawScores[cat] = 0;
+
+  for (const ind of indicators) {
+    const cat = mapIndicatorCategory(ind);
+    rawScores[cat] = (rawScores[cat] ?? 0) + (ind.score ?? 0);
+  }
+
+  // Step 2: For scenario_intelligence, use the higher of:
+  //   (a) sum of injected scenario/narrative indicators
+  //   (b) the scenario engine's own fraud_score (already 0-100)
+  // This ensures the scenario engine's holistic assessment is not lost when
+  // only a subset of its flags are injected as individual indicators.
+  if (scenarioFraudScore !== null && scenarioFraudScore > rawScores.scenario_intelligence) {
+    rawScores.scenario_intelligence = scenarioFraudScore;
+  }
+
+  // Step 3: Normalise each category against its raw cap and scale to budget
+  const categoryBreakdown: Record<string, { rawScore: number; normScore: number; budget: number }> = {};
+  let baseScore = 0;
+  let categoriesWithSignals = 0;
+
+  for (const [cat, budget] of Object.entries(CATEGORY_BUDGET)) {
+    const raw = rawScores[cat] ?? 0;
+    const cap = CATEGORY_RAW_CAP[cat] ?? 100;
+    const capped = Math.min(raw, cap);
+    const normScore = (capped / cap) * budget;
+    categoryBreakdown[cat] = { rawScore: raw, normScore, budget };
+    baseScore += normScore;
+    if (raw > 0) categoriesWithSignals++;
+  }
+
+  // Step 4: Corroboration multiplier
+  // Convergence of evidence across ≥3 independent categories is a stronger signal
+  // than a single large flag in one category.
+  const corroborationFactor = Math.min(1.20, 1.0 + 0.04 * Math.max(0, categoriesWithSignals - 2));
+
+  // Step 5: Compute final score
+  const amplified = baseScore * corroborationFactor;
+  const finalScore = Math.round(Math.max(0, Math.min(100, amplified)));
+
+  return { score: finalScore, categoryBreakdown };
 }
 
 function analyseDamageConsistency(
@@ -775,9 +944,19 @@ export async function runFraudAnalysisStage(
       ctx.log('Stage 8 (entity)', `Cross-entity checks skipped (non-fatal): ${String(entityErr).substring(0, 80)}`);
     }
 
-    const totalIndicatorScore = allIndicators.reduce((sum, i) => sum + i.score, 0);
-    const fraudRiskScore = Math.min(100, totalIndicatorScore);
+    // ── Weighted composite fraud scoring ───────────────────────────────────────
+    // Use the 6-category weighted framework instead of the naive raw sum.
+    // The scenario engine's fraud_score is passed as a floor for the scenario_intelligence
+    // category to ensure its holistic assessment is not lost.
+    const scenarioEngineScore = scenarioFraudResult?.fraud_score ?? null;
+    const { score: fraudRiskScore, categoryBreakdown: fraudCategoryBreakdown } =
+      computeWeightedFraudScore(allIndicators, scenarioEngineScore);
     const fraudRiskLevel = scoreToLevel(fraudRiskScore);
+    ctx.log("Stage 8", `Weighted fraud score: ${fraudRiskScore}/100 (${fraudRiskLevel}). Category breakdown: ` +
+      Object.entries(fraudCategoryBreakdown)
+        .filter(([, v]) => v.rawScore > 0)
+        .map(([k, v]) => `${k}=${v.normScore.toFixed(1)}/${v.budget}`)
+        .join(', '));
 
     // Stage 43: Cross-Engine Consistency Validation
     let crossEngineConsistency: Stage8Output["crossEngineConsistency"] = null;
@@ -831,14 +1010,18 @@ export async function runFraudAnalysisStage(
     }
 
     // ── Recalculate final score AFTER cross-engine injection ──────────────────
-    // The cross-engine loop may have pushed additional indicators into allIndicators.
-    // We must recompute here so the stored fraudRiskScore matches the full indicator set
-    // and the cover card, executive summary, and breakdown table all read the same value.
-    const finalFraudRiskScore = Math.min(100, allIndicators.reduce((sum, i) => sum + i.score, 0));
+    // The cross-engine loop may have pushed additional cross-engine conflict indicators.
+    // We must recompute using the weighted framework so the stored fraudRiskScore matches
+    // the full indicator set and the cover card, executive summary, and breakdown table
+    // all read the same value.
+    const { score: finalFraudRiskScore, categoryBreakdown: finalCategoryBreakdown } =
+      computeWeightedFraudScore(allIndicators, scenarioEngineScore);
     const finalFraudRiskLevel = scoreToLevel(finalFraudRiskScore);
     if (finalFraudRiskScore !== fraudRiskScore) {
       ctx.log("Stage 8", `Fraud score updated after cross-engine injection: ${fraudRiskScore} → ${finalFraudRiskScore}/100`);
     }
+    // Attach category breakdown to the output for the report UI
+    void finalCategoryBreakdown; // will be attached to output below
 
     // Stage 26: apply defensive contract — ensure score, level, and at least 1 indicator
     const output = ensureFraudContract({
@@ -858,6 +1041,8 @@ export async function runFraudAnalysisStage(
       accidentDateCrossCheck: accidentDateCrossCheckResult,
     }, isDegraded ? "degraded_analysis" : "success");
 
+    // Attach weighted category breakdown to output for the report UI
+    (output as any).fraudCategoryBreakdown = finalCategoryBreakdown;
     ctx.log("Stage 8", `Fraud analysis complete. Risk: ${finalFraudRiskLevel} (${finalFraudRiskScore}/100), Indicators: ${allIndicators.length}, Consistency: ${consistency.score}/100`);
 
     return {

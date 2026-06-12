@@ -1379,10 +1379,27 @@ export async function triggerAiAssessment(claimId: number) {
     detectedDamageTypes: damageAnalysis
       ? JSON.stringify([...new Set(damageAnalysis.damagedParts.map(p => p.damageType))])
       : '[]',
-    // PERMANENT FIX: Always clamp confidenceScore to 0-100 before storing.
-    // Prevents downstream display bugs (e.g. gauge showing "8200%") if completenessScore
-    // is miscalculated or an upstream engine returns an out-of-range value.
-    confidenceScore: safeInt(claimRecord ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore)) : 50) ?? 50,
+    // KINGA CONFIDENCE — use the FCDI (Forensic Confidence Degradation Index) as the
+    // confidence score displayed in the UI. FCDI measures pipeline execution quality:
+    // how many stages ran successfully, how many assumptions were made, and whether
+    // critical stages degraded. This is a true measure of how much the AI result can
+    // be trusted, NOT a measure of how complete the claim data is.
+    //
+    // FCDI is computed in Stage 13 (forensicCDI.ts) and stored in forensicAnalysis.fcdi.
+    // Falls back to data completeness score if FCDI is not available (e.g. pipeline
+    // crashed before Stage 13).
+    confidenceScore: (() => {
+      try {
+        const fcdiScore = forensicAnalysis?.fcdi?.scorePercent;
+        if (typeof fcdiScore === 'number' && fcdiScore >= 0 && fcdiScore <= 100) {
+          return safeInt(Math.round(fcdiScore)) ?? 50;
+        }
+        // Fallback: data completeness score
+        return safeInt(claimRecord ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore)) : 50) ?? 50;
+      } catch {
+        return 50;
+      }
+    })(),
     fraudIndicators: fraudIndicatorsJson,
     fraudRiskLevel: dbFraudLevel,
     // SYSTEMIC FIX: Persist fraud score and recommendation as first-class columns.

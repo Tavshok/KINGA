@@ -100,6 +100,23 @@ export interface ScenarioFraudInput {
     high_fraud_location?: boolean;
     /** Whether the vehicle was recently purchased (< 90 days) */
     recently_purchased?: boolean;
+    // ── African-context enrichment fields ──────────────────────────────────────
+    /** Third party is unverifiable (no registration, fled scene, ghost vehicle) */
+    ghost_third_party?: boolean;
+    /** Incident involved a kombi/minibus (high-frequency fraud vector in ZW/ZA/ZM) */
+    kombi_minibus_involved?: boolean;
+    /** Policy was incepted within 30 days of the claim date */
+    rapid_policy_inception?: boolean;
+    /** Third party vehicle is unregistered or plates not traceable */
+    unregistered_vehicle_involved?: boolean;
+    /** Incident occurred in a remote/rural area with no independent witnesses */
+    rural_remote_no_witnesses?: boolean;
+    /** Repairer is an informal/backyard workshop not on any approved panel */
+    informal_repairer_network?: boolean;
+    /** Claimant changed address 3+ times in the last 12 months */
+    frequent_address_changes?: boolean;
+    /** Claim involves a vehicle with a recently replaced or altered VIN */
+    vin_alteration_suspected?: boolean;
   };
 }
 
@@ -838,6 +855,143 @@ function evaluateBehaviouralEnrichment(input: ScenarioFraudInput): FraudFlag[] {
       "Incident location is in a zone with elevated historical fraud frequency. " +
       "This is a contextual risk factor, not a standalone indicator.",
       false
+    ));
+  }
+
+  // ── African-context fraud signals ─────────────────────────────────────────────
+  // These signals are calibrated for the Southern/Eastern African insurance market
+  // where specific fraud patterns differ materially from Western markets.
+
+  if (enrichment.ghost_third_party) {
+    // Ghost third party: a vehicle that cannot be traced, has no registration, or fled
+    // the scene. Extremely common in staged collision fraud in Zimbabwe, South Africa,
+    // and Zambia. The claimant claims a third party caused the damage but the third
+    // party is unverifiable, preventing subrogation recovery.
+    flags.push(buildFlag(
+      "ghost_third_party",
+      "scenario",
+      "HIGH",
+      30,
+      "Third party vehicle is unverifiable: no registration number, fled scene, or " +
+      "plates cannot be traced. Ghost third party is a primary fraud indicator in " +
+      "Southern/Eastern African markets. Prevents subrogation recovery and is " +
+      "frequently used in staged collision fraud.",
+      true
+    ));
+  }
+
+  if (enrichment.kombi_minibus_involved) {
+    // Kombi/minibus collisions are a high-frequency fraud vector in Zimbabwe, South Africa,
+    // and Zambia. Kombi operators often participate in staged collisions, inflated injury
+    // claims, and organised fraud rings. The high passenger count also enables inflated
+    // personal injury claims across multiple claimants from a single incident.
+    flags.push(buildFlag(
+      "kombi_minibus_collision",
+      "scenario",
+      "MEDIUM",
+      18,
+      "Incident involves a kombi/minibus vehicle. Kombi operators are a recognised " +
+      "high-frequency fraud vector in Southern/Eastern African markets, associated " +
+      "with staged collisions, inflated injury claims, and organised fraud rings.",
+      true
+    ));
+  }
+
+  if (enrichment.rapid_policy_inception) {
+    // Policy incepted within 30 days of the claim date. This is a strong fraud signal
+    // in African markets where vehicle owners sometimes take out insurance specifically
+    // to claim for pre-existing damage or a planned incident.
+    flags.push(buildFlag(
+      "rapid_policy_inception",
+      "timeline",
+      "HIGH",
+      28,
+      "Insurance policy was incepted within 30 days of the claim date. " +
+      "Rapid policy inception is a strong fraud indicator, suggesting the policy " +
+      "may have been taken out specifically to cover a pre-existing condition " +
+      "or a planned incident.",
+      true
+    ));
+  }
+
+  if (enrichment.unregistered_vehicle_involved) {
+    // Unregistered third party vehicle: plates not traceable through traffic authority.
+    // Common in informal transport sector fraud in Zimbabwe (ZINARA database gaps).
+    // Distinct from ghost_third_party: the vehicle was present but unregistered.
+    flags.push(buildFlag(
+      "unregistered_vehicle_involved",
+      "documentation",
+      "MEDIUM",
+      15,
+      "Third party vehicle involved in the incident is unregistered or its plates " +
+      "cannot be traced through the traffic authority database. Unregistered vehicles " +
+      "are common in informal transport fraud and prevent proper liability verification.",
+      true
+    ));
+  }
+
+  if (enrichment.rural_remote_no_witnesses) {
+    // Incident in a remote area with no independent witnesses is a fraud enabler.
+    // In African markets, remote incidents are harder to verify and are sometimes
+    // fabricated entirely. However, this is a weak standalone signal — many legitimate
+    // incidents occur in remote areas. Score is kept low.
+    flags.push(buildFlag(
+      "rural_remote_no_witnesses",
+      "behaviour",
+      "LOW",
+      8,
+      "Incident occurred in a remote or rural area with no independent witnesses. " +
+      "While many legitimate incidents occur in remote areas, the absence of " +
+      "witnesses reduces verifiability and is a weak fraud enabler when combined " +
+      "with other indicators.",
+      false
+    ));
+  }
+
+  if (enrichment.informal_repairer_network) {
+    // Claimant is directing the claim to an informal/backyard workshop not on any
+    // approved panel. In Southern African markets, informal repairers are sometimes
+    // used in organised fraud rings to inflate repair costs or perform ghost repairs.
+    flags.push(buildFlag(
+      "informal_repairer_network",
+      "financial",
+      "MEDIUM",
+      20,
+      "Claimant is directing the repair to an informal or backyard workshop not on " +
+      "any approved repairer panel. Informal repairers are associated with inflated " +
+      "repair costs, ghost repairs, and organised fraud rings in Southern African markets.",
+      true
+    ));
+  }
+
+  if (enrichment.frequent_address_changes) {
+    // Claimant has changed address 3+ times in the last 12 months. This is a fraud
+    // enabler in African markets where fraudsters change addresses to avoid detection
+    // across multiple insurers. Also associated with identity fraud.
+    flags.push(buildFlag(
+      "frequent_address_changes",
+      "behaviour",
+      "MEDIUM",
+      12,
+      "Claimant has changed address 3 or more times in the last 12 months. " +
+      "Frequent address changes are associated with fraud avoidance across multiple " +
+      "insurers and identity fraud in African markets.",
+      false
+    ));
+  }
+
+  if (enrichment.vin_alteration_suspected) {
+    // VIN alteration is a serious fraud indicator associated with stolen vehicle
+    // re-registration and insurance fraud in Southern African markets.
+    flags.push(buildFlag(
+      "vin_alteration_suspected",
+      "pattern",
+      "HIGH",
+      35,
+      "Vehicle Identification Number (VIN) shows signs of alteration or replacement. " +
+      "VIN alteration is a serious fraud indicator associated with stolen vehicle " +
+      "re-registration and insurance fraud. Immediate escalation to SIU recommended.",
+      true
     ));
   }
 

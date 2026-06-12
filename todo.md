@@ -12393,3 +12393,17 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add cross-validation: run text-based extraction in parallel and use whichever path finds more quotes
 - [x] Add extractQuoteFromMultipleImageUrls helper that accepts an array of image URLs
 - [x] Write regression test: ADube PDF (3 quotes) and Nharingo PDF (3 quotes) must both extract all quotes
+
+## Fraud Scoring Redesign (2026-06-12)
+- [ ] Implement category-weighted fraud scoring framework with per-category caps and proportional normalisation
+- [ ] Fix AI confidence to use stage-10 computeOverallConfidence() value instead of data completeness score
+- [ ] Fix SVG Damage Zone Map vertical arrow labels overlapping vehicle body
+- [ ] Update Risk Indicator Breakdown UI to show weighted category scores correctly
+
+## Fraud Scoring Redesign (2026-06-12)
+- [ ] Replace Math.min(100, rawSum) with 6-category weighted composite scoring in stage-8-fraud.ts
+- [ ] Add African-context fraud signals to scenarioFraudEngine (ghost_third_party, kombi_collision, rapid_policy_inception, unregistered_vehicle, rural_no_witnesses, informal_repairer)
+- [ ] Add African-context fraud signal codes to incidentNarrativeEngine LLM prompt
+- [ ] Fix AI confidence: use fcdiResult.scorePercent instead of dataQuality.completenessScore in db.ts
+- [ ] Fix SVG rear/front arrow labels: move outside vehicle body (no overlap with zone labels)
+- [ ] Update Risk Indicator Breakdown UI to show category-weighted scores
