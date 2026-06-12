@@ -82,7 +82,18 @@ export async function persistExtractedQuote(input: ExtractedQuoteInput): Promise
     }
     const labourCostCents = input.labourCostUnits != null ? Math.round(input.labourCostUnits * 100) : null;
     const partsCostCents = input.partsCostUnits != null ? Math.round(input.partsCostUnits * 100) : null;
-    const currencyCode = (input.currency ?? "USD").substring(0, 10);
+    // Normalise currency symbols to ISO 4217 codes
+    const _rawCurrency = (input.currency ?? 'USD').trim();
+    const CURRENCY_SYMBOL_MAP: Record<string, string> = {
+      '$': 'USD', 'US$': 'USD', 'USD': 'USD',
+      'Z$': 'ZWL', 'ZWL': 'ZWL', 'ZIG': 'ZIG',
+      'R': 'ZAR', 'ZAR': 'ZAR',
+      'K': 'ZMW', 'ZMW': 'ZMW',
+      'KES': 'KES', 'GHS': 'GHS', 'NGN': 'NGN',
+      '\u00a3': 'GBP', 'GBP': 'GBP',
+      '\u20ac': 'EUR', 'EUR': 'EUR',
+    };
+    const currencyCode = (CURRENCY_SYMBOL_MAP[_rawCurrency] ?? _rawCurrency.toUpperCase()).substring(0, 10);
     const repairerName = (input.repairerName ?? "Extracted Repairer").substring(0, 200);
     const sourceNote = `[${input.source}]`;
 
@@ -121,6 +132,34 @@ export async function persistExtractedQuote(input: ExtractedQuoteInput): Promise
     }
 
     // ── Step 2: Upsert the panel_beater_quotes row ───────────────────────────
+    // GUARD: Also check for quotes from panel beaters with similar names for this claim.
+    // This prevents duplicate rows when the same repairer is extracted with slightly
+    // different name spellings across pipeline runs (e.g. "Emilio's Spray Painters"
+    // vs "Emilio's Spray Paint...").
+    // Strategy: load all pipeline-extracted quotes for this claim, normalise their
+    // associated panel beater names, and if a fuzzy match exists use that quote's ID.
+    const allClaimQuotes = await db
+      .select({ id: panelBeaterQuotes.id, pbName: panelBeaters.businessName, pbId: panelBeaters.id })
+      .from(panelBeaterQuotes)
+      .innerJoin(panelBeaters, eq(panelBeaterQuotes.panelBeaterId, panelBeaters.id))
+      .where(eq(panelBeaterQuotes.claimId, input.claimId));
+
+    const normRepairerName = repairerName.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+    const fuzzyMatch = allClaimQuotes.find(q => {
+      const normExisting = (q.pbName ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+      // Match if either name contains the first 8 chars of the other (fuzzy prefix match)
+      const prefix = Math.min(8, normRepairerName.length, normExisting.length);
+      return prefix >= 4 && (
+        normExisting.startsWith(normRepairerName.slice(0, prefix)) ||
+        normRepairerName.startsWith(normExisting.slice(0, prefix))
+      );
+    });
+
+    if (fuzzyMatch && fuzzyMatch.pbId !== panelBeaterId) {
+      console.log(`${tag}: Fuzzy name match — repairer "${repairerName}" matches existing panel beater id=${fuzzyMatch.pbId} ("${fuzzyMatch.pbName}") — using existing panel beater to prevent duplicate`);
+      panelBeaterId = fuzzyMatch.pbId;
+    }
+
     const existingQuotes = await db.select({ id: panelBeaterQuotes.id })
       .from(panelBeaterQuotes)
       .where(and(

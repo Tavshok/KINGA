@@ -968,6 +968,49 @@ async function runInputRecovery(
     if (!hasQuote && !recovered_quote) flags.push('quote_not_mapped');
   }
 
+  // ── FINAL DEDUPLICATION: collapse same-repairer quotes ─────────────────────
+  // A single repairer quotation may be extracted multiple times when:
+  //   (a) The document has both a printed total and a handwritten revised amount
+  //       (e.g. original $2,130 crossed out, agreed $1,950 written beside it)
+  //   (b) Text-based extraction and vision extraction both find the same repairer
+  //   (c) The sparse-text vision guard runs on a document already extracted by OCR
+  // Strategy: group by normalised repairer name, keep the entry with the LOWEST
+  // total_cost (the agreed/negotiated price, not the original inflated amount).
+  // If two entries have the same total, keep the one with more line items.
+  if (extracted_quotes && extracted_quotes.length > 1) {
+    const dedupMap = new Map<string, typeof extracted_quotes[0]>();
+    for (const q of extracted_quotes) {
+      const normName = (q.panel_beater ?? 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+      const existing = dedupMap.get(normName);
+      if (!existing) {
+        dedupMap.set(normName, q);
+      } else {
+        // Both have a total — keep the lower (agreed/negotiated) amount
+        const existingTotal = existing.total_cost ?? Infinity;
+        const newTotal = q.total_cost ?? Infinity;
+        if (newTotal < existingTotal) {
+          console.log(`[Stage3] Dedup: "${q.panel_beater}" — keeping lower total ${newTotal} over ${existingTotal}`);
+          dedupMap.set(normName, q);
+        } else if (newTotal === existingTotal) {
+          // Same total — keep the one with more line items (richer data)
+          const existingItems = existing.line_items?.length ?? 0;
+          const newItems = q.line_items?.length ?? 0;
+          if (newItems > existingItems) {
+            console.log(`[Stage3] Dedup: "${q.panel_beater}" — same total, keeping entry with ${newItems} line items over ${existingItems}`);
+            dedupMap.set(normName, q);
+          }
+        } else {
+          console.log(`[Stage3] Dedup: "${q.panel_beater}" — discarding higher total ${newTotal} (keeping ${existingTotal})`);
+        }
+      }
+    }
+    const before = extracted_quotes.length;
+    extracted_quotes = Array.from(dedupMap.values());
+    if (extracted_quotes.length < before) {
+      console.log(`[Stage3] Dedup: collapsed ${before} → ${extracted_quotes.length} quote(s) after same-repairer deduplication`);
+    }
+  }
+
   // STEP 3 — Image presence detection
   // IMPORTANT: We deliberately do NOT use text-keyword matching ("photo", "image",
   // "photograph", etc.) to infer image presence. Claim forms routinely contain
