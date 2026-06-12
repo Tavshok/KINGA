@@ -79,7 +79,7 @@ export async function persistExtractedQuote(input: ExtractedQuoteInput): Promise
     // so a handwritten quote with readable line items but unclear total is not silently dropped.
     let resolvedAmountUnits = input.quotedAmountUnits ?? 0;
     if (resolvedAmountUnits <= 0 && input.lineItems && input.lineItems.length > 0) {
-      const lineItemSum = input.lineItems.reduce((sum, li) => sum + (li.lineTotal ?? li.unitCost ?? 0), 0);
+      const lineItemSum = input.lineItems.reduce((sum, li) => sum + (li.lineTotal ?? li.unitPrice ?? 0), 0);
       if (lineItemSum > 0) {
         console.log(`${tag}: quotedAmountUnits=0 but line items sum to ${lineItemSum} — using line item sum as total`);
         resolvedAmountUnits = lineItemSum;
