@@ -101,8 +101,7 @@ export async function triggerAIAnalysis(
   const previousAssessment = previousAssessments[0];
   const versionNumber = previousAssessment ? previousAssessment.versionNumber + 1 : 1;
 
-  // TODO: Call actual KINGA analysis service here
-  // For now, create a placeholder assessment record
+  // Create a governance record for version tracking and audit trail
   const newAssessment = await db.insert(aiAssessments).values({
     claimId,
     tenantId,
@@ -175,6 +174,17 @@ export async function triggerAIAnalysis(
   } catch (error) {
     console.error("[AI Rerun Service] Failed to send AI rerun notification:", error);
   }
+
+  // Fire the real KINGA pipeline asynchronously — does not block the tRPC response.
+  // triggerAiAssessment handles its own DB writes, watchdog, and error recovery.
+  setImmediate(async () => {
+    try {
+      const { triggerAiAssessment } = await import("./db");
+      await triggerAiAssessment(claimId);
+    } catch (pipelineErr: any) {
+      console.error(`[AI Rerun Service] Pipeline failed for claim ${claimId}:`, pipelineErr?.message ?? pipelineErr);
+    }
+  });
 
   return {
     assessmentId: newAssessment.insertId,
