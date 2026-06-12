@@ -761,16 +761,24 @@ async function runInputRecovery(
       .filter(d => d.mimeType === 'application/pdf')
       .flatMap(d => d.imageUrls ?? []);
 
-    if (pdfPageImages.length > 0 || allText.trim().length > 50) {
-      // ── PRIMARY PATH: Per-page vision extraction ────────────────────────────────────────
+    // Get the primary PDF URL for PDF-native extraction (Cloud Run fallback)
+    const primaryPdfUrl = allPdfDocs[0]?.sourceUrl ?? null;
+
+    if (pdfPageImages.length > 0 || allText.trim().length > 50 || primaryPdfUrl) {
+      // ── PRIMARY PATH: Per-page vision extraction ──────────────────────────────────────────────────────────────────────────────────────
       // pdfPageImages is collected above (before the allText length gate) so this path
       // runs even when allText is very short (e.g. scanned PDFs with < 50 chars of OCR).
       if (pdfPageImages.length > 0) {
         console.log(`[Stage3] Using per-page vision extraction on ${pdfPageImages.length} page image(s) (allText=${allText.length} chars)`);
-        extracted_quotes = await extractMultipleQuotesFromPageImages(pdfPageImages, allText, tenantCountry);
+        extracted_quotes = await extractMultipleQuotesFromPageImages(pdfPageImages, allText, tenantCountry, primaryPdfUrl);
+      } else if (primaryPdfUrl) {
+        // No page images (pdftoppm unavailable in Cloud Run) — use PDF-native extraction
+        console.log(`[Stage3] No page images — using PDF-native extraction via file_url (allText=${allText.length} chars)`);
+        const { extractMultipleQuotesFromPdfUrl } = await import('./quoteExtractionEngine');
+        extracted_quotes = await extractMultipleQuotesFromPdfUrl(primaryPdfUrl, allText, tenantCountry);
       } else {
-        // No page images — fall back to text-based extraction
-        console.log(`[Stage3] No page images available — using text-based extraction (allText=${allText.length} chars)`);
+        // No page images and no PDF URL — fall back to text-based extraction
+        console.log(`[Stage3] No page images and no PDF URL — using text-based extraction (allText=${allText.length} chars)`);
         extracted_quotes = await extractMultipleQuotes(allText, 'insurance claim document', tenantCountry);
       }
 

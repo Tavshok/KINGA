@@ -1528,10 +1528,15 @@ Return JSON only.`,
 export async function extractMultipleQuotesFromPageImages(
   pageImageUrls: string[],
   fallbackText: string,
-  tenantCountry?: string | null
+  tenantCountry?: string | null,
+  pdfUrl?: string | null
 ): Promise<ExtractedQuote[]> {
   if (pageImageUrls.length === 0) {
-    plog(`[QuoteExtractionEngine] No page images available — falling back to text-based extraction`);
+    if (pdfUrl) {
+      plog(`[QuoteExtractionEngine] No page images available — using PDF-native extraction (Cloud Run path)`);
+      return extractMultipleQuotesFromPdfUrl(pdfUrl, fallbackText, tenantCountry);
+    }
+    plog(`[QuoteExtractionEngine] No page images and no PDF URL — falling back to text-based extraction`);
     return extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
   }
 
@@ -1794,4 +1799,185 @@ export async function extractQuoteFromMultipleImageUrls(
     plog(`[QuoteExtractionEngine] Multi-page extraction failed (${msg}), falling back to first-page extraction`);
     return extractQuoteFromImageUrl(imageUrls[0], panelBeater, totalCost, tenantCountry);
   }
+}
+
+
+/**
+ * extractMultipleQuotesFromPdfUrl
+ *
+ * Cloud Run-compatible multi-quote extraction using native PDF file_url support.
+ *
+ * This is the PRIMARY path when page images are NOT available (i.e. pdftoppm is
+ * not installed in the production container). Instead of converting the PDF to
+ * images first, it sends the PDF URL directly to the LLM as a file_url message.
+ *
+ * Two-pass approach:
+ *   Pass 1 — Detection: Ask the LLM to identify ALL distinct repairers/panel beaters
+ *             present in the PDF and return their names.
+ *   Pass 2 — Extraction: For each detected repairer, ask the LLM to extract the full
+ *             structured quote for that specific repairer. All extractions run in parallel.
+ *
+ * Falls back to text-based extraction if the PDF URL is unavailable or the LLM
+ * returns no repairers in Pass 1.
+ *
+ * @param pdfUrl        Public S3 URL of the claim PDF
+ * @param fallbackText  OCR text to use if PDF-native extraction fails
+ * @param tenantCountry ISO 3166-1 alpha-2 country code for default currency
+ */
+export async function extractMultipleQuotesFromPdfUrl(
+  pdfUrl: string,
+  fallbackText: string,
+  tenantCountry?: string | null
+): Promise<ExtractedQuote[]> {
+  plog(`[QuoteExtractionEngine] PDF-native extraction starting for: ${pdfUrl}`);
+
+  // ── PASS 1: Detect all repairers in the PDF ──────────────────────────────────
+  let repairerNames: string[] = [];
+  try {
+    const detectionResponse = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: `You are a document analyst. You will receive a vehicle insurance claim PDF.
+Your ONLY job is to identify ALL distinct repair quotations (estimates, quotes, or invoices) from panel beaters, body shops, or auto repair shops present in the document.
+
+A repair quotation INCLUDES any of these formats:
+- Typed or printed quote with a company letterhead, list of parts/labour, and a total
+- Handwritten quote on plain paper or a form — look for a name/company at the top, a list of items, and a total amount
+- Informal typed list of repair items with prices and a final total
+- Any document from a repairer, body shop, or panel beater showing what they will charge to fix the vehicle
+
+DO NOT require a formal letterhead — many small repairers in Africa use handwritten or informal formats.
+EXCLUDE: claim forms, police reports, driver statements, loss adjuster/assessor reports, photos of damage, correspondence letters, insurance policy documents, assessor fee invoices.
+
+Return the name of EVERY distinct repairer/panel beater that has a quotation in this document.
+If a repairer name is not visible, use a description like "Handwritten Quote 1", "Unknown Repairer 2".
+Return JSON only.`,
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "file_url" as const,
+              file_url: {
+                url: pdfUrl,
+                mime_type: "application/pdf" as const,
+              },
+            },
+            {
+              type: "text" as const,
+              text: "Identify ALL distinct repair quotations in this PDF. Return the panel beater / company name for each one.",
+            },
+          ],
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "repairer_detection",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              repairers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string", description: "Panel beater / company name" },
+                  },
+                  required: ["name"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["repairers"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const raw = detectionResponse?.choices?.[0]?.message?.content;
+    if (raw) {
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      repairerNames = (parsed.repairers ?? []).map((r: { name: string }) => r.name).filter(Boolean);
+    }
+    plog(`[QuoteExtractionEngine] PDF detection found ${repairerNames.length} repairer(s): ${repairerNames.join(", ")}`);
+  } catch (err) {
+    plog(`[QuoteExtractionEngine] PDF detection pass failed: ${String(err)} — falling back to text extraction`);
+    return extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
+  }
+
+  // If no repairers detected, fall back to text extraction
+  if (repairerNames.length === 0) {
+    plog(`[QuoteExtractionEngine] PDF detection found 0 repairers — falling back to text extraction`);
+    return extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
+  }
+
+  // ── PASS 2: Extract each repairer's quote in PARALLEL ─────────────────────────
+  const extractionTasks = repairerNames.map(async (repairerName) => {
+    plog(`[QuoteExtractionEngine] Extracting quote for "${repairerName}" from PDF`);
+    try {
+      const result = await extractQuoteFromPdfVision(pdfUrl, repairerName, null, tenantCountry);
+      // Override panel_beater with detected name if LLM didn't populate it
+      if (!result.panel_beater && repairerName) {
+        result.panel_beater = repairerName;
+      }
+      plog(
+        `[QuoteExtractionEngine] PDF extraction for "${repairerName}": total=${result.total_cost}, ` +
+          `line_items=${result.line_items.length}, confidence=${result.confidence}`
+      );
+      return result;
+    } catch (err) {
+      plog(`[QuoteExtractionEngine] PDF extraction failed for "${repairerName}": ${String(err)}`);
+      return null;
+    }
+  });
+
+  const extractionResults = await Promise.all(extractionTasks);
+  const validResults: ExtractedQuote[] = extractionResults.filter((q): q is ExtractedQuote => q !== null);
+
+  // Deduplicate by panel beater name (in case detection returned duplicates)
+  const seen = new Set<string>();
+  const deduped = validResults.filter(q => {
+    const key = (q.panel_beater ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (key && seen.has(key)) return false;
+    if (key) seen.add(key);
+    return true;
+  });
+
+  // Cross-validate with text path — merge any quotes the PDF path missed
+  let textResults: ExtractedQuote[] = [];
+  try {
+    textResults = await extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
+    plog(`[QuoteExtractionEngine] Text cross-validation found ${textResults.length} quote(s)`);
+  } catch (err) {
+    plog(`[QuoteExtractionEngine] Text cross-validation failed: ${String(err)}`);
+  }
+
+  const merged = [...deduped];
+  for (const q of textResults) {
+    const alreadyPresent = merged.some(w =>
+      (w.panel_beater ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") ===
+      (q.panel_beater ?? "").toLowerCase().replace(/[^a-z0-9]/g, "")
+    );
+    if (!alreadyPresent && (q.total_cost ?? 0) > 0) {
+      merged.push(q);
+      plog(`[QuoteExtractionEngine] Merged additional quote from text path: "${q.panel_beater}" total=${q.total_cost}`);
+    }
+  }
+
+  plog(
+    `[QuoteExtractionEngine] PDF-native extraction complete: ${merged.length} quote(s) — ` +
+      `${merged.map(q => q.panel_beater ?? "unknown").join(", ")}`
+  );
+
+  // Last resort: if still empty, return text results
+  if (merged.length === 0) {
+    plog(`[QuoteExtractionEngine] PDF-native extraction returned 0 results — using text fallback`);
+    return extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
+  }
+
+  return merged;
 }
