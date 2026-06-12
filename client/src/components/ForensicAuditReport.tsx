@@ -683,11 +683,14 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
             const midX = (g.x1 + g.x2) / 2;
             const midY = (g.y1 + g.y2) / 2;
             const isHoriz = Math.abs(g.y1 - g.y2) < 5;
-            // For vertical arrows (front/rear): place label at the arrow start (outside vehicle)
-            // For horizontal arrows (left/right): place label above the arrow midpoint
+            // For vertical arrows (front/rear): place label beside the arrow start (outside vehicle)
+            // For horizontal arrows (left/right): place label AT the arrow start (outside vehicle body)
             const lblX = isHoriz
-              ? midX
+              ? (arrow.dir === 'left' ? g.x1 - 2 : g.x1 + 2)
               : (arrow.dir === 'front' ? g.x1 + 36 : g.x1 + 36);
+            const lblAnchor = isHoriz
+              ? (arrow.dir === 'left' ? 'end' : 'start')
+              : 'middle';
             const lblY = isHoriz
               ? midY - 8
               : (arrow.dir === 'front' ? g.y1 + 10 : g.y1 - 4);
@@ -706,11 +709,11 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
                   markerEnd={`url(#${markerId})`}
                 />
                 {/* Arrow label — event name + force + decel for primary arrow */}
-                <text x={lblX} y={lblY} fontSize="8" fontWeight="bold" fill={arrow.colour} textAnchor="middle">
+                <text x={lblX} y={lblY} fontSize="8" fontWeight="bold" fill={arrow.colour} textAnchor={lblAnchor}>
                   {arrow.label}
                 </text>
                 {isFirst && impactForceKn && impactForceKn > 0 ? (
-                  <text x={lblX} y={lblY + 10} fontSize="7.5" fill={arrow.colour} textAnchor="middle" opacity="0.9">
+                  <text x={lblX} y={lblY + 10} fontSize="7.5" fill={arrow.colour} textAnchor={lblAnchor} opacity="0.9">
                     {`${impactForceKn.toFixed(1)} kN${decelerationG && decelerationG > 0 ? ` · ${decelerationG.toFixed(1)} g` : ''}`}
                   </text>
                 ) : null}

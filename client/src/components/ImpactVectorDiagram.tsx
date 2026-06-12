@@ -122,6 +122,14 @@ export function ImpactVectorDiagram({
   // Arrow stroke width based on force
   const arrowStroke = Math.min(5, Math.max(2.5, impactForceKn / 25));
 
+  // Force label: place along the arrow, offset perpendicular, clamped within SVG bounds
+  const labelOffsetPerp = 20;
+  const rawLabelX = arrowStartX + Math.cos(rad + Math.PI / 2) * labelOffsetPerp;
+  const rawLabelY = arrowStartY + Math.sin(rad + Math.PI / 2) * labelOffsetPerp;
+  // Clamp so the label stays inside the 400x400 viewBox with 8px padding
+  const labelX = Math.min(392, Math.max(8, rawLabelX));
+  const labelY = Math.min(392, Math.max(8, rawLabelY));
+
   return (
     <div className="flex flex-col xl:flex-row gap-6 items-start">
       {/* SVG Diagram — larger and more prominent */}
@@ -216,17 +224,39 @@ export function ImpactVectorDiagram({
             strokeLinecap="round"
           />
 
-          {/* Force label at arrow start */}
+          {/* Force label at arrow start — clamped within SVG bounds */}
           <text
-            x={arrowStartX + Math.cos(rad + Math.PI / 2) * 16}
-            y={arrowStartY + Math.sin(rad + Math.PI / 2) * 16}
+            x={labelX}
+            y={labelY - 8}
             fill={severity.color}
-            fontSize="12"
+            fontSize="9"
+            fontWeight="600"
+            textAnchor="middle"
+            dominantBaseline="middle"
+          >
+            Impact
+          </text>
+          <text
+            x={labelX}
+            y={labelY + 6}
+            fill={severity.color}
+            fontSize="11"
             fontWeight="700"
             textAnchor="middle"
             dominantBaseline="middle"
           >
             {impactForceKn.toFixed(1)} kN
+          </text>
+          <text
+            x={labelX}
+            y={labelY + 18}
+            fill={severity.color}
+            fontSize="8"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            opacity="0.7"
+          >
+            abs.
           </text>
 
           {/* Speed badge — top left */}
