@@ -72,7 +72,7 @@ export async function runIngestionStage(
       try {
         ctx.log("Stage 1", "Rendering PDF pages to images for vision analysis...");
         const renderResult = await renderPdfToImages(ctx.pdfUrl!, {
-          dpi: 150,
+          dpi: 100,  // 100 DPI is sufficient for LLM vision. 150 DPI with 25 pages ≈ 400MB RAM — unsafe for Cloud Run (512MB limit).
           maxPages: 25,
           keyPrefix: `claims/${ctx.claimId}/pdf-pages`,
           log: (msg) => ctx.log("Stage 1 [PDF Render]", msg),

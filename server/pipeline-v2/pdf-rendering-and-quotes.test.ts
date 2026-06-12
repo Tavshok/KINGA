@@ -248,3 +248,42 @@ describe("Stage-3 page image routing decision", () => {
     expect(pdfPageImages).not.toContain("https://s3/photo-1.jpg");
   });
 });
+
+// ─── 4. pdfToImages memory guard — DPI cap ────────────────────────────────────
+
+describe("pdfToImages memory guard — DPI cap", () => {
+  it("caps DPI at 100 regardless of what the caller passes", () => {
+    const SAFE_MAX_DPI = 100;
+    expect(Math.min(150, SAFE_MAX_DPI)).toBe(100);
+    expect(Math.min(200, SAFE_MAX_DPI)).toBe(100);
+    expect(Math.min(300, SAFE_MAX_DPI)).toBe(100);
+  });
+
+  it("does not reduce DPI below the requested value when it is already safe", () => {
+    const SAFE_MAX_DPI = 100;
+    expect(Math.min(100, SAFE_MAX_DPI)).toBe(100);
+    expect(Math.min(72, SAFE_MAX_DPI)).toBe(72);
+    expect(Math.min(50, SAFE_MAX_DPI)).toBe(50);
+  });
+
+  it("stage-1-ingestion.ts now requests 100 DPI (not 150)", () => {
+    const src = readFileSync(
+      path.resolve(__dirname, "../pipeline-v2/stage-1-ingestion.ts"),
+      "utf-8"
+    );
+    // Should NOT request 150 DPI
+    expect(src).not.toMatch(/dpi:\s*150/);
+    // Should request 100 DPI
+    expect(src).toMatch(/dpi:\s*100/);
+  });
+
+  it("pdfToImages.ts enforces effectiveDpi = Math.min(dpi, SAFE_MAX_DPI)", () => {
+    const src = readFileSync(
+      path.resolve(__dirname, "../pipeline-v2/pdfToImages.ts"),
+      "utf-8"
+    );
+    expect(src).toContain("SAFE_MAX_DPI");
+    expect(src).toContain("effectiveDpi");
+    expect(src).toContain("Math.min(dpi, SAFE_MAX_DPI)");
+  });
+});

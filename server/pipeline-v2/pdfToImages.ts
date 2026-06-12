@@ -118,10 +118,16 @@ export async function renderPdfToImages(
 
   // ── MEMORY GUARD ──────────────────────────────────────────────────────────
   // Cloud Run has 512MB RAM. At 100 DPI, 25 A4 pages ≈ 200MB RAM — safe.
-  // At 150 DPI, 25 pages would exceed 400MB — unsafe. Keep DPI at 100 for large PDFs.
+  // At 150 DPI, 25 pages would exceed 400MB — unsafe. Hard-cap both DPI and pages
+  // so callers cannot accidentally pass unsafe values.
   const SAFE_MAX_PAGES = 25;
+  const SAFE_MAX_DPI = 100;
   const effectiveMaxPages = Math.min(maxPages, SAFE_MAX_PAGES);
-  log(`[Memory Guard] Capping render to ${effectiveMaxPages} pages at ${dpi} DPI to stay within Cloud Run memory limits`);
+  const effectiveDpi = Math.min(dpi, SAFE_MAX_DPI);
+  if (dpi > SAFE_MAX_DPI) {
+    log(`[Memory Guard] DPI capped from ${dpi} to ${effectiveDpi} (caller requested ${dpi} DPI which would exceed Cloud Run memory limit)`);
+  }
+  log(`[Memory Guard] Rendering ${effectiveMaxPages} pages at ${effectiveDpi} DPI (Cloud Run safe)`);
 
   const errors: string[] = [];
   const pages: PdfPageImage[] = [];
@@ -157,7 +163,7 @@ export async function renderPdfToImages(
     const truncated = totalPages > effectiveMaxPages;
 
     if (totalPages > 0) {
-      log(`PDF loaded: ${totalPages} pages, rendering ${pagesToRender} at ${dpi} DPI`);
+      log(`PDF loaded: ${totalPages} pages, rendering ${pagesToRender} at ${effectiveDpi} DPI`);
       if (truncated) {
         log(`WARNING: PDF has ${totalPages} pages, rendering first ${effectiveMaxPages} only`);
       }
@@ -169,7 +175,7 @@ export async function renderPdfToImages(
     try {
       await execFileAsync(
         "pdftoppm",
-        ["-r", String(dpi), "-f", "1", "-l", String(pagesToRender), "-png", pdfPath, outputPrefix],
+        ["-r", String(effectiveDpi), "-f", "1", "-l", String(pagesToRender), "-png", pdfPath, outputPrefix],
         { timeout: 60_000, maxBuffer: 100 * 1024 * 1024 }
       );
     } catch (err: any) {
