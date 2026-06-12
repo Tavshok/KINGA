@@ -826,8 +826,10 @@ async function runInputRecovery(
       }
 
       // SPARSE-TEXT VISION SCAN: For each PDF document whose extracted text is very short
-      // (< 200 chars), the OCR likely failed to read it — run a vision-direct extraction
+      // (< 120 chars), the OCR likely failed to read it — run a vision-direct extraction
       // to catch scanned/image-based documents that the text path missed entirely.
+      // Threshold is 120 chars (lowered from 200) to catch handwritten quotations like
+      // Rowan Motors where OCR may extract a header line but miss the line-item table.
       // This is the primary fix for cases where a repairer's PDF was scanned and not
       // detected by the text-based extractMultipleQuotes call above.
       if (allPdfDocs.length > 0) {
@@ -836,7 +838,7 @@ async function runInputRecovery(
         );
         for (const pdfDoc of allPdfDocs) {
           const docText = stage2.extractedTexts.find(t => t.documentIndex === pdfDoc.documentIndex)?.rawText ?? '';
-          if (docText.trim().length < 200) {
+          if (docText.trim().length < 120) {
             // Very little text — likely a scanned document. Run vision extraction.
             console.log(`[Stage3] Sparse-text vision scan triggered for ${pdfDoc.fileName} (${docText.trim().length} chars extracted by OCR)`);
             try {
@@ -872,18 +874,65 @@ async function runInputRecovery(
         const extractedNamesNorm = new Set(
           extracted_quotes.map(q => (q.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').trim())
         );
-        // Known repairer patterns to scan for — normalised to lowercase
+        // Known repairer patterns to scan for — normalised to lowercase.
+        // Covers common Zimbabwean and South African panel beaters / spray painters.
         const KNOWN_REPAIRER_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
+          // Zimbabwe
+          { pattern: /rowan\s*motors?/i, label: 'Rowan Motors' },
+          { pattern: /emilio[\u2019's]*\s*spray/i, label: "Emilio's Spray Painters" },
           { pattern: /swiss\s*motors?/i, label: 'Swiss Motors' },
           { pattern: /grand\s*auto/i, label: 'Grand Auto Premier' },
           { pattern: /cedric\s*jonker/i, label: 'Cedric Jonker' },
           { pattern: /kingfisher/i, label: 'Kingfisher Auto Motors' },
-          // Generic: company name followed by address/phone/VAT pattern
-          { pattern: /([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\s*(?:AUTO|MOTORS?|PANEL|BODY|SPRAY|REPAIRS?|WORKS?)/g, label: '' },
+          { pattern: /autocraft/i, label: 'Autocraft' },
+          { pattern: /motor\s*city/i, label: 'Motor City' },
+          { pattern: /harare\s*panel/i, label: 'Harare Panel Beaters' },
+          { pattern: /bulawayo\s*panel/i, label: 'Bulawayo Panel Beaters' },
+          { pattern: /masvingo\s*panel/i, label: 'Masvingo Panel Beaters' },
+          { pattern: /mutare\s*panel/i, label: 'Mutare Panel Beaters' },
+          { pattern: /gweru\s*panel/i, label: 'Gweru Panel Beaters' },
+          { pattern: /kwekwe\s*panel/i, label: 'Kwekwe Panel Beaters' },
+          { pattern: /chinhoyi\s*panel/i, label: 'Chinhoyi Panel Beaters' },
+          { pattern: /marondera\s*panel/i, label: 'Marondera Panel Beaters' },
+          { pattern: /bindura\s*panel/i, label: 'Bindura Panel Beaters' },
+          // South Africa
+          { pattern: /midas\s*auto/i, label: 'Midas Auto' },
+          { pattern: /wesbank\s*panel/i, label: 'Wesbank Panel Beaters' },
+          { pattern: /auto\s*body\s*craft/i, label: 'Auto Body Craft' },
+          { pattern: /panel\s*magic/i, label: 'Panel Magic' },
+          { pattern: /smash\s*palace/i, label: 'Smash Palace' },
+          { pattern: /car\s*craft/i, label: 'Car Craft' },
+          { pattern: /speedy\s*panel/i, label: 'Speedy Panel Beaters' },
         ];
+
+        // GENERIC PASS: Scan OCR text for any company-style name followed by panel-beater
+        // keywords that was NOT already extracted. This catches previously unseen repairers.
+        const genericRepairerRegex = /([A-Z][A-Za-z'&.]+(?:\s+[A-Z][A-Za-z'&.]+){0,4})\s*(?:\(PVT\)\s*LTD|\(PTY\)\s*LTD|LTD|CC|INC)?\s*(?:MOTORS?|PANEL\s*BEATERS?|SPRAY\s*PAINT(?:ERS?)?|AUTO\s*BODY|BODY\s*REPAIRS?|PANEL\s*WORKS?|AUTOBODY|SMASH\s*REPAIRS?)/gi;
+        let genericMatch: RegExpExecArray | null;
+        const extractedNamesNormForGeneric = new Set(
+          extracted_quotes.map(q => (q.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').trim())
+        );
+        while ((genericMatch = genericRepairerRegex.exec(allText)) !== null) {
+          const fullName = genericMatch[0].trim();
+          const normFull = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const alreadyInList = KNOWN_REPAIRER_PATTERNS.some(p =>
+            p.label && p.label.toLowerCase().replace(/[^a-z0-9]/g, '').includes(normFull.slice(0, 6))
+          );
+          const alreadyExtracted = [...extractedNamesNormForGeneric].some(n =>
+            n.includes(normFull.slice(0, 6)) || normFull.includes(n.slice(0, 6))
+          );
+          if (!alreadyInList && !alreadyExtracted && fullName.length >= 4) {
+            console.log(`[Stage3] Generic repairer scan found: "${fullName}" — adding to missing-repairer check list`);
+            KNOWN_REPAIRER_PATTERNS.push({
+              pattern: new RegExp(fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+              label: fullName,
+            });
+          }
+        }
+
         const missingRepairers: string[] = [];
         for (const { pattern, label } of KNOWN_REPAIRER_PATTERNS) {
-          if (!label) continue; // skip generic pattern for now
+          if (!label) continue; // skip empty-label entries
           const normLabel = label.toLowerCase().replace(/[^a-z0-9]/g, '');
           const alreadyExtracted = [...extractedNamesNorm].some(n =>
             n.includes(normLabel.slice(0, 6)) || normLabel.includes(n.slice(0, 6))
