@@ -1410,14 +1410,14 @@ async function detectQuotationPagesVision(
   const MAX_PAGES_FOR_DETECTION = 20;
   const pagesToScan = pageImageUrls.slice(0, MAX_PAGES_FOR_DETECTION);
 
-  // Use "high" detail for ≤20 pages — critical for detecting handwritten/informal quotes
-  // that are invisible at low resolution. For larger documents use "low" to stay within
-  // token limits.
-  const detailLevel = pagesToScan.length <= 20 ? "high" : "low";
-  const imageContent: Array<{ type: "image_url"; image_url: { url: string; detail: "high" | "low" } }> =
+  // Use "auto" detail — the LLM selects the right resolution per image, balancing
+  // accuracy and speed. This is faster than forcing "high" on all pages while still
+  // catching handwritten/informal quotes.
+  const detailLevel = "auto" as const;
+  const imageContent: Array<{ type: "image_url"; image_url: { url: string; detail: "auto" } }> =
     pagesToScan.map((url) => ({
       type: "image_url" as const,
-      image_url: { url, detail: detailLevel as "high" | "low" },
+      image_url: { url, detail: detailLevel },
     }));
 
   const pageList = pagesToScan.map((_, i) => `Page ${i + 1}`).join(", ");
@@ -1562,26 +1562,27 @@ export async function extractMultipleQuotesFromPageImages(
       : extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
   }
 
-  const visionResults: ExtractedQuote[] = [];
+  // Deduplicate groups by panel beater name before dispatching
   const seenNames = new Set<string>();
+  const uniqueGroups = groups.filter(group => {
+    if (!group.pageIndexes.length) return false;
+    const normName = (group.panelBeater ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (normName && seenNames.has(normName)) {
+      plog(`[QuoteExtractionEngine] Skipping duplicate: "${group.panelBeater}"`);
+      return false;
+    }
+    if (normName) seenNames.add(normName);
+    return true;
+  });
 
-  for (const group of groups) {
-    if (!group.pageIndexes.length) continue;
-
-    // Collect ALL valid page URLs for this group (not just the first page)
+  // Extract all quotes in PARALLEL — this is the key performance fix.
+  // Sequential extraction (for...await) was the main cause of Cloud Run 180s timeout.
+  const extractionTasks = uniqueGroups.map(async (group) => {
     const groupPageUrls = group.pageIndexes
       .filter(idx => idx >= 0 && idx < pageImageUrls.length)
       .map(idx => pageImageUrls[idx]);
 
-    if (groupPageUrls.length === 0) continue;
-
-    const normName = (group.panelBeater ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
-
-    if (normName && seenNames.has(normName)) {
-      plog(`[QuoteExtractionEngine] Skipping duplicate: "${group.panelBeater}"`);
-      continue;
-    }
-    if (normName) seenNames.add(normName);
+    if (groupPageUrls.length === 0) return null;
 
     plog(
       `[QuoteExtractionEngine] Extracting quote for "${group.panelBeater}" from ${groupPageUrls.length} page(s) ` +
@@ -1589,20 +1590,23 @@ export async function extractMultipleQuotesFromPageImages(
     );
 
     try {
-      // Send all pages of this group together so multi-page quotes are fully captured
       const quote = await extractQuoteFromMultipleImageUrls(groupPageUrls, group.panelBeater, null, tenantCountry);
       if (!quote.panel_beater && group.panelBeater) {
         quote.panel_beater = group.panelBeater;
       }
-      visionResults.push(quote);
       plog(
         `[QuoteExtractionEngine] Extracted quote: panel_beater="${quote.panel_beater}", total=${quote.total_cost}, ` +
           `line_items=${quote.line_items.length}, confidence=${quote.confidence}`
       );
+      return quote;
     } catch (err) {
       plog(`[QuoteExtractionEngine] Failed to extract quote for "${group.panelBeater}": ${String(err)}`);
+      return null;
     }
-  }
+  });
+
+  const extractionResults = await Promise.all(extractionTasks);
+  const visionResults: ExtractedQuote[] = extractionResults.filter((q): q is ExtractedQuote => q !== null);
 
   // Cross-validation: use whichever path found more distinct repairers
   const visionCount = visionResults.filter(q => (q.total_cost ?? 0) > 0).length;
@@ -1680,10 +1684,10 @@ export async function extractQuoteFromMultipleImageUrls(
       : `This is a multi-page scanned vehicle repair quotation. The ${imageUrls.length} images are consecutive pages of the SAME quote.${totalCost ? ` The total cost is approximately ${totalCost}.` : ''} Extract ALL line items across all pages with their individual prices.`;
 
     // Build image content array — all pages of this group
-    const imageContent: Array<{ type: "image_url"; image_url: { url: string; detail: "high" } }> =
+    const imageContent: Array<{ type: "image_url"; image_url: { url: string; detail: "auto" } }> =
       imageUrls.map(url => ({
         type: "image_url" as const,
-        image_url: { url, detail: "high" as const },
+        image_url: { url, detail: "auto" as const },
       }));
 
     const response = await invokeLLM({

@@ -5091,7 +5091,7 @@ export const pipelineJobs = mysqlTable("pipeline_jobs", {
   stageLabel: varchar("stage_label", { length: 255 }).notNull(),
   stageIndex: int("stage_index").default(0).notNull(),
   tenantId: varchar("tenant_id", { length: 255 }),
-  status: mysqlEnum("pipeline_job_status", ["running", "completed", "failed", "skipped", "degraded"]).default("running").notNull(),
+  status: mysqlEnum("status", ["running", "completed", "failed", "skipped", "degraded"]).default("running").notNull(),
   isDegraded: tinyint("is_degraded").default(0).notNull(),
   isTimeout: tinyint("is_timeout").default(0).notNull(),
   errorMessage: text("error_message"),

@@ -921,7 +921,7 @@ export async function triggerAiAssessment(claimId: number) {
 
   const pipelineCtx = {
     claimId,
-    tenantId: claim.tenantId ? Number(claim.tenantId) : null,
+    tenantId: (() => { const n = parseInt(String(claim.tenantId ?? ''), 10); return Number.isFinite(n) ? n : null; })(),
     assessmentId: 0, // Will be set after insert
     claim: claim as Record<string, any>,
     pdfUrl,
@@ -1034,7 +1034,7 @@ export async function triggerAiAssessment(claimId: number) {
       } else {
         await db.insert(aiAssessments).values({
           claimId,
-          tenantId: claim.tenantId ? Number(claim.tenantId) : null,
+          tenantId: (() => { const n = parseInt(String(claim.tenantId ?? ''), 10); return Number.isFinite(n) ? n : null; })(),
           pipelineRunSummary: pipelineIncompleteJson,
           createdAt: new Date(),
           updatedAt: new Date(),
