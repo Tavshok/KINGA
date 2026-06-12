@@ -825,145 +825,43 @@ async function runInputRecovery(
         extracted_quotes = repaired;
       }
 
-      // SPARSE-TEXT VISION SCAN: For each PDF document whose extracted text is very short
-      // (< 120 chars), the OCR likely failed to read it — run a vision-direct extraction
-      // to catch scanned/image-based documents that the text path missed entirely.
-      // Threshold is 120 chars (lowered from 200) to catch handwritten quotations like
-      // Rowan Motors where OCR may extract a header line but miss the line-item table.
-      // This is the primary fix for cases where a repairer's PDF was scanned and not
-      // detected by the text-based extractMultipleQuotes call above.
+      // UNCONDITIONAL VISION PASS: For every uploaded PDF document, run a vision-based
+      // quote extraction pass. The LLM reads the document visually and determines whether
+      // it contains a repair quotation — no repairer names, no patterns, no assumptions.
+      // This ensures every quotation is found regardless of repairer, format, or language.
+      // Quotes already extracted by the text path are deduplicated by repairer name.
       if (allPdfDocs.length > 0) {
-        const extractedNames = new Set(
-          (extracted_quotes ?? []).map(q => (q.panel_beater ?? '').toLowerCase().trim())
+        const extractedNamesNorm = new Set(
+          (extracted_quotes ?? []).map(q =>
+            (q.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').trim()
+          )
         );
         for (const pdfDoc of allPdfDocs) {
-          const docText = stage2.extractedTexts.find(t => t.documentIndex === pdfDoc.documentIndex)?.rawText ?? '';
-          if (docText.trim().length < 120) {
-            // Very little text — likely a scanned document. Run vision extraction.
-            console.log(`[Stage3] Sparse-text vision scan triggered for ${pdfDoc.fileName} (${docText.trim().length} chars extracted by OCR)`);
-            try {
-              const visionResult = await extractQuoteFromPdfVision(pdfDoc.sourceUrl, null, null, tenantCountry);
-              const visionHasPrices = visionResult.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
-              const visionHasTotal = visionResult.total_cost !== null && visionResult.total_cost > 0;
-              const visionName = (visionResult.panel_beater ?? '').toLowerCase().trim();
-              // Only add if this repairer wasn't already extracted from text
-              const alreadyExtracted = visionName && extractedNames.has(visionName);
-              if ((visionHasPrices || visionHasTotal) && !alreadyExtracted) {
-                console.log(`[Stage3] Sparse-text vision scan found new quote from "${visionResult.panel_beater}" in ${pdfDoc.fileName}: ${visionResult.line_items.length} line items, total=${visionResult.total_cost}`);
-                if (!extracted_quotes) extracted_quotes = [];
-                extracted_quotes.push(visionResult);
-                if (visionName) extractedNames.add(visionName);
-              } else if (alreadyExtracted) {
-                console.log(`[Stage3] Sparse-text vision scan: "${visionResult.panel_beater}" already extracted — skipping duplicate`);
-              } else {
-                console.log(`[Stage3] Sparse-text vision scan on ${pdfDoc.fileName} returned no usable quote`);
-              }
-            } catch (sparseErr) {
-              console.error(`[Stage3] Sparse-text vision scan failed on ${pdfDoc.fileName}:`, sparseErr);
+          try {
+            console.log(`[Stage3] Unconditional vision pass: scanning ${pdfDoc.fileName} for repair quotations`);
+            const visionResult = await extractQuoteFromPdfVision(pdfDoc.sourceUrl, null, null, tenantCountry);
+            const visionHasPrices = visionResult.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
+            const visionHasTotal = visionResult.total_cost !== null && visionResult.total_cost > 0;
+            const isQuotation = visionHasPrices || visionHasTotal;
+            if (!isQuotation) {
+              console.log(`[Stage3] Vision pass: ${pdfDoc.fileName} does not contain a repair quotation — skipping`);
+              continue;
             }
-          }
-        }
-      }
-
-      // MISSING-REPAIRER SCANNER: After all text-based and sparse-text vision extractions,
-      // scan the raw OCR text for known repairer names that were NOT extracted as quotes.
-      // This catches cases where a repairer's section was present in the OCR text but the
-      // LLM detection pass missed it (e.g. name appears only once, or text is fragmented).
-      // For each missing repairer found in the text, trigger a targeted vision pass.
-      if (allPdfDocs.length > 0 && extracted_quotes && extracted_quotes.length > 0) {
-        const extractedNamesNorm = new Set(
-          extracted_quotes.map(q => (q.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').trim())
-        );
-        // Known repairer patterns to scan for — normalised to lowercase.
-        // Covers common Zimbabwean and South African panel beaters / spray painters.
-        const KNOWN_REPAIRER_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
-          // Zimbabwe
-          { pattern: /rowan\s*motors?/i, label: 'Rowan Motors' },
-          { pattern: /emilio[\u2019's]*\s*spray/i, label: "Emilio's Spray Painters" },
-          { pattern: /swiss\s*motors?/i, label: 'Swiss Motors' },
-          { pattern: /grand\s*auto/i, label: 'Grand Auto Premier' },
-          { pattern: /cedric\s*jonker/i, label: 'Cedric Jonker' },
-          { pattern: /kingfisher/i, label: 'Kingfisher Auto Motors' },
-          { pattern: /autocraft/i, label: 'Autocraft' },
-          { pattern: /motor\s*city/i, label: 'Motor City' },
-          { pattern: /harare\s*panel/i, label: 'Harare Panel Beaters' },
-          { pattern: /bulawayo\s*panel/i, label: 'Bulawayo Panel Beaters' },
-          { pattern: /masvingo\s*panel/i, label: 'Masvingo Panel Beaters' },
-          { pattern: /mutare\s*panel/i, label: 'Mutare Panel Beaters' },
-          { pattern: /gweru\s*panel/i, label: 'Gweru Panel Beaters' },
-          { pattern: /kwekwe\s*panel/i, label: 'Kwekwe Panel Beaters' },
-          { pattern: /chinhoyi\s*panel/i, label: 'Chinhoyi Panel Beaters' },
-          { pattern: /marondera\s*panel/i, label: 'Marondera Panel Beaters' },
-          { pattern: /bindura\s*panel/i, label: 'Bindura Panel Beaters' },
-          // South Africa
-          { pattern: /midas\s*auto/i, label: 'Midas Auto' },
-          { pattern: /wesbank\s*panel/i, label: 'Wesbank Panel Beaters' },
-          { pattern: /auto\s*body\s*craft/i, label: 'Auto Body Craft' },
-          { pattern: /panel\s*magic/i, label: 'Panel Magic' },
-          { pattern: /smash\s*palace/i, label: 'Smash Palace' },
-          { pattern: /car\s*craft/i, label: 'Car Craft' },
-          { pattern: /speedy\s*panel/i, label: 'Speedy Panel Beaters' },
-        ];
-
-        // GENERIC PASS: Scan OCR text for any company-style name followed by panel-beater
-        // keywords that was NOT already extracted. This catches previously unseen repairers.
-        const genericRepairerRegex = /([A-Z][A-Za-z'&.]+(?:\s+[A-Z][A-Za-z'&.]+){0,4})\s*(?:\(PVT\)\s*LTD|\(PTY\)\s*LTD|LTD|CC|INC)?\s*(?:MOTORS?|PANEL\s*BEATERS?|SPRAY\s*PAINT(?:ERS?)?|AUTO\s*BODY|BODY\s*REPAIRS?|PANEL\s*WORKS?|AUTOBODY|SMASH\s*REPAIRS?)/gi;
-        let genericMatch: RegExpExecArray | null;
-        const extractedNamesNormForGeneric = new Set(
-          extracted_quotes.map(q => (q.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').trim())
-        );
-        while ((genericMatch = genericRepairerRegex.exec(allText)) !== null) {
-          const fullName = genericMatch[0].trim();
-          const normFull = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const alreadyInList = KNOWN_REPAIRER_PATTERNS.some(p =>
-            p.label && p.label.toLowerCase().replace(/[^a-z0-9]/g, '').includes(normFull.slice(0, 6))
-          );
-          const alreadyExtracted = [...extractedNamesNormForGeneric].some(n =>
-            n.includes(normFull.slice(0, 6)) || normFull.includes(n.slice(0, 6))
-          );
-          if (!alreadyInList && !alreadyExtracted && fullName.length >= 4) {
-            console.log(`[Stage3] Generic repairer scan found: "${fullName}" — adding to missing-repairer check list`);
-            KNOWN_REPAIRER_PATTERNS.push({
-              pattern: new RegExp(fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
-              label: fullName,
-            });
-          }
-        }
-
-        const missingRepairers: string[] = [];
-        for (const { pattern, label } of KNOWN_REPAIRER_PATTERNS) {
-          if (!label) continue; // skip empty-label entries
-          const normLabel = label.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const alreadyExtracted = [...extractedNamesNorm].some(n =>
-            n.includes(normLabel.slice(0, 6)) || normLabel.includes(n.slice(0, 6))
-          );
-          if (!alreadyExtracted && pattern.test(allText)) {
-            console.log(`[Stage3] Missing-repairer scanner: "${label}" found in OCR text but not in extracted quotes — triggering targeted vision pass`);
-            missingRepairers.push(label);
-          }
-        }
-        if (missingRepairers.length > 0) {
-          for (const missingName of missingRepairers) {
-            for (const pdfDoc of allPdfDocs) {
-              try {
-                const visionResult = await extractQuoteFromPdfVision(pdfDoc.sourceUrl, missingName, null, tenantCountry);
-                const visionHasPrices = visionResult.line_items.some(li => (li.line_total ?? 0) > 0 || (li.unit_cost ?? 0) > 0);
-                const visionHasTotal = visionResult.total_cost !== null && visionResult.total_cost > 0;
-                const visionName = (visionResult.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                const normMissing = missingName.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const nameMatches = visionName.includes(normMissing.slice(0, 6)) || normMissing.includes(visionName.slice(0, 6));
-                if ((visionHasPrices || visionHasTotal) && nameMatches) {
-                  console.log(`[Stage3] Missing-repairer vision pass found "${visionResult.panel_beater}" in ${pdfDoc.fileName}: total=${visionResult.total_cost}, ${visionResult.line_items.length} line items`);
-                  extracted_quotes.push(visionResult);
-                  extractedNamesNorm.add(visionName);
-                  break; // Found this repairer — move to next missing repairer
-                } else {
-                  console.log(`[Stage3] Missing-repairer vision pass on ${pdfDoc.fileName} for "${missingName}": no match (name=${visionResult.panel_beater}, total=${visionResult.total_cost})`);
-                }
-              } catch (missingErr) {
-                console.error(`[Stage3] Missing-repairer vision pass failed for "${missingName}" on ${pdfDoc.fileName}:`, missingErr);
-              }
+            const visionNameNorm = (visionResult.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+            // Deduplicate: skip if this repairer was already extracted by the text path
+            const alreadyExtracted = visionNameNorm.length >= 4 && [...extractedNamesNorm].some(n =>
+              n.includes(visionNameNorm.slice(0, 6)) || visionNameNorm.includes(n.slice(0, 6))
+            );
+            if (alreadyExtracted) {
+              console.log(`[Stage3] Vision pass: "${visionResult.panel_beater}" already extracted from text — skipping duplicate`);
+              continue;
             }
+            console.log(`[Stage3] Vision pass found new quote from "${visionResult.panel_beater}" in ${pdfDoc.fileName}: ${visionResult.line_items.length} line items, total=${visionResult.total_cost}`);
+            if (!extracted_quotes) extracted_quotes = [];
+            extracted_quotes.push(visionResult);
+            if (visionNameNorm) extractedNamesNorm.add(visionNameNorm);
+          } catch (visionErr) {
+            console.error(`[Stage3] Unconditional vision pass failed on ${pdfDoc.fileName}:`, visionErr);
           }
         }
       }
