@@ -1378,15 +1378,19 @@ export async function extractQuoteFromImageUrl(
 // Strategy:
 //   1. Run a single LLM vision pass on all page images to identify which pages
 //      contain repair quotation letterheads (company name, line items, total).
-//   2. Group consecutive pages that belong to the same quotation.
-//   3. For each group, run extractQuoteFromImageUrl on the first page (which
-//      contains the letterhead and most line items).
-//   4. Deduplicate by panel_beater name to avoid double-counting.
+//      Uses detail:"high" for ≤20 pages so handwritten/informal quotes are detected.
+//   2. Group all pages belonging to the same quotation (not just the first page).
+//   3. For each group, send ALL pages of that group to the extraction LLM so
+//      multi-page quotes (e.g. line items on p1, total on p2) are fully captured.
+//   4. Run text-based extraction in parallel as cross-validation — whichever path
+//      finds more distinct repairers wins. This is the safety net for any format
+//      the vision path misses (e.g. handwritten, non-standard, no letterhead).
+//   5. Deduplicate by panel_beater name to avoid double-counting.
 //
 // This approach is fundamentally different from the text-based path:
 //   - It does not depend on OCR quality or text concatenation order.
 //   - It sees each page as a visual unit, so rotated/scanned pages are handled.
-//   - It correctly identifies 3 separate quotations in a 15-page assessment report.
+//   - It correctly identifies N separate quotations in any multi-quote document.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface PageQuoteGroup {
@@ -1406,10 +1410,14 @@ async function detectQuotationPagesVision(
   const MAX_PAGES_FOR_DETECTION = 20;
   const pagesToScan = pageImageUrls.slice(0, MAX_PAGES_FOR_DETECTION);
 
-  const imageContent: Array<{ type: "image_url"; image_url: { url: string; detail: "low" } }> =
+  // Use "high" detail for ≤20 pages — critical for detecting handwritten/informal quotes
+  // that are invisible at low resolution. For larger documents use "low" to stay within
+  // token limits.
+  const detailLevel = pagesToScan.length <= 20 ? "high" : "low";
+  const imageContent: Array<{ type: "image_url"; image_url: { url: string; detail: "high" | "low" } }> =
     pagesToScan.map((url) => ({
       type: "image_url" as const,
-      image_url: { url, detail: "low" as const },
+      image_url: { url, detail: detailLevel as "high" | "low" },
     }));
 
   const pageList = pagesToScan.map((_, i) => `Page ${i + 1}`).join(", ");
@@ -1422,14 +1430,20 @@ async function detectQuotationPagesVision(
           content: `You are a document classifier. You will receive ${pagesToScan.length} page images from a vehicle insurance claim document.
 Your ONLY job is to identify pages that contain VEHICLE REPAIR QUOTATIONS (also called estimates, quotes, or invoices from panel beaters, body shops, or auto repair shops).
 
-A repair quotation page contains:
-- A company/panel beater letterhead or trading name
-- A list of repair line items (parts, labour, paint, etc.)
-- A total cost or subtotal
+A repair quotation page INCLUDES any of these formats:
+- Typed or printed quote with a company letterhead, list of parts/labour, and a total
+- Handwritten quote on plain paper or a form — look for a name/company at the top, a list of items, and a total amount
+- Informal typed list of repair items with prices and a final total
+- Any document from a repairer, body shop, or panel beater showing what they will charge to fix the vehicle
+- Parts-only quotes from parts suppliers
 
-EXCLUDE: claim forms, police reports, driver statements, loss adjuster reports, assessor reports, photos of damage, correspondence letters.
+DO NOT require a formal letterhead — many small repairers in Africa use handwritten or informal formats.
+DO NOT require a printed total — the total may be handwritten at the bottom.
+
+EXCLUDE: claim forms, police reports, driver statements, loss adjuster/assessor reports, photos of damage, correspondence letters, insurance policy documents.
 
 For each quotation page found, return the page number (1-based) and the panel beater/company name visible on that page.
+If the company name is not visible, use a description like "Handwritten Quote" or "Unknown Repairer".
 If multiple consecutive pages belong to the same quotation (e.g. page 2 is a continuation of the quote on page 1), group them together.
 
 Return JSON only.`,
@@ -1500,9 +1514,12 @@ Return JSON only.`,
  * Extract all repair quotations from a set of PDF page images.
  *
  * This is the primary path when page images are available. It:
- *   1. Runs a vision detection pass to identify which pages contain quotations.
- *   2. Extracts each quotation using the first page of each group.
- *   3. Falls back to the text-based path if detection returns no groups.
+ *   1. Runs a vision detection pass (high-res) to identify which pages contain quotations.
+ *   2. For each group, sends ALL pages of that group to the extraction LLM — not just
+ *      the first page — so multi-page quotes are fully captured.
+ *   3. Runs text-based extraction in parallel as cross-validation.
+ *   4. Takes whichever path (vision or text) found more distinct repairers.
+ *   5. Falls back to text-based path if vision finds nothing.
  *
  * @param pageImageUrls  S3 URLs of rendered PDF page images (from Stage 1)
  * @param fallbackText   OCR text to use if vision detection finds no quotations
@@ -1522,23 +1539,42 @@ export async function extractMultipleQuotesFromPageImages(
     `[QuoteExtractionEngine] Starting per-page vision extraction on ${pageImageUrls.length} page image(s)`
   );
 
-  const groups = await detectQuotationPagesVision(pageImageUrls);
+  // Run vision detection and text-based extraction in parallel for cross-validation
+  const [groups, textResults] = await Promise.all([
+    detectQuotationPagesVision(pageImageUrls),
+    extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry).catch(err => {
+      plog(`[QuoteExtractionEngine] Parallel text extraction failed: ${String(err)}`);
+      return [] as ExtractedQuote[];
+    }),
+  ]);
 
+  plog(
+    `[QuoteExtractionEngine] Vision detected ${groups.length} group(s); text path found ${textResults.length} quote(s)`
+  );
+
+  // If vision detection found no groups, use text results
   if (groups.length === 0) {
     plog(
-      `[QuoteExtractionEngine] Vision detection found no quotation pages — falling back to text-based extraction`
+      `[QuoteExtractionEngine] Vision detection found no quotation pages — using text-based results (${textResults.length} quote(s))`
     );
-    return extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
+    return textResults.length > 0
+      ? textResults
+      : extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
   }
 
-  const results: ExtractedQuote[] = [];
+  const visionResults: ExtractedQuote[] = [];
   const seenNames = new Set<string>();
 
   for (const group of groups) {
-    const firstPageIdx = group.pageIndexes[0];
-    if (firstPageIdx === undefined || firstPageIdx >= pageImageUrls.length) continue;
+    if (!group.pageIndexes.length) continue;
 
-    const pageUrl = pageImageUrls[firstPageIdx];
+    // Collect ALL valid page URLs for this group (not just the first page)
+    const groupPageUrls = group.pageIndexes
+      .filter(idx => idx >= 0 && idx < pageImageUrls.length)
+      .map(idx => pageImageUrls[idx]);
+
+    if (groupPageUrls.length === 0) continue;
+
     const normName = (group.panelBeater ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
     if (normName && seenNames.has(normName)) {
@@ -1548,15 +1584,17 @@ export async function extractMultipleQuotesFromPageImages(
     if (normName) seenNames.add(normName);
 
     plog(
-      `[QuoteExtractionEngine] Extracting quote for "${group.panelBeater}" from page ${firstPageIdx + 1} image`
+      `[QuoteExtractionEngine] Extracting quote for "${group.panelBeater}" from ${groupPageUrls.length} page(s) ` +
+        `(pages ${group.pageIndexes.map(i => i + 1).join(",")})`
     );
 
     try {
-      const quote = await extractQuoteFromImageUrl(pageUrl, group.panelBeater, null, tenantCountry);
+      // Send all pages of this group together so multi-page quotes are fully captured
+      const quote = await extractQuoteFromMultipleImageUrls(groupPageUrls, group.panelBeater, null, tenantCountry);
       if (!quote.panel_beater && group.panelBeater) {
         quote.panel_beater = group.panelBeater;
       }
-      results.push(quote);
+      visionResults.push(quote);
       plog(
         `[QuoteExtractionEngine] Extracted quote: panel_beater="${quote.panel_beater}", total=${quote.total_cost}, ` +
           `line_items=${quote.line_items.length}, confidence=${quote.confidence}`
@@ -1566,15 +1604,190 @@ export async function extractMultipleQuotesFromPageImages(
     }
   }
 
-  if (results.length === 0) {
-    plog(
-      `[QuoteExtractionEngine] All per-page extractions failed — falling back to text-based extraction`
-    );
+  // Cross-validation: use whichever path found more distinct repairers
+  const visionCount = visionResults.filter(q => (q.total_cost ?? 0) > 0).length;
+  const textCount = textResults.filter(q => (q.total_cost ?? 0) > 0).length;
+
+  plog(
+    `[QuoteExtractionEngine] Cross-validation: vision=${visionCount} valid quote(s), text=${textCount} valid quote(s)`
+  );
+
+  if (visionResults.length === 0 && textResults.length === 0) {
+    plog(`[QuoteExtractionEngine] Both paths returned 0 results — running single text extraction as last resort`);
     return extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
   }
 
+  // Prefer the path with more valid (priced) quotes; tie-break on total count
+  const useVision = visionCount > textCount || (visionCount === textCount && visionResults.length >= textResults.length);
+  const winner = useVision ? visionResults : textResults;
+  const loser = useVision ? textResults : visionResults;
+
   plog(
-    `[QuoteExtractionEngine] Per-page extraction complete: ${results.length} quote(s) extracted`
+    `[QuoteExtractionEngine] Using ${useVision ? 'vision' : 'text'} path results (${winner.length} quote(s)). ` +
+      `Other path had ${loser.length} quote(s).`
   );
-  return results;
+
+  // Merge any quotes found by the losing path that are NOT already in the winner set
+  // (different repairer name = genuinely missed by the winning path)
+  const merged = [...winner];
+  for (const q of loser) {
+    const alreadyPresent = merged.some(w =>
+      (w.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '') ===
+      (q.panel_beater ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    );
+    if (!alreadyPresent && (q.total_cost ?? 0) > 0) {
+      merged.push(q);
+      plog(`[QuoteExtractionEngine] Merged additional quote from losing path: "${q.panel_beater}" total=${q.total_cost}`);
+    }
+  }
+
+  plog(
+    `[QuoteExtractionEngine] Final result: ${merged.length} quote(s) — ${merged.map(q => q.panel_beater ?? 'unknown').join(', ')}`
+  );
+  return merged;
+}
+
+/**
+ * extractQuoteFromMultipleImageUrls
+ *
+ * Extracts a repair quote from multiple page images belonging to the same quotation.
+ * Sends all pages together so multi-page quotes (e.g. line items on page 1, total on page 2)
+ * are fully captured in a single LLM call.
+ *
+ * @param imageUrls    S3 URLs of the page images for this quote group (all pages)
+ * @param panelBeater  Optional hint for the repairer name
+ * @param totalCost    Optional hint for the total cost
+ * @param tenantCountry ISO-3166-1 alpha-2 country code for currency default
+ */
+export async function extractQuoteFromMultipleImageUrls(
+  imageUrls: string[],
+  panelBeater: string | null,
+  totalCost: number | null,
+  tenantCountry?: string | null
+): Promise<ExtractedQuote> {
+  if (imageUrls.length === 0) {
+    return buildFallback("extractQuoteFromMultipleImageUrls: no image URLs provided");
+  }
+
+  // Single-image fast path — delegate to existing function
+  if (imageUrls.length === 1) {
+    return extractQuoteFromImageUrl(imageUrls[0], panelBeater, totalCost, tenantCountry);
+  }
+
+  try {
+    const contextHint = panelBeater
+      ? `This is a multi-page scanned repair quotation from ${panelBeater}. The ${imageUrls.length} images are consecutive pages of the SAME quote.${totalCost ? ` The total cost is approximately ${totalCost}.` : ''} Extract ALL line items across all pages with their individual prices.`
+      : `This is a multi-page scanned vehicle repair quotation. The ${imageUrls.length} images are consecutive pages of the SAME quote.${totalCost ? ` The total cost is approximately ${totalCost}.` : ''} Extract ALL line items across all pages with their individual prices.`;
+
+    // Build image content array — all pages of this group
+    const imageContent: Array<{ type: "image_url"; image_url: { url: string; detail: "high" } }> =
+      imageUrls.map(url => ({
+        type: "image_url" as const,
+        image_url: { url, detail: "high" as const },
+      }));
+
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content:
+            SYSTEM_PROMPT +
+            `\n\nCRITICAL: This is a MULTI-PAGE IMAGE extraction pass. You are looking at ${imageUrls.length} consecutive pages from the SAME repair quote. ` +
+            `Read ALL pages together — line items may be on earlier pages and the total may be on the last page. ` +
+            `Extract ALL line items from ALL pages. Do NOT return null or 0 for any line item that has a visible price. ` +
+            `If the total is known (${totalCost ?? "unknown"}), use it to validate — the sum of line items should be close to the total.`,
+        },
+        {
+          role: "user",
+          content: [
+            ...imageContent,
+            {
+              type: "text" as const,
+              text:
+                contextHint +
+                "\n\nExtract ALL repair quote line items from these pages with their individual unit costs and line totals. " +
+                "The total cost is typically on the LAST page. " +
+                "Pay special attention to price columns — they may be in a separate column to the right of the component names. " +
+                "Also extract the panel beater / repairer name from the letterhead or header. " +
+                "Return the complete structured quote JSON.",
+            },
+          ],
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "extracted_quote",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              panel_beater: { type: ["string", "null"] },
+              total_cost: { type: ["number", "null"] },
+              currency: { type: "string" },
+              components: { type: "array", items: { type: "string" } },
+              line_items: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    component: { type: "string" },
+                    unit_cost: { type: ["number", "null"] },
+                    quantity: { type: "number" },
+                    line_total: { type: ["number", "null"] },
+                    action: { type: ["string", "null"] },
+                    part_origin: {
+                      type: "string",
+                      enum: ["oem", "aftermarket", "reconditioned", "used", "unknown"],
+                    },
+                  },
+                  required: ["component", "unit_cost", "quantity", "line_total", "action", "part_origin"],
+                  additionalProperties: false,
+                },
+              },
+              labour_defined: { type: "boolean" },
+              parts_defined: { type: "boolean" },
+              labour_cost: { type: ["number", "null"] },
+              parts_cost: { type: ["number", "null"] },
+              confidence: { type: "string", enum: ["high", "medium", "low"] },
+              extraction_warnings: { type: "array", items: { type: "string" } },
+            },
+            required: [
+              "panel_beater",
+              "total_cost",
+              "currency",
+              "components",
+              "line_items",
+              "labour_defined",
+              "parts_defined",
+              "labour_cost",
+              "parts_cost",
+              "confidence",
+              "extraction_warnings",
+            ],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const raw = response?.choices?.[0]?.message?.content;
+    if (!raw) return buildFallback("Multi-page image quote extraction: LLM returned empty response.");
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const result = validateAndNormalise(parsed);
+    if (!result.currency && tenantCountry) {
+      result.currency = getDefaultCurrencyForCountry(tenantCountry);
+    }
+    result.extraction_warnings.push("multi_page_image_extraction_used");
+    console.log(
+      `[QuoteExtractionEngine] Multi-page image extraction complete: ${result.line_items.length} line items, ` +
+        `total=${result.total_cost}, panel_beater=${result.panel_beater}, confidence=${result.confidence}`
+    );
+    return result;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Fall back to single-page extraction using the first page
+    plog(`[QuoteExtractionEngine] Multi-page extraction failed (${msg}), falling back to first-page extraction`);
+    return extractQuoteFromImageUrl(imageUrls[0], panelBeater, totalCost, tenantCountry);
+  }
 }

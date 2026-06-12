@@ -12380,3 +12380,16 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 
 ## Quotation Extraction Audit (Chevrolet Trailblazer ADL8563)
 - [ ] Audit: original assessment report has 3 quotations but KINGA only extracted 1 — identify root cause and fix extraction logic
+
+## Multi-Quote Report Display Bug (CRITICAL - June 2026)
+- [ ] Diagnose why KINGA report still shows only 1 quote even when multiple quotes exist in DB
+- [ ] Trace ADube claim (FB1E3ECA) from quote extraction → DB persistence → report rendering
+- [ ] Fix root cause permanently so report UI consistently displays all extracted quotes
+- [ ] Add regression tests for multi-quote extraction-to-report rendering flow
+
+## Multi-Quote Extraction Permanent Fix
+- [x] Fix extractMultipleQuotesFromPageImages to send ALL pages of a group (not just first page) to extraction LLM
+- [x] Upgrade detection pass to use detail:"high" for documents with ≤20 pages
+- [x] Add cross-validation: run text-based extraction in parallel and use whichever path finds more quotes
+- [x] Add extractQuoteFromMultipleImageUrls helper that accepts an array of image URLs
+- [x] Write regression test: ADube PDF (3 quotes) and Nharingo PDF (3 quotes) must both extract all quotes
