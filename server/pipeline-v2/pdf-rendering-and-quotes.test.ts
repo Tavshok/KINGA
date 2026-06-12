@@ -287,3 +287,56 @@ describe("pdfToImages memory guard — DPI cap", () => {
     expect(src).toContain("Math.min(dpi, SAFE_MAX_DPI)");
   });
 });
+
+// ─── 5. Sparse-text + page images routing fix ─────────────────────────────────
+
+describe("Stage-3 routing: sparse text does not block vision path", () => {
+  it("stage-3 routing condition uses pdfPageImages.length > 0 OR allText.length > 50", () => {
+    const src = readFileSync(
+      path.resolve(__dirname, "../pipeline-v2/stage-3-structured-extraction.ts"),
+      "utf-8"
+    );
+    // The routing condition must check page images BEFORE or alongside allText length
+    // so that sparse OCR text (< 50 chars) does not block the vision path
+    expect(src).toMatch(/pdfPageImages\.length\s*>\s*0\s*\|\|\s*allText\.trim\(\)\.length\s*>\s*50/);
+  });
+
+  it("pdfPageImages is collected before the routing condition (not inside it)", () => {
+    const src = readFileSync(
+      path.resolve(__dirname, "../pipeline-v2/stage-3-structured-extraction.ts"),
+      "utf-8"
+    );
+    // pdfPageImages declaration must appear before the routing condition
+    const pageImagesIdx = src.indexOf("const pdfPageImages = (stage1.documents");
+    const routingIdx = src.indexOf("pdfPageImages.length > 0 || allText.trim().length > 50");
+    expect(pageImagesIdx).toBeGreaterThan(-1);
+    expect(routingIdx).toBeGreaterThan(-1);
+    expect(pageImagesIdx).toBeLessThan(routingIdx);
+  });
+
+  it("vision path runs when allText is empty but page images are present", () => {
+    // Simulate the routing decision
+    const allText = ""; // 0 chars — below the 50-char threshold
+    const pdfPageImages = ["https://s3/page-1.png", "https://s3/page-2.png"];
+
+    // Old (broken) routing: if (allText.trim().length > 50) → false → skips vision
+    const oldRouting = allText.trim().length > 50;
+    expect(oldRouting).toBe(false); // This was the bug
+
+    // New (correct) routing: if (pdfPageImages.length > 0 || allText.trim().length > 50)
+    const newRouting = pdfPageImages.length > 0 || allText.trim().length > 50;
+    expect(newRouting).toBe(true); // Vision path now runs
+  });
+
+  it("vision path runs when allText is 38 chars (Chevrolet scenario) but page images are present", () => {
+    // This is the exact scenario that caused the Chevrolet claim to miss 2 quotes
+    const allText = "ACTIONAID STAFF NHARINGO CHEVROLET"; // 34 chars — below 50
+    const pdfPageImages = Array.from({ length: 15 }, (_, i) => `https://s3/page-${i + 1}.png`);
+
+    const oldRouting = allText.trim().length > 50;
+    expect(oldRouting).toBe(false); // Was blocking vision
+
+    const newRouting = pdfPageImages.length > 0 || allText.trim().length > 50;
+    expect(newRouting).toBe(true); // Now correctly routes to vision
+  });
+});

@@ -730,55 +730,66 @@ export async function triggerAiAssessment(claimId: number) {
     let _qualitySummary: any = null;
     let _isScannedPdf = false;
     try {
-      console.log(`[KINGA Assessment] Claim ${claimId}: No cached photos — extracting images from PDF: ${pdfUrl}`);
-      const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
-      // Use native fetch with AbortController (node-fetch v3 removed timeout option)
-      const pdfAbortController = new AbortController();
-      const pdfFetchTimeout = setTimeout(() => pdfAbortController.abort(), 30000);
-      let pdfResponse: Response | null = null;
-      try {
-        pdfResponse = await fetch(pdfUrl, { signal: pdfAbortController.signal });
-      } finally {
-        clearTimeout(pdfFetchTimeout);
-      }
-      if (pdfResponse && pdfResponse.ok) {
-        const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
-        // ── MEMORY GUARD: Skip extraction for large PDFs to prevent OOM kill in Cloud Run ──
-        if (pdfBuffer.length > PDF_EXTRACTION_SIZE_LIMIT_BYTES) {
-          console.log(`[KINGA Assessment] Claim ${claimId}: PDF too large for native extraction (${Math.round(pdfBuffer.length / 1024)}KB > ${PDF_EXTRACTION_SIZE_LIMIT_BYTES / 1024}KB limit). Skipping native extraction — LLM will read PDF directly via file_url.`);
-          _extractionError = `PDF too large for native extraction (${Math.round(pdfBuffer.length / 1024)}KB). LLM will use file_url.`;
-        } else {
-          const extractedImages = await extractImagesFromPDFBuffer(pdfBuffer, `claim-${claimId}.pdf`);
-          _totalExtracted = extractedImages.length;
-          _isScannedPdf = extractedImages.some((img: any) => img.isPageRender === true);
-          // Build quality summary from extractor metadata
-          _qualitySummary = {
-            isScannedPdf: _isScannedPdf,
-            renderDpi: extractedImages.find((img: any) => img.renderDpi)?.renderDpi ?? null,
-            passedDimensionGate: extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200).length,
-            rejectedTooSmall: extractedImages.filter((img: any) => img.width < 200 || img.height < 200).length,
-            blurryCount: extractedImages.filter((img: any) => img.isBlurry === true).length,
-            textHeavyCount: extractedImages.filter((img: any) => img.isTextHeavy === true).length,
-            avgSharpnessScore: extractedImages.length > 0
-              ? Math.round(extractedImages.reduce((s: number, img: any) => s + (img.sharpnessScore ?? 80), 0) / extractedImages.length)
-              : null,
-          };
-          // Preserve FULL metadata for the image classifier (confidence scoring, quality-based selection)
-          _extractedImagesWithMetadata = extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200);
-          // Also keep flat URL array for backward compatibility
-          damagePhotos = _extractedImagesWithMetadata.map((img: any) => img.url);
-          console.log(`[KINGA Assessment] Claim ${claimId}: Re-extracted ${damagePhotos.length} photo(s) from PDF (${extractedImages.length} total images found, scanned=${_isScannedPdf})`);
-          // Persist extracted photos to claim record so future re-runs skip this step
-          if (damagePhotos.length > 0) {
-            await db.update(claims).set({
-              damagePhotos: JSON.stringify(damagePhotos),
-              updatedAt: new Date(),
-            }).where(eq(claims.id, claimId)).catch(() => {});
-          }
+      console.log(`[KINGA Assessment] Claim ${claimId}: No cached photos — rendering PDF pages via pdftoppm: ${pdfUrl}`);
+      // Use pdftoppm (poppler-utils) to render each PDF page as a PNG.
+      // renderPdfToImages downloads the PDF itself from pdfUrl — no need to buffer it here.
+      // The old pdfjs-dist + @napi-rs/canvas path crashed with:
+      //   "Cannot set properties of undefined (setting 'width')"
+      // because NapiCanvasFactory.destroy received an uninitialised canvas object.
+      const { renderPdfToImages } = await import('./pipeline-v2/pdfToImages');
+      const sharpLib = (await import('sharp')).default;
+      const renderResult = await renderPdfToImages(pdfUrl, {
+        dpi: 100,
+        maxPages: 25,
+        keyPrefix: `claims/${claimId}/damage-pages`,
+        log: (msg: string) => console.log(`[KINGA Assessment] Claim ${claimId}: [PDF Render] ${msg}`),
+      });
+      // Build ExtractedImage-compatible objects from rendered pages
+      const extractedImages: any[] = [];
+      for (const page of renderResult.pages) {
+        try {
+          const pageRes = await fetch(page.url);
+          const buf = Buffer.from(await pageRes.arrayBuffer());
+          const meta = await sharpLib(buf).metadata();
+          const w = meta.width ?? 0;
+          const h = meta.height ?? 0;
+          extractedImages.push({
+            url: page.url,
+            width: w,
+            height: h,
+            pageNumber: page.pageNumber,
+            source: 'page_render',
+            fromScannedPdf: true,
+            renderDpi: 100,
+            isPageRender: true,
+            quality: { width: w, height: h, blurScore: 80, isBlurry: false, isTextHeavy: false, isUniform: false, colourVariance: 80, aspectRatio: w / (h || 1), pixelArea: w * h },
+          });
+        } catch {
+          // Non-fatal: skip pages that fail metadata read
         }
-      } else {
-        _extractionError = `HTTP ${pdfResponse?.status ?? 'aborted'}`;
-        console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to download PDF for image extraction: HTTP ${pdfResponse?.status ?? 'aborted'}`);
+      }
+      _totalExtracted = extractedImages.length;
+      _isScannedPdf = true; // pdftoppm always produces page renders
+      _qualitySummary = {
+        isScannedPdf: _isScannedPdf,
+        renderDpi: 100,
+        passedDimensionGate: extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200).length,
+        rejectedTooSmall: extractedImages.filter((img: any) => img.width < 200 || img.height < 200).length,
+        blurryCount: 0,
+        textHeavyCount: 0,
+        avgSharpnessScore: 80,
+      };
+      // Preserve FULL metadata for the image classifier
+      _extractedImagesWithMetadata = extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200);
+      // Also keep flat URL array for backward compatibility
+      damagePhotos = _extractedImagesWithMetadata.map((img: any) => img.url);
+      console.log(`[KINGA Assessment] Claim ${claimId}: Rendered ${damagePhotos.length} page(s) from PDF (${extractedImages.length} total pages rendered)`);
+      // Persist extracted photos to claim record so future re-runs skip this step
+      if (damagePhotos.length > 0) {
+        await db.update(claims).set({
+          damagePhotos: JSON.stringify(damagePhotos),
+          updatedAt: new Date(),
+        }).where(eq(claims.id, claimId)).catch(() => {});
       }
     } catch (imgErr: any) {
       _extractionError = imgErr.message;

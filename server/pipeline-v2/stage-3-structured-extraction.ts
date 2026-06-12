@@ -753,19 +753,20 @@ async function runInputRecovery(
     // OCR-failure vision-direct path below.
     const allPdfDocs = (stage1.documents ?? []).filter(d => d.mimeType === 'application/pdf');
 
-    if (allText.trim().length > 50) {
-      // Pass tenantCountry so the engine can apply the correct default currency
-      // when the document does not explicitly state a currency code.
+    // Collect page images — used unconditionally for the primary vision path.
+    // CRITICAL: This check must come BEFORE the allText length gate.
+    // allText may be very short (< 50 chars) precisely when the PDF is scanned
+    // and OCR failed — which is exactly when vision is most needed.
+    const pdfPageImages = (stage1.documents ?? [])
+      .filter(d => d.mimeType === 'application/pdf')
+      .flatMap(d => d.imageUrls ?? []);
+
+    if (pdfPageImages.length > 0 || allText.trim().length > 50) {
       // ── PRIMARY PATH: Per-page vision extraction ────────────────────────────────────────
-      // When page images are available (Stage 1 rendered the PDF via pdftoppm), use the
-      // per-page vision path. This correctly identifies multiple quotations in a single
-      // multi-page PDF by scanning each page independently, rather than relying on OCR
-      // text quality. Falls back to text-based extraction if no quotations are detected.
-      const pdfPageImages = (stage1.documents ?? [])
-        .filter(d => d.mimeType === 'application/pdf')
-        .flatMap(d => d.imageUrls ?? []);
+      // pdfPageImages is collected above (before the allText length gate) so this path
+      // runs even when allText is very short (e.g. scanned PDFs with < 50 chars of OCR).
       if (pdfPageImages.length > 0) {
-        console.log(`[Stage3] Using per-page vision extraction on ${pdfPageImages.length} page image(s)`);
+        console.log(`[Stage3] Using per-page vision extraction on ${pdfPageImages.length} page image(s) (allText=${allText.length} chars)`);
         extracted_quotes = await extractMultipleQuotesFromPageImages(pdfPageImages, allText, tenantCountry);
       } else {
         // No page images — fall back to text-based extraction
