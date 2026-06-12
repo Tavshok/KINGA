@@ -1370,3 +1370,211 @@ export async function extractQuoteFromImageUrl(
     return buildFallback(`Image quote extraction failed: ${msg}`);
   }
 }
+
+// ── PER-PAGE IMAGE QUOTE EXTRACTION ─────────────────────────────────────────
+// This is the primary quote extraction path when page images are available
+// (i.e. Stage 1 successfully rendered the PDF to page images via pdftoppm).
+//
+// Strategy:
+//   1. Run a single LLM vision pass on all page images to identify which pages
+//      contain repair quotation letterheads (company name, line items, total).
+//   2. Group consecutive pages that belong to the same quotation.
+//   3. For each group, run extractQuoteFromImageUrl on the first page (which
+//      contains the letterhead and most line items).
+//   4. Deduplicate by panel_beater name to avoid double-counting.
+//
+// This approach is fundamentally different from the text-based path:
+//   - It does not depend on OCR quality or text concatenation order.
+//   - It sees each page as a visual unit, so rotated/scanned pages are handled.
+//   - It correctly identifies 3 separate quotations in a 15-page assessment report.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PageQuoteGroup {
+  panelBeater: string;
+  pageIndexes: number[]; // 0-based indexes into pageImageUrls
+}
+
+/**
+ * Identify which pages in a PDF contain repair quotations using a vision LLM.
+ * Returns groups of pages belonging to each distinct quotation.
+ */
+async function detectQuotationPagesVision(
+  pageImageUrls: string[]
+): Promise<PageQuoteGroup[]> {
+  if (pageImageUrls.length === 0) return [];
+
+  const MAX_PAGES_FOR_DETECTION = 20;
+  const pagesToScan = pageImageUrls.slice(0, MAX_PAGES_FOR_DETECTION);
+
+  const imageContent: Array<{ type: "image_url"; image_url: { url: string; detail: "low" } }> =
+    pagesToScan.map((url) => ({
+      type: "image_url" as const,
+      image_url: { url, detail: "low" as const },
+    }));
+
+  const pageList = pagesToScan.map((_, i) => `Page ${i + 1}`).join(", ");
+
+  try {
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: `You are a document classifier. You will receive ${pagesToScan.length} page images from a vehicle insurance claim document.
+Your ONLY job is to identify pages that contain VEHICLE REPAIR QUOTATIONS (also called estimates, quotes, or invoices from panel beaters, body shops, or auto repair shops).
+
+A repair quotation page contains:
+- A company/panel beater letterhead or trading name
+- A list of repair line items (parts, labour, paint, etc.)
+- A total cost or subtotal
+
+EXCLUDE: claim forms, police reports, driver statements, loss adjuster reports, assessor reports, photos of damage, correspondence letters.
+
+For each quotation page found, return the page number (1-based) and the panel beater/company name visible on that page.
+If multiple consecutive pages belong to the same quotation (e.g. page 2 is a continuation of the quote on page 1), group them together.
+
+Return JSON only.`,
+        },
+        {
+          role: "user",
+          content: [
+            ...imageContent,
+            {
+              type: "text" as const,
+              text: `These are pages: ${pageList}. Identify all repair quotation pages and their panel beater names. Return JSON matching the schema.`,
+            },
+          ],
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "quotation_page_detection",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              quotation_groups: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    panel_beater: { type: "string", description: "Company/panel beater name from letterhead" },
+                    page_numbers: {
+                      type: "array",
+                      items: { type: "integer" },
+                      description: "1-based page numbers belonging to this quotation",
+                    },
+                  },
+                  required: ["panel_beater", "page_numbers"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["quotation_groups"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const raw = response?.choices?.[0]?.message?.content;
+    if (!raw) return [];
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const groups: PageQuoteGroup[] = (parsed.quotation_groups ?? []).map(
+      (g: { panel_beater: string; page_numbers: number[] }) => ({
+        panelBeater: g.panel_beater,
+        pageIndexes: g.page_numbers.map((n: number) => n - 1),
+      })
+    );
+    plog(
+      `[QuoteExtractionEngine] Page detection found ${groups.length} quotation group(s): ${groups.map((g) => `"${g.panelBeater}" (pages ${g.pageIndexes.map((i) => i + 1).join(",")})`).join("; ")}`
+    );
+    return groups;
+  } catch (err) {
+    plog(`[QuoteExtractionEngine] Page detection failed: ${String(err)}`);
+    return [];
+  }
+}
+
+/**
+ * Extract all repair quotations from a set of PDF page images.
+ *
+ * This is the primary path when page images are available. It:
+ *   1. Runs a vision detection pass to identify which pages contain quotations.
+ *   2. Extracts each quotation using the first page of each group.
+ *   3. Falls back to the text-based path if detection returns no groups.
+ *
+ * @param pageImageUrls  S3 URLs of rendered PDF page images (from Stage 1)
+ * @param fallbackText   OCR text to use if vision detection finds no quotations
+ * @param tenantCountry  ISO 3166-1 alpha-2 country code for default currency
+ */
+export async function extractMultipleQuotesFromPageImages(
+  pageImageUrls: string[],
+  fallbackText: string,
+  tenantCountry?: string | null
+): Promise<ExtractedQuote[]> {
+  if (pageImageUrls.length === 0) {
+    plog(`[QuoteExtractionEngine] No page images available — falling back to text-based extraction`);
+    return extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
+  }
+
+  plog(
+    `[QuoteExtractionEngine] Starting per-page vision extraction on ${pageImageUrls.length} page image(s)`
+  );
+
+  const groups = await detectQuotationPagesVision(pageImageUrls);
+
+  if (groups.length === 0) {
+    plog(
+      `[QuoteExtractionEngine] Vision detection found no quotation pages — falling back to text-based extraction`
+    );
+    return extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
+  }
+
+  const results: ExtractedQuote[] = [];
+  const seenNames = new Set<string>();
+
+  for (const group of groups) {
+    const firstPageIdx = group.pageIndexes[0];
+    if (firstPageIdx === undefined || firstPageIdx >= pageImageUrls.length) continue;
+
+    const pageUrl = pageImageUrls[firstPageIdx];
+    const normName = (group.panelBeater ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    if (normName && seenNames.has(normName)) {
+      plog(`[QuoteExtractionEngine] Skipping duplicate: "${group.panelBeater}"`);
+      continue;
+    }
+    if (normName) seenNames.add(normName);
+
+    plog(
+      `[QuoteExtractionEngine] Extracting quote for "${group.panelBeater}" from page ${firstPageIdx + 1} image`
+    );
+
+    try {
+      const quote = await extractQuoteFromImageUrl(pageUrl, group.panelBeater, null, tenantCountry);
+      if (!quote.panel_beater && group.panelBeater) {
+        quote.panel_beater = group.panelBeater;
+      }
+      results.push(quote);
+      plog(
+        `[QuoteExtractionEngine] Extracted quote: panel_beater="${quote.panel_beater}", total=${quote.total_cost}, ` +
+          `line_items=${quote.line_items.length}, confidence=${quote.confidence}`
+      );
+    } catch (err) {
+      plog(`[QuoteExtractionEngine] Failed to extract quote for "${group.panelBeater}": ${String(err)}`);
+    }
+  }
+
+  if (results.length === 0) {
+    plog(
+      `[QuoteExtractionEngine] All per-page extractions failed — falling back to text-based extraction`
+    );
+    return extractMultipleQuotes(fallbackText, "insurance claim document", tenantCountry);
+  }
+
+  plog(
+    `[QuoteExtractionEngine] Per-page extraction complete: ${results.length} quote(s) extracted`
+  );
+  return results;
+}

@@ -715,13 +715,13 @@ export async function triggerAiAssessment(claimId: number) {
   let _dbPhotoIngestionLog: any = null;
   // Preserve full ExtractedImage metadata for the image classifier
   let _extractedImagesWithMetadata: any[] = [];
-  // ── CLOUD RUN: Skip native PDF image extraction in production ────────────────────────
-  // Cloud Run's container does not ship the Skia native binary required by @napi-rs/canvas,
-  // and sharp's libvips can OOM on large PDFs within the 512MB RAM limit.
-  // The pipeline uses the PDF file_url directly via the LLM in Stage 2 and Stage 6 instead.
-  // Native extraction is only used in development where native binaries are available.
-  const SKIP_NATIVE_EXTRACTION = process.env.NODE_ENV === 'production';
-  const PDF_EXTRACTION_SIZE_LIMIT_BYTES = 2 * 1024 * 1024; // 2MB (fallback guard for dev)
+  // ── PDF IMAGE EXTRACTION ────────────────────────────────────────────────────────────────
+  // poppler-utils (pdftoppm) is declared in apt.txt and is available in both development
+  // and production. The previous SKIP_NATIVE_EXTRACTION guard was written before apt.txt
+  // was added and is now incorrect — it caused damage images and multi-quote extraction
+  // to silently fail in production. Removed.
+  // Memory guard: skip extraction only for very large PDFs (>10MB) to prevent OOM.
+  const PDF_EXTRACTION_SIZE_LIMIT_BYTES = 10 * 1024 * 1024; // 10MB
 
   if (pdfUrl && damagePhotos.length === 0) {
     const _photoIngestionStart = Date.now();
@@ -729,11 +729,7 @@ export async function triggerAiAssessment(claimId: number) {
     let _totalExtracted = 0;
     let _qualitySummary: any = null;
     let _isScannedPdf = false;
-    if (SKIP_NATIVE_EXTRACTION) {
-      console.log(`[KINGA Assessment] Claim ${claimId}: Skipping native PDF image extraction in production. LLM will read PDF directly via file_url.`);
-      _extractionError = 'Native extraction skipped in production (Cloud Run incompatible). LLM uses file_url.';
-    } else {
-      try {
+    try {
       console.log(`[KINGA Assessment] Claim ${claimId}: No cached photos — extracting images from PDF: ${pdfUrl}`);
       const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
       // Use native fetch with AbortController (node-fetch v3 removed timeout option)
@@ -784,11 +780,10 @@ export async function triggerAiAssessment(claimId: number) {
         _extractionError = `HTTP ${pdfResponse?.status ?? 'aborted'}`;
         console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to download PDF for image extraction: HTTP ${pdfResponse?.status ?? 'aborted'}`);
       }
-      } catch (imgErr: any) {
-        _extractionError = imgErr.message;
-        console.warn(`[KINGA Assessment] Claim ${claimId}: PDF image re-extraction failed (non-fatal): ${imgErr.message}`);
-      }
-    } // end SKIP_NATIVE_EXTRACTION else block
+    } catch (imgErr: any) {
+      _extractionError = imgErr.message;
+      console.warn(`[KINGA Assessment] Claim ${claimId}: PDF image re-extraction failed (non-fatal): ${imgErr.message}`);
+    }
     // Build structured photo ingestion log for the forensic report
     try {
       const { buildPhotoIngestionLog } = await import('./pipeline-v2/photo-ingestion-log');

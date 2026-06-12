@@ -748,7 +748,7 @@ async function runInputRecovery(
   // The LLM engine handles multi-quote documents, component lists, and labour/parts disaggregation.
   let extracted_quotes: import('./quoteExtractionEngine').ExtractedQuote[] | undefined;
   try {
-    const { extractMultipleQuotes, extractQuoteFromPdfVision } = await import('./quoteExtractionEngine');
+    const { extractMultipleQuotes, extractMultipleQuotesFromPageImages, extractQuoteFromPdfVision } = await import('./quoteExtractionEngine');
     // Collect PDF documents once — used both in the text-based path and the
     // OCR-failure vision-direct path below.
     const allPdfDocs = (stage1.documents ?? []).filter(d => d.mimeType === 'application/pdf');
@@ -756,7 +756,22 @@ async function runInputRecovery(
     if (allText.trim().length > 50) {
       // Pass tenantCountry so the engine can apply the correct default currency
       // when the document does not explicitly state a currency code.
-      extracted_quotes = await extractMultipleQuotes(allText, 'insurance claim document', tenantCountry);
+      // ── PRIMARY PATH: Per-page vision extraction ────────────────────────────────────────
+      // When page images are available (Stage 1 rendered the PDF via pdftoppm), use the
+      // per-page vision path. This correctly identifies multiple quotations in a single
+      // multi-page PDF by scanning each page independently, rather than relying on OCR
+      // text quality. Falls back to text-based extraction if no quotations are detected.
+      const pdfPageImages = (stage1.documents ?? [])
+        .filter(d => d.mimeType === 'application/pdf')
+        .flatMap(d => d.imageUrls ?? []);
+      if (pdfPageImages.length > 0) {
+        console.log(`[Stage3] Using per-page vision extraction on ${pdfPageImages.length} page image(s)`);
+        extracted_quotes = await extractMultipleQuotesFromPageImages(pdfPageImages, allText, tenantCountry);
+      } else {
+        // No page images — fall back to text-based extraction
+        console.log(`[Stage3] No page images available — using text-based extraction (allText=${allText.length} chars)`);
+        extracted_quotes = await extractMultipleQuotes(allText, 'insurance claim document', tenantCountry);
+      }
 
       // VISION FALLBACK: If any quote has a non-zero total but all line items are $0,
       // the OCR missed the price column. Re-extract using the PDF directly via vision.

@@ -12377,3 +12377,6 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Remove or qualify statements that present inferred/estimated values as confirmed facts
 - [ ] Fix physics label in Section 2 table: "Estimated Speed: X km/h (driver stated)" is wrong when the value is physics-inferred, not driver-stated
 - [ ] Fix executive summary fraud score text: uses adjustedFraudScore (can be 100) while cover card shows stored DB score (83) — align both to same value
+
+## Quotation Extraction Audit (Chevrolet Trailblazer ADL8563)
+- [ ] Audit: original assessment report has 3 quotations but KINGA only extracted 1 — identify root cause and fix extraction logic

@@ -216,14 +216,18 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
 
-    // ── Startup health check: pdfjs-dist + @napi-rs/canvas (pure Node.js PDF renderer) ──
-    // PDF pages are rendered using pdfjs-dist + @napi-rs/canvas — no system binaries required.
-    // This works in Cloud Run production containers (Node-only runtime).
-    import('pdfjs-dist/legacy/build/pdf.mjs').then(() => {
-      console.log('[Startup] ✅ pdfjs-dist available — pure Node.js PDF rendering ready');
-    }).catch((err: any) => {
-      console.error(`[Startup] ❌ pdfjs-dist not available: ${err?.message ?? String(err)}`);
-    });
+    // ── Startup health check: pdftoppm (poppler-utils) ───────────────────────────────────
+    // PDF pages are rendered using pdftoppm (poppler-utils), declared in apt.txt.
+    // Verify availability at startup so any missing binary is caught immediately.
+    import('child_process').then(({ execFile }) => {
+      execFile('pdftoppm', ['-v'], { timeout: 5000 }, (err) => {
+        if (err) {
+          console.error('[Startup] ❌ pdftoppm not found. PDF rendering will fail. Ensure poppler-utils is in apt.txt.');
+        } else {
+          console.log('[Startup] ✅ pdftoppm (poppler-utils) available — PDF page rendering enabled in all environments');
+        }
+      });
+    }).catch(() => {});
     
     // Start intake escalation cron job
     startIntakeEscalationJob();
