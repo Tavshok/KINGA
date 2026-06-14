@@ -68,6 +68,7 @@ import {
 import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
 import { generateDemandLetter } from "./recovery/demandLetterGenerator";
+import { checkSingleCaseDeadline } from "./recovery/recoveryDeadlineAlerts";
 import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted, notifyFraudDetected } from "./notifications";
 import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
@@ -8927,6 +8928,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
       .input(z.object({ caseId: z.number() }))
       .query(async ({ ctx, input }) => {
         const db = await getDb();
+        if (!db) return [];
         const tenantId = (ctx.user as any).tenantId ?? ctx.user.id.toString();
         const rows = await db
           .select()
@@ -8962,6 +8964,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
         const tenantId = (ctx.user as any).tenantId ?? ctx.user.id.toString();
         const now = new Date().toISOString().replace("T", " ").substring(0, 19);
         await db.insert(recoveryCorrespondenceLog).values({
