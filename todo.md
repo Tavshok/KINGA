@@ -12407,3 +12407,33 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Fix AI confidence: use fcdiResult.scorePercent instead of dataQuality.completenessScore in db.ts
 - [ ] Fix SVG rear/front arrow labels: move outside vehicle body (no overlap with zone labels)
 - [ ] Update Risk Indicator Breakdown UI to show category-weighted scores
+
+## KINGA Intelligence Registry (Entity Database)
+
+- [ ] Extend panelBeaters schema: add vatNumber, registrationNumber, physicalAddress, gpsLat, gpsLng, bankAccountHash, directorNamesJson, firstSeenAt, lastSeenAt, totalQuotesSubmitted, totalQuotesAccepted, avgQuoteDeviationPct, riskTier (A/B/C/D), isVerified, verifiedAt, verifiedBy, notes
+- [ ] Add intel_addresses table: normalised address store shared across persons, repairers, vehicles — suburb, city, province, country, gpsLat, gpsLng, firstSeenAt, lastSeenAt, entityCount
+- [ ] Add intel_phones table: normalised phone store — e164Number, countryCode, firstSeenAt, lastSeenAt, entityCount
+- [ ] Add intel_persons table: unified person registry (claimants, drivers, witnesses, directors) — fullName, idNumber, passportNumber, dob, nationality, firstSeenAt, lastSeenAt, totalClaimsInvolved, fraudFlagCount, riskScore
+- [ ] Add intel_entity_links table: typed graph linking any entity to any other with relationship type (shared_address, shared_phone, director_of_repairer, driver_is_claimant, etc.) and evidence JSON
+- [ ] Add intel_repairer_directors table: links intel_persons to panelBeaters as directors/owners — enables detecting director-is-claimant collusion
+- [ ] Build entity enrichment engine (server/entity-enrichment.ts): after every claim pipeline completes, upsert all extracted entities into intel tables and create entity links
+- [ ] Wire entity enrichment engine into pipeline orchestrator post-processing (non-blocking, same pattern as cross-claim-intelligence)
+- [ ] Build collusion detection engine (server/collusion-detection.ts): query intel_entity_links to detect rings — repairer+driver in 3+ claims, shared address between claimant and repairer, director of repairer is also a claimant, phone shared across 3+ unrelated claimants
+- [ ] Add collusion signals to crossClaimSignals enum: repairer_claimant_address_match, director_is_claimant, phone_ring_detected, address_ring_detected
+- [ ] Build admin UI: Intelligence Registry page — searchable table of repairers with risk tier, claim count, fraud flags, linked persons, linked addresses
+- [ ] Build admin UI: Entity Graph page — for a given claim, show all linked entities and connections as a visual network
+- [ ] Build admin UI: Collusion Rings page — list detected rings with evidence, confidence, and investigation status
+- [ ] Ensure absence from registry is NOT treated as fraud — all new entities start at risk tier A (unknown/neutral), flagged only when positive evidence accumulates
+- [ ] Add repairer intelligence summary to fraud report: show repairer history (total claims, avg deviation, fraud flags, performance tier) in the quote analysis section
+
+## Codebase Maintainability — Phase 1 (June 2026)
+- [x] Write developer README.md — quick start, pipeline overview, table map, code standards, key decisions
+- [x] Remove @ts-nocheck from server/db.ts — 0 type errors after removal
+- [x] Remove @ts-nocheck from server/routers.ts — 0 type errors after removal
+- [x] Wire upsertVehicleRegistry into post-pipeline flow (fire-and-forget, non-blocking)
+- [x] Wire runCrossClaimIntelligence into post-pipeline flow (3s delay, non-blocking)
+- [x] Fix persistExtractedQuote.ts: li.unitCost → li.unitPrice (silent bug — line-item sum always returned 0)
+- [ ] Remove @ts-nocheck from remaining 161 server files (phased — prioritise routers/ and services/)
+- [ ] Add per-field confidence scores to extracted quote fields
+- [ ] Add OCR quality pre-assessment step before Stage 3 extraction
+- [ ] Build human-correction feedback loop for adjuster overrides

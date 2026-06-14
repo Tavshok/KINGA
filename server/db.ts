@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { eq, and, or, desc, inArray, notInArray, sql, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
@@ -2147,6 +2147,75 @@ export async function triggerAiAssessment(claimId: number) {
       console.warn(`[EntityRegistry] Post-pipeline processing failed for claim ${claimId}:`, e.message?.substring(0, 100));
     }
   });
+
+  // ── Vehicle Registry: fire-and-forget (non-blocking) ─────────────────────
+  // Upserts the vehicle into the master vehicle_registry table so every claim
+  // against the same VIN/registration is linked. Enables repeat-damage detection
+  // and vehicle risk scoring across claims. Never throws — pipeline is unaffected.
+  setImmediate(async () => {
+    if (!claimRecord?.vehicle) return;
+    try {
+      const { upsertVehicleRegistry } = await import('./vehicle-registry');
+      const v = claimRecord.vehicle;
+      const acc = claimRecord.accidentDetails;
+      await upsertVehicleRegistry({
+        claimId,
+        tenantId: claim.tenantId ?? null,
+        vin: v.vin ?? null,
+        registrationNumber: v.registration ?? null,
+        make: v.make ?? null,
+        model: v.model ?? null,
+        year: v.year ?? null,
+        color: v.colour ?? null,
+        engineNumber: v.engineNumber ?? null,
+        vehicleType: v.bodyType ?? null,
+        powertrainType: v.powertrain ?? null,
+        vehicleMassKg: v.massKg ?? null,
+        vehicleMassSource: v.massTier ?? null,
+        repairCostCents: estimatedCost > 0 ? estimatedCost : undefined,
+        impactZone: acc?.impactPoint ?? null,
+      });
+    } catch (e: any) {
+      console.warn(`[VehicleRegistry] Post-pipeline upsert failed for claim ${claimId}:`, e.message?.substring(0, 100));
+    }
+  });
+
+  // ── Cross-Claim Intelligence: fire-and-forget (non-blocking) ─────────────
+  // Runs the 9-signal collusion detector after every pipeline completion.
+  // Uses a 3-second delay so the entity and vehicle registry writes above
+  // have time to commit before the collusion queries run.
+  setTimeout(async () => {
+    try {
+      const { runCrossClaimIntelligence } = await import('./cross-claim-intelligence');
+      const dbCci = await getDb();
+      if (!dbCci) return;
+      // Re-fetch the claim to get the latest registry IDs written above.
+      const [freshClaim] = await dbCci
+        .select({
+          vehicleRegistryId: claims.vehicleRegistryId,
+          driverRegistryId: claims.driverRegistryId,
+          thirdPartyDriverRegistryId: claims.thirdPartyDriverRegistryId,
+          tenantId: claims.tenantId,
+          createdAt: claims.createdAt,
+          incidentDate: claims.incidentDate,
+        })
+        .from(claims)
+        .where(eq(claims.id, claimId))
+        .limit(1);
+      if (!freshClaim) return;
+      await runCrossClaimIntelligence({
+        claimId,
+        vehicleRegistryId: freshClaim.vehicleRegistryId ?? null,
+        driverRegistryId: freshClaim.driverRegistryId ?? null,
+        thirdPartyDriverRegistryId: freshClaim.thirdPartyDriverRegistryId ?? null,
+        tenantId: freshClaim.tenantId ?? null,
+        claimCreatedAt: freshClaim.createdAt ?? null,
+        incidentDate: freshClaim.incidentDate ?? null,
+      });
+    } catch (e: any) {
+      console.warn(`[CrossClaimIntelligence] Post-pipeline run failed for claim ${claimId}:`, e.message?.substring(0, 100));
+    }
+  }, 3000); // 3-second delay gives entity/vehicle registry writes time to commit
 
   // END TOP-LEVEL TRY
   } catch (topLevelError) {

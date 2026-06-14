@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * KINGA AI Insurance Claims Management Platform
  * 
