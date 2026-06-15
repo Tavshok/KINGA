@@ -194,7 +194,9 @@ Return data in strict JSON format.`,
 
 IMPORTANT: Read the ENTIRE document — do not stop at any particular page. Key fields such as the police report number, repair quotation totals, and component lists often appear on later pages.
 
-CRITICAL POLICE REPORT EXTRACTION RULES:
+CRITICAL POLICE REPORT EXTRACTION AND REASONING RULES:
+These fields feed directly into subrogation, fraud detection, and liability determination. Extract carefully and reason about meaning — do not just transcribe.
+
 - policeReportNumber: Look for any of these patterns throughout the ENTIRE document:
   * "Police Report No.", "Report Number", "Case No.", "RB No.", "Ref:", "CR No."
   * Alphanumeric codes like "RB 123/2024", "CR/2024/001", "CID/123"
@@ -204,6 +206,40 @@ CRITICAL POLICE REPORT EXTRACTION RULES:
 - policeChargeNumber: Look for 'TAB No.', 'TAB Number', 'Charge No.', 'Traffic Charge No.', 'Infringement No.' on any traffic report page.
 - policeFineAmountCents: Look for 'Fine:', 'Fine Amount:', 'Penalty:' on a traffic report page. Convert to cents.
 - policeReportDate: The date the police/traffic report was issued — often different from the accident date. Look on the traffic report page for a date stamp or 'Date:' field.
+
+CRITICAL — policeChargedParty (subrogation key field):
+  This field determines who bears legal liability and whether a recovery case can be opened. Reason carefully:
+  * Look for: 'charged the driver of [vehicle]', 'TAB issued to [name/registration]', 'claimant was charged', 'third party was charged', 'other driver was charged', 'driver of [registration] was charged'
+  * IMPORTANT: Determine whether the charged party is the CLAIMANT (the insured vehicle owner) or the THIRD PARTY (the other vehicle).
+    - If the claimant's own vehicle registration appears on the charge/TAB, return "claimant"
+    - If the third party's vehicle registration appears on the charge/TAB, return "third_party"
+    - If a person's name is given and you can identify them as claimant or third party, return "claimant" or "third_party" accordingly
+    - If a charge was issued but you cannot determine which party, return "unknown"
+    - If no charge was issued at all, return null
+  * Do NOT return a raw vehicle registration number as the value — return the party role ("claimant", "third_party", "unknown") or the person's name if clearly identified.
+
+CRITICAL — policeInvestigationStatus (subrogation key field):
+  Map the document text to one of these exact values: CHARGED | UNDER_INVESTIGATION | NO_CHARGE | CASE_WITHDRAWN | UNKNOWN
+  Reasoning guide:
+  * CHARGED: A TAB number, charge sheet, or explicit statement that a party was charged or prosecuted
+  * UNDER_INVESTIGATION: Phrases like 'docket opened', 'case opened', 'under investigation', 'inquest opened', 'matter referred to CID'
+  * NO_CHARGE: Phrases like 'no charge issued', 'no TAB', 'no case opened', 'matter closed without charge', 'no prosecution'
+  * CASE_WITHDRAWN: Phrases like 'case withdrawn', 'charge withdrawn', 'matter withdrawn', 'nolle prosequi'
+  * UNKNOWN: Police report present but status not stated
+  * Return null ONLY if no police report is present in the document at all.
+
+CRITICAL — policeOfficerFindings (subrogation key field):
+  Extract ONLY the officer's own factual observations and conclusions — not form labels, not boilerplate, not the claimant's account.
+  INCLUDE: What the officer observed at the scene (skid marks, point of impact, vehicle positions, road conditions, witness statements recorded by the officer, the officer's own account of what happened, the officer's conclusion about fault or cause).
+  EXCLUDE: Form headings, blank fields, the claimant's narrative, assessor comments, repair descriptions.
+  If the officer wrote a narrative section, extract it verbatim.
+  If the officer's findings are only implied by the charge (e.g. a TAB was issued), note this: "Officer issued TAB [number] — findings not separately recorded."
+  Return null only if no officer findings or observations are present anywhere in the document.
+
+CRITICAL — thirdPartyAccountSummary:
+  Extract ONLY the third party's own first-person account of what happened — not what the claimant says about the third party.
+  Look for: a separate statement page, 'Third Party Statement', 'Other Driver Statement', 'TP Account', or any text explicitly representing what the third party said.
+  Return null if no third-party statement is present.
 
 CRITICAL SPEED EXTRACTION RULES:
 - estimatedSpeedKmh: Extract the numeric value ONLY. Strip any unit suffix (KM/HRS, KM/H, KPH, MPH, km/h, kph).

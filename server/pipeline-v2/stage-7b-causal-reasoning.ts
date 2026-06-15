@@ -600,6 +600,36 @@ export async function runCausalReasoningEngine(
   const { text: photoContext, imageUrls } = formatEnrichedPhotos(enrichedPhotosJson);
   const scoringBlock = formatScoringBlock(physics, precomputedScores ?? null);
 
+  // Build police evidence block — critical for wrongedParty and subrogation determination
+  const policeReport = claimRecord.policeReport;
+  function buildPoliceBlock(pr: typeof policeReport): string {
+    if (!pr || (!pr.reportNumber && !pr.chargedParty && !pr.investigationStatus && !pr.officerFindings)) {
+      return "No police report data available.";
+    }
+    const lines: string[] = [];
+    if (pr.reportNumber) lines.push(`Report number: ${pr.reportNumber}`);
+    if (pr.station) lines.push(`Station: ${pr.station}`);
+    if (pr.officerName) lines.push(`Attending officer: ${pr.officerName}`);
+    if (pr.chargeNumber) lines.push(`Charge/TAB number: ${pr.chargeNumber}`);
+    if (pr.chargedParty) {
+      const partyLabel = pr.chargedParty === 'claimant'
+        ? 'CLAIMANT (insured) was charged at the scene'
+        : pr.chargedParty === 'third_party'
+          ? 'THIRD PARTY was charged at the scene — strong indicator of third-party fault'
+          : pr.chargedParty === 'unknown'
+            ? 'A charge was issued but the charged party could not be identified'
+            : `Charged party: ${pr.chargedParty}`;
+      lines.push(partyLabel);
+    } else {
+      lines.push('No charge issued at the scene (or not recorded).');
+    }
+    if (pr.investigationStatus) lines.push(`Investigation status: ${pr.investigationStatus}`);
+    if (pr.officerFindings) lines.push(`Officer findings: ${pr.officerFindings}`);
+    if ((pr as any).thirdPartyAccountSummary) lines.push(`Third party account: ${(pr as any).thirdPartyAccountSummary}`);
+    return lines.join('\n');
+  }
+  const policeBlock = buildPoliceBlock(policeReport);
+
   const systemPrompt = `${KINGA_FORENSIC_SYSTEM_PROMPT}\n\nYou are a forensic vehicle incident analyst.
 You MUST:
 - Base conclusions ONLY on provided evidence (description, physics output, damage component list, photos)
@@ -656,6 +686,17 @@ ${damageContext}
 
 5. Precomputed Scores:
 ${scoringBlock}
+
+6. Police Report Evidence:
+${policeBlock}
+
+POLICE EVIDENCE WEIGHTING RULES:
+- If the police charged the THIRD PARTY at the scene, this is strong evidence that the third party was at fault. Weight this heavily in your wrongedParty determination — set wrongedParty to 'insured' (meaning the insured is the wronged party) and set thirdPartyLiabilityPct to at least 70 unless other evidence strongly contradicts this.
+- If the police charged the CLAIMANT at the scene, this is strong evidence that the claimant was at fault. Set wrongedParty to 'third_party' and thirdPartyLiabilityPct to 0–30 unless other evidence strongly contradicts this.
+- If the investigation is UNDER_INVESTIGATION, set wrongedParty to 'unknown' unless other evidence clearly establishes fault.
+- If NO_CHARGE was issued, this does not mean no fault — determine wrongedParty from the physical evidence.
+- Officer findings are factual observations, not legal conclusions. Use them as supporting evidence for your plausibility assessment.
+- Third party account (if present) is the third party's own version of events — treat it as a stakeholder statement, not objective fact.
 
 TASK:
 Determine the most plausible cause of the incident.

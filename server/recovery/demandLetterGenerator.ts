@@ -50,6 +50,9 @@ interface DemandLetterContext {
   vehicleYear?: number | null;
   policeReportNumber?: string | null;
   policeStation?: string | null;
+  policeChargedParty?: string | null;
+  policeInvestigationStatus?: string | null;
+  policeOfficerFindings?: string | null;
 
   // Insured (our client)
   insuredName?: string | null;
@@ -160,8 +163,11 @@ THIRD PARTY:
   Contact: ${ctx.thirdPartyContactDetails ?? "N/A"}
 
 POLICE REPORT: ${ctx.policeReportNumber ?? "N/A"} — ${ctx.policeStation ?? "N/A"}
+POLICE CHARGED PARTY: ${ctx.policeChargedParty === 'third_party' ? 'Third party was charged at the scene — strong liability indicator' : ctx.policeChargedParty === 'claimant' ? 'Claimant was charged at the scene' : ctx.policeChargedParty ?? 'Not recorded'}
+INVESTIGATION STATUS: ${ctx.policeInvestigationStatus ?? 'Not recorded'}
+OFFICER FINDINGS: ${ctx.policeOfficerFindings ?? 'Not recorded'}
 
-AI CAUSAL VERDICT SUMMARY:
+KINGA CAUSAL VERDICT SUMMARY:
 ${ctx.causalVerdictSummary ?? "Causal analysis indicates third-party liability. Full forensic report available on request."}
 
 WRONGED PARTY: ${ctx.wrongedParty === "insured" ? `Our insured (${ctx.insuredName ?? "the insured"})` : ctx.wrongedParty === "shared" ? "Shared liability" : "Third party at fault"}
@@ -523,6 +529,18 @@ export async function generateDemandLetter(recoveryCaseId: number): Promise<{
       causalVerdictSummary = cv?.summary ?? cv?.narrative ?? cv?.explanation ?? null;
     } catch { /* ignore */ }
   }
+  // 2b. Parse claimRecordJson for enriched police fields
+  let policeChargedParty: string | null = null;
+  let policeInvestigationStatus: string | null = null;
+  let policeOfficerFindings: string | null = null;
+  if (assessmentRow?.claimRecordJson) {
+    try {
+      const cr = JSON.parse(assessmentRow.claimRecordJson);
+      policeChargedParty = cr?.policeReport?.chargedParty ?? null;
+      policeInvestigationStatus = cr?.policeReport?.investigationStatus ?? null;
+      policeOfficerFindings = cr?.policeReport?.officerFindings ?? null;
+    } catch { /* ignore */ }
+  }
 
   // 3. Build context
   const ctx: DemandLetterContext = {
@@ -545,6 +563,9 @@ export async function generateDemandLetter(recoveryCaseId: number): Promise<{
     vehicleYear: claimRow.vehicleYear,
     policeReportNumber: claimRow.policeReportNumber ?? rcRow.thirdPartyPolicyNumber,
     policeStation: claimRow.policeStation,
+    policeChargedParty,
+    policeInvestigationStatus,
+    policeOfficerFindings,
 
     insuredName: claimRow.lodgerName ?? claimRow.vehicleOwnerName,
     insuredIdNumber: claimRow.claimantIdNumber,
