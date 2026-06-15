@@ -733,7 +733,7 @@ import type {
   DamagedNotQuotedFlag,
   ProbableHiddenDamageAdvisory,
 } from './types.js'; // tsx resolves .js → .ts automatically
-import { resolveToCanonical, resolveToCanonicalId } from '../../../shared/vehicleParts.js';
+import { resolveToCanonical, resolveToCanonicalId } from '../../shared/vehicleParts';
 import { isComponentCoveredByAssembly } from './canonicalPartsVocabulary.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
