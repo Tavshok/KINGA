@@ -265,7 +265,7 @@ export default function TenantRegistration() {
 
             <Separator />
 
-            {/* AI Configuration */}
+            {/* KINGA Configuration */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">KINGA Configuration</h3>
               

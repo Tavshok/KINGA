@@ -28,7 +28,7 @@ export type AIChatBoxProps = {
   onSendMessage: (content: string) => void;
 
   /**
-   * Whether the AI is currently generating a response
+   * Whether KINGA is currently generating a response
    */
   isLoading?: boolean;
 
@@ -60,7 +60,7 @@ export type AIChatBoxProps = {
 };
 
 /**
- * A ready-to-use AI chat box component that integrates with the LLM system.
+ * A ready-to-use KINGA chat box component that integrates with the LLM system.
  *
  * Features:
  * - Matches server-side Message interface for seamless integration
@@ -78,7 +78,7 @@ export type AIChatBoxProps = {
  *
  *   const chatMutation = trpc.ai.chat.useMutation({
  *     onSuccess: (response) => {
- *       // Assuming your tRPC endpoint returns the AI response as a string
+ *       // Assuming your tRPC endpoint returns the KINGA response as a string
  *       setMessages(prev => [...prev, {
  *         role: "assistant",
  *         content: response
@@ -117,7 +117,7 @@ export function AIChatBox({
   placeholder = "Type your message...",
   className,
   height = "600px",
-  emptyStateMessage = "Start a conversation with AI",
+  emptyStateMessage = "Start a conversation with KINGA",
   suggestedPrompts,
 }: AIChatBoxProps) {
   const [input, setInput] = useState("");

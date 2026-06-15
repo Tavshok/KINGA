@@ -5580,7 +5580,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         // Filter to vehicle damage photos only — re-index so panel shows Photo 1, 2, 3...
         // A photo is excluded only when BOTH conditions are true:
         //   1. The photoForensicsEngine flagged it as non-vehicle (is_non_vehicle: true)
-        //   2. The AI vision description explicitly confirms it's a document/form page
+        //   2. The KINGA Vision description explicitly confirms it's a document/form page
         // This prevents PDF-embedded vehicle photos from being incorrectly excluded
         // when the engine marks them as non-vehicle due to document context.
         const vehiclePhotos = exifResults.filter(r => {

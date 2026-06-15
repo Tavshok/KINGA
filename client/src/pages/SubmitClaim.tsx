@@ -583,7 +583,7 @@ export default function SubmitClaim() {
       <main className="container mx-auto px-4 py-6">
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-6">
 
-          {/* STEP 0: AI Document Upload (always visible) */}
+          {/* STEP 0: KINGA Document Upload (always visible) */}
           <Card className="border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50">
             <CardHeader>
               <div className="flex items-center gap-2">
