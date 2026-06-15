@@ -50,7 +50,7 @@ describe('Assessment Processor v2 Types', () => {
     const quotes = [];
     if (originalQuote > 0) quotes.push({ label: 'Original', amount: originalQuote, source: 'Repairer', type: 'original' });
     if (agreedCost > 0) quotes.push({ label: 'Agreed', amount: agreedCost, source: 'Assessor', type: 'agreed' });
-    if (aiEstimate > 0) quotes.push({ label: 'AI', amount: aiEstimate, source: 'KINGA', type: 'ai' });
+    if (aiEstimate > 0) quotes.push({ label: 'KINGA', amount: aiEstimate, source: 'KINGA', type: 'ai' });
     if (marketValue > 0) quotes.push({ label: 'Market Value', amount: marketValue, source: 'Reference', type: 'reference' });
 
     expect(quotes).toHaveLength(4);

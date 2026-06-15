@@ -219,7 +219,7 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
             tenantId: claim.tenantId,
             historicalClaimId: hcId,
             comparisonType: "ai_vs_final",
-            sourceALabel: "AI Prediction",
+            sourceALabel: "KINGA Prediction",
             sourceBLabel: "Final Approved",
             sourceAAmount: String(aiPredictedCost),
             sourceBAmount: approvedAmountFinal.toFixed(2),

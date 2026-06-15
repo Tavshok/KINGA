@@ -2098,11 +2098,11 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
   
   if (aiEstimate > 0) {
     quotes.push({
-      label: 'AI Component Estimate',
+      label: 'KINGA Component Estimate',
       amount: aiEstimate,
       source: 'KINGA AI',
       type: 'ai',
-      description: 'Sum of individual component repair/replace estimates by AI'
+      description: 'Sum of individual component repair/replace estimates by KINGA'
     });
   }
   

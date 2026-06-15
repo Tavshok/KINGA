@@ -9,7 +9,7 @@
  *   - Mismatch warning when assigned repairer differs from claimant preference
  *   - Override Reason display when insurer overrode the AI recommendation
  *   - Panel beater quotes table
- *   - AI Quote Optimisation Summary (risk score, recommended repairer,
+ *   - KINGA Quote Optimisation Summary (risk score, recommended repairer,
  *     per-quote cost deviation, flags, AI narrative, insurer decision)
  *   - Graceful fallback when no optimisation result exists
  *   - Audit log entry: action = "claim_pdf_exported"
@@ -323,7 +323,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
   <div class="section no-break" style="border-left:4px solid #0d9488;padding-left:12px;">
     <h2 class="section-title" style="color:#0d9488;">Post-Settlement Recovery Advisory</h2>
     <p style="font-size:9pt;color:#374151;margin-bottom:8px;">
-      The AI causal analysis identified <strong>${liabilityLabel} third-party liability (${liabilityPct}%)</strong>.
+      The KINGA causal analysis identified <strong>${liabilityLabel} third-party liability (${liabilityPct}%)</strong>.
       Upon settlement of this claim, subrogation recovery proceedings against the at-fault third party
       and/or their insurer are recommended.
     </p>
@@ -353,10 +353,10 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
   if (!optimisation || optimisation.status !== "completed") {
     optimisationSection = `
     <div class="section no-break">
-      <h2 class="section-title">AI Quote Optimisation Summary</h2>
+      <h2 class="section-title">KINGA Quote Optimisation Summary</h2>
       <div class="no-optimisation-notice">
         <span class="no-opt-icon">ℹ</span>
-        No AI optimisation performed.
+        No KINGA optimisation performed.
       </div>
     </div>`;
   } else {
@@ -431,7 +431,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
 
     optimisationSection = `
     <div class="section page-break">
-      <h2 class="section-title">AI Quote Optimisation Summary</h2>
+      <h2 class="section-title">KINGA Quote Optimisation Summary</h2>
 
       <!-- Risk Score + Recommended Repairer ─────────────────────────────── -->
       <div class="opt-header-grid">
@@ -448,7 +448,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
         </div>
 
         <div class="opt-metric-card">
-          <div class="opt-metric-label">AI Recommended Repairer</div>
+          <div class="opt-metric-label">KINGA Recommended Repairer</div>
           <div class="opt-metric-value opt-metric-repairer">
             ${optimisation.recommendedCompanyName ?? optimisation.recommendedProfileId ?? "—"}
           </div>
@@ -469,7 +469,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
 
       <!-- AI Narrative ────────────────────────────────────────────────────── -->
       ${optimisation.optimisationSummary ? `
-      <h3 class="section-subtitle">AI Narrative Summary</h3>
+      <h3 class="section-subtitle">KINGA Narrative Summary</h3>
       <div class="ai-narrative">${optimisation.optimisationSummary}</div>` : ""}
 
       <!-- Per-Quote Analysis ──────────────────────────────────────────────── -->
@@ -752,7 +752,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
   <div class="report-header no-break">
     <div>
       <div class="report-title">Claim Report</div>
-      <div class="report-subtitle">KINGA AI — Insurer Export</div>
+      <div class="report-subtitle">KINGA — Insurer Export</div>
       <div class="header-meta">
         <span class="header-meta-label">Claim Number:</span>
         <span class="header-meta-value">${claim.claimNumber}</span>
@@ -841,7 +841,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
     </table>` : `<p style="color:#6b7280;font-size:9pt;">No quotes have been submitted for this claim.</p>`}
   </div>
 
-  <!-- ── AI Quote Optimisation Summary ────────────────────────────────── -->
+  <!-- ── KINGA Quote Optimisation Summary ────────────────────────────────── -->
   ${optimisationSection}
 
   <!-- ── Post-Settlement Recovery Advisory ────────────────────────── -->
@@ -864,7 +864,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
  *
  * Generates a governance-complete PDF for a single claim.
  * Includes ranked panel beater choices with Preferred/SLA/AI-Recommended badges,
- * mismatch warning, override reason, AI Quote Optimisation Summary, and an
+ * mismatch warning, override reason, KINGA Quote Optimisation Summary, and an
  * audit log entry (action: "claim_pdf_exported").
  *
  * @requires insurerDomainProcedure — structural tenant isolation enforced

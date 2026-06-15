@@ -312,7 +312,7 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
       labour_cost: Math.round(costPerComponent * 0.4),
       total: costPerComponent,
       source: "estimated" as const,
-      source_label: `Component-based estimate (${severity} severity, no quote or AI extraction available)`,
+      source_label: `Component-based estimate (${severity} severity, no quote or KINGA extraction available)`,
     }));
 
     return {

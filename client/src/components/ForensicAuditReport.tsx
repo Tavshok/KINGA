@@ -1332,15 +1332,22 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
                     <td style={tdC}><span style={{ fontSize: 10, fontWeight: 600, color: 'var(--kr-muted)' }}>{r.status}</span></td>
                   </tr>
                 ))}
-                {kingaOptTotal3 > 0 && (
-                  <tr style={{ borderTop: '2px solid #111' }}>
-                    <td style={{ ...tdC, fontWeight: 700, color: 'var(--kr-green)' }}>KINGA KINGA Estimate</td>
-                    <td style={tdN}>—</td>
-                    <td style={tdN}>—</td>
-                    <td style={{ ...tdN, fontWeight: 700, color: 'var(--kr-green)' }}>{fmtMoney(kingaOptTotal3)}</td>
-                    <td style={{ ...tdC, fontWeight: 700, color: 'var(--kr-green)' }}>KINGA Optimised</td>
-                  </tr>
-                )}
+                {kingaOptTotal3 > 0 && (() => {
+                  const lowestSubmitted3 = qsRows.length > 0 ? Math.min(...qsRows.map(r => r.total).filter(t => t > 0)) : 0;
+                  const savingsPct3 = lowestSubmitted3 > 0 && kingaOptTotal3 < lowestSubmitted3 ? ((lowestSubmitted3 - kingaOptTotal3) / lowestSubmitted3 * 100) : 0;
+                  return (
+                    <tr style={{ borderTop: '2px solid #111' }}>
+                      <td style={{ ...tdC, fontWeight: 700, color: 'var(--kr-green)' }}>KINGA Estimate</td>
+                      <td style={tdN}>—</td>
+                      <td style={tdN}>—</td>
+                      <td style={{ ...tdN, fontWeight: 700, color: 'var(--kr-green)' }}>{fmtMoney(kingaOptTotal3)}</td>
+                      <td style={{ ...tdC, fontWeight: 700, color: 'var(--kr-green)' }}>
+                        KINGA Optimised
+                        {savingsPct3 > 0 && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--kr-green)', fontWeight: 700 }}>↓ {savingsPct3.toFixed(1)}% vs lowest quote</span>}
+                      </td>
+                    </tr>
+                  );
+                })()}
               </tbody>
             </table>
           </div>
@@ -5382,6 +5389,12 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
               </div>
             );
           })()}
+          {photoUrls.length === 0 && (
+            <div className="mt-3 px-4 py-6 text-center rounded" style={{ border: '1px dashed var(--kr-rule)', background: 'var(--kr-off-white)' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--kr-muted)' }}>No damage photographs submitted</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)' }}>Damage photographs were not provided with this claim. Request photo evidence from the claimant before settlement to enable KINGA Vision analysis.</p>
+            </div>
+          )}
           {photoUrls.length > 0 && (
             <div className="mt-3">
               {/* C-09: Classification status indicator */}
@@ -6070,7 +6083,8 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                   // with a bar scaled against the indicator's actual maximum (not a fixed 20).
                   // The final fraud score is a weighted composite, not a sum of these raw scores.
                   const maxScore = Math.max(score, 35); // scale bar against realistic max
-                  const scoreColor = isExcluded ? "var(--kr-muted)" : score > 20 ? "var(--fp-critical-text)" : score > 10 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
+                  // score=0 means indicator was evaluated but not triggered — show muted, not green
+                  const scoreColor = isExcluded ? "var(--kr-muted)" : score === 0 ? "var(--kr-muted)" : score > 20 ? "var(--fp-critical-text)" : score > 10 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
 
                   // Plain-English factor label map
                   const factorLabelMap: Record<string, string> = {
@@ -6126,7 +6140,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                         {factorLabel}
                         {isExcluded && <span className="ml-1 text-xs" style={{ color: 'var(--kr-muted)' }}>(excluded)</span>}
                       </td>
-                      <td className="px-3 py-2 font-bold" style={{ color: scoreColor }}>{isExcluded ? "0 (adj)" : `${score} pts`}</td>
+                      <td className="px-3 py-2 font-bold" style={{ color: scoreColor }}>{isExcluded ? "0 (adj)" : score === 0 ? <span title="Indicator evaluated — not triggered for this claim" style={{ color: 'var(--kr-muted)', fontStyle: 'italic' }}>Not triggered</span> : `${score} pts`}</td>
                       <td className="px-3 py-2" style={{ minWidth: 80 }}>
                         <div className="h-1.5 rounded-full" style={{ background: 'var(--kr-white)' }}>
                           <div className="h-1.5 rounded-full" style={{ width: `${isExcluded ? 0 : Math.min(100, (score / maxScore) * 100)}%`, background: scoreColor }} />

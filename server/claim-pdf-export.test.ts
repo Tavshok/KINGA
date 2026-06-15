@@ -501,7 +501,7 @@ describe("generateClaimPDFHTML — HTML content verification", async () => {
     const text = optimisation === null
       ? "No AI optimisation performed."
       : "AI Quote Optimisation Summary";
-    expect(text).toBe("No AI optimisation performed.");
+    expect(text).toBe("No KINGA optimisation performed.");
   });
 
   it("optimisation branch: section title rendered when status is completed", () => {
@@ -509,7 +509,7 @@ describe("generateClaimPDFHTML — HTML content verification", async () => {
     const text = optimisation.status === "completed"
       ? "AI Quote Optimisation Summary"
       : "No AI optimisation performed.";
-    expect(text).toBe("AI Quote Optimisation Summary");
+    expect(text).toBe("KINGA Quote Optimisation Summary");
   });
 
   it("override reason is included in overridden decision HTML", () => {

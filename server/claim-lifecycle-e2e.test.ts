@@ -266,7 +266,7 @@ async function runAiOptimisation(
     userId: 0, // system
     action: "ai_optimisation_completed",
     entityType: "quote_optimisation_result",
-    changeDescription: `AI optimisation completed. Risk score: ${riskScore}. Recommended: ${recommendedProfileId}.`,
+    changeDescription: `KINGA optimisation completed. Risk score: ${riskScore}. Recommended: ${recommendedProfileId}.`,
   });
   lifecycleState.auditLog.push({ action: "ai_optimisation_completed", userId: 0, claimId });
   return { success: true, riskScore, recommendedProfileId };
