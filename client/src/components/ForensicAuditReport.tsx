@@ -2360,58 +2360,49 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   );
 }
 // ─── Section 2: Technical Forensics ──────────────────────────────────────────
-
+// Redesigned structure (June 2026):
+//   2.1  Impact Overview       — 4-metric KPI row + physics status + animal strike + reconstruction
+//   2.2  Speed Analysis        — consensus speed + method list + speed scale + forensic interpretation
+//   2.3  Damage Zone & Pattern — zone map (left) + expected-vs-actual pattern table (right)
+//   2.4  Physics Constraints   — failed/advisory rows only; passing constraints summarised in one line
+//   2.5  Component Measurements— 3-column table (Component / Crush Depth / Damage Fraction) + totals
+//   2.6  Damage Severity & Coverage — severity chart (left) + quote coverage stats (right)
+//   2.7  Pattern Validation    — Section29DamagePatternValidation inline
+//   2.8  Vehicle Structural Intelligence — Section210VehicleStructural relabelled
 function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = fmtUsd }: { claim: any; aiAssessment: any; enforcement: any; quotes?: any[]; fmtMoney?: (n: number | null | undefined) => string }) {
   const e = enforcement;
   const pe = e?.physicsEstimate;
-  // claimRecord0 — needed for panel beater name and repair cost total in 2.5
   const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
-  // _physics contains the authoritative Stage7 values (actual physics engine output)
-  // physicsEstimate is only populated when Stage7 didn't run (estimated values)
   const _phys = (e as any)?._physics as { deltaVKmh: number; impactForceKn: number; energyKj: number; vehicleMassKg: number; estimatedSpeedKmh: number } | undefined;
   const phase2 = (e as any)?._phase2 as any;
   const physicsScore = phase2?.physicsConsistency ?? e?.consistencyFlag?.score ?? 0;
   const constraints: any[] = phase2?.physicsConstraints ?? [];
-  // Fall back to claim.incidentType when pipeline returns REQUIRES_CLASSIFICATION
   const _rawIt2 = phase2?.incidentType ?? aiAssessment?.incidentType;
   const _unresolved2 = !_rawIt2 || _rawIt2 === "REQUIRES_CLASSIFICATION" || _rawIt2 === "REQUIRES CLASSIFICATION" || _rawIt2 === "unknown";
   const incidentType = _unresolved2 ? (claim?.incidentType ?? "unknown") : _rawIt2;
-  // Use actual Stage7 values first, fall back to physicsEstimate (estimated)
   const deltaV = (_phys?.deltaVKmh ?? 0) > 0 ? _phys!.deltaVKmh : (pe?.deltaVKmh ?? 0);
   const claimedSpeed = claimRecord0?.accidentDetails?.estimatedSpeedKmh
     ?? (aiAssessment as any)?._normalised?.physics?.claimedSpeedKmh
     ?? aiAssessment?.claimedSpeedKmh
     ?? 0;
-  // energyKj: prefer Stage7 actual value, then physicsEstimate range midpoint
   const energyKj = (_phys?.energyKj ?? 0) > 0
     ? _phys!.energyKj
     : pe?.energyKj ? (pe.energyKj.min + pe.energyKj.max) / 2 : 0;
-  // impactForceKn: prefer Stage7 actual value, then physicsEstimate range midpoint
   const impactForceKnDisplay = (_phys?.impactForceKn ?? 0) > 0
     ? _phys!.impactForceKn
     : pe?.impactForceKn ? (pe.impactForceKn.min + pe.impactForceKn.max) / 2 : 0;
-  // vehicleMassKg: from Stage7 bridge value
   const vehicleMassKg = (_phys?.vehicleMassKg ?? 0) > 0 ? _phys!.vehicleMassKg : null;
-  // estimatedSpeedKmh: from Stage7 or physicsEstimate
   const estimatedSpeedKmh = (_phys?.estimatedSpeedKmh ?? 0) > 0 ? _phys!.estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? 0);
-  // physicsInferredSpeed: the best available physics-derived speed estimate
   const physicsInferredSpeed = estimatedSpeedKmh > 0 ? estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? null);
-  // Prefer severityConsensus.final_severity (Stage 7 three-source consensus) over
-  // structuralDamageSeverity (Stage 6 single-source DB enum) to avoid inter-section contradictions.
   const _sc2 = (_phys as any)?.severityConsensus;
   const severity = _sc2?.final_severity ?? aiAssessment?.structuralDamageSeverity ?? "unknown";
-
-  // damageZones is at the top level of the enforcement result — NOT inside directionFlag
-  // (IntelligenceEnforcementResult.directionFlag only has mismatch/explanation/possibleExplanations)
   const damageZones: string[] = (e as any)?.damageZones ?? e?.directionFlag?.damageZones ?? [];
   const directionMismatch = e?.directionFlag?.mismatch ?? false;
   const directionExplanation = e?.directionFlag?.explanation ?? "";
   const consistencyExplanation = e?.consistencyFlag?.explanation ?? "";
   const anomalyLevel = e?.consistencyFlag?.anomalyLevel ?? "none";
-  // Derive multiEventSequence from claimRecord (same pattern as Section1Incident)
   const _s2claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   const multiEventSequence = _s2claimRecord?.accidentDetails?.multiEventSequence ?? null;
-
   const incidentPatterns: Record<string, { expected: string[]; notes: string }> = {
     ANIMAL_STRIKE: {
       expected: ["Bonnet/hood deformation", "Bumper deformation", "Radiator damage", "Airbag deployment (if >25 km/h)", "Seatbelt pre-tensioners (if >15 km/h)"],
@@ -2429,265 +2420,229 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
       expected: ["Rear bumper deformation", "Boot/tailgate damage", "Rear panel damage", "Seatbelt pre-tensioners", "Whiplash indicators"],
       notes: "Rear-end impacts produce damage concentrated at the rear zone. Front damage is inconsistent with this incident type and is a fraud indicator.",
     },
-    HEAD_ON: {
-      expected: ["Frontal bumper deformation", "Bonnet/radiator damage", "Airbag deployment", "Seatbelt pre-tensioners", "Engine bay intrusion (high speed)"],
-      notes: "Head-on collisions produce severe frontal damage with high energy dissipation. Airbag deployment is expected above 25 km/h.",
-    },
-    SIDESWIPE: {
-      expected: ["Door panel damage", "Mirror damage", "Sill/rocker panel scraping", "Minimal structural deformation"],
-      notes: "Sideswipe impacts produce lateral surface damage. Deep structural deformation is inconsistent with this incident type.",
-    },
-    SINGLE_VEHICLE: {
-      expected: ["Frontal or lateral damage (depending on obstacle)", "Possible rollover indicators", "No third-party contact evidence"],
-      notes: "Single-vehicle incidents involve no other vehicle. Third-party damage claims are inconsistent with this classification.",
-    },
-    PEDESTRIAN_STRIKE: {
-      expected: ["Bonnet deformation", "Windscreen damage", "Bumper deformation", "Airbag deployment"],
-      notes: "Pedestrian strikes produce frontal zone damage at bumper and bonnet height. Airbag deployment is expected above 25 km/h.",
-    },
     ROLLOVER: {
-      expected: ["Roof deformation", "Door frame damage", "Window breakage", "Airbag deployment", "Seatbelt pre-tensioners"],
-      notes: "Rollovers produce roof and door frame damage. Airbag deployment is expected above 25 km/h lateral velocity.",
+      expected: ["Roof deformation", "A/B/C-pillar damage", "Side panel damage", "Airbag deployment", "Seatbelt pre-tensioners"],
+      notes: "Rollovers produce multi-zone damage with roof and pillar deformation. Isolated panel damage without roof involvement is inconsistent.",
     },
     HAIL: {
-      expected: ["Panel dents (bonnet, roof, boot)", "Windscreen chips/cracks", "No structural deformation"],
-      notes: "Hail damage is characterised by distributed panel dents without structural deformation.",
+      expected: ["Distributed panel dents", "Windscreen damage", "Roof dents", "Bonnet dents"],
+      notes: "Hail damage produces distributed, low-energy dents across horizontal surfaces. Concentrated or deep structural damage is inconsistent.",
     },
-    THEFT: {
-      expected: ["Ignition damage", "Door lock damage", "Window breakage (forced entry)"],
-      notes: "Theft claims require evidence of forced entry. Absence of entry damage is a key fraud indicator.",
-    },
-    FLOOD: {
-      expected: ["Water ingress marks", "Electrical system damage", "Interior waterline", "Engine hydro-lock indicators"],
-      notes: "Flood damage is characterised by uniform water ingress across lower panels and interior. Isolated damage is inconsistent.",
-    },
+    THEFT: { expected: [], notes: "Theft claims are validated through police report cross-reference and timeline analysis." },
     FIRE: {
-      expected: ["Burn marks (engine bay or interior)", "Melted wiring", "Smoke damage", "Extinguisher residue"],
-      notes: "Fire damage should show consistent burn patterns. Isolated or localised burns without spread are suspicious.",
-    },
-    VANDALISM: {
-      expected: ["Panel scratches", "Window breakage", "Tyre slashing", "Mirror damage"],
-      notes: "Vandalism damage is typically surface-level and distributed. Deep structural damage is inconsistent with this type.",
-    },
-    HIJACKING: {
-      expected: ["Forced entry evidence", "Ignition damage", "Window breakage", "Possible collision damage (if rammed)"],
-      notes: "Hijacking claims should show evidence of forced entry or coercion. Absence of any physical evidence is a fraud indicator.",
-    },
-    MECHANICAL_FAILURE: {
-      expected: ["Engine/drivetrain damage", "No external impact marks", "Consistent with mechanical failure mode"],
-      notes: "Mechanical failure claims should show damage consistent with the failure mode. External collision damage is inconsistent.",
+      expected: ["Engine bay burn marks", "Interior fire damage", "Melted wiring", "Smoke damage"],
+      notes: "Fire damage patterns are validated against the reported ignition source and spread direction.",
     },
   };
+  const pattern = incidentPatterns[incidentType?.toUpperCase().replace(/\s+/g, "_")] ?? { expected: [], notes: "" };
 
-  // Normalise: map granular sub-types to their display key
-  const normalised = (incidentType ?? "").toUpperCase().replace(/ /g, "_");
-  // Map sub-types that have their own pattern entries
-  const patternKey = incidentPatterns[normalised] ? normalised
-    : normalised === "VEHICLE_COLLISION" ? "VEHICLE_COLLISION"
-    : normalised === "REAR_END" ? "REAR_END"
-    : normalised === "HEAD_ON" ? "HEAD_ON"
-    : normalised === "SIDESWIPE" ? "SIDESWIPE"
-    : normalised === "SINGLE_VEHICLE" ? "SINGLE_VEHICLE"
-    : normalised === "PEDESTRIAN_STRIKE" ? "PEDESTRIAN_STRIKE"
-    : normalised === "ANIMAL_STRIKE" ? "ANIMAL_STRIKE"
-    : normalised;
-  const pattern = incidentPatterns[patternKey] ?? {
-    expected: ["Damage consistent with stated incident type"],
-    notes: `Review damage components against incident narrative for ${(incidentType ?? "").replace(/_/g, " ")} claim type.`,
+  // ── Shared data for 2.6 Damage Severity & Coverage ──────────────────────────
+  const damagedPartsRaw = (aiAssessment as any)?.damagedComponentsJson;
+  const damagedParts: any[] = (() => {
+    if (!damagedPartsRaw) return [];
+    try {
+      const raw = typeof damagedPartsRaw === 'string' ? JSON.parse(damagedPartsRaw) : (Array.isArray(damagedPartsRaw) ? damagedPartsRaw : []);
+      const seen = new Set<string>();
+      return raw.filter((p: any) => {
+        const norm = toTitleCase((p.name ?? '').toLowerCase().trim());
+        if (seen.has(norm)) return false;
+        seen.add(norm);
+        return true;
+      }).map((p: any) => ({ ...p, name: toTitleCase((p.name ?? '').toLowerCase().trim()) || p.name }));
+    } catch { return []; }
+  })();
+  const damagedPartsBySeverity: any[] = (() => {
+    if (!damagedPartsRaw) return [];
+    try {
+      const raw = typeof damagedPartsRaw === 'string' ? JSON.parse(damagedPartsRaw) : (Array.isArray(damagedPartsRaw) ? damagedPartsRaw : []);
+      return raw.filter((p: any) => p.severity);
+    } catch { return []; }
+  })();
+  const partsReconRaw = (aiAssessment as any)?.partsReconciliationJson;
+  const partsRecon: any[] = (() => {
+    if (!partsReconRaw) return [];
+    try { return typeof partsReconRaw === 'string' ? JSON.parse(partsReconRaw) : (Array.isArray(partsReconRaw) ? partsReconRaw : []); } catch { return []; }
+  })();
+  const extraItems: any[] = (() => {
+    const reconSummaryRaw = (aiAssessment as any)?.costIntelligenceJson?.reconciliationSummary;
+    if (!reconSummaryRaw) return [];
+    try {
+      const rs = typeof reconSummaryRaw === 'string' ? JSON.parse(reconSummaryRaw) : reconSummaryRaw;
+      return Array.isArray(rs?.extra) ? rs.extra : [];
+    } catch { return []; }
+  })();
+  const matchedCount = partsRecon.filter((r: any) => r.reconciliation_status === 'matched').length;
+  const missingCount = partsRecon.filter((r: any) => r.reconciliation_status === 'missing_from_quote').length;
+  const noQuoteCount = partsRecon.filter((r: any) => r.reconciliation_status === 'no_quote_available').length;
+  const structuralCount = partsRecon.filter((r: any) => r.is_structural).length;
+  const coverageRatio = partsRecon.length > 0 ? matchedCount / partsRecon.length : 0;
+  const coverageColor = coverageRatio >= 0.8 ? 'var(--status-pass-text)' : coverageRatio >= 0.5 ? 'var(--status-review-text)' : 'var(--status-fail-text)';
+  const coverageBg = coverageRatio >= 0.8 ? 'var(--status-pass-bg)' : coverageRatio >= 0.5 ? 'var(--status-review-bg)' : 'var(--status-fail-bg)';
+  const pbName = (quotes ?? []).find((q: any) => q.panelBeaterName || q.repairerName)?.panelBeaterName
+    ?? (quotes ?? []).find((q: any) => q.panelBeaterName || q.repairerName)?.repairerName
+    ?? claimRecord0?.repairQuote?.repairerName
+    ?? (aiAssessment as any)?.panelBeaterName
+    ?? null;
+  const missingNames = partsRecon.filter((r: any) => r.reconciliation_status === 'missing_from_quote').map((r: any) => (r.component ?? ''));
+  const damagePatternValidation = (aiAssessment as any)?._physics?.damagePatternValidation ?? null;
+
+  // ── Latent Damage Probability data ──────────────────────────────────────────
+  const ldp = (_phys as any)?.latentDamageProbability ?? {};
+  const ldpSorted: [string, number][] = Object.entries(ldp)
+    .filter(([, v]) => typeof v === 'number' && (v as number) > 0)
+    .sort(([, a], [, b]) => (b as number) - (a as number)) as [string, number][];
+  const showLdp = ldpSorted.length > 0;
+  const ldpChartData = showLdp ? {
+    labels: ldpSorted.map(([k]) => k.replace(/_/g, ' ')),
+    datasets: [{
+      label: 'Probability (%)',
+      data: ldpSorted.map(([, v]) => v),
+      backgroundColor: ldpSorted.map(([, v]) => (v as number) >= 70 ? 'rgba(239,68,68,0.7)' : (v as number) >= 40 ? 'rgba(245,158,11,0.7)' : 'rgba(59,130,246,0.7)'),
+      borderRadius: 3,
+    }],
+  } : null;
+  const ldpOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 9 } } }, y: { min: 0, max: 100, ticks: { font: { size: 9 } } } } };
+
+  // ── Animal strike specific data ──────────────────────────────────────────────
+  const animalStrikeProfiles: any[] = (_phys as any)?.animalStrikeProfiles ?? [];
+  const isAnimalStrike = incidentType?.toUpperCase().includes('ANIMAL');
+
+  // ── Speed ensemble data (for 2.2) ────────────────────────────────────────────
+  const ensemble = (_phys as any)?.speedInferenceEnsemble;
+  const vr = (_phys as any)?.velocityRange ?? (_phys as any)?.physicsNumerical?.velocity_range;
+  const consensusSpeed: number | null = ensemble?.consensusSpeed ?? ensemble?.consensus_speed ?? null;
+  const confidenceLevel: string = ensemble?.confidenceLevel ?? ensemble?.confidence_level ?? 'low';
+  const divergenceFlag: boolean = ensemble?.divergenceFlag ?? ensemble?.divergence_flag ?? false;
+  const activeMethods: any[] = (ensemble?.methods ?? []).filter((m: any) => !(ensemble?.crossValidation?.outlierMethods ?? []).includes(m.method ?? m.id ?? ''));
+  const allMethods: any[] = ensemble?.methods ?? [];
+  const availableCount: number = activeMethods.length;
+  const spread: number = ensemble?.crossValidation?.spread ?? ensemble?.spread ?? 0;
+  const speedForensics = (_phys as any)?.speedForensics ?? null;
+
+  const categoryMap: Record<string, string> = {
+    CAMPBELL: 'Structural Deformation Analysis',
+    ENERGY_MOMENTUM: 'Energy-Momentum Balance',
+    IMPULSE: 'Contact Impulse Analysis',
+    DEPLOYMENT_THRESHOLD: 'Safety System Activation',
+    VISION_DEFORMATION: 'Vision Deformation Analysis',
+    M1: 'Structural Deformation Analysis',
+    M2: 'Energy-Momentum Balance',
+    M3: 'Contact Impulse Analysis',
+    M4: 'Safety System Activation',
+    M5: 'Vision Deformation Analysis',
   };
 
   return (
-    <div className="mb-1 space-y-2" style={{ marginBottom: "8px" }}>
-      {/* Section 2 Plain-English Summary */}
-      {(() => {
-        // When severity consensus signals are CONFLICTED, escalate the banner regardless of physicsScore
-        // to avoid the contradiction of showing "Minor Inconsistencies" while Section 2.4c shows "INCONCLUSIVE".
-        const _sc2sum = (_phys as any)?.severityConsensus;
-        const _scAlign = _sc2sum?.source_alignment ?? null;
-        const _scConflicted = _scAlign && _scAlign !== 'FULL' && _scAlign !== 'FULLY_ALIGNED' && _scAlign !== 'ALIGNED' && _scAlign !== 'PARTIAL';
-        const consistencyVerdict = physicsScore >= 70 && !_scConflicted
-          ? { label: 'Physics Consistent', text: `The physical damage evidence is consistent with the reported incident. The calculated impact speed and energy are proportional to the observed damage. No significant anomalies were detected.`, bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', icon: '\u2713' }
-          : (physicsScore >= 30 && !_scConflicted)
-          ? { label: 'Minor Inconsistencies', text: `The physical damage evidence shows some inconsistencies with the reported incident. The overall physics score is ${Math.round(physicsScore)}%. These inconsistencies do not necessarily indicate fraud but should be reviewed by the attending assessor before settlement.`, bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', icon: '!' }
-          : { label: 'Significant Anomaly — Engineering Review Required', text: `The physical damage evidence is significantly inconsistent with the reported incident. The physics score of ${Math.round(physicsScore)}% is below the acceptable threshold${_scConflicted ? ', and the severity signals from multiple sources are in conflict' : ''}. An independent engineering assessment is required before this claim can proceed to settlement.`, bg: 'var(--fp-critical-bg)', border: 'var(--fp-critical-border)', icon: '\u26a0' };
-        return (
-          <div className="" style={{ border: `1px solid ${consistencyVerdict.border}`, background: 'var(--kr-white)' }}>
-            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${consistencyVerdict.border}`, background: consistencyVerdict.bg }}>
-              <p className="sub-heading">Section 2 Summary — Technical Forensics</p>
-              <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: 'var(--kr-white)', color: 'var(--kr-text)', border: `1px solid ${consistencyVerdict.border}` }}>{consistencyVerdict.label}</span>
-            </div>
-            <div className="p-4">
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--kr-text)' }}>{consistencyVerdict.text}</p>
-              <p className="text-xs mt-2" style={{ color: 'var(--kr-muted)' }}>This section analyses the physical mechanics of the reported incident: impact speed, energy, force, damage direction, and structural integrity. The technical findings below support or challenge the incident narrative. Scroll through each subsection for the detailed findings.</p>
-            </div>
-          </div>
-        );
-      })()}
-      {/* 2.1 Impact Physics */}
-      <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-        <div className="px-4 py-3 flex items-center justify-between" >
-          <p className="sub-heading">2.1 Impact Physics</p>
-          <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{Math.round(physicsScore)}% consistent</span>
+    <div className="space-y-4">
+
+      {/* ── 2.1 Impact Overview ─────────────────────────────────────────────── */}
+      <div style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)' }}>
+          <p className="sub-heading">2.1 Impact Overview</p>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{
+            background: physicsScore >= 70 ? 'var(--fp-success-bg)' : physicsScore >= 30 ? 'var(--fp-warning-bg)' : 'var(--fp-critical-bg)',
+            color: physicsScore >= 70 ? 'var(--fp-success-text)' : physicsScore >= 30 ? 'var(--fp-warning-text)' : 'var(--fp-critical-text)',
+            border: `1px solid ${physicsScore >= 70 ? 'var(--fp-success-border)' : physicsScore >= 30 ? 'var(--fp-warning-border)' : 'var(--fp-critical-border)'}`,
+          }}>
+            Physics {Math.round(physicsScore)}% — {physicsScore >= 70 ? 'Consistent' : physicsScore >= 30 ? 'Minor anomaly' : 'Anomaly detected'}
+          </span>
         </div>
         <div className="p-4">
-          {/* 2.1 main layout: physics table (left) | gauge + LDP chart (right) */}
-          {(() => {
-            const ldp = (_phys as any)?.latentDamageProbability;
-            const ldpEntries = ldp ? (Object.entries(ldp) as [string, number][]) : [];
-            const ldpScale = ldpEntries.length > 0 && Math.max(...ldpEntries.map(([,v]) => v)) <= 1 ? 100 : 1;
-            const ldpNorm = ldpEntries.map(([k, v]) => [k, Math.round(v * ldpScale)] as [string, number]);
-            const ldpSignificant = ldpNorm.filter(([,v]) => v >= 15);
-            const showLdp = ldpSignificant.length > 0;
-            const ldpSorted = [...ldpSignificant].sort(([,a],[,b]) => b - a);
-            const ldpColors = ldpSorted.map(([,pct]) => pct >= 60 ? '#dc2626' : pct >= 35 ? '#d97706' : '#16a34a');
-            const ldpChartData = showLdp ? {
-              labels: ldpSorted.map(([sys]) => sys.charAt(0).toUpperCase() + sys.slice(1)),
-              datasets: [{ label: 'Probability (%)', data: ldpSorted.map(([,pct]) => pct), backgroundColor: ldpColors, borderRadius: 3, borderWidth: 0 }],
-            } : null;
-            const ldpOpts: any = {
-              responsive: true, maintainAspectRatio: false,
-              plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw}%` } },
-                annotation: { annotations: { threshold: { type: 'line', yMin: 40, yMax: 40, borderColor: '#d97706', borderWidth: 1.5, borderDash: [4, 3], label: { content: '40% Threshold', display: true, position: 'start', yAdjust: -10, font: { size: 9, weight: 'bold' }, color: '#92400e', backgroundColor: 'rgba(255,251,235,0.9)', padding: { x: 4, y: 2 } } } } },
-              },
-              scales: {
-                x: { grid: { display: false }, ticks: { color: '#1f2937', font: { size: 10 }, maxRotation: 40, minRotation: 30, autoSkip: false }, border: { display: false } },
-                y: { min: 0, max: 100, grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { color: '#374151', font: { size: 10 }, callback: (v: any) => v + '%' }, border: { display: false } },
-              },
-              layout: { padding: { top: 20, bottom: 4, left: 4, right: 4 } },
-            };
-            return (
-              <>
-              {/* two-col-kv: physics data split across two tables */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: 12 }}>
-                <table className="compact-kv-table text-xs w-full">
-                  <tbody>
-                    {[
-                      ["Impact Severity", toSentenceCase((severity ?? "").replace(/_/g, " "))],
-                      ["Estimated Speed", estimatedSpeedKmh > 0 ? `${fmt(estimatedSpeedKmh, 1)} km/h (physics estimate)` : (claimedSpeed > 0 ? `${claimedSpeed} km/h (driver stated)` : "Not stated")],
-                      ["Impact Direction", directionMismatch ? `${toSentenceCase(((_phys as any)?.impactDirection ?? "Unknown").replace(/_/g, " "))} (document) / Frontal (damage)` : toSentenceCase(((_phys as any)?.impactDirection ?? "Unknown").replace(/_/g, " "))],
-                      ["Delta-V Estimate", deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : "N/A"],
-                      ["Kinetic Energy", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
-                      ["Force", impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : "N/A"],
-                    ].map(([k, v], i) => (
-                      <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
-                        <td className="py-1.5 pr-3 font-semibold" style={{ color: 'var(--kr-muted)' }}>{k}</td>
-                        <td className="py-1.5 tabular-nums" style={{ color: 'var(--kr-text)' }}>{v}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <table className="compact-kv-table text-xs w-full">
-                  <tbody>
-                    {[
-                      ["Vehicle Mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
-                      ["Deceleration", (_phys as any)?.decelerationG > 0 ? `${fmt((_phys as any).decelerationG, 2)} g` : "N/A"],
-                      ["Structural Deformation", (_phys as any)?.structuralDeformation ?? "N/A"],
-                      ["Airbag Deployment", (_phys as any)?.airbagDeployment ?? "N/A"],
-                      ["Physics Confidence", `${Math.round(physicsScore)}% (${physicsScore >= 70 ? "consistent" : physicsScore >= 30 ? "minor anomaly" : "anomaly"})`],
-                      ["Damage Consistency", (_phys as any)?.damageConsistencyScore != null ? `${Math.round((_phys as any).damageConsistencyScore)}/100 — ${(_phys as any).damageConsistencyScore >= 70 ? "Good" : (_phys as any).damageConsistencyScore >= 40 ? "Moderate" : "Poor"}` : `${Math.round(physicsScore)}/100`],
-                      ["Severity Classification", toSentenceCase((severity ?? "").replace(/_/g, " "))],
-                    ].map(([k, v], i) => (
-                      <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
-                        <td className="py-1.5 pr-3 font-semibold" style={{ color: 'var(--kr-muted)' }}>{k}</td>
-                        <td className="py-1.5 tabular-nums" style={{ color: 'var(--kr-text)' }}>{v}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* 4-metric KPI row */}
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            {[
+              { label: 'Delta-V', value: deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : '—', sub: 'Velocity change' },
+              { label: 'Kinetic Energy', value: energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : '—', sub: 'Impact energy' },
+              { label: 'Impact Force', value: impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : '—', sub: 'Peak force' },
+              { label: 'Vehicle Mass', value: vehicleMassKg ? `${vehicleMassKg} kg` : '—', sub: 'Used in calculation' },
+            ].map(({ label, value, sub }) => (
+              <div key={label} className="p-3 text-center" style={{ background: 'var(--kr-off-white)', border: '1px solid var(--kr-rule)' }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--kr-muted)' }}>{label}</div>
+                <div className="text-lg font-bold tabular-nums" style={{ fontFamily: 'var(--kr-mono)', color: 'var(--kr-text)' }}>{value}</div>
+                <div className="text-[9px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>{sub}</div>
               </div>
-              {/* two-col-charts: gauge left | LDP chart right */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12, alignItems: 'start' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--kr-text)', marginBottom: 2 }}>Physics Confidence Index</span>
-                  <ArcGauge value={physicsScore} size={120} label="Physics consistency" />
-                  <p style={{ fontSize: 11, color: 'var(--kr-muted)', textAlign: 'center', lineHeight: 1.4 }}>
-                    {Math.round(physicsScore)}/100 — {physicsScore >= 70 ? "High confidence" : physicsScore >= 30 ? "Moderate confidence" : "Low confidence"}
-                  </p>
-                </div>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--kr-text)', display: 'block', marginBottom: 4 }}>Latent Damage Probability</span>
-                  <span style={{ fontSize: 10, color: 'var(--kr-muted)', display: 'block', marginBottom: 6 }}>Hidden risk — co-occurrence based probability</span>
-                  {showLdp && ldpChartData ? (
-                    <div style={{ height: 180, position: 'relative' }}>
-                      <Bar data={ldpChartData} options={ldpOpts} />
-                    </div>
-                  ) : (
-                    <p style={{ fontSize: 11, color: 'var(--kr-muted)' }}>No significant latent damage risk identified.</p>
-                  )}
-                  {ldpSorted.some(([,v]) => v >= 40) && (
-                    <p style={{ fontSize: 10, marginTop: 4, padding: '3px 6px', background: 'var(--fp-warning-bg)', color: 'var(--fp-warning-text)', border: '1px solid var(--fp-warning-border)' }}>
-                      Elevated hidden damage risk — inspection recommended.
-                    </p>
-                  )}
-                </div>
-              </div>
-              </>
-            );
-          })()}
+            ))}
+          </div>
 
-                    {/* Direction conflict alert — matching mock layout */}
-          {directionExplanation && (
-            <div style={{ display: 'flex', gap: 0, border: '1px solid var(--kr-rule)', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
-              <div style={{ width: 4, background: directionMismatch ? '#D97706' : '#16a34a', flexShrink: 0 }} />
-              <div style={{ padding: '6px 10px', fontSize: 11, color: 'var(--kr-text)', lineHeight: 1.5 }}>
-                <span style={{ fontWeight: 700 }}>{directionMismatch ? 'Direction Conflict: ' : 'Direction Consistent: '}</span>
-                {directionExplanation}
-              </div>
+          {/* Two-column detail: physics fields (left) + LDP chart (right) */}
+          <div className="grid grid-cols-2 gap-4 mb-3">
+            <table className="compact-kv-table text-xs w-full">
+              <tbody>
+                {[
+                  ['Impact Severity', toSentenceCase((severity ?? '').replace(/_/g, ' '))],
+                  ['Impact Direction', directionMismatch
+                    ? `${toSentenceCase(((_phys as any)?.impactDirection ?? 'Unknown').replace(/_/g, ' '))} (document) — mismatch with damage`
+                    : toSentenceCase(((_phys as any)?.impactDirection ?? 'Unknown').replace(/_/g, ' '))],
+                  ['Deceleration', (_phys as any)?.decelerationG > 0 ? `${fmt((_phys as any).decelerationG, 2)} g` : '—'],
+                  ['Structural Deformation', (_phys as any)?.structuralDeformation ?? '—'],
+                  ['Airbag Deployment', (_phys as any)?.airbagDeployment ?? '—'],
+                  ['Damage Consistency', (_phys as any)?.damageConsistencyScore != null
+                    ? `${Math.round((_phys as any).damageConsistencyScore)}/100 — ${(_phys as any).damageConsistencyScore >= 70 ? 'Good' : (_phys as any).damageConsistencyScore >= 40 ? 'Moderate' : 'Poor'}`
+                    : `${Math.round(physicsScore)}/100`],
+                ].map(([k, v], i) => (
+                  <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
+                    <td className="py-1.5 pr-3 font-semibold" style={{ color: 'var(--kr-muted)' }}>{k}</td>
+                    <td className="py-1.5 tabular-nums" style={{ color: directionMismatch && k === 'Impact Direction' ? 'var(--fp-critical-text)' : 'var(--kr-text)' }}>{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div>
+              <span className="text-[10px] font-bold block mb-1" style={{ color: 'var(--kr-text)' }}>Latent Damage Probability</span>
+              <span className="text-[9px] block mb-2" style={{ color: 'var(--kr-muted)' }}>Hidden risk — co-occurrence based probability</span>
+              {showLdp && ldpChartData ? (
+                <div style={{ height: 160, position: 'relative' }}>
+                  <Bar data={ldpChartData} options={ldpOpts} />
+                </div>
+              ) : (
+                <p className="text-[11px]" style={{ color: 'var(--kr-muted)' }}>No significant latent damage risk identified.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Direction mismatch alert */}
+          {directionMismatch && directionExplanation && (
+            <div className="p-2.5 mb-3 text-xs" style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)', color: 'var(--fp-critical-text)' }}>
+              <strong>Direction mismatch:</strong> {directionExplanation}
             </div>
           )}
-          {/* Physics execution status badge */}
-          {(() => {
-            const ps: string | null = (_phys as any)?.physicsStatus ?? null;
-            if (!ps) return null;
-            const statusMap: Record<string, { label: string; bg: string; text: string; border: string }> = {
-              EXECUTED: { label: 'Physics engine executed', bg: 'var(--fp-success-bg)', text: 'var(--fp-success-text)', border: 'var(--fp-success-border)' },
-              ESTIMATED_FALLBACK: { label: 'Estimated fallback — speed not extracted', bg: 'var(--fp-warning-bg)', text: 'var(--fp-warning-text)', border: 'var(--fp-warning-border)' },
-              SKIPPED_NO_SPEED: { label: 'Physics skipped — no speed data', bg: 'var(--fp-locked-bg)', text: 'var(--fp-locked-text)', border: 'var(--fp-locked-border)' },
-              SKIPPED_NON_PHYSICAL: { label: 'Physics not applicable for this incident type', bg: 'var(--fp-info-bg)', text: 'var(--fp-info-text)', border: 'var(--fp-info-border)' },
-            };
-            const s = statusMap[ps] ?? { label: ps, bg: 'var(--fp-info-bg)', text: 'var(--fp-info-text)', border: 'var(--fp-info-border)' };
-            return (
-              <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
-                  {s.label}
-                </span>
-              </div>
-            );
-          })()}
-          {/* Animal strike physics block */}
-          {(() => {
-            const asp = (_phys as any)?.animalStrikePhysics;
-            if (!asp) return null;
-            return (
-              <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                <p className="micro-label">Animal Strike Physics</p>
-                <table className="compact-kv-table text-xs">
-                  <tbody>
-                    {([
-                      ['Animal category', asp.animal_category ?? 'Unknown'],
-                      ['Estimated animal mass', asp.animal_mass_kg != null ? `${asp.animal_mass_kg} kg` : 'N/A'],
-                      ['Impact severity', asp.impact_severity ?? 'N/A'],
-                      ['Delta-V (animal strike)', asp.delta_v_kmh != null ? `${asp.delta_v_kmh.toFixed(1)} km/h` : 'N/A'],
-                      ['Impact force', asp.impact_force_kn != null ? `${asp.impact_force_kn.toFixed(1)} kN` : 'N/A'],
-                      ['Plausibility score', asp.plausibility_score != null ? `${asp.plausibility_score}/100` : 'N/A'],
-                      ['Bullbar present', asp.bullbar_present === 'true' ? 'Yes' : asp.bullbar_present === 'false' ? 'No' : 'Unknown'],
-                    ] as [string, string][]).map(([k, v], i) => (
-                      <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
-                        <td className="py-1.5 pr-3 font-semibold" style={{ color: 'var(--kr-muted)' }}>{k}</td>
-                        <td className="py-1.5 tabular-nums" style={{ color: 'var(--kr-text)' }}>{v}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {asp.engineering_notes && (
-                  <p className="text-[10px] mt-2" style={{ color: 'var(--kr-muted)' }}>{asp.engineering_notes}</p>
-                )}
-              </div>
-            );
-          })()}
-          {/* Reconstruction summary — engineering derivation chain */}
+
+          {/* Consistency explanation */}
+          {consistencyExplanation && (
+            <p className="text-xs p-2 mb-3" style={{ background: 'var(--kr-off-white)', color: 'var(--kr-text)', borderLeft: '3px solid var(--border)' }}>
+              {consistencyExplanation}
+            </p>
+          )}
+
+          {/* Animal strike block */}
+          {isAnimalStrike && animalStrikeProfiles.length > 0 && animalStrikeProfiles.map((asp: any, idx: number) => (
+            <div key={idx} className="mt-3 p-3" style={{ background: 'var(--kr-off-white)', border: '1px solid var(--kr-rule)' }}>
+              <p className="micro-label mb-2">Animal Strike Physics</p>
+              <table className="compact-kv-table text-xs w-full">
+                <tbody>
+                  {([
+                    ['Animal species', asp.animal_species ?? 'N/A'],
+                    ['Animal mass', asp.animal_mass_kg != null ? `${asp.animal_mass_kg} kg` : 'N/A'],
+                    ['Impact severity', asp.impact_severity ?? 'N/A'],
+                    ['Delta-V', asp.delta_v_kmh != null ? `${asp.delta_v_kmh.toFixed(1)} km/h` : 'N/A'],
+                    ['Impact force', asp.impact_force_kn != null ? `${asp.impact_force_kn.toFixed(1)} kN` : 'N/A'],
+                    ['Plausibility score', asp.plausibility_score != null ? `${asp.plausibility_score}/100` : 'N/A'],
+                    ['Bullbar present', asp.bullbar_present === 'true' ? 'Yes' : asp.bullbar_present === 'false' ? 'No' : 'Unknown'],
+                  ] as [string, string][]).map(([k, v], i) => (
+                    <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
+                      <td className="py-1.5 pr-3 font-semibold" style={{ color: 'var(--kr-muted)' }}>{k}</td>
+                      <td className="py-1.5" style={{ color: 'var(--kr-text)' }}>{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {asp.engineering_notes && (
+                <p className="text-[10px] mt-2" style={{ color: 'var(--kr-muted)' }}>{asp.engineering_notes}</p>
+              )}
+            </div>
+          ))}
+
+          {/* Reconstruction summary */}
           {(_phys as any)?.reconstructionSummary && (
             <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
               <p className="micro-label">Reconstruction Summary</p>
@@ -2697,17 +2652,175 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
         </div>
       </div>
 
-      {/* 2.2 Damage Consistency — 3-column spec table */}
-      <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-        <div className="px-4 py-3 flex items-center justify-between" >
-          <p className="sub-heading">2.2 Damage Consistency</p>
-          <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{anomalyLevel === "none" ? "Consistent" : toTitleCase(anomalyLevel)}</span>
+      {/* ── 2.2 Speed Analysis ──────────────────────────────────────────────── */}
+      {(consensusSpeed != null || estimatedSpeedKmh > 0 || speedForensics) && (
+        <div style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)' }}>
+            <p className="sub-heading">2.2 Speed Analysis</p>
+            {confidenceLevel && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{
+                background: confidenceLevel === 'high' ? 'var(--fp-success-bg)' : confidenceLevel === 'medium' ? 'var(--fp-warning-bg)' : 'var(--fp-info-bg)',
+                color: confidenceLevel === 'high' ? 'var(--fp-success-text)' : confidenceLevel === 'medium' ? 'var(--fp-warning-text)' : 'var(--fp-info-text)',
+                border: `1px solid ${confidenceLevel === 'high' ? 'var(--fp-success-border)' : confidenceLevel === 'medium' ? 'var(--fp-warning-border)' : 'var(--fp-info-border)'}`,
+              }}>
+                {confidenceLevel === 'high' ? 'High confidence' : confidenceLevel === 'medium' ? 'Moderate confidence' : 'Low confidence'}
+              </span>
+            )}
+          </div>
+          <div className="p-4">
+            {/* Consensus speed hero number */}
+            {(consensusSpeed != null || estimatedSpeedKmh > 0) && (() => {
+              const displaySpeed = consensusSpeed ?? estimatedSpeedKmh;
+              const speedZone = displaySpeed < 15 ? 'parking' : displaySpeed < 40 ? 'low_urban' : displaySpeed < 80 ? 'urban' : displaySpeed < 120 ? 'highway' : 'high_speed';
+              const speedZoneLabel: Record<string, string> = {
+                parking: 'Very low-speed — consistent with parking or crawling traffic',
+                low_urban: 'Low-speed urban impact — consistent with residential or car park speeds',
+                urban: 'Moderate urban-speed impact — consistent with general road traffic',
+                highway: 'High-speed impact — consistent with highway or freeway travel',
+                high_speed: 'Very high-speed impact — consistent with high-speed highway travel',
+              };
+              const speedZoneColour: Record<string, string> = {
+                parking: 'var(--fp-success-text)', low_urban: 'var(--fp-success-text)', urban: 'var(--fp-warning-text)', highway: 'var(--fp-locked-text)', high_speed: 'var(--fp-critical-text)',
+              };
+              const physicsSpeed = vr?.mid_kmh ?? displaySpeed;
+              const speedDiscrepancy = (() => {
+                if (!physicsSpeed || physicsSpeed <= 0 || !claimedSpeed || claimedSpeed <= 0) return null;
+                const diff = Math.abs(physicsSpeed - claimedSpeed);
+                const pct = diff / claimedSpeed;
+                if (pct < 0.20) return null;
+                return { pct, direction: physicsSpeed > claimedSpeed ? 'higher' : 'lower', severity: pct >= 0.50 ? 'significant' : 'material' };
+              })();
+              return (
+                <div className="mb-4">
+                  {/* Speed hero + convergence */}
+                  <div className="flex items-start gap-6 mb-3">
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--kr-muted)' }}>Consensus Speed</div>
+                      <div className="text-4xl font-bold tabular-nums" style={{ fontFamily: 'var(--kr-mono)', color: speedZoneColour[speedZone] }}>{Math.round(displaySpeed)}</div>
+                      <div className="text-xs font-semibold" style={{ color: speedZoneColour[speedZone] }}>km/h</div>
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <p className="text-xs font-semibold mb-1" style={{ color: 'var(--kr-text)' }}>{speedZoneLabel[speedZone]}</p>
+                      {claimedSpeed > 0 && (
+                        <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>
+                          Driver stated: <strong style={{ color: 'var(--kr-text)' }}>{claimedSpeed} km/h</strong>
+                          {speedDiscrepancy && (
+                            <span className="ml-2 font-semibold" style={{ color: 'var(--fp-critical-text)' }}>
+                              — {speedDiscrepancy.severity} discrepancy ({Math.round(speedDiscrepancy.pct * 100)}% {speedDiscrepancy.direction} than claimed)
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {divergenceFlag ? (
+                        <p className="text-xs mt-1" style={{ color: 'var(--fp-locked-text)' }}>⚠ Independent analyses diverged (spread: {spread.toFixed(0)} km/h) — reduced reliability</p>
+                      ) : availableCount >= 2 ? (
+                        <p className="text-xs mt-1" style={{ color: 'var(--fp-success-text)' }}>✓ {availableCount} independent analyses converged within {spread > 0 ? `${spread.toFixed(0)} km/h` : 'acceptable tolerance'}</p>
+                      ) : (
+                        <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)' }}>{availableCount} analysis completed — additional evidence would strengthen confidence</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Speed scale */}
+                  {(() => {
+                    const scaleMax = 140;
+                    const toScalePct = (v: number) => Math.min(100, Math.max(0, (v / scaleMax) * 100));
+                    return (
+                      <div className="mb-3">
+                        <div className="relative h-3 rounded-full overflow-hidden" style={{ background: 'var(--kr-off-white)', border: '1px solid var(--kr-rule)' }}>
+                          <div className="absolute top-0 bottom-0" style={{ left: 0, right: `${100 - toScalePct(40)}%`, background: 'var(--fp-success-text)', opacity: 0.12 }} />
+                          <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(40)}%`, right: `${100 - toScalePct(80)}%`, background: 'var(--fp-warning-text)', opacity: 0.12 }} />
+                          <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(80)}%`, right: 0, background: 'var(--fp-critical-text)', opacity: 0.12 }} />
+                          {claimedSpeed > 0 && (
+                            <div className="absolute" style={{ left: `calc(${toScalePct(claimedSpeed)}% - 5px)`, top: '50%', transform: 'translateY(-50%)', width: 10, height: 10, borderRadius: '50%', background: 'var(--fp-info-text)', border: '2px solid white', zIndex: 2 }} />
+                          )}
+                          <div className="absolute" style={{ left: `calc(${toScalePct(displaySpeed)}% - 5px)`, top: '50%', transform: 'translateY(-50%)', width: 10, height: 10, borderRadius: '50%', background: speedZoneColour[speedZone], border: '2px solid white', zIndex: 3 }} />
+                        </div>
+                        <div className="flex justify-between text-[9px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>
+                          <span>0</span><span>Parking (&lt;15)</span><span>Urban (&lt;80)</span><span>Highway (80+)</span><span>140 km/h</span>
+                        </div>
+                        <div className="flex gap-4 mt-1 text-[9px]" style={{ color: 'var(--kr-muted)' }}>
+                          {claimedSpeed > 0 && <span className="flex items-center gap-1"><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--fp-info-text)' }} />Driver stated ({claimedSpeed} km/h)</span>}
+                          <span className="flex items-center gap-1"><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: speedZoneColour[speedZone] }} />Physics estimate ({Math.round(displaySpeed)} km/h)</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Speed discrepancy alert */}
+                  {speedDiscrepancy && (
+                    <div className="p-2.5 mb-3 text-xs" style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)', color: 'var(--fp-critical-text)' }}>
+                      <strong>Speed discrepancy:</strong> Driver stated {claimedSpeed.toFixed(0)} km/h; physics model estimates {physicsSpeed.toFixed(0)} km/h — a {speedDiscrepancy.severity} difference of {Math.round(speedDiscrepancy.pct * 100)}% ({speedDiscrepancy.direction} than claimed). Verify stated speed before settlement.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Analysis methods list */}
+            {allMethods.length > 0 && (
+              <div className="mb-3">
+                <p className="micro-label mb-2">Analysis Methods</p>
+                <div style={{ border: '1px solid var(--border)' }}>
+                  {allMethods.map((m: any, idx: number) => {
+                    const methodId: string = m.method ?? m.id ?? `A${idx + 1}`;
+                    const isOutlier: boolean = (ensemble?.crossValidation?.outlierMethods ?? []).includes(methodId);
+                    const speedKmh: number | null = m.speedKmh ?? m.estimateKmh ?? null;
+                    const categoryName = categoryMap[methodId] ?? `Analysis ${idx + 1}`;
+                    const isDeploymentMethod = methodId === 'DEPLOYMENT_THRESHOLD' || methodId === 'M4';
+                    const statusLabel = isOutlier
+                      ? 'Excluded — diverged from other analyses'
+                      : speedKmh != null
+                      ? `${speedKmh.toFixed(0)} km/h`
+                      : isDeploymentMethod
+                      ? 'Speed consistent with deployment range'
+                      : 'Corroborates speed range';
+                    return (
+                      <div key={methodId} className="flex items-center justify-between px-3 py-2 text-xs" style={{ borderBottom: idx < allMethods.length - 1 ? '1px solid var(--border)' : undefined }}>
+                        <span style={{ color: isOutlier ? 'var(--kr-muted)' : 'var(--kr-text)', fontWeight: isOutlier ? 400 : 500 }}>{categoryName}</span>
+                        <span className="font-semibold tabular-nums" style={{ color: isOutlier ? 'var(--fp-locked-text)' : 'var(--fp-success-text)' }}>{statusLabel}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[9px] mt-1 italic" style={{ color: 'var(--kr-muted)' }}>Detailed methodology available to qualified experts under confidentiality undertaking.</p>
+              </div>
+            )}
+
+            {/* Speed forensics interpretation (from Section27SpeedForensics) */}
+            {speedForensics && (() => {
+              const sf = speedForensics;
+              const interpretation: string = sf.forensicInterpretation ?? sf.interpretation ?? '';
+              const verdict: string = sf.verdict ?? sf.overallVerdict ?? '';
+              if (!interpretation && !verdict) return null;
+              return (
+                <div className="p-3" style={{ background: 'var(--kr-off-white)', border: '1px solid var(--border)' }}>
+                  <p className="micro-label mb-1">Forensic Interpretation</p>
+                  {verdict && <p className="text-xs font-semibold mb-1" style={{ color: 'var(--kr-text)' }}>{verdict}</p>}
+                  {interpretation && <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-text)' }}>{interpretation}</p>}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── 2.3 Damage Zone & Pattern ───────────────────────────────────────── */}
+      <div style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)' }}>
+          <p className="sub-heading">2.3 Damage Zone & Pattern</p>
+          <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{anomalyLevel === 'none' ? 'Consistent' : toTitleCase(anomalyLevel)}</span>
         </div>
         <div className="p-4">
-          {/* Zone map + 2.4 pattern matching side by side */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          {directionMismatch && directionExplanation && (
+            <div className="p-2.5 mb-3 text-xs" style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)', color: 'var(--fp-critical-text)' }}>
+              <strong>Direction conflict:</strong> {directionExplanation}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Zone map */}
             <div>
-              <p className="sub-heading">Damage Zone Map</p>
+              <p className="micro-label mb-2">Damage Zone Map</p>
               <VehicleDamageMap
                 damageZones={damageZones}
                 incidentType={incidentType}
@@ -2718,8 +2831,8 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                 impactForceKn={impactForceKnDisplay > 0 ? impactForceKnDisplay : undefined}
                 decelerationG={(_phys as any)?.decelerationG > 0 ? (_phys as any).decelerationG : null}
                 velocityRange={(() => {
-                  const vr = (_phys as any)?.velocityRange;
-                  if (vr?.low_kmh > 0 && vr?.high_kmh > 0) return { low_kmh: vr.low_kmh, high_kmh: vr.high_kmh };
+                  const vrr = (_phys as any)?.velocityRange;
+                  if (vrr?.low_kmh > 0 && vrr?.high_kmh > 0) return { low_kmh: vrr.low_kmh, high_kmh: vrr.high_kmh };
                   const pn = (_phys as any)?.physicsNumerical?.velocity_range;
                   if (pn?.low_kmh > 0 && pn?.high_kmh > 0) return { low_kmh: pn.low_kmh, high_kmh: pn.high_kmh };
                   return null;
@@ -2736,49 +2849,184 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                 <div className="mt-2 flex flex-wrap gap-1">
                   {damageZones.map((z, i) => (
                     <span key={i} className="text-xs px-2 py-0.5 rounded"
-                      style={{ background: "var(--status-reject-bg)", color: "var(--status-reject-text)", border: "1px solid var(--fp-critical-border)" }}>{z}</span>
+                      style={{ background: 'var(--status-reject-bg)', color: 'var(--status-reject-text)', border: '1px solid var(--fp-critical-border)' }}>{z}</span>
                   ))}
                 </div>
               )}
             </div>
-            {/* 2.4 Damage Pattern Matching — right column of the 2.2 grid */}
+            {/* Expected vs actual pattern */}
             <div>
-              {(() => {
-                if (!pattern.expected || pattern.expected.length === 0) return null;
+              {pattern.expected.length > 0 && (() => {
+                interface DamagePatternRow { item: string; present: boolean; source: 'zone' | 'quote' | 'none' }
                 const rows: DamagePatternRow[] = pattern.expected.map((item: string) => {
                   const zoneMatch = damageZones.some((z: string) =>
                     item.toLowerCase().includes(z.toLowerCase()) ||
-                    z.toLowerCase().includes(item.split(" ")[0].toLowerCase())
+                    z.toLowerCase().includes(item.toLowerCase().split(' ')[0])
                   );
-                  const matchedZone = damageZones.find((z: string) =>
-                    item.toLowerCase().includes(z.toLowerCase()) ||
-                    z.toLowerCase().includes(item.split(" ")[0].toLowerCase())
+                  const quoteMatch = (quotes ?? []).some((q: any) =>
+                    JSON.stringify(q).toLowerCase().includes(item.toLowerCase().split(' ')[0])
                   );
-                  const observed = damageZones.length > 0
-                    ? (zoneMatch ? (matchedZone ?? item) : "Not reported")
-                    : "N/A";
-                  const matchStatus: DamagePatternRow["matchStatus"] =
-                    damageZones.length === 0 ? "unknown" : zoneMatch ? "match" : "mismatch";
-                  return { expected: item, observed: String(observed), matchStatus };
+                  return { item, present: zoneMatch || quoteMatch, source: zoneMatch ? 'zone' : quoteMatch ? 'quote' : 'none' };
                 });
-                const damagePatternData: DamagePatternData = {
-                  incidentType: (incidentType ?? "").replace(/_/g, " "),
-                  rows,
-                };
-                const mismatchRows = rows.filter(r => r.matchStatus === 'mismatch');
-                const unknownRows = rows.filter(r => r.matchStatus === 'unknown');
+                const presentCount = rows.filter(r => r.present).length;
+                const totalCount = rows.length;
                 return (
                   <div>
-                    <p className="sub-heading">2.4 Damage Pattern Matching</p>
-                    <DamagePatternTable data={damagePatternData} />
-                    {(mismatchRows.length > 0 || unknownRows.length > 0) && (
-                      <div className="mt-2 p-2 rounded text-xs" style={{ background: mismatchRows.length > 0 ? 'var(--status-review-bg)' : '#ffffff', border: `1px solid ${mismatchRows.length > 0 ? 'var(--status-review-border)' : 'var(--border)'}`, color: mismatchRows.length > 0 ? 'var(--status-review-text)' : 'var(--kr-muted)' }}>
-                        {mismatchRows.length > 0 && (
-                          <p><strong>Damage mismatch detected:</strong> {mismatchRows.length} expected damage zone{mismatchRows.length > 1 ? 's' : ''} ({mismatchRows.map(r => r.expected).join(', ')}) {mismatchRows.length > 1 ? 'are' : 'is'} not corroborated by the reported damage zones.</p>
-                        )}
-                        {unknownRows.length > 0 && mismatchRows.length === 0 && (
-                          <p><strong>Damage zone data unavailable:</strong> Pattern matching could not be completed. Physical inspection required.</p>
-                        )}
+                    <p className="micro-label mb-2">Expected Components ({presentCount}/{totalCount} matched)</p>
+                    <div style={{ border: '1px solid var(--border)' }}>
+                      {rows.map((row, i) => (
+                        <div key={i} className="flex items-center justify-between px-3 py-1.5 text-xs"
+                          style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : undefined }}>
+                          <span style={{ color: 'var(--kr-text)' }}>{row.item}</span>
+                          <span className="font-semibold" style={{ color: row.present ? 'var(--fp-success-text)' : 'var(--fp-critical-text)' }}>
+                            {row.present ? '✓' : '✗ Missing'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {pattern.notes && <p className="text-[10px] mt-2 italic" style={{ color: 'var(--kr-muted)' }}>{pattern.notes}</p>}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 2.4 Physics Constraints ─────────────────────────────────────────── */}
+      {constraints.length > 0 && (() => {
+        // Separate failed/advisory from passing
+        const failedOrAdvisory = constraints.filter((c: any) => !c.satisfied || c.suppressed || c.advisory);
+        const passingCount = constraints.filter((c: any) => c.satisfied && !c.suppressed && !c.advisory).length;
+        return (
+          <div style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)' }}>
+              <p className="sub-heading">2.4 Physics Constraints</p>
+              <span className="text-xs" style={{ color: 'var(--kr-muted)' }}>
+                {passingCount} of {constraints.length} passed
+                {failedOrAdvisory.length > 0 && <span className="ml-2 font-semibold" style={{ color: 'var(--fp-critical-text)' }}>· {failedOrAdvisory.length} require attention</span>}
+              </span>
+            </div>
+            <div className="p-4">
+              {passingCount > 0 && failedOrAdvisory.length === 0 && (
+                <p className="text-xs p-2" style={{ background: 'var(--fp-success-bg)', color: 'var(--fp-success-text)', border: '1px solid var(--fp-success-border)' }}>
+                  ✓ All {passingCount} physics constraints satisfied — no anomalies detected.
+                </p>
+              )}
+              {passingCount > 0 && failedOrAdvisory.length > 0 && (
+                <p className="text-xs mb-3 p-2" style={{ background: 'var(--fp-success-bg)', color: 'var(--fp-success-text)', border: '1px solid var(--fp-success-border)' }}>
+                  ✓ {passingCount} constraint{passingCount > 1 ? 's' : ''} passed — showing {failedOrAdvisory.length} requiring attention below.
+                </p>
+              )}
+              {failedOrAdvisory.length > 0 && (
+                <div style={{ border: '1px solid var(--border)' }}>
+                  {failedOrAdvisory.map((c: any, i: number) => (
+                    <div key={i} style={{ borderBottom: i < failedOrAdvisory.length - 1 ? '1px solid var(--border)' : undefined }}>
+                      <div className="flex items-start justify-between px-3 py-2 gap-3">
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>{c.constraint ?? c.description ?? c.id}</p>
+                          {c.expected && <p className="text-[10px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>Expected: {c.expected}</p>}
+                          {c.actual && <p className="text-[10px]" style={{ color: 'var(--kr-muted)' }}>Actual: {c.actual}</p>}
+                          {c.advisory && <p className="text-[10px] mt-1 italic" style={{ color: 'var(--fp-warning-text)' }}>{c.advisory}</p>}
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0" style={{
+                          background: c.suppressed ? 'var(--fp-warning-bg)' : 'var(--fp-critical-bg)',
+                          color: c.suppressed ? 'var(--fp-warning-text)' : 'var(--fp-critical-text)',
+                          border: `1px solid ${c.suppressed ? 'var(--fp-warning-border)' : 'var(--fp-critical-border)'}`,
+                        }}>{c.suppressed ? 'Advisory' : 'Failed'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── 2.5 Component Measurements ──────────────────────────────────────── */}
+      {(() => {
+        const hasPhysicsData = damagedParts.some((p: any) =>
+          p.crushDepthM != null || p.damageFraction != null
+        );
+        if (!hasPhysicsData || damagedParts.length === 0) return null;
+        const maxCrush = Math.max(0.01, ...damagedParts.map((p: any) => p.crushDepthM ?? 0));
+        return (
+          <div style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)' }}>
+              <p className="sub-heading">2.5 Component Measurements</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Numeric measurements from KINGA vision analysis. SI units throughout.</p>
+            </div>
+            <div className="p-4">
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--kr-off-white)' }}>
+                      <th className="px-3 py-2 text-left font-semibold" style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Component</th>
+                      <th className="px-3 py-2 text-center font-semibold" style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Crush Depth</th>
+                      <th className="px-3 py-2 text-center font-semibold" style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Damage Fraction</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {damagedParts.map((p: any, i: number) => {
+                      const crushCm = p.crushDepthM != null ? (p.crushDepthM * 100).toFixed(1) : null;
+                      const frac = p.damageFraction != null ? Math.round(p.damageFraction * 100) : null;
+                      const sevColour = (() => {
+                        const s = (p.severity ?? '').toLowerCase();
+                        if (s === 'catastrophic') return 'var(--fp-critical-text)';
+                        if (s === 'severe' || s === 'major') return 'var(--fp-locked-text)';
+                        if (s === 'moderate') return 'var(--fp-warning-text)';
+                        return 'var(--fp-success-text)';
+                      })();
+                      return (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)' }}>
+                            {p.name}
+                            {p.severity && <span className="ml-2 text-[9px] font-semibold" style={{ color: sevColour }}>({p.severity})</span>}
+                          </td>
+                          <td className="px-3 py-2 text-center tabular-nums" style={{ color: 'var(--kr-text)' }}>
+                            {crushCm != null ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--kr-off-white)', overflow: 'hidden' }}>
+                                  <div style={{ height: 4, borderRadius: 2, background: sevColour, width: `${Math.min(100, (p.crushDepthM / maxCrush) * 100)}%`, opacity: 0.8 }} />
+                                </div>
+                                <span>{crushCm} cm</span>
+                              </div>
+                            ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
+                          </td>
+                          <td className="px-3 py-2 text-center tabular-nums" style={{ color: 'var(--kr-text)' }}>
+                            {frac != null ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--kr-off-white)', overflow: 'hidden' }}>
+                                  <div style={{ height: 4, borderRadius: 2, background: sevColour, width: `${frac}%`, opacity: 0.8 }} />
+                                </div>
+                                <span>{frac}%</span>
+                              </div>
+                            ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {/* Totals row */}
+              {(() => {
+                const maxCrushCm = Math.max(0, ...damagedParts.map((p: any) => p.crushDepthM ?? 0)) * 100;
+                const totalEnergyKj = damagedParts.reduce((s: number, p: any) => s + (p.deformationEnergyJ ?? 0), 0) / 1000;
+                if (maxCrushCm === 0) return null;
+                return (
+                  <div className="mt-2 px-3 py-2 flex flex-wrap gap-6" style={{ background: 'var(--kr-off-white)', border: '1px solid var(--border)', fontSize: 11 }}>
+                    <div>
+                      <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Max Crush Depth</span>
+                      <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)', fontSize: 14 }}>{maxCrushCm.toFixed(1)} cm</div>
+                      <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>Campbell formula input</div>
+                    </div>
+                    {totalEnergyKj > 0 && (
+                      <div>
+                        <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Total Deformation Energy</span>
+                        <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)', fontSize: 14 }}>{totalEnergyKj.toFixed(2)} kJ</div>
+                        <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>Energy-balance input</div>
                       </div>
                     )}
                   </div>
@@ -2786,558 +3034,86 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               })()}
             </div>
           </div>
+        );
+      })()}
 
-          {/* Physics Diagram Summary — plain-English interpretation for all three audiences */}
-          {(() => {
-            const decG = (_phys as any)?.decelerationG;
-            const vr = (_phys as any)?.velocityRange ?? (_phys as any)?.physicsNumerical?.velocity_range;
-            const ed = (_phys as any)?.energyDistribution ?? (_phys as any)?.physicsNumerical;
-            const dissipated = ed?.energyDissipatedJ ?? (ed?.energy_kj ? ed.energy_kj * 1000 : 0);
-            const kinetic = ed?.kineticEnergyJ ?? 0;
-            const absorptionRatio = kinetic > 0 && dissipated > 0 ? Math.min(dissipated / kinetic, 1) : null;
-            const sc = (_phys as any)?.severityConsensus;
-            const consensusSeverity = sc?.final_severity ?? severity;
-            const alignment = sc?.source_alignment;
-
-            // Build sentence fragments
-            const parts: string[] = [];
-
-            // Speed sentence
-            if (vr?.low_kmh > 0 && vr?.high_kmh > 0) {
-              parts.push(`The physics model estimates the vehicle was travelling at between ${vr.low_kmh.toFixed(0)} and ${vr.high_kmh.toFixed(0)} km/h at the time of impact.`);
-            } else if (estimatedSpeedKmh > 0) {
-              parts.push(`The physics model estimates the vehicle was travelling at approximately ${estimatedSpeedKmh.toFixed(0)} km/h at the time of impact.`);
-            }
-
-            // Force and deceleration sentence
-            if (impactForceKnDisplay > 0 && decG > 0) {
-              parts.push(`The primary impact generated a force of ${impactForceKnDisplay.toFixed(1)} kN with a peak deceleration of ${decG.toFixed(1)} g.`);
-            } else if (impactForceKnDisplay > 0) {
-              parts.push(`The primary impact generated a force of ${impactForceKnDisplay.toFixed(1)} kN.`);
-            }
-
-            // Energy absorption sentence
-            if (absorptionRatio !== null) {
-              const pct = Math.round(absorptionRatio * 100);
-              if (pct > 70) {
-                parts.push(`${pct}% of the kinetic energy was absorbed through structural deformation, which is consistent with moderate-to-severe structural damage and expected component replacement.`);
-              } else if (pct > 40) {
-                parts.push(`${pct}% of the kinetic energy was absorbed through deformation, consistent with moderate damage requiring panel repair and possible structural assessment.`);
-              } else {
-                parts.push(`${pct}% of the kinetic energy was absorbed through deformation, consistent with minor surface damage. Extensive structural claims would warrant scrutiny.`);
-              }
-            }
-
-            // Severity consensus sentence
-            if (consensusSeverity && consensusSeverity !== 'unknown') {
-              if (alignment === 'FULLY_ALIGNED' || alignment === 'ALIGNED') {
-                parts.push(`All available signals — physics model, damage analysis, and image review — are in agreement that the impact severity is ${toSentenceCase(consensusSeverity)}.`);
-              } else if (alignment === 'PARTIAL') {
-                parts.push(`The physics model and damage analysis indicate ${toSentenceCase(consensusSeverity)} severity; however, one or more signals are not fully aligned. Senior assessor review is recommended before settlement.`);
-              } else if (alignment === 'CONFLICTED') {
-                parts.push(`The available signals produce conflicting severity assessments. The physics model indicates ${toSentenceCase(consensusSeverity)} severity, but this is not corroborated by all sources. This claim requires senior assessor review before settlement.`);
-                // B-03: Cross-validation note — severity is INCONCLUSIVE when sources conflict
-                parts.push(`⚠ CROSS-VALIDATION NOTE: Because the severity signals are in conflict, the severity finding is INCONCLUSIVE and must not be used as the sole basis for the cost assessment or settlement decision. The conservative fallback severity (${toSentenceCase(consensusSeverity)}) has been recorded for reserve purposes only. Refer to Section 2.4c Damage Severity Distribution for the full signal breakdown.`);
-              } else {
-                parts.push(`The assessed impact severity is ${toSentenceCase(consensusSeverity)}.`);
-              }
-            }
-
-            // Direction mismatch
-            if (directionMismatch && directionExplanation) {
-              parts.push(`Note: ${directionExplanation}`);
-            }
-
-            // Speed discrepancy fraud flag
-            // Triggered when the physics-estimated speed differs from the claimed speed by more than 20%
-            const physicsSpeed = vr?.mid_kmh ?? estimatedSpeedKmh;
-            const speedDiscrepancyFlag: string | null = (() => {
-              if (!physicsSpeed || physicsSpeed <= 0 || !claimedSpeed || claimedSpeed <= 0) return null;
-              const diff = Math.abs(physicsSpeed - claimedSpeed);
-              const pct = diff / claimedSpeed;
-              if (pct < 0.20) return null; // within 20% — no flag
-              const direction = physicsSpeed > claimedSpeed ? 'higher' : 'lower';
-              const severity = pct >= 0.50 ? 'significant' : 'material';
-              return `Speed discrepancy detected: the claimant reported ${claimedSpeed.toFixed(0)} km/h, but the physics model estimates ${physicsSpeed.toFixed(0)} km/h — a ${severity} difference of ${Math.round(pct * 100)}% (${direction} than claimed). This discrepancy warrants verification of the claimant’s stated speed before settlement.`;
-            })();
-            if (speedDiscrepancyFlag) parts.push(speedDiscrepancyFlag);
-
-            if (parts.length === 0) return null;
-
-            // Determine border colour: red if speed discrepancy or conflicted, amber if partial, else default
-            const summaryBorderColour = speedDiscrepancyFlag || alignment === 'CONFLICTED'
-              ? 'var(--fp-critical-border)'
-              : alignment === 'PARTIAL'
-              ? 'var(--fp-warning-border)'
-              : 'var(--border)';
-
-            return (
-              <div className="mb-4 p-3 rounded text-xs leading-relaxed" style={{ background: 'var(--kr-white)', color: 'var(--kr-text)', borderLeft: `3px solid ${summaryBorderColour}` }}>
-                <p className="micro-label">Physics Diagram Summary</p>
-                {parts.map((p, i) => {
-                  const isFlag = p === speedDiscrepancyFlag;
-                  const isCrossValidationNote = p.startsWith('\u26a0 CROSS-VALIDATION NOTE:');
-                  return (
-                    <p key={i} className={i > 0 ? 'mt-1' : ''} style={
-                      isCrossValidationNote
-                        ? { color: 'var(--fp-critical-text)', fontWeight: 700, marginTop: 6, paddingTop: 6, borderTop: '1px dashed var(--fp-critical-border)' }
-                        : isFlag
-                        ? { color: 'var(--fp-critical-text)', fontWeight: 600 }
-                        : undefined
-                    }>{p}</p>
-                  );
-                })}
-              </div>
-            );
-          })()}
-
-          {consistencyExplanation && (
-            <p className="text-xs mb-4 p-2 rounded" style={{ background: 'var(--kr-white)', color: 'var(--kr-text)' }}>
-              {consistencyExplanation}
-            </p>
-          )}
-
-          {/* Physics Constraint table — Expected / Actual / Verdict */}
-          {constraints.length > 0 && (
-            <>
-              <p className="sub-heading">2.3 Physics Constraint Status</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs report-table">
-                  <thead>
-                    <tr >
-                      <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--kr-muted)' }}>Constraint</th>
-                      <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--kr-muted)' }}>Expected</th>
-                      <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--kr-muted)' }}>Actual</th>
-                      <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--kr-muted)' }}>Verdict</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {constraints.map((c: any, i: number) => (
-                      <React.Fragment key={i}>
-                        <tr style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined, background: 'var(--kr-white)' }}>
-                          <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)' }}>{c.constraint}</td>
-                          <td className="px-3 py-2" style={{ color: 'var(--kr-muted)' }}>{c.expected ?? (c.suppressed ? "Advisory only" : "Pass")}</td>
-                          <td className="px-3 py-2" style={{ color: 'var(--kr-text)' }}>{c.actual ?? (c.suppressed ? "Suppressed" : "Within range")}</td>
-                          <td className="px-3 py-2">
-                            <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{c.suppressed ? "Advisory" : "Pass"}</span>
-                          </td>
-                        </tr>
-                        {c.advisory && (
-                          <tr style={{ background: 'var(--kr-white)' }}>
-                            <td colSpan={4} className="px-3 pb-2 pt-0">
-                              <div className="flex items-start gap-1.5 text-xs px-2 py-1.5"
-                                style={{
-                                  border: '1px solid var(--kr-rule)',
-                                  color: 'var(--kr-muted)',
-                                }}>
-                                <span style={{ flexShrink: 0 }}>{c.suppressed ? "Note:" : ""}</span>
-                                <span>{c.advisory}</span>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-
-          <p className="text-xs mt-3 p-2 rounded" style={{ background: 'var(--kr-white)', color: 'var(--kr-muted)' }}>
-            {pattern.notes}
-          </p>
-
-          {/* 2.4b Per-Component Physics Measurements */}
-          {(() => {
-            const damagedPartsRaw = (aiAssessment as any)?.damagedComponentsJson;
-            const damagedParts: any[] = (() => {
-              if (!damagedPartsRaw) return [];
-              try {
-                const raw = typeof damagedPartsRaw === 'string' ? JSON.parse(damagedPartsRaw) : (Array.isArray(damagedPartsRaw) ? damagedPartsRaw : []);
-                // Normalise names to title case and deduplicate
-                const seen = new Set<string>();
-                return raw.filter((p: any) => {
-                  const norm = toTitleCase((p.name ?? '').toLowerCase().trim());
-                  if (seen.has(norm)) return false;
-                  seen.add(norm);
-                  return true;
-                }).map((p: any) => ({ ...p, name: toTitleCase((p.name ?? '').toLowerCase().trim()) || p.name }));
-              } catch { return []; }
-            })();
-            // Only render if at least one component has numeric physics data
-            const hasPhysicsData = damagedParts.some((p: any) =>
-              p.crushDepthM != null || p.deformationEnergyJ != null || p.structuralDisplacementM != null || p.visionConfidenceScore != null
-            );
-            if (!hasPhysicsData || damagedParts.length === 0) return null;
-
-            // Severity colour mapping for bar fills
-            const sevColour = (sev: string) => {
-              const s = (sev ?? '').toLowerCase();
-              if (s === 'catastrophic') return 'var(--fp-critical-text)';
-              if (s === 'severe' || s === 'major') return 'var(--fp-locked-text)';
-              if (s === 'moderate') return 'var(--fp-warning-text)';
-              return 'var(--fp-success-text)';
-            };
-
-            // Max values for bar scaling
-            const maxCrush = Math.max(0.01, ...damagedParts.map((p: any) => p.crushDepthM ?? 0));
-            const maxEnergy = Math.max(1, ...damagedParts.map((p: any) => p.deformationEnergyJ ?? 0));
-
-            return (
-              <div className="mt-6">
-                <p className="sub-heading">2.4b Per-Component Physics Measurements</p>
-                <p className="text-xs mb-3" style={{ color: 'var(--kr-muted)' }}>
-                  Absolute numeric measurements extracted by KINGA vision analysis from damage photographs.
-                  All values are SI-unit measurements — no qualitative proxies.
-                </p>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', minWidth: 620 }}>
-                    <thead>
-                      <tr style={{ background: 'var(--kr-white)', color: 'var(--kr-muted)' }}>
-                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Component</th>
-                        <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Crush Depth</th>
-                        <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Deformation Energy</th>
-                        <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Struct. Displacement</th>
-                        <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Vision Confidence</th>
-                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>Damage Fraction</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {damagedParts.map((p: any, i: number) => {
-                        const crushCm = p.crushDepthM != null ? (p.crushDepthM * 100).toFixed(1) : null;
-                        const energyKj = p.deformationEnergyJ != null ? (p.deformationEnergyJ / 1000).toFixed(2) : null;
-                        const dispMm = p.structuralDisplacementM != null ? (p.structuralDisplacementM * 1000).toFixed(1) : null;
-                        const conf = p.visionConfidenceScore != null ? Math.round(p.visionConfidenceScore) : null;
-                        const frac = p.damageFractionEstimate != null ? Math.round(p.damageFractionEstimate * 100) : null;
-                        const colour = sevColour(p.severity ?? '');
-                        const crushBarPct = p.crushDepthM != null ? Math.min(100, (p.crushDepthM / maxCrush) * 100) : 0;
-                        const energyBarPct = p.deformationEnergyJ != null ? Math.min(100, (p.deformationEnergyJ / maxEnergy) * 100) : 0;
-                        return (
-                          <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--muted)' }}>
-                            <td style={{ padding: '6px 8px' }}>
-                              <span style={{ fontWeight: 600, color: 'var(--kr-text)' }}>{p.name}</span>
-                              {p.isStructural && (
-                                <span style={{ marginLeft: 4, fontSize: 9, color: 'var(--fp-critical-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>STRUCTURAL</span>
-                              )}
-                              <div style={{ fontSize: 10, color: colour, textTransform: 'capitalize', marginTop: 1 }}>{p.severity ?? '—'}</div>
-                            </td>
-                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                              {crushCm != null ? (
-                                <div>
-                                  <span style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)' }}>{crushCm} cm</span>
-                                  <div style={{ marginTop: 3, height: 4, borderRadius: 2, background: 'var(--kr-white)', width: 60, margin: '3px auto 0' }}>
-                                    <div style={{ height: 4, borderRadius: 2, background: colour, width: `${crushBarPct}%`, opacity: 0.8 }} />
-                                  </div>
-                                </div>
-                              ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
-                            </td>
-                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                              {energyKj != null ? (
-                                <div>
-                                  <span style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)' }}>{energyKj} kJ</span>
-                                  <div style={{ marginTop: 3, height: 4, borderRadius: 2, background: 'var(--kr-white)', width: 60, margin: '3px auto 0' }}>
-                                    <div style={{ height: 4, borderRadius: 2, background: colour, width: `${energyBarPct}%`, opacity: 0.8 }} />
-                                  </div>
-                                </div>
-                              ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
-                            </td>
-                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                              {dispMm != null ? (
-                                <span style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: parseFloat(dispMm) > 20 ? 'var(--fp-critical-text)' : parseFloat(dispMm) > 5 ? 'var(--fp-warning-text)' : 'var(--kr-text)' }}>
-                                  {dispMm} mm
-                                </span>
-                              ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
-                            </td>
-                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                              {conf != null ? (
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                  <div style={{ width: 32, height: 4, borderRadius: 2, background: 'var(--kr-white)', overflow: 'hidden' }}>
-                                    <div style={{ height: 4, borderRadius: 2, background: conf >= 70 ? 'var(--fp-success-text)' : conf >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-info-text)', width: `${conf}%` }} />
-                                  </div>
-                                  <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, color: 'var(--kr-text)' }}>{conf}%</span>
-                                </div>
-                              ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
-                            </td>
-                            <td style={{ padding: '6px 8px' }}>
-                              {frac != null ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                  <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--kr-white)', overflow: 'hidden', maxWidth: 50 }}>
-                                    <div style={{ height: 4, borderRadius: 2, background: colour, width: `${frac}%`, opacity: 0.8 }} />
-                                  </div>
-                                  <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, color: 'var(--kr-text)' }}>{frac}%</span>
-                                </div>
-                              ) : <span style={{ color: 'var(--kr-muted)' }}>—</span>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+      {/* ── 2.6 Damage Severity & Coverage ──────────────────────────────────── */}
+      {(damagedPartsBySeverity.length > 0 || partsRecon.length > 0) && (
+        <div style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)' }}>
+            <p className="sub-heading">2.6 Damage Severity & Coverage</p>
+          </div>
+          <div className="p-4">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Severity distribution chart */}
+              {damagedPartsBySeverity.length > 0 && (
+                <div>
+                  <p className="micro-label mb-2">Severity Distribution — {damagedPartsBySeverity.length} components</p>
+                  <DamageSeverityChart components={damagedPartsBySeverity.map((p: any) => ({ name: p.name, severity: p.severity }))} />
                 </div>
-                {/* Physics totals row */}
-                {(() => {
-                  const totalEnergyKj = damagedParts.reduce((s: number, p: any) => s + (p.deformationEnergyJ ?? 0), 0) / 1000;
-                  const maxCrushCm = Math.max(0, ...damagedParts.map((p: any) => p.crushDepthM ?? 0)) * 100;
-                  const avgConf = (() => {
-                    const scores = damagedParts.map((p: any) => p.visionConfidenceScore).filter((s: any) => s != null);
-                    return scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null;
-                  })();
-                  if (totalEnergyKj === 0 && maxCrushCm === 0) return null;
-                  return (
-                    <div className="mt-2 px-3 py-2 rounded flex flex-wrap gap-6" style={{ background: 'var(--kr-white)', border: '1px solid var(--border)', fontSize: 11 }}>
-                      <div>
-                        <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Max Crush Depth</span>
-                        <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)', fontSize: 14 }}>{maxCrushCm.toFixed(1)} cm</div>
-                        <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>Used as M5 Campbell input</div>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Total Deformation Energy</span>
-                        <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)', fontSize: 14 }}>{totalEnergyKj.toFixed(2)} kJ</div>
-                        <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>Used as M5 energy-balance input</div>
-                      </div>
-                      {avgConf != null && (
-                        <div>
-                          <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Avg Vision Confidence</span>
-                          <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: avgConf >= 70 ? 'var(--fp-success-text)' : avgConf >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-info-text)', fontSize: 14 }}>{Math.round(avgConf)}%</div>
-                          <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>M5 confidence weight: {((Math.min(90, Math.max(30, avgConf)) / 100)).toFixed(2)}</div>
-                        </div>
-                      )}
+              )}
+              {/* Quote coverage stats */}
+              {partsRecon.length > 0 && (
+                <div>
+                  <p className="micro-label mb-2">Quote Coverage{pbName ? ` — ${pbName}` : ''}</p>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <div className="flex items-center gap-2 px-3 py-2" style={{ background: coverageBg, border: `1px solid ${coverageColor}` }}>
+                      <span style={{ fontSize: 20, fontWeight: 700, color: coverageColor }}>{Math.round(coverageRatio * 100)}%</span>
+                      <span style={{ fontSize: 10, color: coverageColor, fontWeight: 600, textTransform: 'uppercase' }}>Coverage</span>
                     </div>
-                  );
-                })()}
-              </div>
-            );
-          })()}
-
-          {/* 2.4c Damage Severity Distribution and 2.5 Quote Coverage moved to Section 2.5 Damage Analysis — see below */}
-
-          {/* 2.5 Quote Coverage and 2.4c Damage Severity moved to Section 2.5 Damage Analysis — see SectionDamageAnalysis below */}
-
-          {/* 2.6 Speed Inference Ensemble — MUST render before 2.7 Speed Forensics */}
-          {(() => {
-            const ensemble = (_phys as any)?.speedInferenceEnsemble;
-            if (!ensemble) return null;
-            const rawMethods: any[] = ensemble.methods ?? [];
-            // Count available analyses without exposing identities
-            const availableCount = rawMethods.filter((m: any) => (m.ran ?? m.available ?? false) && (m.speedKmh ?? m.estimateKmh) != null).length;
-            const totalCount = rawMethods.length;
-            if (availableCount === 0 && !(ensemble.consensusSpeedKmh ?? ensemble.consensusKmh)) return null;
-            const consensusKmh: number = ensemble.consensusSpeedKmh ?? ensemble.consensusKmh ?? 0;
-            const confidenceLevel: string = (ensemble.overallConfidence ?? ensemble.confidenceLevel ?? 'LOW').toLowerCase();
-            const divergenceFlag: boolean = ensemble.highDivergence ?? ensemble.divergenceFlag ?? false;
-            const ciLow: number | null = ensemble.confidenceInterval?.[0] ?? null;
-            const ciHigh: number | null = ensemble.confidenceInterval?.[1] ?? null;
-            const lowerBoundKmh: number | null = ensemble.lowerBoundKmh ?? null;
-            const spread: number = ensemble.crossValidation?.spread ?? 0;
-
-            // Speed scale: 0–120 km/h
-            const SCALE_MAX = 120;
-            const toScalePct = (v: number) => Math.min(100, Math.max(0, (v / SCALE_MAX) * 100));
-
-            // Confidence colour tokens
-            const confColour = confidenceLevel === 'high' ? 'var(--fp-success-text)' : confidenceLevel === 'medium' ? 'var(--fp-warning-text)' : 'var(--fp-info-text)';
-            const confBg = confidenceLevel === 'high' ? 'var(--fp-success-bg)' : confidenceLevel === 'medium' ? 'var(--fp-warning-bg)' : 'var(--fp-info-bg)';
-            const confBorder = confidenceLevel === 'high' ? 'var(--fp-success-border)' : confidenceLevel === 'medium' ? 'var(--fp-warning-border)' : 'var(--fp-info-border)';
-            const confLabel = confidenceLevel === 'high' ? 'High Confidence' : confidenceLevel === 'medium' ? 'Moderate Confidence' : 'Low Confidence';
-
-            // Speed zone classification
-            const speedZone = consensusKmh < 15 ? 'parking'
-              : consensusKmh < 40 ? 'low_urban'
-              : consensusKmh < 80 ? 'urban'
-              : consensusKmh < 120 ? 'highway'
-              : 'high_speed';
-            const speedZoneLabel: Record<string, string> = {
-              parking: 'Very low-speed manoeuvre — consistent with parking or crawling traffic',
-              low_urban: 'Low-speed urban impact — consistent with residential or car park speeds',
-              urban: 'Moderate urban-speed impact — consistent with general road traffic',
-              highway: 'High-speed impact — consistent with highway or freeway travel',
-              high_speed: 'Very high-speed impact — consistent with high-speed highway travel',
-            };
-            const speedZoneColour: Record<string, string> = {
-              parking: 'var(--fp-success-text)', low_urban: 'var(--fp-success-text)', urban: 'var(--fp-warning-text)', highway: 'var(--fp-locked-text)', high_speed: 'var(--fp-critical-text)',
-            };
-
-            // Plain-English convergence statement (no method names)
-            const convergenceText = divergenceFlag
-              ? `Independent analyses produced divergent results (spread: ${spread.toFixed(0)} km/h). The consensus estimate carries reduced reliability.`
-              : availableCount >= 2
-              ? `${availableCount} independent analyses converged within ${spread > 0 ? `${spread.toFixed(0)} km/h` : 'acceptable tolerance'} of each other, confirming the estimate.`
-              : `${availableCount} analysis completed. Additional evidence would strengthen confidence in this estimate.`;
-
-            // Recommended action
-            const recommendedAction = divergenceFlag
-              ? { icon: '!', label: 'Inconclusive — Independent Reconstruction Recommended', colour: 'var(--fp-locked-text)', bg: 'var(--fp-locked-bg)', border: 'var(--fp-locked-border)', text: 'The independent analyses produced divergent results. This consensus estimate should not be used as the sole basis for settlement. An independent accident reconstruction specialist should be engaged before proceeding.' }
-              : confidenceLevel === 'high'
-              ? { icon: '\u2713', label: 'High Confidence — Proceed with Standard Assessment', colour: 'var(--fp-success-text)', bg: 'var(--fp-success-bg)', border: 'var(--fp-success-border)', text: 'Multiple independent analyses are in agreement. The consensus speed estimate is reliable and may be used to support the claims assessment without further reconstruction.' }
-              : confidenceLevel === 'medium'
-              ? { icon: '!', label: 'Moderate Confidence — Assessor Verification Recommended', colour: 'var(--fp-warning-text)', bg: 'var(--fp-warning-bg)', border: 'var(--fp-warning-border)', text: 'A limited number of analyses contributed to this estimate. The result is indicative and should be cross-checked against the physical damage evidence by the attending assessor.' }
-              : { icon: '?', label: 'Low Confidence — Insufficient Data for Reliable Estimate', colour: 'var(--fp-info-text)', bg: 'var(--fp-info-bg)', border: 'var(--fp-info-border)', text: 'Insufficient evidence was available to produce a reliable speed estimate. This figure should not be used for settlement decisions. Additional evidence — photographs, witness statements, or a site inspection — is required.' };
-
-            // Court-defensible category names (no method IDs or formulas)
-            // Maps pipeline method IDs (as output by speedInferenceEnsemble.ts) to
-            // KINGA proprietary display names. The pipeline emits string IDs like
-            // 'CAMPBELL', 'ENERGY_MOMENTUM', etc. — NOT 'M1', 'M2'.
-            // Display names are intentionally plain-English (no formulas) for
-            // court-defensibility, but must be specific enough to convey authority.
-            const categoryMap: Record<string, string> = {
-              // Primary method IDs from speedInferenceEnsemble.ts
-              CAMPBELL:             'KINGA K-SDM — Structural Deformation',
-              ENERGY_MOMENTUM:      'KINGA K-EMB — Energy-Momentum Balance',
-              IMPULSE:              'KINGA K-CIA — Contact Impulse Analysis',
-              DEPLOYMENT_THRESHOLD: 'KINGA K-SSA — Safety System Activation',
-              VISION_DEFORMATION:   'KINGA K-VAD — Vision Deformation',
-              // Legacy M1–M5 keys kept as fallback for older assessment records
-              M1: 'KINGA K-SDM — Structural Deformation',
-              M2: 'KINGA K-EMB — Energy-Momentum Balance',
-              M3: 'KINGA K-CIA — Contact Impulse Analysis',
-              M4: 'KINGA K-SSA — Safety System Activation',
-              M5: 'KINGA K-VAD — Vision Deformation',
-            };
-            const speedMeaning = (kmh: number): string => {
-              if (kmh < 15) return 'Very low-speed — parking or stationary impact';
-              if (kmh < 40) return 'Low-speed — residential or car park conditions';
-              if (kmh < 80) return 'Moderate-speed — general urban road conditions';
-              if (kmh < 120) return 'High-speed — highway or freeway conditions';
-              return 'Very high-speed — above typical highway speeds';
-            };
-
-            return (
-              <div className="mt-6">
-                <p className="sub-heading">2.1b Speed Determination</p>
-                <div className="" style={{ border: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-
-                  {/* ── Top strip: consensus speed (large) + confidence badge ── */}
-                  <div className="px-5 py-4 flex items-center justify-between gap-6" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-                    <div>
-                      <p className="micro-label">Forensic Speed Estimate</p>
-                      <div className="flex items-end gap-2">
-                        <p className="text-4xl font-black" style={{ color: 'var(--kr-text)', fontFamily: 'var(--kr-mono)', lineHeight: 1 }}>{consensusKmh.toFixed(0)}</p>
-                        <p className="text-base font-semibold mb-0.5" style={{ color: 'var(--kr-muted)' }}>km/h</p>
+                    <div className="flex items-center gap-2 px-3 py-2" style={{ background: 'var(--status-pass-bg)', border: '1px solid var(--status-pass-text)' }}>
+                      <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-pass-text)' }}>{matchedCount}</span>
+                      <span style={{ fontSize: 10, color: 'var(--status-pass-text)', fontWeight: 600, textTransform: 'uppercase' }}>Matched</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2" style={{ background: 'var(--status-fail-bg)', border: '1px solid var(--status-fail-text)' }}>
+                      <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-fail-text)' }}>{missingCount}</span>
+                      <span style={{ fontSize: 10, color: 'var(--status-fail-text)', fontWeight: 600, textTransform: 'uppercase' }}>Missing</span>
+                    </div>
+                    {extraItems.length > 0 && (
+                      <div className="flex items-center gap-2 px-3 py-2" style={{ background: 'var(--status-review-bg)', border: '1px solid var(--status-review-text)' }}>
+                        <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-review-text)' }}>{extraItems.length}</span>
+                        <span style={{ fontSize: 10, color: 'var(--status-review-text)', fontWeight: 600, textTransform: 'uppercase' }}>Extra</span>
                       </div>
-                      {ciLow != null && ciHigh != null && (
-                        <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)', fontFamily: 'var(--kr-mono)' }}>Estimated range: {ciLow.toFixed(0)}–{ciHigh.toFixed(0)} km/h</p>
-                      )}
-                      {lowerBoundKmh != null && !ciLow && (
-                        <p className="text-xs mt-1" style={{ color: 'var(--fp-warning-text)', fontFamily: 'var(--kr-mono)' }}>Minimum: ≥ {lowerBoundKmh.toFixed(0)} km/h</p>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="inline-block text-xs font-bold px-3 py-1 rounded-full mb-2" style={{ background: confBg, color: confColour, border: `1px solid ${confBorder}` }}>
-                        {confLabel}
-                      </span>
-                      {divergenceFlag && (
-                        <div>
-                          <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--fp-critical-bg)', color: 'var(--fp-critical-text)', border: '1px solid var(--fp-critical-border)' }}>\u26a0 Analyses Diverge</span>
-                        </div>
-                      )}
-                      <p className="text-[10px] mt-1" style={{ color: 'var(--kr-muted)' }}>{availableCount} of {totalCount} analyses contributed</p>
-                    </div>
+                    )}
+                    {noQuoteCount > 0 && (
+                      <div className="flex items-center gap-2 px-3 py-2" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--kr-muted)' }}>{noQuoteCount}</span>
+                        <span style={{ fontSize: 10, color: 'var(--kr-muted)', fontWeight: 600, textTransform: 'uppercase' }}>No Quote</span>
+                      </div>
+                    )}
                   </div>
-
-                  {/* ── Plain-English convergence statement ── */}
-                  <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-off-white)' }}>
-                    <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-text)' }}>{convergenceText}</p>
-                  </div>
-
-                  {/* ── Speed scale ── */}
-                  <div className="px-5 pt-4 pb-3">
-                    <p className="micro-label">Impact Severity Context</p>
-                    <div className="relative h-6 rounded-full overflow-hidden mb-1" style={{ background: 'var(--kr-off-white)' }}>
-                      <div className="absolute top-0 bottom-0" style={{ left: 0, width: `${toScalePct(15)}%`, background: 'var(--fp-success-text)', opacity: 0.18 }} />
-                      <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(15)}%`, width: `${toScalePct(40) - toScalePct(15)}%`, background: 'var(--fp-success-text)', opacity: 0.12 }} />
-                      <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(40)}%`, width: `${toScalePct(80) - toScalePct(40)}%`, background: 'var(--fp-warning-text)', opacity: 0.18 }} />
-                      <div className="absolute top-0 bottom-0" style={{ left: `${toScalePct(80)}%`, right: 0, background: 'var(--fp-critical-text)', opacity: 0.18 }} />
-                      {ciLow != null && ciHigh != null && (
-                        <div className="absolute top-1 bottom-1 rounded-full" style={{ left: `${toScalePct(ciLow)}%`, width: `${toScalePct(ciHigh) - toScalePct(ciLow)}%`, background: confColour, opacity: 0.3 }} />
-                      )}
-                      <div className="absolute top-0 bottom-0 w-0.5" style={{ left: `${toScalePct(consensusKmh)}%`, background: speedZoneColour[speedZone], opacity: 0.9 }} />
-                      <div className="absolute" style={{ left: `calc(${toScalePct(consensusKmh)}% - 6px)`, top: '50%', transform: 'translateY(-50%)', width: 12, height: 12, borderRadius: '50%', background: speedZoneColour[speedZone], border: '2px solid white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                  {missingNames.length > 0 && (
+                    <div className="text-xs mb-2 p-2" style={{ background: 'var(--status-fail-bg)', border: '1px solid var(--status-fail-text)' }}>
+                      <strong style={{ color: 'var(--status-fail-text)' }}>Not covered by quote:</strong>{' '}
+                      <span style={{ color: 'var(--kr-text)' }}>{missingNames.join(' · ')}</span>
                     </div>
-                    <div className="flex justify-between text-[9px] mt-1" style={{ color: 'var(--kr-muted)' }}>
-                      <span>0</span><span>Parking</span><span>Low Urban</span><span>Urban</span><span>Highway</span><span>120 km/h</span>
+                  )}
+                  {structuralCount > 0 && (
+                    <div className="text-xs p-2" style={{ background: 'var(--fp-warning-bg)', border: '1px solid var(--fp-warning-border)' }}>
+                      <strong style={{ color: 'var(--fp-warning-text)' }}>⚠ {structuralCount} structural component{structuralCount > 1 ? 's' : ''} detected</strong>
+                      <span style={{ color: 'var(--kr-muted)', marginLeft: 6 }}>— independent structural assessment required before settlement.</span>
                     </div>
-                    <p className="text-xs mt-2 font-semibold" style={{ color: speedZoneColour[speedZone] }}>
-                      {speedZoneLabel[speedZone]}
-                    </p>
-                  </div>
-
-                  {/* ── Evidence categories (no method names or formulas) ── */}
-                  {/* Only show methods that actually ran — never expose disabled or inferred-only rows */}
-                  {(() => {
-                    const activeMethods = rawMethods.filter((m: any) => !!(m.ran ?? m.available ?? false));
-                    if (activeMethods.length === 0) return null;
-                    return (
-                    <div className="px-5 pt-3 pb-4" style={{ borderTop: '1px solid var(--border)' }}>
-                      <p className="micro-label" style={{ marginBottom: 12 }}>Evidence Categories Assessed</p>
-                      <div className="space-y-0">
-                        {activeMethods.map((m: any, idx: number) => {
-                          const speedKmh: number | null = m.speedKmh ?? m.estimateKmh ?? null;
-                          const isOutlier: boolean = (ensemble.crossValidation?.outlierMethods ?? []).includes(m.method ?? m.id ?? '');
-                          const methodId: string = m.method ?? m.id ?? `A${idx + 1}`;
-                          const categoryName = categoryMap[methodId] ?? `Analysis ${idx + 1}`;
-                          const statusColour = isOutlier ? 'var(--fp-locked-text)' : 'var(--fp-success-text)';
-                          const statusIcon = isOutlier ? '!' : '\u2713';
-                          const isDeploymentMethod = methodId === 'DEPLOYMENT_THRESHOLD' || methodId === 'M4';
-                          const statusLabel = isOutlier
-                            ? 'Excluded — result diverged from other analyses'
-                            : (speedKmh != null
-                              ? `${speedKmh.toFixed(0)} km/h — ${speedMeaning(speedKmh)}`
-                              : isDeploymentMethod
-                              ? 'Safety system activation threshold corroborated — speed consistent with deployment range'
-                              : 'Evidence assessed — corroborates speed range');
-                          return (
-                            <div key={methodId} className="py-2" style={{ borderBottom: '1px solid var(--border)' }}>
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-2">
-                                  <span className="text-[10px] font-bold w-4 text-center shrink-0 mt-0.5" style={{ color: statusColour }}>{statusIcon}</span>
-                                  <span className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>{categoryName}</span>
-                                </div>
-                                <span className="text-[10px] font-semibold shrink-0 text-right" style={{ color: statusColour, maxWidth: '55%' }}>{statusLabel}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <p className="text-[10px] mt-3 italic" style={{ color: 'var(--kr-muted)' }}>
-                        Detailed methodology is available to qualified experts under a confidentiality undertaking.
-                      </p>
-                    </div>
-                    );
-                  })()}
-
-                  {/* ── Recommended Action ── */}
-                  <div className="px-5 py-3" style={{ borderTop: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-                    <div className="flex items-start gap-3">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded shrink-0 mt-0.5" style={{ background: recommendedAction.bg, color: recommendedAction.colour, border: `1px solid ${recommendedAction.border}` }}>{recommendedAction.icon}</span>
-                      <div>
-                        <p className="text-xs font-bold" style={{ color: 'var(--kr-text)' }}>{recommendedAction.label}</p>
-                        <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--kr-muted)' }}>{recommendedAction.text}</p>
-                      </div>
-                    </div>
-                  </div>
-
+                  )}
+                  <p className="text-xs mt-2" style={{ color: 'var(--kr-muted)' }}>Full breakdown in Section 3.1.</p>
                 </div>
-              </div>
-            );
-          })()}
-          {/* 2.1c Speed Verification */}
-          <Section27SpeedForensics
-            speedForensics={(_phys as any)?.speedForensics ?? null}
-            claimedSpeed={claimedSpeed ?? null}
-            physicsSpeed={physicsInferredSpeed ?? null}
-          />
-
-          {/* 2.8 Severity Consensus — removed (covered by 2.4c Damage Severity Distribution) */}
-          {/* 2.9 Damage Pattern Validation moved to Section 2.5 Damage Analysis — see SectionDamageAnalysis below */}
-          {/* 2.10 Vehicle Structural Intelligence */}
-          <Section210VehicleStructural claim={claim} />
-          {/* 2.11 Photo Forensics Summary — removed (covered in full by Section 4 Photo Evidence) */}
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ── 2.7 Pattern Validation ──────────────────────────────────────────── */}
+      {damagePatternValidation && (
+        <Section29DamagePatternValidation damagePatternValidation={damagePatternValidation} />
+      )}
+
+      {/* ── 2.8 Vehicle Structural Intelligence ─────────────────────────────── */}
+      <Section210VehicleStructural claim={claim} />
+
     </div>
   );
 }
+
 // ─── Section 2.10: Vehicle Structural Intelligence ────────────────────────────
 // Renders a compact, print-safe structural intelligence block for the forensic
 // audit report. Uses the same tRPC procedure as the panel but renders in a
@@ -3384,7 +3160,7 @@ function Section210VehicleStructural({ claim }: { claim: any }) {
         borderBottom: '1px solid var(--border)', paddingBottom: '6px', marginBottom: '12px'
       }}>
         <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--kr-muted)', letterSpacing: '0.05em' }}>
-          2.10
+          2.8
         </span>
         <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--kr-text)' }}>
           Vehicle Structural Intelligence
@@ -4010,7 +3786,7 @@ function Section29DamagePatternValidation({ damagePatternValidation }: { damageP
       <div className="" style={{ border: '1px solid var(--border)', background: 'var(--kr-white)' }}>
         {/* Header */}
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-          <p className="sub-heading">2.9 Damage Pattern Validation</p>
+          <p className="sub-heading">2.7 Pattern Validation</p>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: matchBadge.bg, color: matchBadge.text, border: `1px solid ${matchBadge.border}` }}>{patternMatch} MATCH</span>
         </div>
         <div className="p-4">
@@ -8775,8 +8551,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="physics" pipelineRunId={pipelineRunId} />}
       <Section2Physics claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
 
-      <div className="section-heading" data-section="2.5">2.5 &nbsp; Damage Analysis</div>
-      <SectionDamageAnalysis aiAssessment={aiAssessment} quotes={quotes} claimRecord0={(aiAssessment as any)?._claimRecord ?? claim} expandShorthand={expandShorthand} />
+      {/* 2.6 Damage Severity & Coverage and 2.7 Pattern Validation are now rendered inside Section2Physics */}
 
       <div className="section-heading" data-section="3">3 &nbsp; Financial Validation</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="financial_validation" pipelineRunId={pipelineRunId} />}
