@@ -5253,41 +5253,84 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   // Only show rows that were actually extracted/provided — suppress missing-data rows
   const docs = docsAll.filter(d => d.extracted);
 
+  // ── Unified document register: merge photo stats into the docs table ──
+  const photoRegisterNote = isSystemFailure
+    ? `System error — photo ingestion failed (not claimant fault)`
+    : photoStatus === 'CLAIMANT_OMISSION'
+      ? 'Not submitted — contributes to fraud score'
+      : photosDetected > 0
+        ? `${photosDetected} detected · ${photosProcessed} processed`
+        : 'Not submitted';
+  const photoRegisterConf = isSystemFailure ? 0 : photosDetected > 0 ? 80 : 0;
+  const allDocsForRegister = [
+    ...docsAll.filter(d => d.id !== 'Photos'),
+    {
+      id: 'Photos',
+      type: 'Visual',
+      extracted: photosDetected > 0 || photoStatus === 'CLAIMANT_OMISSION',
+      note: photoRegisterNote,
+    },
+  ].filter(d => d.extracted);
+
   return (
     <div className="mb-1 space-y-2" style={{ marginBottom: "8px" }}>
+      {/* 4.1 Document Register — merged evidence inventory */}
+      {allDocsForRegister.length > 0 && (
+      <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+        <div className="px-4 py-3 flex items-center justify-between">
+          <p className="sub-heading">4.1 Document Register</p>
+          <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{allDocsForRegister.length} item{allDocsForRegister.length !== 1 ? 's' : ''} received</span>
+        </div>
+        {isSystemFailure && (
+          <div className="px-4 pb-2 text-xs" style={{ color: 'var(--kr-muted)' }}>
+            <strong style={{ color: 'var(--kr-text)' }}>System error</strong> — Photo ingestion failed due to a pipeline error. Not attributed to the claimant. Photo-related fraud points excluded from score.
+          </div>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs report-table">
+            <thead>
+              <tr>
+                {["Document", "Type", "Confidence", "Detail"].map(h => (
+                  <th key={h} className="text-left px-3 py-2 font-semibold">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {allDocsForRegister.map((doc, i) => {
+                const conf = doc.id === 'Photos' ? photoRegisterConf
+                  : doc.type === "Primary" ? 95
+                  : doc.type === "Financial" ? 85
+                  : doc.type === "Identity" ? 90
+                  : 75;
+                const confColor = conf >= 80 ? "var(--fp-success-text)" : conf >= 60 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
+                return (
+                  <tr key={i} style={{ borderTop: i === 0 ? undefined : '1px solid var(--kr-rule)' }}>
+                    <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)' }}>{doc.id}</td>
+                    <td className="px-3 py-2" style={{ color: 'var(--kr-muted)' }}>{doc.type}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 rounded-full flex-1" style={{ background: 'var(--kr-rule)', minWidth: 60 }}>
+                          <div className="h-1.5 rounded-full" style={{ width: `${conf}%`, background: confColor }} />
+                        </div>
+                        <span className="text-xs font-semibold shrink-0" style={{ color: confColor }}>{conf}%</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2" style={{ color: 'var(--kr-muted)' }}>{doc.note}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      )}
+      {/* Photo gallery block — kept as-is, heading removed since register above covers it */}
       <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
         <div className="px-4 py-3 flex items-center justify-between" >
-          <p className="sub-heading">4.0 Evidence Inventory</p>
+          <p className="sub-heading">4.2 Photo Evidence</p>
           <span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>{toSentenceCase((photoStatus ?? "").replace(/_/g, " "))}</span>
         </div>
         <div className="p-4">
-          <div className="grid grid-cols-3 gap-4 mb-3">
-            {[
-              { label: "Detected", value: photosDetected },
-              { label: "Processed", value: photosProcessed },
-              { label: "Fraud points", value: isSystemFailure ? "0 (adj)" : photoFraudPoints },
-            ].map((m, i) => (
-              <div key={i} className="text-center p-2 rounded" style={{ background: 'var(--kr-white)' }}>
-                <p className="text-lg font-bold" style={{ color: 'var(--kr-text)' }}>{m.value}</p>
-                <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>{m.label}</p>
-              </div>
-            ))}
-          </div>
-          {isSystemFailure && (
-            <div className="p-2 text-xs mb-2" style={{ borderTop: '1px solid var(--border)', color: 'var(--kr-muted)' }}>
-              <strong style={{ color: 'var(--kr-text)' }}>System error</strong> — Photo ingestion failed due to a pipeline error. Not attributed to the claimant. Photo-related fraud points excluded from score.
-            </div>
-          )}
-          {photoStatus === "CLAIMANT_OMISSION" && (
-            <div className="p-2 text-xs mb-2" style={{ borderTop: '1px solid var(--border)', color: 'var(--kr-muted)' }}>
-              <strong style={{ color: 'var(--kr-text)' }}>Photos not provided</strong> — Claimant did not submit photo evidence. Contributes to fraud risk score.
-            </div>
-          )}
-          {photoStatus === "ANALYSED" && (
-            <div className="p-2 rounded text-xs mb-2" style={{ background: 'var(--kr-white)', border: '1px solid var(--kr-rule)', color: 'var(--kr-text)' }}>
-              <strong>✓ Photos analysed</strong> — {photosProcessed} of {photosDetected} photos successfully processed.
-            </div>
-          )}
           {/* Chart 3 — Photo Evidence Inventory: vertical bar chart */}
           {photosDetected > 0 && (() => {
             const pf3 = (enforcement as any)?._photoForensics as any;
@@ -5487,52 +5530,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         </div>
       </div>
 
-      {docs.length > 0 && (
-      <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-        <div className="px-4 py-3" >
-          <p className="sub-heading">4.2 Supporting Documents</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs report-table">
-            <thead>
-              <tr>
-                {["Document", "Type", "Confidence", "Detail"].map(h => (
-                  <th key={h} className="text-left px-3 py-2 font-semibold">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {docs.map((doc, i) => {
-                // All rows in docs are extracted=true — assign confidence by type
-                const conf = doc.type === "Primary" ? 95
-                  : doc.type === "Financial" ? 85
-                  : doc.type === "Visual" ? (isSystemFailure ? 0 : 80)
-                  : doc.type === "Identity" ? 90
-                  : 75;
-                const confColor = conf >= 70 ? "var(--fp-success-text)" : conf >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
-                return (
-                  <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined, background: 'var(--kr-white)' }}>
-                    <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)' }}>{doc.id}</td>
-                    <td className="px-3 py-2" style={{ color: 'var(--kr-muted)' }}>{doc.type}</td>
-                    <td className="px-3 py-2" style={{ minWidth: 100 }}>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 rounded-full" style={{ background: 'var(--kr-white)' }}>
-                          <div className="h-1.5 rounded-full" style={{ width: `${conf}%`, background: confColor }} />
-                        </div>
-                        <span className="text-xs font-semibold shrink-0" style={{ color: confColor }}>{conf}%</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2" style={{ color: 'var(--kr-muted)' }}>{doc.note}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      )}
-
-      {/* 4.3 + 4.4 side-by-side grid */}
+     {/* 4.3 + 4.4 side-by-side grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
       {/* 4.3 Photo Forensics — EXIF, GPS & manipulation analysis */}
       {(() => {
@@ -6051,9 +6049,8 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
           <div className="px-4 py-3" >
             <p className="sub-heading">
-              5.4 Risk Indicator Breakdown {isSystemFailure ? "(system errors excluded from score)" : ""}
+              5.1 Risk Indicator Breakdown {isSystemFailure ? "(system errors excluded from score)" : ""}
             </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Indicators are grouped into six weighted categories (Physical Consistency 28%, Scenario Intelligence 22%, Financial Anomaly 20%, Documentation 15%, Entity Intelligence 10%, Photo Forensics 5%). The final fraud score is a normalised composite — no single indicator can dominate the result.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs report-table">
@@ -6190,7 +6187,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                           </div>
                         </td>
                         <td className="px-3 py-2"><span className="text-xs font-semibold" style={{ color: 'var(--kr-muted)' }}>Yes</span></td>
-                        <td className="px-3 py-2" style={{ color: 'var(--kr-muted)' }}>{c.recommended_action} (see §5.6)</td>
+                        <td className="px-3 py-2" style={{ color: 'var(--kr-muted)' }}>{c.recommended_action} (see §5.4)</td>
                       </tr>
                     );
                   });
@@ -6221,7 +6218,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
       {dateCheck && (
         <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
           <div className="px-4 py-3 flex items-center justify-between" >
-            <p className="sub-heading">5.4 Accident Date Consistency</p>
+            <p className="sub-heading">5.2 Accident Date Consistency</p>
             {(() => {
               const v = dateCheck.verdict;
               const isOk = v === 'consistent';
@@ -6340,116 +6337,6 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
         </div>
       )}
 
-      {/* 5.5 Weighted Category Breakdown — 6-category composite framework */}
-      {(() => {
-        // The weighted fraud score is computed from 6 independent categories.
-        // Each category has a budget (max pts it can contribute to the final score).
-        // Raw indicator points within each category are normalised against a calibrated
-        // maximum, then scaled to the category budget.
-        //
-        // Category definitions (must match CATEGORY_BUDGET in stage-8-fraud.ts):
-        const CATEGORY_META: Record<string, { label: string; budget: number; color: string; description: string }> = {
-          physical_consistency:   { label: 'Physical Consistency',   budget: 28, color: '#c0392b', description: 'Physics, damage direction, damage pattern' },
-          scenario_intelligence:  { label: 'Scenario Intelligence',  budget: 22, color: '#e67e22', description: 'Scenario-aware flags, narrative analysis' },
-          financial_anomaly:      { label: 'Financial Anomaly',      budget: 20, color: '#d35400', description: 'Quote similarity, cost deviation, inflation' },
-          documentation_integrity:{ label: 'Documentation',          budget: 15, color: '#7f8c8d', description: 'Police report, photos, date cross-check' },
-          entity_intelligence:    { label: 'Entity Intelligence',    budget: 10, color: '#2c3e50', description: 'Officer/assessor/driver history patterns' },
-          photo_forensics:        { label: 'Photo Forensics',        budget:  5, color: '#8e44ad', description: 'EXIF manipulation, GPS inconsistency' },
-        };
-
-        // Build category scores from the fraud indicators in the breakdown
-        // (approximation from available UI data — exact values are in the server output)
-        const allFraudIndicators: any[] = (() => {
-          const raw = fraudScoreBreakdown5?.indicators ?? [];
-          return Array.isArray(raw) ? raw : [];
-        })();
-
-        // Map indicator categories to our 6-category framework
-        function mapToCategory(ind: any): string {
-          const cat = (ind.category ?? '').toLowerCase();
-          const code = (ind.indicator ?? '').toLowerCase();
-          if (cat === 'photo_forensics' || cat === 'forensics' || code.startsWith('photo_') || code.startsWith('gps_') || code.startsWith('exif_') || code.includes('manipulation')) return 'photo_forensics';
-          if (cat === 'consistency' || code.startsWith('damage_direction') || code.startsWith('severity_physics') || code.startsWith('damage_pattern') || code.startsWith('damage_image') || code.startsWith('cross_engine_')) return 'physical_consistency';
-          if (cat === 'financial' || code.startsWith('quote_similarity') || code.startsWith('cost_deviation') || code.startsWith('inflated_') || code === 'financed_vehicle_total_loss_risk' || code === 'non_panel_repairer_requested') return 'financial_anomaly';
-          if (cat === 'documentation' || cat === 'date_crosscheck' || code.startsWith('missing_police') || code.startsWith('police_report') || code.startsWith('no_damage_photos') || code.startsWith('photos_not_ingested') || code.startsWith('low_data_completeness') || code === 'accident_date_inconsistency' || code.startsWith('late_submission')) return 'documentation_integrity';
-          if (cat === 'cross_entity_intelligence' || cat === 'entity' || code === 'officer_concentration' || code === 'assessor_routing_bias' || code === 'driver_history_pattern') return 'entity_intelligence';
-          return 'scenario_intelligence';
-        }
-
-        // Raw caps per category (must match CATEGORY_RAW_CAP in stage-8-fraud.ts)
-        const RAW_CAP: Record<string, number> = {
-          physical_consistency: 130, scenario_intelligence: 100,
-          financial_anomaly: 60, documentation_integrity: 65,
-          entity_intelligence: 90, photo_forensics: 50,
-        };
-
-        // Accumulate raw scores per category
-        const rawByCategory: Record<string, number> = {};
-        for (const cat of Object.keys(CATEGORY_META)) rawByCategory[cat] = 0;
-        for (const ind of allFraudIndicators) {
-          const cat = mapToCategory(ind);
-          rawByCategory[cat] = (rawByCategory[cat] ?? 0) + (ind.score ?? 0);
-        }
-
-        // Compute normalised contribution per category
-        const categoryRows = Object.entries(CATEGORY_META).map(([key, meta]) => {
-          const raw = rawByCategory[key] ?? 0;
-          const cap = RAW_CAP[key] ?? 100;
-          const capped = Math.min(raw, cap);
-          const normScore = (capped / cap) * meta.budget;
-          const pctOfBudget = meta.budget > 0 ? (normScore / meta.budget) * 100 : 0;
-          return { key, ...meta, raw, normScore, pctOfBudget };
-        });
-
-        const activeRows = categoryRows.filter(r => r.raw > 0);
-        if (activeRows.length === 0) return null;
-
-        return (
-          <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-            <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-              <p className="sub-heading">5.5 Weighted Category Score Breakdown</p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>Each category contributes a maximum fixed number of points to the final score. Raw indicator points within a category are normalised against the category ceiling — preventing any single category from dominating.</p>
-            </div>
-            <div className="p-4">
-              {/* Category rows */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {categoryRows.map((row) => {
-                  const barPct = row.budget > 0 ? Math.min(100, (row.normScore / row.budget) * 100) : 0;
-                  const barColor = barPct > 70 ? 'var(--fp-critical-text)' : barPct > 40 ? 'var(--fp-warning-text)' : barPct > 0 ? '#3b82f6' : 'var(--kr-rule)';
-                  return (
-                    <div key={row.key}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
-                        <div>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: row.raw > 0 ? 'var(--kr-text)' : 'var(--kr-muted)' }}>{row.label}</span>
-                          <span style={{ fontSize: 9, color: 'var(--kr-muted)', marginLeft: 6 }}>{row.description}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                          <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 11, fontWeight: 700, color: row.raw > 0 ? barColor : 'var(--kr-muted)' }}>
-                            {row.normScore.toFixed(1)}
-                          </span>
-                          <span style={{ fontSize: 9, color: 'var(--kr-muted)' }}>/ {row.budget} pts</span>
-                        </div>
-                      </div>
-                      <div style={{ height: 6, borderRadius: 3, background: 'var(--kr-rule)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${barPct}%`, background: row.raw > 0 ? barColor : 'transparent', borderRadius: 3, transition: 'width 0.3s' }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Score tally */}
-              <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--kr-rule)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ fontSize: 10, color: 'var(--kr-muted)' }}>Composite score (weighted, normalised)</span>
-                  <span style={{ fontSize: 9, color: 'var(--kr-muted)', marginLeft: 8 }}>Corroboration across {activeRows.length} categor{activeRows.length === 1 ? 'y' : 'ies'} detected</span>
-                </div>
-                <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 14, fontWeight: 700, color: fraudColor }}>{Math.round(fraudScore)}/100</span>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* 5.6 Cross-Engine Consistency — C1–C9 agreements and conflicts */}
       {(() => {
         const cec = fraudScoreBreakdown5?.crossEngineConsistency;
@@ -6482,7 +6369,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
             {/* Header */}
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)', background: panelBg }}>
               <div>
-                <p className="sub-heading">5.6 Cross-Engine Consistency — Physics ↔ Damage ↔ Fraud</p>
+                <p className="sub-heading">5.4 Cross-Engine Consistency — Physics ↔ Damage ↔ Fraud</p>
                 <p className="text-[10px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>Automated C1–C9 agreement/conflict checks across all three analysis engines</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -6550,25 +6437,6 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                 </div>
               )}
 
-              {/* Agreements */}
-              {agreements.length > 0 && (
-                <div>
-                  <p className="micro-label">Engine Agreements ({agreements.length})</p>
-                  <div className="space-y-1">
-                    {agreements.map((a: any, i: number) => (
-                      <div key={i} className="flex items-start gap-2 px-3 py-1.5 rounded" style={{ background: 'var(--fp-success-bg)', border: '1px solid var(--fp-success-border)' }}>
-                        <span className="text-[10px] font-bold mt-0.5 shrink-0" style={{ color: 'var(--fp-success-text)' }}>✓</span>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[10px] font-semibold" style={{ color: 'var(--kr-text)' }}>{a.label}</span>
-                          {a.detail && <span className="text-[10px] ml-2" style={{ color: 'var(--kr-muted)' }}>{a.detail}</span>}
-                        </div>
-                        <span className="text-[10px] font-bold shrink-0" style={{ color: a.strength === 'STRONG' ? 'var(--fp-success-text)' : 'var(--fp-warning-text)' }}>{a.strength}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Validator metadata footer */}
               {cec.validator_metadata && (
                 <div className="flex flex-wrap gap-4 text-[10px] pt-2" style={{ borderTop: '1px solid var(--kr-rule)', color: 'var(--kr-muted)' }}>
@@ -6599,7 +6467,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
           <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-off-white)' }}>
               <div>
-                <p className="sub-heading">5.7 Policy Exclusions &amp; Recovery Opportunities</p>
+                <p className="sub-heading">5.5 Policy Flags &amp; Subrogation</p>
                 <p className="text-[10px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>Sourced from policy document analysis and third-party evidence — Claim Truth Layer</p>
               </div>
               {excess !== null && (
@@ -6612,7 +6480,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
             <div className="p-3 space-y-3">
               {exclusions.length > 0 && (
                 <div>
-                  <p className="sub-heading">Policy Exclusions Identified</p>
+                  <p className="sub-heading" style={{ fontSize: 11 }}>Policy Exclusions</p>
                   <div className="space-y-2">
                     {exclusions.map((ex: any, i: number) => (
                       <div key={i} className="rounded-lg px-3 py-2.5" style={{ border: '1px solid var(--fp-critical-border)', background: 'var(--fp-critical-bg)' }}>
@@ -6636,7 +6504,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
               )}
               {subrogation.length > 0 && (
                 <div>
-                  <p className="sub-heading">Subrogation &amp; Recovery Leads</p>
+                  <p className="sub-heading" style={{ fontSize: 11, color: 'var(--fp-warning-text)' }}>⚑ Subrogation &amp; Recovery Leads</p>
                   <div className="space-y-2">
                     {subrogation.map((lead: any, i: number) => (
                       <div key={i} className="rounded-lg px-3 py-2.5" style={{ border: '1px solid var(--fp-warning-border)', background: 'var(--fp-warning-bg)' }}>
@@ -6697,7 +6565,7 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                     </li>
                   ))}
                 </ul>
-                <p className="text-[10px] mt-2" style={{ color: 'var(--kr-muted)' }}>Full cross-engine analysis in §5.6. Physics method inputs in §2.6.</p>
+                <p className="text-[10px] mt-2" style={{ color: 'var(--kr-muted)' }}>Full cross-engine analysis in §5.4. Physics method inputs in §2.6.</p>
               </div>
             );
           })()}
