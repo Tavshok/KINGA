@@ -4361,34 +4361,35 @@ function SectionDamageAnalysis({ aiAssessment, quotes, claimRecord0, expandShort
 }
 
 // ─── Section 3: Financial Validation ─────────────────────────────────────────
-
+// Redesigned structure (v2):
+//   3.1 Cost Summary          — L1/L2/savings KPIs + NFS badge + settlement delta + CDE recommendation
+//   3.2 Repair Cost Analysis  — Component matrix + chart + labour/parts inline stats
+//   3.3 Quote Reconciliation  — Pill tags for quoted-not-damaged / damaged-not-quoted + copy-quote alert
+//   3.4 Vehicle Valuation     — Market value, repair-to-value ratio, write-off threshold
+// Removed: Historical Cost Benchmark (legal/reputational risk — kept in backend fraud engine only)
 function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUsd, claimId }: { aiAssessment: any; enforcement: any; quotes?: any[]; fmtMoney?: (n: number | null | undefined) => string; claimId?: number }) {
   const e = enforcement;
   const ce = e?.costExtraction;
-  const normalised = (aiAssessment as any)?._normalised as any;
 
-  // Stage 9 no longer produces KINGA cost estimates. Only document-sourced costs are used.
-  const aiEstimate = 0; // Disabled: system uses submitted quote only
-  const aiParts = 0;
-  const aiLabour = 0;
-  const fairMin = 0;
-  const fairMax = 0;
-  const itemisedParts: any[] = ce?.itemised_parts ?? [];
-  // Parse partsReconciliationJson from Stage 9 — used to show coverage gap per component
-  const partsReconRaw = (aiAssessment as any)?.partsReconciliationJson;
-  const partsRecon: any[] = (() => {
-    if (!partsReconRaw) return [];
-    try { return typeof partsReconRaw === 'string' ? JSON.parse(partsReconRaw) : (Array.isArray(partsReconRaw) ? partsReconRaw : []); } catch { return []; }
-  })();
-  // Build a lookup: component name (lower) → reconciliation_status from Stage 9
-  const reconStatusMap: Record<string, string> = {};
-  for (const r of partsRecon) {
-    if (r.component) reconStatusMap[r.component.toLowerCase()] = r.reconciliation_status ?? 'no_quote_available';
-  }
+  // ── Cost Intelligence outputs (Stage 9 / costIntelligenceJson) ──────────────
+  const costIntel = (aiAssessment as any)?.costIntelligenceJson ?? null;
+  const costDecision = costIntel?.costDecision ?? null;
+  const costNarrative = costIntel?.costNarrative ?? null;
+  const reconciliationSummary = costIntel?.reconciliationSummary ?? null;
+  const co = costIntel?.compositeOptimisation ?? null;
 
-  // Build pbQuotes with quoteType-aware deduplication:
-  // - assessor_adjusted > strip_requote > revised > original (priority order per repairer)
-  // - supplementary quotes are always additive and shown alongside the authoritative quote
+  // ── Quote similarity (fraud engine, Phase 1) ─────────────────────────────────
+  const fraudScoreBreakdown = (aiAssessment as any)?.fraudScoreBreakdownJson ?? null;
+  const quoteSimilarity = fraudScoreBreakdown?.quoteSimilarity ?? null;
+
+  // ── Market value (for 3.4 valuation) ─────────────────────────────────────────
+  const claimRecord3 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
+  const llmValuation3 = claimRecord3?.valuation ?? null;
+  const marketValueUsd3: number | null = costIntel?.marketValueUsd ?? llmValuation3?.marketValueUsd ?? claimRecord3?.vehicle?.marketValueUsd ?? null;
+
+  // ── Build pbQuotes with quoteType-aware deduplication ────────────────────────
+  // Priority order per repairer: assessor_adjusted > strip_requote > revised > original
+  // Supplementary quotes are always additive and shown alongside the authoritative quote
   type PbQuoteItem = { name: string; total: number; parts: number; labour: number; status: string; lineItems: any[]; id: number; quoteType: string; badge: string; sublabel: string; panelBeaterId?: number };
   const _pbQuotesRaw: PbQuoteItem[] = (quotes ?? []).map((q: any) => {
     const lineItemsTotal = (q.lineItems ?? []).reduce((sum: number, li: any) => sum + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
@@ -4436,39 +4437,11 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
 
   const primaryQuote = pbQuotes[0];
   const quotedTotal = primaryQuote?.total ?? 0;
-  const quotedParts = primaryQuote?.parts ?? 0;
-  const quotedLabour = primaryQuote?.labour ?? 0;
 
-  // No KINGA estimate to compare against — verdict is purely based on quote presence
-  const verdict: string = pbQuotes.length > 0 ? "QUOTE_SUBMITTED" : "NO_QUOTE";
-  const totalVar = null;
-  const partsVar = null;
-  const labourVar = null;
-
-  const corrections: string[] = (aiAssessment as any)?._phase1?.allCorrections ?? [];
-  const costCorrections = corrections.filter(c => c.toLowerCase().includes("cost") || c.toLowerCase().includes("$") || c.toLowerCase().includes("amount"));
-
-  // Cost Decision Engine outputs — from costIntelligenceJson (C-3 fix)
-  const costIntel = (aiAssessment as any)?.costIntelligenceJson ?? null;
-  const costDecision = costIntel?.costDecision ?? null;
-  const costNarrative = costIntel?.costNarrative ?? null;
-  const costReliability = costIntel?.costReliability ?? null;
-  const reconciliationSummary = costIntel?.reconciliationSummary ?? null;
-  // Market value for 70% write-off threshold — same priority chain as ValuationSubsection
-  const claimRecord3 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
-  const llmValuation3 = claimRecord3?.valuation ?? null;
-  const marketValueUsd3: number | null = costIntel?.marketValueUsd ?? llmValuation3?.marketValueUsd ?? claimRecord3?.vehicle?.marketValueUsd ?? null;
-  // Learning benchmark from cost extraction engine
-  const learningBenchmark3 = (e?.costExtraction as any)?.learningBenchmark ?? null;
-  // Phase 2: Per-component KINGA benchmarks (p25/median/p75 + per-quote flags)
+  // ── Per-component benchmark data ─────────────────────────────────────────────
   const perComponentBenchmarks: Record<string, any> | null = costIntel?.perComponentBenchmarks ?? null;
-  // Phase 1: Quote similarity results (from fraudScoreBreakdownJson)
-  const fraudScoreBreakdown = (aiAssessment as any)?.fraudScoreBreakdownJson ?? null;
-  const quoteSimilarity = fraudScoreBreakdown?.quoteSimilarity ?? null;
 
-  // ── Build item-per-row cross-repairer comparison table ──────────────────────
-  // Fuzzy-match helper: tokenise a description and return a normalised key.
-  // Strips punctuation, lowercases, sorts tokens so word-order variants match.
+  // ── Fuzzy-match helpers for component matrix ──────────────────────────────────
   const normKey = (s: string) =>
     s.toLowerCase()
       .replace(/[^a-z0-9\s]/g, ' ')
@@ -4477,7 +4450,6 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
       .sort()
       .join(' ');
 
-  // Token-overlap similarity (Jaccard on word sets) — returns 0..1
   const similarity = (a: string, b: string): number => {
     const ta = new Set(normKey(a).split(' '));
     const tb = new Set(normKey(b).split(' '));
@@ -4488,8 +4460,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   };
 
   // Collect all line items across all quotes, grouped into canonical clusters.
-  // The first description seen for a cluster becomes the canonical label.
-  const FUZZY_THRESHOLD = 0.55; // ≥55% token overlap → same component
+  const FUZZY_THRESHOLD = 0.55;
   type Cluster = { canonical: string; category: string; lineItems: Array<{ quoteIdx: number; li: any }> };
   const clusters: Cluster[] = [];
 
@@ -4497,7 +4468,6 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
     (q.lineItems ?? []).forEach((li: any) => {
       const desc = (li.description ?? '').trim();
       if (!desc) return;
-      // Find best matching existing cluster
       let bestCluster: Cluster | null = null;
       let bestScore = 0;
       for (const cl of clusters) {
@@ -4507,7 +4477,6 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
       if (bestCluster && bestScore >= FUZZY_THRESHOLD) {
         bestCluster.lineItems.push({ quoteIdx: qi, li });
       } else {
-        // New cluster
         const cat = li.category ?? '';
         clusters.push({ canonical: desc, category: cat, lineItems: [{ quoteIdx: qi, li }] });
       }
@@ -4519,7 +4488,6 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const missedRows3: ItemRow3[] = [];
 
   for (const cl of clusters) {
-    // Build one cell per quote — use the first matching line item for that quote
     const cells: Array<{ amount: number | null; aiReview?: string | null }> = pbQuotes.map((_, qi) => {
       const entry = cl.lineItems.find(e => e.quoteIdx === qi);
       if (!entry) return { amount: null };
@@ -4533,10 +4501,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   }
   const allRows3 = [...matchedRows3, ...missedRows3];
 
-  // ── Composite optimisation data ──────────────────────────────────────────────
-  const co = costIntel?.compositeOptimisation ?? null;
-
-  // Build KINGA optimised column: use compositeLineItems if available, else benchmark median, else min quote
+  // ── KINGA optimised map (for matrix colour flags) ─────────────────────────────
   const kingaOptimisedMap: Record<string, { amount: number; source: string; verdict: string; p25: number | null; p75: number | null; tier: string; tierLabel: string }> = {};
   if (co && Array.isArray(co.compositeLineItems)) {
     for (const item of co.compositeLineItems as any[]) {
@@ -4552,93 +4517,163 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
     }
   }
 
-  // Build cost comparison data for CostComparisonChart
-  const costComparisonData = (() => {
-    const validQuotes = pbQuotes.filter(q => q.total > 0);
-    const lowestQuote = validQuotes.length > 0 ? Math.min(...validQuotes.map(q => q.total)) : 0;
-    const highestQuote = validQuotes.length > 0 ? Math.max(...validQuotes.map(q => q.total)) : 0;
-    // Find the actual repairer with the lowest total — used for the chart label
-    const lowestQuoteRepairer = validQuotes.length > 0
-      ? (validQuotes.reduce((best, q) => q.total < best.total ? q : best, validQuotes[0])?.name ?? null)
-      : null;
-    const kingaOptimised = costIntel?.compositeOptimisation?.l2CompositeOptimisedCostUsd ?? costIntel?.compositeOptimisation?.compositeOptimisedCostUsd ?? 0;
-    const benchmarkAvg = learningBenchmark3?.avgCostUsd ?? 0;
-    return { lowestQuote, highestQuote, lowestQuoteRepairer, kingaOptimised, benchmarkAvg };
-  })();
+  // ── 3.1 Cost Summary data ─────────────────────────────────────────────────────
+  const l1 = co?.l1LowestSubmittedCostUsd ?? co?.l1SubmittedCostUsd ?? 0;
+  const l2 = co?.l2CompositeOptimisedCostUsd ?? 0;
+  const savingsL1L2 = co?.negotiationSavingsUsd ?? (l1 > 0 && l2 > 0 && l1 > l2 ? l1 - l2 : 0);
+  const savingsPct = l1 > 0 && savingsL1L2 > 0 ? (savingsL1L2 / l1) * 100 : 0;
+  const nfsScore = co?.negotiationFeasibilityScore ?? null;
+  const nfsColor = nfsScore != null ? (nfsScore >= 70 ? '#15803d' : nfsScore >= 40 ? '#92400e' : '#64748b') : '#64748b';
+  const nfsBg = nfsScore != null ? (nfsScore >= 70 ? '#dcfce7' : nfsScore >= 40 ? '#fef3c7' : '#f1f5f9') : '#f1f5f9';
+  const cde = costDecision;
+
+  // Settlement delta (from NegotiationDeltaBlock logic — merged inline)
+  const originalQuote: number | null = costIntel?.documentedOriginalQuoteUsd ?? null;
+  const agreedCost: number | null = costIntel?.documentedAgreedCostUsd ?? null;
+  const hasSettlementDelta = originalQuote != null && agreedCost != null && Math.abs(originalQuote - agreedCost) >= 0.01;
+  const settlementDelta = hasSettlementDelta ? originalQuote! - agreedCost! : 0;
+  const settlementDeltaAbs = Math.abs(settlementDelta);
+  const settlementDeltaPct = originalQuote && originalQuote > 0 ? (settlementDeltaAbs / originalQuote) * 100 : 0;
+  const isSettlementReduction = settlementDelta > 0;
+
+  // ── 3.4 Valuation data (inline — avoids separate component call) ──────────────
+  const llmValuation4 = claimRecord3?.valuation ?? null;
+  const valuationMethod4 = llmValuation4?.valuationMethod ?? null;
+  const verdictReason4 = llmValuation4?.verdictReason ?? null;
+  const llmVerdict4 = llmValuation4?.verdict ?? null;
+  const _rawRatio4 = llmValuation4?.repairToValueRatio ?? null;
+  const llmRepairToValue4 = (_rawRatio4 != null && _rawRatio4 > 0.001 && _rawRatio4 <= 5) ? _rawRatio4 * 100 : null;
+  const excessUsd4 = claimRecord3?.insuranceContext?.excessAmountUsd ?? null;
+  const bettermentUsd4 = claimRecord3?.insuranceContext?.bettermentUsd ?? null;
+  const quotedTotal4 = (quotes?.[0]?.quotedAmount ?? 0) / 100;
+  const agreedCostUsd4 = claimRecord3?.costs?.agreedCostUsd ?? null;
+  const l2OptimisedCost4 = costIntel?.compositeOptimisation?.l2CompositeOptimisedCostUsd
+    ?? costIntel?.compositeOptimisation?.compositeOptimisedCostUsd
+    ?? null;
+  const repairCost4 = l2OptimisedCost4 ?? llmValuation4?.repairCostUsd ?? agreedCostUsd4 ?? quotedTotal4;
+  const isKingaOptimised4 = l2OptimisedCost4 != null;
+  const repairToValue4 = llmRepairToValue4 ?? (marketValueUsd3 && marketValueUsd3 > 0 && repairCost4 > 0 ? (repairCost4 / marketValueUsd3) * 100 : null);
+  const isWriteOff4 = llmVerdict4 === "WRITE_OFF" || (repairToValue4 != null && repairToValue4 >= 75);
+  const showValuation = !!(marketValueUsd3 || repairCost4);
 
   return (
     <div className="mb-1 space-y-2" style={{ marginBottom: "8px" }}>
 
-      {/* ── 3.0 Cost Summary Visual — quick at-a-glance comparison ── */}
-      {pbQuotes.length > 0 && (
-        <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-            <p className="sub-heading">3.1 Cost at a Glance</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Visual comparison of submitted quotes{costComparisonData.kingaOptimised > 0 ? ', KINGA optimised total' : ''}{costComparisonData.benchmarkAvg > 0 ? ', and historical benchmark' : ''}</p>
-          </div>
-          <div className="p-4">
-            <CostComparisonChart
-              originalQuote={costComparisonData.lowestQuote}
-              agreedCost={costComparisonData.kingaOptimised}
-              aiEstimate={costComparisonData.highestQuote}
-              trueCost={costComparisonData.kingaOptimised > 0 ? costComparisonData.kingaOptimised : costComparisonData.lowestQuote}
-              panelBeaterName={costComparisonData.lowestQuoteRepairer}
-              currencySymbol={fmtMoney(1).replace(/[\d.,\s]/g, '').trim() || '$'}
-            />
-            {/* Legend */}
-            <div className="flex flex-wrap gap-3 mt-3">
-              {costComparisonData.lowestQuote > 0 && (
-                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--kr-muted)' }}>
-                  <div style={{ width: 10, height: 10, borderRadius: 2, background: '#2563eb', flexShrink: 0 }} />
-                  Lowest submitted quote: <span className="font-semibold" style={{ color: 'var(--kr-text)' }}>{fmtMoney(costComparisonData.lowestQuote)}</span>
-                </div>
+      {/* ══ 3.1 COST SUMMARY ══════════════════════════════════════════════════════ */}
+      {(pbQuotes.length > 0 || co != null) && (
+        <div style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+          {/* Header */}
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-off-white)' }}>
+            <div>
+              <p className="sub-heading">3.1 Cost Summary</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>
+                {co?.quotesEvaluated ? `${co.quotesEvaluated} quote${co.quotesEvaluated !== 1 ? 's' : ''} evaluated` : pbQuotes.length > 0 ? `${pbQuotes.length} quote${pbQuotes.length !== 1 ? 's' : ''} received` : 'No quotes submitted'}
+                {l2 > 0 ? ' · KINGA four-tier benchmark hierarchy' : ''}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {cde?.recommendation && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{
+                  background: cde.recommendation === 'APPROVE' ? '#dcfce7' : cde.recommendation === 'DECLINE' ? '#fee2e2' : '#fef3c7',
+                  color: cde.recommendation === 'APPROVE' ? '#15803d' : cde.recommendation === 'DECLINE' ? '#dc2626' : '#92400e',
+                }}>
+                  {cde.recommendation}
+                </span>
               )}
-              {costComparisonData.highestQuote > 0 && costComparisonData.highestQuote !== costComparisonData.lowestQuote && (
-                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--kr-muted)' }}>
-                  <div style={{ width: 10, height: 10, borderRadius: 2, background: '#9ca3af', flexShrink: 0 }} />
-                  Highest submitted quote: <span className="font-semibold" style={{ color: 'var(--kr-text)' }}>{fmtMoney(costComparisonData.highestQuote)}</span>
-                </div>
-              )}
-              {costComparisonData.kingaOptimised > 0 && (
-                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--kr-muted)' }}>
-                  <div style={{ width: 10, height: 10, borderRadius: 2, background: '#16a34a', flexShrink: 0 }} />
-                  KINGA optimised: <span className="font-semibold" style={{ color: 'var(--kr-text)' }}>{fmtMoney(costComparisonData.kingaOptimised)}</span>
-                </div>
+              {nfsScore != null && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: nfsBg, color: nfsColor }}>
+                  NFS {nfsScore} — {(co?.negotiationFeasibilityLabel ?? '').toUpperCase()}
+                </span>
               )}
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ── Negotiation Delta Analysis ── */}
-      <NegotiationDeltaBlock costIntel={costIntel} fmtMoney={fmtMoney} />
+          <div className="p-3 space-y-3">
+            {/* KPI card row: L1 / L2 / Savings */}
+            {(l1 > 0 || l2 > 0) && (
+              <div style={{ display: 'grid', gridTemplateColumns: l2 > 0 ? '1fr 1fr 1fr' : '1fr 1fr', gap: 10 }}>
+                {/* L1 — Lowest Submitted */}
+                {l1 > 0 && (
+                  <div style={{ padding: '10px 12px', border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-muted)', margin: '0 0 3px' }}>Lowest Submitted (L1)</p>
+                    <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--kr-text)', margin: 0, lineHeight: 1.1, fontFamily: 'var(--kr-mono)' }}>{fmtMoney(l1)}</p>
+                    <p style={{ fontSize: 10, color: 'var(--kr-muted)', margin: '2px 0 0' }}>{co?.quotesEvaluated ?? pbQuotes.length} quote{(co?.quotesEvaluated ?? pbQuotes.length) !== 1 ? 's' : ''} received</p>
+                  </div>
+                )}
+                {/* L2 — KINGA Optimised (the ONE authoritative cost figure) */}
+                {l2 > 0 && (
+                  <div style={{ padding: '10px 12px', border: '2px solid #1A2B4A', background: 'var(--kr-off-white)' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-navy)', margin: '0 0 3px' }}>KINGA Optimised (L2)</p>
+                    <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--kr-navy)', margin: 0, lineHeight: 1.1, fontFamily: 'var(--kr-mono)' }}>{fmtMoney(l2)}</p>
+                    <p style={{ fontSize: 10, color: 'var(--kr-muted)', margin: '2px 0 0' }}>Best price per component</p>
+                  </div>
+                )}
+                {/* Savings Opportunity */}
+                {savingsL1L2 > 0 && (
+                  <div style={{ padding: '10px 12px', border: '1px solid #bbf7d0', background: '#f0fdf4' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-green)', margin: '0 0 3px' }}>Savings Opportunity</p>
+                    <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--kr-green)', margin: 0, lineHeight: 1.1, fontFamily: 'var(--kr-mono)' }}>{fmtMoney(savingsL1L2)}</p>
+                    <p style={{ fontSize: 10, color: 'var(--kr-green)', margin: '2px 0 0' }}>{savingsPct.toFixed(1)}% reduction from L1</p>
+                  </div>
+                )}
+              </div>
+            )}
 
-      {/* ── Copy-quotation alert banner (Phase 1 similarity engine) ── */}
-      {quoteSimilarity && (quoteSimilarity.overall_verdict === 'confirmed' || quoteSimilarity.overall_verdict === 'suspected') && (
-        <div className="rounded-lg px-4 py-3 flex items-start gap-3" style={{
-          background: quoteSimilarity.overall_verdict === 'confirmed' ? 'var(--status-reject-bg)' : 'var(--fp-warning-bg, #fef3c7)',
-          border: `1px solid ${quoteSimilarity.overall_verdict === 'confirmed' ? 'var(--fp-critical-border)' : 'var(--fp-warning-border, #f59e0b)'}`,
-        }}>
-          <span className="text-base" style={{ lineHeight: 1 }}>&#9888;</span>
-          <div>
-            <p className="text-xs font-bold" style={{ color: quoteSimilarity.overall_verdict === 'confirmed' ? 'var(--fp-critical-text)' : 'var(--fp-warning-text, #92400e)' }}>
-              {quoteSimilarity.overall_verdict === 'confirmed' ? 'COPY QUOTATION DETECTED' : 'SUSPICIOUS QUOTE SIMILARITY'}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--kr-text)' }}>
-              {quoteSimilarity.overall_verdict === 'confirmed'
-                ? `Structural fingerprint analysis indicates these quotes were likely authored by the same source. Highest pair similarity: ${Math.round((quoteSimilarity.highest_pair_similarity ?? 0) * 100)}%.`
-                : `Quote comparison reveals unusually high structural similarity between submitted quotes. Highest pair similarity: ${Math.round((quoteSimilarity.highest_pair_similarity ?? 0) * 100)}%. Independent verification recommended.`}
-            </p>
-            {(quoteSimilarity.copy_pairs ?? []).length > 0 && (
-              <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)' }}>
-                Flagged pairs: {(quoteSimilarity.copy_pairs as any[]).map((p: any) => `${p.quote_a} ↔ ${p.quote_b} (${Math.round((p.overall_similarity ?? 0) * 100)}%)`).join(', ')}
-              </p>
+            {/* Savings progress bar */}
+            {savingsL1L2 > 0 && l1 > 0 && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ fontSize: 10, color: 'var(--kr-muted)' }}>KINGA Optimised vs Submitted</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--kr-green)' }}>{savingsPct.toFixed(1)}% saving</span>
+                </div>
+                <div style={{ height: 7, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min((l2 / l1) * 100, 100)}%`, background: 'var(--kr-navy)', borderRadius: 4 }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                  <span style={{ fontSize: 9, color: 'var(--kr-muted)' }}>L2 {fmtMoney(l2)}</span>
+                  <span style={{ fontSize: 9, color: 'var(--kr-muted)' }}>L1 {fmtMoney(l1)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Settlement delta — only when original quote and agreed cost differ */}
+            {hasSettlementDelta && (
+              <div style={{ borderTop: '1px solid var(--kr-rule)', paddingTop: 10 }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-muted)' }}>Settlement Analysis</span>
+                  <span className="text-xs font-semibold" style={{ color: isSettlementReduction ? (settlementDeltaPct >= 40 ? 'var(--fp-warning-text)' : 'var(--fp-success-text)') : 'var(--fp-critical-text)' }}>
+                    {isSettlementReduction ? (settlementDeltaPct >= 40 ? 'SIGNIFICANT REDUCTION' : settlementDeltaPct >= 15 ? 'NEGOTIATED REDUCTION' : 'MINOR ADJUSTMENT') : 'COST INCREASE'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-xs">
+                  <span style={{ color: 'var(--kr-muted)' }}>Original: <span className="font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(originalQuote)}</span></span>
+                  <span style={{ color: 'var(--kr-muted)' }}>Agreed: <span className="font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(agreedCost)}</span></span>
+                  <span style={{ color: isSettlementReduction ? 'var(--fp-success-text)' : 'var(--fp-critical-text)', fontWeight: 600 }}>
+                    {isSettlementReduction ? '▼' : '▲'} {fmtMoney(settlementDeltaAbs)} ({settlementDeltaPct.toFixed(1)}%)
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* CDE narrative — max 2 sentences, trimmed */}
+            {costNarrative && (
+              <div style={{ borderTop: '1px solid var(--kr-rule)', paddingTop: 10 }}>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-muted)' }}>
+                  {(() => {
+                    const raw = typeof costNarrative === 'string' ? costNarrative : (costNarrative as any)?.narrative ?? '';
+                    // Trim to first 2 sentences for conciseness
+                    const sentences = raw.match(/[^.!?]+[.!?]+/g) ?? [raw];
+                    return sentences.slice(0, 2).join(' ').trim();
+                  })()}
+                </p>
+              </div>
             )}
           </div>
         </div>
       )}
-      {/* ── UNIFIED COMPONENT COST MATRIX TABLE ── */}
-      {(() => {
+
+      {/* ══ 3.2 REPAIR COST ANALYSIS ═════════════════════════════════════════════ */}
+      {pbQuotes.length > 0 && (() => {
         // Build MatrixQuote[] for the shared component
         const matrixQuotes: MatrixQuote[] = pbQuotes.map((q: any) => ({
           name: q.name,
@@ -4658,26 +4693,16 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         }));
 
         // Build MatrixRow[] from allRows3 with benchmark colour flags
-        const matrixRows: MatrixRow[] = allRows3.map((row: any, ri: number) => {
+        const matrixRows: MatrixRow[] = allRows3.map((row: any) => {
           const benchmark = perComponentBenchmarks?.[row.description];
-          const compKey = normKey(row.description);
-          const compItem = kingaOptimisedMap[compKey];
-          const validAmounts = row.cells.map((c: any) => c.amount).filter((a: any): a is number => a !== null);
+          const compItem = kingaOptimisedMap[normKey(row.description)];
+          const validAmounts = row.cells.filter((c: any) => c.amount !== null && c.amount > 0).map((c: any) => c.amount as number);
           const kingaAmount = compItem?.amount ?? benchmark?.medianUsd ?? (validAmounts.length > 0 ? Math.min(...validAmounts) : null);
-
-          // Derive clean source label
-          const tier = compItem?.tier ?? null;
-          const rawLabel = compItem?.tierLabel ?? null;
-          let kingaSource: string | null = null;
-          if (tier === 'T1') kingaSource = 'ML Benchmark';
-          else if (tier === 'T2') kingaSource = 'Market Benchmark';
-          else if (tier === 'T3' || tier === 'T4') {
-            const match = rawLabel?.match(/·\s*(.+)$/);
-            kingaSource = match ? match[1].trim() : (rawLabel ?? compItem?.source ?? null);
-          } else if (benchmark?.modelSource === 'ml') kingaSource = 'ML Benchmark';
-          else if (benchmark?.modelSource === 'statistical') kingaSource = 'Market Benchmark';
-          else if (compItem?.source) kingaSource = compItem.source;
-
+          let kingaSource = compItem?.tierLabel ?? null;
+          if (!kingaSource) {
+            if (benchmark?.modelSource === 'ml') kingaSource = 'ML Benchmark';
+            else if (benchmark?.modelSource === 'statistical') kingaSource = 'Market Benchmark';
+          }
           const cells = row.cells.map((cell: any, ci: number) => {
             const qName = pbQuotes[ci]?.name ?? '';
             const bmFlag = benchmark?.quoteFlags?.[qName] ?? null;
@@ -4687,7 +4712,6 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
               : undefined;
             return { amount: cell.amount, flag };
           });
-
           return {
             description: row.description,
             zone: (row as any).zone ?? (row as any).damageZone ?? null,
@@ -4699,12 +4723,12 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         });
 
         const coData = costIntel?.compositeOptimisation ?? null;
-        const l1 = coData?.l1LowestSubmittedCostUsd ?? coData?.l1SubmittedCostUsd ?? null;
-        const l2 = coData?.l2CompositeOptimisedCostUsd ?? null;
-        const savingsUsd = coData?.negotiationSavingsUsd ?? (l1 && l2 && l1 > l2 ? l1 - l2 : null);
-        const savingsPct = l1 && savingsUsd && l1 > 0 ? Math.round((savingsUsd / l1) * 100) : null;
+        const matL1 = coData?.l1LowestSubmittedCostUsd ?? coData?.l1SubmittedCostUsd ?? null;
+        const matL2 = coData?.l2CompositeOptimisedCostUsd ?? null;
+        const matSavingsUsd = coData?.negotiationSavingsUsd ?? (matL1 && matL2 && matL1 > matL2 ? matL1 - matL2 : null);
+        const matSavingsPct = matL1 && matSavingsUsd && matL1 > 0 ? Math.round((matSavingsUsd / matL1) * 100) : null;
 
-        // Chart 4 — Component-Level Quote Comparison grouped bar (top 10 by value)
+        // Component-level bar chart (top 10 by value, only when multiple quotes)
         const chart4Rows = allRows3
           .filter((r: any) => r.cells.some((c: any) => c.amount !== null && c.amount > 0))
           .map((r: any) => ({
@@ -4737,247 +4761,191 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           },
           layout: { padding: { bottom: 24 } },
         };
+
+        // Labour vs Parts inline stats (replaces separate LabourPartsRatioChart section)
+        const quotesWithSplit = pbQuotes.filter(q => q.parts > 0 || q.labour > 0);
+
         return (
-          <div style={{ marginBottom: 16 }}>
-            {chart4Rows.length > 0 && (
+          <div style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+            {/* Section header */}
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--kr-rule)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--kr-off-white)' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-text)' }}>3.2 Repair Cost Analysis</span>
+              <span style={{ fontSize: 11, color: 'var(--kr-muted)' }}>{matrixQuotes.length > 0 ? `${matrixQuotes.length} quote${matrixQuotes.length !== 1 ? 's' : ''} received` : 'No quotes'}</span>
+            </div>
+
+            {/* Component-level bar chart — only when multiple quotes exist */}
+            {chart4Rows.length > 0 && pbQuotes.length > 1 && (
               <div style={{ padding: '12px 16px 0 16px' }}>
                 <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-muted)', marginBottom: 8 }}>Component-Level Quote Comparison (Top {chart4Rows.length})</p>
-                <div style={{ height: 260 }}>
+                <div style={{ height: 240 }}>
                   <Bar data={chart4Data} options={chart4Opts} />
                 </div>
               </div>
             )}
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--kr-rule)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: chart4Rows.length > 0 ? 12 : 0 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-text)' }}>3.1 Repair Cost Analysis — Component Matrix</span>
-              <span style={{ fontSize: 11, color: 'var(--kr-muted)' }}>{matrixQuotes.length > 0 ? `${matrixQuotes.length} quote${matrixQuotes.length !== 1 ? 's' : ''} received` : 'No quotes'}</span>
-            </div>
+
+            {/* Component matrix */}
             <ComponentCostMatrix
               quotes={matrixQuotes}
               rows={matrixRows}
-              l1Total={l1}
-              l2Total={l2}
-              savingsUsd={savingsUsd}
-              savingsPct={savingsPct}
+              l1Total={matL1}
+              l2Total={matL2}
+              savingsUsd={matSavingsUsd}
+              savingsPct={matSavingsPct}
               nfs={coData?.negotiationFeasibilityScore ?? null}
               qndFlags={coData?.quotedNotDamagedFlags ?? []}
               dnqFlags={coData?.damagedNotQuotedFlags ?? []}
               fmtMoney={fmtMoney}
               showCategory={true}
             />
+
+            {/* Labour vs Parts inline stats — only when split data is available */}
+            {quotesWithSplit.length > 0 && (
+              <div style={{ padding: '8px 16px 10px', borderTop: '1px solid var(--kr-rule)' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-muted)', marginRight: 12 }}>Labour / Parts Split</span>
+                {quotesWithSplit.map((q, i) => {
+                  const total = q.parts + q.labour;
+                  if (total === 0) return null;
+                  const partsRatio = Math.round((q.parts / total) * 100);
+                  const labourRatio = 100 - partsRatio;
+                  return (
+                    <span key={i} className="text-xs" style={{ color: 'var(--kr-muted)', marginRight: 16 }}>
+                      <span className="font-medium" style={{ color: 'var(--kr-text)' }}>{q.name.length > 20 ? q.name.slice(0, 18) + '…' : q.name}:</span>
+                      {' '}{partsRatio}% parts · {labourRatio}% labour
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })()}
 
-      {/* Cost Waterfall Chart — rendered inside 3.1d Cost Intelligence block below */}
-
-      {/* Labour vs Parts Ratio Chart — only shown when split data is available */}
-      {pbQuotes.length > 0 && (
-        <LabourPartsRatioChart
-          quotes={pbQuotes}
-          learningBenchmark={learningBenchmark3}
-          fmtMoney={fmtMoney}
-        />
-      )}
-
-      {/* Redundant itemised parts and per-repairer summary tables removed — all data is now in the unified component matrix above */}
-
-
-
-      {/* ── 3.1d Cost Intelligence — KINGA Optimisation Summary ── */}
+      {/* ══ 3.3 QUOTE RECONCILIATION ═════════════════════════════════════════════ */}
       {(() => {
-        const co = costIntel?.compositeOptimisation ?? null;
-        if (!co || co.quotesEvaluated === 0) return null;
-        const l1 = co.l1LowestSubmittedCostUsd ?? co.l1SubmittedCostUsd ?? 0;
-        const l2 = co.l2CompositeOptimisedCostUsd ?? 0;
-        const l3 = co.l3BenchmarkReferenceCostUsd ?? 0;
-        const savingsL1L2 = co.negotiationSavingsUsd ?? (l1 > 0 && l2 > 0 && l1 > l2 ? l1 - l2 : 0);
-        const savingsPct = l1 > 0 && savingsL1L2 > 0 ? (savingsL1L2 / l1) * 100 : 0;
-        const nfsScore = co.negotiationFeasibilityScore ?? null;
-        const nfsColor = nfsScore != null ? (nfsScore >= 70 ? '#15803d' : nfsScore >= 40 ? '#92400e' : '#64748b') : '#64748b';
-        const nfsBg = nfsScore != null ? (nfsScore >= 70 ? '#dcfce7' : nfsScore >= 40 ? '#fef3c7' : '#f1f5f9') : '#f1f5f9';
-        // Waterfall data for inline chart
-        const benchmarkUsd = learningBenchmark3?.avgCostUsd ?? 0;
-        const fairRange = ce?.fair_range ?? { min: 0, max: 0 };
-        const currencySymbol = fmtMoney(1).replace(/[\d,.\s]/g, '').trim() || '$';
-        const waterfallData: CostWaterfallData = {
-          benchmarkUsd,
-          quotedTotalUsd: l1,
-          marketValueUsd: marketValueUsd3 ?? undefined,
-          fairRangeMinUsd: fairRange.min,
-          fairRangeMaxUsd: fairRange.max,
-          currencySymbol,
-        };
-        // Cost Decision Engine data
-        const cde = costDecision;
+        const hasQnd = Array.isArray(co?.quotedNotDamaged) && co.quotedNotDamaged.length > 0;
+        const hasDnq = Array.isArray(co?.damagedNotQuoted) && co.damagedNotQuoted.length > 0;
+        const hasHidden = Array.isArray(co?.hiddenDamageAdvisories) && co.hiddenDamageAdvisories.length > 0;
+        const hasCopyQuote = quoteSimilarity && (quoteSimilarity.overall_verdict === 'confirmed' || quoteSimilarity.overall_verdict === 'suspected');
+        const hasReconciliation = reconciliationSummary != null;
+        if (!hasQnd && !hasDnq && !hasHidden && !hasCopyQuote && !hasReconciliation) return null;
+
+        // Build reconciliation summary text (max 2 sentences)
+        const rs = typeof reconciliationSummary === 'string' ? null : reconciliationSummary as any;
+        const reconcSummaryText = typeof reconciliationSummary === 'string'
+          ? reconciliationSummary
+          : typeof rs?.summary === 'string'
+            ? rs.summary
+            : rs != null
+              ? `${rs.matched_count ?? 0} components matched across quotes. ${rs.missing_count ?? 0} missing from quote · ${rs.extra_count ?? 0} extra in quote.`
+              : null;
+        const rsMissing: any[] = Array.isArray(rs?.missing) ? rs.missing : [];
+        const rsExtra: any[] = Array.isArray(rs?.extra) ? rs.extra : [];
+
         return (
-          <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-            {/* Header row: title + NFS badge */}
-            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-off-white)' }}>
-              <div>
-                <p className="sub-heading">3.1d Cost Intelligence</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>{co.quotesEvaluated} quote{co.quotesEvaluated !== 1 ? 's' : ''} evaluated · KINGA four-tier benchmark hierarchy</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {cde?.recommendation && (
-                  <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: cde.recommendation === 'APPROVE' ? '#dcfce7' : cde.recommendation === 'DECLINE' ? '#fee2e2' : '#fef3c7', color: cde.recommendation === 'APPROVE' ? '#15803d' : cde.recommendation === 'DECLINE' ? '#dc2626' : '#92400e' }}>
-                    {cde.recommendation}
-                  </span>
-                )}
-                {nfsScore != null && (
-                  <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: nfsBg, color: nfsColor }}>
-                    NFS {nfsScore} — {(co.negotiationFeasibilityLabel ?? '').toUpperCase()}
-                  </span>
-                )}
-              </div>
+          <div style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-off-white)' }}>
+              <p className="sub-heading">3.3 Quote Reconciliation</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Component coverage gaps and quote integrity flags</p>
             </div>
-
             <div className="p-3 space-y-3">
-              {/* KPI card row: L1 vs L2 vs savings */}
-              <div style={{ display: 'grid', gridTemplateColumns: l2 > 0 ? '1fr 1fr 1fr' : '1fr 1fr', gap: 12 }}>
-                {/* L1 — Lowest Submitted */}
-                <div style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-                  <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-muted)', margin: '0 0 4px' }}>Lowest Submitted</p>
-                  <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--kr-text)', margin: 0, lineHeight: 1.1, fontFamily: 'var(--kr-mono)' }}>{fmtMoney(l1)}</p>
-                  <p style={{ fontSize: 10, color: 'var(--kr-muted)', margin: '3px 0 0' }}>L1 — {co.quotesEvaluated} quote{co.quotesEvaluated !== 1 ? 's' : ''} received</p>
-                </div>
-                {/* L2 — KINGA Optimised */}
-                {l2 > 0 && (
-                  <div style={{ padding: '12px 14px', borderRadius: 8, border: '2px solid #1A2B4A', background: 'var(--kr-off-white)' }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-navy)', margin: '0 0 4px' }}>KINGA Optimised</p>
-                    <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--kr-navy)', margin: 0, lineHeight: 1.1, fontFamily: 'var(--kr-mono)' }}>{fmtMoney(l2)}</p>
-                    <p style={{ fontSize: 10, color: 'var(--kr-muted)', margin: '3px 0 0' }}>L2 — best price per component</p>
-                  </div>
-                )}
-                {/* Savings */}
-                {savingsL1L2 > 0 && (
-                  <div style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid #bbf7d0', background: '#f0fdf4' }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-green)', margin: '0 0 4px' }}>Savings Opportunity</p>
-                    <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--kr-green)', margin: 0, lineHeight: 1.1, fontFamily: 'var(--kr-mono)' }}>{fmtMoney(savingsL1L2)}</p>
-                    <p style={{ fontSize: 10, color: 'var(--kr-green)', margin: '3px 0 0' }}>{savingsPct.toFixed(1)}% reduction from L1</p>
-                  </div>
-                )}
-              </div>
 
-              {/* Savings progress bar */}
-              {savingsL1L2 > 0 && l1 > 0 && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 10, color: 'var(--kr-muted)' }}>KINGA Optimised vs Submitted</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--kr-green)' }}>{savingsPct.toFixed(1)}% saving</span>
-                  </div>
-                  <div style={{ height: 8, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${Math.min((l2 / l1) * 100, 100)}%`, background: 'var(--kr-navy)', borderRadius: 4 }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-                    <span style={{ fontSize: 9, color: 'var(--kr-muted)' }}>L2 {fmtMoney(l2)}</span>
-                    <span style={{ fontSize: 9, color: 'var(--kr-muted)' }}>L1 {fmtMoney(l1)}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Inline waterfall chart — only when benchmark data is available */}
-              {quotedTotal > 0 && (benchmarkUsd > 0 || (fairRange.min > 0 && fairRange.max > 0) || marketValueUsd3 != null) && (
-                <div style={{ borderTop: '1px solid var(--kr-rule)', paddingTop: 12 }}>
-                  <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-muted)', marginBottom: 8 }}>Market Context</p>
-                  <CostWaterfallChart data={waterfallData} />
-                </div>
-              )}
-
-              {/* Cost Decision Engine narrative — merged inline */}
-              {costNarrative && (
-                <div style={{ borderTop: '1px solid var(--kr-rule)', paddingTop: 12 }}>
-                  <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-muted)', marginBottom: 6 }}>Cost Analysis Narrative</p>
-                  <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-muted)' }}>{typeof costNarrative === 'string' ? costNarrative : (costNarrative as any)?.narrative ?? ''}</p>
-                </div>
-              )}
-
-              {/* Reconciliation summary — merged from 3.1a */}
-              {reconciliationSummary && (() => {
-                const rs = typeof reconciliationSummary === 'string' ? null : reconciliationSummary as any;
-                const summary = typeof reconciliationSummary === 'string'
-                  ? reconciliationSummary
-                  : typeof rs?.summary === 'string'
-                    ? rs.summary
-                    : `${rs?.matched_count ?? 0} matched · ${rs?.missing_count ?? 0} missing from quote · ${rs?.extra_count ?? 0} extra in quote`;
-                const missing: any[] = Array.isArray(rs?.missing) ? rs.missing : [];
-                const extra: any[] = Array.isArray(rs?.extra) ? rs.extra : [];
-                return (
-                  <div style={{ borderTop: '1px solid var(--kr-rule)', paddingTop: 12 }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-muted)', marginBottom: 6 }}>Reconciliation</p>
-                    <p className="text-xs" style={{ color: 'var(--kr-muted)', marginBottom: missing.length > 0 || extra.length > 0 ? 6 : 0 }}>{summary}</p>
-                    {missing.length > 0 && (
-                      <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--kr-text)' }}>Missing from quote: </span>
-                        {missing.map((m: any) => expandShorthand(m.component ?? String(m))).join(' · ')}
-                      </p>
-                    )}
-                    {extra.length > 0 && (
+              {/* Copy-quotation alert */}
+              {hasCopyQuote && (
+                <div className="px-3 py-2 flex items-start gap-2" style={{
+                  background: quoteSimilarity.overall_verdict === 'confirmed' ? 'var(--status-reject-bg)' : 'var(--fp-warning-bg, #fef3c7)',
+                  border: `1px solid ${quoteSimilarity.overall_verdict === 'confirmed' ? 'var(--fp-critical-border)' : 'var(--fp-warning-border, #f59e0b)'}`,
+                }}>
+                  <span className="text-sm" style={{ lineHeight: 1.2 }}>&#9888;</span>
+                  <div>
+                    <p className="text-xs font-bold" style={{ color: quoteSimilarity.overall_verdict === 'confirmed' ? 'var(--fp-critical-text)' : 'var(--fp-warning-text, #92400e)' }}>
+                      {quoteSimilarity.overall_verdict === 'confirmed' ? 'COPY QUOTATION DETECTED' : 'SUSPICIOUS QUOTE SIMILARITY'}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--kr-text)' }}>
+                      {quoteSimilarity.overall_verdict === 'confirmed'
+                        ? `Structural fingerprint analysis indicates these quotes were likely authored by the same source. Highest pair similarity: ${Math.round((quoteSimilarity.highest_pair_similarity ?? 0) * 100)}%.`
+                        : `Quote comparison reveals unusually high structural similarity. Highest pair similarity: ${Math.round((quoteSimilarity.highest_pair_similarity ?? 0) * 100)}%. Independent verification recommended.`}
+                    </p>
+                    {(quoteSimilarity.copy_pairs ?? []).length > 0 && (
                       <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--kr-text)' }}>Extra in quote: </span>
-                        {extra.map((e: any) => expandShorthand(e.component ?? String(e))).join(' · ')}
+                        Flagged pairs: {(quoteSimilarity.copy_pairs as any[]).map((p: any) => `${p.quote_a} ↔ ${p.quote_b} (${Math.round((p.overall_similarity ?? 0) * 100)}%)`).join(', ')}
                       </p>
                     )}
-                  </div>
-                );
-              })()}
-
-              {/* Component-level breakdown is in the 3.1 matrix above — not repeated here */}
-
-              {/* Quoted-not-damaged flags */}
-              {Array.isArray(co.quotedNotDamaged) && co.quotedNotDamaged.length > 0 && (
-                <div className="p-3 rounded" style={{ background: '#fef3c7', border: '1px solid #f59e0b' }}>
-                  <p className="text-xs font-bold mb-1" style={{ color: 'var(--kr-amber)' }}>COMPONENTS QUOTED BUT NOT CONFIRMED DAMAGED</p>
-                  <p className="text-xs mb-2" style={{ color: 'var(--kr-amber)' }}>The following items appear in submitted quotes but were not identified in the damage assessment. These warrant verification before approval.</p>
-                  <div className="space-y-1">
-                    {(co.quotedNotDamaged as any[]).map((item: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between text-xs" style={{ color: 'var(--kr-text)' }}>
-                        <span className="font-medium">{item.componentName}</span>
-                        <span style={{ color: 'var(--kr-muted)' }}>{item.classification === 'plausible_scope_extension' ? 'Plausible scope extension' : item.classification === 'suspect_inflation' ? 'Suspect inflation' : item.classification}</span>
-                        {item.benchmarkCostUsd != null && <span className="tabular-nums" style={{ color: 'var(--kr-muted)' }}>Benchmark: {fmtMoney(item.benchmarkCostUsd)}</span>}
-                      </div>
-                    ))}
                   </div>
                 </div>
               )}
 
-              {/* Damaged-not-quoted flags */}
-              {Array.isArray(co.damagedNotQuoted) && co.damagedNotQuoted.length > 0 && (
-                <div className="p-3 rounded" style={{ background: 'var(--kr-off-white)', border: '1px solid var(--kr-rule)' }}>
-                  <p className="text-xs font-bold mb-1" style={{ color: 'var(--kr-text)' }}>DAMAGE IDENTIFIED — NOT INCLUDED IN ANY QUOTE</p>
-                  <p className="text-xs mb-2" style={{ color: 'var(--kr-muted)' }}>The following components were identified as damaged but do not appear in any submitted repair quote. These may represent scope gaps or deferred repairs.</p>
-                  <div className="space-y-1">
-                    {(co.damagedNotQuoted as any[]).map((item: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between text-xs" style={{ color: 'var(--kr-text)' }}>
-                        <span className="font-medium">{item.componentName}</span>
-                        <span style={{ color: 'var(--kr-muted)' }}>{item.severity ?? 'severity unknown'}</span>
-                        {item.benchmarkCostUsd != null && <span className="tabular-nums" style={{ color: 'var(--kr-muted)' }}>Benchmark: {fmtMoney(item.benchmarkCostUsd)}</span>}
-                      </div>
+              {/* Reconciliation summary */}
+              {reconcSummaryText && (
+                <div>
+                  <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>{reconcSummaryText}</p>
+                  {(rsMissing.length > 0 || rsExtra.length > 0) && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {rsMissing.map((m: any, i: number) => (
+                        <span key={`miss-${i}`} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}>
+                          ↑ {expandShorthand(m.component ?? String(m))}
+                        </span>
+                      ))}
+                      {rsExtra.map((ex: any, i: number) => (
+                        <span key={`extra-${i}`} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd' }}>
+                          + {expandShorthand(ex.component ?? String(ex))}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Quoted but not confirmed damaged — pill tags */}
+              {hasQnd && (
+                <div>
+                  <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--kr-amber)' }}>Quoted — not confirmed damaged</p>
+                  <div className="flex flex-wrap gap-1">
+                    {(co.quotedNotDamaged as any[]).map((item: any, idx: number) => (
+                      <span key={idx} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}>
+                        {item.componentName}
+                        {item.classification === 'suspect_inflation' && <span className="ml-1 opacity-70">⚠</span>}
+                      </span>
                     ))}
                   </div>
+                  <p className="text-xs mt-1.5" style={{ color: 'var(--kr-muted)' }}>
+                    These items appear in submitted quotes but were not identified in the damage assessment. Verify before approval.
+                  </p>
+                </div>
+              )}
+
+              {/* Damaged but not quoted — pill tags */}
+              {hasDnq && (
+                <div>
+                  <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--kr-text)' }}>Damage identified — not in any quote</p>
+                  <div className="flex flex-wrap gap-1">
+                    {(co.damagedNotQuoted as any[]).map((item: any, idx: number) => (
+                      <span key={idx} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--kr-off-white)', color: 'var(--kr-text)', border: '1px solid var(--kr-rule)' }}>
+                        {item.componentName}
+                        {item.severity && <span className="ml-1 opacity-60 text-[10px]">{item.severity}</span>}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs mt-1.5" style={{ color: 'var(--kr-muted)' }}>
+                    These components were identified as damaged but do not appear in any submitted repair quote. May represent scope gaps or deferred repairs.
+                  </p>
                 </div>
               )}
 
               {/* Probable hidden damage advisories */}
-              {Array.isArray(co.hiddenDamageAdvisories) && co.hiddenDamageAdvisories.length > 0 && (
-                <div className="p-3 rounded" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
-                  <p className="text-xs font-bold mb-1" style={{ color: 'var(--kr-navy)' }}>PROBABLE HIDDEN DAMAGE — ADVISORY</p>
-                  <p className="text-xs mb-2" style={{ color: 'var(--kr-navy)' }}>Based on co-occurrence patterns in the claims corpus, the following components have a statistically elevated probability of damage given the confirmed damage profile. Physical inspection is recommended.</p>
-                  <div className="space-y-1">
+              {hasHidden && (
+                <div>
+                  <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--kr-navy)' }}>Probable hidden damage — advisory</p>
+                  <div className="flex flex-wrap gap-1">
                     {(co.hiddenDamageAdvisories as any[]).map((item: any, idx: number) => (
-                      <div key={idx} className="flex items-start justify-between text-xs" style={{ color: 'var(--kr-text)' }}>
-                        <div>
-                          <span className="font-medium">{item.componentName}</span>
-                          <span className="ml-2" style={{ color: 'var(--kr-muted)' }}>basis: {(item.basisComponents ?? []).join(', ')}</span>
-                        </div>
-                        <div className="text-right">
-                          <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 3, border: 'none', color: 'var(--kr-white)', background: item.probabilityPct >= 60 ? '#dc2626' : item.probabilityPct >= 35 ? '#d97706' : '#64748b', letterSpacing: '0.03em' }}>
-                            {item.probabilityPct}%
-                          </span>
-                          <span className="ml-2" style={{ color: 'var(--kr-muted)' }}>({item.confidenceBand})</span>
-                        </div>
-                      </div>
+                      <span key={idx} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd' }}>
+                        {item.componentName}
+                        <span className="ml-1 opacity-70 text-[10px]">{item.probabilityPct}%</span>
+                      </span>
                     ))}
                   </div>
+                  <p className="text-xs mt-1.5" style={{ color: 'var(--kr-muted)' }}>
+                    Statistically elevated probability of damage based on co-occurrence patterns. Physical inspection recommended.
+                  </p>
                 </div>
               )}
             </div>
@@ -4985,226 +4953,76 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         );
       })()}
 
-      {/* 3.1a Cost Decision Engine — merged into 3.1d block above */}
-
-      {/* 3.2 + 3.3 side-by-side grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
-      {/* 3.2 Vehicle Valuation — populated from extracted data */}
-      <ValuationSubsection aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
-
-      {/* 3.3 Historical Cost Benchmark — folded from Section 7 */}
-      {(() => {
-        const lb = (enforcement as any)?.costExtraction?.learningBenchmark ?? null;
-        const hasBenchmark = lb?.avgCostUsd != null && (lb?.sampleSize ?? 0) >= 3;
-        if (!hasBenchmark) return null;
-
-        const avgCost: number = lb.avgCostUsd;
-        const primaryQuoteTotal = (() => {
-          try {
-            const qs = (quotes ?? []);
-            if (qs.length === 0) return null;
-            const q = qs[0];
-            const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
-            const raw = (q.quotedAmount ?? 0) / 100;
-            return raw > 0 ? raw : lineTotal > 0 ? lineTotal : null;
-          } catch { return null; }
-        })();
-
-        const variancePct = primaryQuoteTotal != null && avgCost > 0
-          ? ((primaryQuoteTotal - avgCost) / avgCost) * 100
-          : null;
-
-        const varianceLevel: 'ok' | 'warn' | 'flag' = variancePct == null ? 'ok'
-          : Math.abs(variancePct) > 30 ? 'flag'
-          : Math.abs(variancePct) > 15 ? 'warn'
-          : 'ok';
-
-        const varianceSummary = variancePct == null
-          ? 'No submitted quote to compare.'
-          : variancePct > 30
-          ? `The submitted quote is ${variancePct.toFixed(0)}% above the historical average for comparable repairs. This is a significant deviation and warrants independent cost review.`
-          : variancePct > 15
-          ? `The submitted quote is ${variancePct.toFixed(0)}% above the historical average. This is moderately elevated — review the line-item breakdown in Section 3.1 for inflated items.`
-          : variancePct < -20
-          ? `The submitted quote is ${Math.abs(variancePct).toFixed(0)}% below the historical average. Verify that all required repairs are included in the scope.`
-          : `The submitted quote is within the normal range (${variancePct > 0 ? '+' : ''}${variancePct.toFixed(0)}%) compared to similar validated claims.`;
-
-        const barWidth = primaryQuoteTotal != null ? Math.min(200, Math.round((primaryQuoteTotal / avgCost) * 100)) : 100;
-        const avgBarWidth = 100;
-        const colorMap = { ok: 'var(--fp-success-text)', warn: 'var(--fp-warning-text)', flag: 'var(--fp-critical-text)' };
-        const bgMap = { ok: 'var(--fp-success-bg)', warn: 'var(--fp-warning-bg)', flag: 'var(--fp-critical-bg)' };
-        const borderMap = { ok: 'var(--fp-success-border)', warn: 'var(--fp-warning-border)', flag: 'var(--fp-critical-border)' };
-
-        return (
-          <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-              <div>
-                <p className="sub-heading">3.3 Historical Cost Benchmark</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Based on {lb.sampleSize} validated claims for {lb.vehicleDescriptor ?? 'this vehicle type'} ({lb.collisionDirection ?? 'similar impact'}, {lb.marketRegion ?? 'same market'})</p>
-              </div>
-              {variancePct != null && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: bgMap[varianceLevel], color: colorMap[varianceLevel], border: `1px solid ${borderMap[varianceLevel]}` }}>
-                  {variancePct > 0 ? '+' : ''}{variancePct.toFixed(0)}% vs average
-                </span>
-              )}
-            </div>
-            <div className="p-4">
-              {/* Visual bar comparison */}
-              <div className="space-y-3 mb-4">
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span style={{ color: 'var(--kr-muted)' }}>Historical average ({lb.sampleSize} claims)</span>
-                    <span className="font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(avgCost)}</span>
-                  </div>
-                  <div className="h-3 rounded-full" style={{ background: 'var(--kr-off-white)' }}>
-                    <div className="h-3 rounded-full" style={{ width: `${avgBarWidth}%`, background: '#64748b', maxWidth: '100%' }} />
-                  </div>
-                </div>
-                {primaryQuoteTotal != null && (
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span style={{ color: 'var(--kr-muted)' }}>Submitted quote</span>
-                      <span className="font-semibold tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(primaryQuoteTotal)}</span>
-                    </div>
-                    <div className="h-3 rounded-full" style={{ background: 'var(--kr-off-white)' }}>
-                      <div className="h-3 rounded-full" style={{ width: `${Math.min(100, barWidth)}%`, background: colorMap[varianceLevel], maxWidth: '100%' }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-              {/* Plain-English verdict */}
-              <div className="p-3 rounded text-xs" style={{ background: bgMap[varianceLevel], border: `1px solid ${borderMap[varianceLevel]}` }}>
-                <p style={{ color: 'var(--kr-text)' }}>{varianceSummary}</p>
-              </div>
-              <p className="text-[10px] mt-3" style={{ color: 'var(--kr-muted)', fontStyle: 'italic' }}>
-                Benchmark data is derived from anonymised validated claims. No personally identifiable information is used. This benchmark is contextual and does not override the submitted quote.
+      {/* ══ 3.4 VEHICLE VALUATION ════════════════════════════════════════════════ */}
+      {showValuation && (
+        <div style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
+          <div className="px-4 py-3 flex items-center justify-between">
+            <p className="sub-heading">3.4 Vehicle Valuation</p>
+            {isWriteOff4 != null && (
+              <span className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>{isWriteOff4 ? 'Potential write-off' : 'Repairable'}</span>
+            )}
+          </div>
+          <div className="p-4">
+            {/* Market value note */}
+            <div style={{ marginBottom: 12, padding: '6px 10px', background: 'var(--kr-off-white)', border: '1px solid var(--kr-rule)', borderRadius: 4 }}>
+              <p style={{ fontSize: 11, color: 'var(--kr-muted)' }}>
+                <span style={{ fontWeight: 700, color: 'var(--kr-text)' }}>Market Value: </span>
+                {marketValueUsd3 != null ? fmtMoney(marketValueUsd3) : 'Pending system benchmark'}
+                {valuationMethod4 === 'document_stated'
+                  ? ' — ⚠ Assessor document, not independently verified'
+                  : valuationMethod4 === 'llm_estimate' || !valuationMethod4
+                  ? ' — KINGA system benchmark'
+                  : ` — ${valuationMethod4}`}
+                <span style={{ color: 'var(--kr-muted)' }}> (vehicle details in Section 1.3)</span>
               </p>
             </div>
-          </div>
-        );
-      })()}
-      </div>{/* end 3.2 + 3.3 grid */}
-    </div>
-  );
-}
-
-// ─── 3.2 Vehicle Valuation Subsection ─────────────────────────────────────────
-
-function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessment: any; enforcement: any; quotes?: any[] }) {
-  // Currency-aware formatter — derived from claim currency code
-  const fmtMoney = makeFmtCurrency((aiAssessment as any)?.currencyCode ?? (aiAssessment as any)?.claimCurrency ?? null);
-  // Read claimRecord0 from the correct location — same as the rest of the report
-  const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
-  // costIntelligenceJson — primary source for market value and true repair cost
-  // This is the most reliable source: Stage 9 populates both marketValueUsd and totalEstimatedCost
-  // from the validated cost decision engine output.
-  const costIntel = (aiAssessment as any)?.costIntelligenceJson ?? null;
-  // LLM-derived valuation from Stage 5c — secondary source
-  const llmValuation = claimRecord0?.valuation ?? null;
-  // Market value priority: costIntelligenceJson → claimRecord0.valuation → vehicle field
-  const marketValueUsd = costIntel?.marketValueUsd ?? llmValuation?.marketValueUsd ?? claimRecord0?.vehicle?.marketValueUsd ?? null;
-  // Valuation method — from LLM valuation (Stage 5c)
-  const valuationMethod = llmValuation?.valuationMethod ?? null;
-  const verdictReason = llmValuation?.verdictReason ?? null;
-  const llmVerdict = llmValuation?.verdict ?? null; // REPAIRABLE | WRITE_OFF | BORDERLINE
-  // Guard: treat 0 as null — a zero ratio means the LLM had no data, not that repair is free.
-  // Stage 5 always stores repairToValueRatio as a decimal fraction (e.g. 0.754 = 75.4%).
-  // Multiply by 100 to convert to a percentage for display.
-  // Guard: values <= 0.001 are effectively zero; values > 5 (>500%) are data errors.
-  const _rawRatio = llmValuation?.repairToValueRatio ?? null;
-  const llmRepairToValue = (_rawRatio != null && _rawRatio > 0.001 && _rawRatio <= 5)
-    ? _rawRatio * 100
-    : null;
-  const excessUsd = claimRecord0?.insuranceContext?.excessAmountUsd ?? null;
-  const bettermentUsd = claimRecord0?.insuranceContext?.bettermentUsd ?? null;
-  const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
-  const agreedCostUsd = claimRecord0?.costs?.agreedCostUsd ?? null;
-  // L2 composite optimised cost — same figure shown as "KINGA Optimised" on the cover page.
-  // This is the payable amount to a single repairer after KINGA's benchmark adjustments.
-  // L1 (totalEstimatedCost) is a theoretical cross-repairer minimum — not payable to any single repairer.
-  const l2OptimisedCost = costIntel?.compositeOptimisation?.l2CompositeOptimisedCostUsd
-    ?? costIntel?.compositeOptimisation?.compositeOptimisedCostUsd
-    ?? null;
-  // Repair cost: L2 composite optimised (KINGA Optimised) is the single authoritative figure.
-  // Do NOT fall back to L1 totalEstimatedCost — it is a theoretical cross-repairer minimum, not payable.
-  const repairCost = l2OptimisedCost ?? llmValuation?.repairCostUsd ?? agreedCostUsd ?? quotedTotal;
-  // isKingaOptimised: true when using L2 composite (the authoritative KINGA cost)
-  const isKingaOptimised = l2OptimisedCost != null;
-  // Repair-to-value ratio: prefer LLM-computed ratio, then compute from costIntelligenceJson values
-  const repairToValue = llmRepairToValue ?? (marketValueUsd && marketValueUsd > 0 && repairCost > 0 ? (repairCost / marketValueUsd) * 100 : null);
-  const isWriteOff = llmVerdict === "WRITE_OFF" || (repairToValue != null && repairToValue >= 75);
-
-  // Only show if we have at least market value or repair cost
-  if (!marketValueUsd && !repairCost) return null;
-
-  return (
-    <div className="" style={{ border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
-      <div className="px-4 py-3 flex items-center justify-between" >
-        <p className="sub-heading">3.2 Vehicle Valuation</p>
-        {isWriteOff != null && (
-          <span className="text-xs font-semibold" style={{ color: 'var(--kr-text)' }}>{isWriteOff ? "Potential write-off" : "Repairable"}</span>
-        )}
-      </div>
-      <div className="p-4">
-        {/* Cross-reference note: market value is in Section 1.3 to avoid duplication */}
-        <div style={{ marginBottom: 12, padding: '6px 10px', background: 'var(--kr-off-white)', border: '1px solid var(--kr-rule)', borderRadius: 4 }}>
-          <p style={{ fontSize: 11, color: 'var(--kr-muted)' }}>
-            <span style={{ fontWeight: 700, color: 'var(--kr-text)' }}>Market Value: </span>
-            {marketValueUsd != null ? fmtMoney(marketValueUsd) : 'Pending system benchmark'}
-            {valuationMethod === 'document_stated'
-              ? ' — ⚠ Assessor document, not independently verified'
-              : valuationMethod === 'llm_estimate' || !valuationMethod
-              ? ' — KINGA system benchmark'
-              : ` — ${valuationMethod}`}
-            <span style={{ color: 'var(--kr-muted)' }}> (vehicle details in Section 1.3)</span>
-          </p>
-        </div>
-        <table className="compact-kv-table text-xs">
-          <tbody>{([
-              // Repair cost label: distinguish between KINGA-validated cost and raw quote
-              isKingaOptimised
-                ? ["KINGA Optimised Cost", fmtMoney(repairCost)]
-                : repairCost > 0
-                  ? ["Repair Cost (Submitted)", fmtMoney(repairCost)]
-                  : null,
-              ["Repair-to-Value Ratio", repairToValue != null ? `${repairToValue.toFixed(1)}%` : "Cannot calculate"],
-              ["Write-off Threshold", "75% of market value"],
-              ["Excess / Deductible", excessUsd != null ? fmtMoney(excessUsd) : "Not stated"],
-              ["Betterment / Depreciation", bettermentUsd != null ? fmtMoney(bettermentUsd) : "Not stated"],
-              ["Net Claimant Liability", excessUsd != null && bettermentUsd != null ? fmtMoney(excessUsd + bettermentUsd) : excessUsd != null ? fmtMoney(excessUsd) : "Not available"],
-            ] as ([string, string] | null)[]).filter((x): x is [string, string] => x !== null).map(([k, v], i) => (
-              <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
-                <td className="py-2 pr-4 font-semibold w-48" style={{ color: 'var(--kr-muted)' }}>{k as string}</td>
-                <td className="py-2 tabular-nums" style={{ color: 'var(--kr-text)' }}>{v as string}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {repairToValue != null && (
-          <div className="mt-3 p-2 rounded text-xs" style={{
-            background: isWriteOff ? "var(--status-reject-bg)" : "#ffffff",
-            color: isWriteOff ? "var(--fp-critical-text)" : "var(--kr-text)",
-            border: `1px solid ${isWriteOff ? "var(--fp-critical-border)" : "var(--border)"}`,
-          }}>
-            {isWriteOff
-              ? `Repair cost is ${repairToValue.toFixed(1)}% of market value — exceeds 75% threshold. Potential economic write-off.`
-              : `Repair cost is ${repairToValue.toFixed(1)}% of market value — within repairable range.`}
-          </div>
-        )}
-        {verdictReason && (
-          <p className="mt-2 text-[11px] leading-relaxed" style={{ color: 'var(--kr-muted)' }}>
-            <span className="font-semibold" style={{ color: 'var(--kr-text)' }}>KINGA Valuation Note: </span>
-            {isKingaOptimised && (
-              <span className="font-medium" style={{ color: "#0d9488" }}>KINGA Optimised Cost: {fmtMoney(repairCost)}. </span>
+            <table className="compact-kv-table text-xs">
+              <tbody>{([
+                isKingaOptimised4
+                  ? ['KINGA Optimised Cost', fmtMoney(repairCost4)]
+                  : repairCost4 > 0
+                    ? ['Repair Cost (Submitted)', fmtMoney(repairCost4)]
+                    : null,
+                ['Repair-to-Value Ratio', repairToValue4 != null ? `${repairToValue4.toFixed(1)}%` : 'Cannot calculate'],
+                ['Write-off Threshold', '75% of market value'],
+                ['Excess / Deductible', excessUsd4 != null ? fmtMoney(excessUsd4) : 'Not stated'],
+                ['Betterment / Depreciation', bettermentUsd4 != null ? fmtMoney(bettermentUsd4) : 'Not stated'],
+                ['Net Claimant Liability', excessUsd4 != null && bettermentUsd4 != null ? fmtMoney(excessUsd4 + bettermentUsd4) : excessUsd4 != null ? fmtMoney(excessUsd4) : 'Not available'],
+              ] as ([string, string] | null)[]).filter((x): x is [string, string] => x !== null).map(([k, v], i) => (
+                <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined }}>
+                  <td className="py-2 pr-4 font-semibold w-48" style={{ color: 'var(--kr-muted)' }}>{k as string}</td>
+                  <td className="py-2 tabular-nums" style={{ color: 'var(--kr-text)' }}>{v as string}</td>
+                </tr>
+              ))}
+              </tbody>
+            </table>
+            {repairToValue4 != null && (
+              <div className="mt-3 p-2 rounded text-xs" style={{
+                background: isWriteOff4 ? 'var(--status-reject-bg)' : '#ffffff',
+                color: isWriteOff4 ? 'var(--fp-critical-text)' : 'var(--kr-text)',
+                border: `1px solid ${isWriteOff4 ? 'var(--fp-critical-border)' : 'var(--border)'}`,
+              }}>
+                {isWriteOff4
+                  ? `Repair cost is ${repairToValue4.toFixed(1)}% of market value — exceeds 75% threshold. Potential economic write-off.`
+                  : `Repair cost is ${repairToValue4.toFixed(1)}% of market value — within repairable range.`}
+              </div>
             )}
-            {verdictReason}
-          </p>
-        )}
-      </div>
+            {verdictReason4 && (
+              <p className="mt-2 text-[11px] leading-relaxed" style={{ color: 'var(--kr-muted)' }}>
+                <span className="font-semibold" style={{ color: 'var(--kr-text)' }}>KINGA Valuation Note: </span>
+                {isKingaOptimised4 && (
+                  <span className="font-medium" style={{ color: '#0d9488' }}>KINGA Optimised Cost: {fmtMoney(repairCost4)}. </span>
+                )}
+                {verdictReason4}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
-
 // ─── Section 4: Evidence Inventory ───────────────────────────────────────────
 
 // ─── Photo Re-Extraction Button ───────────────────────────────────────────────
@@ -7708,104 +7526,6 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
     </div>
   );
 }
-
-// ─── Section 7: Machine Learning Insights ────────────────────────────────────────────
-
-function Section7Learning({
-  aiAssessment: _aiAssessment,
-  enforcement,
-  fmtMoney = fmtUsd,
-}: {
-  aiAssessment: any;
-  enforcement: any;
-  fmtMoney?: (n: number | null | undefined) => string;
-}) {
-  const lb = enforcement?.costExtraction?.learningBenchmark ?? null;
-
-  // Only show the benchmark when we have at least 3 validated historical claims.
-  // Fewer than 3 is statistically insufficient and should not be surfaced.
-  const hasBenchmark = lb?.avgCostUsd != null && (lb?.sampleSize ?? 0) >= 3;
-
-  if (!hasBenchmark) {
-    return (
-      <div className="mb-4">
-        <p className="text-xs" style={{ color: 'var(--kr-muted)' }}>
-          A historical cost benchmark for this vehicle type and collision pattern is not yet available.
-          The system requires at least 3 validated claims of the same profile before a benchmark can be
-          presented. Data is currently accumulating.
-        </p>
-        <p className="text-xs mt-2" style={{ color: 'var(--kr-muted)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
-          Benchmark data is derived from anonymised historical claims. No personally identifiable
-          information is used in cost pattern analysis.
-        </p>
-      </div>
-    );
-  }
-
-  // Compute variance between submitted quote and historical average
-  const primaryQuoteTotal = (() => {
-    try {
-      const quotes = (enforcement as any)?.quotes ?? [];
-      if (quotes.length === 0) return null;
-      const q = quotes[0];
-      const lineTotal = (q.lineItems ?? []).reduce((s: number, li: any) => s + Number(li.lineTotal ?? li.unitPrice ?? 0), 0);
-      const raw = (q.quotedAmount ?? 0) / 100;
-      return raw > 0 ? raw : lineTotal > 0 ? lineTotal : null;
-    } catch { return null; }
-  })();
-
-  const avgCost = lb!.avgCostUsd!;
-  const variancePct = primaryQuoteTotal != null && avgCost > 0
-    ? ((primaryQuoteTotal - avgCost) / avgCost) * 100
-    : null;
-  const varianceLabel = variancePct == null ? null
-    : variancePct > 20 ? `${variancePct.toFixed(0)}% above historical average — review recommended`
-    : variancePct < -20 ? `${Math.abs(variancePct).toFixed(0)}% below historical average — verify scope completeness`
-    : `Within normal range (${variancePct > 0 ? '+' : ''}${variancePct.toFixed(0)}% vs historical average)`;
-
-  return (
-    <div className="mb-1 space-y-2" style={{ marginBottom: "8px" }}>
-      <div className="" style={{ border: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--kr-white)' }}>
-          <p className="sub-heading">7.1 Historical Cost Benchmark</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>
-            Based on {lb!.sampleSize} anonymised validated claims for {lb!.vehicleDescriptor} ({lb!.collisionDirection} impact, {lb!.marketRegion} market)
-          </p>
-        </div>
-        <div className="p-4">
-          <table className="compact-kv-table text-xs">
-            <tbody>
-              <tr>
-                <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-muted)' }}>Historical average repair cost</td>
-                <td className="px-3 py-2 tabular-nums font-semibold" style={{ color: 'var(--kr-text)' }}>{fmtMoney(avgCost)}</td>
-              </tr>
-              <tr style={{ borderTop: '1px solid var(--border)' }}>
-                <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-muted)' }}>Sample size</td>
-                <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--kr-text)' }}>{lb!.sampleSize} validated claims</td>
-              </tr>
-              {primaryQuoteTotal != null && (
-                <tr style={{ borderTop: '1px solid var(--border)' }}>
-                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-muted)' }}>Submitted quote</td>
-                  <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--kr-text)' }}>{fmtMoney(primaryQuoteTotal)}</td>
-                </tr>
-              )}
-              {varianceLabel && (
-                <tr style={{ borderTop: '1px solid var(--border)' }}>
-                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-muted)' }}>Variance assessment</td>
-                  <td className="px-3 py-2" style={{ color: 'var(--kr-text)' }}>{varianceLabel}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          <p className="text-xs mt-3 pt-3" style={{ borderTop: '1px solid var(--border)', color: 'var(--kr-muted)' }}>
-            Benchmark data is derived from anonymised historical claims. No personally identifiable information is used in cost pattern analysis.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Export ────────────────────────────────────────────────────────────────────────────────────
 
 // ─── Mockup v4.2 scoped CSS─────────────────────────────────────────
