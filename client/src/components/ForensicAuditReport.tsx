@@ -1312,7 +1312,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         const tdC: React.CSSProperties = { padding: '3px 8px', fontSize: 11, color: 'var(--kr-text)', borderBottom: '1px solid #f1f5f9' };
         const tdN: React.CSSProperties = { ...tdC, textAlign: 'right', fontFamily: 'var(--kr-mono)' };
         return (
-          <div style={{ margin: '6px 0 0' }}>
+          <div style={{ margin: '4px 0 0' }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--kr-navy)', marginBottom: 4, borderBottom: '1.5px solid var(--kr-navy)', paddingBottom: 3 }}>Repair Quote Summary</div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
@@ -1337,7 +1337,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
                   const savingsPct3 = lowestSubmitted3 > 0 && kingaOptTotal3 < lowestSubmitted3 ? ((lowestSubmitted3 - kingaOptTotal3) / lowestSubmitted3 * 100) : 0;
                   return (
                     <tr style={{ borderTop: '2px solid var(--kr-navy)', background: '#f0fdf4' }}>
-                      <td style={{ ...tdC, fontWeight: 700, color: 'var(--kr-navy)', background: '#f0fdf4' }}>
+                      <td style={{ ...tdC, fontWeight: 700, color: 'var(--kr-navy)', background: '#f0fdf4', borderLeft: '4px solid #15803d' }}>
                         <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '1px 5px', background: 'var(--kr-navy)', color: '#fff', borderRadius: 2, marginRight: 5, letterSpacing: '0.06em' }}>KINGA</span>
                         Optimised Estimate
                       </td>
@@ -7588,9 +7588,9 @@ const REPORT_CSS = `
 .kinga-report .ps-value{font-size:var(--kr-sz-xl);font-weight:700;color:var(--kr-navy)}
 .kinga-report .ps-label{font-size:var(--kr-sz-xs);color:var(--kr-muted);text-transform:uppercase;letter-spacing:.04em;font-family:var(--kr-sans)}
 /* Section heading: navy bar with white text — matches KINGA brand */
-.kinga-report .section-heading{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--kr-navy);color:var(--kr-white);margin:24px 0 12px;font-size:var(--kr-sz-sec);font-weight:700;letter-spacing:0.01em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.kinga-report .section-heading{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--kr-navy);color:var(--kr-white);margin:16px 0 8px;font-size:var(--kr-sz-sec);font-weight:700;letter-spacing:0.01em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 /* Sub-heading: sentence-case bold, green accent — no uppercase */
-.kinga-report .sub-heading{font-family:var(--kr-sans);font-size:var(--kr-sz-body);font-weight:700;text-transform:none;letter-spacing:0;color:var(--kr-navy);margin:12px 0 6px;border-bottom:1px solid var(--kr-rule);padding-bottom:3px}
+.kinga-report .sub-heading{font-family:var(--kr-sans);font-size:var(--kr-sz-body);font-weight:700;text-transform:none;letter-spacing:0;color:var(--kr-navy);margin:8px 0 4px;border-bottom:1px solid var(--kr-rule);padding-bottom:3px}
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed}
 .kinga-report .compact-kv-table{width:auto;max-width:520px;border-collapse:collapse;margin-bottom:10px;table-layout:auto}
 .kinga-report .compact-kv-table td{padding:5px 0;font-size:12px;border-bottom:1px solid var(--kr-rule);vertical-align:top;white-space:normal}

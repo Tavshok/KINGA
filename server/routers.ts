@@ -5270,7 +5270,32 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           }
         } catch { /* non-fatal */ }
         // Use bridge for authoritative photo and incident data
-        const phase2PhotoUrls = bridge.photoUrls.length > 0 ? bridge.photoUrls : phase2DamagePhotoUrls;
+        // FAR-2 fix: if bridge.photoUrls and damagePhotosJson are both empty, fall back to
+        // damage_photo entries in claimDocuments (uploaded via the portal but not yet synced
+        // into damagePhotosJson by an older pipeline run).
+        let claimDocPhotoUrls: string[] = [];
+        if (bridge.photoUrls.length === 0 && phase2DamagePhotoUrls.length === 0) {
+          try {
+            const { claimDocuments: claimDocsTable } = await import('../drizzle/schema');
+            const { and: andOp } = await import('drizzle-orm');
+            const db2Far = await getDb();
+            if (db2Far) {
+              const docs = await db2Far
+                .select({ fileUrl: claimDocsTable.fileUrl })
+                .from(claimDocsTable)
+                .where(andOp(
+                  eq(claimDocsTable.claimId, input.claimId),
+                  eq(claimDocsTable.documentCategory, 'damage_photo')
+                ));
+              claimDocPhotoUrls = docs.map((d: any) => d.fileUrl).filter(Boolean);
+            }
+          } catch { /* non-fatal */ }
+        }
+        const phase2PhotoUrls = bridge.photoUrls.length > 0
+          ? bridge.photoUrls
+          : phase2DamagePhotoUrls.length > 0
+            ? phase2DamagePhotoUrls
+            : claimDocPhotoUrls;
         const phase2 = runPhase2({
           authoritativeTotalUsd: enforcementAiCost,
           incidentType: bridge.incidentType !== 'unknown' ? bridge.incidentType : null,
