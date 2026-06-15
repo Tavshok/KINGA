@@ -32,7 +32,9 @@ import type { ThirdPartyRecord } from "../pipeline-v2/types";
 //   Liability posture (wrongedParty = 'insured')  30 pts
 //   Causal verdict confidence (plausibilityScore) 20 pts (scaled)
 //   Third-party data completeness                 20 pts
-//   Police report present                         15 pts
+//   Police report present                         10 pts (base)
+//     + Third party charged at scene              15 pts bonus
+//     + Active investigation                       5 pts bonus
 //   Fraud score inverse (low fraud = recoverable) 10 pts
 //   Quantum (approved amount > 0)                  5 pts
 const RPS_THRESHOLD = 30; // Minimum score to create a recovery case
@@ -46,6 +48,10 @@ interface RPSInput {
   hasThirdPartyInsurer: boolean;
   hasThirdPartyContact: boolean;
   hasPoliceReport: boolean;
+  /** True when the police charged the third party at the scene — strong liability indicator */
+  policeChargedThirdParty?: boolean;
+  /** True when the investigation is UNDER_INVESTIGATION — partial credit */
+  policeInvestigationActive?: boolean;
   fraudScore: number | null;
   approvedAmount: number | null;
 }
@@ -73,8 +79,15 @@ export function computeRPS(input: RPSInput): number {
   if (input.hasThirdPartyInsurer) score += 5;
   if (input.hasThirdPartyContact) score += 5;
 
-  // 4. Police report present (15 pts)
-  if (input.hasPoliceReport) score += 15;
+  // 4. Police report present (10 pts base) + charge bonus (up to +15 pts)
+  if (input.hasPoliceReport) score += 10;
+  if (input.policeChargedThirdParty) {
+    // Third party was charged at the scene — strong liability signal (+15 pts)
+    score += 15;
+  } else if (input.policeInvestigationActive) {
+    // Active investigation — partial credit (+5 pts)
+    score += 5;
+  }
 
   // 5. Fraud score inverse (10 pts — low fraud = more recoverable)
   // A fraudulent claim should not be pursued for recovery
@@ -166,12 +179,16 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
       }
     }
 
-    // 4b. Parse the claimRecord JSON for enriched third-party details (from police report extraction)
+    // 4b. Parse the claimRecord JSON for enriched third-party details and police fields
     let tpRecord: ThirdPartyRecord | null = null;
+    let policeChargedParty: string | null = null;
+    let policeInvestigationStatus: string | null = null;
     if (assessment?.claimRecordJson) {
       try {
         const claimRecord = JSON.parse(assessment.claimRecordJson);
         tpRecord = claimRecord?.thirdParty ?? null;
+        policeChargedParty = claimRecord?.policeReport?.chargedParty ?? null;
+        policeInvestigationStatus = claimRecord?.policeReport?.investigationStatus ?? null;
       } catch {
         console.warn(`[RecoveryTrigger] Could not parse claimRecordJson for claim ${claimId}`);
       }
@@ -193,6 +210,8 @@ export async function triggerRecoveryEvaluation(claimId: number): Promise<void> 
       hasThirdPartyInsurer: !!(claim.thirdPartyInsurer || tpVehicle?.insuranceCompany),
       hasThirdPartyContact: !!(tpVehicle?.ownerContact || tpVehicle?.ownerAddress || tpRecord?.contactPhone || tpRecord?.address),
       hasPoliceReport: !!(claim.policeReportNumber),
+      policeChargedThirdParty: policeChargedParty === 'third_party',
+      policeInvestigationActive: policeInvestigationStatus === 'UNDER_INVESTIGATION',
       fraudScore: assessment?.fraudScore ?? null,
       approvedAmount: claim.finalApprovedAmount ? Number(claim.finalApprovedAmount) : null,
     };
