@@ -257,8 +257,17 @@ export function resolveClaimRecord(assessment: Record<string, unknown>): Resolve
     Array.isArray(fraudBd?.indicators) ? fraudBd.indicators : [];
   const photosIngestionFailed = indicators.some(i => i?.indicator === "photos_not_ingested");
   const photoUrls: string[] = (() => {
+    // Primary: damagePhotosJson (array of URL strings)
     const raw = parseJson(assessment.damagePhotosJson) ?? parseJson(assessment.damage_photos_json);
-    return Array.isArray(raw) ? raw.filter((u: unknown) => typeof u === "string") : [];
+    if (Array.isArray(raw) && raw.some((u: unknown) => typeof u === "string")) {
+      return raw.filter((u: unknown) => typeof u === "string") as string[];
+    }
+    // Fallback: enrichedPhotosJson (array of {url, ...} objects from Stage 6)
+    const enriched = parseJson(assessment.enrichedPhotosJson);
+    if (Array.isArray(enriched) && enriched.length > 0) {
+      return enriched.map((p: any) => p?.url ?? '').filter(Boolean) as string[];
+    }
+    return [];
   })();
   const photosIngested = photoUrls.length > 0;
   const photosDetected = photosIngested || photosIngestionFailed;

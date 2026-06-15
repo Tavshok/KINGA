@@ -12442,3 +12442,28 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Fix 1: Import normalisePartName into quoteOptimisationEngine; replace local normalise() in classifyComponents
 - [ ] Fix 2: Add ASSEMBLY_CONTAINS map to canonicalPartsVocabulary; use in classifyComponents for assembly-aware matching
 - [ ] Fix 3: Store canonicalPartId alongside resolvedName in quoteExtractionEngine QuoteLineItem output
+
+## ForensicAuditReport — Full Fix Plan (from original audit)
+
+### IMMEDIATE — Data Integrity
+- [ ] FAR-1: Police report data path — line 1701 uses `aiAssessment?.policeReportNumber` as primary; line 1738 correctly uses `claimRecord0?.policeReport?.reportNumber` first. Fix line 1701 to match line 1738 priority order.
+- [ ] FAR-2: "Image Analysis: PASS" stale value — `bridge.photoUrls` reads only `damagePhotosJson`; if empty but `enrichedPhotosJson` has photos, `photosDetected=false` → validator sets PASS. Fix: also check `enrichedPhotosJson` in `claim-record-bridge.ts` when building `photosDetected`.
+- [ ] FAR-3: KINGA Estimate column header — add distinct visual treatment (left border + background tint) to the KINGA Estimate row header in Repair Quote Summary table.
+- [ ] FAR-4: Section 4.2 photo bug — photos exist in claim but `photoUrls` resolves to empty. Root cause: `damagePhotosJson` may be empty even when photos were uploaded to S3 via `claimDocuments`. Add fallback to read photo URLs from `claimDocuments` table (already fetched in the FAR query).
+
+### HIGH IMPACT — P1 Layout
+- [ ] FAR-P1-1: Vehicle Damage Map — change from `grid-cols-2` to full-width row, centred, `maxWidth: 320px margin: auto`.
+- [ ] FAR-P1-2: Decision Flowchart — increase `nodeW` from 110→130, `diamondW` from 100→120.
+- [ ] FAR-P1-3: Quote Reconciliation — redesign from pill tags to discrepancy table: (a) quoted by one repairer but not another, (b) in KINGA scope but not quoted, (c) quoted but not in damage scope.
+- [ ] FAR-P1-4: Section 9 pending state — change centred italic message to compact horizontal strip with lock icon.
+
+### MEDIUM IMPACT — P2 Layout
+- [ ] FAR-P2-1: Analysis Methods filter — hide "Corroborates speed range" rows; show only numeric results + outliers + DEPLOYMENT_THRESHOLD.
+- [ ] FAR-P2-2: Quality Score table — add `maxWidth: 480` to the Section 7 quality score table.
+- [ ] FAR-P2-3: Validation grid padding — reduce from `padding: '3px 5px'` to `padding: '2px 4px'`.
+- [ ] FAR-P2-4: Confidence Meter — add 3-bar strip (FCDI / Data Completeness / Physics) between scorecard row and Decision Score chart in Section 0.
+
+### STRUCTURAL
+- [ ] FAR-S1: Glossary column widths — Term: `width: 55`, Full Name: `maxWidth: 180, whiteSpace: normal`, Definition: fills remainder.
+- [ ] FAR-S2: Retire legacy formula names — M1→"KINGA Crush-Depth Method", M2→"KINGA Barrier-Equivalent Method", M3→"KINGA Energy Balance", M4→"KINGA Momentum Analysis", M5→"KINGA Vision Deformation". Update Glossary table + `categoryMap` in Section 2.3.
+- [ ] FAR-S3: White gap elimination — reduce `section-heading` top margin, `mb-3` gaps between subsections, and `margin: '12px 0 0'` on Repair Quote Summary.

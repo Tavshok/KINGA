@@ -1312,7 +1312,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         const tdC: React.CSSProperties = { padding: '3px 8px', fontSize: 11, color: 'var(--kr-text)', borderBottom: '1px solid #f1f5f9' };
         const tdN: React.CSSProperties = { ...tdC, textAlign: 'right', fontFamily: 'var(--kr-mono)' };
         return (
-          <div style={{ margin: '12px 0 0' }}>
+          <div style={{ margin: '6px 0 0' }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--kr-navy)', marginBottom: 4, borderBottom: '1.5px solid var(--kr-navy)', paddingBottom: 3 }}>Repair Quote Summary</div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
@@ -1336,14 +1336,18 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
                   const lowestSubmitted3 = qsRows.length > 0 ? Math.min(...qsRows.map(r => r.total).filter(t => t > 0)) : 0;
                   const savingsPct3 = lowestSubmitted3 > 0 && kingaOptTotal3 < lowestSubmitted3 ? ((lowestSubmitted3 - kingaOptTotal3) / lowestSubmitted3 * 100) : 0;
                   return (
-                    <tr style={{ borderTop: '2px solid #111' }}>
-                      <td style={{ ...tdC, fontWeight: 700, color: 'var(--kr-green)' }}>KINGA Estimate</td>
-                      <td style={tdN}>—</td>
-                      <td style={tdN}>—</td>
-                      <td style={{ ...tdN, fontWeight: 700, color: 'var(--kr-green)' }}>{fmtMoney(kingaOptTotal3)}</td>
-                      <td style={{ ...tdC, fontWeight: 700, color: 'var(--kr-green)' }}>
-                        KINGA Optimised
-                        {savingsPct3 > 0 && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--kr-green)', fontWeight: 700 }}>↓ {savingsPct3.toFixed(1)}% vs lowest quote</span>}
+                    <tr style={{ borderTop: '2px solid var(--kr-navy)', background: '#f0fdf4' }}>
+                      <td style={{ ...tdC, fontWeight: 700, color: 'var(--kr-navy)', background: '#f0fdf4' }}>
+                        <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '1px 5px', background: 'var(--kr-navy)', color: '#fff', borderRadius: 2, marginRight: 5, letterSpacing: '0.06em' }}>KINGA</span>
+                        Optimised Estimate
+                      </td>
+                      <td style={{ ...tdN, background: '#f0fdf4' }}>—</td>
+                      <td style={{ ...tdN, background: '#f0fdf4' }}>—</td>
+                      <td style={{ ...tdN, fontWeight: 700, color: '#15803d', background: '#f0fdf4' }}>{fmtMoney(kingaOptTotal3)}</td>
+                      <td style={{ ...tdC, fontWeight: 700, color: '#15803d', background: '#f0fdf4' }}>
+                        {savingsPct3 > 0
+                          ? <span>↓ {savingsPct3.toFixed(1)}% vs lowest quote</span>
+                          : <span style={{ color: 'var(--kr-muted)', fontWeight: 400 }}>No saving vs lowest quote</span>}
                       </td>
                     </tr>
                   );
@@ -1380,7 +1384,36 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           </div>
         );
       })()}
-
+      {/* ── Confidence Meter 3-bar strip ── */}
+      {(() => {
+        const cmBars = [
+          { label: 'FCDI', value: fcdiTileScore >= 0 ? fcdiTileScore : 0, threshold: 60, unit: '/100',
+            color: (fcdiTileScore >= 70 ? '#16a34a' : fcdiTileScore >= 40 ? '#d97706' : '#dc2626') as string,
+            tooltip: 'Forensic Confidence & Data Integrity — composite reliability score' },
+          { label: 'Data Completeness', value: Math.round(dataCompleteness), threshold: 75, unit: '%',
+            color: (dataCompleteness >= 75 ? '#16a34a' : dataCompleteness >= 50 ? '#d97706' : '#dc2626') as string,
+            tooltip: 'Percentage of required claim fields successfully extracted' },
+          { label: 'Physics Consistency', value: Math.round(physicsScore), threshold: 70, unit: '/100',
+            color: (physicsScore >= 70 ? '#16a34a' : physicsScore >= 30 ? '#d97706' : '#dc2626') as string,
+            tooltip: 'Physics engine consistency score — higher = more consistent with claimed incident' },
+        ];
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, margin: '8px 0', padding: '10px 12px', background: 'var(--kr-off-white)', border: '1px solid var(--kr-rule)' }}>
+            {cmBars.map((bar, i) => (
+              <div key={i} title={bar.tooltip}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--kr-muted)' }}>{bar.label}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: bar.color }}>{bar.value}{bar.unit}</span>
+                </div>
+                <div style={{ height: 5, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(100, bar.value)}%`, background: bar.color, borderRadius: 3, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties} />
+                </div>
+                <div style={{ marginTop: 2, fontSize: 8, color: 'var(--kr-muted)' }}>Threshold: {bar.threshold}{bar.unit}</div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
       {/* ── Decision Score Summary Chart ── */}
       {(() => {
         const dims5 = [
@@ -1698,7 +1731,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
     { label: "Incident type identified", ok: incidentType !== "N/A" && incidentType !== "unknown", detail: (incidentType ?? "").replace(/_/g, " "), conf: 95 },
     { label: "Cost data present", ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), detail: fmtMoney(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), conf: Math.round(costConfidence > 0 ? costConfidence : confidenceScore) },
     { label: "Photos submitted", ok: !!(ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected), detail: (ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected) ? `${ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected} detected` : "None", conf: photoConfidence > 0 ? Math.round(photoConfidence) : (ctl1?.evidence?.photoCount ? 80 : 0) },
-    { label: "Police report", ok: !!(aiAssessment?.policeReportNumber) || !!(claimRecord0?.policeReport?.station), detail: aiAssessment?.policeReportNumber ?? (claimRecord0?.policeReport?.station ? `Station: ${claimRecord0.policeReport.station}` : "Not provided"), conf: aiAssessment?.policeReportNumber ? 100 : claimRecord0?.policeReport?.station ? 60 : 0 },
+    { label: "Police report", ok: !!(claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber) || !!(claimRecord0?.policeReport?.station), detail: (claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber) ?? (claimRecord0?.policeReport?.station ? `Station: ${claimRecord0.policeReport.station}` : "Not provided"), conf: (claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber) ? 100 : claimRecord0?.policeReport?.station ? 60 : 0 },
     { label: "Cost corrections applied", ok: corrections.length > 0 || !!(normalised?.costs?.totalUsd), detail: corrections.length > 0 ? `${corrections.length} correction(s)` : "None needed", conf: 100 },
   ];
 
@@ -2264,7 +2297,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
               { item: 'Incident type & narrative', ok: (incidentType !== 'N/A' && incidentType !== 'unknown') ? 'pass' : 'fail', statusLabel: (incidentType !== 'N/A' && incidentType !== 'unknown') ? '✓ Complete' : '✗ Missing', impact: (incidentType !== 'N/A' && incidentType !== 'unknown') ? 'No impact' : 'Critical — incident cannot be classified' },
               { item: 'Cost data (repair quotes)', ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost) ? 'pass' : 'fail', statusLabel: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost) ? '✓ Complete' : '✗ Not submitted', impact: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost) ? 'No impact' : 'Critical — cost validation cannot proceed' },
               { item: 'Damage photographs', ok: !!(ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected) ? 'pass' : 'fail', statusLabel: !!(ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected) ? `✓ ${ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected} submitted` : '✗ Not submitted', impact: !!(ctl1?.evidence?.photoCount ?? aiAssessment?.photosDetected) ? 'No impact' : 'Critical — +12–18 confidence points if provided' },
-              { item: 'Police report', ok: !!(aiAssessment?.policeReportNumber) ? 'pass' : claimRecord0?.policeReport?.station ? 'warn' : 'fail', statusLabel: aiAssessment?.policeReportNumber ? `✓ ${aiAssessment.policeReportNumber}` : claimRecord0?.policeReport?.station ? '⚠ Case number only' : '✗ Not provided', impact: aiAssessment?.policeReportNumber ? 'No impact' : claimRecord0?.policeReport?.station ? 'Moderate — full report required' : 'High — third-party verification incomplete' },
+              { item: 'Police report', ok: !!(claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber) ? 'pass' : claimRecord0?.policeReport?.station ? 'warn' : 'fail', statusLabel: (claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber) ? `✓ ${claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber}` : claimRecord0?.policeReport?.station ? '⚠ Case number only' : '✗ Not provided', impact: (claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber) ? 'No impact' : claimRecord0?.policeReport?.station ? 'Moderate — full report required' : 'High — third-party verification incomplete' },
               { item: 'Vehicle VIN', ok: vehicleVin ? 'pass' : 'fail', statusLabel: vehicleVin ? `✓ ${vehicleVin}` : '✗ Not provided', impact: vehicleVin ? 'No impact' : 'Document gap — identity verification incomplete' },
               { item: 'Policy number', ok: policyNumber ? 'pass' : 'fail', statusLabel: policyNumber ? `✓ ${policyNumber}` : '✗ Not provided', impact: policyNumber ? 'No impact' : 'Document gap — policy verification incomplete' },
               { item: 'Driver licence', ok: driverLicenseNumber ? 'pass' : 'fail', statusLabel: driverLicenseNumber ? `✓ ${driverLicenseNumber}` : '✗ Not submitted', impact: driverLicenseNumber ? 'No impact' : 'Identity verification incomplete' },
@@ -2527,16 +2560,16 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
   const speedForensics = (_phys as any)?.speedForensics ?? null;
 
   const categoryMap: Record<string, string> = {
-    CAMPBELL: 'Structural Deformation Analysis',
-    ENERGY_MOMENTUM: 'Energy-Momentum Balance',
-    IMPULSE: 'Contact Impulse Analysis',
+    CAMPBELL: 'KINGA Crush-Depth Analysis',
+    ENERGY_MOMENTUM: 'KINGA Energy-Momentum Balance',
+    IMPULSE: 'KINGA Contact Impulse Analysis',
     DEPLOYMENT_THRESHOLD: 'Safety System Activation',
-    VISION_DEFORMATION: 'Vision Deformation Analysis',
-    M1: 'Structural Deformation Analysis',
-    M2: 'Energy-Momentum Balance',
-    M3: 'Contact Impulse Analysis',
-    M4: 'Safety System Activation',
-    M5: 'Vision Deformation Analysis',
+    VISION_DEFORMATION: 'KINGA Vision Deformation',
+    M1: 'KINGA Crush-Depth Analysis',
+    M2: 'KINGA Barrier-Equivalent Method',
+    M3: 'KINGA Energy Balance',
+    M4: 'KINGA Momentum Analysis',
+    M5: 'KINGA Vision Deformation',
   };
 
   return (
@@ -2782,6 +2815,10 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                       : isDeploymentMethod
                       ? 'Speed consistent with deployment range'
                       : 'Corroborates speed range';
+                    // Only show rows with numeric results, outliers, or deployment threshold
+                    const hasNumericResult = speedKmh != null;
+                    const isDeploymentRow = isDeploymentMethod;
+                    if (!hasNumericResult && !isOutlier && !isDeploymentRow) return null;
                     return (
                       <div key={methodId} className="flex items-center justify-between px-3 py-2 text-xs" style={{ borderBottom: idx < allMethods.length - 1 ? '1px solid var(--border)' : undefined }}>
                         <span style={{ color: isOutlier ? 'var(--kr-muted)' : 'var(--kr-text)', fontWeight: isOutlier ? 400 : 500 }}>{categoryName}</span>
@@ -2825,10 +2862,10 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
-            {/* Zone map */}
-            <div>
-              <p className="micro-label mb-2">Damage Zone Map</p>
-              <VehicleDamageMap
+            {/* Zone map — full-width centred */}
+            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <p className="micro-label mb-2" style={{ alignSelf: 'flex-start' }}>Damage Zone Map</p>
+              <div style={{ maxWidth: 320, width: '100%', margin: '0 auto' }}><VehicleDamageMap
                 damageZones={damageZones}
                 incidentType={incidentType}
                 physicsDirection={(_phys as any)?.impactVector?.direction ?? null}
@@ -2853,13 +2890,14 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                 })()}
               />
               {damageZones.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
+                <div className="mt-2 flex flex-wrap gap-1" style={{ justifyContent: 'center' }}>
                   {damageZones.map((z, i) => (
                     <span key={i} className="text-xs px-2 py-0.5 rounded"
                       style={{ background: 'var(--status-reject-bg)', color: 'var(--status-reject-text)', border: '1px solid var(--fp-critical-border)' }}>{z}</span>
                   ))}
                 </div>
               )}
+              </div>{/* /maxWidth wrapper */}
             </div>
             {/* Expected vs actual pattern */}
             <div>
@@ -3027,7 +3065,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     <div>
                       <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Max Crush Depth</span>
                       <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)', fontSize: 14 }}>{maxCrushCm.toFixed(1)} cm</div>
-                      <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>Campbell formula input</div>
+                      <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>KINGA Crush-Depth input</div>
                     </div>
                     {totalEnergyKj > 0 && (
                       <div>
@@ -4902,41 +4940,48 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                 </div>
               )}
 
-              {/* Quoted but not confirmed damaged — pill tags */}
-              {hasQnd && (
-                <div>
-                  <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--kr-amber)' }}>Quoted — not confirmed damaged</p>
-                  <div className="flex flex-wrap gap-1">
-                    {(co.quotedNotDamaged as any[]).map((item: any, idx: number) => (
-                      <span key={idx} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}>
-                        {item.componentName}
-                        {item.classification === 'suspect_inflation' && <span className="ml-1 opacity-70">⚠</span>}
-                      </span>
-                    ))}
+                            {/* ── Scope Discrepancy Table: replaces pill tags ── */}
+              {(hasQnd || hasDnq) && (() => {
+                const thS: React.CSSProperties = { padding: '4px 8px', fontSize: 10, fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'left', whiteSpace: 'nowrap' };
+                const tdS: React.CSSProperties = { padding: '3px 8px', fontSize: 11, color: 'var(--kr-text)', borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' };
+                const tdMuted: React.CSSProperties = { ...tdS, color: 'var(--kr-muted)', fontSize: 10 };
+                return (
+                  <div>
+                    <p className="text-xs font-semibold mb-2" style={{ color: 'var(--kr-text)' }}>Scope Discrepancy Analysis</p>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--kr-rule)', fontSize: 11 }}>
+                      <thead><tr>
+                        <th style={thS}>Component</th>
+                        <th style={thS}>Discrepancy Type</th>
+                        <th style={thS}>Risk Level</th>
+                        <th style={thS}>Action Required</th>
+                      </tr></thead>
+                      <tbody>
+                        {hasQnd && (co.quotedNotDamaged as any[]).map((item: any, idx: number) => (
+                          <tr key={`qnd-${idx}`} style={{ background: idx % 2 === 0 ? '#fffbeb' : '#fef3c7' }}>
+                            <td style={{ ...tdS, fontWeight: 600 }}>
+                              {item.componentName}
+                              {item.classification === 'suspect_inflation' && <span style={{ marginLeft: 4, fontSize: 9, color: '#dc2626', fontWeight: 700 }}>⚠ SUSPECT</span>}
+                            </td>
+                            <td style={{ ...tdS, color: '#92400e' }}>Quoted — not in damage scope</td>
+                            <td style={tdMuted}>{item.classification === 'suspect_inflation' ? 'High' : 'Medium'}</td>
+                            <td style={tdMuted}>Verify physical damage before approving this line item</td>
+                          </tr>
+                        ))}
+                        {hasDnq && (co.damagedNotQuoted as any[]).map((item: any, idx: number) => (
+                          <tr key={`dnq-${idx}`} style={{ background: idx % 2 === 0 ? 'var(--kr-white)' : 'var(--kr-off-white)' }}>
+                            <td style={{ ...tdS, fontWeight: 600 }}>{item.componentName}</td>
+                            <td style={{ ...tdS, color: '#0369a1' }}>Damaged — not in any quote</td>
+                            <td style={tdMuted}>{item.severity ?? 'Unknown'}</td>
+                            <td style={tdMuted}>Scope gap — request quote amendment or confirm deferred repair</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {hasQnd && <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)' }}>Items quoted but not confirmed damaged require physical verification before settlement approval.</p>}
+                    {hasDnq && <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)' }}>Scope gaps may indicate incomplete quoting or deferred repairs — confirm with repairer before closing.</p>}
                   </div>
-                  <p className="text-xs mt-1.5" style={{ color: 'var(--kr-muted)' }}>
-                    These items appear in submitted quotes but were not identified in the damage assessment. Verify before approval.
-                  </p>
-                </div>
-              )}
-
-              {/* Damaged but not quoted — pill tags */}
-              {hasDnq && (
-                <div>
-                  <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--kr-text)' }}>Damage identified — not in any quote</p>
-                  <div className="flex flex-wrap gap-1">
-                    {(co.damagedNotQuoted as any[]).map((item: any, idx: number) => (
-                      <span key={idx} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--kr-off-white)', color: 'var(--kr-text)', border: '1px solid var(--kr-rule)' }}>
-                        {item.componentName}
-                        {item.severity && <span className="ml-1 opacity-60 text-[10px]">{item.severity}</span>}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="text-xs mt-1.5" style={{ color: 'var(--kr-muted)' }}>
-                    These components were identified as damaged but do not appear in any submitted repair quote. May represent scope gaps or deferred repairs.
-                  </p>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Probable hidden damage advisories */}
               {hasHidden && (
@@ -5242,7 +5287,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   // duplication with the fraud risk indicators that already flag missing documents.
   const docsAll = [
     { id: "Claim Form", type: "Primary", extracted: true, note: "Submitted by claimant" },
-    { id: "Police Report", type: "Supporting", extracted: !!(ctl4?.evidence?.policeReportPresent ?? aiAssessment?.policeReportNumber), note: aiAssessment?.policeReportNumber ? `Case: ${aiAssessment.policeReportNumber}` : (ctl4?.evidence?.policeReportPresent ? "Present in file" : "Not provided") },
+    { id: "Police Report", type: "Supporting", extracted: !!(ctl4?.evidence?.policeReportPresent ?? claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber), note: (claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber) ? `Case: ${claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber}` : (ctl4?.evidence?.policeReportPresent ? "Present in file" : "Not provided") },
     { id: "Repair Quote", type: "Financial", extracted: ctlQuoteCount > 0 || !!(aiAssessment?.estimatedCost), note: (() => {
       if (ctlQuoteCount > 0) {
         // Show the actual submitted quote total(s), not the optimised benchmark
@@ -6645,10 +6690,10 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   // ── Horizontal flowchart dimensions ──────────────────────────────────────────
   // Layout: START → gate0 → gate1 → gate2 → gate3 → FINAL DECISION (left to right)
   // FAIL branches drop downward from each gate diamond
-  const nodeW = 110;   // width of START / FINAL rect nodes
-  const nodeH = 40;    // height of rect nodes
-  const diamondW = 100; // half-width of diamond (full = 2×)
-  const diamondH = 44; // half-height of diamond (full = 2×)
+  const nodeW = 130;   // width of START / FINAL rect nodes
+  const nodeH = 44;    // height of rect nodes
+  const diamondW = 120; // half-width of diamond (full = 2×)
+  const diamondH = 52; // half-height of diamond (full = 2×)
   const gapX = 56;     // horizontal gap between nodes
   const totalCols = gates.length + 2; // START + gates + FINAL
   const colW = diamondW * 2 + gapX;   // width per column
@@ -8200,7 +8245,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
                 <p style={{ fontSize: 11, color: 'var(--kr-text)', marginBottom: 6, lineHeight: 1.5 }}>{cq.adjusterGuidance}</p>
               )}
               {/* data-table: Dimension | Score | Label | Issues */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #C0C0C0', marginBottom: 6, fontSize: 11 }}>
+              <table style={{ width: '100%', maxWidth: 480, borderCollapse: 'collapse', border: '1px solid #C0C0C0', marginBottom: 6, fontSize: 11 }}>
                 <thead>
                   <tr>
                     <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'left', fontSize: 11, borderRight: '1px solid #444' }}>Dimension</th>
@@ -8285,7 +8330,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
                 {dimEntries.map(([key, result]) => {
                   const st = statusStyle(result);
                   return (
-                    <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 5px', border: '1px solid #D4D4D4', fontSize: 11, background: 'var(--kr-white)' }}>
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 5px', border: '1px solid #D4D4D4', fontSize: 11, background: 'var(--kr-white)' }}>
                       <span style={{ fontWeight: 600, color: 'var(--kr-text)' }}>{dimLabels[key] ?? key}</span>
                       <span style={{ fontWeight: 700, padding: '1px 5px', background: st.bg, color: st.text, border: `1px solid ${st.border}`, borderRadius: 2, fontSize: 10 }}>{result}</span>
                     </div>
@@ -8376,8 +8421,12 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
 
         if (stages.length === 0 && approvalHistory.length === 0) {
           return (
-            <div style={{ background: 'var(--kr-white)', border: '1px solid var(--kr-rule)', borderRadius: 6, padding: '16px 20px', marginBottom: 16 }}>
-              <p style={{ fontSize: 12, color: 'var(--kr-muted)', fontStyle: 'italic', margin: 0, textAlign: 'center' }}>No approval workflow has been initiated for this claim.</p>
+            <div style={{ background: 'var(--kr-off-white)', border: '1px solid var(--kr-rule)', padding: '10px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 16, color: 'var(--kr-muted)' }}>&#128274;</span>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--kr-text)' }}>Pending Workflow Initiation</span>
+                <span style={{ fontSize: 11, color: 'var(--kr-muted)', marginLeft: 8 }}>No approval stages have been configured or completed for this claim.</span>
+              </div>
             </div>
           );
         }
@@ -8569,19 +8618,19 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
                 ["Delta-v", "Change in Velocity", "The change in velocity experienced by a vehicle during a collision, measured in km/h. Higher delta-v values indicate more severe impacts and correlate with greater structural damage."],
                 ["EBS", "Energy-Based Severity", "A severity classification derived from the kinetic energy transferred during impact. Categories: Cosmetic (<2 kJ), Minor (2–8 kJ), Moderate (8–20 kJ), Severe (20–50 kJ), Catastrophic (>50 kJ)."],
                 ["Crush Depth", "Crush Depth (m)", "The measured or estimated depth of permanent deformation in the vehicle structure at the point of impact, used as a primary input for physics-based speed estimation."],
-                ["M1", "Campbell Method", "A physics-based speed estimation method using crush depth measurements and vehicle stiffness coefficients. Requires crush depth input; uses document or vision-derived measurements."],
-                ["M2", "NHTSA Barrier Equivalent", "Speed estimation using National Highway Traffic Safety Administration barrier-equivalent velocity tables, calibrated to vehicle make/model crash test data."],
-                ["M3", "Energy Balance Method", "Estimates impact speed by calculating the kinetic energy required to produce the observed structural deformation, accounting for vehicle mass and crush geometry."],
-                ["M4", "Momentum Conservation", "Uses conservation of momentum principles with both vehicle masses and post-impact trajectories to estimate pre-impact speeds for multi-vehicle collisions."],
-                ["M5", "Vision Deformation Analysis", "Computer vision-based speed estimation using KINGA analysis of damage photographs to estimate crush depth and deformation severity without physical measurements."],
+                ["M1", "KINGA Crush-Depth Method", "A physics-based speed estimation method using crush depth measurements and vehicle stiffness coefficients. Requires crush depth input; uses document or vision-derived measurements."],
+                ["M2", "KINGA Barrier-Equivalent Method", "Speed estimation using National Highway Traffic Safety Administration barrier-equivalent velocity tables, calibrated to vehicle make/model crash test data."],
+                ["M3", "KINGA Energy Balance", "Estimates impact speed by calculating the kinetic energy required to produce the observed structural deformation, accounting for vehicle mass and crush geometry."],
+                ["M4", "KINGA Momentum Analysis", "Uses conservation of momentum principles with both vehicle masses and post-impact trajectories to estimate pre-impact speeds for multi-vehicle collisions."],
+                ["M5", "KINGA Vision Deformation", "Computer vision-based speed estimation using KINGA analysis of damage photographs to estimate crush depth and deformation severity without physical measurements."],
                 ["KINGA Vision", "KINGA Computer Vision", "The KINGA image analysis subsystem that processes damage photographs to detect components, classify severity, measure deformation, and extract forensic metadata (EXIF, GPS, manipulation indicators)."],
-                ["EDS", "Ensemble Decision Score", "The weighted consensus speed estimate produced by combining multiple physics methods (M1–M5). Methods with higher confidence receive greater weight in the final estimate."],
+                ["EDS", "KINGA Ensemble Decision Score", "The weighted consensus speed estimate produced by combining multiple physics methods (M1–M5). Methods with higher confidence receive greater weight in the final estimate."],
                 ["CTL", "Claim Truth Layer", "The unified data model that reconciles information from multiple sources (claim form, documents, KINGA extraction, photos) into a single authoritative record for each claim attribute."],
                 ["EXIF", "Exchangeable Image File Format", "Metadata embedded in digital photographs containing capture date/time, GPS coordinates, camera make/model, and other technical parameters used for photo authenticity verification."],
               ].map(([term, full, def], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined, background: 'var(--kr-white)' }}>
-                  <td className="px-3 py-2 font-semibold" style={{ color: 'var(--kr-text)', whiteSpace: 'nowrap', width: 60 }}>{term}</td>
-                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)', whiteSpace: 'nowrap', width: 220 }}>{full}</td>
+                  <td className="px-3 py-2 font-semibold" style={{ color: 'var(--kr-text)', whiteSpace: 'nowrap', width: 55 }}>{term}</td>
+                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)', whiteSpace: 'normal', maxWidth: 180, minWidth: 120 }}>{full}</td>
                   <td className="px-3 py-2" style={{ color: 'var(--kr-muted)', lineHeight: 1.5 }}>{def}</td>
                 </tr>
               ))}
