@@ -2262,7 +2262,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
               { item: 'Policy number', ok: policyNumber ? 'pass' : 'fail', statusLabel: policyNumber ? `✓ ${policyNumber}` : '✗ Not provided', impact: policyNumber ? 'No impact' : 'Document gap — policy verification incomplete' },
               { item: 'Driver licence', ok: driverLicenseNumber ? 'pass' : 'fail', statusLabel: driverLicenseNumber ? `✓ ${driverLicenseNumber}` : '✗ Not submitted', impact: driverLicenseNumber ? 'No impact' : 'Identity verification incomplete' },
               { item: 'Cost corrections applied', ok: corrections.length > 0 ? 'warn' : 'pass', statusLabel: corrections.length > 0 ? `${corrections.length} correction${corrections.length !== 1 ? 's' : ''}` : 'None required', impact: corrections.length > 0 ? 'Minor — terminology standardisation' : 'No impact' },
-            ])().map((row, i) => (
+            ])().filter(row => !(row.ok === 'pass' && row.impact === 'No impact')).map((row, i) => (
               <tr key={i} style={{ borderBottom: '1px solid var(--kr-rule)' }}>
                 <td style={{ padding: '5px 8px', color: 'var(--kr-text)' }}>{row.item}</td>
                 <td style={{ padding: '5px 8px', fontWeight: 600, color: row.ok === 'pass' ? '#16a34a' : row.ok === 'warn' ? '#d97706' : '#dc2626' }}>{row.statusLabel}</td>
@@ -8191,8 +8191,8 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
                   <tr>
                     <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'left', fontSize: 11, borderRight: '1px solid #444' }}>Dimension</th>
                     <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'left', fontSize: 11, borderRight: '1px solid #444', width: 60 }}>Score</th>
-                    <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'left', fontSize: 11, borderRight: '1px solid #444', width: 100 }}>Label</th>
-                    <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'left', fontSize: 11 }}>Issues</th>
+                    <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'left', fontSize: 11, width: 100 }}>Label</th>
+
                   </tr>
                 </thead>
                 <tbody>
@@ -8205,12 +8205,8 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
                       <tr key={key} style={{ borderBottom: rowBorder, background: 'var(--kr-white)' }}>
                         <td style={{ padding: '4px 6px', color: 'var(--kr-text)', borderRight: rowBorder, verticalAlign: 'top' }}>{dim.name}</td>
                         <td style={{ padding: '4px 6px', fontWeight: 700, color: dimColor, borderRight: rowBorder, verticalAlign: 'top', fontVariantNumeric: 'tabular-nums' }}>{dim.score}</td>
-                        <td style={{ padding: '4px 6px', color: 'var(--kr-muted)', borderRight: rowBorder, verticalAlign: 'top' }}>{dim.label}</td>
-                        <td style={{ padding: '4px 6px', color: 'var(--kr-muted)', verticalAlign: 'top' }}>
-                          {(dim.issues ?? []).length > 0
-                            ? (dim.issues as string[]).join('; ')
-                            : <span style={{ fontStyle: 'italic', color: 'var(--kr-muted)' }}>None</span>}
-                        </td>
+                        <td style={{ padding: '4px 6px', color: 'var(--kr-muted)', verticalAlign: 'top' }}>{dim.label}</td>
+
                       </tr>
                     );
                   })}
@@ -8269,9 +8265,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
                   <span style={{ fontWeight: 700, padding: '1px 6px', background: overallSt.bg, color: overallSt.text, border: `1px solid ${overallSt.border}`, borderRadius: 2 }}>{fav.overallStatus}</span>
                 </span>
               </div>
-              {fav.summary && (
-                <p style={{ fontSize: 11, color: 'var(--kr-text)', marginBottom: 6, lineHeight: 1.5 }}>{fav.summary}</p>
-              )}
+
               {/* Validation grid: 2-col grid of dimension badges matching mock validation-grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, marginBottom: 8 }}>
                 {dimEntries.map(([key, result]) => {
@@ -8290,15 +8284,38 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
                   <div style={{ fontSize: 11, fontWeight: 700, color: group.style.text, marginBottom: 4, paddingBottom: 3, borderBottom: `1px solid ${group.style.border}` }}>
                     8.{gi + 1} {group.label} ({group.items.length})
                   </div>
-                  {group.items.map((issue: any, ii: number) => (
-                    <div key={ii} style={{ borderLeft: `3px solid ${group.style.border}`, padding: '5px 8px', marginBottom: 4, background: 'var(--kr-white)' }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--kr-mono)', color: 'var(--kr-text)', marginBottom: 2 }}>[{issue.code}] {issue.dimension}</div>
-                      <div style={{ fontSize: 11, lineHeight: 1.45, color: 'var(--kr-text)' }}>
-                        {issue.description}
-                        {issue.evidence && <span style={{ color: 'var(--kr-muted)' }}> — {issue.evidence}</span>}
-                      </div>
-                    </div>
-                  ))}
+                  {(() => {
+                    // Collapse issues with the same code into a single card with a count badge
+                    const codeGroups: Record<string, any[]> = {};
+                    for (const issue of group.items) {
+                      const key = issue.code ?? 'UNKNOWN';
+                      if (!codeGroups[key]) codeGroups[key] = [];
+                      codeGroups[key].push(issue);
+                    }
+                    return Object.entries(codeGroups).map(([code, issues], ci) => {
+                      const first = issues[0];
+                      const count = issues.length;
+                      // For multi-instance codes, build a compact summary
+                      const multiSummary = count > 1
+                        ? issues.map((iss: any) => {
+                            // Extract the key field name from description (e.g. "Police officer details" → "officer")
+                            const m = iss.description?.match(/^([^.]+?)\s+(?:were|was|could not|is|are)/i);
+                            return m ? m[1].replace(/\s+details?$/i, '').replace(/^Police\s+/i, '').toLowerCase() : iss.description;
+                          }).join(', ')
+                        : null;
+                      return (
+                        <div key={ci} style={{ borderLeft: `3px solid ${group.style.border}`, padding: '5px 8px', marginBottom: 4, background: 'var(--kr-white)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--kr-mono)', color: 'var(--kr-text)' }}>[{code}] {first.dimension}</span>
+                            {count > 1 && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', background: group.style.border, color: '#fff', borderRadius: 2 }}>{count}×</span>}
+                          </div>
+                          <div style={{ fontSize: 11, lineHeight: 1.45, color: 'var(--kr-text)' }}>
+                            {count > 1 ? `${count} fields not extracted: ${multiSummary}.` : first.description}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               ))}
             </div>
