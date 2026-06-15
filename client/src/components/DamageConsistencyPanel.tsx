@@ -698,7 +698,7 @@ export function DamageConsistencyPanel({ claimId, assessmentId, consistencyCheck
                                   border: "1px solid var(--border)",
                                 }}
                               >
-                                AI
+                                KINGA
                               </span>
                             )}
                             {existingAction && (

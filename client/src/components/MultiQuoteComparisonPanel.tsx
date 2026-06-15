@@ -89,7 +89,7 @@ export function MultiQuoteComparisonPanel({ costIntelligenceJson }: MultiQuoteCo
       <Card className="p-4 border-dashed">
         <div className="flex items-center gap-3 text-muted-foreground">
           <BarChart3 className="h-4 w-4 shrink-0" />
-          <p className="text-sm">No repair quotes have been extracted for this claim yet. Once quotes are uploaded, the AI will rank and optimise them automatically.</p>
+          <p className="text-sm">No repair quotes have been extracted for this claim yet. Once quotes are uploaded, KINGA will rank and optimise them automatically.</p>
         </div>
       </Card>
     );
@@ -206,7 +206,7 @@ export function MultiQuoteComparisonPanel({ costIntelligenceJson }: MultiQuoteCo
       {aiEstimateSource === "insufficient_data" && selected.length === 0 && (
         <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-          <p>No itemised quotes are available. The AI cost estimate is based on historical learning data or is unavailable. Upload itemised repair quotes to enable quote-derived cost optimisation.</p>
+          <p>No itemised quotes are available. The KINGA cost estimate is based on historical learning data or is unavailable. Upload itemised repair quotes to enable quote-derived cost optimisation.</p>
         </div>
       )}
 

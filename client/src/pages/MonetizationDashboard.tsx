@@ -178,7 +178,7 @@ export default function MonetizationDashboard() {
               <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
                 <Zap className="w-5 h-5 text-amber-600" />
               </div>
-              <div className="text-sm font-medium text-gray-600 dark:text-muted-foreground">AI-Only Rate</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-muted-foreground">KINGA-Only Rate</div>
             </div>
             <div className="text-2xl font-bold text-gray-900 dark:text-foreground">
               {totalClaims > 0 ? ((totalAiOnly / totalClaims) * 100).toFixed(1) : 0}%
@@ -230,7 +230,7 @@ export default function MonetizationDashboard() {
                   <TableRow>
                     <TableHead>Tenant</TableHead>
                     <TableHead className="text-right">Claims</TableHead>
-                    <TableHead className="text-right">AI-Only</TableHead>
+                    <TableHead className="text-right">KINGA-Only</TableHead>
                     <TableHead className="text-right">Hybrid</TableHead>
                     <TableHead className="text-right">Fast-Track</TableHead>
                     <TableHead className="text-right">Time Saved (h)</TableHead>
@@ -321,7 +321,7 @@ export default function MonetizationDashboard() {
             <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-gray-600 dark:text-muted-foreground">AI-Only Assessments</span>
+                  <span className="text-sm text-gray-600 dark:text-muted-foreground">KINGA-Only Assessments</span>
                   <span className="text-sm font-semibold text-gray-900 dark:text-foreground">{totalAiOnly}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">

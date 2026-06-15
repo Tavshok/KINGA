@@ -38,7 +38,7 @@ export default function InsurerExternalAssessmentUpload() {
               <KingaLogo />
               <div>
                 <p className="text-sm text-muted-foreground">Upload External Assessment</p>
-                <p className="text-sm text-muted-foreground">Analyze assessments from external sources with AI</p>
+                <p className="text-sm text-muted-foreground">Analyze assessments from external sources with KINGA</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -86,7 +86,7 @@ export default function InsurerExternalAssessmentUpload() {
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
                   <p className="text-sm font-medium text-secondary">What happens after upload:</p>
                   <ul className="text-sm text-secondary space-y-1 ml-4 list-disc">
-                    <li>AI extracts vehicle information, damage details, and photos from the PDF</li>
+                    <li>KINGA extracts vehicle information, damage details, and photos from the PDF</li>
                     <li>Automatic damage assessment with component-level analysis</li>
                     <li>Physics-based validation of accident dynamics and forces</li>
                     <li>Fraud detection with impossible damage pattern analysis</li>

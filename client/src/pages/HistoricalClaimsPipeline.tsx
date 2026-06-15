@@ -296,7 +296,7 @@ function BulkUploadTab() {
             {isProcessing ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processing through AI Pipeline...
+                Processing through KINGA Pipeline...
               </>
             ) : (
               <>
@@ -899,7 +899,7 @@ function AnalyticsTab() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-3xl font-bold text-green-600">{aiAccuracy.toFixed(1)}%</div>
-            <div className="text-sm text-muted-foreground">AI Accuracy</div>
+            <div className="text-sm text-muted-foreground">KINGA Accuracy</div>
           </CardContent>
         </Card>
         <Card>

@@ -651,7 +651,7 @@ export default function ClaimsProcessorDashboard() {
 
             {/* Right: Action Buttons — context-dependent */}
             <div className="flex flex-col gap-2 min-w-[200px]">
-              {/* PENDING CLAIMS: Trigger AI or Assign Assessor */}
+              {/* PENDING CLAIMS: Trigger KINGA or Assign Assessor */}
               {section === "pending" && (
                 <>
                   {/* Show Reset button if claim is stuck in assessment_in_progress */}
@@ -726,7 +726,7 @@ export default function ClaimsProcessorDashboard() {
                         onClick={() => handleResetStuckClaim(claim.id)}
                         disabled={resetStuckClaimMutation.isPending}
                         className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
-                        title="Use this if the AI has been processing for more than 5 minutes without completing"
+                        title="Use this if the KINGA has been processing for more than 5 minutes without completing"
                       >
                         <RotateCcw className="h-3 w-3 mr-2" />
                         Reset if Stuck
@@ -755,7 +755,7 @@ export default function ClaimsProcessorDashboard() {
                 </>
               )}
 
-              {/* AI FLAGGED: View Report, Download, Escalate */}
+              {/* KINGA FLAGGED: View Report, Download, Escalate */}
               {section === "ai_flagged" && (
                 <>
                   {isProcessing ? (
@@ -849,7 +849,7 @@ export default function ClaimsProcessorDashboard() {
                         onClick={() => handleResetStuckClaim(claim.id)}
                         disabled={resetStuckClaimMutation.isPending}
                         className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
-                        title="Use this if the AI has been processing for more than 5 minutes without completing"
+                        title="Use this if the KINGA has been processing for more than 5 minutes without completing"
                       >
                         <RotateCcw className="h-3 w-3 mr-2" />
                         Reset if Stuck

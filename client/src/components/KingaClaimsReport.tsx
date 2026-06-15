@@ -414,12 +414,12 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
   // ── Photo parsing ──────────────────────────────────────────────────────────
   // CRITICAL FIX: Use enrichedPhotosJson (per-photo KINGA vision metadata) as the
   // primary source. Each entry has { url, caption, detectedComponents,
-  // impactZone, severity } derived from what the AI actually SAW in that
+  // impactZone, severity } derived from what KINGA actually SAW in that
   // specific image. This prevents the false caption problem where photo[i]
   // was labelled with damagedParts[i] purely by array index.
   //
   // Fallback chain:
-  //   1. enrichedPhotosJson  — richest: url + AI-verified caption per photo
+  //   1. enrichedPhotosJson  — richest: url + KINGA-verified caption per photo
   //   2. damagePhotosJson    — may contain DamagePhoto objects or plain URLs
   //   3. enforcement damagePhotoUrls — plain URL array
   //   4. legacy photoUrls / processedPhotoUrls
@@ -597,7 +597,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
           )}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', margin: '0 0 2px' }}>AI Confidence</p>
+          <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', margin: '0 0 2px' }}>KINGA Confidence</p>
           <span className="cr-verdict-confidence" style={{ fontFamily: "'IBM Plex Mono','Courier New',monospace", fontSize: 16, fontWeight: 700, color: decisionColor }}>{confidenceScore}<span style={{ fontSize: 11, color: '#888', fontWeight: 400 }}>/100</span></span>
         </div>
       </div>
@@ -743,7 +743,7 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 <p style={{ ...S.label, marginBottom: 8 }}>Damage Photographs ({photoUrls.length}{allPhotoUrls.length > photoUrls.length ? ` of ${allPhotoUrls.length}` : ''} shown)</p>
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${photoUrls.length === 1 ? 1 : photoUrls.length === 2 ? 2 : 3}, 1fr)`, gap: 10 }}>
                   {photoUrls.map((url: string, i: number) => {
-                    // Use enriched photo metadata when available — AI-verified caption
+                    // Use enriched photo metadata when available — KINGA-verified caption
                     // for what was actually detected in THIS specific image.
                     // Falls back to positional matching only when enrichedPhotosJson is absent.
                     const enriched = displayPhotos[i];

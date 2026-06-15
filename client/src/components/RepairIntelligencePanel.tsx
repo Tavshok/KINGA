@@ -1,7 +1,7 @@
 /**
  * RepairIntelligencePanel
  *
- * Displays the enhanced AI Repair Intelligence summary for a claim.
+ * Displays the enhanced KINGA Repair Intelligence summary for a claim.
  * Advisory only — does not modify any claim data.
  *
  * Sections:
@@ -158,7 +158,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Info className="h-4 w-4 text-primary" />
-            AI Repair Intelligence
+            KINGA Repair Intelligence
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -178,7 +178,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Info className="h-4 w-4 text-muted-foreground" />
-            AI Repair Intelligence
+            KINGA Repair Intelligence
           </CardTitle>
           <CardDescription>
             {error?.message ?? "No intelligence data available for this claim."}
@@ -212,7 +212,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart2 className="h-4 w-4 text-primary" />
-            AI Repair Intelligence
+            KINGA Repair Intelligence
           </CardTitle>
           <RiskBadge level={riskLevel} />
         </div>

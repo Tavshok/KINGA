@@ -61,7 +61,7 @@ export function ClaimCard({
     return (
       <Badge variant={variant} className={`${color} flex items-center gap-1`}>
         <TrendingUp className="h-3 w-3" />
-        AI: {score}%
+        KINGA: {score}%
       </Badge>
     );
   };

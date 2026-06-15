@@ -244,7 +244,7 @@ export default function AssessorClaimDetails() {
             {/* Panel Beater Choices */}
             <PanelBeaterChoicesCard claimId={claimId} />
 
-            {/* AI Co-Pilot Assessment */}
+            {/* KINGA Co-Pilot Assessment */}
             {aiAssessment && (
               <Card className="border-l-4 border-l-primary bg-primary/5/50">
                 <CardHeader>
@@ -254,7 +254,7 @@ export default function AssessorClaimDetails() {
                         <svg className="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                         </svg>
-                        AI Co-Pilot Assessment
+                        KINGA Co-Pilot Assessment
                       </CardTitle>
                       <CardDescription className="text-primary/90">
                         KINGA-powered pre-assessment to assist your evaluation
@@ -276,7 +276,7 @@ export default function AssessorClaimDetails() {
                     </h3>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-slate-50 dark:bg-muted/50 rounded p-3">
-                        <p className="text-xs text-slate-600 dark:text-muted-foreground">AI Estimated Cost</p>
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground">KINGA Estimated Cost</p>
                         <p className="text-lg font-bold text-slate-900 dark:text-foreground">
                           {fmt((aiAssessment.estimatedCost || 0) * 100)}
                         </p>
@@ -320,7 +320,7 @@ export default function AssessorClaimDetails() {
 
                   {/* Damage Analysis */}
                   <div className="bg-white dark:bg-card rounded-lg p-4">
-                    <h3 className="font-semibold text-sm text-slate-700 dark:text-foreground/80 mb-2">AI Damage Analysis</h3>
+                    <h3 className="font-semibold text-sm text-slate-700 dark:text-foreground/80 mb-2">KINGA Damage Analysis</h3>
                     <p className="text-sm text-slate-600 dark:text-muted-foreground whitespace-pre-wrap">
                       {aiAssessment.damageDescription || "No detailed analysis available"}
                     </p>
@@ -497,7 +497,7 @@ export default function AssessorClaimDetails() {
                     </select>
                   </div>
 
-                  {/* AI Disagreement Section */}
+                  {/* KINGA Disagreement Section */}
                   {aiAssessment && (
                     <div className="col-span-full space-y-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
                       <div className="flex items-center gap-2">
@@ -515,19 +515,19 @@ export default function AssessorClaimDetails() {
                       {evaluation.disagreesWithAi && (
                         <div className="space-y-2">
                           <Label htmlFor="aiDisagreementReason" className="text-amber-900 dark:text-amber-200">
-                            Please explain why you disagree with the AI's analysis *
+                            Please explain why you disagree with KINGA's analysis *
                           </Label>
                           <Textarea
                             id="aiDisagreementReason"
                             value={evaluation.aiDisagreementReason}
                             onChange={(e) => setEvaluation(prev => ({ ...prev, aiDisagreementReason: e.target.value }))}
-                            placeholder="E.g., AI underestimated structural damage, missed paint work, overestimated labor hours, etc."
+                            placeholder="E.g., KINGA underestimated structural damage, missed paint work, overestimated labor hours, etc."
                             rows={4}
                             required={evaluation.disagreesWithAi}
                             className="bg-white dark:bg-card"
                           />
                           <p className="text-xs text-amber-700 dark:text-amber-300">
-                            Your professional judgment helps improve the AI model. This feedback will be reviewed by the Risk Manager.
+                            Your professional judgment helps improve the KINGA model. This feedback will be reviewed by the Risk Manager.
                           </p>
                         </div>
                       )}

@@ -2,10 +2,10 @@
  * IncidentTypeOverrideDialog
  *
  * A modal dialog that allows authorised users (assessors, insurers, admins)
- * to override the AI-detected incident type on a claim.
+ * to override the KINGA-detected incident type on a claim.
  *
  * Behaviour:
- *  - Shows the current (AI-detected) incident type
+ *  - Shows the current (KINGA-detected) incident type
  *  - Lets the user pick a new type from a dropdown
  *  - Requires a mandatory reason (min 5 chars)
  *  - On submit: calls trpc.incidentType.override, then shows the re-validation
@@ -168,12 +168,12 @@ export function IncidentTypeOverrideDialog({
             Override Incident Type
           </DialogTitle>
           <DialogDescription>
-            Manually correct the incident classification. The original AI-detected
+            Manually correct the incident classification. The original KINGA-detected
             value will be preserved in the audit trail.
           </DialogDescription>
         </DialogHeader>
 
-        {/* ── Current / AI-detected values ── */}
+        {/* ── Current / KINGA-detected values ── */}
         <div className="rounded-md border border-border bg-muted/40 p-3 text-sm space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Current type</span>
@@ -185,7 +185,7 @@ export function IncidentTypeOverrideDialog({
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground flex items-center gap-1">
                 <Info className="h-3 w-3" />
-                AI-detected (original)
+                KINGA-detected (original)
               </span>
               <Badge variant="secondary" className="capitalize">
                 {aiDetectedType}
@@ -223,7 +223,7 @@ export function IncidentTypeOverrideDialog({
               </Label>
               <Textarea
                 id="reason"
-                placeholder="Describe why the AI classification is incorrect…"
+                placeholder="Describe why the KINGA classification is incorrect…"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}

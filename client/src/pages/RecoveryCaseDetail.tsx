@@ -764,7 +764,7 @@ export default function RecoveryCaseDetail() {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    No demand letter has been generated yet. The AI will draft a formal letter on your insurer's letterhead
+                    No demand letter has been generated yet. KINGA will draft a formal letter on your insurer's letterhead
                     using the claim evidence, causal verdict, and third-party details captured in this case.
                   </p>
                   {canGenerateLetter ? (
@@ -887,7 +887,7 @@ export default function RecoveryCaseDetail() {
                       <SelectItem value="unknown">❓ Unknown / Not Yet Determined</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Override the AI-determined recovery target. Use when the insurer repudiates or the individual must be pursued directly.</p>
+                  <p className="text-xs text-muted-foreground">Override the KINGA-determined recovery target. Use when the insurer repudiates or the individual must be pursued directly.</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs text-muted-foreground">Change Status</label>

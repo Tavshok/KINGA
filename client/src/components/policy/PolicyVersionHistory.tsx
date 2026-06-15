@@ -186,7 +186,7 @@ export function PolicyVersionHistory({
                             <div className="space-y-1">
                               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                 <DollarSign className="h-3 w-3" />
-                                <span>AI Limit</span>
+                                <span>KINGA Limit</span>
                               </div>
                               <p className="text-sm font-medium">
                                 ${Number(policy.maxAiOnlyApprovalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

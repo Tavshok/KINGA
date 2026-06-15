@@ -267,10 +267,10 @@ export default function TenantRegistration() {
 
             {/* AI Configuration */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">AI Configuration</h3>
+              <h3 className="text-lg font-semibold">KINGA Configuration</h3>
               
               <div className="space-y-2">
-                <Label htmlFor="aiRerunLimitPerHour">AI Rerun Limit (per user per hour)</Label>
+                <Label htmlFor="aiRerunLimitPerHour">KINGA Rerun Limit (per user per hour)</Label>
                 <Input
                   id="aiRerunLimitPerHour"
                   type="number"

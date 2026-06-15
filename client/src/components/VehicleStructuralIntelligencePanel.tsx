@@ -745,8 +745,8 @@ export function VehicleStructuralIntelligencePanel({
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <FileText className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="text-xs font-semibold">AI Structural Intelligence Narrative</span>
-                  <Badge variant="outline" className="text-xs ml-auto">AI Generated</Badge>
+                  <span className="text-xs font-semibold">KINGA Structural Intelligence Narrative</span>
+                  <Badge variant="outline" className="text-xs ml-auto">KINGA Generated</Badge>
                   {hasInferredData && (
                     <ConfidenceBadge
                       tier="inferred"
@@ -787,10 +787,10 @@ export function VehicleStructuralIntelligencePanel({
               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <FileText className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-xs font-semibold text-muted-foreground">AI Structural Narrative</span>
+                  <span className="text-xs font-semibold text-muted-foreground">KINGA Structural Narrative</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  AI narrative generation is disabled for this view. The narrative is automatically generated when the Forensic Audit Report is produced and incorporates all available structural intelligence data.
+                  KINGA narrative generation is disabled for this view. The narrative is automatically generated when the Forensic Audit Report is produced and incorporates all available structural intelligence data.
                 </p>
               </div>
             )}

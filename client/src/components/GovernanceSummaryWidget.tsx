@@ -175,7 +175,7 @@ export function GovernanceSummaryWidget() {
               <TrendingUp className="h-5 w-5 text-blue-600" />
             </div>
             <p className="text-xs text-muted-foreground">
-              AI-driven routing decisions
+              KINGA-driven routing decisions
             </p>
             <div className="mt-2">
               {(metrics?.routingAccuracy || 0) >= 95 ? (

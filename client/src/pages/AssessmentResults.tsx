@@ -22,7 +22,7 @@ import { FraudRiskRadarChart } from "@/components/FraudRiskRadarChart";
 import { CostBreakdownChart } from "@/components/CostBreakdownChart";
 import { AICommentaryCard } from "@/components/AICommentaryCard";
 import { ExecutiveSummary } from "@/components/ExecutiveSummary";
-// Historical benchmarks are used internally by AI engine, not shown to insurers directly
+// Historical benchmarks are used internally by KINGA engine, not shown to insurers directly
 // import { HistoricalBenchmarkCard } from "@/components/HistoricalBenchmarkCard";
 import { CrossValidationPanel } from "@/components/CrossValidationPanel";
 
@@ -526,7 +526,7 @@ function ComponentRecommendations({ recommendations }: { recommendations: Compon
 
       {/* Total */}
       <div className="mt-4 p-4 bg-gray-100 dark:bg-muted rounded-lg flex items-center justify-between">
-        <span className="font-semibold text-foreground/80">AI Component Total</span>
+        <span className="font-semibold text-foreground/80">KINGA Component Total</span>
         <span className="text-xl font-bold text-gray-900 dark:text-foreground">${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
       </div>
     </Card>
@@ -746,7 +746,7 @@ export default function AssessmentResults() {
             <CheckCircle2 className="w-8 h-8 text-green-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground mb-2">Assessment Analysis Complete</h1>
-          <p className="text-muted-foreground">AI has successfully extracted and analyzed the assessment document</p>
+          <p className="text-muted-foreground">KINGA has successfully extracted and analyzed the assessment document</p>
           
           {/* Data Quality Bar */}
           <div className="mt-3 max-w-md mx-auto">

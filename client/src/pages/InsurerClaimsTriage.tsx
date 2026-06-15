@@ -428,7 +428,7 @@ export default function InsurerClaimsTriage() {
                               disabled={triggerAiAssessment.isPending}
                             >
                               <Zap className="h-3 w-3" />
-                              AI
+                              KINGA
                             </button>
                             <button
                               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"

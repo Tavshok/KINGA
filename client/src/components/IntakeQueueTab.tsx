@@ -182,7 +182,7 @@ export function IntakeQueueTab() {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground">AI Preliminary Score</Label>
+                      <Label className="text-xs text-muted-foreground">KINGA Preliminary Score</Label>
                       {claim.aiPreliminaryScore !== null ? (
                         <Badge 
                           variant={

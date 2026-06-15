@@ -302,7 +302,7 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
       <DialogHeader>
         <DialogTitle>Cost Savings - Breakdown by Category</DialogTitle>
         <DialogDescription>
-          Total cost savings achieved through AI and automation
+          Total cost savings achieved through KINGA and automation
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-6 py-4">

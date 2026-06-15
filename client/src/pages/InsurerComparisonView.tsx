@@ -476,7 +476,7 @@ export default function InsurerComparisonView() {
   //
   // KINGA Estimate = L2 composite optimised cost (per-component KINGA benchmark recommendation).
   // This is always the primary KPI tile value. Agreed costs and original quotes from completed
-  // assessments must NOT override this value — they are test/historical data, not the AI output.
+  // assessments must NOT override this value — they are test/historical data, not KINGA output.
   //
   // Fallback chain (only used when L2 is unavailable):
   //   costDecision.true_cost_usd → expectedRepairCostCents → estimatedCost
@@ -484,7 +484,7 @@ export default function InsurerComparisonView() {
   // L2 composite optimised cost — the per-component KINGA benchmark recommendation
   const l2CompositeOptimisedCostUsd: number | null =
     costIntelligenceForKpi?.compositeOptimisation?.l2CompositeOptimisedCostUsd ?? null;
-  // KINGA Estimate: always L2 when available, then AI-derived fallbacks only (never agreed/quoted docs)
+  // KINGA Estimate: always L2 when available, then KINGA-derived fallbacks only (never agreed/quoted docs)
   const aiCostDollars = (
     l2CompositeOptimisedCostUsd ??
     normCosts?.aiEstimateUsd ??
@@ -646,7 +646,7 @@ export default function InsurerComparisonView() {
                   </div>
                 );
               })}
-              {/* KINGA Estimate — always L2 composite optimised cost (AI per-component benchmark) */}
+              {/* KINGA Estimate — always L2 composite optimised cost (KINGA per-component benchmark) */}
               {aiCostDollars > 0 && (
                 <div className="text-center px-4 py-2 rounded-lg" style={{
                   background: currencyMismatchWarning ? '#fffbeb' : '#f0fdf4',
@@ -811,7 +811,7 @@ export default function InsurerComparisonView() {
                         fraudRisk,
                         repairComplexity,
                         confidenceScore: aiAssessment?.confidenceScore ?? 0,
-                        // Always include AI estimated cost for display even without quotes
+                        // Always include KINGA estimated cost for display even without quotes
                         aiEstimatedCost: aiAssessment?.estimatedCost ?? 0,
                       };
                     })() || {
@@ -1459,7 +1459,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
         </div>
         {/* KINGA Damage Description */}
         <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-          <h4 className="font-semibold mb-2 text-secondary">AI Damage Analysis Summary</h4>
+          <h4 className="font-semibold mb-2 text-secondary">KINGA Damage Analysis Summary</h4>
           <p className="text-sm text-secondary whitespace-pre-wrap">{damageDescription}</p>
         </div>
         {/* Structural Damage Warning */}
@@ -1739,7 +1739,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
 
       {/* KINGA Damage Description */}
       <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-        <h4 className="font-semibold mb-2 text-secondary">AI Damage Analysis Summary</h4>
+        <h4 className="font-semibold mb-2 text-secondary">KINGA Damage Analysis Summary</h4>
         <p className="text-sm text-secondary whitespace-pre-wrap">{damageDescription}</p>
       </div>
     </div>
@@ -1929,7 +1929,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
       return (
         <div className="text-center py-8 text-muted-foreground">
           <p>Physics analysis not available for this claim</p>
-          <p className="text-xs mt-2">Physics analysis runs automatically with KINGA assessment. Click \"Re-run AI\" to generate physics data.</p>
+          <p className="text-xs mt-2">Physics analysis runs automatically with KINGA assessment. Click \"Re-run KINGA\" to generate physics data.</p>
         </div>
       );
     }
@@ -1960,7 +1960,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
     physicsAnalysis = {
       _inferred: true,
       _raw: {
-        estimatedSpeed: { value: speedKmh, confidence: 55, method: "Inferred from damage severity (re-run AI for precise values)", confidenceInterval: [Math.round(speedKmh * 0.7), Math.round(speedKmh * 1.3)] },
+        estimatedSpeed: { value: speedKmh, confidence: 55, method: "Inferred from damage severity (re-run KINGA for precise values)", confidenceInterval: [Math.round(speedKmh * 0.7), Math.round(speedKmh * 1.3)] },
         impactForce: { magnitude: forceMagnitude, confidence: 55, duration: 0.08 },
         accidentSeverity: hasCatastrophic ? 'catastrophic' : hasSevere ? 'severe' : hasModerate ? 'moderate' : 'minor',
         collisionType: inferredAccidentType,
@@ -2461,7 +2461,7 @@ function ExecutiveSummaryInline({
     { label: 'Registration', value: reg },
     { label: 'Incident Type', value: incidentType },
     { label: 'Incident Date', value: incidentDate },
-    { label: 'AI Estimated Cost', value: `${currencySymbol(claim?.currencyCode)}${aiCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
+    { label: 'KINGA Estimated Cost', value: `${currencySymbol(claim?.currencyCode)}${aiCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
     { label: 'Avg Quote', value: avgQuote > 0 ? `${currencySymbol(claim?.currencyCode)}${avgQuote.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No quotes' },
     { label: 'Fraud Risk', value: fraudLevel.toUpperCase(), className: fraudColor },
     { label: 'KINGA Confidence', value: `${confidence}%` },

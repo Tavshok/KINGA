@@ -130,7 +130,7 @@ export default function ReviewQueue() {
       <div>
         <h1 className="text-3xl font-bold">Training Data Review Queue</h1>
         <p className="text-muted-foreground mt-2">
-          Review and approve historical claims for AI training dataset inclusion
+          Review and approve historical claims for KINGA training dataset inclusion
         </p>
       </div>
 
@@ -303,7 +303,7 @@ export default function ReviewQueue() {
           <DialogHeader>
             <DialogTitle>Approve Claim for Training Dataset</DialogTitle>
             <DialogDescription>
-              This claim will be included in the AI training dataset. Add any review notes below.
+              This claim will be included in KINGA training dataset. Add any review notes below.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -331,7 +331,7 @@ export default function ReviewQueue() {
           <DialogHeader>
             <DialogTitle>Reject Claim from Training Dataset</DialogTitle>
             <DialogDescription>
-              This claim will be excluded from the AI training dataset. Please provide a rejection reason.
+              This claim will be excluded from KINGA training dataset. Please provide a rejection reason.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

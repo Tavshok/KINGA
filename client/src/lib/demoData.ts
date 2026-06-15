@@ -158,7 +158,7 @@ export const DEMO_OVERRIDDEN_REPAIRERS = [
   { company_name: "Speedfix Panel Beaters", total_overrides: 1, total_recommended: 7, override_rate: 14.3 },
 ];
 
-// ─── AI Savings ───────────────────────────────────────────────────────────────
+// ─── KINGA Savings ───────────────────────────────────────────────────────────────
 export const DEMO_AI_SAVINGS = {
   total_ai_savings_rands: 214_800,
   accepted_count: 44,

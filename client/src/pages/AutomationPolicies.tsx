@@ -2,7 +2,7 @@
  * KINGA - Automation Policy Configuration
  * 
  * Allows insurer administrators to configure confidence-governed automation policies.
- * Controls AI-only approval thresholds, claim type eligibility, max amounts, fraud cutoffs,
+ * Controls KINGA-only approval thresholds, claim type eligibility, max amounts, fraud cutoffs,
  * and vehicle category rules.
  */
 
@@ -158,7 +158,7 @@ export default function AutomationPolicies() {
       <Alert className="mb-6">
         <Info className="h-4 w-4" />
         <AlertDescription>
-          These settings control when claims are automatically processed by AI versus requiring human review.
+          These settings control when claims are automatically processed by KINGA versus requiring human review.
           Higher confidence thresholds mean more conservative automation with fewer false approvals.
         </AlertDescription>
       </Alert>
@@ -175,7 +175,7 @@ export default function AutomationPolicies() {
           <CardContent className="space-y-6">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <Label>AI-Only Approval Threshold</Label>
+                <Label>KINGA-Only Approval Threshold</Label>
                 <span className="text-sm font-medium">{minAutomationConfidence}%</span>
               </div>
               <Slider
@@ -205,7 +205,7 @@ export default function AutomationPolicies() {
                 className="w-full"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Claims between this threshold and AI-only threshold will use hybrid workflow (AI + human review)
+                Claims between this threshold and KINGA-only threshold will use hybrid workflow (KINGA + human review)
               </p>
             </div>
           </CardContent>
@@ -221,7 +221,7 @@ export default function AutomationPolicies() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="maxAiOnly">Max AI-Only Approval Amount</Label>
+              <Label htmlFor="maxAiOnly">Max KINGA-Only Approval Amount</Label>
               <Input
                 id="maxAiOnly"
                 type="number"

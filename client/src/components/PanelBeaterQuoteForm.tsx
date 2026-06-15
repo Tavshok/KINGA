@@ -197,7 +197,7 @@ export default function PanelBeaterQuoteForm({ claimId, panelBeaterId, onSuccess
               <div>
                 <h3 className="font-semibold mb-2">Upload Handwritten or Printed Quote</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Take a photo of your quotation and our AI will automatically extract all line items
+                  Take a photo of your quotation and our KINGA will automatically extract all line items
                 </p>
               </div>
               <Input

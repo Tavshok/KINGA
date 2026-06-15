@@ -80,7 +80,7 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
       setUploading(false);
       setExtracting(true);
 
-      // Extract quote data using AI
+      // Extract quote data using KINGA
       const extractedData = await extractMutation.mutateAsync({
         fileUrl: uploadResult.url,
         mimeType: file.type,
@@ -121,7 +121,7 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
           Upload Quote Document
         </CardTitle>
         <CardDescription>
-          Upload a PDF or image of your handwritten or typed quote. Our AI will automatically extract the details.
+          Upload a PDF or image of your handwritten or typed quote. Our KINGA will automatically extract the details.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -151,7 +151,7 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
             
             <div className="mt-2">
               {uploading && <p className="text-sm font-medium">Uploading document...</p>}
-              {extracting && <p className="text-sm font-medium">Extracting quote details with AI...</p>}
+              {extracting && <p className="text-sm font-medium">Extracting quote details with KINGA...</p>}
               {uploadedFile && extractedData && (
                 <p className="text-sm font-medium text-green-600">Quote extracted successfully!</p>
               )}
@@ -234,7 +234,7 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
         )}
 
         <p className="text-xs text-muted-foreground">
-          💡 Tip: For best results, ensure the document is clear and well-lit. The AI can read both handwritten and typed quotes.
+          💡 Tip: For best results, ensure the document is clear and well-lit. KINGA can read both handwritten and typed quotes.
         </p>
       </CardContent>
     </Card>

@@ -843,7 +843,7 @@ export function DecisionLifecycleTracker({ data }: { data: DecisionLifecycleData
 // Adds a 70% soft write-off threshold annotation line (recommendation only).
 
 export interface CostWaterfallData {
-  /** AI learning benchmark estimate */
+  /** KINGA learning benchmark estimate */
   benchmarkUsd: number;
   /** Primary repair quote total */
   quotedTotalUsd: number;

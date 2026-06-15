@@ -261,7 +261,7 @@ export default function MarketQuotesIngestion() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">KINGA Agency — Market Data</h1>
         <p className="text-muted-foreground mt-2">
-          Upload supplier quotes (PDF / Excel / Image) for AI extraction and pricing baseline
+          Upload supplier quotes (PDF / Excel / Image) for KINGA extraction and pricing baseline
           building. Review extracted line items before approving.
         </p>
       </div>

@@ -25,7 +25,7 @@ interface CostBreakdownChartProps {
   itemizedCosts?: ItemizedCost[];
   currency?: string;
   isEstimated?: boolean;
-  /** Source of the AI cost estimate — controls the badge label shown */
+  /** Source of the KINGA cost estimate — controls the badge label shown */
   aiEstimateSource?: "learning_db" | "quote_derived" | "hardcoded_fallback" | "insufficient_data" | null;
 }
 

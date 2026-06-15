@@ -99,7 +99,7 @@ export default function AdminDashboard() {
   // Ground truth capture mutation
   const captureGt = trpc.historicalClaims.captureGroundTruth.useMutation({
     onSuccess: () => {
-      toast.success("Ground truth captured successfully — AI model will learn from this data");
+      toast.success("Ground truth captured successfully — KINGA model will learn from this data");
       setGtClaimId("");
       setGtDecision("");
       setGtFinalCost("");
@@ -172,7 +172,7 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">Admin Panel</p>
-                <p className="text-xs text-muted-foreground">System Management, AI Training &amp; Configuration</p>
+                <p className="text-xs text-muted-foreground">System Management, KINGA Training &amp; Configuration</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -615,7 +615,7 @@ export default function AdminDashboard() {
                   <CardTitle>Capture Ground Truth</CardTitle>
                 </div>
                 <CardDescription>
-                  Record the final approved cost and decision for a claim. This data trains the AI to improve
+                  Record the final approved cost and decision for a claim. This data trains KINGA to improve
                   cost predictions, fraud detection accuracy, and assessor benchmarking over time.
                 </CardDescription>
               </CardHeader>
@@ -746,7 +746,7 @@ export default function AdminDashboard() {
                   <CardTitle>Cost Variance Analysis</CardTitle>
                 </div>
                 <CardDescription>
-                  How AI-predicted costs compare to final approved costs. Lower variance means better AI accuracy.
+                  How KINGA-predicted costs compare to final approved costs. Lower variance means better KINGA accuracy.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -761,7 +761,7 @@ export default function AdminDashboard() {
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Distribution of variance between AI-predicted and actual approved costs across all ground truth records.
+                      Distribution of variance between KINGA-predicted and actual approved costs across all ground truth records.
                     </p>
                   </div>
                 ) : (
@@ -782,7 +782,7 @@ export default function AdminDashboard() {
                   <CardTitle>Assessor Performance Benchmarks</CardTitle>
                 </div>
                 <CardDescription>
-                  Track assessor accuracy over time. The AI learns which assessors are most reliable.
+                  Track assessor accuracy over time. KINGA learns which assessors are most reliable.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -886,7 +886,7 @@ export default function AdminDashboard() {
                   <CardTitle className="text-emerald-800 dark:text-emerald-200">Continuous Learning Status</CardTitle>
                 </div>
                 <CardDescription>
-                  The AI continuously learns from every claim processed through the system
+                  KINGA continuously learns from every claim processed through the system
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -915,7 +915,7 @@ export default function AdminDashboard() {
                       <span className="text-sm font-medium">Fraud Pattern Learning</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Fraud indicators are refined as more ground truth data confirms or refutes AI predictions
+                      Fraud indicators are refined as more ground truth data confirms or refutes KINGA predictions
                     </p>
                   </div>
                 </div>
@@ -963,7 +963,7 @@ export default function AdminDashboard() {
                 <div className="border rounded-lg p-4">
                   <h3 className="font-semibold mb-2">KINGA Assessment Settings</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Configuration for automated AI damage assessment
+                    Configuration for automated KINGA damage assessment
                   </p>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">

@@ -524,7 +524,7 @@ export function AdjusterSignOffPanel({
           </span>
         </div>
         <div style={{ fontSize: "10px", color: "var(--muted-foreground)" }}>
-          AI recommendation: <strong style={{ color: "var(--foreground)" }}>{aiDecision}</strong>
+          KINGA recommendation: <strong style={{ color: "var(--foreground)" }}>{aiDecision}</strong>
         </div>
       </div>
 

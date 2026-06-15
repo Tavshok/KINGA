@@ -287,7 +287,7 @@ export function AiAssessButton({
         ) : (
           <>
             <Brain className="h-3 w-3" />
-            AI Assess
+            KINGA Assess
           </>
         )}
       </Button>
@@ -306,7 +306,7 @@ export function AiAssessButton({
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <p className="text-sm text-muted-foreground">
-              The AI has analysed the claim documents, damage photographs, physics reconstruction,
+              KINGA has analysed the claim documents, damage photographs, physics reconstruction,
               and fraud indicators. The full assessment is now available.
             </p>
             <div className="flex gap-2">

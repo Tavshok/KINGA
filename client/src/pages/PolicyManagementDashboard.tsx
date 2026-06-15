@@ -143,7 +143,7 @@ export default function PolicyManagementDashboard() {
                           <Badge variant="outline">{profile.minHybridConfidence}%</Badge>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">AI Limit:</span>
+                          <span className="text-muted-foreground">KINGA Limit:</span>
                           <Badge variant="outline">
                             ${(profile.maxAiOnlyApprovalAmount / 100).toLocaleString()}
                           </Badge>

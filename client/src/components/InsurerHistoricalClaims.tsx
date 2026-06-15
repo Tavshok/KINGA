@@ -245,7 +245,7 @@ function BulkUploadSection() {
                 ) : (
                   <>
                     <Database className="h-4 w-4 mr-2" />
-                    Process {files.length} Document(s) Through AI Pipeline
+                    Process {files.length} Document(s) Through KINGA Pipeline
                   </>
                 )}
               </Button>

@@ -482,7 +482,7 @@ function WhatHappened({ assessment, enforcement, claim }: { assessment: any; enf
 
   const narrative = [
     `${vehicle} sustained a ${severity} ${direction}-impact collision at ${speed}.`,
-    `The AI damage assessment identified ${components.length} affected components: ${componentList}.`,
+    `The KINGA damage assessment identified ${components.length} affected components: ${componentList}.`,
     hasStructural ? `Structural damage has been detected, indicating the impact exceeded surface-level deformation.` : null,
     enforcement.physicsInsight || null,
     consistencyNote || null,
@@ -495,7 +495,7 @@ function WhatHappened({ assessment, enforcement, claim }: { assessment: any; enf
         <FileText className="h-4 w-4" style={{ color: "var(--primary)" }} />
         <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>What Happened</p>
         <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--fp-info-bg)", color: "var(--fp-info-text)" }}>
-          AI Reconstructed
+          KINGA Reconstructed
         </span>
       </div>
       <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{narrative}</p>
@@ -726,7 +726,7 @@ function CostDecision({ assessment, enforcement, quotes, claimCurrencyCode }: { 
       {/* Reconciliation note */}
       {hasReconciliationGap && (
         <div className="mb-2 px-2 py-1.5 rounded text-xs" style={{ background: "var(--fp-warn-bg)", color: "var(--fp-warn-text)", border: "1px solid var(--fp-warn-border)" }}>
-          ⚠ Note: Parts ({sym}{partsCost.toLocaleString()}) + Labour ({sym}{labourCost.toLocaleString()}) = {sym}{computedTotal.toLocaleString()} — differs from AI total estimate of {sym}{aiCost.toLocaleString()}. The AI total is used as the authoritative figure.
+          ⚠ Note: Parts ({sym}{partsCost.toLocaleString()}) + Labour ({sym}{labourCost.toLocaleString()}) = {sym}{computedTotal.toLocaleString()} — differs from KINGA total estimate of {sym}{aiCost.toLocaleString()}. The KINGA total is used as the authoritative figure.
         </div>
       )}
 
@@ -1475,7 +1475,7 @@ export default function ClaimDecisionReport() {
                 <div className="text-red-600 text-xl mt-0.5">⛔</div>
                 <div>
                   <div className="font-bold text-red-700 dark:text-red-400 text-sm mb-1">KINGA Assessment Incomplete — Manual Review Required</div>
-                  <div className="text-red-600 dark:text-red-300 text-xs">{summary.reason ?? 'The KINGA pipeline did not complete successfully. This claim cannot be adjudicated using AI-generated data. An assessor must review the claim manually before any decision is recorded.'}</div>
+                  <div className="text-red-600 dark:text-red-300 text-xs">{summary.reason ?? 'The KINGA pipeline did not complete successfully. This claim cannot be adjudicated using KINGA-generated data. An assessor must review the claim manually before any decision is recorded.'}</div>
                   {summary.missingComponents?.length > 0 && (
                     <div className="text-red-500 dark:text-red-400 text-xs mt-1">Missing: {summary.missingComponents.join(', ')}</div>
                   )}
@@ -2114,7 +2114,7 @@ export default function ClaimDecisionReport() {
                         </p>
                         {entry.overrideFlag && entry.aiDecision && entry.humanDecision && (
                           <p className="text-xs" style={{ color: "var(--fp-warning-text)" }}>
-                            <span className="font-semibold">Override:</span> AI recommended “{entry.aiDecision.replace(/_/g, ' ')}” → Human chose “{entry.humanDecision.replace(/_/g, ' ')}”
+                            <span className="font-semibold">Override:</span> KINGA recommended “{entry.aiDecision.replace(/_/g, ' ')}” → Human chose “{entry.humanDecision.replace(/_/g, ' ')}”
                           </p>
                         )}
                         {entry.validationErrors.length > 0 && (

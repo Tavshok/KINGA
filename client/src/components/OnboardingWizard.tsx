@@ -324,7 +324,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       <>
                         <li>• Review incoming claims in your triage queue</li>
                         <li>• Assign assessors to claims</li>
-                        <li>• Compare AI, assessor, and panel beater quotes</li>
+                        <li>• Compare KINGA, assessor, and panel beater quotes</li>
                       </>
                     )}
                     {userRole === "panel_beater" && (

@@ -107,7 +107,7 @@ export default function AIAssessmentPanel({
           </h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-50 dark:bg-muted/50 rounded p-3">
-              <p className="text-xs text-slate-600 dark:text-muted-foreground">AI Estimated Cost</p>
+              <p className="text-xs text-slate-600 dark:text-muted-foreground">KINGA Estimated Cost</p>
               <p className="text-lg font-bold text-slate-900 dark:text-foreground">
                 {fmt((aiAssessment.estimatedCost || 0) * 100)}
               </p>

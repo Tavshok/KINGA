@@ -201,7 +201,7 @@ export default function LearningDashboard() {
               Learning & Calibration Dashboard
             </h1>
             <p className="text-xs text-muted-foreground">
-              Phase 3 — AI self-improvement via validated outcomes
+              Phase 3 — KINGA self-improvement via validated outcomes
             </p>
           </div>
         </div>
@@ -792,7 +792,7 @@ export default function LearningDashboard() {
                           <table className="w-full text-xs">
                             <thead>
                               <tr className="border-b border-border">
-                                <th className="text-left py-1.5 pr-4 text-muted-foreground">AI Predicted</th>
+                                <th className="text-left py-1.5 pr-4 text-muted-foreground">KINGA Predicted</th>
                                 <th className="text-center py-1.5 px-2">Actual: Minor</th>
                                 <th className="text-center py-1.5 px-2">Actual: Moderate</th>
                                 <th className="text-center py-1.5 px-2">Actual: Severe</th>
@@ -822,7 +822,7 @@ export default function LearningDashboard() {
                     <div className="text-center py-12 text-muted-foreground">
                       <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
                       <p className="text-sm">No validated outcomes with cost data available yet.</p>
-                      <p className="text-xs mt-1">Calibration drift analysis requires claims with both AI cost estimates and assessor-approved final amounts.</p>
+                      <p className="text-xs mt-1">Calibration drift analysis requires claims with both KINGA cost estimates and assessor-approved final amounts.</p>
                     </div>
                   )}
                 </>

@@ -244,7 +244,7 @@ export function useVectorDiagramGuard(input: VectorDiagramGuardInput): VectorDia
 // ─── Cost Graph ───────────────────────────────────────────────────────────────
 
 export interface CostGraphGuardInput {
-  /** AI-estimated total cost in USD */
+  /** KINGA-estimated total cost in USD */
   aiEstimate?: number | null;
   /** Fair cost range */
   fairRange?: { min: number; max: number } | null;

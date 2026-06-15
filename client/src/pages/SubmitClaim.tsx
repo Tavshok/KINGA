@@ -191,7 +191,7 @@ export default function SubmitClaim() {
     setFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
-  // Handle document upload for AI extraction
+  // Handle document upload for KINGA extraction
   const handleDocumentExtract = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -340,7 +340,7 @@ export default function SubmitClaim() {
     }
   };
 
-  // Handle supporting document upload (no AI extraction, just storage)
+  // Handle supporting document upload (no KINGA extraction, just storage)
   const handleSupportingDocUpload = async (e: React.ChangeEvent<HTMLInputElement>, docType: string) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -588,18 +588,18 @@ export default function SubmitClaim() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-emerald-600" />
-                <CardTitle className="text-emerald-800 dark:text-emerald-200">Quick Fill with AI</CardTitle>
+                <CardTitle className="text-emerald-800 dark:text-emerald-200">Quick Fill with KINGA</CardTitle>
               </div>
               <CardDescription>
                 Upload your claim form, vehicle registration book, licence disc, or ID document.
-                Our AI will extract the details and auto-fill the form for you.
+                Our KINGA will extract the details and auto-fill the form for you.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="border-2 border-dashed border-emerald-300 dark:border-emerald-700 rounded-lg p-6 text-center bg-white/50 dark:bg-card/50">
                 <FileUp className="h-10 w-10 mx-auto mb-3 text-emerald-500" />
                 <Label htmlFor="docExtract" className="cursor-pointer">
-                  <span className="text-emerald-600 font-medium hover:underline">Upload documents for AI extraction</span>
+                  <span className="text-emerald-600 font-medium hover:underline">Upload documents for KINGA extraction</span>
                 </Label>
                 <Input
                   id="docExtract"
@@ -618,7 +618,7 @@ export default function SubmitClaim() {
               {extracting && (
                 <div className="flex items-center justify-center gap-2 p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
                   <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
-                  <span className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">AI is analyzing your document...</span>
+                  <span className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">KINGA is analyzing your document...</span>
                 </div>
               )}
 

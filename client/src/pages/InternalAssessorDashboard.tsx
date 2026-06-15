@@ -190,9 +190,9 @@ function ClaimRow({ claim, actions, showWorkflow = true }: {
 }
 
 
-// ── AI Context Panel ──────────────────────────────────────────────────────────
+// ── KINGA Context Panel ──────────────────────────────────────────────────────────
 /**
- * Expandable AI context panel for a claim row.
+ * Expandable KINGA context panel for a claim row.
  * Fetches aiAssessments.byClaim lazily (only when expanded).
  * Shows: fraud score breakdown, cost intelligence, damage summary, panel beater quotes.
  */
@@ -280,7 +280,7 @@ function AiContextPanel({ claimId }: { claimId: number }) {
               <p className="text-2xl font-bold text-foreground">
                 {typeof totalEstimate === 'number' ? `${(totalEstimate / 100).toLocaleString()}` : totalEstimate}
               </p>
-              <p className="text-xs text-muted-foreground">AI estimated repair cost</p>
+              <p className="text-xs text-muted-foreground">KINGA estimated repair cost</p>
             </div>
             {damageItems.length > 0 && (
               <div className="space-y-1">
@@ -520,7 +520,7 @@ function AssessmentDialog({
             <p className="text-xs text-muted-foreground">{form.damageAssessment.length} characters</p>
           </div>
 
-          {/* AI disagreement */}
+          {/* KINGA disagreement */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <input
@@ -540,7 +540,7 @@ function AssessmentDialog({
                 <Textarea
                   id="aiReason"
                   rows={3}
-                  placeholder="Explain the specific discrepancy between your assessment and the AI findings…"
+                  placeholder="Explain the specific discrepancy between your assessment and the KINGA findings…"
                   value={form.aiDisagreementReason}
                   onChange={e => setForm(f => ({ ...f, aiDisagreementReason: e.target.value }))}
                   className={errors.aiDisagreementReason ? "border-destructive" : ""}
@@ -903,7 +903,7 @@ export default function InternalAssessorDashboard() {
                           <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
                           {claim.aiAssessmentCompleted === 1 && (
                             <Badge variant="secondary" className="text-xs gap-1">
-                              <Brain className="h-3 w-3" /> AI Ready
+                              <Brain className="h-3 w-3" /> KINGA Ready
                             </Badge>
                           )}
                         </div>
@@ -950,7 +950,7 @@ export default function InternalAssessorDashboard() {
                           className="gap-1"
                         >
                           {expandedClaimId === claim.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                          AI
+                          KINGA
                         </Button>
                         <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
                           <Button size="sm" variant="ghost" className="w-full">
@@ -960,7 +960,7 @@ export default function InternalAssessorDashboard() {
                       </div>
                     </div>
                   </div>
-                  {/* Expandable AI context panel */}
+                  {/* Expandable KINGA context panel */}
                   {expandedClaimId === claim.id && (
                     <div className="px-4 pb-4 bg-muted/20 border-t border-border">
                       <AiContextPanel claimId={claim.id} />

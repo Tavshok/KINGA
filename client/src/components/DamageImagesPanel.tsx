@@ -2,7 +2,7 @@
  * DamageImagesPanel
  *
  * Renders damage photos with two tiers of metadata:
- *   Tier 1 — AI-classified DamagePhoto[] (from earlier pipeline stages)
+ *   Tier 1 — KINGA-classified DamagePhoto[] (from earlier pipeline stages)
  *   Tier 2 — Vision-enriched EnrichedPhoto[] (Stage 11 photo enrichment)
  *
  * When enrichment data is available, each card shows:
@@ -164,7 +164,7 @@ function EnrichedPhotoCard({ photo, onOpen }: EnrichedCardProps) {
             {photo.severity}
           </span>
           <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
-            <Sparkles className="w-3 h-3" /> AI enriched
+            <Sparkles className="w-3 h-3" /> KINGA enriched
           </span>
         </div>
 
@@ -417,7 +417,7 @@ function InconsistencyPanel({ inconsistencies }: { inconsistencies: PhotoInconsi
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface DamageImagesPanelProps {
-  /** AI-classified DamagePhoto[] JSON string from aiAssessments.damagePhotosJson */
+  /** KINGA-classified DamagePhoto[] JSON string from aiAssessments.damagePhotosJson */
   damagePhotosJson?: string | null;
   /** Raw photo URL array JSON string from claims.damagePhotos (fallback) */
   rawDamagePhotos?: string | null;

@@ -2,7 +2,7 @@
  * Platform Claim Trace Panel
  * 
  * Platform super admin only - comprehensive claim observability
- * Shows AI extraction, confidence breakdown, routing metadata, workflow timeline, segregation tracking
+ * Shows KINGA extraction, confidence breakdown, routing metadata, workflow timeline, segregation tracking
  */
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,13 +111,13 @@ export default function PlatformClaimTrace() {
         </div>
       </div>
       
-      {/* AI Extraction Data */}
+      {/* KINGA Extraction Data */}
       {aiBreakdown && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
               <Brain className="h-5 w-5 text-blue-500" />
-              <CardTitle>AI Extraction & Confidence Breakdown</CardTitle>
+              <CardTitle>KINGA Extraction & Confidence Breakdown</CardTitle>
             </div>
             <CardDescription>KINGA assessment and confidence components</CardDescription>
           </CardHeader>

@@ -25,7 +25,7 @@ export default function FraudAnalyticsDashboard() {
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Fraud Analytics</h2>
             <p className="text-muted-foreground mt-2">
-              Comprehensive fraud detection analytics powered by AI and physics-based analysis
+              Comprehensive fraud detection analytics powered by KINGA and physics-based analysis
             </p>
           </div>
           <KingaReportButton
@@ -87,7 +87,7 @@ export default function FraudAnalyticsDashboard() {
             <CardContent>
               <div className="text-2xl font-bold text-green-600">{fraudStats.detectionRate}%</div>
               <p className="text-xs text-muted-foreground mt-1">
-                AI + Physics analysis
+                KINGA + Physics analysis
               </p>
             </CardContent>
           </Card>
@@ -402,7 +402,7 @@ export default function FraudAnalyticsDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>High-Risk Claims Requiring Review</CardTitle>
-            <CardDescription>Claims flagged by AI and physics analysis</CardDescription>
+            <CardDescription>Claims flagged by KINGA and physics analysis</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

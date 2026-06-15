@@ -157,7 +157,7 @@ export function ReportReadinessBadge({ claimId, variant = "inline", onLoad }: Pr
             )}
             {recommendation && (
               <p className="text-xs text-slate-300 mt-1">
-                AI Recommendation: <span className="font-semibold">{recommendation}</span>
+                KINGA Recommendation: <span className="font-semibold">{recommendation}</span>
               </p>
             )}
             <p className="text-xs text-slate-500 mt-1">
@@ -178,7 +178,7 @@ export function ReportReadinessBadge({ claimId, variant = "inline", onLoad }: Pr
           <span className="font-semibold text-sm">{label}</span>
           {recommendation && (
             <Badge variant="outline" className="text-xs border-current opacity-80">
-              AI: {recommendation}
+              KINGA: {recommendation}
             </Badge>
           )}
         </div>

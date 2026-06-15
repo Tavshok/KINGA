@@ -97,7 +97,7 @@ export default function ClaimsManagerDashboard() {
   useEffect(() => {
     if (selectedClaim && aiAssessment) {
       // KINGA Estimate = L2 composite optimised cost (per-component benchmark).
-      // Fall back to AI estimate only when L2 is unavailable.
+      // Fall back to KINGA estimate only when L2 is unavailable.
       const ci = typeof aiAssessment.costIntelligenceJson === 'string'
         ? (() => { try { return JSON.parse(aiAssessment.costIntelligenceJson); } catch { return null; } })()
         : aiAssessment.costIntelligenceJson ?? null;
@@ -406,7 +406,7 @@ export default function ClaimsManagerDashboard() {
             <p className="text-sm font-medium text-teal-800 dark:text-teal-200">Claims Manager Workflow</p>
             <p className="text-xs text-teal-600 mt-1">
               Claims arrive here after Risk Manager review and technical approval. Your role is to conduct a final review 
-              of all assessments (AI, assessor, panel beater quotes) and close claims for onward processing — either for 
+              of all assessments (KINGA, assessor, panel beater quotes) and close claims for onward processing — either for 
               payment settlement, repair assignment, or further investigation.
             </p>
           </div>

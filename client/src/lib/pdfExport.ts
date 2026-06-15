@@ -218,7 +218,7 @@ interface ClaimData {
     repairComplexity: string;
     /** KINGA confidence score 0-100 */
     confidenceScore: number;
-    /** AI estimated repair cost (whole dollars, not cents) — shown when no quotes available */
+    /** KINGA estimated repair cost (whole dollars, not cents) — shown when no quotes available */
     aiEstimatedCost?: number;
   };
   /**
@@ -439,7 +439,7 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
       yPos += 4;
       doc.text(`Quote Spread:   ${ai.spreadPercent}%`, 26, yPos);
     } else {
-      // No quotes yet — show AI estimated cost
+      // No quotes yet — show KINGA estimated cost
       doc.setTextColor(100, 100, 100);
       doc.text('No panel beater quotes submitted yet', 26, yPos);
       doc.setTextColor(0, 0, 0);
@@ -450,7 +450,7 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
     }
     yPos += 7;
 
-    // ── 3. AI Recommendation ─────────────────────────────────────────────────
+    // ── 3. KINGA Recommendation ─────────────────────────────────────────────────
     if (ai.recommendedRepairer) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);

@@ -5,7 +5,7 @@
  * - Governance Health
  * - Data Integrity
  * - Performance Metrics
- * - AI Stability
+ * - KINGA Stability
  * 
  * Features traffic-light system (Green/Amber/Red) and overall health index (0-100)
  */
@@ -163,7 +163,7 @@ export default function OperationalHealthDashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Operational Readiness Dashboard</h1>
         <p className="text-muted-foreground mt-2">
-          Real-time system health monitoring across governance, data integrity, performance, and AI stability
+          Real-time system health monitoring across governance, data integrity, performance, and KINGA stability
         </p>
       </div>
       
@@ -340,7 +340,7 @@ export default function OperationalHealthDashboard() {
           </CardContent>
         </Card>
         
-        {/* AI Stability Health */}
+        {/* KINGA Stability Health */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -349,7 +349,7 @@ export default function OperationalHealthDashboard() {
                   <Brain className="h-6 w-6 text-amber-600" />
                 </div>
                 <div>
-                  <CardTitle>AI Stability</CardTitle>
+                  <CardTitle>KINGA Stability</CardTitle>
                   <CardDescription>Confidence & accuracy metrics</CardDescription>
                 </div>
               </div>
@@ -378,7 +378,7 @@ export default function OperationalHealthDashboard() {
               
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm">AI vs Assessor Variance</span>
+                  <span className="text-sm">KINGA vs Assessor Variance</span>
                   <span className="font-semibold">{health.aiStability.aiVsAssessorVariance.avgVariancePercent.toFixed(1)}%</span>
                 </div>
                 

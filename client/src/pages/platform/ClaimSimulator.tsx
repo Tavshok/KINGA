@@ -364,7 +364,7 @@ export default function ClaimSimulator() {
               </div>
               <div className="flex gap-2">
                 <span className="text-green-400 mt-0.5">✓</span>
-                <span>AI damage assessment triggered (background)</span>
+                <span>KINGA damage assessment triggered (background)</span>
               </div>
               <div className="flex gap-2">
                 <span className="text-amber-400 mt-0.5">⚠</span>

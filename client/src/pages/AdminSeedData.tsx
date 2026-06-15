@@ -47,7 +47,7 @@ export default function AdminSeedData() {
       setIsGeneratingAi(false);
     },
     onError: (error) => {
-      console.error("Bulk AI generation failed:", error);
+      console.error("Bulk KINGA generation failed:", error);
       setIsGeneratingAi(false);
     },
   });

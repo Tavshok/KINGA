@@ -205,7 +205,7 @@ export function RoutingBadge({
 
           <div className="pt-3 border-t border-slate-200 dark:border-border">
             <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground italic">
-              These components are calculated by the AI governance engine and do not reflect manual overrides.
+              These components are calculated by KINGA governance engine and do not reflect manual overrides.
             </p>
           </div>
         </div>

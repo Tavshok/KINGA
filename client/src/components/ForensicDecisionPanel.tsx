@@ -300,7 +300,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
                             normCosts?.source === 'parts_labour_sum' ? 'Parts + Labour' :
                             normCosts?.source === 'ai_estimate' ? 'KINGA Estimate' :
                             costDecision?.cost_basis ?? 'KINGA Estimate';
-  // costBasis: prefer L2 optimised, then AI estimate, then normalised total
+  // costBasis: prefer L2 optimised, then KINGA estimate, then normalised total
   const costBasis         = l2OptimisedUsd > 0 ? l2OptimisedUsd : (aiCost > 0 ? aiCost : trueCostUsd);
   const costRecommendation = costDecision?.recommendation ?? null;
   const costAnomalies     = Array.isArray(costDecision?.anomalies) ? costDecision.anomalies : [];

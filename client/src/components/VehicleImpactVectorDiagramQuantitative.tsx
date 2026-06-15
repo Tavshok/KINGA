@@ -479,7 +479,7 @@ export function VehicleImpactVectorDiagramQuantitative({
         <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
           <p className="text-xs font-semibold text-blue-900 dark:text-blue-200 mb-1">Physics Methodology</p>
           <p className="text-xs text-blue-800 dark:text-blue-200">
-            {physicsValidation.methodology.formulaUsed || 'Forensic AI reconstruction'}
+            {physicsValidation.methodology.formulaUsed || 'Forensic KINGA reconstruction'}
           </p>
           {physicsValidation.methodology.modelVersion && (
             <p className="text-xs text-blue-600 mt-1">

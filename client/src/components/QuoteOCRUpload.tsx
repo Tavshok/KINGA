@@ -78,7 +78,7 @@ export default function QuoteOCRUpload({ claimId, onSuccess }: QuoteOCRUploadPro
           Upload Handwritten Quote (OCR)
         </CardTitle>
         <CardDescription>
-          Take a photo of your handwritten quotation and our AI will automatically extract the line items
+          Take a photo of your handwritten quotation and our KINGA will automatically extract the line items
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -1,7 +1,7 @@
 /**
  * QuoteOptimisationPanel
  *
- * Displays the AI cost optimisation summary on the insurer claim review page.
+ * Displays the KINGA cost optimisation summary on the insurer claim review page.
  * Shows:
  *   - Overall risk score + categorical badge
  *   - Per-quote cost deviation %
@@ -10,7 +10,7 @@
  *   - KINGA narrative summary
  *   - Insurer decision buttons (Accept Recommendation / Override)
  *
- * AI assists; insurer decides.
+ * KINGA assists; insurer decides.
  */
 
 import { useState } from "react";
@@ -73,7 +73,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
 
   const retrigger = trpc.quoteOptimisation.retrigger.useMutation({
     onSuccess: () => {
-      toast.success("AI optimisation re-triggered. Results will appear shortly.");
+      toast.success("KINGA optimisation re-triggered. Results will appear shortly.");
       utils.quoteOptimisation.getResult.invalidate({ claimId });
     },
     onError: (err) => toast.error(`Failed to re-trigger: ${err.message}`),
@@ -85,7 +85,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
       <Card className="mb-6 border-2 border-dashed border-muted-foreground/30">
         <CardContent className="py-8 text-center text-muted-foreground">
           <Brain className="h-8 w-8 mx-auto mb-3 opacity-40" />
-          <p className="text-sm font-medium">AI Cost Optimisation not yet triggered.</p>
+          <p className="text-sm font-medium">KINGA Cost Optimisation not yet triggered.</p>
           <p className="text-xs mt-1">It will run automatically once all 3 panel beater quotes are submitted.</p>
           <Button
             variant="outline"
@@ -108,7 +108,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
       <Card className="mb-6 border-2 border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/30">
         <CardContent className="py-8 text-center">
           <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-blue-600" />
-          <p className="text-sm font-medium text-blue-800 dark:text-blue-200">AI Cost Optimisation is running…</p>
+          <p className="text-sm font-medium text-blue-800 dark:text-blue-200">KINGA Cost Optimisation is running…</p>
           <p className="text-xs text-blue-600 mt-1">Comparing quotes against benchmarks. This takes 10–20 seconds.</p>
         </CardContent>
       </Card>
@@ -121,7 +121,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
       <Card className="mb-6 border-2 border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-950/30">
         <CardContent className="py-6 text-center">
           <AlertTriangle className="h-7 w-7 mx-auto mb-2 text-red-500" />
-          <p className="text-sm font-medium text-red-800 dark:text-red-200">AI optimisation failed.</p>
+          <p className="text-sm font-medium text-red-800 dark:text-red-200">KINGA optimisation failed.</p>
           <Button
             variant="outline"
             size="sm"
@@ -159,7 +159,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-purple-600" />
-            <CardTitle className="text-base">AI Cost Optimisation</CardTitle>
+            <CardTitle className="text-base">KINGA Cost Optimisation</CardTitle>
             <Badge className={`text-xs border ${RISK_COLORS[riskScore]}`}>
               {riskScore.toUpperCase()} RISK — {riskNum.toFixed(0)}/100
             </Badge>
@@ -177,7 +177,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
         </div>
         <CardDescription className="text-xs mt-1">
           KINGA analysis compares 3 quotes against historical data, parts pricing benchmarks, and labour hour standards.
-          <span className="font-semibold text-foreground"> AI assists — insurer decides.</span>
+          <span className="font-semibold text-foreground"> KINGA assists — insurer decides.</span>
         </CardDescription>
       </CardHeader>
 
@@ -268,7 +268,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
           </div>
         )}
 
-        {/* AI Narrative */}
+        {/* KINGA Narrative */}
         {result.optimisationSummary && (
           <div className="rounded-lg bg-muted/40 border p-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">KINGA Analysis</p>
@@ -281,9 +281,9 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
           {alreadyDecided ? (
             <div className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${result.insurerAcceptedRecommendation ? "bg-green-50 dark:bg-green-950/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800" : "bg-orange-50 dark:bg-orange-950/20 text-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-800"}`}>
               {result.insurerAcceptedRecommendation ? (
-                <><ThumbsUp className="h-4 w-4" /> Insurer accepted AI recommendation</>
+                <><ThumbsUp className="h-4 w-4" /> Insurer accepted KINGA recommendation</>
               ) : (
-                <><ThumbsDown className="h-4 w-4" /> Insurer overrode AI recommendation{result.insurerOverrideReason ? ` — "${result.insurerOverrideReason}"` : ""}</>
+                <><ThumbsDown className="h-4 w-4" /> Insurer overrode KINGA recommendation{result.insurerOverrideReason ? ` — "${result.insurerOverrideReason}"` : ""}</>
               )}
             </div>
           ) : (
@@ -312,7 +312,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
               {showOverrideInput && (
                 <div className="space-y-2">
                   <Textarea
-                    placeholder="Reason for overriding AI recommendation (optional but recommended)…"
+                    placeholder="Reason for overriding KINGA recommendation (optional but recommended)…"
                     value={overrideReason}
                     onChange={(e) => setOverrideReason(e.target.value)}
                     className="text-sm min-h-[80px]"

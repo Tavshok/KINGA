@@ -91,7 +91,7 @@ export function ActivePolicyCard({ policy, onPolicyUpdated }: ActivePolicyCardPr
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">AI-Only Approval Limit</p>
+              <p className="text-sm text-muted-foreground">KINGA-Only Approval Limit</p>
               <p className="text-lg font-bold">
                 ${Number(policy.maxAiOnlyApprovalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>

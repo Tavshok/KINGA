@@ -542,10 +542,10 @@ export default function ClaimsManagerComparisonView() {
                 </div>
               </div>
 
-              {/* AI Reasoning */}
+              {/* KINGA Reasoning */}
               {aiAssessment?.reasoning && (
                 <div className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg">
-                  <h4 className="font-semibold text-slate-700 dark:text-foreground/80 mb-2">AI Reasoning</h4>
+                  <h4 className="font-semibold text-slate-700 dark:text-foreground/80 mb-2">KINGA Reasoning</h4>
                   <p className="text-sm text-slate-600 dark:text-muted-foreground leading-relaxed">
                     {aiAssessment.reasoning}
                   </p>
@@ -589,7 +589,7 @@ export default function ClaimsManagerComparisonView() {
                         Discrepancy Analysis
                       </h4>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-slate-600 dark:text-muted-foreground">AI vs Assessor Variance</span>
+                        <span className="text-sm text-slate-600 dark:text-muted-foreground">KINGA vs Assessor Variance</span>
                         <span className={`${isRiskManager ? "text-3xl" : "text-2xl"} font-bold ${
                           Math.abs(aiVsAssessor) > 20 ? "text-red-600" :
                           Math.abs(aiVsAssessor) >= 10 ? "text-amber-600" :
@@ -607,7 +607,7 @@ export default function ClaimsManagerComparisonView() {
                             {Math.abs(aiVsAssessor) > 20
                               ? "⚠️ Significant discrepancy detected. Manual review recommended to validate cost estimation accuracy and identify potential anomalies."
                               : Math.abs(aiVsAssessor) >= 10
-                              ? "⚠️ Moderate discrepancy. Review recommended to ensure alignment between AI and human assessment."
+                              ? "⚠️ Moderate discrepancy. Review recommended to ensure alignment between KINGA and human assessment."
                               : "✓ KINGA and assessor estimates are well-aligned, indicating consistent damage evaluation."}
                           </p>
                         </div>

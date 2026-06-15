@@ -114,7 +114,7 @@ export function CostWaterfallChart({
   const rows = [
     { label: "Parts", value: partsUsd, colour: "#0369A1" },
     { label: "Labour", value: labourUsd, colour: "#0EA5E9" },
-    { label: "AI Total", value: totalUsd, colour: "#475569" },
+    { label: "KINGA Total", value: totalUsd, colour: "#475569" },
     ...(quotedTotal > 0
       ? [{ label: `Quoted${panelBeater ? ` (${panelBeater.split(" ")[0]})` : ""}`, value: quotedTotal, colour: verdictColour.bar }]
       : []),

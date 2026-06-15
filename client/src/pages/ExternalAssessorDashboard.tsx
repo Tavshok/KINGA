@@ -156,7 +156,7 @@ function ExpandableClaimRow({ claim }: { claim: any }) {
         <TableRow>
           <TableCell colSpan={6} className="bg-muted/30 p-0">
             <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* AI Summary */}
+              {/* KINGA Summary */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   KINGA Assessment

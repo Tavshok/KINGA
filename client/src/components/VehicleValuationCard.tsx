@@ -266,7 +266,7 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
             </div>
           )}
 
-          {/* AI Reasoning */}
+          {/* KINGA Reasoning */}
           {notes.length > 0 && (
             <div>
               <Label className="text-muted-foreground">Valuation Notes</Label>
@@ -374,7 +374,7 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm text-secondary">
           <p className="font-medium mb-1">How it works:</p>
           <ul className="space-y-1 text-xs">
-            <li>• AI analyzes Zimbabwe, Zambia, and SA markets</li>
+            <li>• KINGA analyzes Zimbabwe, Zambia, and SA markets</li>
             <li>• Calculates import costs from SA (40% duty + transport)</li>
             <li>• Applies condition and mileage adjustments</li>
             <li>• Determines total loss if repair cost &gt; 60% of value</li>

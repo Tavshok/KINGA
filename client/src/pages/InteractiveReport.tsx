@@ -1,7 +1,7 @@
 /**
  * Interactive Report Page
  * 
- * Living intelligence report with drill-down analytics, AI vs assessor comparison,
+ * Living intelligence report with drill-down analytics, KINGA vs assessor comparison,
  * fraud risk exploration, and benchmark analytics.
  */
 
@@ -209,9 +209,9 @@ export default function InteractiveReport() {
             <h2 className="text-xl font-bold mb-4">Cost Comparison Analysis</h2>
             
             <div className="space-y-6">
-              {/* AI vs Assessor Comparison */}
+              {/* KINGA vs Assessor Comparison */}
               <div>
-                <h3 className="font-semibold mb-3">AI vs Assessor Estimate</h3>
+                <h3 className="font-semibold mb-3">KINGA vs Assessor Estimate</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="border rounded-lg p-4">
                     <div className="text-sm text-muted-foreground mb-1">KINGA Estimate</div>

@@ -159,7 +159,7 @@ export default function PanelBeaterDashboard() {
             <CardContent className="pt-5 pb-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Avg Variance from AI Est.</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Avg Variance from KINGA Est.</p>
                   <p className={`text-2xl font-bold mt-1 ${Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) > 15 ? 'text-red-600' : Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) > 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
                     {myAnalytics?.stats?.avgVariancePct != null ? `${myAnalytics.stats.avgVariancePct > 0 ? '+' : ''}${myAnalytics.stats.avgVariancePct}%` : '—'}
                   </p>
@@ -215,7 +215,7 @@ export default function PanelBeaterDashboard() {
                     options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, scales: { x: { title: { display: true, text: 'KINGA Estimate', font: { size: 10 } } }, y: { title: { display: true, text: 'Your Quote', font: { size: 10 } } } } }}
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No quote data with AI estimates yet</div>
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No quote data with KINGA estimates yet</div>
                 )}
               </div>
             </CardContent>
@@ -678,7 +678,7 @@ export default function PanelBeaterDashboard() {
                   <Card className="md:col-span-2">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-semibold">Quote Congruency Score Trend</CardTitle>
-                      <p className="text-xs text-muted-foreground">How closely your quotes align with the AI cost estimate — higher is better</p>
+                      <p className="text-xs text-muted-foreground">How closely your quotes align with the KINGA cost estimate — higher is better</p>
                     </CardHeader>
                     <CardContent>
                       <div style={{ height: 180 }}>

@@ -154,7 +154,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
           "KINGA assessment with confidence breakdown",
           "Damage photos and incident details",
           "Cost estimation tools and historical data",
-          "Comparison view: AI vs your assessment",
+          "Comparison view: KINGA vs your assessment",
         ],
       },
       {
@@ -277,7 +277,7 @@ const ROLE_ONBOARDING_CONTENT: Record<UserRole, RoleOnboardingContent> = {
         description: "Your dashboard and available features",
         items: [
           "Claims requiring final approval",
-          "Three-column comparison: AI, Assessor, Panel Beater quotes",
+          "Three-column comparison: KINGA, Assessor, Panel Beater quotes",
           "Cost variance analysis with color-coded badges",
           "Team performance metrics and workload",
           "Override history and audit trails",

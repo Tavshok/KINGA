@@ -213,7 +213,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                         })()}
                       </>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No AI risk assessment available</p>
+                      <p className="text-sm text-muted-foreground">No KINGA risk assessment available</p>
                     )}
                   </div>
                 </Card>

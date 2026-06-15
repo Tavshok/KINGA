@@ -294,7 +294,7 @@ export default function ExecutiveAnalyticsCharts() {
           <MiniKPI
             title="Avg Saving / Claim"
             value={formatRands(avgSavingRands)}
-            subtitle="When AI recommendation accepted"
+            subtitle="When KINGA recommendation accepted"
             icon={TrendingDown}
             color="teal"
             loading={aiSavingsLoading}
@@ -320,7 +320,7 @@ export default function ExecutiveAnalyticsCharts() {
             <CardTitle>Most Overridden Repairers</CardTitle>
           </div>
           <CardDescription>
-            AI-recommended repairers most frequently overridden by insurers (top 10)
+            KINGA-recommended repairers most frequently overridden by insurers (top 10)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -510,7 +510,7 @@ export default function ExecutiveAnalyticsCharts() {
                 <AlertTriangle className="h-5 w-5 text-orange-600" />
                 <CardTitle>Fraud Risk Distribution</CardTitle>
               </div>
-              <CardDescription>Distribution of claims by AI-assessed fraud risk level</CardDescription>
+              <CardDescription>Distribution of claims by KINGA-assessed fraud risk level</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="mx-auto h-[280px] max-w-md">

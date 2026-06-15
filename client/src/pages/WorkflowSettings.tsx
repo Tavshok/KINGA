@@ -259,7 +259,7 @@ export default function WorkflowSettings() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="aiFastTrackEnabled">AI Fast-Track</Label>
+                <Label htmlFor="aiFastTrackEnabled">KINGA Fast-Track</Label>
                 <p className="text-sm text-muted-foreground">
                   Skip human assessment for low-risk, low-value claims
                 </p>

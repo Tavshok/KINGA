@@ -113,7 +113,7 @@ export function CreatePolicyForm({ profiles, onPolicyCreated }: CreatePolicyForm
             <p className="text-lg font-bold">{selectedProfile.minHybridConfidence}%</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">AI Approval Limit</p>
+            <p className="text-xs text-muted-foreground">KINGA Approval Limit</p>
             <p className="text-lg font-bold">
               ${selectedProfile.maxAiOnlyApprovalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
@@ -166,7 +166,7 @@ export function CreatePolicyForm({ profiles, onPolicyCreated }: CreatePolicyForm
           {/* Financial Limits */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="aiLimit">AI-Only Approval Limit ($)</Label>
+              <Label htmlFor="aiLimit">KINGA-Only Approval Limit ($)</Label>
               <Input
                 id="aiLimit"
                 type="number"
