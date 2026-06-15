@@ -12437,3 +12437,8 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Add per-field confidence scores to extracted quote fields
 - [ ] Add OCR quality pre-assessment step before Stage 3 extraction
 - [ ] Build human-correction feedback loop for adjuster overrides
+
+## Phase A — Part Normalisation (Data Layer)
+- [ ] Fix 1: Import normalisePartName into quoteOptimisationEngine; replace local normalise() in classifyComponents
+- [ ] Fix 2: Add ASSEMBLY_CONTAINS map to canonicalPartsVocabulary; use in classifyComponents for assembly-aware matching
+- [ ] Fix 3: Store canonicalPartId alongside resolvedName in quoteExtractionEngine QuoteLineItem output

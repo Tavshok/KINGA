@@ -226,21 +226,12 @@ const SYNONYM_MAP: Record<string, string> = {
 };
 
 function normalise(name: string): string {
-  let lower = name.toLowerCase().trim();
-  // Resolve synonym map first
-  if (SYNONYM_MAP[lower]) return SYNONYM_MAP[lower];
-  // British/American spelling normalisation — collapse to British spelling
-  // so "rubberizing" and "rubberising" map to the same canonical name
-  lower = lower
-    .replace(/izing\b/g, 'ising')   // rubberizing → rubberising
-    .replace(/ize\b/g, 'ise')       // oxidize → oxidise
-    .replace(/ized\b/g, 'ised')     // oxidized → oxidised
-    .replace(/izer\b/g, 'iser')     // stabilizer → stabiliser
-    .replace(/ization\b/g, 'isation') // normalization → normalisation
-    .replace(/aluminum\b/g, 'aluminium') // aluminum → aluminium
-    .replace(/color\b/g, 'colour') // color → colour
-    .replace(/center\b/g, 'centre'); // center → centre
-  return SYNONYM_MAP[lower] ?? lower;
+  if (!name || !name.trim()) return name;
+  // Single source of truth: resolveToCanonical() from vehicleParts.ts
+  // Covers all aliases, shorthands (F/B, RHS dr, w/screen, R/B assy, A/C cond),
+  // and assembly names via the unified VEHICLE_PARTS catalogue.
+  // Returns canonical name (e.g. "Front Bumper") or cleaned raw string if unknown.
+  return resolveToCanonical(name);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -742,6 +733,8 @@ import type {
   DamagedNotQuotedFlag,
   ProbableHiddenDamageAdvisory,
 } from './types.js'; // tsx resolves .js → .ts automatically
+import { resolveToCanonical, resolveToCanonicalId } from '../../../shared/vehicleParts.js';
+import { isComponentCoveredByAssembly } from './canonicalPartsVocabulary.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EXTENDED INPUT TYPES FOR COMPOSITE BUILDER
@@ -1266,12 +1259,17 @@ export function classifyComponents(
   }
 
   // Confirmed damaged but not quoted
+  // Note: also check if the component is covered by a quoted assembly
+  // (e.g. "Radiator" is covered by "Cooling Pack Assembly").
   const damagedNotQuoted: DamagedNotQuotedFlag[] = [];
   for (const dc of normDamaged) {
     const isQuoted = normQuoted.some(qc =>
       isComponentMatched(dc, [qc]) || isComponentMatched(qc, [dc])
     );
-    if (!isQuoted) {
+    // Assembly containment check: if the raw (pre-normalised) quoted components
+    // include an assembly that contains this part, treat it as quoted.
+    const isCoveredByAssembly = isComponentCoveredByAssembly(dc, allQuotedComponents);
+    if (!isQuoted && !isCoveredByAssembly) {
       const bm = benchmarks[dc] ?? null;
       const p50 = bm?.p50Usd ?? null;
       const reportSignal = p50 !== null

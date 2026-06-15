@@ -69,7 +69,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "front_bumper",
     name: "Front Bumper",
-    aliases: ["front bumper cover", "front valance", "bumper bar", "front spoiler", "F/B", "FB", "front bar", "front facia", "front fascia", "front bumper assy", "front bumper assembly", "B/bar", "bumper bar front"],
+    aliases: ["front bumper cover", "front valance", "bumper bar", "front spoiler", "F/B", "FB", "front bar", "front facia", "front fascia", "front bumper assy", "front bumper assembly", "B/bar", "bumper bar front", "bumper cover", "f/bumper", "b/bar front", "front b/bar", "f/b assy", "front bumper bar"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -86,7 +86,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "bonnet",
     name: "Bonnet (Hood)",
-    aliases: ["hood", "engine cover", "bonnet panel"],
+    aliases: ["hood", "engine cover", "bonnet panel", "hood panel", "engine hood", "bonnet assy", "bonnet/hood", "hood/bonnet"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -102,7 +102,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "headlight_l",
     name: "Headlight Assembly (Left)",
-    aliases: ["left headlamp", "driver headlight", "LH headlight", "headlamps", "headlights", "headlamp set", "headlight set", "headlamp assembly", "headlight assembly"],
+    aliases: ["left headlamp", "driver headlight", "LH headlight", "headlamps", "headlights", "headlamp set", "headlight set", "headlamp assembly", "headlight assembly", "left headlight", "headlight lh", "headlamp lh", "l/h headlight", "lh headlamp assy", "headlight assembly lh"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -116,7 +116,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "headlight_r",
     name: "Headlight Assembly (Right)",
-    aliases: ["right headlamp", "passenger headlight", "RH headlight"],
+    aliases: ["right headlamp", "passenger headlight", "RH headlight", "right headlight", "headlight rh", "headlamp rh", "r/h headlight", "rh headlamp assy", "headlight assembly rh"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -129,7 +129,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "grille",
     name: "Front Grille",
-    aliases: ["radiator grille", "grill", "front grill"],
+    aliases: ["radiator grille", "grill", "front grill", "front grille assy", "grille assy", "grille assembly", "radiator grill", "front grille assembly"],
     zone: "front",
     structural: false,
     costTier: "low",
@@ -142,7 +142,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "radiator",
     name: "Radiator Assembly",
-    aliases: ["coolant radiator", "engine radiator"],
+    aliases: ["coolant radiator", "engine radiator", "radiator assy", "radiator assembly", "cooling radiator", "rad assy"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -157,7 +157,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "front_fender_l",
     name: "Front Fender (Left)",
-    aliases: ["left front wing", "LH front fender", "driver front fender", "front mudguard left"],
+    aliases: ["left front wing", "LH front fender", "driver front fender", "front mudguard left", "lh fender", "lh wing", "left fender", "left wing", "driver fender", "driver wing", "lh front wing", "front wing lh", "fender lh", "wing lh", "l/h front fender", "l/h fender", "lh f/fender"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -170,7 +170,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "front_fender_r",
     name: "Front Fender (Right)",
-    aliases: ["right front wing", "RH front fender", "passenger front fender", "front mudguard right"],
+    aliases: ["right front wing", "RH front fender", "passenger front fender", "front mudguard right", "rh fender", "rh wing", "right fender", "right wing", "passenger fender", "passenger wing", "rh front wing", "front wing rh", "fender rh", "wing rh", "r/h front fender", "r/h fender", "rh f/fender"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -183,7 +183,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "fog_light_l",
     name: "Fog Light (Left)",
-    aliases: ["left fog lamp", "LH fog light"],
+    aliases: ["left fog lamp", "LH fog light", "left fog light", "fog lamp lh", "fog light lh", "l/h fog light", "lh fog lamp"],
     zone: "front",
     structural: false,
     costTier: "low",
@@ -195,7 +195,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "fog_light_r",
     name: "Fog Light (Right)",
-    aliases: ["right fog lamp", "RH fog light"],
+    aliases: ["right fog lamp", "RH fog light", "right fog light", "fog lamp rh", "fog light rh", "r/h fog light", "rh fog lamp"],
     zone: "front",
     structural: false,
     costTier: "low",
@@ -242,7 +242,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "left_front_door",
     name: "Front Door (Left / Passenger)",
-    aliases: ["LH front door", "passenger front door", "left front door"],
+    aliases: ["LH front door", "passenger front door", "left front door", "driver door", "front door lh", "lh door", "l/h front door", "lh f/door", "front door driver", "lh front door assy", "door lh front"],
     zone: "left_side",
     structural: true,
     costTier: "high",
@@ -261,7 +261,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "left_rear_door",
     name: "Rear Door (Left)",
-    aliases: ["LH rear door", "left rear door", "passenger rear door"],
+    aliases: ["LH rear door", "left rear door", "passenger rear door", "rear door lh", "lh r/door", "l/h rear door", "lh rear door assy", "door lh rear"],
     zone: "left_side",
     structural: true,
     costTier: "high",
@@ -276,7 +276,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "left_mirror",
     name: "Side Mirror (Left)",
-    aliases: ["LH mirror", "left wing mirror", "left side mirror", "passenger mirror"],
+    aliases: ["LH mirror", "left wing mirror", "left side mirror", "passenger mirror", "lh door mirror", "left door mirror", "driver mirror", "l/h mirror", "lh side mirror", "mirror lh"],
     zone: "left_side",
     structural: false,
     costTier: "low",
@@ -290,7 +290,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "left_quarter_panel",
     name: "Quarter Panel (Left)",
-    aliases: ["LH quarter panel", "left rear quarter", "left rear fender", "Q/P LH", "QP LH", "LH Q/P", "LH QP", "left quarter", "linker kwartpaneel"],
+    aliases: ["LH quarter panel", "left rear quarter", "left rear fender", "Q/P LH", "QP LH", "LH Q/P", "LH QP", "left quarter", "linker kwartpaneel", "lh quarter", "rear quarter lh", "l/h quarter panel", "lh rear quarter", "quarter panel lh"],
     zone: "left_side",
     structural: true,
     costTier: "high",
@@ -303,7 +303,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "left_sill",
     name: "Sill Panel / Rocker Panel (Left)",
-    aliases: ["LH sill", "left rocker", "left side skirt", "running board left"],
+    aliases: ["LH sill", "left rocker", "left side skirt", "running board left", "left sill", "sill lh", "lh rocker", "rocker lh", "lh sill panel", "l/h sill"],
     zone: "left_side",
     structural: true,
     costTier: "medium",
@@ -329,7 +329,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "right_front_door",
     name: "Front Door (Right / Driver)",
-    aliases: ["RH front door", "driver front door", "right front door"],
+    aliases: ["RH front door", "driver front door", "right front door", "passenger door", "front door rh", "rh door", "r/h front door", "rh f/door", "front door passenger", "rh front door assy", "door rh front"],
     zone: "right_side",
     structural: true,
     costTier: "high",
@@ -347,7 +347,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "right_rear_door",
     name: "Rear Door (Right)",
-    aliases: ["RH rear door", "right rear door", "driver rear door"],
+    aliases: ["RH rear door", "right rear door", "driver rear door", "rear door rh", "rh r/door", "r/h rear door", "rh rear door assy", "door rh rear"],
     zone: "right_side",
     structural: true,
     costTier: "high",
@@ -362,7 +362,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "right_mirror",
     name: "Side Mirror (Right)",
-    aliases: ["RH mirror", "right wing mirror", "right side mirror", "driver mirror"],
+    aliases: ["RH mirror", "right wing mirror", "right side mirror", "driver mirror", "rh door mirror", "right door mirror", "passenger mirror", "r/h mirror", "rh side mirror", "mirror rh"],
     zone: "right_side",
     structural: false,
     costTier: "low",
@@ -375,7 +375,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "right_quarter_panel",
     name: "Quarter Panel (Right)",
-    aliases: ["RH quarter panel", "right rear quarter", "right rear fender", "Q/P RH", "QP RH", "RH Q/P", "RH QP", "right quarter", "regterkwartpaneel"],
+    aliases: ["RH quarter panel", "right rear quarter", "right rear fender", "Q/P RH", "QP RH", "RH Q/P", "RH QP", "right quarter", "regterkwartpaneel", "rh quarter", "rear quarter rh", "r/h quarter panel", "rh rear quarter", "quarter panel rh"],
     zone: "right_side",
     structural: true,
     costTier: "high",
@@ -388,7 +388,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "right_sill",
     name: "Sill Panel / Rocker Panel (Right)",
-    aliases: ["RH sill", "right rocker", "right side skirt", "running board right"],
+    aliases: ["RH sill", "right rocker", "right side skirt", "running board right", "right sill", "sill rh", "rh rocker", "rocker rh", "rh sill panel", "r/h sill"],
     zone: "right_side",
     structural: true,
     costTier: "medium",
@@ -405,7 +405,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "rear_bumper",
     name: "Rear Bumper",
-    aliases: ["rear bumper cover", "back bumper", "rear valance", "R/B", "RB", "rear bar", "rear facia", "rear fascia", "R bumper", "rear bumper assy", "back bar", "rear bumper assembly"],
+    aliases: ["rear bumper cover", "back bumper", "rear valance", "R/B", "RB", "rear bar", "rear facia", "rear fascia", "R bumper", "rear bumper assy", "back bar", "rear bumper assembly", "r/bumper", "b/bar rear", "rear b/bar", "r/b assy", "rear bumper bar"],
     zone: "rear",
     structural: false,
     costTier: "medium",
@@ -422,7 +422,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "boot_lid",
     name: "Boot Lid (Trunk Lid)",
-    aliases: ["trunk lid", "boot", "decklid", "tailgate"],
+    aliases: ["trunk lid", "boot", "decklid", "tailgate", "boot lid assy", "boot assy", "trunk", "boot/trunk", "boot panel", "trunk panel", "boot lid panel"],
     zone: "rear",
     structural: false,
     costTier: "medium",
@@ -438,7 +438,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "tailgate",
     name: "Tailgate (SUV / Pickup)",
-    aliases: ["tail gate", "rear gate", "pickup tailgate", "liftgate", "load bed gate"],
+    aliases: ["tail gate", "rear gate", "pickup tailgate", "liftgate", "load bed gate", "tailgate assy", "rear door assy", "rear hatch", "hatch", "rear tailgate", "tailgate panel"],
     zone: "rear",
     structural: true,
     costTier: "high",
@@ -452,7 +452,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "tail_light_l",
     name: "Tail Light (Left)",
-    aliases: ["left taillight", "LH tail lamp", "rear light left"],
+    aliases: ["left taillight", "LH tail lamp", "rear light left", "lh tail light", "left tail light", "tail lamp lh", "tail light lh", "l/h tail light", "lh rear light"],
     zone: "rear",
     structural: false,
     costTier: "low",
@@ -464,7 +464,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "tail_light_r",
     name: "Tail Light (Right)",
-    aliases: ["right taillight", "RH tail lamp", "rear light right"],
+    aliases: ["right taillight", "RH tail lamp", "rear light right", "rh tail light", "right tail light", "tail lamp rh", "tail light rh", "r/h tail light", "rh rear light"],
     zone: "rear",
     structural: false,
     costTier: "low",
@@ -514,7 +514,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "windscreen",
     name: "Windscreen (Windshield)",
-    aliases: ["windshield", "front windscreen", "front glass", "laminated glass", "W/screen", "W/S", "windscreen"],
+    aliases: ["windshield", "front windscreen", "front glass", "laminated glass", "W/screen", "W/S", "windscreen", "windscreen assy", "windscreen assembly", "front windshield", "w/screen assy", "windscreen glass"],
     zone: "windshield",
     structural: true,
     costTier: "medium",
@@ -527,7 +527,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "wiper_assembly",
     name: "Wiper Assembly",
-    aliases: ["windscreen wipers", "windshield wipers"],
+    aliases: ["windscreen wipers", "windshield wipers", "wiper assy", "wiper mechanism", "windscreen wiper", "wiper motor", "wiper linkage", "wiper blade assy"],
     zone: "windshield",
     structural: false,
     costTier: "low",
@@ -545,7 +545,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "rear_windscreen",
     name: "Rear Windscreen",
-    aliases: ["rear windshield", "rear glass", "back glass", "rear window"],
+    aliases: ["rear windshield", "rear glass", "back glass", "rear window", "rear w/screen", "rear windscreen glass"],
     zone: "rear_glass",
     structural: false,
     costTier: "medium",
@@ -563,7 +563,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "roof_panel",
     name: "Roof Panel",
-    aliases: ["roof skin", "roof sheet"],
+    aliases: ["roof skin", "roof sheet", "roof assy", "roof panel assy"],
     zone: "roof",
     structural: true,
     costTier: "high",
@@ -589,7 +589,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "a_pillar",
     name: "A-Pillar",
-    aliases: ["front pillar", "windscreen pillar", "A/P", "AP", "a pillar", "voorste pilaar"],
+    aliases: ["front pillar", "windscreen pillar", "A/P", "AP", "a pillar", "voorste pilaar", "a-pillar lh", "a-pillar rh", "lh a-pillar", "rh a-pillar", "a pillar lh", "a pillar rh"],
     zone: "roof",
     structural: true,
     costTier: "high",
@@ -603,7 +603,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "b_pillar",
     name: "B-Pillar",
-    aliases: ["centre pillar", "center pillar"],
+    aliases: ["centre pillar", "center pillar", "b pillar", "b-pillar lh", "b-pillar rh", "lh b-pillar", "rh b-pillar", "b pillar lh", "b pillar rh"],
     zone: "roof",
     structural: true,
     costTier: "high",
@@ -615,7 +615,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "c_pillar",
     name: "C-Pillar",
-    aliases: ["rear pillar", "quarter pillar"],
+    aliases: ["rear pillar", "quarter pillar", "c pillar", "c-pillar lh", "c-pillar rh", "lh c-pillar", "rh c-pillar", "c pillar lh", "c pillar rh"],
     zone: "roof",
     structural: true,
     costTier: "high",
@@ -631,7 +631,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "chassis_frame",
     name: "Chassis Frame / Subframe",
-    aliases: ["chassis", "frame", "subframe", "ladder frame", "monocoque"],
+    aliases: ["chassis", "frame", "subframe", "ladder frame", "monocoque", "chassis assy", "chassis/frame", "frame/chassis", "chassis leg", "chassis rail", "front subframe", "sub frame", "sub-frame"],
     zone: "undercarriage",
     structural: true,
     costTier: "high",
@@ -644,7 +644,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "suspension_front",
     name: "Front Suspension",
-    aliases: ["front suspension", "front struts", "front shocks"],
+    aliases: ["front suspension", "front struts", "front shocks", "front suspension assy", "front strut assy", "suspension assy front", "lh front strut", "rh front strut", "front shock absorber", "front coilover"],
     zone: "undercarriage",
     structural: true,
     costTier: "medium",
@@ -664,7 +664,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "suspension_rear",
     name: "Rear Suspension",
-    aliases: ["rear suspension", "rear shocks", "rear struts"],
+    aliases: ["rear suspension", "rear shocks", "rear struts", "rear suspension assy", "rear strut assy", "suspension assy rear", "lh rear strut", "rh rear strut", "rear shock absorber", "rear coilover"],
     zone: "undercarriage",
     structural: true,
     costTier: "medium",
@@ -681,7 +681,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "exhaust_system",
     name: "Exhaust System",
-    aliases: ["exhaust", "exhaust pipe", "muffler", "silencer"],
+    aliases: ["exhaust", "exhaust pipe", "muffler", "silencer", "exhaust assy", "catalytic converter", "cat converter", "exhaust manifold"],
     zone: "undercarriage",
     structural: false,
     costTier: "medium",
@@ -695,7 +695,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "drivetrain",
     name: "Drivetrain",
-    aliases: ["drive shaft", "propshaft", "CV joints", "differential"],
+    aliases: ["drive shaft", "propshaft", "CV joints", "differential", "gearbox", "transmission", "diff", "prop shaft", "driveshaft", "transfer case"],
     zone: "undercarriage",
     structural: true,
     costTier: "high",
@@ -710,7 +710,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "wheels_tyres",
     name: "Wheels & Tyres",
-    aliases: ["wheel", "rim", "tyre", "tire", "alloy wheel", "mag wheel"],
+    aliases: ["wheel", "rim", "tyre", "tire", "alloy wheel", "mag wheel", "wheel assy", "wheel and tyre", "rim and tyre", "steel wheel"],
     zone: "undercarriage",
     structural: false,
     costTier: "medium",
@@ -728,7 +728,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "engine_sump",
     name: "Engine Sump / Oil Pan",
-    aliases: ["sump", "oil pan", "engine oil pan"],
+    aliases: ["sump", "oil pan", "engine oil pan", "sump guard"],
     zone: "undercarriage",
     structural: false,
     costTier: "low",
@@ -737,7 +737,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "fuel_tank",
     name: "Fuel Tank",
-    aliases: ["petrol tank", "diesel tank", "gas tank"],
+    aliases: ["petrol tank", "diesel tank", "gas tank", "fuel tank assy"],
     zone: "undercarriage",
     structural: false,
     costTier: "medium",
@@ -747,7 +747,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "airbag_driver",
     name: "Driver Airbag",
-    aliases: ["driver air bag", "steering wheel airbag", "driver srs", "driver srs airbag", "airbags complete", "airbags", "airbag set", "airbag complete", "air bags complete", "air bags"],
+    aliases: ["driver air bag", "steering wheel airbag", "driver srs", "driver srs airbag", "airbags complete", "airbags", "airbag set", "airbag complete", "air bags complete", "air bags", "driver airbag module", "srs airbag driver"],
     zone: "roof",
     structural: false,
     costTier: "high",
@@ -756,7 +756,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "airbag_passenger",
     name: "Passenger Airbag",
-    aliases: ["passenger air bag", "front passenger airbag", "passenger srs", "co-driver airbag"],
+    aliases: ["passenger air bag", "front passenger airbag", "passenger srs", "co-driver airbag", "passenger srs airbag", "dash airbag", "passenger airbag module", "srs airbag passenger"],
     zone: "roof",
     structural: false,
     costTier: "high",
@@ -792,7 +792,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "airbag_module",
     name: "Airbag Control Module",
-    aliases: ["airbag module", "air bag module", "srs module", "srs ecu", "airbag ecu", "srs control unit"],
+    aliases: ["airbag module", "air bag module", "srs module", "srs ecu", "airbag ecu", "srs control unit", "airbag control unit", "airbag control module"],
     zone: "roof",
     structural: false,
     costTier: "high",
@@ -884,7 +884,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "rad_support_panel",
     name: "Radiator Support Panel",
-    aliases: ["rad support", "radiator support panel", "front slam panel", "radiator core support"],
+    aliases: ["rad support", "radiator support panel", "front slam panel", "radiator core support", "radiator support", "slam panel", "radiator cradle", "front support panel"],
     zone: "front",
     structural: true,
     costTier: "medium",
@@ -893,7 +893,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "bumper_frame",
     name: "Bumper Frame",
-    aliases: ["bumper carrier", "bumper support frame", "front bumper frame", "rear bumper frame"],
+    aliases: ["bumper carrier", "bumper support frame", "front bumper frame", "rear bumper frame", "bumper reinforcement", "bumper beam", "impact bar", "rebar", "bumper reinforcement bar", "front impact bar"],
     zone: "front",
     structural: true,
     costTier: "medium",
@@ -948,7 +948,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "aircon_condenser",
     name: "Air Conditioning Condenser",
-    aliases: ["aircon rad", "a/c condenser", "ac condenser", "aircon condenser", "air con radiator", "condenser unit"],
+    aliases: ["aircon rad", "a/c condenser", "ac condenser", "aircon condenser", "air con radiator", "condenser unit", "a/c condenser assy", "ac condenser assy", "aircon condenser assy", "air conditioning condenser"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -1293,4 +1293,42 @@ export function isPlausiblePartName(rawName: string): "plausible" | "implausible
 
   // Otherwise → uncertain (caller treats as plausible to avoid false rejections)
   return "uncertain";
+}
+
+// ─── Unified Canonical Normaliser ────────────────────────────────────────────
+/**
+ * Resolve any raw part name to its canonical VehiclePart.name.
+ *
+ * This is the **single source of truth** for part normalisation across the
+ * entire pipeline. All stages — quote extraction (Stage 3), damage analysis
+ * (Stage 6), cost optimisation (Stage 9), and the report renderer — must use
+ * this function instead of local synonym maps.
+ *
+ * Resolution order:
+ *   1. Exact alias match via _aliasIndex (covers all aliases in VEHICLE_PARTS)
+ *   2. Substring match via resolveComponent (handles compound names)
+ *   3. Returns the cleaned raw string if no match (never throws)
+ *
+ * @param rawName - Any raw part name from any source
+ * @returns Canonical VehiclePart.name (e.g. "Front Bumper") or cleaned raw string
+ */
+export function resolveToCanonical(rawName: string): string {
+  if (!rawName || !rawName.trim()) return rawName;
+  const part = resolveComponent(rawName);
+  if (part) return part.name;
+  // No match — return cleaned string (lowercase, trimmed, normalised spacing)
+  return rawName.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Resolve a raw part name to its canonical VehiclePart.id.
+ * Returns null if the part is not in the catalogue.
+ *
+ * Use this for ID-based deduplication where you need to compare parts
+ * across sources without string equality issues.
+ */
+export function resolveToCanonicalId(rawName: string): string | null {
+  if (!rawName || !rawName.trim()) return null;
+  const part = resolveComponent(rawName);
+  return part ? part.id : null;
 }

@@ -500,3 +500,110 @@ export function normalisePartNames(rawNames: string[]): string[] {
  * Used in Stage 6 system prompt to constrain LLM output to SA nomenclature.
  */
 export const CANONICAL_PARTS_PROMPT_LIST: string = CANONICAL_PARTS.join(", ");
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ASSEMBLY CONTAINMENT MAP
+// ─────────────────────────────────────────────────────────────────────────────
+// Maps an assembly name (as it appears in repair quotes) to the canonical
+// sub-components it covers. When a quote lists an assembly, any of its
+// sub-components detected in the damage assessment should be treated as
+// "covered" — not flagged as "damaged but not quoted".
+//
+// Keys are lowercase normalised assembly names.
+// Values are arrays of canonical SA part names (from CANONICAL_PARTS).
+//
+// DESIGN RULES:
+//   1. Only include assemblies that genuinely contain multiple sub-components.
+//   2. Sub-component names must match CANONICAL_PARTS entries exactly (case-insensitive).
+//   3. Do NOT add assemblies for single-part items (e.g. "front bumper bar" is not an assembly).
+//   4. Add new entries when a real claim shows false "damaged not quoted" flags.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const ASSEMBLY_CONTAINS: Record<string, string[]> = {
+  // ── Cooling system assemblies ─────────────────────────────────────────────
+  "cooling pack assembly": ["Radiator", "AC Condenser", "Intercooler"],
+  "cooling pack": ["Radiator", "AC Condenser", "Intercooler"],
+  "cooling module": ["Radiator", "AC Condenser", "Intercooler"],
+  "radiator assembly": ["Radiator", "Radiator Support Panel"],
+  "radiator pack": ["Radiator", "AC Condenser"],
+
+  // ── Front end assemblies ──────────────────────────────────────────────────
+  "front end assembly": ["Front Bumper Bar", "Front Bumper Reinforcement", "Front Grille", "Radiator Support Panel"],
+  "front fascia assembly": ["Front Bumper Bar", "Front Grille"],
+  "front bumper assembly": ["Front Bumper Bar", "Front Bumper Reinforcement"],
+  "front bumper complete": ["Front Bumper Bar", "Front Bumper Reinforcement"],
+  "front bumper assy": ["Front Bumper Bar", "Front Bumper Reinforcement"],
+
+  // ── Rear end assemblies ───────────────────────────────────────────────────
+  "rear bumper assembly": ["Rear Bumper Bar", "Rear Bumper Reinforcement", "Rear Valance"],
+  "rear bumper complete": ["Rear Bumper Bar", "Rear Bumper Reinforcement"],
+  "rear bumper assy": ["Rear Bumper Bar", "Rear Bumper Reinforcement"],
+
+  // ── Door assemblies ───────────────────────────────────────────────────────
+  "lh front door assembly": ["LH Front Door", "LH Front Door Skin", "LH Front Door Glass"],
+  "rh front door assembly": ["RH Front Door", "RH Front Door Skin", "RH Front Door Glass"],
+  "lh rear door assembly": ["LH Rear Door", "LH Rear Door Skin", "LH Rear Door Glass"],
+  "rh rear door assembly": ["RH Rear Door", "RH Rear Door Skin", "RH Rear Door Glass"],
+  "front door assembly": ["LH Front Door", "RH Front Door", "LH Front Door Skin", "RH Front Door Skin"],
+  "rear door assembly": ["LH Rear Door", "RH Rear Door", "LH Rear Door Skin", "RH Rear Door Skin"],
+
+  // ── Headlamp assemblies ───────────────────────────────────────────────────
+  "lh headlamp assembly": ["LH Headlamp"],
+  "rh headlamp assembly": ["RH Headlamp"],
+  "headlamp assembly": ["LH Headlamp", "RH Headlamp"],
+  "headlight assembly": ["LH Headlamp", "RH Headlamp"],
+
+  // ── Tail lamp assemblies ──────────────────────────────────────────────────
+  "lh tail lamp assembly": ["LH Tail Lamp"],
+  "rh tail lamp assembly": ["RH Tail Lamp"],
+  "tail lamp assembly": ["LH Tail Lamp", "RH Tail Lamp"],
+  "tail light assembly": ["LH Tail Lamp", "RH Tail Lamp"],
+
+  // ── Mirror assemblies ─────────────────────────────────────────────────────
+  "lh door mirror assembly": ["LH Door Mirror"],
+  "rh door mirror assembly": ["RH Door Mirror"],
+  "mirror assembly": ["LH Door Mirror", "RH Door Mirror"],
+
+  // ── Airbag / SRS assemblies ───────────────────────────────────────────────
+  "srs assembly": ["Airbag Module", "Driver Airbag", "Passenger Airbag", "Side Curtain Airbag", "Seatbelt Assembly"],
+  "airbag assembly": ["Airbag Module", "Driver Airbag", "Passenger Airbag"],
+  "srs airbag assembly": ["Airbag Module", "Driver Airbag", "Passenger Airbag", "Seatbelt Assembly"],
+
+  // ── Suspension assemblies ─────────────────────────────────────────────────
+  "lh front suspension assembly": ["LH Front Strut", "LH Front Control Arm", "LH Front Strut Tower"],
+  "rh front suspension assembly": ["RH Front Strut", "RH Front Control Arm", "RH Front Strut Tower"],
+  "front suspension assembly": ["LH Front Strut", "RH Front Strut", "LH Front Control Arm", "RH Front Control Arm"],
+
+  // ── Roof assemblies ───────────────────────────────────────────────────────
+  "roof assembly": ["Roof Panel", "Roof Lining"],
+
+  // ── Drivetrain assemblies ─────────────────────────────────────────────────
+  "drivetrain assembly": ["Engine", "Gearbox", "Differential", "Propshaft"],
+  "engine assembly": ["Engine"],
+  "gearbox assembly": ["Gearbox"],
+};
+
+/**
+ * Returns true if the given canonical part name is covered by any assembly
+ * in the provided list of quoted component names.
+ *
+ * Example:
+ *   isComponentCoveredByAssembly("Radiator", ["Cooling Pack Assembly"]) → true
+ *   isComponentCoveredByAssembly("Bonnet", ["Cooling Pack Assembly"]) → false
+ */
+export function isComponentCoveredByAssembly(
+  canonicalPartName: string,
+  quotedComponentNames: string[]
+): boolean {
+  const partLower = canonicalPartName.toLowerCase();
+  for (const quoted of quotedComponentNames) {
+    const quotedLower = quoted.toLowerCase().trim();
+    const contained = ASSEMBLY_CONTAINS[quotedLower];
+    if (contained) {
+      if (contained.some(sub => sub.toLowerCase() === partLower)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}

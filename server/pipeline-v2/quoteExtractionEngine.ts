@@ -32,7 +32,7 @@
 import { invokeLLM } from "../_core/llm";
 import { appendFileSync } from "fs";
 const plog = (msg: string) => { try { appendFileSync('/home/ubuntu/kinga-replit/pipeline-debug.log', `[${new Date().toISOString()}] ${msg}\n`); } catch(e) { console.log('[plog error]', e); } };
-import { resolveComponent, isPlausiblePartName } from "../../shared/vehicleParts";
+import { resolveComponent, isPlausiblePartName, resolveToCanonicalId } from "../../shared/vehicleParts";
 import { getDefaultCurrencyForCountry } from "../../shared/countryCurrency";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -139,6 +139,13 @@ export interface QuoteLineItem {
    * preserved as-is. Adjuster should verify this item manually.
    */
   is_unresolved?: boolean;
+  /**
+   * Canonical part ID from the VEHICLE_PARTS catalogue (vehicleParts.ts).
+   * Null when the component is a non-part cost category (sundries, labour, VAT)
+   * or when the part name could not be resolved to a known catalogue entry.
+   * Use this for cross-source deduplication and assembly containment checks.
+   */
+  canonicalPartId?: string | null;
 }
 
 export interface ExtractedQuote {
@@ -868,6 +875,7 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
             action: typeof item.action === 'string' ? item.action : null,
             part_origin: partOriginUnresolved,
             is_unresolved: true,
+            canonicalPartId: null, // unresolved — no catalogue match
           });
           continue;
         }
@@ -886,6 +894,7 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
         action: typeof item.action === 'string' ? item.action : null,
         part_origin: partOrigin,
         is_non_part_cost: isNonPartCost || undefined,
+        canonicalPartId: isNonPartCost ? null : resolveToCanonicalId(resolvedName),
       });
     }
   }
