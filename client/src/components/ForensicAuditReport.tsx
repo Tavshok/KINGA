@@ -5206,6 +5206,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
   // CTL override: unified evidence inventory
   const ctl4 = (enforcement as any)?._claimTruth;
+  const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   const photosDetected = ctl4?.evidence?.photoCount ?? aiAssessment?.photosDetected ?? 0;
   const photosProcessed = aiAssessment?.photosProcessedCount ?? 0;
   // CRITICAL FIX: Use enrichedPhotosJson (per-photo KINGA vision metadata) as the
