@@ -649,28 +649,35 @@ export async function triggerAiAssessment(claimId: number) {
 
   // Resolve PDF URL and damage photos
   let pdfUrl: string | null = null;
+  // pdfDownloadUrl is used for server-side PDF fetch (renderPdfToImages / pdftoppm).
+  // It is a presigned URL generated via storageGet() so the Node.js process can
+  // download the file without Forge auth headers.
+  // pdfUrl (raw s3Url) is kept for the LLM which accesses it via the Forge file_url proxy.
+  let pdfDownloadUrl: string | null = null;
   let damagePhotos: string[] = [];
 
   if (claim.sourceDocumentId) {
-    // PDF-sourced claim: look up the source document and use the raw public CloudFront URL.
-    // The raw s3Url stored in ingestion_documents is publicly accessible (HTTP 200) and
-    // can be fetched by the LLM without authentication. Do NOT use storageGet() — it
-    // generates a presigned URL that returns HTTP 403 from the LLM's servers.
     try {
       const [sourceDoc] = await db.select().from(ingestionDocuments)
         .where(eq(ingestionDocuments.id, claim.sourceDocumentId)).limit(1);
       if (sourceDoc && sourceDoc.s3Url) {
-        // Use the raw public CloudFront URL directly.
-        // IMPORTANT: storageGet() generates a presigned URL that returns HTTP 403 when
-        // accessed by the LLM API (which cannot supply the required Forge auth headers).
-        // The raw s3Url stored in ingestion_documents is a public CloudFront URL (HTTP 200)
-        // that the LLM can fetch without authentication. Always use this directly.
-        // URL-encode spaces in the filename portion of the CloudFront URL.
-        // Unencoded spaces cause HTTP 400 errors when the LLM API fetches the PDF.
-        // Encode the filename portion of the S3 URL to handle spaces, parentheses,
-        // and other special characters that cause HTTP 400/403 errors from the LLM API.
+        // LLM URL: raw s3Url passed as file_url through the Forge proxy (no auth needed on LLM side).
+        // URL-encode special characters in the filename portion to avoid HTTP 400/403 from LLM API.
         pdfUrl = encodeS3Filename(sourceDoc.s3Url);
-        console.log(`[KINGA Assessment] Claim ${claimId}: Using public S3 URL for LLM: ${sourceDoc.originalFilename}`);
+        console.log(`[KINGA Assessment] Claim ${claimId}: LLM PDF URL ready: ${sourceDoc.originalFilename}`);
+        // Server-side download URL: presigned via storageGet so Node.js fetch() can access the file.
+        // The raw s3Url is NOT publicly accessible — a plain fetch() returns HTTP 403.
+        // storageGet() generates a time-limited presigned URL valid for 1 hour (enough for the pipeline).
+        try {
+          const { storageGet } = await import('./storage');
+          const presigned = await storageGet(sourceDoc.s3Key, 3600);
+          pdfDownloadUrl = presigned.url;
+          console.log(`[KINGA Assessment] Claim ${claimId}: Presigned download URL obtained for server-side PDF fetch.`);
+        } catch (presignErr: any) {
+          // Fallback: try the raw s3Url directly (works if bucket is public or URL has embedded auth)
+          console.warn(`[KINGA Assessment] Claim ${claimId}: storageGet presign failed (${presignErr.message}), falling back to raw s3Url for download.`);
+          pdfDownloadUrl = pdfUrl;
+        }
       } else {
         console.warn(`[KINGA Assessment] Claim ${claimId}: sourceDocumentId=${claim.sourceDocumentId} but no S3 URL found.`);
       }
@@ -693,6 +700,7 @@ export async function triggerAiAssessment(claimId: number) {
     const extUrl = claim.externalAssessmentUrl;
     if (extUrl.endsWith('.pdf') || extUrl.includes('.pdf?') || extUrl.includes('application/pdf')) {
       pdfUrl = encodeS3Filename(extUrl);
+      pdfDownloadUrl = pdfUrl; // externalAssessmentUrl is assumed publicly accessible
       console.log(`[KINGA Assessment] Claim ${claimId}: Using externalAssessmentUrl as PDF source: ${pdfUrl.substring(0, 100)}`);
     }
   }
@@ -730,15 +738,15 @@ export async function triggerAiAssessment(claimId: number) {
     let _qualitySummary: any = null;
     let _isScannedPdf = false;
     try {
-      console.log(`[KINGA Assessment] Claim ${claimId}: No cached photos — rendering PDF pages via pdftoppm: ${pdfUrl}`);
+      const downloadUrlForRender = pdfDownloadUrl || pdfUrl!;
+      console.log(`[KINGA Assessment] Claim ${claimId}: No cached photos — rendering PDF pages via pdftoppm (presigned URL: ${!!pdfDownloadUrl}).`);
       // Use pdftoppm (poppler-utils) to render each PDF page as a PNG.
-      // renderPdfToImages downloads the PDF itself from pdfUrl — no need to buffer it here.
-      // The old pdfjs-dist + @napi-rs/canvas path crashed with:
-      //   "Cannot set properties of undefined (setting 'width')"
-      // because NapiCanvasFactory.destroy received an uninitialised canvas object.
+      // IMPORTANT: renderPdfToImages uses a plain fetch() to download the PDF.
+      // pdfDownloadUrl is a presigned URL that the Node.js process can access without auth.
+      // pdfUrl (raw s3Url) is only for the LLM via the Forge file_url proxy.
       const { renderPdfToImages } = await import('./pipeline-v2/pdfToImages');
       const sharpLib = (await import('sharp')).default;
-      const renderResult = await renderPdfToImages(pdfUrl, {
+      const renderResult = await renderPdfToImages(downloadUrlForRender, {
         dpi: 100,
         maxPages: 25,
         keyPrefix: `claims/${claimId}/damage-pages`,
@@ -793,7 +801,27 @@ export async function triggerAiAssessment(claimId: number) {
       }
     } catch (imgErr: any) {
       _extractionError = imgErr.message;
-      console.warn(`[KINGA Assessment] Claim ${claimId}: PDF image re-extraction failed (non-fatal): ${imgErr.message}`);
+      // DIAGNOSTIC: Log full stack so production Cloud Run logs surface the real cause
+      console.error(`[KINGA Assessment] Claim ${claimId}: PDF image re-extraction FAILED — ${imgErr.message}`);
+      console.error(`[KINGA Assessment] Claim ${claimId}: Extraction error stack: ${imgErr.stack ?? '(no stack)'}`);
+      // FALLBACK: If PDF rendering failed, try to reuse photo URLs from the previous
+      // ai_assessments record (damagePhotosJson). This prevents a re-run from losing
+      // photos that were successfully extracted in an earlier run.
+      try {
+        const prevAssessment = await db.select({ damagePhotosJson: aiAssessments.damagePhotosJson })
+          .from(aiAssessments)
+          .where(eq(aiAssessments.claimId, claimId))
+          .limit(1);
+        if (prevAssessment[0]?.damagePhotosJson) {
+          const prevPhotos: string[] = JSON.parse(prevAssessment[0].damagePhotosJson as string);
+          if (prevPhotos.length > 0) {
+            damagePhotos = prevPhotos;
+            console.log(`[KINGA Assessment] Claim ${claimId}: Fallback — reusing ${prevPhotos.length} photo URL(s) from previous assessment record.`);
+          }
+        }
+      } catch (fallbackErr: any) {
+        console.warn(`[KINGA Assessment] Claim ${claimId}: Fallback photo reuse also failed: ${fallbackErr.message}`);
+      }
     }
     // Build structured photo ingestion log for the forensic report
     try {
