@@ -492,13 +492,14 @@ function physicsDirectionToArrow(physDir: string | null | undefined): "front" | 
   return null;
 }
 
-// Arrow geometry: direction → {x1,y1,x2,y2} for the SVG line
-// Arrows start well outside the vehicle body so labels are clear of zone text.
+// Arrow geometry — redesigned for a 600×520 viewBox with generous breathing room.
+// Vehicle body occupies roughly x:140–380, y:80–360.
+// Arrows start 60px outside the vehicle edge so compass labels have clear space.
 const ARROW_GEOM: Record<string, { x1:number; y1:number; x2:number; y2:number }> = {
-  front:   { x1: 160, y1: -28, x2: 160, y2: 6   },  // from above compass label
-  rear:    { x1: 160, y1: 308, x2: 160, y2: 276  },  // from below
-  left:    { x1: -30, y1: 140, x2: 8,   y2: 140  },  // from left margin
-  right:   { x1: 350, y1: 140, x2: 312, y2: 140  },  // from right margin
+  front:   { x1: 260, y1: -10, x2: 260, y2: 74   },  // from well above
+  rear:    { x1: 260, y1: 450, x2: 260, y2: 366  },  // from well below
+  left:    { x1: 40,  y1: 220, x2: 134, y2: 220  },  // from far left
+  right:   { x1: 480, y1: 220, x2: 386, y2: 220  },  // from far right
 };
 
 // Per-event arrow colours (up to 4 events)
@@ -518,14 +519,15 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
   velocityRange?: { low_kmh: number; high_kmh: number } | null;
   energyAbsorptionRatio?: number | null;
 }) {
+  // Zones scaled for a 600×520 viewBox. Vehicle body: x:140–380, y:80–360.
   const zones = [
-    { id: "front",     label: "Front",      x: 110, y: 8,   w: 100, h: 48 },
-    { id: "rear",      label: "Rear",       x: 110, y: 224, w: 100, h: 48 },
-    { id: "left",      label: "Left",       x: 8,   y: 78,  w: 44,  h: 124 },
-    { id: "right",     label: "Right",      x: 268, y: 78,  w: 44,  h: 124 },
-    { id: "roof",      label: "Roof",       x: 110, y: 56,  w: 100, h: 32 },
-    { id: "cabin",     label: "Cabin",      x: 78,  y: 88,  w: 164, h: 88 },
-    { id: "underbody", label: "Underbody",  x: 98,  y: 192, w: 124, h: 32 },
+    { id: "front",     label: "Front",      x: 170, y: 78,  w: 180, h: 60  },
+    { id: "rear",      label: "Rear",       x: 170, y: 302, w: 180, h: 60  },
+    { id: "left",      label: "Left",       x: 100, y: 138, w: 70,  h: 164 },
+    { id: "right",     label: "Right",      x: 350, y: 138, w: 70,  h: 164 },
+    { id: "roof",      label: "Roof",       x: 170, y: 138, w: 180, h: 50  },
+    { id: "cabin",     label: "Cabin",      x: 170, y: 188, w: 180, h: 114 },
+    { id: "underbody", label: "Underbody",  x: 170, y: 252, w: 180, h: 50  },
   ];
 
   const norm = (damageZones ?? []).map(z => z.toLowerCase());
@@ -605,253 +607,204 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
   // No legacy single-arrow variables needed — arrowList drives rendering
 
   return (
-    <div className="flex justify-center items-stretch gap-4">
-      {/* SVG diagram — stretches to fill the height of the adjacent content */}
-      <div className="flex flex-col items-center" style={{ flex: '1 1 auto', minWidth: 0 }}>
-        <svg viewBox="-50 -60 420 400" width="100%" style={{ display: 'block', maxWidth: '100%', height: '100%', minHeight: 220, aspectRatio: '420/400' }}>
-          <defs>
-            <marker id="tp-arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
-              <polygon points="0 0, 7 3.5, 0 7" fill="#ef4444" />
+    <div style={{ width: '100%' }}>
+      {/* Full-width SVG diagram — no side legend competing for space */}
+      <svg
+        viewBox="0 0 520 460"
+        width="100%"
+        style={{ display: 'block', maxWidth: '100%' }}
+      >
+        <defs>
+          {arrowList.map((arrow, idx) => (
+            <marker key={idx} id={`ev-arrow-${idx}`} markerWidth="9" markerHeight="9" refX="4.5" refY="4.5" orient="auto">
+              <polygon points="0 0, 9 4.5, 0 9" fill={arrow.colour} />
             </marker>
-            <marker id="ins-arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
-              <polygon points="0 0, 7 3.5, 0 7" fill="#3b82f6" />
-            </marker>
-          </defs>
-
-          {/* Compass labels — kept well clear of arrow start/end points.
-               Front arrow: y1=-28 → compass at y=-50 gives 22px clear gap.
-               Rear arrow:  y1=308 → compass at y=324 gives 16px clear gap.
-               Speed band:  placed above compass at y=-50 using dy=-12. */}
-          <text x="160" y="-50" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">N — FRONT</text>
-          {velocityRange && velocityRange.low_kmh > 0 ? (
-            <text x="160" y="-50" dy="-12" textAnchor="middle" fontSize="7.5" fill="#6366f1" fontStyle="italic">
-              {`Speed est. ${velocityRange.low_kmh.toFixed(0)}–${velocityRange.high_kmh.toFixed(0)} km/h`}
-            </text>
-          ) : null}
-          <text x="160" y="324" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">S — REAR</text>
-          <text x="-8" y="144" textAnchor="end" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">L</text>
-          <text x="328" y="144" textAnchor="start" fontSize="9" fontWeight="bold" fill="var(--kr-muted)">R</text>
-
-          {/* Vehicle body */}
-          <rect x="76" y="52" width="168" height="176" rx="20"
-            fill="#f0f0ee" stroke="#0a0a0a" strokeWidth="1.5" />
-          {/* Windscreen */}
-          <rect x="92" y="62" width="136" height="52" rx="8"
-            fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1" opacity="0.7" />
-          {/* Rear window */}
-          <rect x="92" y="166" width="136" height="48" rx="8"
-            fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1" opacity="0.7" />
-          {/* Wheels */}
-          {([[62,72],[62,188],[238,72],[238,188]] as [number,number][]).map(([wx,wy],i) => (
-            <rect key={i} x={wx} y={wy} width="20" height="36" rx="6"
-              fill="#1a1916" opacity="0.55" />
           ))}
-          {/* Damage zones — rects only; text labels are rendered AFTER arrows so they sit on top */}
-          {zones.map(zone => {
-            const sev = getSeverity(zone.id);
-            const isUnexplained = events !== null && sev > 0 && !explainedZones.has(zone.id);
-            return (
-              <g key={zone.id}>
+        </defs>
+
+        {/* ── Compass labels — placed far from vehicle, well clear of arrows ── */}
+        <text x="260" y="22" textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--kr-muted)">N — FRONT</text>
+        <text x="260" y="448" textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--kr-muted)">S — REAR</text>
+        <text x="18"  y="224" textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--kr-muted)">L</text>
+        <text x="502" y="224" textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--kr-muted)">R</text>
+
+        {/* ── Vehicle body — scaled to fill the viewBox ── */}
+        {/* Main body */}
+        <rect x="140" y="80" width="240" height="280" rx="32"
+          fill="#f0f0ee" stroke="#0a0a0a" strokeWidth="2" />
+        {/* Windscreen */}
+        <rect x="160" y="94" width="200" height="76" rx="12"
+          fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1.5" opacity="0.7" />
+        {/* Rear window */}
+        <rect x="160" y="270" width="200" height="68" rx="12"
+          fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1.5" opacity="0.7" />
+        {/* Wheels — 4 corners */}
+        {([[118,102],[118,278],[362,102],[362,278]] as [number,number][]).map(([wx,wy],i) => (
+          <rect key={i} x={wx} y={wy} width="28" height="52" rx="8"
+            fill="#1a1916" opacity="0.55" />
+        ))}
+
+        {/* ── Damage zone rects — drawn before arrows ── */}
+        {zones.map(zone => {
+          const sev = getSeverity(zone.id);
+          const isUnexplained = events !== null && sev > 0 && !explainedZones.has(zone.id);
+          return (
+            <g key={zone.id}>
+              <rect
+                x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx="6"
+                fill={SEVERITY_FILL[sev]}
+                stroke={SEVERITY_STROKE[sev]}
+                strokeWidth={sev > 0 ? 2.5 : 1}
+                strokeDasharray={sev === 0 ? "5 4" : undefined}
+              />
+              {isUnexplained && (
                 <rect
-                  x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx="5"
-                  fill={SEVERITY_FILL[sev]}
-                  stroke={SEVERITY_STROKE[sev]}
-                  strokeWidth={sev > 0 ? 2 : 1}
-                  strokeDasharray={sev === 0 ? "4 3" : undefined}
+                  x={zone.x - 3} y={zone.y - 3} width={zone.w + 6} height={zone.h + 6} rx="8"
+                  fill="none" stroke="#ef4444" strokeWidth="2" strokeDasharray="5 3" opacity="0.8"
                 />
-                {/* Unexplained zone — dashed red overlay border */}
-                {isUnexplained && (
-                  <rect
-                    x={zone.x - 2} y={zone.y - 2} width={zone.w + 4} height={zone.h + 4} rx="6"
-                    fill="none"
-                    stroke="#ef4444"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 3"
-                    opacity="0.8"
-                  />
-                )}
-              </g>
-            );
-          })}
-
-          {/* Multi-event impact arrows — one per event, colour-coded */}
-          {arrowList.map((arrow, idx) => {
-            const g = ARROW_GEOM[arrow.dir];
-            if (!g) return null;
-            const markerId = `ev-arrow-${idx}`;
-            // Physics force label: show alongside arrow
-            const isFirst = idx === 0;
-            // ── Arrow labels are intentionally NOT placed inside the SVG ──────────
-            // The front arrow (y1=-28) and rear arrow (y1=308) have no safe space
-            // for text: they sit between the compass label and the vehicle zone boxes.
-            // Any text placed there overlaps the arrow, compass, or zone label.
-            // Arrow identity + force data are shown in the legend panel to the right.
-            // For horizontal arrows (left/right) we also omit inline labels —
-            // the legend is the single source of truth for all arrow annotations.
-            return (
-              <g key={idx}>
-                <defs>
-                  <marker id={markerId} markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
-                    <polygon points="0 0, 7 3.5, 0 7" fill={arrow.colour} />
-                  </marker>
-                </defs>
-                <line
-                  x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2}
-                  stroke={arrow.colour}
-                  strokeWidth={isFirst ? (impactForceKn && impactForceKn > 0 ? Math.min(2 + impactForceKn / 20, 7) : 4) : 3}
-                  strokeDasharray={arrow.dashed ? "6 3" : undefined}
-                  markerEnd={`url(#${markerId})`}
-                />
-              </g>
-            );
-          })}
-
-          {/* Zone text labels — rendered AFTER arrows so they always appear on top.
-               white stroke halo (paintOrder) creates a clean gap between text and any arrow line. */}
-          {zones.map(zone => {
-            const sev = getSeverity(zone.id);
-            return (
-              <text
-                key={`lbl-${zone.id}`}
-                x={zone.x + zone.w / 2}
-                y={zone.y + zone.h / 2 + 4}
-                textAnchor="middle"
-                fontSize="9"
-                fill={sev > 0 ? SEVERITY_STROKE[sev] : "var(--kr-muted)"}
-                fontWeight={sev > 0 ? "bold" : "normal"}
-                stroke="white"
-                strokeWidth="2.5"
-                paintOrder="stroke fill"
-              >
-                {zone.label}
-              </text>
-            );
-          })}
-
-          {/* Inconsistency label overlay */}
-          {inconsistencyLabel && (
-            <g>
-              <rect x="60" y="120" width="200" height="22" rx="3"
-                fill="#fee2e2" stroke="#ef4444" strokeWidth="1.5" opacity="0.95" />
-              <text x="160" y="135" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#991b1b">
-                {inconsistencyLabel.length > 32 ? inconsistencyLabel.slice(0, 32) + "…" : inconsistencyLabel}
-              </text>
+              )}
             </g>
+          );
+        })}
+
+        {/* ── Impact arrows — drawn after zones, before labels ── */}
+        {arrowList.map((arrow, idx) => {
+          const g = ARROW_GEOM[arrow.dir];
+          if (!g) return null;
+          const isFirst = idx === 0;
+          return (
+            <line key={idx}
+              x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2}
+              stroke={arrow.colour}
+              strokeWidth={isFirst ? (impactForceKn && impactForceKn > 0 ? Math.min(3 + impactForceKn / 18, 9) : 5) : 4}
+              strokeDasharray={arrow.dashed ? "8 4" : undefined}
+              markerEnd={`url(#ev-arrow-${idx})`}
+            />
+          );
+        })}
+
+        {/* ── Zone text labels — drawn last so always on top ── */}
+        {zones.map(zone => {
+          const sev = getSeverity(zone.id);
+          return (
+            <text
+              key={`lbl-${zone.id}`}
+              x={zone.x + zone.w / 2}
+              y={zone.y + zone.h / 2 + 5}
+              textAnchor="middle"
+              fontSize="12"
+              fill={sev > 0 ? SEVERITY_STROKE[sev] : "var(--kr-muted)"}
+              fontWeight={sev > 0 ? "700" : "400"}
+              stroke="white"
+              strokeWidth="3"
+              paintOrder="stroke fill"
+            >
+              {zone.label}
+            </text>
+          );
+        })}
+
+        {/* ── Inconsistency banner — centred across cabin ── */}
+        {inconsistencyLabel && (
+          <g>
+            <rect x="140" y="196" width="240" height="28" rx="4"
+              fill="#fee2e2" stroke="#ef4444" strokeWidth="1.5" opacity="0.95" />
+            <text x="260" y="215" textAnchor="middle" fontSize="11" fontWeight="700" fill="#991b1b">
+              {inconsistencyLabel.length > 36 ? inconsistencyLabel.slice(0, 36) + "…" : inconsistencyLabel}
+            </text>
+          </g>
+        )}
+
+        {/* ── Energy absorption arc — scaled for new viewBox ── */}
+        {(() => {
+          if (!energyAbsorptionRatio || energyAbsorptionRatio <= 0) return null;
+          const primaryDir = arrowList[0]?.dir;
+          const zoneMap: Record<string, { cx: number; cy: number; r: number }> = {
+            front: { cx: 260, cy: 108, r: 40 },
+            rear:  { cx: 260, cy: 332, r: 40 },
+            left:  { cx: 135, cy: 220, r: 32 },
+            right: { cx: 385, cy: 220, r: 32 },
+          };
+          const zc = primaryDir ? zoneMap[primaryDir] : null;
+          if (!zc) return null;
+          const ratio = Math.min(Math.max(energyAbsorptionRatio, 0), 1);
+          const arcColour = ratio > 0.7 ? '#ef4444' : ratio > 0.4 ? '#f59e0b' : '#22c55e';
+          const arcPct = Math.round(ratio * 100);
+          const circumference = 2 * Math.PI * zc.r;
+          const dashLen = ratio * circumference;
+          const gapLen = circumference - dashLen;
+          return (
+            <g>
+              <circle cx={zc.cx} cy={zc.cy} r={zc.r} fill="none" stroke="var(--border)" strokeWidth="4" opacity="0.3" />
+              <circle cx={zc.cx} cy={zc.cy} r={zc.r} fill="none"
+                stroke={arcColour} strokeWidth="4"
+                strokeDasharray={`${dashLen.toFixed(1)} ${gapLen.toFixed(1)}`}
+                strokeLinecap="round" transform={`rotate(-90 ${zc.cx} ${zc.cy})`} opacity="0.85" />
+              <text x={zc.cx} y={zc.cy + 5} textAnchor="middle" fontSize="11" fontWeight="700" fill={arcColour}>{arcPct}%</text>
+              <text x={zc.cx} y={zc.cy + 18} textAnchor="middle" fontSize="9" fill={arcColour} opacity="0.8">abs.</text>
+            </g>
+          );
+        })()}
+      </svg>
+
+      {/* ── Physics data strip — below diagram, in HTML so font sizes are crisp ── */}
+      {((deltaV != null && deltaV > 0) || (energyKj != null && energyKj > 0) || (impactForceKn != null && impactForceKn > 0) || (velocityRange && velocityRange.low_kmh > 0)) && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', justifyContent: 'center', padding: '6px 0', borderTop: '1px solid var(--kr-rule)', marginTop: 4, fontSize: 11 }}>
+          {velocityRange && velocityRange.low_kmh > 0 && (
+            <span style={{ color: '#6366f1', fontStyle: 'italic' }}>
+              Speed est. {velocityRange.low_kmh.toFixed(0)}–{velocityRange.high_kmh.toFixed(0)} km/h
+            </span>
           )}
+          {deltaV != null && deltaV > 0 && <span style={{ color: 'var(--kr-muted)' }}>ΔV {deltaV.toFixed(1)} km/h</span>}
+          {energyKj != null && energyKj > 0 && <span style={{ color: 'var(--kr-muted)' }}>KE {energyKj.toFixed(1)} kJ</span>}
+          {impactForceKn != null && impactForceKn > 0 && <span style={{ color: 'var(--kr-muted)' }}>F {impactForceKn.toFixed(1)} kN</span>}
+          {decelerationG != null && decelerationG > 0 && <span style={{ color: 'var(--kr-muted)' }}>{decelerationG.toFixed(1)} g decel.</span>}
+          {energyAbsorptionRatio != null && energyAbsorptionRatio > 0 && <span style={{ color: 'var(--kr-muted)' }}>{Math.round(energyAbsorptionRatio * 100)}% energy absorbed</span>}
+        </div>
+      )}
 
-          {/* Energy absorption arc — drawn around primary impact zone when ratio is available */}
-          {(() => {
-            if (!energyAbsorptionRatio || energyAbsorptionRatio <= 0) return null;
-            const primaryDir = arrowList[0]?.dir;
-            const zoneMap: Record<string, { cx: number; cy: number; r: number }> = {
-              front:   { cx: 160, cy: 32,  r: 30 },
-              rear:    { cx: 160, cy: 248, r: 30 },
-              left:    { cx: 30,  cy: 140, r: 24 },
-              right:   { cx: 290, cy: 140, r: 24 },
-            };
-            const zc = primaryDir ? zoneMap[primaryDir] : null;
-            if (!zc) return null;
-            const ratio = Math.min(Math.max(energyAbsorptionRatio, 0), 1);
-            const arcColour = ratio > 0.7 ? '#ef4444' : ratio > 0.4 ? '#f59e0b' : '#22c55e';
-            const arcPct = Math.round(ratio * 100);
-            const circumference = 2 * Math.PI * zc.r;
-            const dashLen = ratio * circumference;
-            const gapLen = circumference - dashLen;
-            return (
-              <g>
-                <circle cx={zc.cx} cy={zc.cy} r={zc.r} fill="none" stroke="var(--border)" strokeWidth="3" opacity="0.35" />
-                <circle
-                  cx={zc.cx} cy={zc.cy} r={zc.r}
-                  fill="none"
-                  stroke={arcColour}
-                  strokeWidth="3"
-                  strokeDasharray={`${dashLen.toFixed(1)} ${gapLen.toFixed(1)}`}
-                  strokeLinecap="round"
-                  transform={`rotate(-90 ${zc.cx} ${zc.cy})`}
-                  opacity="0.85"
-                />
-                <text x={zc.cx} y={zc.cy + 4} textAnchor="middle" fontSize="8" fontWeight="bold" fill={arcColour}>{arcPct}%</text>
-                <text x={zc.cx} y={zc.cy + 14} textAnchor="middle" fontSize="6.5" fill={arcColour} opacity="0.8">abs.</text>
-              </g>
-            );
-          })()}
-          {/* Physics force annotations — shown at bottom of diagram when data is available */}
-          {(deltaV != null && deltaV > 0) || (energyKj != null && energyKj > 0) || (impactForceKn != null && impactForceKn > 0) ? (
-            <g>
-              <rect x="52" y="272" width="216" height="28" rx="3" fill="var(--muted)" stroke="var(--border)" strokeWidth="1" opacity="0.9" />
-              <text x="160" y="283" textAnchor="middle" fontSize="7.5" fill="var(--kr-muted)">
-                {[
-                  deltaV != null && deltaV > 0 ? `ΔV ${deltaV.toFixed(1)} km/h` : null,
-                  energyKj != null && energyKj > 0 ? `KE ${energyKj.toFixed(1)} kJ` : null,
-                  impactForceKn != null && impactForceKn > 0 ? `F ${impactForceKn.toFixed(1)} kN` : null,
-                ].filter(Boolean).join('  ·  ')}
-              </text>
-              {(decelerationG && decelerationG > 0) || (energyAbsorptionRatio && energyAbsorptionRatio > 0) ? (
-                <text x="160" y="295" textAnchor="middle" fontSize="7" fill="var(--kr-muted)" opacity="0.85">
-                  {[
-                    decelerationG && decelerationG > 0 ? `${decelerationG.toFixed(1)} g decel.` : null,
-                    energyAbsorptionRatio && energyAbsorptionRatio > 0 ? `${Math.round(energyAbsorptionRatio * 100)}% energy absorbed` : null,
-                  ].filter(Boolean).join('  ·  ')}
-                </text>
-              ) : null}
-            </g>
-          ) : null}
-        </svg>
-      </div>
-
-      {/* Legend — to the right of the diagram */}
-      <div className="flex flex-col gap-2 text-xs pt-2 shrink-0">
-        <p className="micro-label">Legend</p>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded" style={{ background: 'var(--kr-off-white)', border: "1px dashed #e0ddd8" }} />
+      {/* ── Legend row — horizontal, below diagram ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', alignItems: 'center', padding: '6px 0', borderTop: '1px solid var(--kr-rule)', marginTop: 2, fontSize: 11 }}>
+        <span style={{ color: 'var(--kr-muted)', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 4 }}>Legend</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: 'var(--kr-off-white)', border: '1px dashed #e0ddd8' }} />
           <span style={{ color: 'var(--kr-muted)' }}>Undamaged</span>
         </span>
         {([1,2,3] as DamageSeverity[]).map(s => (
-          <span key={s} className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded" style={{ background: SEVERITY_FILL[s], border: `1px solid ${SEVERITY_STROKE[s]}` }} />
+          <span key={s} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: SEVERITY_FILL[s], border: `1.5px solid ${SEVERITY_STROKE[s]}` }} />
             <span style={{ color: 'var(--kr-muted)' }}>{SEVERITY_LABEL[s]}</span>
           </span>
         ))}
         {arrowList.map((arrow, idx) => (
-          <span key={idx} className="flex items-start gap-1.5">
-            <svg width="20" height="10" style={{ marginTop: 2, flexShrink: 0 }}>
-              <line x1="0" y1="5" x2="14" y2="5" stroke={arrow.colour} strokeWidth={idx === 0 ? 2.5 : 2} strokeDasharray={arrow.dashed ? "4 2" : undefined} />
-              <polygon points="14,2 20,5 14,8" fill={arrow.colour} />
+          <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <svg width="24" height="12" style={{ flexShrink: 0 }}>
+              <line x1="0" y1="6" x2="17" y2="6" stroke={arrow.colour} strokeWidth={idx === 0 ? 3 : 2} strokeDasharray={arrow.dashed ? "5 2" : undefined} />
+              <polygon points="17,3 24,6 17,9" fill={arrow.colour} />
             </svg>
-            <span style={{ color: 'var(--kr-muted)', lineHeight: '1.4' }}>
-              <span style={{ fontWeight: 600, color: arrow.colour }}>{arrow.label}</span>
-              {arrow.dashed ? " (insured)" : " (3rd party)"}
-              {idx === 0 && arrow.dir ? (
-                <span style={{ display: 'block', fontSize: 9, marginTop: 1 }}>
-                  {arrow.dir.charAt(0).toUpperCase() + arrow.dir.slice(1)} impact
-                </span>
-              ) : null}
-              {idx === 0 && impactForceKn && impactForceKn > 0 ? (
-                <span style={{ display: 'block', fontSize: 9, fontFamily: 'var(--kr-mono)', marginTop: 1 }}>
-                  {`${impactForceKn.toFixed(1)} kN${decelerationG && decelerationG > 0 ? ` · ${decelerationG.toFixed(1)} g` : ''}`}
-                </span>
-              ) : null}
-            </span>
+            <span style={{ color: arrow.colour, fontWeight: 600 }}>{arrow.label}</span>
+            <span style={{ color: 'var(--kr-muted)' }}>{arrow.dashed ? "(insured)" : "(3rd party)"}</span>
           </span>
         ))}
         {events && (
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded" style={{ border: "2px dashed #ef4444", background: "transparent" }} />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, border: '2px dashed #ef4444', background: 'transparent' }} />
             <span style={{ color: 'var(--kr-muted)' }}>Unexplained zone</span>
           </span>
         )}
-        {energyAbsorptionRatio && energyAbsorptionRatio > 0 ? (
-          <span className="flex items-center gap-1.5">
-            <svg width="14" height="14" viewBox="0 0 14 14">
-              <circle cx="7" cy="7" r="5" fill="none" stroke="var(--border)" strokeWidth="2" opacity="0.4" />
-              <circle cx="7" cy="7" r="5" fill="none"
+        {energyAbsorptionRatio != null && energyAbsorptionRatio > 0 && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <svg width="16" height="16" viewBox="0 0 16 16">
+              <circle cx="8" cy="8" r="6" fill="none" stroke="var(--border)" strokeWidth="2" opacity="0.35" />
+              <circle cx="8" cy="8" r="6" fill="none"
                 stroke={energyAbsorptionRatio > 0.7 ? '#ef4444' : energyAbsorptionRatio > 0.4 ? '#f59e0b' : '#22c55e'}
-                strokeWidth="2" strokeDasharray={`${(energyAbsorptionRatio * 31.4).toFixed(1)} ${(31.4 - energyAbsorptionRatio * 31.4).toFixed(1)}`}
-                transform="rotate(-90 7 7)" />
+                strokeWidth="2"
+                strokeDasharray={`${(energyAbsorptionRatio * 37.7).toFixed(1)} ${(37.7 - energyAbsorptionRatio * 37.7).toFixed(1)}`}
+                transform="rotate(-90 8 8)" />
             </svg>
             <span style={{ color: 'var(--kr-muted)' }}>Energy absorbed</span>
           </span>
-        ) : null}
+        )}
       </div>
     </div>
   );
@@ -2092,6 +2045,16 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 policyNumber ? ["Policy number", policyNumber] : null,
                 claimReference ? ["Claim reference", claimReference] : null,
                 excessAmountUsd != null ? ["Policy excess", fmtMoney(excessAmountUsd)] : null,
+                // Vehicle valuation belongs in policy context — it is an underwriting figure
+                ["Market value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Pending system benchmark"],
+                marketValueSource
+                  ? ["Valuation basis",
+                      _valEngineResult?.valuationMethod === "document_stated"
+                        ? "⚠ Assessor document — not independently verified"
+                        : _valEngineResult?.valuationMethod === "llm_estimate"
+                          ? "KINGA system benchmark"
+                          : marketValueSource]
+                  : null,
               ].filter((x): x is [string, React.ReactNode] => x !== null).map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
                   <td className="py-2 pr-4 font-semibold w-40" style={{ color: 'var(--kr-muted)' }}>{k}</td>
@@ -2117,16 +2080,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 vehicleVin ? ["VIN", vehicleVin] : ["VIN", <span style={{ color: 'var(--kr-red)', fontWeight: 600 }}>Not provided — required for vehicle verification</span>],
                 vehicleEngineNumber ? ["Engine number", vehicleEngineNumber] : null,
                 vehicleMileage != null ? ["Odometer", `${vehicleMileage.toLocaleString()} km`] : null,
-                ["Market value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Pending system benchmark"],
-                // C-05: Show valuation basis with explicit warning for assessor-stated values
-                marketValueSource
-                  ? ["Valuation basis",
-                      _valEngineResult?.valuationMethod === "document_stated"
-                        ? "⚠ Assessor document — not independently verified"
-                        : _valEngineResult?.valuationMethod === "llm_estimate"
-                          ? "KINGA system benchmark"
-                          : marketValueSource]
-                  : null,
+                // Market value and Valuation basis moved to 1.2 Insurance & Policy Context
               ].filter((row): row is string[] => Array.isArray(row)).map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid #e2e8f0" : undefined }}>
                   <td className="py-2 pr-4 font-semibold w-40" style={{ color: 'var(--kr-muted)' }}>{k as string}</td>
@@ -2861,11 +2815,11 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               <strong>Direction conflict:</strong> {directionExplanation}
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Zone map — full-width centred */}
-            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <p className="micro-label mb-2" style={{ alignSelf: 'flex-start' }}>Damage Zone Map</p>
-              <div style={{ maxWidth: 320, width: '100%', margin: '0 auto' }}><VehicleDamageMap
+          <div>
+            {/* Zone map — full-width, no cap */}
+            <div>
+              <p className="micro-label mb-2">Damage Zone Map</p>
+              <div style={{ width: '100%' }}><VehicleDamageMap
                 damageZones={damageZones}
                 incidentType={incidentType}
                 physicsDirection={(_phys as any)?.impactVector?.direction ?? null}
@@ -2897,10 +2851,10 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                   ))}
                 </div>
               )}
-              </div>{/* /maxWidth wrapper */}
+              </div>{/* /full-width wrapper */}
             </div>
-            {/* Expected vs actual pattern */}
-            <div>
+            {/* Expected vs actual pattern — below the map */}
+            <div style={{ marginTop: 12 }}>
               {pattern.expected.length > 0 && (() => {
                 interface DamagePatternRow { item: string; present: boolean; source: 'zone' | 'quote' | 'none' }
                 const rows: DamagePatternRow[] = pattern.expected.map((item: string) => {
@@ -6959,26 +6913,42 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
           <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-muted)', margin: 0 }}>6.5 Audit Trail</p>
         </div>
         <div style={{ padding: '12px 16px' }}>
-          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-            <tbody>
-              {[
-                ["Analysed by", `KINGA Engine ${engineVersion}`],
-                ["Workflow stage", (() => { const s = claim?.status ?? "submitted"; if (s === "closed" || s === "archived") return "Locked"; if (s === "approved" || s === "rejected" || s === "finalised" || s === "settled") return "Finalised"; if (s === "review" || s === "under_review" || s === "pending_review") return "Under Review"; return "Draft"; })()],
-                ["Data sources", `Claim form, Photos (${aiAssessment?.photosDetected ?? 0} detected), Quote`],
-                ["Extraction confidence", `${Math.round(aiAssessment?.confidenceScore ?? 0)}% overall`],
-                ["Human review", rawDecision === "APPROVE" || rawDecision === "FINALISE_CLAIM" ? "Optional" : "REQUIRED"],
-                ["Corrections applied", corrections.length > 0 ? `${corrections.length} correction(s)` : "None"],
-                ["Report hash", reportHash],
-                ["Report generated", fmtDate(aiAssessment?.createdAt ?? new Date().toISOString())],
-                ["Digital signature", "KINGA (engine)"],
-              ].map(([k, v], i) => (
-                <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--fp-border)' : undefined }}>
-                  <td style={{ padding: '7px 16px 7px 0', fontWeight: 600, width: 176, color: 'var(--kr-muted)', verticalAlign: 'top' }}>{k}</td>
-                  <td style={{ padding: '7px 0', color: 'var(--kr-text)', fontVariantNumeric: 'tabular-nums' }}>{v}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* 3-column × 3-row horizontal grid — fills width, halves vertical height */}
+          {(() => {
+            const workflowStage = (() => { const s = claim?.status ?? "submitted"; if (s === "closed" || s === "archived") return "Locked"; if (s === "approved" || s === "rejected" || s === "finalised" || s === "settled") return "Finalised"; if (s === "review" || s === "under_review" || s === "pending_review") return "Under Review"; return "Draft"; })();
+            const humanReview = rawDecision === "APPROVE" || rawDecision === "FINALISE_CLAIM" ? "Optional" : "REQUIRED";
+            const humanReviewColor = humanReview === "REQUIRED" ? '#dc2626' : '#16a34a';
+            const cells: Array<[string, React.ReactNode]> = [
+              ["Analysed by", `KINGA Engine ${engineVersion}`],
+              ["Workflow stage", workflowStage],
+              ["Data sources", `Claim form, Photos (${aiAssessment?.photosDetected ?? 0} detected), Quote`],
+              ["Extraction confidence", `${Math.round(aiAssessment?.confidenceScore ?? 0)}% overall`],
+              ["Human review", <span style={{ fontWeight: 700, color: humanReviewColor }}>{humanReview}</span>],
+              ["Corrections applied", corrections.length > 0 ? `${corrections.length} correction(s)` : "None"],
+              ["Report hash", reportHash],
+              ["Report generated", fmtDate(aiAssessment?.createdAt ?? new Date().toISOString())],
+              ["Digital signature", "KINGA (engine)"],
+            ];
+            // Chunk into rows of 3
+            const rows: Array<typeof cells> = [];
+            for (let i = 0; i < cells.length; i += 3) rows.push(cells.slice(i, i + 3));
+            return (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <tbody>
+                  {rows.map((row, ri) => (
+                    <tr key={ri} style={{ borderTop: ri > 0 ? '1px solid var(--fp-border)' : undefined }}>
+                      {row.map(([k, v], ci) => (
+                        <td key={ci} style={{ padding: '8px 12px', verticalAlign: 'top', borderRight: ci < row.length - 1 ? '1px solid var(--fp-border)' : undefined, width: '33.33%' }}>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--kr-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{k}</div>
+                          <div style={{ color: 'var(--kr-text)', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
       </div>
       </div>{/* end 6.5 Audit Trail */}
@@ -8245,31 +8215,35 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
               {cq.adjusterGuidance && (
                 <p style={{ fontSize: 11, color: 'var(--kr-text)', marginBottom: 6, lineHeight: 1.5 }}>{cq.adjusterGuidance}</p>
               )}
-              {/* data-table: Dimension | Score | Label | Issues */}
-              <table style={{ width: '100%', maxWidth: 480, borderCollapse: 'collapse', border: '1px solid #C0C0C0', marginBottom: 6, fontSize: 11 }}>
+              {/* Horizontal 6-column quality score table — one column per dimension, grows wide not tall */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #C0C0C0', marginBottom: 6, fontSize: 11 }}>
                 <thead>
                   <tr>
-                    <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'left', fontSize: 11, borderRight: '1px solid #444' }}>Dimension</th>
-                    <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'left', fontSize: 11, borderRight: '1px solid #444', width: 60 }}>Score</th>
-                    <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'left', fontSize: 11, width: 100 }}>Label</th>
-
+                    {dimOrder.map((key) => {
+                      const dim = (cq.dimensions as any)?.[key];
+                      if (!dim) return null;
+                      return (
+                        <th key={key} style={{ padding: '4px 8px', fontWeight: 700, color: 'var(--kr-white)', background: 'var(--kr-navy)', textAlign: 'center', fontSize: 10, borderRight: '1px solid #444', whiteSpace: 'nowrap' }}>
+                          {dim.name}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {dimOrder.map((key, i) => {
-                    const dim = (cq.dimensions as any)?.[key];
-                    if (!dim) return null;
-                    const dimColor = dim.score >= 70 ? '#16a34a' : dim.score >= 40 ? '#d97706' : '#dc2626';
-                    const rowBorder = '1px solid #D4D4D4';
-                    return (
-                      <tr key={key} style={{ borderBottom: rowBorder, background: 'var(--kr-white)' }}>
-                        <td style={{ padding: '4px 6px', color: 'var(--kr-text)', borderRight: rowBorder, verticalAlign: 'top' }}>{dim.name}</td>
-                        <td style={{ padding: '4px 6px', fontWeight: 700, color: dimColor, borderRight: rowBorder, verticalAlign: 'top', fontVariantNumeric: 'tabular-nums' }}>{dim.score}</td>
-                        <td style={{ padding: '4px 6px', color: 'var(--kr-muted)', verticalAlign: 'top' }}>{dim.label}</td>
-
-                      </tr>
-                    );
-                  })}
+                  <tr>
+                    {dimOrder.map((key) => {
+                      const dim = (cq.dimensions as any)?.[key];
+                      if (!dim) return null;
+                      const dimColor = dim.score >= 70 ? '#16a34a' : dim.score >= 40 ? '#d97706' : '#dc2626';
+                      return (
+                        <td key={key} style={{ padding: '8px', textAlign: 'center', borderRight: '1px solid #D4D4D4', verticalAlign: 'middle', background: 'var(--kr-white)' }}>
+                          <div style={{ fontWeight: 700, fontSize: 18, color: dimColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{dim.score}</div>
+                          <div style={{ fontSize: 10, color: 'var(--kr-muted)', marginTop: 3 }}>{dim.label}</div>
+                        </td>
+                      );
+                    })}
+                  </tr>
                 </tbody>
               </table>
               {(cq.mandatoryActions ?? []).length > 0 && (
@@ -8630,9 +8604,9 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
                 ["EXIF", "Exchangeable Image File Format", "Metadata embedded in digital photographs containing capture date/time, GPS coordinates, camera make/model, and other technical parameters used for photo authenticity verification."],
               ].map(([term, full, def], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? '1px solid #e2e8f0' : undefined, background: 'var(--kr-white)' }}>
-                  <td className="px-3 py-2 font-semibold" style={{ color: 'var(--kr-text)', whiteSpace: 'nowrap', width: 55 }}>{term}</td>
-                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)', whiteSpace: 'normal', maxWidth: 180, minWidth: 120 }}>{full}</td>
-                  <td className="px-3 py-2" style={{ color: 'var(--kr-muted)', lineHeight: 1.5 }}>{def}</td>
+                  <td className="px-3 py-2 font-semibold" style={{ color: 'var(--kr-text)', whiteSpace: 'nowrap', width: '8%' }}>{term}</td>
+                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--kr-text)', whiteSpace: 'normal', width: '22%' }}>{full}</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--kr-muted)', lineHeight: 1.5, width: '70%' }}>{def}</td>
                 </tr>
               ))}
             </tbody>
