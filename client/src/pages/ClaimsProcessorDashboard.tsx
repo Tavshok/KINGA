@@ -20,6 +20,7 @@ import {
   Upload,
   RefreshCw,
   CheckCircle,
+  CheckCircle2,
   Brain,
   Shield,
   Eye,
@@ -224,27 +225,14 @@ export default function ClaimsProcessorDashboard() {
       completedIds.forEach(id => {
         const claim = allClaims.find((c: any) => c.id === id);
         const claimLabel = claim?.claimNumber || `Claim #${id}`;
+        const reg = claim?.vehicleRegistration ? ` — ${claim.vehicleRegistration}` : '';
         toast.success("KINGA Assessment Complete", {
-          description: (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>{claimLabel} — 2 reports ready</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={() => { window.location.href = `/insurer/claims/${id}/comparison?report=standard`; }}
-                  style={{ flex: 1, padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: '1.5px solid #1a3a5c', background: '#1a3a5c', color: '#ffffff', cursor: 'pointer' }}
-                >
-                  Claims Report
-                </button>
-                <button
-                  onClick={() => { window.location.href = `/insurer/claims/${id}/comparison?report=forensic`; }}
-                  style={{ flex: 1, padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: '1.5px solid #92400e', background: '#fffbf5', color: '#92400e', cursor: 'pointer' }}
-                >
-                  Forensic Report
-                </button>
-              </div>
-            </div>
-          ) as any,
-          duration: 12000,
+          description: `${claimLabel}${reg} — 2 reports ready in KINGA Completed`,
+          duration: 15000,
+          action: {
+            label: "View Reports",
+            onClick: () => { window.location.href = `/insurer/claims/${id}/comparison?report=standard`; },
+          },
         });
       });
 
@@ -984,6 +972,17 @@ export default function ClaimsProcessorDashboard() {
                     </>
                   )}
                 </>
+              )}
+
+              {/* COMPLETED section: show reports-ready pill above the dropdown */}
+              {section === "completed" && !isProcessing && (
+                <div className="flex items-center gap-1.5 px-1 -mt-1">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 border border-teal-200 dark:border-teal-700">
+                    <CheckCircle2 className="h-3 w-3" />
+                    KINGA Reports Ready
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">2 available</span>
+                </div>
               )}
             </div>
           </div>
