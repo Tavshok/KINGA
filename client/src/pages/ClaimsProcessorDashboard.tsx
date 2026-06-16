@@ -33,11 +33,25 @@ import {
   Search,
   RotateCcw,
   Copy,
-  Hash
+  Hash,
+  ChevronDown,
+  FileSearch,
+  Lock
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/_core/hooks/useAuth";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
+
+// Tier gating feature flag — set to true when Process/Protect/Prove tiers are enforced
+const TIER_GATE_ENABLED = false;
 
 /**
  * Claims Processor Dashboard
@@ -781,16 +795,61 @@ export default function ClaimsProcessorDashboard() {
                     </>
                   ) : (
                     <>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleViewDetails(claim.id)}
-                        className="w-full justify-start bg-teal-600 hover:bg-teal-700"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View KINGA Report
-                        <ArrowRight className="h-3 w-3 ml-auto" />
-                      </Button>
+                      {/* View Reports dropdown — vehicle reg + make/model as label */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="w-full justify-start bg-teal-600 hover:bg-teal-700"
+                          >
+                            <Eye className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="truncate flex-1 text-left text-sm">
+                              View Reports{(claim.vehicleRegistration || claim.vehicleMake) ? (
+                                <span className="opacity-80"> — {[claim.vehicleRegistration, claim.vehicleMake ? `${claim.vehicleMake}${claim.vehicleModel ? ' ' + claim.vehicleModel : ''}`.trim() : null].filter(Boolean).join(' ')}</span>
+                              ) : null}
+                            </span>
+                            <ChevronDown className="h-3 w-3 ml-1 flex-shrink-0" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-72">
+                          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal pb-1">Select report to view</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=standard`; }}
+                            className="cursor-pointer py-2.5"
+                          >
+                            <div className="flex items-start gap-3 w-full">
+                              <FileText className="h-4 w-4 mt-0.5 text-teal-600 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">KINGA Claims Report</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">PROCESS</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">Assessment summary, damage overview &amp; cost comparison</p>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              if (TIER_GATE_ENABLED) return; // Future: show upgrade prompt
+                              window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`;
+                            }}
+                            className="cursor-pointer py-2.5"
+                          >
+                            <div className="flex items-start gap-3 w-full">
+                              <FileSearch className="h-4 w-4 mt-0.5 text-purple-600 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">KINGA Forensic Audit</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">PROVE</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">Full forensic analysis, physics engine &amp; fraud indicators</p>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Button
                         size="sm"
                         variant="outline"
@@ -857,26 +916,61 @@ export default function ClaimsProcessorDashboard() {
                     </>
                   ) : (
                     <>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=standard`; }}
-                        className="w-full justify-start bg-teal-600 hover:bg-teal-700"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View KINGA Claims Report
-                        <ArrowRight className="h-3 w-3 ml-auto" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`; }}
-                        className="w-full justify-start border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:bg-teal-950/30"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View KINGA Forensic Report
-                        <ArrowRight className="h-3 w-3 ml-auto" />
-                      </Button>
+                      {/* View Reports dropdown — vehicle reg + make/model as label */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="w-full justify-start bg-teal-600 hover:bg-teal-700"
+                          >
+                            <Eye className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="truncate flex-1 text-left text-sm">
+                              View Reports{(claim.vehicleRegistration || claim.vehicleMake) ? (
+                                <span className="opacity-80"> — {[claim.vehicleRegistration, claim.vehicleMake ? `${claim.vehicleMake}${claim.vehicleModel ? ' ' + claim.vehicleModel : ''}`.trim() : null].filter(Boolean).join(' ')}</span>
+                              ) : null}
+                            </span>
+                            <ChevronDown className="h-3 w-3 ml-1 flex-shrink-0" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-72">
+                          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal pb-1">Select report to view</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=standard`; }}
+                            className="cursor-pointer py-2.5"
+                          >
+                            <div className="flex items-start gap-3 w-full">
+                              <FileText className="h-4 w-4 mt-0.5 text-teal-600 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">KINGA Claims Report</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">PROCESS</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">Assessment summary, damage overview &amp; cost comparison</p>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              if (TIER_GATE_ENABLED) return; // Future: show upgrade prompt
+                              window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`;
+                            }}
+                            className="cursor-pointer py-2.5"
+                          >
+                            <div className="flex items-start gap-3 w-full">
+                              <FileSearch className="h-4 w-4 mt-0.5 text-purple-600 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">KINGA Forensic Audit</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">PROVE</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">Full forensic analysis, physics engine &amp; fraud indicators</p>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Button
                         size="sm"
                         variant="outline"
