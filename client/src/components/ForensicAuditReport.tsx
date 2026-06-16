@@ -492,14 +492,13 @@ function physicsDirectionToArrow(physDir: string | null | undefined): "front" | 
   return null;
 }
 
-// Arrow geometry — redesigned for a 600×520 viewBox with generous breathing room.
-// Vehicle body occupies roughly x:140–380, y:80–360.
-// Arrows start 60px outside the vehicle edge so compass labels have clear space.
+// Arrow geometry for 380×340 viewBox.
+// Vehicle body: x:100–280, y:60–280. Arrows start 36px outside the body edge.
 const ARROW_GEOM: Record<string, { x1:number; y1:number; x2:number; y2:number }> = {
-  front:   { x1: 260, y1: -10, x2: 260, y2: 74   },  // from well above
-  rear:    { x1: 260, y1: 450, x2: 260, y2: 366  },  // from well below
-  left:    { x1: 40,  y1: 220, x2: 134, y2: 220  },  // from far left
-  right:   { x1: 480, y1: 220, x2: 386, y2: 220  },  // from far right
+  front:   { x1: 190, y1: 10,  x2: 190, y2: 54   },  // from above
+  rear:    { x1: 190, y1: 330, x2: 190, y2: 286  },  // from below
+  left:    { x1: 20,  y1: 170, x2: 94,  y2: 170  },  // from left
+  right:   { x1: 360, y1: 170, x2: 286, y2: 170  },  // from right
 };
 
 // Per-event arrow colours (up to 4 events)
@@ -519,15 +518,16 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
   velocityRange?: { low_kmh: number; high_kmh: number } | null;
   energyAbsorptionRatio?: number | null;
 }) {
-  // Zones scaled for a 600×520 viewBox. Vehicle body: x:140–380, y:80–360.
+  // ViewBox: 380×340. Vehicle body: x:100–280 (w=180), y:60–280 (h=220).
+  // Zones are strictly inside the vehicle body outline.
   const zones = [
-    { id: "front",     label: "Front",      x: 170, y: 78,  w: 180, h: 60  },
-    { id: "rear",      label: "Rear",       x: 170, y: 302, w: 180, h: 60  },
-    { id: "left",      label: "Left",       x: 100, y: 138, w: 70,  h: 164 },
-    { id: "right",     label: "Right",      x: 350, y: 138, w: 70,  h: 164 },
-    { id: "roof",      label: "Roof",       x: 170, y: 138, w: 180, h: 50  },
-    { id: "cabin",     label: "Cabin",      x: 170, y: 188, w: 180, h: 114 },
-    { id: "underbody", label: "Underbody",  x: 170, y: 252, w: 180, h: 50  },
+    { id: "front",     label: "Front",      x: 110, y: 60,  w: 160, h: 48  },
+    { id: "rear",      label: "Rear",       x: 110, y: 232, w: 160, h: 48  },
+    { id: "left",      label: "Left",       x: 100, y: 108, w: 52,  h: 124 },
+    { id: "right",     label: "Right",      x: 228, y: 108, w: 52,  h: 124 },
+    { id: "roof",      label: "Roof",       x: 152, y: 108, w: 76,  h: 40  },
+    { id: "cabin",     label: "Cabin",      x: 152, y: 148, w: 76,  h: 84  },
+    { id: "underbody", label: "Underbody",  x: 152, y: 192, w: 76,  h: 40  },
   ];
 
   const norm = (damageZones ?? []).map(z => z.toLowerCase());
@@ -608,11 +608,11 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
 
   return (
     <div style={{ width: '100%' }}>
-      {/* Full-width SVG diagram — no side legend competing for space */}
+      {/* Diagram — capped at 480px so it never becomes enormous on wide screens */}
       <svg
-        viewBox="0 0 520 460"
+        viewBox="0 0 380 340"
         width="100%"
-        style={{ display: 'block', maxWidth: '100%' }}
+        style={{ display: 'block', maxWidth: 480, margin: '0 auto' }}
       >
         <defs>
           {arrowList.map((arrow, idx) => (
@@ -622,25 +622,28 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
           ))}
         </defs>
 
-        {/* ── Compass labels — placed far from vehicle, well clear of arrows ── */}
-        <text x="260" y="22" textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--kr-muted)">N — FRONT</text>
-        <text x="260" y="448" textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--kr-muted)">S — REAR</text>
-        <text x="18"  y="224" textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--kr-muted)">L</text>
-        <text x="502" y="224" textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--kr-muted)">R</text>
+        {/* ── Compass labels — well clear of arrows ── */}
+        {/* Front arrow ends at y=54, compass at y=8 gives 46px gap */}
+        <text x="190" y="8" textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--kr-muted)">N — FRONT</text>
+        {/* Rear arrow ends at y=286, compass at y=338 gives 52px gap */}
+        <text x="190" y="338" textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--kr-muted)">S — REAR</text>
+        {/* Left arrow ends at x=94, compass at x=10 */}
+        <text x="10" y="173" textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--kr-muted)">L</text>
+        {/* Right arrow ends at x=286, compass at x=370 */}
+        <text x="370" y="173" textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--kr-muted)">R</text>
 
-        {/* ── Vehicle body — scaled to fill the viewBox ── */}
-        {/* Main body */}
-        <rect x="140" y="80" width="240" height="280" rx="32"
-          fill="#f0f0ee" stroke="#0a0a0a" strokeWidth="2" />
+        {/* ── Vehicle body: x:100–280, y:60–280 ── */}
+        <rect x="100" y="60" width="180" height="220" rx="22"
+          fill="#f0f0ee" stroke="#0a0a0a" strokeWidth="1.5" />
         {/* Windscreen */}
-        <rect x="160" y="94" width="200" height="76" rx="12"
-          fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1.5" opacity="0.7" />
+        <rect x="114" y="70" width="152" height="56" rx="8"
+          fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1" opacity="0.7" />
         {/* Rear window */}
-        <rect x="160" y="270" width="200" height="68" rx="12"
-          fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1.5" opacity="0.7" />
-        {/* Wheels — 4 corners */}
-        {([[118,102],[118,278],[362,102],[362,278]] as [number,number][]).map(([wx,wy],i) => (
-          <rect key={i} x={wx} y={wy} width="28" height="52" rx="8"
+        <rect x="114" y="212" width="152" height="52" rx="8"
+          fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1" opacity="0.7" />
+        {/* Wheels — 4 corners, just outside body */}
+        {([[82,76],[82,210],[298,76],[298,210]] as [number,number][]).map(([wx,wy],i) => (
+          <rect key={i} x={wx} y={wy} width="20" height="38" rx="6"
             fill="#1a1916" opacity="0.55" />
         ))}
 
@@ -690,13 +693,13 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
             <text
               key={`lbl-${zone.id}`}
               x={zone.x + zone.w / 2}
-              y={zone.y + zone.h / 2 + 5}
+              y={zone.y + zone.h / 2 + 4}
               textAnchor="middle"
-              fontSize="12"
+              fontSize="9"
               fill={sev > 0 ? SEVERITY_STROKE[sev] : "var(--kr-muted)"}
               fontWeight={sev > 0 ? "700" : "400"}
               stroke="white"
-              strokeWidth="3"
+              strokeWidth="2.5"
               paintOrder="stroke fill"
             >
               {zone.label}
@@ -707,10 +710,10 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
         {/* ── Inconsistency banner — centred across cabin ── */}
         {inconsistencyLabel && (
           <g>
-            <rect x="140" y="196" width="240" height="28" rx="4"
+            <rect x="110" y="158" width="160" height="20" rx="3"
               fill="#fee2e2" stroke="#ef4444" strokeWidth="1.5" opacity="0.95" />
-            <text x="260" y="215" textAnchor="middle" fontSize="11" fontWeight="700" fill="#991b1b">
-              {inconsistencyLabel.length > 36 ? inconsistencyLabel.slice(0, 36) + "…" : inconsistencyLabel}
+            <text x="190" y="172" textAnchor="middle" fontSize="8" fontWeight="700" fill="#991b1b">
+              {inconsistencyLabel.length > 28 ? inconsistencyLabel.slice(0, 28) + "…" : inconsistencyLabel}
             </text>
           </g>
         )}
@@ -720,10 +723,10 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
           if (!energyAbsorptionRatio || energyAbsorptionRatio <= 0) return null;
           const primaryDir = arrowList[0]?.dir;
           const zoneMap: Record<string, { cx: number; cy: number; r: number }> = {
-            front: { cx: 260, cy: 108, r: 40 },
-            rear:  { cx: 260, cy: 332, r: 40 },
-            left:  { cx: 135, cy: 220, r: 32 },
-            right: { cx: 385, cy: 220, r: 32 },
+            front: { cx: 190, cy: 84,  r: 22 },
+            rear:  { cx: 190, cy: 256, r: 22 },
+            left:  { cx: 126, cy: 170, r: 18 },
+            right: { cx: 254, cy: 170, r: 18 },
           };
           const zc = primaryDir ? zoneMap[primaryDir] : null;
           if (!zc) return null;
