@@ -395,59 +395,52 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
       {vehicleResults.map((r, i) => {
         const manipPct = Math.round(r.manipulationScore);
 
-        // Bullet 1: Observation — first 2 clean sentences from KINGA vision description
-        // Check for non-vehicle image or LLM refusal before processing
+        // ── BULLET 1: Damage observation — concise 1-sentence vision summary ──
         const rawVisionText = r.aiVisionDescription ?? '';
-        const isRefusal = false; // non-vehicle images already filtered out above
-        const isNonVehicleImage = false;
+        const cleanedVision = rawVisionText
+          .replace(/\*\*([^*]+)\*\*/g, '$1')
+          .replace(/\*([^*]+)\*/g, '$1')
+          .replace(/^[\s\S]*?(?:analysis[^:]*:|description[^:]*:|following[^:]*:)\s*/i, '')
+          .replace(/^\d+\.\s*/gm, '')
+          .replace(/^[A-Z][A-Z\s]+:\s*/gm, '')
+          .trim();
+        // Truncate to first sentence (up to 160 chars) for conciseness
+        const firstSentence = cleanedVision.split(/(?<=[.!?])\s+/)[0] ?? cleanedVision;
+        const observation = firstSentence.length > 160
+          ? firstSentence.slice(0, 157) + '…'
+          : firstSentence || (r.label ? `Documents ${r.label.toLowerCase()} area` : 'Damage area documented');
 
-        let observation: string;
-        if (isNonVehicleImage) {
-          observation = 'Image does not depict vehicle damage — excluded from damage analysis.';
-        } else {
-          const rawDesc = rawVisionText
-            .replace(/\*\*([^*]+)\*\*/g, '$1')
-            .replace(/\*([^*]+)\*/g, '$1')
-            // Strip LLM preamble like "Here's an analysis...", "Here is...", "The following..."
-            .replace(/^[\s\S]*?(?:analysis[^:]*:|description[^:]*:|following[^:]*:)\s*/i, '')
-            // Strip numbered list markers like "1. ", "2. "
-            .replace(/^\d+\.\s*/gm, '')
-            // Strip section headers like "DAMAGE DESCRIPTION:", "PHOTO AUTHENTICITY:"
-            .replace(/^[A-Z][A-Z\s]+:\s*/gm, '')
-            .trim();
-          // Show full description — no truncation
-          observation = rawDesc
-            ? rawDesc
-            : r.label
-            ? `Documents ${r.label.toLowerCase()} area`
-            : 'Damage area documented';
-        }
-
-        // Bullet 2: EXIF metadata status
+        // ── BULLET 2: EXIF integrity ──
         const exifNote = r.exifPresent
-          ? `EXIF metadata present${r.captureDate ? ` — capture date ${r.captureDate.slice(0, 10)}` : ''}`
-          : 'EXIF metadata absent — image origin cannot be independently verified';
+          ? `EXIF metadata present${r.captureDate ? ` — capture date ${r.captureDate.slice(0, 10)}` : ' — capture date not recorded'}`
+          : 'EXIF metadata absent — image origin and capture time cannot be independently verified';
 
-        // Bullet 3: GPS / location data
+        // ── BULLET 3: GPS / location consistency ──
         const gpsNote = r.gpsPresent
-          ? `GPS coordinates present${r.captureDate ? ` (recorded ${r.captureDate.slice(0, 10)})` : ''} — location verifiable`
-          : 'No GPS data embedded — capture location unverifiable';
+          ? `GPS coordinates embedded${r.captureDate ? ` (${r.captureDate.slice(0, 10)})` : ''} — capture location verifiable against incident scene`
+          : 'No GPS data embedded — capture location cannot be cross-referenced with incident address';
 
-        // Bullet 4: Manipulation score + integrity verdict — three-tier
+        // ── BULLET 4: Manipulation score — three-tier integrity verdict ──
         const photoTier = manipPct > 40 ? 'high' : manipPct > 20 ? 'medium' : 'clean';
         const integrityVerdict =
           photoTier === 'high'
-            ? `Manipulation score ${manipPct}% — image exhibits indicators consistent with post-processing; independent verification recommended`
+            ? `Manipulation score ${manipPct}/100 — post-processing indicators detected; independent physical inspection required before settlement`
             : photoTier === 'medium'
-              ? `Manipulation score ${manipPct}% — minor metadata anomalies detected; no definitive manipulation confirmed; review with heightened scrutiny`
-              : !r.exifPresent
-                ? `Manipulation score ${manipPct}% — no integrity anomalies detected; EXIF metadata absent, origin unverifiable`
-                : `Manipulation score ${manipPct}% — no integrity anomalies detected`;
+              ? `Manipulation score ${manipPct}/100 — minor metadata anomalies present; no definitive manipulation confirmed; apply heightened scrutiny`
+              : `Manipulation score ${manipPct}/100 — no integrity anomalies detected; image consistent with unmodified capture`;
 
-        // Extra flags (excluding EXIF/GPS already covered above)
+        // ── BULLET 5: Image quality / additional forensic flags ──
+        // Use the highest-signal extra flag if available, otherwise derive from EXIF/vision context
         const extraFlags = (r.flags ?? []).filter(
           f => !f.toLowerCase().includes('exif') && !f.toLowerCase().includes('gps') && f.trim().length > 10
         );
+        const qualityBullet = extraFlags.length > 0
+          ? extraFlags[0].replace(/\*\*/g, '').replace(/\*/g, '')
+          : !r.exifPresent && !r.gpsPresent
+            ? 'No EXIF or GPS metadata — photo may have been screenshotted, forwarded, or stripped prior to submission'
+            : r.exifPresent && r.gpsPresent
+              ? 'Full metadata chain intact — EXIF and GPS data consistent with direct camera capture'
+              : 'Partial metadata — one of EXIF/GPS present; verify original file was not re-encoded before submission';
 
         return (
           <div key={i} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--border)', paddingTop: i === 0 ? 0 : 10, marginTop: i === 0 ? 0 : 10 }}>
@@ -475,13 +468,16 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
               )}
             </p>
             <ul className="text-xs space-y-0.5" style={{ listStyleType: 'disc', paddingLeft: 16 }}>
-              <li style={{ color: 'var(--foreground)' }}>{observation}</li>
+              {/* Bullet 1: Damage observation */}
+              <li style={{ color: 'var(--foreground)', lineHeight: '1.5' }}>{observation}</li>
+              {/* Bullet 2: EXIF integrity */}
               <li style={{ color: 'var(--muted-foreground)' }}>{exifNote}</li>
+              {/* Bullet 3: GPS consistency */}
               <li style={{ color: 'var(--muted-foreground)' }}>{gpsNote}</li>
+              {/* Bullet 4: Manipulation score */}
               <li style={{ color: photoTier === 'high' ? '#dc2626' : photoTier === 'medium' ? '#d97706' : 'var(--muted-foreground)' }}>{integrityVerdict}</li>
-              {extraFlags.map((f, fi) => (
-                <li key={fi} style={{ color: 'var(--muted-foreground)' }}>{f.replace(/\*\*/g, '').replace(/\*/g, '')}</li>
-              ))}
+              {/* Bullet 5: Quality / metadata chain */}
+              <li style={{ color: 'var(--muted-foreground)' }}>{qualityBullet}</li>
             </ul>
               </div>
             </div>

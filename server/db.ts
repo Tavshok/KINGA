@@ -1424,7 +1424,16 @@ export async function triggerAiAssessment(claimId: number) {
     costIntelligenceJson,
     repairIntelligenceJson,
     partsReconciliationJson,
-    damagePhotosJson: claimRecord ? JSON.stringify(claimRecord.damage.imageUrls) : '[]',
+    // PHOTO FIX: Use the pre-pipeline extracted damagePhotos array as the primary source.
+    // claimRecord.damage.imageUrls is only populated when Stage 3/5 assembly succeeds;
+    // damagePhotos is always populated when PDF extraction or claim_documents merge ran.
+    // Merge both to ensure no URLs are lost.
+    damagePhotosJson: (() => {
+      const fromPipeline: string[] = damagePhotos ?? [];
+      const fromClaimRecord: string[] = claimRecord?.damage?.imageUrls ?? [];
+      const merged = Array.from(new Set([...fromPipeline, ...fromClaimRecord]));
+      return JSON.stringify(merged.length > 0 ? merged : []);
+    })(),
     pipelineRunSummary: JSON.stringify({
       stages: summary.stages,
       documentVerification: (summary as any).documentVerification ?? null,
