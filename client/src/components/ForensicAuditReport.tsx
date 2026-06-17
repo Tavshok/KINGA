@@ -495,10 +495,10 @@ function physicsDirectionToArrow(physDir: string | null | undefined): "front" | 
 // Arrow geometry for 380×340 viewBox.
 // Vehicle body: x:100–280, y:60–280. Arrows start 36px outside the body edge.
 const ARROW_GEOM: Record<string, { x1:number; y1:number; x2:number; y2:number }> = {
-  front:   { x1: 190, y1: 10,  x2: 190, y2: 54   },  // from above
-  rear:    { x1: 190, y1: 330, x2: 190, y2: 286  },  // from below
-  left:    { x1: 20,  y1: 170, x2: 94,  y2: 170  },  // from left
-  right:   { x1: 360, y1: 170, x2: 286, y2: 170  },  // from right
+  front:   { x1: 190, y1: 10,  x2: 190, y2: 54   },  // from above — tip at y=54, zone top at y=60 (6px gap)
+  rear:    { x1: 190, y1: 330, x2: 190, y2: 282  },  // from below — tip at y=282, zone bottom at y=280 (2px gap, no overlap)
+  left:    { x1: 20,  y1: 170, x2: 96,  y2: 170  },  // from left  — tip at x=96, body at x=100
+  right:   { x1: 360, y1: 170, x2: 284, y2: 170  },  // from right — tip at x=284, body at x=280
 };
 
 // Per-event arrow colours (up to 4 events)
@@ -641,8 +641,8 @@ function VehicleDamageMap({ damageZones, incidentType, physicsDirection, inconsi
         {/* Rear window */}
         <rect x="114" y="212" width="152" height="52" rx="8"
           fill="#e8e8e6" stroke="#0a0a0a" strokeWidth="1" opacity="0.7" />
-        {/* Wheels — 4 corners, just outside body */}
-        {([[82,76],[82,210],[298,76],[298,210]] as [number,number][]).map(([wx,wy],i) => (
+        {/* Wheels — 4 corners, just outside body (4px gap from body edge) */}
+        {([[84,76],[84,210],[276,76],[276,210]] as [number,number][]).map(([wx,wy],i) => (
           <rect key={i} x={wx} y={wy} width="20" height="38" rx="6"
             fill="#1a1916" opacity="0.55" />
         ))}
@@ -4556,7 +4556,9 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const isKingaOptimised4 = l2OptimisedCost4 != null;
   const repairToValue4 = llmRepairToValue4 ?? (marketValueUsd3 && marketValueUsd3 > 0 && repairCost4 > 0 ? (repairCost4 / marketValueUsd3) * 100 : null);
   const isWriteOff4 = llmVerdict4 === "WRITE_OFF" || (repairToValue4 != null && repairToValue4 >= 75);
-  const showValuation = !!(marketValueUsd3 || repairCost4);
+  // Section 3.4 Vehicle Valuation removed — market value is shown in Section 1.2 (Insurance & Policy Context).
+  // The valuation data here was using a different (incorrect) benchmark value. Keeping it false permanently.
+  const showValuation = false;
 
   return (
     <div className="mb-1 space-y-2" style={{ marginBottom: "8px" }}>

@@ -725,9 +725,13 @@ function detectCollisionScenario(params: {
     "went off the road", "into a ditch", "into the ditch", "no other vehicle",
     "no third party", "single vehicle",
   ];
+  // IMPORTANT: params.incidentType === "single_vehicle" is an explicit claim-form field
+  // that must always override narrative keyword matching. A single-vehicle claim with rear
+  // damage (e.g. reversed into a wall) would otherwise be misclassified as rear_end_struck.
   const isSingleVehicle = singleVehicleKeywords.some(kw => d.includes(kw))
     || dir === "rollover"
-    || params.incidentType === "animal_strike";
+    || params.incidentType === "animal_strike"
+    || params.incidentType === "single_vehicle";
 
   // ── 4. Sideswipe ─────────────────────────────────────────────────────────────
   const sideswipeKeywords = [
