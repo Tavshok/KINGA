@@ -300,8 +300,11 @@ async function runAiVisionAnalysis(photoUrl: string): Promise<VisionClassificati
           role: "user",
           content: [
             {
-              type: "image_url",
-              image_url: { url: photoUrl, detail: "high" },
+              // IMPORTANT: Use image_url (not file_url) — the Forge proxy authenticates S3 requests
+              // for image_url content, matching the pattern used in stage-2-extraction.ts (line 362).
+              // file_url only supports audio/video/PDF mime types; image/png requires image_url.
+              type: "image_url" as const,
+              image_url: { url: photoUrl, detail: "high" as const },
             },
             {
               type: "text",

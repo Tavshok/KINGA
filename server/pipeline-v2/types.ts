@@ -1533,6 +1533,14 @@ export interface PipelineContext {
   assessmentId: number;
   claim: Record<string, any>;
   pdfUrl: string | null;
+  /**
+   * Presigned URL for server-side PDF download (Node.js fetch / pdftoppm).
+   * Generated via storageGet() in db.ts before pipeline start.
+   * Falls back to pdfUrl if not set.
+   * Use this for any direct fetch() of the PDF (pdftoppm, pdfjs, native text extraction).
+   * pdfUrl (raw S3 URL) is only for LLM file_url proxy calls.
+   */
+  pdfDownloadUrl?: string | null;
   damagePhotoUrls: string[];
   db: any;
   log: (stage: string, msg: string) => void;

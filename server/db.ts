@@ -745,36 +745,31 @@ export async function triggerAiAssessment(claimId: number) {
       // pdfDownloadUrl is a presigned URL that the Node.js process can access without auth.
       // pdfUrl (raw s3Url) is only for the LLM via the Forge file_url proxy.
       const { renderPdfToImages } = await import('./pipeline-v2/pdfToImages');
-      const sharpLib = (await import('sharp')).default;
       const renderResult = await renderPdfToImages(downloadUrlForRender, {
         dpi: 100,
         maxPages: 25,
         keyPrefix: `claims/${claimId}/damage-pages`,
         log: (msg: string) => console.log(`[KINGA Assessment] Claim ${claimId}: [PDF Render] ${msg}`),
       });
-      // Build ExtractedImage-compatible objects from rendered pages
+      // Build ExtractedImage-compatible objects from rendered pages.
+      // IMPORTANT: width/height come from PdfPageImage (read at render time from the buffer)
+      // — we must NOT re-fetch page.url from S3 here because the raw S3 URL is not publicly
+      // accessible and will return HTTP 403, silently dropping all pages.
       const extractedImages: any[] = [];
       for (const page of renderResult.pages) {
-        try {
-          const pageRes = await fetch(page.url);
-          const buf = Buffer.from(await pageRes.arrayBuffer());
-          const meta = await sharpLib(buf).metadata();
-          const w = meta.width ?? 0;
-          const h = meta.height ?? 0;
-          extractedImages.push({
-            url: page.url,
-            width: w,
-            height: h,
-            pageNumber: page.pageNumber,
-            source: 'page_render',
-            fromScannedPdf: true,
-            renderDpi: 100,
-            isPageRender: true,
-            quality: { width: w, height: h, blurScore: 80, isBlurry: false, isTextHeavy: false, isUniform: false, colourVariance: 80, aspectRatio: w / (h || 1), pixelArea: w * h },
-          });
-        } catch {
-          // Non-fatal: skip pages that fail metadata read
-        }
+        const w = page.width ?? 0;
+        const h = page.height ?? 0;
+        extractedImages.push({
+          url: page.url,
+          width: w,
+          height: h,
+          pageNumber: page.pageNumber,
+          source: 'page_render',
+          fromScannedPdf: true,
+          renderDpi: 100,
+          isPageRender: true,
+          quality: { width: w, height: h, blurScore: 80, isBlurry: false, isTextHeavy: false, isUniform: false, colourVariance: 80, aspectRatio: w / (h || 1), pixelArea: w * h },
+        });
       }
       _totalExtracted = extractedImages.length;
       _isScannedPdf = true; // pdftoppm always produces page renders
@@ -953,6 +948,7 @@ export async function triggerAiAssessment(claimId: number) {
     assessmentId: 0, // Will be set after insert
     claim: claim as Record<string, any>,
     pdfUrl,
+    pdfDownloadUrl: pdfDownloadUrl ?? pdfUrl,
     damagePhotoUrls: damagePhotos,
     db,
     log: (stage: string, msg: string) => console.log(`[${stage}] Claim ${claimId}: ${msg}`),

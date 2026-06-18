@@ -210,6 +210,10 @@ async function analyseOneImage(
   log: (msg: string) => void
 ): Promise<{ components: DamageAnalysisComponent[]; confidence: string; usedFallback: boolean }> {
 
+  // IMPORTANT: Use image_url (not file_url) — the Forge proxy authenticates S3 requests
+  // for image_url content, matching the pattern used in stage-2-extraction.ts (line 362).
+  // file_url only supports audio/video/PDF mime types and would cause a TypeScript error
+  // with image/png. image_url is the correct type for PNG images.
   const imagePart = {
     type: "image_url" as const,
     image_url: { url, detail: "high" as const },

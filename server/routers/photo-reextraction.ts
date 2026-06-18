@@ -301,6 +301,9 @@ async function classifyUrlsWithLLM(
 ): Promise<Array<{ url: string; category: 'damage_photo' | 'vehicle_overview' | 'quotation_scan' | 'document_page' | 'other'; confidence: number; reasoning: string }>> {
   if (urls.length === 0) return [];
 
+  // IMPORTANT: Use image_url (not file_url) — the Forge proxy authenticates S3 requests
+  // for image_url content, matching the pattern used in stage-2-extraction.ts (line 362).
+  // file_url only supports audio/video/PDF mime types; image/png requires image_url.
   const imageContent = urls.map((url, idx) => ([
     { type: "text" as const, text: `Image ${idx} (URL: ${url.substring(url.lastIndexOf('/') + 1).substring(0, 40)}):` },
     { type: "image_url" as const, image_url: { url, detail: "low" as const } },

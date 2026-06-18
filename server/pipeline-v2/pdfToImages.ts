@@ -58,6 +58,10 @@ export interface PdfPageImage {
   url: string;
   key: string;
   fileSizeBytes: number;
+  /** Width in pixels (read from buffer before upload — no S3 re-fetch needed) */
+  width: number;
+  /** Height in pixels (read from buffer before upload — no S3 re-fetch needed) */
+  height: number;
 }
 
 export interface PdfToImagesResult {
@@ -214,9 +218,17 @@ export async function renderPdfToImages(
         }
         // ─────────────────────────────────────────────────────────────────────
 
+        // Read final dimensions from the (possibly rotated) buffer — avoids S3 re-fetch later
+        let imgWidth = 0;
+        let imgHeight = 0;
+        try {
+          const finalMeta = await sharp(pngBuf).metadata();
+          imgWidth = finalMeta.width ?? 0;
+          imgHeight = finalMeta.height ?? 0;
+        } catch { /* non-fatal — dimensions will be 0 */ }
         const s3Key = `${keyPrefix}/${urlHash}/page-${String(pageNum).padStart(3, "0")}.png`;
         const { url, key } = await storagePut(s3Key, pngBuf, "image/png");
-        pages.push({ pageNumber: pageNum, url, key, fileSizeBytes: pngBuf.length });
+        pages.push({ pageNumber: pageNum, url, key, fileSizeBytes: pngBuf.length, width: imgWidth, height: imgHeight });
         log(`Rendered + uploaded page ${pageNum}/${pagesToRender} → ${url}`);
       } catch (err: any) {
         const msg = `Page ${pageNum} upload failed: ${err.message}`;

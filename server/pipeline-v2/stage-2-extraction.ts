@@ -680,8 +680,10 @@ Return JSON with this exact structure:
 // Works for native/digital PDFs. Scanned PDFs will return short text.
 // ─────────────────────────────────────────────────────────────────────────────
 async function extractNativeTextFromPdf(pdfUrl: string, ctx: PipelineContext): Promise<string> {
-  // Download the PDF buffer
-  const response = await fetch(pdfUrl, { signal: AbortSignal.timeout(30_000) });
+  // Use presigned URL for direct fetch — raw S3 URLs return HTTP 403.
+  // pdfDownloadUrl is set by db.ts via storageGet() before pipeline start.
+  const fetchUrl = (ctx as any).pdfDownloadUrl || pdfUrl;
+  const response = await fetch(fetchUrl, { signal: AbortSignal.timeout(30_000) });
   if (!response.ok) throw new Error(`PDF download failed: HTTP ${response.status}`);
   const arrayBuffer = await response.arrayBuffer();
   const pdfBuffer = Buffer.from(arrayBuffer);

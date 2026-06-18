@@ -71,7 +71,10 @@ export async function runIngestionStage(
       let pdfPageImageUrls: string[] = [];
       try {
         ctx.log("Stage 1", "Rendering PDF pages to images for vision analysis...");
-        const renderResult = await renderPdfToImages(ctx.pdfUrl!, {
+        // Use pdfDownloadUrl (presigned) for server-side fetch — raw S3 URLs return HTTP 403.
+        // pdfUrl (raw S3) is only for LLM file_url proxy calls.
+        const pdfRenderUrl = (ctx as any).pdfDownloadUrl || ctx.pdfUrl!;
+        const renderResult = await renderPdfToImages(pdfRenderUrl, {
           dpi: 100,  // 100 DPI is sufficient for LLM vision. 150 DPI with 25 pages ≈ 400MB RAM — unsafe for Cloud Run (512MB limit).
           maxPages: 25,
           keyPrefix: `claims/${ctx.claimId}/pdf-pages`,
@@ -163,8 +166,10 @@ export async function runIngestionStage(
     if (ctx.pdfUrl) {
       try {
         ctx.log("Stage 1", "Extracting embedded images from PDF...");
+        // Use pdfDownloadUrl (presigned) for direct fetch — raw S3 URLs return HTTP 403.
+        const embeddedPdfUrl = (ctx as any).pdfDownloadUrl || ctx.pdfUrl;
         const embeddedResult = await extractEmbeddedImagesFromUrl(
-          ctx.pdfUrl,
+          embeddedPdfUrl,
           ctx.claimId,
           (msg) => ctx.log("Stage 1 [Embedded Images]", msg)
         );
