@@ -3186,6 +3186,74 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         };
       }),
     
+    /**
+     * Send Back Claim
+     *
+     * Returns a claim to a previous workflow stage for further review or correction.
+     * Claims managers can send back from:
+     *   - technical_approval → internal_review (back to risk manager / assessor)
+     *   - financial_decision  → technical_approval (back to risk manager)
+     *
+     * The target stage is determined automatically from the claim's current workflow state.
+     * A mandatory comment is recorded in the audit trail.
+     *
+     * @requires Authentication — claims_manager or insurer_admin role
+     * @param claimId  - The numeric ID of the claim to send back
+     * @param comments - Mandatory reason for sending back (recorded in audit trail)
+     * @param targetRole - Optional hint: 'risk_manager' | 'claims_processor' (informational only)
+     * @returns { success, fromState, toState }
+     */
+    sendBackClaim: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        comments: z.string().min(1, "A reason for sending back the claim is required."),
+        targetRole: z.enum(["risk_manager", "claims_processor"]).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const userRole = (ctx.user as any).insurerRole || ctx.user.role;
+        const allowedRoles = ["claims_manager", "insurer_admin", "executive"];
+        if (!allowedRoles.includes(userRole)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers can send back claims." });
+        }
+        const tenantId = (ctx.user as any).tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+
+        const { transition } = await import("./workflow-engine");
+        const { statusToWorkflowState } = await import("./workflow-migration");
+        const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
+
+        // Determine the correct target state based on current workflow position
+        let toState: string;
+        if (fromState === "technical_approval") {
+          // Send back to internal review (risk manager / assessor)
+          toState = "internal_review";
+        } else if (fromState === "financial_decision") {
+          // Send back to technical approval (risk manager)
+          toState = "technical_approval";
+        } else {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Cannot send back a claim in state '${fromState}'. Only claims in technical_approval or financial_decision can be sent back.`,
+          });
+        }
+
+        await transition({
+          claimId: input.claimId,
+          fromState: fromState as any,
+          toState: toState as any,
+          userId: ctx.user.id,
+          userRole: userRole as any,
+          decisionData: {
+            comments: `SENT BACK BY CLAIMS MANAGER: ${input.comments}${input.targetRole ? ` (Target: ${input.targetRole})` : ""}`,
+          },
+        });
+
+        console.log(`[SendBack] Claim ${claim.claimNumber} sent back from ${fromState} → ${toState} by user ${ctx.user.id}`);
+        return { success: true, fromState, toState };
+      }),
+
     // Financial approval for high-value claims
     /**
      * Export Claim PDF

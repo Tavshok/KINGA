@@ -265,8 +265,8 @@ export default function ClaimsManagerDashboard() {
     },
   });
 
-  // Send back mutation - using approveClaim as placeholder
-  const sendBackClaim = trpc.claims.approveClaim.useMutation({
+  // Send back mutation — wired to dedicated sendBackClaim procedure (uses WorkflowEngine)
+  const sendBackClaim = trpc.claims.sendBackClaim.useMutation({
     onSuccess: () => {
       toast.success("Claim Sent Back", {
         description: `Claim has been returned to ${sendBackTarget === "risk_manager" ? "Risk Manager" : "Claims Processor"} for review.`,
@@ -328,7 +328,11 @@ export default function ClaimsManagerDashboard() {
       content: `SENT BACK BY CLAIMS MANAGER (Clarification Request): ${sendBackComments}`,
     });
 
-    sendBackClaim.mutate({ claimId: selectedClaim.id, selectedQuoteId: 0 });
+    sendBackClaim.mutate({
+      claimId: selectedClaim.id,
+      comments: sendBackComments,
+      targetRole: sendBackTarget as "risk_manager" | "claims_processor",
+    });
   };
 
   const totalReviewable = filteredClaims.length;
