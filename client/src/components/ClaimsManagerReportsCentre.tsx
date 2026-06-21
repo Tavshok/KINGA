@@ -1,3 +1,10 @@
+/**
+ * Claims Manager Reports Centre
+ *
+ * Surfaces all 14 authorised reports grouped by category.
+ * Redesign: removed `truncate` on labels/descriptions, switched to 2-column
+ * grid (was 3-column), descriptions now wrap naturally with line-clamp-2.
+ */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KingaReportButton } from "@/components/KingaReportButton";
@@ -13,7 +20,7 @@ interface ReportEntry {
 }
 
 const CLAIMS_MANAGER_REPORTS: ReportEntry[] = [
-  // Per-claim reports (shown in review queue; also listed here for ad-hoc access)
+  // Per-claim reports
   {
     reportKey: "claim.assessment",
     label: "Assessment Report",
@@ -120,6 +127,13 @@ const CLAIMS_MANAGER_REPORTS: ReportEntry[] = [
 
 const CATEGORIES = ["Claim-Level", "Portfolio", "Trend", "Recovery"];
 
+const CATEGORY_COLORS: Record<string, string> = {
+  "Claim-Level": "text-teal-700 dark:text-teal-400",
+  Portfolio: "text-blue-700 dark:text-blue-400",
+  Trend: "text-purple-700 dark:text-purple-400",
+  Recovery: "text-amber-700 dark:text-amber-400",
+};
+
 export function ClaimsManagerReportsCentre() {
   const grouped = CATEGORIES.map((cat) => ({
     category: cat,
@@ -138,24 +152,39 @@ export function ClaimsManagerReportsCentre() {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="space-y-4">
+        <div className="space-y-5">
           {grouped.map(({ category, reports }) => (
             <div key={category}>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                {category}
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {/* Category header */}
+              <div className="flex items-center gap-2 mb-2">
+                <p
+                  className={`text-xs font-semibold uppercase tracking-wide ${
+                    CATEGORY_COLORS[category] ?? "text-muted-foreground"
+                  }`}
+                >
+                  {category}
+                </p>
+                <span className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground">{reports.length}</span>
+              </div>
+
+              {/* 2-column grid — wide enough for full labels */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {reports.map((report) => {
                   const Icon = report.icon;
                   return (
                     <div
                       key={report.reportKey}
-                      className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors"
+                      className="flex items-start gap-2.5 p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors"
                     >
                       <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate">{report.label}</p>
-                        <p className="text-xs text-muted-foreground truncate">
+                        {/* Label — no truncate, wraps naturally */}
+                        <p className="text-xs font-medium leading-snug text-foreground">
+                          {report.label}
+                        </p>
+                        {/* Description — line-clamp-2 allows 2 lines */}
+                        <p className="text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">
                           {report.description}
                         </p>
                       </div>
@@ -164,7 +193,7 @@ export function ClaimsManagerReportsCentre() {
                         label="Export"
                         size="sm"
                         variant="outline"
-                        className="shrink-0 text-xs h-6 px-2"
+                        className="shrink-0 text-xs h-6 px-2 mt-0.5"
                       />
                     </div>
                   );

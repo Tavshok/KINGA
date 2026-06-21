@@ -594,17 +594,101 @@ export default function ClaimsManagerDashboard() {
         {/* ── Command Centre (Rows 1–5) + Reports Centre ── */}
         <ClaimsManagerCommandCentre />
 
-        {/* Main Tabs */}
+        {/* ── Main Workspace Tabs ── */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="intake">Intake Queue</TabsTrigger>
-            <TabsTrigger value="review">Review Queue</TabsTrigger>
-            <TabsTrigger value="active">Active Claims</TabsTrigger>
-            <TabsTrigger value="fraud">Fraud Alerts</TabsTrigger>
-            <TabsTrigger value="processed">Processed</TabsTrigger>
-            <TabsTrigger value="fleet-approvals">Fleet Approvals</TabsTrigger>
-            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
-          </TabsList>
+          {/*
+           * Grouped tab bar — three logical sections separated by dividers:
+           *   Workflow  → Intake Queue | Review Queue | Active Claims
+           *   Oversight → Fraud Alerts | Fleet Approvals
+           *   Admin     → Processed | Notifications
+           *
+           * Uses a flex row with section labels instead of grid-cols-7 so
+           * each tab gets enough horizontal space and labels never wrap.
+           */}
+          <div className="border-b border-border">
+            <div className="flex items-end gap-0 overflow-x-auto">
+              {/* Section: Workflow */}
+              <div className="flex items-end shrink-0">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2 hidden sm:block">
+                  Workflow
+                </span>
+                {(["intake", "review", "active"] as const).map((v) => {
+                  const labels: Record<string, string> = {
+                    intake: "Intake Queue",
+                    review: "Review Queue",
+                    active: "Active Claims",
+                  };
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => setActiveTab(v)}
+                      className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        activeTab === v
+                          ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                      }`}
+                    >
+                      {labels[v]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-6 bg-border mx-1 mb-2 shrink-0 hidden sm:block" />
+
+              {/* Section: Oversight */}
+              <div className="flex items-end shrink-0">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2 hidden sm:block">
+                  Oversight
+                </span>
+                {(["fraud", "fleet-approvals"] as const).map((v) => {
+                  const labels: Record<string, string> = {
+                    fraud: "Fraud Alerts",
+                    "fleet-approvals": "Fleet Approvals",
+                  };
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => setActiveTab(v)}
+                      className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        activeTab === v
+                          ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                      }`}
+                    >
+                      {labels[v]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-6 bg-border mx-1 mb-2 shrink-0 hidden sm:block" />
+
+              {/* Section: Admin */}
+              <div className="flex items-end shrink-0">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2 hidden sm:block">
+                  Admin
+                </span>
+                {(["processed", "notifications"] as const).map((v) => {
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => setActiveTab(v)}
+                      className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        activeTab === v
+                          ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                      }`}
+                    >
+                      {v === "notifications" ? <NotificationsTabBadge /> : "Processed"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
           {/* Intake Queue Tab */}
           <TabsContent value="intake">

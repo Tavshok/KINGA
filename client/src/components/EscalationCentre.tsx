@@ -5,6 +5,9 @@
  * Shows claims in escalated states (disputed, manual_review, high/critical fraud)
  * grouped into six actionable categories.
  * Data source: trpc.claims.getEscalations
+ *
+ * Redesign: switched from grid-cols-3 tiles to a 2-column list-row layout
+ * matching the AttentionRequiredPanel pattern for visual consistency.
  */
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,12 +18,11 @@ interface EscalationCategory {
   label: string;
   count: number;
   icon: React.ReactNode;
-  color: string;
-  badgeVariant: "destructive" | "secondary" | "outline";
+  severity: "critical" | "high" | "medium" | "neutral";
   topClaims: Array<{ claimNumber: string; amount: number | null; currency: string }>;
 }
 
-function fmt(cents: number | null, currency = "ZAR"): string {
+function fmtAmt(cents: number | null, currency = "ZAR"): string {
   if (!cents) return "—";
   return new Intl.NumberFormat("en-ZA", {
     style: "currency",
@@ -28,6 +30,68 @@ function fmt(cents: number | null, currency = "ZAR"): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(cents / 100);
+}
+
+const SEV_BORDER: Record<string, string> = {
+  critical: "border-l-red-400",
+  high: "border-l-orange-400",
+  medium: "border-l-amber-400",
+  neutral: "border-l-slate-300",
+};
+
+const SEV_ICON: Record<string, string> = {
+  critical: "text-red-500",
+  high: "text-orange-500",
+  medium: "text-amber-500",
+  neutral: "text-slate-400",
+};
+
+const SEV_BADGE: Record<string, string> = {
+  critical: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300",
+  high: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300",
+  medium: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300",
+  neutral: "bg-muted text-muted-foreground border-border",
+};
+
+function EscalationRow({ label, count, icon, severity, topClaims }: EscalationCategory) {
+  const isActive = count > 0;
+  return (
+    <div
+      className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border-l-2 ${
+        isActive ? SEV_BORDER[severity] : "border-l-border"
+      } bg-muted/30 hover:bg-muted/50 transition-colors`}
+    >
+      <span className={`shrink-0 mt-0.5 ${isActive ? SEV_ICON[severity] : "text-muted-foreground"}`}>
+        {icon}
+      </span>
+
+      <div className="flex-1 min-w-0">
+        <p className={`text-xs font-medium leading-snug ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+          {label}
+        </p>
+        {isActive && topClaims.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {topClaims.slice(0, 2).map((c, i) => (
+              <span
+                key={i}
+                className="text-[10px] bg-background border border-border rounded px-1.5 py-0.5 text-muted-foreground font-mono"
+              >
+                {c.claimNumber} · {fmtAmt(c.amount, c.currency)}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <span
+        className={`shrink-0 text-sm font-bold tabular-nums px-2 py-0.5 rounded-full border text-center min-w-[2rem] ${
+          isActive ? SEV_BADGE[severity] : "bg-muted text-muted-foreground border-border"
+        }`}
+      >
+        {count}
+      </span>
+    </div>
+  );
 }
 
 export function EscalationCentre() {
@@ -40,7 +104,7 @@ export function EscalationCentre() {
     if (!escalations) return [];
     const rows = escalations as any[];
 
-    const highValue = rows.filter(r => (r.totalClaimAmount ?? r.estimatedClaimValue ?? 0) >= 10000000); // ≥ R100k
+    const highValue = rows.filter(r => (r.totalClaimAmount ?? r.estimatedClaimValue ?? 0) >= 10000000);
     const highFraud = rows.filter(r => r.fraudRiskLevel === "high" || r.fraudRiskLevel === "critical");
     const disputed = rows.filter(r => r.workflowState === "disputed");
     const manualReview = rows.filter(r => r.workflowState === "manual_review");
@@ -63,48 +127,42 @@ export function EscalationCentre() {
         label: "Critical Fraud",
         count: criticalFraud.length,
         icon: <AlertOctagon className="h-3.5 w-3.5" />,
-        color: "bg-red-50 border-red-200 text-red-700",
-        badgeVariant: "destructive" as const,
+        severity: "critical" as const,
         topClaims: toTop(criticalFraud),
       },
       {
         label: "High Value Disputed",
         count: highValue.length,
         icon: <Scale className="h-3.5 w-3.5" />,
-        color: "bg-orange-50 border-orange-200 text-orange-700",
-        badgeVariant: "destructive" as const,
+        severity: "high" as const,
         topClaims: toTop(highValue),
       },
       {
         label: "Formal Disputes",
         count: disputed.length,
         icon: <Gavel className="h-3.5 w-3.5" />,
-        color: "bg-amber-50 border-amber-200 text-amber-700",
-        badgeVariant: "secondary" as const,
+        severity: "medium" as const,
         topClaims: toTop(disputed),
       },
       {
         label: "Manual Review",
         count: manualReview.length,
         icon: <FileQuestion className="h-3.5 w-3.5" />,
-        color: "bg-yellow-50 border-yellow-200 text-yellow-700",
-        badgeVariant: "secondary" as const,
+        severity: "medium" as const,
         topClaims: toTop(manualReview),
       },
       {
         label: "High Fraud Risk",
         count: highFraud.length,
         icon: <ShieldAlert className="h-3.5 w-3.5" />,
-        color: "bg-purple-50 border-purple-200 text-purple-700",
-        badgeVariant: "secondary" as const,
+        severity: "high" as const,
         topClaims: toTop(highFraud),
       },
       {
         label: "Stale (>7 days)",
         count: stale.length,
         icon: <AlertTriangle className="h-3.5 w-3.5" />,
-        color: "bg-slate-50 border-slate-200 text-slate-600",
-        badgeVariant: "outline" as const,
+        severity: "neutral" as const,
         topClaims: toTop(stale),
       },
     ];
@@ -140,32 +198,9 @@ export function EscalationCentre() {
             <p className="text-xs mt-1 opacity-70">All claims are progressing normally</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {categories.map((cat) => (
-              <div
-                key={cat.label}
-                className={`rounded-lg border p-2.5 ${cat.count > 0 ? cat.color : "bg-muted/20 border-border text-muted-foreground"}`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1 text-xs font-medium">
-                    {cat.icon}
-                    <span className="leading-tight">{cat.label}</span>
-                  </div>
-                  <span className={`text-lg font-bold ${cat.count > 0 ? "" : "text-muted-foreground"}`}>
-                    {cat.count}
-                  </span>
-                </div>
-                {cat.count > 0 && cat.topClaims.length > 0 && (
-                  <div className="mt-1 space-y-0.5">
-                    {cat.topClaims.map((c, i) => (
-                      <div key={i} className="text-[10px] opacity-75 flex justify-between">
-                        <span className="font-mono">{c.claimNumber}</span>
-                        <span>{fmt(c.amount, c.currency)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <EscalationRow key={cat.label} {...cat} />
             ))}
           </div>
         )}

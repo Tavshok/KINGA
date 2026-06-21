@@ -316,3 +316,13 @@
 - [ ] R-04: Record automation threshold in workflow_audit_trail.metadata at approval — future enhancement
 - [ ] R-06: Merge Recently Closed card into Processed Claims tab — future enhancement
 - [ ] Add KPI trend sparklines to compact KPI strip — future enhancement
+
+---
+
+## UI Redesign — Claims Manager & Executive Dashboards (June 2026)
+
+- [ ] Fix AttentionRequiredPanel tile layout — min-widths, label/value separation, no text wrapping mid-word
+- [ ] Fix ClaimsManagerCommandCentre section headers, spacing, panel hierarchy
+- [ ] Fix Reports Centre grid — remove text truncation, improve 2-column layout
+- [ ] Redesign ClaimsManagerDashboard tab arrangement — logical grouping, clear labels, consistent spacing
+- [ ] Redesign Executive Dashboard — layout rhythm, tab arrangement, typography hierarchy

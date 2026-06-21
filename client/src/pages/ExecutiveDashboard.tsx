@@ -580,16 +580,29 @@ export default function ExecutiveDashboard() {
           </div>
 
           {/* ── Tab 1: Overview ── */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-8">
 
-            {/* ── Row 1: Alerts Centre + Ageing Panel + Fraud Funnel ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              <ExecutiveAlertsCenter />
-              <ClaimsAgeingPanel />
-              <FraudInvestigationFunnel />
-            </div>
+            {/* ── Section A: Operational Pulse ── */}
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)', fontFamily: 'Inter, sans-serif' }}>Operational Pulse</h2>
+                <span className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Alerts · Ageing · Fraud</span>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <ExecutiveAlertsCenter />
+                <ClaimsAgeingPanel />
+                <FraudInvestigationFunnel />
+              </div>
+            </section>
 
-            {/* ── Month vs Prior Month Comparison Strip ── */}
+            {/* ── Section B: Period Comparison ── */}
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)', fontFamily: 'Inter, sans-serif' }}>Period Comparison</h2>
+                <span className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Month-on-month movement</span>
+              </div>
             <div
               className="rounded-xl p-4"
               style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
@@ -643,7 +656,15 @@ export default function ExecutiveDashboard() {
                 })}
               </div>
             </div>
+            </section>
 
+            {/* ── Section C: Performance Trends ── */}
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)', fontFamily: 'Inter, sans-serif' }}>Performance Trends</h2>
+                <span className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Savings · Risk distribution</span>
+              </div>
             {/* Chart row: Savings Trend + Fast-Track Analytics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card style={{ border: '1px solid var(--border)' }}>
@@ -715,7 +736,15 @@ export default function ExecutiveDashboard() {
                 </CardContent>
               </Card>
             </div>
+            </section>
 
+            {/* ── Section D: Search & Deep Analytics ── */}
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)', fontFamily: 'Inter, sans-serif' }}>Search & Deep Analytics</h2>
+                <span className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Global search · Fast-track analytics</span>
+              </div>
             {/* Global Search */}
             <Card style={{ border: '1px solid var(--border)' }}>
               <CardHeader>
@@ -765,15 +794,24 @@ export default function ExecutiveDashboard() {
             {/* Fast-Track Analytics */}
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>Fast-Track Analytics</h2>
+                <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)', fontFamily: 'Inter, sans-serif' }}>Fast-Track Analytics</h2>
                 <AnalyticsExportButton tenantId="default-tenant" variant="outline" size="sm" />
               </div>
               <ExecutiveAnalyticsCharts />
             </div>
+            </section>
           </TabsContent>
 
           {/* ── Tab 2: Operational Health ── */}
-          <TabsContent value="operational-health" className="space-y-6">
+          <TabsContent value="operational-health" className="space-y-8">
+
+            {/* ── Section A: Governance ── */}
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)', fontFamily: 'Inter, sans-serif' }}>Governance</h2>
+                <span className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Compliance indicators</span>
+              </div>
             {/* Governance Summary — executive-level KPI snapshot */}
             <Card style={{ border: '1px solid var(--border)' }}>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -815,6 +853,15 @@ export default function ExecutiveDashboard() {
               </CardContent>
             </Card>
 
+            </section>
+
+            {/* ── Section B: Workflow & Team Performance ── */}
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)', fontFamily: 'Inter, sans-serif' }}>Workflow & Team Performance</h2>
+                <span className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Bottlenecks · Assessors · Panel beaters</span>
+              </div>
             {/* Workflow Bottleneck */}
             <Card style={{ border: '1px solid var(--border)' }}>
               <CardHeader>
@@ -925,6 +972,7 @@ export default function ExecutiveDashboard() {
                 </CardContent>
               </Card>
             </div>
+            </section>
           </TabsContent>
 
           {/* ── Tab 3: ROI Breakdown ── */}
