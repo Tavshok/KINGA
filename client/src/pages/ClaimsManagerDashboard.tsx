@@ -50,6 +50,7 @@ import { WorkforceIntelligence } from "@/components/WorkforceIntelligence";
 import { RecoveryWatchlist } from "@/components/RecoveryWatchlist";
 import { SendBackAnalytics } from "@/components/SendBackAnalytics";
 import { ClaimsManagerReportsCentre } from "@/components/ClaimsManagerReportsCentre";
+import { EscalationCentre } from "@/components/EscalationCentre";
 import {
   DEMO_INTAKE_CLAIMS,
   DEMO_REVIEW_CLAIMS,
@@ -74,6 +75,7 @@ export default function ClaimsManagerDashboard() {
   const [closureAction, setClosureAction] = useState("approve_for_payment");
   const [sendBackComments, setSendBackComments] = useState("");
   const [sendBackTarget, setSendBackTarget] = useState("risk_manager");
+  const [sendBackReason, setSendBackReason] = useState("");
   const [escalationReason, setEscalationReason] = useState<"fraud_concern" | "high_value_dispute" | "policy_interpretation" | "third_party_dispute" | "legal_threat" | "other">("fraud_concern");
   const [escalationNotes, setEscalationNotes] = useState("");
   const [escalationTargetState, setEscalationTargetState] = useState<"disputed" | "manual_review">("manual_review");
@@ -487,25 +489,22 @@ export default function ClaimsManagerDashboard() {
 
           <>
           <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
-              {/* KPI Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {/* ── Command Centre: Row 6 — Compact KPI Strip (period context) ── */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/50">
                 {[
-                  { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? (dashboardStats as any)?.totalClaims ?? 0, icon: <ClipboardList className="h-4 w-4" />, color: 'text-blue-600' },
-                  { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? (dashboardStats as any)?.activeClaims ?? 0, icon: <Activity className="h-4 w-4" />, color: 'text-teal-600' },
-                  { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? (dashboardStats as any)?.completedThisMonth ?? 0, icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-600' },
-                  { label: 'Fraud Alerts', value: managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0, icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-600' },
-                  { label: 'Fast-Track', value: `${(dashboardStats as any)?.fastTrackEligible ?? 0}`, icon: <Shield className="h-4 w-4" />, color: 'text-orange-600' },
-                  { label: 'Avg Days', value: `${((dashboardStats as any)?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-4 w-4" />, color: 'text-purple-600' },
+                  { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? (dashboardStats as any)?.totalClaims ?? 0, icon: <ClipboardList className="h-3 w-3" />, color: 'text-blue-600' },
+                  { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? (dashboardStats as any)?.activeClaims ?? 0, icon: <Activity className="h-3 w-3" />, color: 'text-teal-600' },
+                  { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? (dashboardStats as any)?.completedThisMonth ?? 0, icon: <CheckCircle className="h-3 w-3" />, color: 'text-green-600' },
+                  { label: 'Fraud Alerts', value: managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0, icon: <AlertTriangle className="h-3 w-3" />, color: 'text-red-600' },
+                  { label: 'Fast-Track', value: `${(dashboardStats as any)?.fastTrackEligible ?? 0}`, icon: <Shield className="h-3 w-3" />, color: 'text-orange-600' },
+                  { label: 'Avg Days', value: `${((dashboardStats as any)?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-3 w-3" />, color: 'text-purple-600' },
                 ].map((kpi, i) => (
-                  <Card key={i} className="border-0 shadow-sm">
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`${kpi.color}`}>{kpi.icon}</span>
-                      </div>
-                      <p className="text-xl font-bold">{overviewLoading ? '…' : kpi.value}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{kpi.label}</p>
-                    </CardContent>
-                  </Card>
+                  <div key={i} className="flex items-center gap-1.5">
+                    <span className={kpi.color}>{kpi.icon}</span>
+                    <span className="text-sm font-bold">{overviewLoading ? '…' : kpi.value}</span>
+                    <span className="text-xs text-muted-foreground">{kpi.label}</span>
+                    {i < 5 && <span className="text-border ml-1">|</span>}
+                  </div>
                 ))}
               </div>
 
@@ -593,8 +592,11 @@ export default function ClaimsManagerDashboard() {
         {/* ── Command Centre: Row 1 — Queue Health Matrix ── */}
         <QueueHealthMatrix />
 
-        {/* ── Command Centre: Row 2 — Attention Required ── */}
-        <AttentionRequiredPanel />
+        {/* ── Command Centre: Row 2 — Attention Required + Escalation Centre ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <AttentionRequiredPanel />
+          <EscalationCentre />
+        </div>
 
         {/* ── Command Centre: Row 3 — Approval Workbench + Capacity Forecast ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -828,11 +830,25 @@ export default function ClaimsManagerDashboard() {
                           <Eye className="h-4 w-4 mr-2" />
                           Review Details
                         </Button>
-                        {/* Per-claim KINGA Assessment Report — scoped to this specific claim */}
+                        {/* Per-claim reports — Assessment, Audit Trail, Cost Comparison */}
                         <KingaReportButton
                           reportKey="claim.assessment"
                           params={{ claimId: claim.id }}
-                          label={`Report: ${claim.claimNumber ?? `#${claim.id}`}`}
+                          label="Assessment"
+                          size="sm"
+                          variant="outline"
+                        />
+                        <KingaReportButton
+                          reportKey="claim.audit_trail"
+                          params={{ claimId: claim.id }}
+                          label="Audit Trail"
+                          size="sm"
+                          variant="outline"
+                        />
+                        <KingaReportButton
+                          reportKey="claim.cost_comparison"
+                          params={{ claimId: claim.id }}
+                          label="Cost Compare"
                           size="sm"
                           variant="outline"
                         />
@@ -1091,6 +1107,24 @@ export default function ClaimsManagerDashboard() {
                   <SelectContent>
                     <SelectItem value="risk_manager">Risk Manager — For re-assessment</SelectItem>
                     <SelectItem value="claims_processor">Claims Processor — For additional information</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Reason for Return *</Label>
+                <Select value={sendBackReason} onValueChange={setSendBackReason}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a reason..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cost_variance">Cost Variance — Estimates require re-evaluation</SelectItem>
+                    <SelectItem value="missing_documentation">Missing Documentation — Supporting docs incomplete</SelectItem>
+                    <SelectItem value="policy_interpretation">Policy Interpretation — Coverage query requires clarification</SelectItem>
+                    <SelectItem value="fraud_indicator">Fraud Indicator — FCDI flag requires investigation</SelectItem>
+                    <SelectItem value="assessor_error">Assessor Error — Assessment methodology disputed</SelectItem>
+                    <SelectItem value="claimant_information">Claimant Information — Additional details required from claimant</SelectItem>
+                    <SelectItem value="other">Other — See comments</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

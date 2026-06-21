@@ -261,7 +261,7 @@
 - [x] D-02: Implement claims.escalateClaim procedure (escalation ≠ send-back)
 - [x] D-02: Build EscalateClaimDialog component
 - [x] D-02: Wire Escalate button in Fraud Alerts tab to EscalateClaimDialog
-- [ ] Phase 1 vitest tests for closeForProcessing and escalateClaim
+- [x] Phase 1 vitest tests for closeForProcessing and escalateClaim
 
 ---
 
@@ -273,13 +273,13 @@
 - [x] F-05/M-06: Implement claims.getCapacityForecast procedure
 - [x] F-01: Build QueueHealthMatrix component (Row 1)
 - [x] F-02: Build AttentionRequiredWidget component (Row 2 left)
-- [ ] F-03: Build EscalationCentre component (Row 2 right) — deferred to next sprint
+- [x] F-03: Build EscalationCentre component (Row 2 right)
 - [x] F-04: Build ApprovalWorkbench component (Row 3 left)
 - [x] F-05: Build CapacityForecast component (Row 3 right)
-- [ ] R-01: Demote KPI cards to compact Row 6 strip — deferred to next sprint
-- [ ] F-08: Add Fleet Approvals to sidebar navigation — deferred to next sprint
+- [x] R-01: Demote KPI cards to compact horizontal strip
+- [x] F-08: Add Fleet Approvals to sidebar navigation
 - [x] Phase 2: Integrate all new components into ClaimsManagerDashboard layout
-- [ ] Phase 2 vitest tests for all four new procedures
+- [x] Phase 2 vitest tests for all four new procedures
 
 ---
 
@@ -290,11 +290,11 @@
 - [x] M-01: Build WorkforceIntelligence component (Row 4) — Processor + Assessor + Workload panels
 - [x] M-03: Build RecoveryWatchlist component
 - [x] M-03: Replace Recovery KPI row with RecoveryWatchlist
-- [ ] M-04: Add Operational Fraud Queue tiles to Fraud Alerts tab — deferred to next sprint
+- [ ] M-04: Add Operational Fraud Queue tiles to Fraud Alerts tab — backlog
 - [x] M-05: Add ClaimsManagerReportsCentre (13 authorised reports surfaced)
-- [ ] M-05: Add per-claim report buttons to Review Queue tab row actions — deferred to next sprint
-- [ ] M-02: Add structured sendBackReason enum to send-back dialog + store in metadata — deferred
-- [ ] Phase 3 vitest tests
+- [x] M-05: Add per-claim report buttons to Review Queue tab (assessment, audit trail, cost comparison)
+- [x] M-02: Add structured sendBackReason enum to send-back dialog (7 categories)
+- [x] Phase 3 vitest tests (getSendBackAnalytics, recovery.getWatchlist)
 
 ---
 
@@ -302,7 +302,7 @@
 
 - [x] R-03: Implement claims.reopenClaim procedure (closed → disputed)
 - [x] R-03: Add Reopen action to Processed Claims tab with Reopen Claim dialog
-- [ ] R-04: Record automation threshold in workflow_audit_trail.metadata at approval — deferred
-- [ ] R-05: Validate targetRole against WORKFLOW_TRANSITIONS in sendBackClaim procedure — deferred
-- [ ] R-06: Merge Recently Closed card into Processed Claims tab (remove redundant card) — deferred
-- [ ] Add KPI trend sparklines to compact KPI strip — deferred
+- [ ] R-04: Record automation threshold in workflow_audit_trail.metadata at approval — backlog
+- [ ] R-05: Validate targetRole against WORKFLOW_TRANSITIONS in sendBackClaim procedure — backlog
+- [ ] R-06: Merge Recently Closed card into Processed Claims tab — backlog
+- [ ] Add KPI trend sparklines to compact KPI strip — backlog

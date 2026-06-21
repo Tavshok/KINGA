@@ -36,6 +36,7 @@ import {
   Send,
   Gavel,
   Archive,
+  Truck,
 } from "lucide-react";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
@@ -69,6 +70,7 @@ const navByRole: Record<string, NavSection[]> = {
         { label: "Active Claims", description: "Claims in progress", href: "/insurer-portal/claims-manager?tab=active", icon: Activity },
         { label: "Review Queue", description: "Ready for final review", href: "/insurer-portal/claims-manager?tab=review", icon: CheckSquare },
         { label: "Processed Claims", description: "Closed and settled history", href: "/insurer-portal/claims-manager?tab=processed", icon: BookOpen },
+        { label: "Fleet Approvals", description: "Fleet manager approval requests", href: "/insurer-portal/claims-manager?tab=fleet-approvals", icon: Truck },
       ],
     },
     {
