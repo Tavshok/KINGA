@@ -251,3 +251,58 @@
 - "NHTSA Vehicle Structural Intelligence Integration" — done
 - "Vehicle Structural Intelligence — COMPLETED" — done
 - "ML Production Implementation (Phase 1–4)" — partially done; remaining items moved to ML section above
+
+---
+
+## Claims Manager Portal Realignment — Phase 1: Production Defect Fixes
+
+- [x] D-01: Implement claims.closeForProcessing procedure (replaces incorrect approveClaim usage)
+- [x] D-01: Update CloseForProcessingDialog to call new procedure + capture closureReason
+- [x] D-02: Implement claims.escalateClaim procedure (escalation ≠ send-back)
+- [x] D-02: Build EscalateClaimDialog component
+- [x] D-02: Wire Escalate button in Fraud Alerts tab to EscalateClaimDialog
+- [ ] Phase 1 vitest tests for closeForProcessing and escalateClaim
+
+---
+
+## Claims Manager Portal Realignment — Phase 2: Operational Command Centre
+
+- [x] F-01/F-06/F-07: Implement claims.getQueueHealthMatrix procedure
+- [x] F-02: Implement claims.getAttentionRequired procedure
+- [x] F-04: Implement claims.getApprovalWorkbenchMetrics procedure
+- [x] F-05/M-06: Implement claims.getCapacityForecast procedure
+- [x] F-01: Build QueueHealthMatrix component (Row 1)
+- [x] F-02: Build AttentionRequiredWidget component (Row 2 left)
+- [ ] F-03: Build EscalationCentre component (Row 2 right) — deferred to next sprint
+- [x] F-04: Build ApprovalWorkbench component (Row 3 left)
+- [x] F-05: Build CapacityForecast component (Row 3 right)
+- [ ] R-01: Demote KPI cards to compact Row 6 strip — deferred to next sprint
+- [ ] F-08: Add Fleet Approvals to sidebar navigation — deferred to next sprint
+- [x] Phase 2: Integrate all new components into ClaimsManagerDashboard layout
+- [ ] Phase 2 vitest tests for all four new procedures
+
+---
+
+## Claims Manager Portal Realignment — Phase 3: Management Intelligence
+
+- [x] M-02: Implement workflowAnalytics.getSendBackAnalytics procedure
+- [x] M-03: Implement recovery.getWatchlist procedure
+- [x] M-01: Build WorkforceIntelligence component (Row 4) — Processor + Assessor + Workload panels
+- [x] M-03: Build RecoveryWatchlist component
+- [x] M-03: Replace Recovery KPI row with RecoveryWatchlist
+- [ ] M-04: Add Operational Fraud Queue tiles to Fraud Alerts tab — deferred to next sprint
+- [x] M-05: Add ClaimsManagerReportsCentre (13 authorised reports surfaced)
+- [ ] M-05: Add per-claim report buttons to Review Queue tab row actions — deferred to next sprint
+- [ ] M-02: Add structured sendBackReason enum to send-back dialog + store in metadata — deferred
+- [ ] Phase 3 vitest tests
+
+---
+
+## Claims Manager Portal Realignment — Phase 4: Refinements
+
+- [x] R-03: Implement claims.reopenClaim procedure (closed → disputed)
+- [x] R-03: Add Reopen action to Processed Claims tab with Reopen Claim dialog
+- [ ] R-04: Record automation threshold in workflow_audit_trail.metadata at approval — deferred
+- [ ] R-05: Validate targetRole against WORKFLOW_TRANSITIONS in sendBackClaim procedure — deferred
+- [ ] R-06: Merge Recently Closed card into Processed Claims tab (remove redundant card) — deferred
+- [ ] Add KPI trend sparklines to compact KPI strip — deferred

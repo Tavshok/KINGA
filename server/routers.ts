@@ -23,6 +23,7 @@ import { workflowAuditRouter } from "./routers/workflow-audit";
 import { workflowAnalyticsRouter } from "./routers/workflow-analytics";
 import { complianceRouter } from "./routers/compliance";
 import { claimReplayRouter } from "./routers/claim-replay";
+import { claimsManagerRouter } from "./routers/claims-manager";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
@@ -297,6 +298,7 @@ export const appRouter = router({
   workflowAudit: workflowAuditRouter,
   workflowAnalytics: workflowAnalyticsRouter,
   compliance: complianceRouter,
+  claimsManager: claimsManagerRouter,
   monetization: monetizationRouter,
   operationalHealth: operationalHealthRouter,
   platformObservability: platformObservabilityRouter,
@@ -3252,6 +3254,195 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         console.log(`[SendBack] Claim ${claim.claimNumber} sent back from ${fromState} → ${toState} by user ${ctx.user.id}`);
         return { success: true, fromState, toState };
+      }),
+
+    /**
+     * Close for Processing
+     *
+     * Governs the closure of a claim from payment_authorized/repair_assigned state to closed.
+     * This is a distinct governance action from technical approval.
+     * Creates a claim_closed audit entry (not claim_approved).
+     *
+     * @requires claims_manager, executive, or insurer_admin role
+     */
+    closeForProcessing: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        closureReason: z.string().min(10, "Closure reason must be at least 10 characters."),
+        finalApprovedAmount: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const userRole = (ctx.user as any).insurerRole || ctx.user.role;
+        const allowedRoles = ["claims_manager", "insurer_admin", "executive"];
+        if (!allowedRoles.includes(userRole)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers can close claims for processing." });
+        }
+        const tenantId = (ctx.user as any).tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+        const { transition } = await import("./workflow-engine");
+        const { statusToWorkflowState } = await import("./workflow-migration");
+        const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
+        const validFromStates = ["payment_authorized", "repair_assigned", "technical_approval", "financial_decision"];
+        if (!validFromStates.includes(fromState)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Cannot close a claim in state '${fromState}'. Claim must be in payment_authorized or repair_assigned state.`,
+          });
+        }
+        await transition({
+          claimId: input.claimId,
+          fromState: fromState as any,
+          toState: "closed" as any,
+          userId: ctx.user.id,
+          userRole: userRole as any,
+          decisionData: {
+            comments: `CLOSED FOR PROCESSING: ${input.closureReason}`,
+            ...(input.finalApprovedAmount ? { approvedAmount: input.finalApprovedAmount } : {}),
+          },
+        });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+        const updateData: any = { updatedAt: new Date() };
+        if (input.finalApprovedAmount) updateData.totalClaimAmount = input.finalApprovedAmount;
+        await db.update(claims).set(updateData).where(eq(claims.id, input.claimId));
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "claim_closed",
+          entityType: "claim",
+          entityId: input.claimId,
+          changeDescription: `Claim closed for processing by ${userRole}. Reason: ${input.closureReason}${input.finalApprovedAmount ? `. Final approved amount: $${(input.finalApprovedAmount / 100).toFixed(2)}` : ""}.`,
+        });
+        console.log(`[CloseForProcessing] Claim ${claim.claimNumber} closed by user ${ctx.user.id} (${userRole}) from state ${fromState}`);
+        return { success: true, claimId: input.claimId, newState: "closed" };
+      }),
+
+    /**
+     * Escalate Claim
+     *
+     * Escalates a claim to disputed or manual_review state.
+     * This is a distinct governance action from send-back.
+     * Creates a claim_escalated audit entry and notifies the Risk Manager.
+     *
+     * @requires claims_manager, executive, or insurer_admin role
+     */
+    escalateClaim: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        escalationReason: z.enum([
+          "fraud_concern",
+          "high_value_dispute",
+          "policy_interpretation",
+          "third_party_dispute",
+          "legal_threat",
+          "other",
+        ]),
+        escalationNotes: z.string().min(10, "Escalation notes must be at least 10 characters."),
+        targetState: z.enum(["disputed", "manual_review"]).default("manual_review"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const userRole = (ctx.user as any).insurerRole || ctx.user.role;
+        const allowedRoles = ["claims_manager", "insurer_admin", "executive"];
+        if (!allowedRoles.includes(userRole)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers can escalate claims." });
+        }
+        const tenantId = (ctx.user as any).tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+        const { transition } = await import("./workflow-engine");
+        const { statusToWorkflowState } = await import("./workflow-migration");
+        const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
+        const terminalStates = ["closed", "rejected", "archived"];
+        if (terminalStates.includes(fromState)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Cannot escalate a claim in terminal state '${fromState}'.`,
+          });
+        }
+        await transition({
+          claimId: input.claimId,
+          fromState: fromState as any,
+          toState: input.targetState as any,
+          userId: ctx.user.id,
+          userRole: userRole as any,
+          decisionData: {
+            comments: `ESCALATED: ${input.escalationReason.replace(/_/g, " ").toUpperCase()} — ${input.escalationNotes}`,
+          },
+        });
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "claim_escalated",
+          entityType: "claim",
+          entityId: input.claimId,
+          changeDescription: `Claim escalated to ${input.targetState} by ${userRole}. Reason: ${input.escalationReason}. Notes: ${input.escalationNotes}. Previous state: ${fromState}.`,
+        });
+        const { notifyOwner } = await import("./_core/notification");
+        await notifyOwner({
+          title: `Claim Escalated: ${claim.claimNumber}`,
+          content: `Claim ${claim.claimNumber} has been escalated to ${input.targetState} by a Claims Manager.\nReason: ${input.escalationReason.replace(/_/g, " ")}\nNotes: ${input.escalationNotes}`,
+        }).catch(() => { /* non-blocking */ });
+        console.log(`[Escalate] Claim ${claim.claimNumber} escalated from ${fromState} → ${input.targetState} by user ${ctx.user.id}`);
+        return { success: true, claimId: input.claimId, fromState, newState: input.targetState };
+      }),
+
+    /**
+     * Reopen Claim
+     *
+     * Transitions a closed claim to disputed state when new information emerges
+     * or the claimant raises a formal dispute. Uses the workflow engine transition
+     * closed → disputed which is already defined in WORKFLOW_TRANSITIONS.
+     *
+     * @requires claims_manager, executive, or insurer_admin role
+     */
+    reopenClaim: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        reason: z.string().min(10, "A reason for reopening the claim is required (min 10 characters)."),
+        disputeType: z.enum(["new_evidence", "claimant_dispute", "insurer_error", "legal_requirement", "other"]).default("claimant_dispute"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const userRole = (ctx.user as any).insurerRole || ctx.user.role;
+        const allowedRoles = ["claims_manager", "insurer_admin", "executive"];
+        if (!allowedRoles.includes(userRole)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers can reopen claims." });
+        }
+        const tenantId = (ctx.user as any).tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+        const { transition } = await import("./workflow-engine");
+        const { statusToWorkflowState } = await import("./workflow-migration");
+        const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
+        if (fromState !== "closed") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Only closed claims can be reopened. This claim is in state '${fromState}'.`,
+          });
+        }
+        await transition({
+          claimId: input.claimId,
+          fromState: "closed" as any,
+          toState: "disputed" as any,
+          userId: ctx.user.id,
+          userRole: userRole as any,
+          decisionData: {
+            comments: `REOPENED: ${input.disputeType.replace(/_/g, " ").toUpperCase()} — ${input.reason}`,
+          },
+        });
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "claim_reopened",
+          entityType: "claim",
+          entityId: input.claimId,
+          changeDescription: `Claim reopened from closed to disputed by ${userRole}. Dispute type: ${input.disputeType}. Reason: ${input.reason}.`,
+        });
+        console.log(`[Reopen] Claim ${claim.claimNumber} reopened from closed → disputed by user ${ctx.user.id}`);
+        return { success: true, claimId: input.claimId, fromState: "closed", newState: "disputed" };
       }),
 
     // Financial approval for high-value claims
@@ -9147,6 +9338,74 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         const fileKey = `recovery-correspondence/${tenantId}/case-${input.caseId}-log-${Date.now()}.pdf`;
         const { url } = await storagePut(fileKey, pdfBuffer, 'application/pdf');
         return { downloadUrl: url };
+      }),
+
+    /**
+     * Recovery Watchlist
+     *
+     * Returns four actionable recovery categories for the Claims Manager.
+     * Source: recovery_cases table. Zero schema changes required.
+     */
+    getWatchlist: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const user = ctx.user;
+        const tenantId = (user as any).tenantId;
+        const allowedRoles = ['recovery_officer', 'claims_manager', 'executive', 'insurer_admin'];
+        if (!allowedRoles.includes((user as any).insurerRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Recovery module access denied' });
+        }
+        const rows = await db
+          .select()
+          .from(recoveryCases)
+          .where(eq(recoveryCases.tenantId, tenantId))
+          .orderBy(desc(recoveryCases.recoveryPotentialScore));
+
+        const today = new Date().toISOString().split('T')[0];
+        const in90Days = new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0];
+        const highValueThreshold = 2500000;
+
+        const recoveryEligible = rows.filter(r =>
+          ['open', 'pending_review'].includes(r.status) && r.recoveryPotentialScore >= 60
+        );
+        const demandOutstanding = rows.filter(r =>
+          r.status === 'demand_sent' && !r.settlementAgreementDate
+        );
+        const deadlineApproaching = rows.filter(r =>
+          r.recoveryDeadline && r.recoveryDeadline >= today && r.recoveryDeadline <= in90Days &&
+          !['settled_full', 'settled_partial', 'closed_no_recovery', 'archived'].includes(r.status)
+        );
+        const highValueRecoveries = rows.filter(r =>
+          (r.approvedSettlementAmount ?? 0) > highValueThreshold &&
+          !['settled_full', 'settled_partial', 'closed_no_recovery', 'archived'].includes(r.status)
+        );
+
+        const summariseCase = (arr: typeof rows) => ({
+          count: arr.length,
+          totalAmount: arr.reduce((sum, r) => sum + (r.approvedSettlementAmount ?? 0), 0),
+          topCases: arr.slice(0, 3).map(r => ({
+            id: r.id,
+            thirdPartyName: r.thirdPartyName,
+            thirdPartyInsurer: r.thirdPartyInsurer,
+            status: r.status,
+            recoveryPotentialScore: r.recoveryPotentialScore,
+            recoveryDeadline: r.recoveryDeadline,
+          })),
+        });
+
+        return {
+          recoveryEligible: summariseCase(recoveryEligible),
+          demandOutstanding: summariseCase(demandOutstanding),
+          deadlineApproaching: summariseCase(deadlineApproaching),
+          highValueRecoveries: summariseCase(highValueRecoveries),
+          totalWatchlistItems: new Set([
+            ...recoveryEligible.map(r => r.id),
+            ...demandOutstanding.map(r => r.id),
+            ...deadlineApproaching.map(r => r.id),
+            ...highValueRecoveries.map(r => r.id),
+          ]).size,
+        };
       }),
   }),
 });

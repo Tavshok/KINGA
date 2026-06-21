@@ -42,6 +42,14 @@ import {
 import { Doughnut, Bar, Line } from "react-chartjs-2";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
+import { QueueHealthMatrix } from "@/components/QueueHealthMatrix";
+import { AttentionRequiredPanel } from "@/components/AttentionRequiredPanel";
+import { ApprovalWorkbench } from "@/components/ApprovalWorkbench";
+import { CapacityForecast } from "@/components/CapacityForecast";
+import { WorkforceIntelligence } from "@/components/WorkforceIntelligence";
+import { RecoveryWatchlist } from "@/components/RecoveryWatchlist";
+import { SendBackAnalytics } from "@/components/SendBackAnalytics";
+import { ClaimsManagerReportsCentre } from "@/components/ClaimsManagerReportsCentre";
 import {
   DEMO_INTAKE_CLAIMS,
   DEMO_REVIEW_CLAIMS,
@@ -58,10 +66,17 @@ export default function ClaimsManagerDashboard() {
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [showSendBackDialog, setShowSendBackDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showEscalateDialog, setShowEscalateDialog] = useState(false);
+  const [showReopenDialog, setShowReopenDialog] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
+  const [reopenDisputeType, setReopenDisputeType] = useState<"new_evidence" | "claimant_dispute" | "insurer_error" | "legal_requirement" | "other">("claimant_dispute");
   const [closureNotes, setClosureNotes] = useState("");
   const [closureAction, setClosureAction] = useState("approve_for_payment");
   const [sendBackComments, setSendBackComments] = useState("");
   const [sendBackTarget, setSendBackTarget] = useState("risk_manager");
+  const [escalationReason, setEscalationReason] = useState<"fraud_concern" | "high_value_dispute" | "policy_interpretation" | "third_party_dispute" | "legal_threat" | "other">("fraud_concern");
+  const [escalationNotes, setEscalationNotes] = useState("");
+  const [escalationTargetState, setEscalationTargetState] = useState<"disputed" | "manual_review">("manual_review");
   const [comparisonData, setComparisonData] = useState<any>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   
@@ -248,8 +263,8 @@ export default function ClaimsManagerDashboard() {
     setCurrentPage(1);
   }, [riskFilter, dateFilter, costFilter]);
 
-  // Close for processing mutation
-  const closeForProcessing = trpc.claims.approveClaim.useMutation({
+  // Close for processing mutation — wired to dedicated closeForProcessing procedure
+  const closeForProcessing = trpc.claims.closeForProcessing.useMutation({
     onSuccess: () => {
       toast.success("Claim Closed for Processing", {
         description: "Claim has been reviewed and closed for onward processing.",
@@ -265,6 +280,23 @@ export default function ClaimsManagerDashboard() {
     },
   });
 
+  // Escalate claim mutation — wired to dedicated escalateClaim procedure (distinct from send-back)
+  const escalateClaimMutation = trpc.claims.escalateClaim.useMutation({
+    onSuccess: () => {
+      toast.success("Claim Escalated", {
+        description: `Claim has been escalated to ${escalationTargetState === "disputed" ? "Disputed" : "Manual Review"}.`,
+      });
+      setShowEscalateDialog(false);
+      setSelectedClaim(null);
+      setEscalationNotes("");
+      setEscalationReason("fraud_concern");
+      refetchQueue();
+      refetchAssessed();
+    },
+    onError: (error: any) => {
+      toast.error("Escalation Failed", { description: error.message });
+    },
+  });
   // Send back mutation — wired to dedicated sendBackClaim procedure (uses WorkflowEngine)
   const sendBackClaim = trpc.claims.sendBackClaim.useMutation({
     onSuccess: () => {
@@ -279,6 +311,24 @@ export default function ClaimsManagerDashboard() {
     },
     onError: (error: any) => {
       toast.error("Error", { description: error.message });
+    },
+  });
+
+  // Reopen Claim mutation — wired to dedicated reopenClaim procedure (closed → disputed)
+  const reopenClaimMutation = trpc.claims.reopenClaim.useMutation({
+    onSuccess: () => {
+      toast.success("Claim Reopened", {
+        description: "Claim has been reopened and moved to Disputed status for further review.",
+      });
+      setShowReopenDialog(false);
+      setSelectedClaim(null);
+      setReopenReason("");
+      setReopenDisputeType("claimant_dispute");
+      refetchQueue();
+      refetchAssessed();
+    },
+    onError: (error: any) => {
+      toast.error("Reopen Failed", { description: error.message });
     },
   });
 
@@ -304,6 +354,11 @@ export default function ClaimsManagerDashboard() {
     setShowDetailsDialog(true);
   };
 
+  const handleReopen = (claim: any) => {
+    setSelectedClaim(claim);
+    setShowReopenDialog(true);
+  };
+
   const handleSubmitClosure = async () => {
     if (!selectedClaim) return;
 
@@ -314,7 +369,10 @@ export default function ClaimsManagerDashboard() {
       });
     }
 
-    closeForProcessing.mutate({ claimId: selectedClaim.id, selectedQuoteId: 0 });
+    closeForProcessing.mutate({
+      claimId: selectedClaim.id,
+      closureReason: closureNotes || `Claim closed for processing — action: ${closureAction}`,
+    });
   };
 
   const handleSubmitSendBack = async () => {
@@ -451,29 +509,7 @@ export default function ClaimsManagerDashboard() {
                 ))}
               </div>
 
-              {/* Recovery KPI Row — shown when recovery data is available */}
-              {recoveryKPIs && (
-                <div className="mt-3 p-3 rounded-lg bg-teal-500/5 border border-teal-500/20">
-                  <p className="text-xs font-semibold text-teal-600 mb-2 uppercase tracking-wide">Subrogation Recovery</p>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    {[
-                      { label: 'Open Cases', value: recoveryKPIs.open + recoveryKPIs.pendingReview, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-teal-600' },
-                      { label: 'Demand Sent', value: recoveryKPIs.demandSent, icon: <TrendingUp className="h-3.5 w-3.5" />, color: 'text-violet-600' },
-                      { label: 'Settled', value: recoveryKPIs.settled, icon: <CheckCircle className="h-3.5 w-3.5" />, color: 'text-green-600' },
-                      { label: 'Recovery Rate', value: `${recoveryKPIs.recoveryRate}%`, icon: <DollarSign className="h-3.5 w-3.5" />, color: 'text-emerald-600' },
-                      { label: 'Deadline Alerts', value: recoveryKPIs.approachingDeadlines, icon: <AlertTriangle className="h-3.5 w-3.5" />, color: recoveryKPIs.approachingDeadlines > 0 ? 'text-amber-600' : 'text-slate-400' },
-                    ].map((kpi, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className={kpi.color}>{kpi.icon}</span>
-                        <div>
-                          <p className="text-base font-bold leading-none">{kpi.value}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{kpi.label}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Recovery KPI Row removed — replaced by RecoveryWatchlist in Phase 3 command centre rows */}
               {/* Charts Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Status Donut */}
@@ -553,6 +589,32 @@ export default function ClaimsManagerDashboard() {
               </div>
           </>
         </div>
+
+        {/* ── Command Centre: Row 1 — Queue Health Matrix ── */}
+        <QueueHealthMatrix />
+
+        {/* ── Command Centre: Row 2 — Attention Required ── */}
+        <AttentionRequiredPanel />
+
+        {/* ── Command Centre: Row 3 — Approval Workbench + Capacity Forecast ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ApprovalWorkbench />
+          <CapacityForecast />
+        </div>
+
+        {/* ── Command Centre: Row 4 — Workforce Intelligence ── */}
+        <WorkforceIntelligence />
+
+        {/* ── Command Centre: Row 5 — Recovery Watchlist + Send-Back Analytics ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2">
+            <RecoveryWatchlist />
+          </div>
+          <SendBackAnalytics />
+        </div>
+
+        {/* ── Reports Centre ── */}
+        <ClaimsManagerReportsCentre />
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -1068,12 +1130,154 @@ export default function ClaimsManagerDashboard() {
           </DialogContent>
         </Dialog>
 
+        {/* Escalate Claim Dialog */}
+        <Dialog open={showEscalateDialog} onOpenChange={setShowEscalateDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                Escalate Claim
+              </DialogTitle>
+              <DialogDescription>
+                {selectedClaim && `Claim: ${selectedClaim.claimNumber} — ${selectedClaim.vehicleRegistration ?? ""}`}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Escalation Reason</Label>
+                <Select value={escalationReason} onValueChange={(v: any) => setEscalationReason(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fraud_concern">Fraud Concern</SelectItem>
+                    <SelectItem value="high_value_dispute">High Value Dispute</SelectItem>
+                    <SelectItem value="policy_interpretation">Policy Interpretation Issue</SelectItem>
+                    <SelectItem value="third_party_dispute">Third Party Dispute</SelectItem>
+                    <SelectItem value="legal_threat">Legal Threat</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Target State</Label>
+                <Select value={escalationTargetState} onValueChange={(v: any) => setEscalationTargetState(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual_review">Manual Review (Risk Manager)</SelectItem>
+                    <SelectItem value="disputed">Disputed (Formal Dispute)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="escalationNotes">Escalation Notes <span className="text-red-500">*</span></Label>
+                <Textarea
+                  id="escalationNotes"
+                  value={escalationNotes}
+                  onChange={(e) => setEscalationNotes(e.target.value)}
+                  placeholder="Describe the reason for escalation in detail (minimum 10 characters)..."
+                  rows={4}
+                />
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded">
+                <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                <p className="text-sm text-red-700 dark:text-red-300">
+                  This claim will be escalated to <strong>{escalationTargetState === "disputed" ? "Disputed" : "Manual Review"}</strong>. An audit entry will be created and the Risk Manager will be notified.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEscalateDialog(false)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (!selectedClaim || escalationNotes.length < 10) {
+                    toast.error("Please provide escalation notes (minimum 10 characters).");
+                    return;
+                  }
+                  escalateClaimMutation.mutate({
+                    claimId: selectedClaim.id,
+                    escalationReason,
+                    escalationNotes,
+                    targetState: escalationTargetState,
+                  });
+                }}
+                disabled={escalateClaimMutation.isPending}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {escalateClaimMutation.isPending ? "Escalating..." : "Escalate Claim"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Comprehensive Review Dialog */}
         <ClaimReviewDialog
           claimId={selectedClaim?.id || null}
           open={showReviewDialog}
           onOpenChange={setShowReviewDialog}
         />
+
+        {/* Reopen Claim Dialog */}
+        <Dialog open={showReopenDialog} onOpenChange={setShowReopenDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5 text-orange-500" />
+                Reopen Claim
+              </DialogTitle>
+              <DialogDescription>
+                Reopen <strong>{selectedClaim?.claimNumber ?? `Claim #${selectedClaim?.id}`}</strong> and move it to Disputed status for further review.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Dispute Type</Label>
+                <Select value={reopenDisputeType} onValueChange={(v) => setReopenDisputeType(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="claimant_dispute">Claimant Dispute</SelectItem>
+                    <SelectItem value="new_evidence">New Evidence</SelectItem>
+                    <SelectItem value="insurer_error">Insurer Error</SelectItem>
+                    <SelectItem value="legal_requirement">Legal Requirement</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Reason for Reopening *</Label>
+                <Textarea
+                  placeholder="Describe the reason for reopening this claim (min 10 characters)..."
+                  value={reopenReason}
+                  onChange={(e) => setReopenReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-sm text-orange-700 dark:text-orange-300">
+                <strong>Note:</strong> This claim will be moved from Closed to Disputed and re-enter the workflow for review by the Risk Manager.
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowReopenDialog(false)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (!selectedClaim || reopenReason.length < 10) {
+                    toast.error("Reason required", { description: "Please provide at least 10 characters explaining why this claim is being reopened." });
+                    return;
+                  }
+                  reopenClaimMutation.mutate({
+                    claimId: selectedClaim.id,
+                    reason: reopenReason,
+                    disputeType: reopenDisputeType,
+                  });
+                }}
+                disabled={reopenClaimMutation.isPending || reopenReason.length < 10}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {reopenClaimMutation.isPending ? "Reopening..." : "Reopen Claim"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
           </TabsContent>
 
           {/* ── Active Claims Tab ── */}
@@ -1233,8 +1437,8 @@ export default function ClaimsManagerDashboard() {
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleViewDetails(claim)}>
                             <Eye className="h-3 w-3 mr-1" />Review
                           </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-amber-600 border-amber-200" onClick={() => handleSendBack(claim)}>
-                            Escalate
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 border-red-200" onClick={() => { setSelectedClaim(claim); setShowEscalateDialog(true); }}>
+                            <AlertTriangle className="h-3 w-3 mr-1" />Escalate
                           </Button>
                         </div>
                       </div>
@@ -1322,9 +1526,16 @@ export default function ClaimsManagerDashboard() {
                             </td>
                             <td className="py-2 px-3 text-muted-foreground text-xs">{claim.updatedAt ? new Date(claim.updatedAt).toLocaleDateString() : "—"}</td>
                             <td className="py-2 px-3">
-                              <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleViewDetails(claim)}>
-                                <Eye className="h-3 w-3 mr-1" />View
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleViewDetails(claim)}>
+                                  <Eye className="h-3 w-3 mr-1" />View
+                                </Button>
+                                {(claim.status === "closed" || claim.workflowState === "closed") && (
+                                  <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => handleReopen(claim)}>
+                                    <RefreshCw className="h-3 w-3 mr-1" />Reopen
+                                  </Button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
