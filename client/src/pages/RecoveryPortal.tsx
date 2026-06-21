@@ -10,12 +10,12 @@ import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 // Maps each status card tab to the DB status value(s) used in getCases
 const STATUS_CARDS = [
-  { label: "Pending Review",       tab: "pending",           dbStatus: "pending_review",    icon: ClipboardList, color: "text-blue-400",    bg: "bg-blue-500/10",    description: "New cases awaiting officer assessment" },
-  { label: "Under Investigation",  tab: "investigation",     dbStatus: "under_investigation",icon: Search,        color: "text-amber-400",   bg: "bg-amber-500/10",   description: "Liability not yet determined" },
-  { label: "Open Cases",           tab: "open",              dbStatus: "open",               icon: Activity,      color: "text-teal-400",    bg: "bg-teal-500/10",    description: "Ready for demand action" },
+  { label: "Pending Review",       tab: "pending",           dbStatus: "pending_review",    icon: ClipboardList, color: "text-[#4878A8]",  bg: "bg-[#EEF4FB]",    description: "New cases awaiting officer assessment" },
+  { label: "Under Investigation",  tab: "investigation",     dbStatus: "under_investigation",icon: Search,        color: "text-[#8A5C00]",  bg: "bg-[#FFF8E6]",   description: "Liability not yet determined" },
+  { label: "Open Cases",           tab: "open",              dbStatus: "open",               icon: Activity,      color: "text-[#3C7844]",  bg: "bg-[#F0F7F2]",    description: "Ready for demand action" },
   { label: "Demand Sent",          tab: "demand-sent",       dbStatus: "demand_sent",        icon: Send,          color: "text-violet-400",  bg: "bg-violet-500/10",  description: "Awaiting third-party response" },
   { label: "Disputed / Legal",     tab: "legal",             dbStatus: "disputed_legal",     icon: Gavel,         color: "text-rose-400",    bg: "bg-rose-500/10",    description: "In dispute or referred to attorneys" },
-  { label: "Settled",              tab: "settled",           dbStatus: "settled_full",       icon: CheckSquare,   color: "text-emerald-400", bg: "bg-emerald-500/10", description: "Full or partial recovery achieved" },
+  { label: "Settled",              tab: "settled",           dbStatus: "settled_full",       icon: CheckSquare,   color: "text-[#3C7844]",  bg: "bg-[#F0F7F2]", description: "Full or partial recovery achieved" },
   { label: "Archived",             tab: "archived",          dbStatus: "archived",           icon: Archive,       color: "text-slate-400",   bg: "bg-slate-500/10",   description: "Low-RPS cases not actioned" },
 ];
 
@@ -26,10 +26,10 @@ function deadlineChip(deadline: string | null | undefined) {
   const today = new Date();
   const dl = new Date(deadline);
   const days = Math.round((dl.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (days < 0) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">OVERDUE</span>;
-  if (days <= 14) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">{days}d</span>;
-  if (days <= 60) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">{days}d</span>;
-  return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-teal-500/20 text-teal-400 border border-teal-500/30">{days}d</span>;
+  if (days < 0) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold border" style={{ background: "#FDF0F0", color: "#A32D2D", borderColor: "#E8B8B8" }}>OVERDUE</span>;
+  if (days <= 14) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold border" style={{ background: "#FDF0F0", color: "#A32D2D", borderColor: "#E8B8B8" }}>{days}d</span>;
+  if (days <= 60) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold border" style={{ background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" }}>{days}d</span>;
+  return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold border" style={{ background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" }}>{days}d</span>;
 }
 
 export default function RecoveryPortal() {
@@ -82,8 +82,8 @@ export default function RecoveryPortal() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-500/10">
-              <Scale className="h-6 w-6 text-emerald-400" />
+            <div className="p-2 rounded-lg" style={{ background: "#F0F7F2" }}>
+              <Scale className="h-6 w-6" style={{ color: "#3C7844" }} />
             </div>
             <div>
               <h1 className="text-xl font-semibold text-foreground">Recovery Dashboard</h1>
@@ -98,10 +98,10 @@ export default function RecoveryPortal() {
 
         {/* Recovery deadline warning banner */}
         {kpis && kpis.approachingDeadlines > 0 && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 flex gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="rounded-lg border p-4 flex gap-3" style={{ borderColor: "#E8C97A", background: "#FFF8E6" }}>
+            <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: "#8A5C00" }} />
             <div className="text-sm text-muted-foreground">
-              <span className="font-medium text-amber-400">
+              <span className="font-medium" style={{ color: "#8A5C00" }}>
                 {kpis.approachingDeadlines} case{kpis.approachingDeadlines > 1 ? "s" : ""} approaching recovery deadline
               </span>{" "}
               within 90 days. Review and action these cases to avoid losing recovery rights.
@@ -143,14 +143,14 @@ export default function RecoveryPortal() {
                 <CheckSquare className="h-3.5 w-3.5" />
                 Amount recovered
               </div>
-              <div className="text-xl font-bold text-emerald-400 mt-1">
+              <div className="text-xl font-bold mt-1" style={{ color: "#3C7844" }}>
                 {kpisLoading ? <span className="text-muted-foreground/30">—</span> : fmtCurrency(kpis?.totalRecovered ?? 0)}
               </div>
               <div className="text-sm font-medium text-muted-foreground mt-1">Total Recovered</div>
             </div>
 
             {/* Approaching Deadlines */}
-            <div className={`rounded-lg border p-4 ${kpis && kpis.approachingDeadlines > 0 ? "border-amber-500/30 bg-amber-500/5" : "border-border"}`}>
+            <div className={`rounded-lg border p-4 ${kpis && kpis.approachingDeadlines > 0 ? "border" : "border-border"}`}>
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <Clock className="h-3.5 w-3.5" />
                 Within 90 days

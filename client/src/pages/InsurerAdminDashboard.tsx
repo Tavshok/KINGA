@@ -44,10 +44,10 @@ import {
 // ─── Role display helpers ─────────────────────────────────────────────────────
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   executive:         { label: "Executive",          color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
-  claims_manager:    { label: "Claims Manager",     color: "bg-teal-100 text-teal-700 border-teal-200" },
-  claims_processor:  { label: "Claims Processor",   color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  claims_manager:    { label: "Claims Manager",     color: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
+  claims_processor:  { label: "Claims Processor",   color: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
   assessor_internal: { label: "Internal Assessor",  color: "bg-orange-100 text-orange-700 border-orange-200" },
-  risk_manager:      { label: "Risk Manager",       color: "bg-red-100 text-red-700 border-red-200" },
+  risk_manager:      { label: "Risk Manager",       color: "border", style: { background: "#FDF0F0", color: "#A32D2D", borderColor: "#E8B8B8" } },
   recovery_officer:  { label: "Recovery Officer",   color: "bg-lime-100 text-lime-700 border-lime-200" },
   insurer_admin:     { label: "Insurer Admin",      color: "bg-slate-100 text-slate-700 border-slate-200" },
 };
@@ -76,8 +76,8 @@ const QUICK_ACTIONS = [
     description: "Processing times, throughput, and bottlenecks",
     icon: BarChart3,
     href: "/insurer-portal/workflow-analytics",
-    color: "text-teal-600",
-    bg: "bg-teal-50",
+    color: "text-[#3C7844]",
+    bg: "bg-[#F0F7F2]",
   },
   {
     label: "Fraud Analytics",
@@ -92,16 +92,16 @@ const QUICK_ACTIONS = [
     description: "Generate and download all report types",
     icon: FileBarChart,
     href: "/insurer-portal/reports-centre",
-    color: "text-amber-600",
-    bg: "bg-amber-50",
+    color: "text-[#8A5C00]",
+    bg: "bg-[#FFF8E6]",
   },
   {
     label: "Claims Triage",
     description: "Review and action incoming claims",
     icon: ClipboardList,
     href: "/insurer/claims/triage",
-    color: "text-blue-600",
-    bg: "bg-blue-50",
+    color: "text-[#4878A8]",
+    bg: "bg-[#EEF4FB]",
   },
   {
     label: "Recovery Cases",
@@ -116,13 +116,13 @@ const QUICK_ACTIONS = [
 // ─── Status chip ──────────────────────────────────────────────────────────────
 function StatusChip({ status }: { status: string }) {
   const map: Record<string, string> = {
-    submitted:              "bg-blue-100 text-blue-700",
+    submitted:              "border text-[#4878A8] bg-[#EEF4FB] border-[#B8D0E8]",
     triage:                 "bg-yellow-100 text-yellow-700",
-    assessment_in_progress: "bg-amber-100 text-amber-700",
+    assessment_in_progress: "border text-[#8A5C00] bg-[#FFF8E6] border-[#E8C97A]",
     comparison:             "bg-violet-100 text-violet-700",
-    completed:              "bg-emerald-100 text-emerald-700",
+    completed:              "border text-[#3C7844] bg-[#F0F7F2] border-[#C8E0CE]",
     fraud_flagged:          "bg-rose-100 text-rose-700",
-    rejected:               "bg-red-100 text-red-700",
+    rejected:               "border text-[#A32D2D] bg-[#FDF0F0] border-[#E8B8B8]",
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${map[status] ?? "bg-slate-100 text-slate-600"}`}>
@@ -165,14 +165,14 @@ export default function InsurerAdminDashboard() {
       label: "Total Claims",
       value: kpiSummary?.totalClaims ?? "—",
       icon: ClipboardList,
-      color: "text-blue-600",
+      color: "text-[#4878A8]",
       sub: `${kpiSummary?.activeClaims ?? 0} active`,
     },
     {
       label: "Completion Rate",
       value: kpiSummary?.completionRate != null ? `${kpiSummary.completionRate}%` : "—",
       icon: CheckCircle2,
-      color: "text-green-600",
+      color: "text-[#3C7844]",
       sub: `${kpiSummary?.completedClaims ?? 0} completed`,
     },
     {
@@ -455,7 +455,7 @@ export default function InsurerAdminDashboard() {
                     const isDeactivation = !entry.newInsurerRole && entry.newRole === "user";
                     return (
                       <div key={entry.id} className="flex items-start gap-3 px-4 py-3">
-                        <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isDeactivation ? "bg-red-50" : "bg-teal-50"}`}>
+                        <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isDeactivation ? "bg-[#FDF0F0]" : "bg-[#F0F7F2]"}`}>
                           <UserCog className={`h-3.5 w-3.5 ${isDeactivation ? "text-red-500" : "text-teal-600"}`} />
                         </div>
                         <div className="flex-1 min-w-0">

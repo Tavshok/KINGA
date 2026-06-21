@@ -66,11 +66,11 @@ function formatDuration(ms: number): string {
 
 function statusBadge(status: string) {
   const map: Record<string, { label: string; className: string }> = {
-    submitted: { label: "Submitted", className: "bg-blue-100 text-blue-700 border-blue-200" },
-    in_review: { label: "In Review", className: "bg-amber-100 text-amber-700 border-amber-200" },
+    submitted: { label: "Submitted", className: "border", style: { background: "#EEF4FB", color: "#4878A8", borderColor: "#B8D0E8" } },
+    in_review: { label: "In Review", className: "border", style: { background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" } },
     ai_complete: { label: "KINGA Complete", className: "bg-purple-100 text-purple-700 border-purple-200" },
-    approved: { label: "Approved", className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-    rejected: { label: "Rejected", className: "bg-red-100 text-red-700 border-red-200" },
+    approved: { label: "Approved", className: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
+    rejected: { label: "Rejected", className: "border", style: { background: "#FDF0F0", color: "#A32D2D", borderColor: "#E8B8B8" } },
     completed: { label: "Completed", className: "bg-slate-100 text-slate-700 border-slate-200" },
     pending: { label: "Pending", className: "bg-gray-100 text-gray-600 border-gray-200" },
   };
@@ -216,8 +216,8 @@ export default function FleetManagerDashboard() {
     return (
       <div className="p-8 max-w-lg mx-auto">
         <div className="text-center py-12 space-y-5">
-          <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto">
-            <Clock className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: "#FFF8E6" }}>
+            <Clock className="h-8 w-8" style={{ color: "#8A5C00" }} />
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">Awaiting Approval</h2>
@@ -225,7 +225,7 @@ export default function FleetManagerDashboard() {
               Your fleet manager registration for <strong>{regStatus.request?.companyName}</strong> is pending review by a claims manager.
             </p>
           </div>
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-left space-y-2">
+          <div className="rounded-lg p-4 text-left space-y-2 border" style={{ background: "#FFF8E6", borderColor: "#E8C97A" }}>
             <p className="text-sm font-medium text-amber-800 dark:text-amber-300 flex items-center gap-2">
               <ShieldCheck className="h-4 w-4" />
               Request submitted {regStatus.request?.createdAt ? new Date(regStatus.request.createdAt).toLocaleDateString() : ""}
@@ -242,8 +242,8 @@ export default function FleetManagerDashboard() {
     return (
       <div className="p-8 max-w-lg mx-auto">
         <div className="text-center py-12 space-y-5">
-          <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto">
-            <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: "#FDF0F0" }}>
+            <XCircle className="h-8 w-8" style={{ color: "#A32D2D" }} />
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">Registration Rejected</h2>
@@ -252,12 +252,12 @@ export default function FleetManagerDashboard() {
             </p>
           </div>
           {regStatus.request?.reviewNotes && (
-            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-left">
+            <div className="rounded-lg p-4 text-left border" style={{ background: "#FDF0F0", borderColor: "#E8B8B8" }}>
               <p className="text-xs text-red-700 dark:text-red-400"><span className="font-medium">Reason: </span>{regStatus.request.reviewNotes}</p>
             </div>
           )}
           <Button
-            className="bg-emerald-600 hover:bg-emerald-700"
+            style={{ background: "#3C7844" }}
             onClick={() => (window.location.href = "/claimant/fleet-register")}
           >
             <Building2 className="mr-2 h-4 w-4" />
@@ -279,7 +279,7 @@ export default function FleetManagerDashboard() {
             You don't have a fleet account yet. To manage your company's vehicle claims, register as a fleet manager.
           </p>
           <Button
-            className="bg-emerald-600 hover:bg-emerald-700"
+            style={{ background: "#3C7844" }}
             onClick={() => (window.location.href = "/claimant/fleet-register")}
           >
             <Building2 className="mr-2 h-4 w-4" />
@@ -296,9 +296,9 @@ export default function FleetManagerDashboard() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Building2 className="h-5 w-5 text-emerald-600" />
+            <Building2 className="h-5 w-5" style={{ color: "#3C7844" }} />
             <h1 className="text-xl font-bold text-foreground">{primaryAccount.accountName}</h1>
-            <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+            <Badge variant="outline" className="text-xs border" style={{ color: "#3C7844", borderColor: "#C8E0CE" }}>
               Fleet Account
             </Badge>
           </div>
@@ -341,7 +341,7 @@ export default function FleetManagerDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
-              <Car className="h-4 w-4 text-blue-500" />
+              <Car className="h-4 w-4" style={{ color: "#4878A8" }} />
               <span className="text-xs text-muted-foreground">Total Claims</span>
             </div>
             <p className="text-2xl font-bold">{allClaims.length}</p>
@@ -350,25 +350,25 @@ export default function FleetManagerDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-amber-500" />
+              <Clock className="h-4 w-4" style={{ color: "#8A5C00" }} />
               <span className="text-xs text-muted-foreground">Active / In Progress</span>
             </div>
-            <p className="text-2xl font-bold text-amber-600">{activeClaims.length}</p>
+            <p className="text-2xl font-bold" style={{ color: "#8A5C00" }}>{activeClaims.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4" style={{ color: "#3C7844" }} />
               <span className="text-xs text-muted-foreground">Completed</span>
             </div>
-            <p className="text-2xl font-bold text-emerald-600">{completedClaims.length}</p>
+            <p className="text-2xl font-bold" style={{ color: "#3C7844" }}>{completedClaims.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
-              <Users className="h-4 w-4 text-purple-500" />
+              <Users className="h-4 w-4" style={{ color: "#4878A8" }} />
               <span className="text-xs text-muted-foreground">Unique Vehicles</span>
             </div>
             <p className="text-2xl font-bold">
@@ -426,13 +426,13 @@ export default function FleetManagerDashboard() {
               <TabsList className="h-9 bg-transparent p-0 gap-4">
                 <TabsTrigger
                   value="active"
-                  className="h-9 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:text-emerald-700 data-[state=active]:bg-transparent px-0 text-sm"
+                  className="h-9 rounded-none border-b-2 border-transparent data-[state=active]:border-[#3C7844] data-[state=active]:text-[#3C7844] data-[state=active]:bg-transparent px-0 text-sm"
                 >
                   Active ({activeClaims.length})
                 </TabsTrigger>
                 <TabsTrigger
                   value="completed"
-                  className="h-9 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:text-emerald-700 data-[state=active]:bg-transparent px-0 text-sm"
+                  className="h-9 rounded-none border-b-2 border-transparent data-[state=active]:border-[#3C7844] data-[state=active]:text-[#3C7844] data-[state=active]:bg-transparent px-0 text-sm"
                 >
                   Completed ({completedClaims.length})
                 </TabsTrigger>
@@ -569,7 +569,7 @@ export default function FleetManagerDashboard() {
       {/* Legend */}
       <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-amber-400" />
+          <div className="w-2 h-2 rounded-full" style={{ background: "#8A5C00" }} />
           Elapsed &gt;24h — monitor
         </div>
         <div className="flex items-center gap-1">

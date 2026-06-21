@@ -27,7 +27,7 @@ function PerformanceTierBadge({ tier }: { tier: string | null | undefined }) {
   const config: Record<string, { label: string; className: string }> = {
     A: { label: "Tier A — Excellent", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
     B: { label: "Tier B — Good", className: "bg-blue-100 text-blue-800 border-blue-200" },
-    C: { label: "Tier C — Average", className: "bg-amber-100 text-amber-800 border-amber-200" },
+    C: { label: "Tier C — Average", className: "border", style: { background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" } },
     D: { label: "Tier D — Needs Improvement", className: "bg-red-100 text-red-800 border-red-200" },
   };
   const t = tier || "B";
@@ -45,7 +45,7 @@ function StatusBadge({ status }: { status: string }) {
     submitted: "bg-blue-100 text-blue-800",
     approved: "bg-emerald-100 text-emerald-800",
     rejected: "bg-red-100 text-red-800",
-    pending: "bg-amber-100 text-amber-800",
+    pending: "border" /* amber */,
     comparison: "bg-purple-100 text-purple-800",
   };
   return (
@@ -90,17 +90,17 @@ export default function PanelBeaterDashboard() {
   const avgQualityScore = profile?.avgQualityScore ? parseFloat(String(profile.avgQualityScore)) : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white border-b sticky top-0 z-10" style={{ borderColor: "#E5E7EB" }}>
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <KingaLogo showText size="sm" />
             <Separator orientation="vertical" className="h-6" />
             <div>
-              <h1 className="text-sm font-semibold text-gray-900">Panel Beater Portal</h1>
+              <h1 className="text-sm font-semibold text-foreground">Panel Beater Portal</h1>
               {profile && (
-                <p className="text-xs text-gray-500">{profile.businessName}</p>
+                <p className="text-xs text-muted-foreground">{profile.businessName}</p>
               )}
             </div>
           </div>
@@ -114,8 +114,8 @@ export default function PanelBeaterDashboard() {
             <RoleSwitcher />
             <NotificationBell />
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-              <p className="text-xs text-gray-500 capitalize">Panel Beater</p>
+              <p className="text-sm font-medium text-foreground">{user?.name}</p>
+              <p className="text-xs text-muted-foreground capitalize">Panel Beater</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => logout()}>
               Sign Out
@@ -310,7 +310,7 @@ export default function PanelBeaterDashboard() {
               <FileText className="h-4 w-4" />
               Quote Queue
               {pendingRequests.length > 0 && (
-                <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500 text-white">
+                <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs text-white" style={{ background: "#A32D2D" }}>
                   {pendingRequests.length}
                 </Badge>
               )}

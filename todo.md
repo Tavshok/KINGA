@@ -344,3 +344,28 @@
 - [ ] Apply KingaPortalShell to remaining portals: Admin, Panel Beater, Claimant, Fleet Manager, Risk Manager, Recovery, Insurer Admin
 - [ ] Implement portal certification checklist (85% pass threshold per KINGA_Portal_Governance_Audit_v1.0.md)
 - [ ] Add keyboard arrow-key navigation to Claims Manager custom tab bar
+
+---
+
+## Brand Alignment Sprint — June 2026
+
+- [x] Build KingaPortalShell unified component (PortalHeader, PortalKPIStrip, PortalAlerts, PortalTabs, PortalContent)
+- [x] Rebuild Assessor Dashboard as full operational workspace (My Queue, Appointments, Performance tabs)
+- [x] Fix Claims Processor Dashboard — replace teal gradient header, foreign-colour stat cards, chart colours
+- [x] Fix Claims Manager Dashboard — brand-aligned header, KPI strip, tab bar, chart colours
+- [x] Fix Executive Dashboard — brand-aligned KPI cards, stat bar, tab bar, chart colours
+- [x] Fix DashboardLayout sidebar active state — KINGA forest green left-border indicator
+- [x] Fix ExecutiveAnalyticsCharts — all foreign colours replaced with KINGA brand palette
+- [x] Fix Admin Dashboard — remove gradient, fix emerald active buttons, fix KPI stat colours
+- [x] Fix Risk Manager Dashboard — replace foreign accent colour classes with brand hex values
+- [x] Fix Panel Beater Dashboard — fix page background, header text, tier badge colours
+- [x] Fix Fleet Manager Dashboard — fix KPI icon/value colours, status badges, tab active state, empty state icons
+- [x] Fix Claimant Dashboard — fix stepper colours, status badge classNames, header status pill
+- [x] Fix Recovery Portal — fix tab config colours, deadline badges, header icon, warning banner
+- [x] Fix Insurer Admin Dashboard — fix role badges, KPI card colours, claim status badges, activity icons
+- [x] Create KINGA Brand & Design System document (brand/KINGA_Brand_Design_System.md)
+- [x] Create KINGA Brand Reference HTML page (brand/KINGA_Brand_Reference.html)
+- [x] Create KINGA Portal Governance & Alignment Audit v1.0 (brand/KINGA_Portal_Governance_Audit_v1.0.md)
+- [ ] Apply portal certification checklist (85% pass threshold) to all 11 portals
+- [ ] Add keyboard arrow-key navigation to Claims Manager custom tab bar
+- [ ] Apply KingaPortalShell header component to Panel Beater, Claimant, and Fleet portals (currently use custom headers)

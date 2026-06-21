@@ -164,7 +164,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50">
+    <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
       {/* Header */}
       <header className="bg-white dark:bg-card border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
@@ -210,7 +210,7 @@ export default function AdminDashboard() {
               <AlertTriangle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{highRiskClaims}</div>
+              <div className="text-2xl font-bold" style={{ color: "#A32D2D" }}>{highRiskClaims}</div>
               <p className="text-xs text-muted-foreground">Fraud score &gt; 70</p>
             </CardContent>
           </Card>
@@ -221,7 +221,7 @@ export default function AdminDashboard() {
               <CheckCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{completedClaims}</div>
+              <div className="text-2xl font-bold" style={{ color: "#3C7844" }}>{completedClaims}</div>
               <p className="text-xs text-muted-foreground">Successfully processed</p>
             </CardContent>
           </Card>
@@ -257,7 +257,7 @@ export default function AdminDashboard() {
           <Button
             variant={selectedTab === "intelligence" ? "default" : "outline"}
             onClick={() => setSelectedTab("intelligence")}
-            className={selectedTab === "intelligence" ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+            style={selectedTab === "intelligence" ? { background: "#3C7844", color: "#fff", border: "none" } : {}}
           >
             <Brain className="mr-2 h-4 w-4" />
             KINGA Intelligence Training
@@ -472,7 +472,7 @@ export default function AdminDashboard() {
                     { status: "submitted", label: "Submitted", color: "text-primary" },
                     { status: "triage", label: "In Triage", color: "text-yellow-600" },
                     { status: "assessment_pending", label: "Assessment Pending", color: "text-orange-600" },
-                    { status: "completed", label: "Completed", color: "text-green-600" },
+                    { status: "completed", label: "Completed", color: "text-[#3C7844]" },
                   ].map(({ status, label, color }) => {
                     const count = allClaims.filter((c: any) => c.status === status).length;
                     return (
@@ -493,7 +493,7 @@ export default function AdminDashboard() {
               <CardContent>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="border rounded-lg p-4">
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-2xl font-bold" style={{ color: "#3C7844" }}>
                       {allClaims.filter((c: any) => (c.fraudRiskScore || 0) < 40).length}
                     </div>
                     <div className="text-sm text-muted-foreground">Low Risk (&lt;40)</div>
@@ -505,7 +505,7 @@ export default function AdminDashboard() {
                     <div className="text-sm text-muted-foreground">Medium Risk (40-70)</div>
                   </div>
                   <div className="border rounded-lg p-4">
-                    <div className="text-2xl font-bold text-red-600">{highRiskClaims}</div>
+                    <div className="text-2xl font-bold" style={{ color: "#A32D2D" }}>{highRiskClaims}</div>
                     <div className="text-sm text-muted-foreground">High Risk (&gt;70)</div>
                   </div>
                 </div>
@@ -521,7 +521,7 @@ export default function AdminDashboard() {
             <div className="flex gap-3">
               <Button
                 onClick={() => setLocation("/historical-claims")}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                style={{ background: "#3C7844", color: "#fff", border: "none" }}
               >
                 <Database className="mr-2 h-4 w-4" />
                 Historical Claims Pipeline
@@ -721,7 +721,7 @@ export default function AdminDashboard() {
                 <Button
                   onClick={handleSubmitGroundTruth}
                   disabled={submittingGt || !gtClaimId || !gtDecision || !gtFinalCost}
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  style={{ background: "#3C7844", color: "#fff", border: "none" }}
                 >
                   {submittingGt ? (
                     <>
@@ -893,7 +893,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-white dark:bg-card rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3C7844" }} />
                       <span className="text-sm font-medium">Auto-Feed Active</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -902,7 +902,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="bg-white dark:bg-card rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3C7844" }} />
                       <span className="text-sm font-medium">Cost Benchmarks</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -911,7 +911,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="bg-white dark:bg-card rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3C7844" }} />
                       <span className="text-sm font-medium">Fraud Pattern Learning</span>
                     </div>
                     <p className="text-xs text-muted-foreground">

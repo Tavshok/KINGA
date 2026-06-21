@@ -52,7 +52,7 @@ function ClaimStatusTracker({ status }: { status: string }) {
         {/* Progress line */}
         <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200 z-0" />
         <div
-          className="absolute top-4 left-0 h-0.5 bg-emerald-500 z-0 transition-all duration-500"
+          className="absolute top-4 left-0 h-0.5 z-0 transition-all duration-500" style={{ background: "#3C7844" }}
           style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
         />
 
@@ -67,11 +67,11 @@ function ClaimStatusTracker({ status }: { status: string }) {
               <div
                 className={`h-8 w-8 rounded-full flex items-center justify-center border-2 transition-all ${
                   rejected
-                    ? "bg-red-100 border-red-400 text-red-600"
+                    ? "border" /* rejected */
                     : done
-                    ? "bg-emerald-500 border-emerald-500 text-white"
+                    ? "text-white" /* done */
                     : active
-                    ? "bg-white border-emerald-500 text-emerald-600"
+                    ? "bg-white" /* active */
                     : "bg-white border-gray-300 text-gray-400"
                 }`}
               >
@@ -92,20 +92,20 @@ function ClaimStatusTracker({ status }: { status: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; className: string }> = {
-    submitted: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
-    intake_pending: { label: "Intake Pending", className: "bg-blue-100 text-blue-800" },
-    triage: { label: "Under Triage", className: "bg-amber-100 text-amber-800" },
+    submitted: { label: "Submitted", className: "border", style: { background: "#EEF4FB", color: "#4878A8", borderColor: "#B8D0E8" } },
+    intake_pending: { label: "Intake Pending", className: "border", style: { background: "#EEF4FB", color: "#4878A8", borderColor: "#B8D0E8" } },
+    triage: { label: "Under Triage", className: "border", style: { background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" } },
     assessment_pending: { label: "Assessment Pending", className: "bg-purple-100 text-purple-800" },
     assessment_in_progress: { label: "Being Assessed", className: "bg-purple-100 text-purple-800" },
     assessment_complete: { label: "Assessment Done", className: "bg-indigo-100 text-indigo-800" },
     quotes_pending: { label: "Awaiting Quotes", className: "bg-orange-100 text-orange-800" },
     comparison: { label: "Quote Comparison", className: "bg-orange-100 text-orange-800" },
-    repair_assigned: { label: "Repair Assigned", className: "bg-teal-100 text-teal-800" },
-    repair_in_progress: { label: "Repair In Progress", className: "bg-teal-100 text-teal-800" },
+    repair_assigned: { label: "Repair Assigned", className: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
+    repair_in_progress: { label: "Repair In Progress", className: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
     financial_decision: { label: "Financial Decision", className: "bg-yellow-100 text-yellow-800" },
-    completed: { label: "Completed", className: "bg-emerald-100 text-emerald-800" },
+    completed: { label: "Completed", className: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
     closed: { label: "Closed", className: "bg-gray-100 text-gray-800" },
-    rejected: { label: "Rejected", className: "bg-red-100 text-red-800" },
+    rejected: { label: "Rejected", className: "border", style: { background: "#FDF0F0", color: "#A32D2D", borderColor: "#E8B8B8" } },
   };
   const s = map[status] || { label: status.replace(/_/g, " "), className: "bg-gray-100 text-gray-800" };
   return (
@@ -167,7 +167,7 @@ export default function ClaimantDashboard() {
     : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -183,7 +183,7 @@ export default function ClaimantDashboard() {
             <RoleSwitcher />
             <NotificationBell />
             {fleetRegStatus?.status === "pending" && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border" style={{ background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" }}>
                 <Building2 className="h-3 w-3" />
                 Fleet request pending
               </span>
@@ -237,7 +237,7 @@ export default function ClaimantDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Active</CardTitle>
-              <Clock className="h-4 w-4 text-amber-500" />
+              <Clock className="h-4 w-4" style={{ color: "#8A5C00" }} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-amber-600">{activeClaims.length}</div>

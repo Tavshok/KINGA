@@ -52,21 +52,29 @@ function RiskTrend({ score }: { score: number }) {
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
+const RISK_ACCENT: Record<string, string> = {
+  "text-red-600": "#A32D2D",
+  "text-amber-600": "#8A5C00",
+  "text-orange-600": "#8A5C00",
+  "text-green-600": "#3C7844",
+  "text-foreground": "",
+};
 function StatCard({ label, value, sub, icon: Icon, accent }: {
   label: string; value: string | number; sub?: string;
   icon: React.ElementType; accent?: string;
 }) {
+  const color = accent ? (RISK_ACCENT[accent] ?? "") : "";
   return (
     <Card>
       <CardContent className="pt-5 pb-4">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
-            <p className={`text-2xl font-bold mt-1 ${accent ?? "text-foreground"}`}>{value}</p>
+            <p className="text-2xl font-bold mt-1" style={color ? { color } : {}}>{value}</p>
             {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
           </div>
-          <div className="p-2 rounded-lg bg-muted/50">
-            <Icon className="h-5 w-5 text-muted-foreground" />
+          <div className="p-2 rounded-lg" style={{ background: "#F0F7F2" }}>
+            <Icon className="h-5 w-5" style={{ color: "#3C7844" }} />
           </div>
         </div>
       </CardContent>
@@ -189,7 +197,7 @@ export default function RiskManagerDashboard() {
             <Badge variant="outline" className="text-xs">{statusLabel(claim.workflowState ?? claim.status ?? "pending")}</Badge>
             <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
             {Number(claim.approvedAmount ?? claim.estimatedCost ?? 0) >= HIGH_VALUE_THRESHOLD && (
-              <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-200">High Value</Badge>
+              <Badge className="text-xs border" style={{ background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" }}>High Value</Badge>
             )}
           <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
           </div>
@@ -467,7 +475,7 @@ export default function RiskManagerDashboard() {
             <TabsTrigger value="approval" className="relative">
               Technical Approval
               {approvalQueue.length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold" style={{ background: "#8A5C00" }}>
                   {approvalQueue.length}
                 </span>
               )}
@@ -475,7 +483,7 @@ export default function RiskManagerDashboard() {
             <TabsTrigger value="financial">
               Financial Decisions
               {financialQueue.length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] font-bold">
+                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold" style={{ background: "#4878A8" }}>
                   {financialQueue.length}
                 </span>
               )}
@@ -483,7 +491,7 @@ export default function RiskManagerDashboard() {
             <TabsTrigger value="escalations">
               Escalations
               {escalatedClaims.length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold" style={{ background: "#A32D2D" }}>
                   {escalatedClaims.length}
                 </span>
               )}
@@ -520,7 +528,7 @@ export default function RiskManagerDashboard() {
           <TabsContent value="financial" className="mt-4 space-y-3">
             {/* Summary banner */}
             {financialQueue.length > 0 && (
-              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-3">
+              <div className="rounded-lg p-3 flex items-center gap-3 border" style={{ background: "#EEF4FB", borderColor: "#B8D0E8" }}>
                 <DollarSign className="h-4 w-4 text-blue-600 flex-shrink-0" />
                 <p className="text-sm text-blue-800 dark:text-blue-200">
                   <strong>{financialQueue.length}</strong> claim{financialQueue.length !== 1 ? "s" : ""} awaiting financial sign-off
