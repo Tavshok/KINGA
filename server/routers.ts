@@ -3226,19 +3226,32 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const { statusToWorkflowState } = await import("./workflow-migration");
         const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
 
-        // Determine the correct target state based on current workflow position
-        let toState: string;
-        if (fromState === "technical_approval") {
-          // Send back to internal review (risk manager / assessor)
-          toState = "internal_review";
-        } else if (fromState === "financial_decision") {
-          // Send back to technical approval (risk manager)
-          toState = "technical_approval";
-        } else {
+        // Determine the correct target state based on current workflow position.
+        // Validates that the transition is permitted by WORKFLOW_TRANSITIONS.
+        const SEND_BACK_TRANSITIONS: Record<string, string> = {
+          technical_approval: "internal_review",
+          financial_decision: "technical_approval",
+        };
+        const toState = SEND_BACK_TRANSITIONS[fromState];
+        if (!toState) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: `Cannot send back a claim in state '${fromState}'. Only claims in technical_approval or financial_decision can be sent back.`,
+            message: `Cannot send back a claim in state '${fromState}'. Valid states for send-back: ${Object.keys(SEND_BACK_TRANSITIONS).join(", ")}.`,
           });
+        }
+        // Validate targetRole is consistent with the destination state
+        if (input.targetRole) {
+          const roleStateMap: Record<string, string[]> = {
+            risk_manager: ["internal_review", "technical_approval"],
+            claims_processor: ["internal_review", "submitted"],
+          };
+          const validStates = roleStateMap[input.targetRole] ?? [];
+          if (!validStates.includes(toState)) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `targetRole '${input.targetRole}' is not consistent with destination state '${toState}'. Expected one of: ${validStates.join(", ")}.`,
+            });
+          }
         }
 
         await transition({

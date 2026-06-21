@@ -51,6 +51,8 @@ import { RecoveryWatchlist } from "@/components/RecoveryWatchlist";
 import { SendBackAnalytics } from "@/components/SendBackAnalytics";
 import { ClaimsManagerReportsCentre } from "@/components/ClaimsManagerReportsCentre";
 import { EscalationCentre } from "@/components/EscalationCentre";
+import { OperationalFraudQueue } from "@/components/OperationalFraudQueue";
+import { ClaimsManagerCommandCentre } from "@/components/ClaimsManagerCommandCentre";
 import {
   DEMO_INTAKE_CLAIMS,
   DEMO_REVIEW_CLAIMS,
@@ -589,34 +591,8 @@ export default function ClaimsManagerDashboard() {
           </>
         </div>
 
-        {/* ── Command Centre: Row 1 — Queue Health Matrix ── */}
-        <QueueHealthMatrix />
-
-        {/* ── Command Centre: Row 2 — Attention Required + Escalation Centre ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <AttentionRequiredPanel />
-          <EscalationCentre />
-        </div>
-
-        {/* ── Command Centre: Row 3 — Approval Workbench + Capacity Forecast ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ApprovalWorkbench />
-          <CapacityForecast />
-        </div>
-
-        {/* ── Command Centre: Row 4 — Workforce Intelligence ── */}
-        <WorkforceIntelligence />
-
-        {/* ── Command Centre: Row 5 — Recovery Watchlist + Send-Back Analytics ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            <RecoveryWatchlist />
-          </div>
-          <SendBackAnalytics />
-        </div>
-
-        {/* ── Reports Centre ── */}
-        <ClaimsManagerReportsCentre />
+        {/* ── Command Centre (Rows 1–5) + Reports Centre ── */}
+        <ClaimsManagerCommandCentre />
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -1435,55 +1411,18 @@ export default function ClaimsManagerDashboard() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-red-600" />
-                  Fraud Alerts
+                  Operational Fraud Queue
                   <Badge variant="destructive" className="ml-auto text-xs">{fraudAlerts.length}</Badge>
                 </CardTitle>
-                <CardDescription>Claims with high/critical/elevated fraud risk or score &gt; 70 — live from database</CardDescription>
+                <CardDescription>Claims grouped by fraud category — critical risk, high value, pending investigation, escalated</CardDescription>
               </CardHeader>
               <CardContent>
-                {fraudAlertsLoading ? (
-                  <div className="text-center py-10 text-muted-foreground">
-                    <Clock className="h-8 w-8 mx-auto mb-2 opacity-40 animate-spin" />
-                    <p className="text-sm">Loading fraud alerts...</p>
-                  </div>
-                ) : fraudAlerts.length > 0 ? (
-                  <div className="space-y-3">
-                    {fraudAlerts.map((claim: any) => (
-                      <div key={claim.id} className="flex items-center justify-between p-3 rounded-lg border border-red-100 bg-red-50/50 dark:bg-red-950/20 dark:border-red-800">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                            <Shield className="h-4 w-4 text-red-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">{claim.claimNumber ?? `Claim #${claim.id}`}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {claim.claimantName ?? "Unknown"} · {claim.vehicleMake} {claim.vehicleModel}
-                              {claim.vehicleRegistration ? ` (${claim.vehicleRegistration})` : ""}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Risk score: <span className="text-red-600 font-semibold">{claim.fraudRiskScore ?? "N/A"}/100</span>
-                              {claim.fraudRiskLevel && <> · Level: <span className="capitalize font-medium">{claim.fraudRiskLevel}</span></>}
-                              {claim.totalClaimAmount ? <> · {fmt(claim.totalClaimAmount)}</> : ""}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleViewDetails(claim)}>
-                            <Eye className="h-3 w-3 mr-1" />Review
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 border-red-200" onClick={() => { setSelectedClaim(claim); setShowEscalateDialog(true); }}>
-                            <AlertTriangle className="h-3 w-3 mr-1" />Escalate
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-10 text-muted-foreground">
-                    <Shield className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm">No fraud alerts — all claims within acceptable risk thresholds</p>
-                  </div>
-                )}
+                <OperationalFraudQueue
+                  claims={fraudAlerts as any[]}
+                  loading={fraudAlertsLoading}
+                  onEscalate={(claim) => { setSelectedClaim(claim as any); setShowEscalateDialog(true); }}
+                  onReview={(claim) => handleViewDetails(claim as any)}
+                />
               </CardContent>
             </Card>
           </TabsContent>

@@ -290,7 +290,7 @@
 - [x] M-01: Build WorkforceIntelligence component (Row 4) — Processor + Assessor + Workload panels
 - [x] M-03: Build RecoveryWatchlist component
 - [x] M-03: Replace Recovery KPI row with RecoveryWatchlist
-- [ ] M-04: Add Operational Fraud Queue tiles to Fraud Alerts tab — backlog
+- [x] M-04: Build OperationalFraudQueue component — groups fraud alerts into 4 actionable categories
 - [x] M-05: Add ClaimsManagerReportsCentre (13 authorised reports surfaced)
 - [x] M-05: Add per-claim report buttons to Review Queue tab (assessment, audit trail, cost comparison)
 - [x] M-02: Add structured sendBackReason enum to send-back dialog (7 categories)
@@ -303,6 +303,16 @@
 - [x] R-03: Implement claims.reopenClaim procedure (closed → disputed)
 - [x] R-03: Add Reopen action to Processed Claims tab with Reopen Claim dialog
 - [ ] R-04: Record automation threshold in workflow_audit_trail.metadata at approval — backlog
-- [ ] R-05: Validate targetRole against WORKFLOW_TRANSITIONS in sendBackClaim procedure — backlog
+- [x] R-05: Validate targetRole against WORKFLOW_TRANSITIONS in sendBackClaim procedure
 - [ ] R-06: Merge Recently Closed card into Processed Claims tab — backlog
-- [ ] Add KPI trend sparklines to compact KPI strip — backlog
+- [ ] Add KPI trend sparklines to compact KPI strip — future enhancement
+
+---
+
+## Claims Manager Portal Realignment — Maintainability Refactor
+
+- [x] Extract ClaimsManagerCommandCentre.tsx wrapper (Rows 1–5 + Reports Centre)
+- [x] ClaimsManagerDashboard.tsx reduced from 1,567 lines to 1,542 lines (command centre rows replaced by single wrapper)
+- [ ] R-04: Record automation threshold in workflow_audit_trail.metadata at approval — future enhancement
+- [ ] R-06: Merge Recently Closed card into Processed Claims tab — future enhancement
+- [ ] Add KPI trend sparklines to compact KPI strip — future enhancement
