@@ -326,3 +326,21 @@
 - [ ] Fix Reports Centre grid — remove text truncation, improve 2-column layout
 - [ ] Redesign ClaimsManagerDashboard tab arrangement — logical grouping, clear labels, consistent spacing
 - [ ] Redesign Executive Dashboard — layout rhythm, tab arrangement, typography hierarchy
+
+---
+
+## KINGA Brand & Portal Design System (June 2026)
+
+- [x] Create KINGA Brand & Design System document (brand/KINGA_Brand_Design_System.md)
+- [x] Create KINGA Brand Reference HTML page (brand/KINGA_Brand_Reference.html)
+- [x] Create KINGA Portal Governance & Alignment Audit v1.0 (brand/KINGA_Portal_Governance_Audit_v1.0.md)
+- [x] Build KingaPortalShell unified component (client/src/components/KingaPortalShell.tsx)
+- [x] Rebuild Assessor Dashboard as full operational workspace (My Queue, Appointments, Performance tabs)
+- [x] Fix Claims Processor Dashboard — replace teal gradient header, foreign-colour stat cards, fix chart colours
+- [x] Fix Claims Manager Dashboard — brand-aligned header, KPI strip, tab bar, chart colours
+- [x] Fix Executive Dashboard — brand-aligned KPI cards, stat bar, tab bar, chart colours
+- [x] Fix DashboardLayout sidebar active state — KINGA forest green left-border indicator
+- [x] Fix ExecutiveAnalyticsCharts — all foreign colours replaced with KINGA brand palette
+- [ ] Apply KingaPortalShell to remaining portals: Admin, Panel Beater, Claimant, Fleet Manager, Risk Manager, Recovery, Insurer Admin
+- [ ] Implement portal certification checklist (85% pass threshold per KINGA_Portal_Governance_Audit_v1.0.md)
+- [ ] Add keyboard arrow-key navigation to Claims Manager custom tab bar

@@ -1047,36 +1047,39 @@ export default function ClaimsProcessorDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-secondary/5">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 text-white py-6 px-6 shadow-lg">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">Claims Processor Dashboard</h1>
-            <p className="text-teal-100 text-sm">Process and manage insurance claims</p>
+    <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
+      {/* Header — KINGA Portal Design Standard v1.0 */}
+      <header style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "1.25rem 1.5rem" }}>
+        <div className="max-w-7xl mx-auto flex justify-between items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center rounded-xl" style={{ width: 44, height: 44, background: "#F0F7F2" }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3C7844" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-semibold" style={{ color: "#111827" }}>Claims Processor</h1>
+                <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: "#F0F7F2", color: "#3C7844", border: "1px solid #C8E0CE" }}>
+                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "#3C7844" }}></span>LIVE
+                </span>
+              </div>
+              <p className="text-sm" style={{ color: "#6B7280" }}>Process and manage insurance claims</p>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button
               variant="default"
-              className="bg-white dark:bg-card text-teal-700 dark:text-teal-300 hover:bg-white/90 dark:bg-card/90 font-medium"
+              style={{ background: "#3C7844", color: "#fff", border: "none" }}
+              className="hover:opacity-90"
               onClick={() => window.location.href = "/processor/upload-documents"}
             >
               <Upload className="h-4 w-4 mr-2" />
               Upload New Claim
             </Button>
-            <Button
-              variant="outline"
-              className="border-white/30 text-white hover:bg-white/10 dark:bg-card/10"
-              onClick={() => refetchAll()}
-            >
+            <Button variant="outline" onClick={() => refetchAll()}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh All
+              Refresh
             </Button>
-            <Button
-              variant="outline"
-              className="border-white/30 text-white hover:bg-white/10 dark:bg-card/10"
-              onClick={() => window.location.href = "/portal-hub"}
-            >
+            <Button variant="outline" onClick={() => window.location.href = "/portal-hub"}>
               Portal Hub
             </Button>
           </div>
@@ -1097,46 +1100,22 @@ export default function ClaimsProcessorDashboard() {
 
         {/* ── QUICK STATS BAR (always visible, first) ── */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-          <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{pendingClaims.length}</p>
-              <p className="text-xs text-amber-600 font-medium">Pending Review</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{inReviewClaims.length}</p>
-              <p className="text-xs text-blue-600 font-medium">In Review</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-teal-700 dark:text-teal-300">{aiFlaggedClaims.length}</p>
-              <p className="text-xs text-teal-600 font-medium">KINGA Complete</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-700 dark:text-green-300">{completedClaims.length}</p>
-              <p className="text-xs text-green-600 font-medium">Completed</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-red-700 dark:text-red-300">
-                {allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length}
-              </p>
-              <p className="text-xs text-red-600 font-medium">SLA Breached</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
-                {allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length}
-              </p>
-              <p className="text-xs text-orange-600 font-medium">SLA Critical</p>
-            </CardContent>
-          </Card>
+          {/* KPI strip — KINGA brand palette */}
+          {[
+            { label: "Pending Review",  value: pendingClaims.length,   bg: "#FEF9EC", color: "#8A5C00" },
+            { label: "In Review",       value: inReviewClaims.length,   bg: "#EEF4FB", color: "#4878A8" },
+            { label: "KINGA Complete",  value: aiFlaggedClaims.length,  bg: "#EDF7F4", color: "#68A890" },
+            { label: "Completed",       value: completedClaims.length,  bg: "#F0F7F2", color: "#3C7844" },
+            { label: "SLA Breached",    value: allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length, bg: "#FEF2F2", color: "#A32D2D" },
+            { label: "SLA Critical",    value: allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length, bg: "#FEF9EC", color: "#8A5C00" },
+          ].map((kpi) => (
+            <Card key={kpi.label} style={{ border: "1px solid #E5E7EB" }}>
+              <CardContent className="p-4">
+                <p className="text-2xl font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
+                <p className="text-xs font-medium mt-0.5" style={{ color: "#6B7280" }}>{kpi.label}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* ── ANALYTICS CHARTS (always visible) ── */}
@@ -1157,7 +1136,7 @@ export default function ClaimsProcessorDashboard() {
                           allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length,
                           allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length,
                         ],
-                        backgroundColor: ['#22c55e', '#eab308', '#f97316', '#ef4444'],
+                        backgroundColor: ['#3C7844', '#8A5C00', '#68A890', '#A32D2D'],
                         borderWidth: 0,
                       }],
                     }}
@@ -1178,7 +1157,7 @@ export default function ClaimsProcessorDashboard() {
                       datasets: [{
                         label: 'Claims',
                         data: [pendingClaims.length, inReviewClaims.length, aiFlaggedClaims.length, completedClaims.length],
-                        backgroundColor: ['#f59e0b', '#3b82f6', '#14b8a6', '#22c55e'],
+                        backgroundColor: ['#8A5C00', '#4878A8', '#68A890', '#3C7844'],
                         borderRadius: 4,
                       }],
                     }}
