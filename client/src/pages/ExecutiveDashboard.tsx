@@ -394,21 +394,18 @@ export default function ExecutiveDashboard() {
     <div className="exec-dashboard min-h-screen" style={{ background: 'var(--background)' }}>
 
       {/* ── Page Header ── */}
-      <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}>
-        <div className="max-w-[1600px] mx-auto px-8 py-5">
+      <div style={{ background: 'var(--background)', borderBottom: '2px solid var(--border)' }}>
+        <div className="max-w-[1600px] mx-auto px-8" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
           <div className="flex items-center justify-between gap-4">
             {/* Left: Title block */}
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#EBF5EE' }}>
-                <BarChart3 className="h-5 w-5" style={{ color: '#3C7844' }} />
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--success)' }}>
+                <BarChart3 className="h-5 w-5 text-white" />
               </div>
               <div>
                 <div className="flex items-center gap-2.5">
-                  <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--foreground)', letterSpacing: '-0.01em' }}>Executive Command Center</h1>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: '#EBF5EE', color: '#3C7844', fontSize: '10px' }}>
-                    <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#3C7844' }}></span>
-                    LIVE
-                  </span>
+                  <h1 className="font-bold tracking-tight" style={{ fontSize: '22px', color: 'var(--foreground)', fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>Executive Command Center</h1>
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold tracking-wide" style={{ background: 'var(--success)', color: 'white', fontSize: '10px' }}>LIVE</span>
                 </div>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Decision intelligence · KINGA-powered analytics · {new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
@@ -417,7 +414,7 @@ export default function ExecutiveDashboard() {
             <div className="flex items-center gap-2 shrink-0">
               <ThemeToggle />
               <Link href="/portal-hub">
-                <Button variant="outline" size="sm" style={{ fontSize: '13px' }}>
+                <Button variant="outline" size="sm" style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'transparent', fontSize: '13px' }}>
                   <Target className="mr-1.5 h-3.5 w-3.5" />
                   Switch Portal
                 </Button>
@@ -437,47 +434,58 @@ export default function ExecutiveDashboard() {
         </div>
       )}
 
-      {/* ── Primary KPI Cards ── */}
-      <div className="max-w-[1600px] mx-auto px-8 pt-6 pb-0">
-        <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ── HERO NUMBERS: Three Large Numbers, Full Width, Always Visible ── */}
+          <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
+      <div className="max-w-[1600px] mx-auto px-8 pt-8 pb-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
           {[
             {
-              label: 'TOTAL CLAIMS',
+              label: 'Total Claims',
               value: execSummaryLoading ? '…' : (effectiveExecSummary?.totalClaims ?? kpis?.totalClaims ?? 0).toLocaleString(),
               sub: 'Submitted in period',
-              iconBg: '#EBF5EE', iconColor: '#3C7844', icon: FileText,
+              color: '#3B82F6',
+              icon: FileText,
             },
             {
-              label: 'KINGA SAVINGS',
-              value: execSummaryLoading ? '…' : (() => { const s = effectiveExecSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100).toLocaleString()}` : '—'; })(),
+              label: 'KINGA Savings',
+              value: execSummaryLoading ? '…' : (() => { const s = effectiveExecSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100).toLocaleString()}` : '—'; })(),
               sub: 'Est. value − approved payout',
-              iconBg: '#EBF5EE', iconColor: '#3C7844', icon: TrendingUp,
+              color: '#10B981',
+              icon: TrendingUp,
             },
             {
-              label: 'RESOLUTION RATE',
+              label: 'Resolution Rate',
               value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.resolutionRate ?? 0).toFixed(1)}%`,
               sub: 'Closed ÷ total claims',
-              iconBg: '#EBF2F8', iconColor: '#4878A8', icon: CheckCircle,
+              color: '#8B5CF6',
+              icon: CheckCircle,
             },
             {
-              label: 'AVG CYCLE TIME',
+              label: 'Avg Cycle Time',
               value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.avgCycleDays ?? 0).toFixed(1)}d`,
               sub: 'Submission to closure',
-              iconBg: effectiveExecSummary?.avgCycleDays && effectiveExecSummary.avgCycleDays > 14 ? '#FEF3E2' : '#EBF5EE',
-              iconColor: effectiveExecSummary?.avgCycleDays && effectiveExecSummary.avgCycleDays > 14 ? '#8A5C00' : '#3C7844',
+              color: effectiveExecSummary?.avgCycleDays && effectiveExecSummary.avgCycleDays > 14 ? '#F59E0B' : '#10B981',
               icon: Clock,
             },
-          ].map(({ label, value, sub, iconBg, iconColor, icon: Icon }, i) => (
-            <div key={i} className="rounded-lg p-5" style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold uppercase tracking-wider mb-2" style={{ fontSize: '11px', color: 'var(--muted-foreground)', letterSpacing: '0.07em' }}>{label}</p>
-                  <p className="font-bold tabular-nums leading-none mb-1.5" style={{ fontSize: '30px', color: 'var(--foreground)' }}>{value}</p>
-                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
+          ].map(({ label, value, sub, color, icon: Icon }, i) => (
+            <div
+              key={i}
+              className="rounded-lg p-5"
+              style={{
+                background: 'var(--background)',
+                border: '1px solid var(--border)',
+                borderLeft: `4px solid ${color}`,
+                fontFamily: 'Inter, sans-serif',
+              }}
+            >
+              <div className="flex items-start justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)', letterSpacing: '0.08em' }}>{label}</p>
+                  <p className="font-bold tabular-nums" style={{ fontSize: '28px', lineHeight: '1.1', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{value}</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: iconBg }}>
-                  <Icon className="h-5 w-5" style={{ color: iconColor }} />
+                <div className="p-2 rounded-md shrink-0" style={{ background: `${color}15` }}>
+                  <Icon className="h-4 w-4" style={{ color }} />
                 </div>
               </div>
             </div>
@@ -485,35 +493,66 @@ export default function ExecutiveDashboard() {
         </div>
       </div>
 
-      {/* ── Secondary Stat Bar ── */}
-      <div className="max-w-[1600px] mx-auto px-8 pt-3 pb-4">
-        <div className="rounded-lg overflow-hidden" style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-          <div className="grid grid-cols-2 md:grid-cols-4" style={{ borderTop: 'none' }}>
-            {[
-              { label: 'Fraud Exposure', value: fmt((kpis?.fraudRiskAmount || 0) * 100), iconBg: '#FCE8E8', iconColor: '#A32D2D', icon: AlertTriangle, onClick: () => { setDrillDownFilter('high_fraud'); setDrillDownTitle('High Fraud Risk Claims'); setDrillDownOpen(true); } },
-              { label: 'High-Risk Claims', value: String(kpis?.highRiskClaimsCount || 0), iconBg: '#FEF3E2', iconColor: '#8A5C00', icon: Shield, onClick: undefined },
-              { label: 'Fast-Track Rate', value: `${kpis?.fastTrackPercentage || 0}%`, iconBg: '#EBF5EE', iconColor: '#3C7844', icon: Zap, onClick: undefined },
-              { label: 'Executive Overrides', value: String(overrideMetrics.count), iconBg: '#EBF2F8', iconColor: '#4878A8', icon: AlertCircle, onClick: () => { setDrillDownFilter('overridden'); setDrillDownTitle('Executive Override History'); setDrillDownOpen(true); } },
-            ].map(({ label, value, iconBg, iconColor, icon: Icon, onClick }, i) => (
-              <div key={i} className="flex items-center gap-3 px-5 py-3.5" style={{ cursor: onClick ? 'pointer' : 'default', borderLeft: i > 0 ? '1px solid var(--border)' : 'none' }} onClick={onClick}>
-                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0" style={{ background: iconBg }}>
-                  <Icon className="h-4 w-4" style={{ color: iconColor }} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium truncate" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-                  <p className="text-lg font-bold tabular-nums leading-tight" style={{ color: 'var(--foreground)' }}>{value}</p>
-                </div>
+      {/* ── Secondary KPI strip ── */}
+      <div className="max-w-[1600px] mx-auto px-8 pb-6 pt-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            {
+              label: 'Fraud Exposure',
+              value: fmt((kpis?.fraudRiskAmount || 0) * 100),
+              color: '#EF4444',
+              icon: AlertTriangle,
+              onClick: () => { setDrillDownFilter('high_fraud'); setDrillDownTitle('High Fraud Risk Claims'); setDrillDownOpen(true); },
+            },
+            {
+              label: 'High-Risk Claims',
+              value: String(kpis?.highRiskClaimsCount || 0),
+              color: '#F59E0B',
+              icon: Shield,
+              onClick: undefined,
+            },
+            {
+              label: 'Fast-Track Rate',
+              value: `${kpis?.fastTrackPercentage || 0}%`,
+              color: '#10B981',
+              icon: Zap,
+              onClick: undefined,
+            },
+            {
+              label: 'Executive Overrides',
+              value: String(overrideMetrics.count),
+              color: '#6366F1',
+              icon: AlertCircle,
+              onClick: () => { setDrillDownFilter('overridden'); setDrillDownTitle('Executive Override History'); setDrillDownOpen(true); },
+            },
+          ].map(({ label, value, color, icon: Icon, onClick }, i) => (
+            <div
+              key={i}
+              className="rounded-lg px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'var(--background)',
+                border: '1px solid var(--border)',
+                borderLeft: `3px solid ${color}`,
+                cursor: onClick ? 'pointer' : 'default',
+                fontFamily: 'Inter, sans-serif',
+              }}
+              onClick={onClick}
+            >
+              <Icon className="h-4 w-4 shrink-0" style={{ color }} />
+              <div>
+                <p className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                <p className="text-base font-bold tabular-nums" style={{ color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{value}</p>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* ── TAB SECTION ── */}
       <div className="max-w-[1600px] mx-auto px-8 pb-12">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          {/* KINGA Brand tab bar — Forest Green active indicator */}
-          <div style={{ borderBottom: '1px solid var(--border)' }}>
+          {/* Pill-style tab bar with emerald active indicator */}
+          <div style={{ borderBottom: '1px solid var(--border)', marginBottom: '0' }}>
             <TabsList className="h-auto bg-transparent p-0 gap-0 rounded-none" style={{ display: 'flex', width: '100%', justifyContent: 'flex-start' }}>
               {([
                 { value: 'overview', label: 'Overview' },
@@ -525,12 +564,13 @@ export default function ExecutiveDashboard() {
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="rounded-none border-b-2 px-5 py-3 text-sm transition-colors"
+                  className="rounded-none border-b-2 px-5 py-3 text-sm font-medium transition-colors"
                   style={{
-                    borderBottomColor: activeTab === tab.value ? '#3C7844' : 'transparent',
-                    color: activeTab === tab.value ? '#3C7844' : 'var(--muted-foreground)',
+                    borderBottomColor: activeTab === tab.value ? '#10B981' : 'transparent',
+                    color: activeTab === tab.value ? '#10B981' : 'var(--muted-foreground)',
                     background: 'transparent',
-                    fontWeight: activeTab === tab.value ? 600 : 500,
+                    fontFamily: 'Inter, sans-serif',
+                    fontWeight: activeTab === tab.value ? 600 : 400,
                   }}
                 >
                   {tab.badge ? <NotificationsTabBadge /> : tab.label}

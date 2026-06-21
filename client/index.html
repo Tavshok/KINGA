@@ -12,31 +12,32 @@
     <link rel="icon" type="image/png" sizes="32x32" href="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#3C7844" />
+    <meta name="theme-color" content="#10b981" />
     
-    <!-- KINGA Design System v1.0 — Inter is the sole typeface -->
+    <!-- Inter font for Executive Dashboard premium typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800&display=swap" rel="stylesheet" />
+    <!-- KINGA Design Prompt v2: Helvetica / system-ui for body; Courier New for monospace -->
     <style>
-      /* KINGA Design System v1.0 — Inter everywhere, no Helvetica */
+      /* Apply Helvetica/system-ui globally as per KINGA Design Prompt v2 */
       :root {
-        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        --font-sans: Helvetica, Arial, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         --font-mono: 'Courier New', Courier, monospace;
       }
-      *, *::before, *::after { box-sizing: border-box; }
-      html, body {
+      body {
         font-family: var(--font-sans);
         font-weight: 400;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
+      }
+      /* Executive Dashboard: scoped Inter typography for premium BI feel */
+      .exec-dashboard {
+        font-family: 'Inter', Helvetica, Arial, system-ui, sans-serif;
         font-feature-settings: 'tnum' 1, 'cv02' 1, 'cv03' 1, 'cv04' 1;
       }
-      /* Tabular numerals for all numeric data */
-      .tabular-nums, [data-numeric] {
+      .exec-dashboard .tabular-nums {
         font-variant-numeric: tabular-nums;
       }
-      /* Monospace: hashes, run IDs, code */
+      /* Monospace: SHA-256 hash, document identity strip, run IDs */
       .font-mono, code, pre, .mono,
       .report-hash, .report-run-id, .report-identity {
         font-family: var(--font-mono) !important;

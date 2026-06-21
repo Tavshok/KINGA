@@ -430,63 +430,47 @@ export default function ClaimsManagerDashboard() {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--background)' }}>
-      <div className="max-w-7xl mx-auto space-y-5">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Auto-Assignment Warning Badge */}
         <AutoAssignmentBadge />
-
-        {/* ── Page Header ── */}
-        <header className="rounded-lg p-5" style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#EBF5EE' }}>
-                <ClipboardList className="h-5 w-5" style={{ color: '#3C7844' }} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--foreground)', letterSpacing: '-0.01em' }}>Claims Manager Dashboard</h1>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: '#EBF5EE', color: '#3C7844', fontSize: '10px' }}>
-                    <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#3C7844' }}></span>
-                    LIVE
-                  </span>
-                </div>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Review assessed claims and close for onward processing · {new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-              </div>
+        {/* Header */}
+        <header className="bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Claims Manager Dashboard</h1>
+              <p className="text-teal-100 mt-1">Review assessed claims and close for onward processing</p>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-              {/* Quick-glance hero numbers */}
-              <div className="flex items-center gap-4 px-4 py-2 rounded-lg" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                <div className="text-center">
-                  <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--foreground)' }}>{totalReviewable}</p>
-                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Pending</p>
-                </div>
-                <div className="w-px h-8" style={{ background: 'var(--border)' }} />
-                <div className="text-center">
-                  <p className="text-xl font-bold tabular-nums" style={{ color: '#A32D2D' }}>{highRiskCount}</p>
-                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>High Risk</p>
-                </div>
-                <div className="w-px h-8" style={{ background: 'var(--border)' }} />
-                <div className="text-center">
-                  <p className="text-xl font-bold tabular-nums" style={{ color: '#3C7844' }}>{recentlyClosed}</p>
-                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Closed</p>
-                </div>
-              </div>
+            <div className="flex items-center gap-3">
               <KingaReportButton
                 reportKey="portfolio.claims_summary"
-                label="Export Report"
+                label="Export Claims Report"
                 variant="outline"
                 size="sm"
+                className="bg-white/10 border-white/30 text-white hover:bg-white/20"
               />
+              <div className="bg-white/15 dark:bg-card/15 backdrop-blur rounded-lg px-4 py-2 text-center">
+                <p className="text-2xl font-bold">{totalReviewable}</p>
+                <p className="text-xs text-teal-100">Pending Review</p>
+              </div>
+              <div className="bg-white/15 dark:bg-card/15 backdrop-blur rounded-lg px-4 py-2 text-center">
+                <p className="text-2xl font-bold text-red-300">{highRiskCount}</p>
+                <p className="text-xs text-teal-100">High Risk</p>
+              </div>
+              <div className="bg-white/15 dark:bg-card/15 backdrop-blur rounded-lg px-4 py-2 text-center">
+                <p className="text-2xl font-bold text-green-300">{recentlyClosed}</p>
+                <p className="text-xs text-teal-100">Closed</p>
+              </div>
             </div>
           </div>
         </header>
 
         {/* Workflow Info */}
-        <div className="rounded-lg p-4 flex items-start gap-3" style={{ background: '#F0F7F2', border: '1px solid #C8E0CE' }}>
-          <Shield className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: '#3C7844' }} />
+        <div className="bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-lg p-4 flex items-start gap-3">
+          <Shield className="h-5 w-5 text-teal-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium" style={{ color: '#2A5C44' }}>Claims Manager Workflow</p>
-            <p className="text-xs mt-0.5" style={{ color: '#4A7A5A' }}>
+            <p className="text-sm font-medium text-teal-800 dark:text-teal-200">Claims Manager Workflow</p>
+            <p className="text-xs text-teal-600 mt-1">
               Claims arrive here after Risk Manager review and technical approval. Your role is to conduct a final review 
               of all assessments (KINGA, assessor, panel beater quotes) and close claims for onward processing — either for 
               payment settlement, repair assignment, or further investigation.
@@ -507,28 +491,23 @@ export default function ClaimsManagerDashboard() {
 
           <>
           <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
-              {/* ── KPI Stat Bar ── */}
-              <div className="rounded-lg overflow-hidden" style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-                <div className="grid grid-cols-3 md:grid-cols-6">
-                  {[
-                    { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? (dashboardStats as any)?.totalClaims ?? 0, iconBg: '#EBF2F8', iconColor: '#4878A8', icon: ClipboardList },
-                    { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? (dashboardStats as any)?.activeClaims ?? 0, iconBg: '#EBF5EE', iconColor: '#3C7844', icon: Activity },
-                    { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? (dashboardStats as any)?.completedThisMonth ?? 0, iconBg: '#EBF5EE', iconColor: '#3C7844', icon: CheckCircle },
-                    { label: 'Fraud Alerts', value: managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0, iconBg: '#FCE8E8', iconColor: '#A32D2D', icon: AlertTriangle },
-                    { label: 'Fast-Track', value: `${(dashboardStats as any)?.fastTrackEligible ?? 0}`, iconBg: '#FEF3E2', iconColor: '#8A5C00', icon: Shield },
-                    { label: 'Avg Days', value: `${((dashboardStats as any)?.avgProcessingDays ?? 0).toFixed(1)}d`, iconBg: '#EBF2F8', iconColor: '#4878A8', icon: Clock },
-                  ].map(({ label, value, iconBg, iconColor, icon: Icon }, i) => (
-                    <div key={i} className="flex items-center gap-2.5 px-4 py-3" style={{ borderLeft: i > 0 ? '1px solid var(--border)' : 'none' }}>
-                      <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0" style={{ background: iconBg }}>
-                        <Icon className="h-3.5 w-3.5" style={{ color: iconColor }} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-                        <p className="text-base font-bold tabular-nums leading-tight" style={{ color: 'var(--foreground)' }}>{overviewLoading ? '…' : value}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              {/* ── Command Centre: Row 6 — Compact KPI Strip (period context) ── */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/50">
+                {[
+                  { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? (dashboardStats as any)?.totalClaims ?? 0, icon: <ClipboardList className="h-3 w-3" />, color: 'text-blue-600' },
+                  { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? (dashboardStats as any)?.activeClaims ?? 0, icon: <Activity className="h-3 w-3" />, color: 'text-teal-600' },
+                  { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? (dashboardStats as any)?.completedThisMonth ?? 0, icon: <CheckCircle className="h-3 w-3" />, color: 'text-green-600' },
+                  { label: 'Fraud Alerts', value: managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0, icon: <AlertTriangle className="h-3 w-3" />, color: 'text-red-600' },
+                  { label: 'Fast-Track', value: `${(dashboardStats as any)?.fastTrackEligible ?? 0}`, icon: <Shield className="h-3 w-3" />, color: 'text-orange-600' },
+                  { label: 'Avg Days', value: `${((dashboardStats as any)?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-3 w-3" />, color: 'text-purple-600' },
+                ].map((kpi, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <span className={kpi.color}>{kpi.icon}</span>
+                    <span className="text-sm font-bold">{overviewLoading ? '…' : kpi.value}</span>
+                    <span className="text-xs text-muted-foreground">{kpi.label}</span>
+                    {i < 5 && <span className="text-border ml-1">|</span>}
+                  </div>
+                ))}
               </div>
 
               {/* Recovery KPI Row removed — replaced by RecoveryWatchlist in Phase 3 command centre rows */}
@@ -546,7 +525,7 @@ export default function ClaimsManagerDashboard() {
                         <Doughnut
                           data={{
                             labels: Object.keys(donut),
-                            datasets: [{ data: Object.values(donut) as number[], backgroundColor: ['#3C7844','#68A890','#4878A8','#A32D2D','#8A5C00','#9CA3AF'], borderWidth: 0 }],
+                            datasets: [{ data: Object.values(donut) as number[], backgroundColor: ['#0d9488','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#6b7280'], borderWidth: 0 }],
                           }}
                           options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, cutout: '65%' }}
                         />
@@ -569,7 +548,7 @@ export default function ClaimsManagerDashboard() {
                         <Bar
                           data={{
                             labels: Object.keys(bar).map(k => k.replace(/_/g, ' ')),
-                            datasets: [{ label: 'Claims', data: Object.values(bar) as number[], backgroundColor: '#3C7844', borderRadius: 4 }],
+                            datasets: [{ label: 'Claims', data: Object.values(bar) as number[], backgroundColor: '#0d9488', borderRadius: 4 }],
                           }}
                           options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { font: { size: 9 } } } } }}
                         />
@@ -588,7 +567,7 @@ export default function ClaimsManagerDashboard() {
                     <div className="space-y-3">
                       <div className="flex justify-between items-end">
                         <div>
-                          <p className="text-2xl font-bold" style={{ color: '#3C7844' }}>{fmt(managerOverview?.kpis?.totalSavings?.value ?? (DEMO_DASHBOARD_STATS.totalSavingsIdentified * 100))}</p>
+                          <p className="text-2xl font-bold text-green-600">{fmt(managerOverview?.kpis?.totalSavings?.value ?? (DEMO_DASHBOARD_STATS.totalSavingsIdentified * 100))}</p>
                           <p className="text-xs text-muted-foreground">Total savings in period</p>
                         </div>
                         <div className="text-right">
@@ -598,8 +577,8 @@ export default function ClaimsManagerDashboard() {
                       </div>
                       <div className="h-2 bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full rounded-full"
-                          style={{ background: '#3C7844', width: `${Math.min(100, ((managerOverview?.kpis?.completedClaims?.value ?? DEMO_DASHBOARD_STATS.completedThisMonth) / Math.max(1, managerOverview?.kpis?.totalClaims?.value ?? DEMO_DASHBOARD_STATS.totalClaims)) * 100)}%` }}
+                          className="h-full bg-green-500 rounded-full"
+                          style={{ width: `${Math.min(100, ((managerOverview?.kpis?.completedClaims?.value ?? DEMO_DASHBOARD_STATS.completedThisMonth) / Math.max(1, managerOverview?.kpis?.totalClaims?.value ?? DEMO_DASHBOARD_STATS.totalClaims)) * 100)}%` }}
                         />
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -645,10 +624,9 @@ export default function ClaimsManagerDashboard() {
                       onClick={() => setActiveTab(v)}
                       className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                         activeTab === v
-                          ? 'border-b-2 font-semibold'
-                          : 'border-b-2 border-transparent font-medium'
+                          ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                       }`}
-                      style={activeTab === v ? { borderBottomColor: '#3C7844', color: '#3C7844' } : { color: 'var(--muted-foreground)' }}
                     >
                       {labels[v]}
                     </button>
@@ -673,10 +651,11 @@ export default function ClaimsManagerDashboard() {
                     <button
                       key={v}
                       onClick={() => setActiveTab(v)}
-                      className={`shrink-0 px-4 py-2.5 text-sm border-b-2 transition-colors whitespace-nowrap ${
-                        activeTab === v ? 'font-semibold' : 'font-medium border-transparent'
+                      className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        activeTab === v
+                          ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                       }`}
-                      style={activeTab === v ? { borderBottomColor: '#3C7844', color: '#3C7844' } : { color: 'var(--muted-foreground)' }}
                     >
                       {labels[v]}
                     </button>
@@ -697,10 +676,11 @@ export default function ClaimsManagerDashboard() {
                     <button
                       key={v}
                       onClick={() => setActiveTab(v)}
-                      className={`shrink-0 px-4 py-2.5 text-sm border-b-2 transition-colors whitespace-nowrap ${
-                        activeTab === v ? 'font-semibold' : 'font-medium border-transparent'
+                      className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        activeTab === v
+                          ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                       }`}
-                      style={activeTab === v ? { borderBottomColor: '#3C7844', color: '#3C7844' } : { color: 'var(--muted-foreground)' }}
                     >
                       {v === "notifications" ? <NotificationsTabBadge /> : "Processed"}
                     </button>
