@@ -61,9 +61,9 @@ import {
 // Gauge component for confidence score visualization
 function ConfidenceGauge({ score }: { score: number }) {
   const getColor = (score: number) => {
-    if (score <= 40) return { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-700 dark:text-green-300", stroke: "#22c55e" };
-    if (score <= 70) return { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-300", stroke: "#f59e0b" };
-    return { bg: "bg-red-100 dark:bg-red-900/30", text: "text-red-700 dark:text-red-300", stroke: "#ef4444" };
+    if (score <= 40) return { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-700 dark:text-green-300", stroke: "#3C7844" };
+    if (score <= 70) return { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-300", stroke: "#8A5C00" };
+    return { bg: "bg-red-100 dark:bg-red-900/30", text: "text-red-700 dark:text-red-300", stroke: "#A32D2D" };
   };
 
   const color = getColor(score);

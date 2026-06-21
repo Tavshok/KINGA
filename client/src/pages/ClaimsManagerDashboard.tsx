@@ -430,7 +430,7 @@ export default function ClaimsManagerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 p-6">
+    <div className="min-h-screen p-6" style={{ background: 'var(--background)' }}>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Auto-Assignment Warning Badge */}
         <AutoAssignmentBadge />
@@ -530,7 +530,7 @@ export default function ClaimsManagerDashboard() {
                         <Doughnut
                           data={{
                             labels: Object.keys(donut),
-                            datasets: [{ data: Object.values(donut) as number[], backgroundColor: ['#0d9488','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#6b7280'], borderWidth: 0 }],
+                            datasets: [{ data: Object.values(donut) as number[], backgroundColor: ['#3C7844','#4878A8','#8A5C00','#A32D2D','#68A890','#484840'], borderWidth: 0 }],
                           }}
                           options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, cutout: '65%' }}
                         />
@@ -553,7 +553,7 @@ export default function ClaimsManagerDashboard() {
                         <Bar
                           data={{
                             labels: Object.keys(bar).map(k => k.replace(/_/g, ' ')),
-                            datasets: [{ label: 'Claims', data: Object.values(bar) as number[], backgroundColor: '#0d9488', borderRadius: 4 }],
+                            datasets: [{ label: 'Claims', data: Object.values(bar) as number[], backgroundColor: '#3C7844', borderRadius: 4 }],
                           }}
                           options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { font: { size: 9 } } } } }}
                         />
@@ -572,7 +572,7 @@ export default function ClaimsManagerDashboard() {
                     <div className="space-y-3">
                       <div className="flex justify-between items-end">
                         <div>
-                          <p className="text-2xl font-bold text-green-600">{fmt(managerOverview?.kpis?.totalSavings?.value ?? (DEMO_DASHBOARD_STATS.totalSavingsIdentified * 100))}</p>
+                          <p className="text-2xl font-bold" style={{ color: '#3C7844' }}>{fmt(managerOverview?.kpis?.totalSavings?.value ?? (DEMO_DASHBOARD_STATS.totalSavingsIdentified * 100))}</p>
                           <p className="text-xs text-muted-foreground">Total savings in period</p>
                         </div>
                         <div className="text-right">
@@ -582,8 +582,8 @@ export default function ClaimsManagerDashboard() {
                       </div>
                       <div className="h-2 bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-green-500 rounded-full"
-                          style={{ width: `${Math.min(100, ((managerOverview?.kpis?.completedClaims?.value ?? DEMO_DASHBOARD_STATS.completedThisMonth) / Math.max(1, managerOverview?.kpis?.totalClaims?.value ?? DEMO_DASHBOARD_STATS.totalClaims)) * 100)}%` }}
+                          className="h-full rounded-full"
+                          style={{ background: '#3C7844', width: `${Math.min(100, ((managerOverview?.kpis?.completedClaims?.value ?? DEMO_DASHBOARD_STATS.completedThisMonth) / Math.max(1, managerOverview?.kpis?.totalClaims?.value ?? DEMO_DASHBOARD_STATS.totalClaims)) * 100)}%` }}
                         />
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -610,89 +610,101 @@ export default function ClaimsManagerDashboard() {
            * Uses a flex row with section labels instead of grid-cols-7 so
            * each tab gets enough horizontal space and labels never wrap.
            */}
-          <div className="border-b border-border">
-            <div className="flex items-end gap-0 overflow-x-auto">
-              {/* Section: Workflow */}
-              <div className="flex items-end shrink-0">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2 hidden sm:block">
-                  Workflow
-                </span>
-                {(["intake", "review", "active"] as const).map((v) => {
-                  const labels: Record<string, string> = {
-                    intake: "Intake Queue",
-                    review: "Review Queue",
-                    active: "Active Claims",
-                  };
-                  return (
-                    <button
-                      key={v}
-                      onClick={() => setActiveTab(v)}
-                      className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                                                activeTab === v
-                          ? "border-b-2"
-                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                      }`}
-                      style={activeTab === v ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600 } : {}}
-                    >
-                      {labels[v]}
-                    </button>
-                  );
-                })}
-              </div>
-              {/* Divider */}
-              <div className="w-px h-6 bg-border mx-1 mb-2 shrink-0 hidden sm:block" />
-              {/* Section: Oversight */}
-              <div className="flex items-end shrink-0">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2 hidden sm:block">
-                  Oversight
-                </span>
-                {(["fraud", "fleet-approvals"] as const).map((v) => {
-                  const labels: Record<string, string> = {
-                    fraud: "Fraud Alerts",
-                    "fleet-approvals": "Fleet Approvals",
-                  };
-                  return (
-                    <button
-                      key={v}
-                      onClick={() => setActiveTab(v)}
-                      className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                        activeTab === v
-                          ? "border-b-2"
-                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                      }`}
-                      style={activeTab === v ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600 } : {}}
-                    >
-                      {labels[v]}
-                    </button>
-                  );
-                })}
+          <div className="border-b border-border" style={{ background: 'var(--card)' }}>
+            <div role="tablist" aria-label="Claims Manager sections" className="flex items-stretch gap-0 overflow-x-auto">
+
+              {/* ── Section: Workflow ── */}
+              <div className="flex flex-col shrink-0">
+                <span className="text-[10px] font-semibold uppercase tracking-widest px-4 pt-2 pb-0 hidden sm:block" style={{ color: 'var(--muted-foreground)' }}>Workflow</span>
+                <div className="flex items-end">
+                  {(["intake", "review", "active"] as const).map((v) => {
+                    const labels: Record<string, string> = { intake: "Intake Queue", review: "Review Queue", active: "Active Claims" };
+                    const isActive = activeTab === v;
+                    return (
+                      <button
+                        key={v}
+                        role="tab"
+                        aria-selected={isActive}
+                        tabIndex={isActive ? 0 : -1}
+                        onClick={() => setActiveTab(v)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab(v); }
+                        }}
+                        className="shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                        style={isActive
+                          ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600, background: 'transparent' }
+                          : { borderBottomColor: 'transparent', color: 'var(--muted-foreground)', background: 'transparent' }}
+                      >
+                        {labels[v]}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Divider */}
-              <div className="w-px h-6 bg-border mx-1 mb-2 shrink-0 hidden sm:block" />
+              <div className="w-px self-stretch bg-border mx-1 my-2 shrink-0 hidden sm:block" />
 
-              {/* Section: Admin */}
-              <div className="flex items-end shrink-0">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2 hidden sm:block">
-                  Admin
-                </span>
-                {(["processed", "notifications"] as const).map((v) => {
-                  return (
-                    <button
-                      key={v}
-                      onClick={() => setActiveTab(v)}
-                      className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                        activeTab === v
-                          ? "border-b-2"
-                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                      }`}
-                      style={activeTab === v ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600 } : {}}
-                    >
-                      {v === "notifications" ? <NotificationsTabBadge /> : "Processed"}
-                    </button>
-                  );
-                })}
+              {/* ── Section: Oversight ── */}
+              <div className="flex flex-col shrink-0">
+                <span className="text-[10px] font-semibold uppercase tracking-widest px-4 pt-2 pb-0 hidden sm:block" style={{ color: 'var(--muted-foreground)' }}>Oversight</span>
+                <div className="flex items-end">
+                  {(["fraud", "fleet-approvals"] as const).map((v) => {
+                    const labels: Record<string, string> = { fraud: "Fraud Alerts", "fleet-approvals": "Fleet Approvals" };
+                    const isActive = activeTab === v;
+                    return (
+                      <button
+                        key={v}
+                        role="tab"
+                        aria-selected={isActive}
+                        tabIndex={isActive ? 0 : -1}
+                        onClick={() => setActiveTab(v)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab(v); }
+                        }}
+                        className="shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                        style={isActive
+                          ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600, background: 'transparent' }
+                          : { borderBottomColor: 'transparent', color: 'var(--muted-foreground)', background: 'transparent' }}
+                      >
+                        {labels[v]}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              {/* Divider */}
+              <div className="w-px self-stretch bg-border mx-1 my-2 shrink-0 hidden sm:block" />
+
+              {/* ── Section: Admin ── */}
+              <div className="flex flex-col shrink-0">
+                <span className="text-[10px] font-semibold uppercase tracking-widest px-4 pt-2 pb-0 hidden sm:block" style={{ color: 'var(--muted-foreground)' }}>Admin</span>
+                <div className="flex items-end">
+                  {(["processed", "notifications"] as const).map((v) => {
+                    const isActive = activeTab === v;
+                    return (
+                      <button
+                        key={v}
+                        role="tab"
+                        aria-selected={isActive}
+                        tabIndex={isActive ? 0 : -1}
+                        onClick={() => setActiveTab(v)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab(v); }
+                        }}
+                        className="shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                        style={isActive
+                          ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600, background: 'transparent' }
+                          : { borderBottomColor: 'transparent', color: 'var(--muted-foreground)', background: 'transparent' }}
+                      >
+                        {v === "notifications" ? <NotificationsTabBadge /> : "Processed"}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -705,9 +717,9 @@ export default function ClaimsManagerDashboard() {
           <TabsContent value="review" className="space-y-6">
             {/* Filters */}
             <Card className="shadow-lg border-0">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50/50">
+          <CardHeader style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Filter className="h-4 w-4 text-blue-600" />
+              <Filter className="h-4 w-4" style={{ color: '#3C7844' }} />
               Filters
             </CardTitle>
           </CardHeader>
@@ -791,9 +803,9 @@ export default function ClaimsManagerDashboard() {
 
         {/* Claims Review Queue */}
         <Card className="shadow-lg border-0">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-teal-50/50">
+          <CardHeader style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
             <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-teal-600" />
+              <ClipboardList className="h-5 w-5" style={{ color: '#3C7844' }} />
               Claims Review Queue
             </CardTitle>
             <CardDescription>
@@ -861,7 +873,7 @@ export default function ClaimsManagerDashboard() {
                         {/* Fraud Warning */}
                         {claim.fraudRiskScore && claim.fraudRiskScore >= 70 && (
                           <div className="mt-2 flex items-center gap-2 p-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded text-xs">
-                            <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                            <AlertCircle className="h-4 w-4 flex-shrink-0" style={{ color: '#A32D2D' }} />
                             <span className="text-red-700 dark:text-red-300 font-medium">
                               High fraud risk detected (score: {claim.fraudRiskScore}/100). Review carefully before closing.
                             </span>
@@ -967,9 +979,9 @@ export default function ClaimsManagerDashboard() {
 
         {/* Recently Closed Claims */}
         <Card className="shadow-lg border-0">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50/50">
+          <CardHeader style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CheckCircle className="h-5 w-5" style={{ color: '#3C7844' }} />
               Recently Closed Claims
             </CardTitle>
             <CardDescription>Claims you have reviewed and closed for processing</CardDescription>
@@ -982,7 +994,7 @@ export default function ClaimsManagerDashboard() {
                 {completedClaims.slice(0, 10).map((claim: any) => (
                   <div key={claim.id} className="p-3 bg-green-50/50 dark:bg-green-950/50 rounded-lg border border-green-100 dark:border-green-900 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <CheckCircle className="h-4 w-4" style={{ color: '#3C7844' }} />
                       <span className="font-medium text-sm">{claim.claimNumber}</span>
                       <span className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                         {[claim.vehicleMake, claim.vehicleModel].filter(Boolean).join(" ")}
@@ -1015,7 +1027,7 @@ export default function ClaimsManagerDashboard() {
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <FileCheck className="h-5 w-5 text-teal-600" />
+                <FileCheck className="h-5 w-5" style={{ color: '#68A890' }} />
                 Close Claim for Processing
               </DialogTitle>
               <DialogDescription>
@@ -1051,7 +1063,7 @@ export default function ClaimsManagerDashboard() {
                         {comparisonData.assessorCost ? fmt(comparisonData.assessorCost * 100) : "N/A"}
                       </p>
                       {comparisonData.aiVsAssessor !== null && (
-                        <p className={`text-xs ${Math.abs(comparisonData.aiVsAssessor) > 15 ? "text-red-600 font-semibold" : "text-green-600"}`}>
+                        <p className={`text-xs font-semibold`}>
                           {comparisonData.aiVsAssessor > 0 ? "+" : ""}{comparisonData.aiVsAssessor.toFixed(1)}% vs KINGA
                         </p>
                       )}
@@ -1113,7 +1125,7 @@ export default function ClaimsManagerDashboard() {
               </div>
 
               <div className="flex items-center gap-2 p-3 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded">
-                <ArrowRight className="h-5 w-5 text-teal-600" />
+                <ArrowRight className="h-5 w-5" style={{ color: '#68A890' }} />
                 <p className="text-sm text-teal-700 dark:text-teal-300">
                   {closureAction === "approve_for_payment" 
                     ? "This claim will be closed and forwarded for payment processing."
@@ -1155,7 +1167,7 @@ export default function ClaimsManagerDashboard() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-orange-600" />
+                <MessageSquare className="h-5 w-5" style={{ color: '#8A5C00' }} />
                 Send Claim Back for Review
               </DialogTitle>
               <DialogDescription>
@@ -1196,7 +1208,7 @@ export default function ClaimsManagerDashboard() {
               </div>
 
               <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded">
-                <MessageSquare className="h-5 w-5 text-orange-600" />
+                <MessageSquare className="h-5 w-5" style={{ color: '#8A5C00' }} />
                 <p className="text-sm text-orange-700 dark:text-orange-300">
                   This claim will be returned to the {sendBackTarget === "risk_manager" ? "Risk Manager" : "Claims Processor"} for further review
                 </p>
@@ -1235,7 +1247,7 @@ export default function ClaimsManagerDashboard() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <AlertTriangle className="h-5 w-5" style={{ color: '#A32D2D' }} />
                 Escalate Claim
               </DialogTitle>
               <DialogDescription>
@@ -1278,7 +1290,7 @@ export default function ClaimsManagerDashboard() {
                 />
               </div>
               <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded">
-                <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#A32D2D' }} />
                 <p className="text-sm text-red-700 dark:text-red-300">
                   This claim will be escalated to <strong>{escalationTargetState === "disputed" ? "Disputed" : "Manual Review"}</strong>. An audit entry will be created and the Risk Manager will be notified.
                 </p>
@@ -1399,13 +1411,13 @@ export default function ClaimsManagerDashboard() {
                 </Card>
                 <Card className="shadow-sm border-0">
                   <CardContent className="p-4">
-                    <p className="text-2xl font-bold text-red-600">{dashboardStats.fraudRate}%</p>
+                    <p className="text-2xl font-bold" style={{ color: '#A32D2D' }}>{dashboardStats.fraudRate}%</p>
                     <p className="text-xs text-muted-foreground mt-1">Fraud Rate</p>
                   </CardContent>
                 </Card>
                 <Card className="shadow-sm border-0">
                   <CardContent className="p-4">
-                    <p className="text-2xl font-bold text-green-600">{dashboardStats.avgProcessingDays ?? "—"}</p>
+                    <p className="text-2xl font-bold" style={{ color: '#3C7844' }}>{dashboardStats.avgProcessingDays ?? "—"}</p>
                     <p className="text-xs text-muted-foreground mt-1">Avg Days to Close</p>
                   </CardContent>
                 </Card>
@@ -1414,7 +1426,7 @@ export default function ClaimsManagerDashboard() {
             <Card className="shadow-sm border-0">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4 text-teal-600" />
+                  <ClipboardList className="h-4 w-4" style={{ color: '#68A890' }} />
                   All Active Claims
                   <Badge variant="secondary" className="ml-auto text-xs">{activeClaims.length}</Badge>
                 </CardTitle>
@@ -1487,20 +1499,20 @@ export default function ClaimsManagerDashboard() {
             {/* Summary banner */}
             {dashboardStats && (
               <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-4">
-                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                <AlertCircle className="h-5 w-5 flex-shrink-0" style={{ color: '#A32D2D' }} />
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-red-800 dark:text-red-200">
                     {dashboardStats.fraudHighCount} high-risk claim{dashboardStats.fraudHighCount !== 1 ? "s" : ""} detected
                     {dashboardStats.fraudRate > 0 && ` — ${dashboardStats.fraudRate}% fraud rate across portfolio`}
                   </p>
-                  <p className="text-xs text-red-600 mt-0.5">Claims with fraudRiskLevel = high/critical/elevated or fraudRiskScore &gt; 70</p>
+                  <p className="text-xs mt-0.5" style={{ color: '#A32D2D' }}>Claims with fraudRiskLevel = high/critical/elevated or fraudRiskScore &gt; 70</p>
                 </div>
               </div>
             )}
             <Card className="shadow-sm border-0">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertCircle className="h-4 w-4" style={{ color: '#A32D2D' }} />
                   Operational Fraud Queue
                   <Badge variant="destructive" className="ml-auto text-xs">{fraudAlerts.length}</Badge>
                 </CardTitle>
@@ -1523,13 +1535,13 @@ export default function ClaimsManagerDashboard() {
               <div className="grid grid-cols-3 gap-3">
                 <Card className="shadow-sm border-0">
                   <CardContent className="p-4">
-                    <p className="text-2xl font-bold text-green-600">{dashboardStats.completedCount}</p>
+                    <p className="text-2xl font-bold" style={{ color: '#3C7844' }}>{dashboardStats.completedCount}</p>
                     <p className="text-xs text-muted-foreground mt-1">Completed</p>
                   </CardContent>
                 </Card>
                 <Card className="shadow-sm border-0">
                   <CardContent className="p-4">
-                    <p className="text-2xl font-bold text-red-600">{dashboardStats.rejectedCount}</p>
+                    <p className="text-2xl font-bold" style={{ color: '#A32D2D' }}>{dashboardStats.rejectedCount}</p>
                     <p className="text-xs text-muted-foreground mt-1">Rejected</p>
                   </CardContent>
                 </Card>
@@ -1544,7 +1556,7 @@ export default function ClaimsManagerDashboard() {
             <Card className="shadow-sm border-0">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <CheckCircle className="h-4 w-4" style={{ color: '#3C7844' }} />
                   Processed Claims
                   <Badge variant="secondary" className="ml-auto text-xs">{processedClaims.length}</Badge>
                 </CardTitle>
@@ -1594,7 +1606,7 @@ export default function ClaimsManagerDashboard() {
                                   <Eye className="h-3 w-3 mr-1" />View
                                 </Button>
                                 {(claim.status === "closed" || claim.workflowState === "closed") && (
-                                  <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => handleReopen(claim)}>
+                                  <Button size="sm" variant="outline" className="h-6 text-xs px-2" style={{ color: '#8A5C00', borderColor: '#C8A870' }} onClick={() => handleReopen(claim)}>
                                     <RefreshCw className="h-3 w-3 mr-1" />Reopen
                                   </Button>
                                 )}
