@@ -42,22 +42,22 @@ import {
 /// ─── Colour palette — KINGA BI Dark Theme ─────────────────────────────────────────
 
 const COLORS = {
-  blue:   "#5ba3f5",  // Bright blue for dark bg
-  red:    "#f87171",  // Soft red
-  green:  "#4ade80",  // Emerald green — KINGA primary
-  orange: "#fb923c",  // Amber
-  purple: "#c084fc",  // Soft purple
-  amber:  "#fbbf24",  // Gold amber
-  teal:   "#2dd4bf",  // Teal
-  slate:  "#94a3b8",  // Slate grey
+  blue:   "#4878A8",  // Slate Blue
+  red:    "#A32D2D",  // Fail red
+  green:  "#3C7844",  // Forest Green
+  orange: "#8A5C00",  // Warn amber
+  purple: "#4878A8",  // Slate Blue (no purple in brand)
+  amber:  "#8A5C00",  // Warn amber alias
+  teal:   "#68A890",  // Sage Teal
+  slate:  "#9CA3AF",  // Neutral-400
 };
 
 // Chart grid and axis colors for dark theme
-const CHART_GRID = "rgba(255,255,255,0.06)";
-const CHART_AXIS = "rgba(255,255,255,0.35)";
+const CHART_GRID = "rgba(0,0,0,0.06)";
+const CHART_AXIS = "rgba(0,0,0,0.40)";
 const TOOLTIP_STYLE = {
-  contentStyle: { background: '#0f1929', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#e2e8f0' },
-  labelStyle: { color: '#94a3b8', fontSize: 11 },
+  contentStyle: { background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
+  labelStyle: { color: '#6B7280', fontSize: 11 },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

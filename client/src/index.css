@@ -49,50 +49,61 @@
 }
 
 :root {
-  /* KINGA Brand Colors - Extracted from Logo */
-  /* Primary: Teal/Turquoise (#4DB8A8) - Main shield pattern */
-  /* Secondary: Navy Blue (#2B4C7E) - Pattern accents */
-  /* Accent: Forest Green (#4A7C59) - KINGA text */
-  
-  /* Light mode: primary must be dark enough to read on white (≥4.5:1) */
-  --primary: oklch(0.42 0.12 185);          /* Deep teal — 7.1:1 on white ✓ */
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.32 0.09 250);        /* Deep navy — 9.4:1 on white ✓ */
-  --secondary-foreground: oklch(0.99 0 0);
-  --accent: oklch(0.38 0.10 155);           /* Forest green — 8.2:1 on white ✓ */
-  --accent-foreground: oklch(0.99 0 0);
-  --sidebar-primary: oklch(0.42 0.12 185);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  
-  /* Chart colors using KINGA palette */
-  --chart-1: oklch(0.68 0.10 185); /* Teal */
-  --chart-2: oklch(0.40 0.08 250); /* Navy */
-  --chart-3: oklch(0.55 0.08 155); /* Forest Green */
-  --chart-4: oklch(0.75 0.08 180); /* Light Teal */
-  --chart-5: oklch(0.35 0.06 240); /* Deep Navy */
-  
-  --radius: 0.75rem;
-  
-  /* Backgrounds — KINGA WCAG 2.1 AA palette (spec §5) */
-  --background: #FFFFFF;                    /* Pure white — spec §1 */
-  --foreground: #1A1A1A;                    /* Near-black — 21:1 on white ✓ */
-  --card: #F8FAFC;                          /* Slate-50 card bg — spec §5 */
-  --card-foreground: #0F172A;               /* Slate-900 — 17:1 on card ✓ */
-  --popover: #FFFFFF;
-  --popover-foreground: #1A1A1A;
-  --muted: #F1F5F9;                         /* Slate-100 */
-  --muted-foreground: #475569;              /* Slate-600 — 7:1 on white ✓ */
-  
-  /* Semantic — all dark enough for white backgrounds */
-  --destructive: oklch(0.50 0.24 25);       /* Dark red — 5.5:1 on white ✓ */
-  --destructive-foreground: oklch(0.99 0 0);
-  --warning: oklch(0.46 0.16 60);           /* Dark amber — 5.8:1 on white ✓ */
-  --warning-foreground: oklch(0.99 0 0);
-  --success: #059669;                       /* Emerald-600 — 12:1 on white ✓ (spec §1) */
-  --success-foreground: #FFFFFF;
-  --info: oklch(0.40 0.16 230);             /* Dark blue — 7.1:1 on white ✓ */
-  --info-foreground: oklch(0.99 0 0);
+  /* ═══════════════════════════════════════════════════════════
+   * KINGA Brand & Design System v1.0 — Light Mode
+   * Colours extracted pixel-level from master KINGA logo.
+   * NO colour outside this palette may be introduced.
+   * ═══════════════════════════════════════════════════════════ */
 
+  /* Brand palette — exact logo hex values */
+  --kinga-forest:   #3C7844;   /* Wordmark — primary action colour */
+  --kinga-teal:     #68A890;   /* Shield centre — positive/growth */
+  --kinga-blue:     #4878A8;   /* Shield upper — informational */
+  --kinga-charcoal: #484840;   /* Spear/sceptre — structural dark */
+
+  /* Primary = Forest Green (wordmark authority) */
+  --primary: #3C7844;
+  --primary-foreground: #FFFFFF;
+
+  /* Secondary = Sage Teal */
+  --secondary: #E8F4F0;        /* Teal-tinted surface for secondary buttons */
+  --secondary-foreground: #2A5C44;
+
+  /* Accent = Slate Blue */
+  --accent: #EBF2F8;           /* Blue-tinted surface for accent areas */
+  --accent-foreground: #2A4E78;
+
+  /* Sidebar active = Forest Green */
+  --sidebar-primary: #3C7844;
+  --sidebar-primary-foreground: #FFFFFF;
+
+  /* Chart series — brand palette only */
+  --chart-1: #3C7844;   /* Forest Green */
+  --chart-2: #68A890;   /* Sage Teal */
+  --chart-3: #4878A8;   /* Slate Blue */
+  --chart-4: #7AAE86;   /* Forest Green 60% tint */
+  --chart-5: #8CB8CC;   /* Slate Blue 60% tint */
+
+  /* Border radius — 8px cards, 6px buttons/inputs */
+  --radius: 0.5rem;
+
+  /* Page & card backgrounds — subtle depth hierarchy */
+  --background: #F9FAFB;      /* Neutral-50 page bg — reduces glare vs pure white */
+  --foreground: #111827;      /* Neutral-900 — 19:1 on page bg ✓ */
+  --card: #FFFFFF;            /* White cards float above the page bg */
+  --card-foreground: #111827; /* Neutral-900 on white ✓ */
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+  --muted: #F3F4F6;           /* Neutral-100 */
+  --muted-foreground: #6B7280; /* Neutral-500 — 4.6:1 on white ✓ */
+
+  /* Semantic colours — all ≥4.5:1 on white */
+  --destructive: #A32D2D;     /* Fail red */
+  --destructive-foreground: #FFFFFF;
+  --warning: #8A5C00;         /* Warn amber */
+  --warning-foreground: #FFFFFF;
+  --success: #2A7A2A;         /* Pass green — matches brand */
+  --success-foreground: #FFFFFF;
   /* Status badge system — KINGA Design Prompt v2 exact hex */
   /* APPROVE = Pass green */
   --status-approve-bg: #e6f4e6;
@@ -118,9 +129,11 @@
   --status-fail-text:   #a32d2d;
   --status-fail-border: #a32d2d;
   
-  --border: #e8e8e8;                         /* KINGA prompt border light */
-  --input: #F1F5F9;                          /* Slate-100 input bg */
-  --ring: oklch(0.42 0.12 185);             /* Deep teal focus ring — visible ✓ */
+  --border: #E5E7EB;                         /* Neutral-200 — clean card borders */
+  --input: #F9FAFB;                          /* Matches page bg for seamless inputs */
+  --ring: #3C7844;                           /* Forest Green focus ring */
+  --info: #4878A8;                           /* Slate Blue informational */
+  --info-foreground: #FFFFFF;
 
   /* BI Design System — light mode variables */
   --bi-bg: oklch(1 0 0);
@@ -217,22 +230,22 @@
   --fp-badge-bg: oklch(0.94 0.01 250);           /* generic badge bg */
   --fp-badge-text: oklch(0.35 0.02 250);         /* generic badge text */
 
-  --sidebar: #F8FAFC;                        /* Slate-50 sidebar bg */
-  --sidebar-foreground: #1A1A1A;             /* Near-black sidebar text */
-  --sidebar-accent: #ECFDF5;                 /* Emerald-50 hover — spec §1 */
-  --sidebar-accent-foreground: #065F46;      /* Emerald-800 — 12:1 on emerald-50 ✓ */
-  --sidebar-border: #E2E8F0;                 /* Slate-200 border */
-  --sidebar-ring: oklch(0.42 0.12 185);
+  --sidebar: #FFFFFF;                        /* White sidebar — clean, premium */
+  --sidebar-foreground: #374151;             /* Neutral-700 — readable nav text */
+  --sidebar-accent: #F0F7F2;                 /* Forest green 6% tint hover */
+  --sidebar-accent-foreground: #3C7844;      /* Forest green active text */
+  --sidebar-border: #E5E7EB;                 /* Neutral-200 border */
+  --sidebar-ring: #3C7844;
 }
 
 .dark {
-  /* KINGA BI Dark Theme */
-  --primary: oklch(0.72 0.16 165);          /* Bright emerald — 5.2:1 on card ✓ */
-  --primary-foreground: oklch(0.08 0.015 250);
-  --secondary: oklch(0.26 0.025 250);
-  --secondary-foreground: oklch(0.90 0.008 250);
-  --accent: oklch(0.30 0.025 250);
-  --accent-foreground: oklch(0.92 0.008 250);
+  /* KINGA Brand & Design System v1.0 — Dark Mode */
+  --primary: #5A9E64;          /* Forest Green lightened for dark bg — 4.8:1 on #1E1E1E ✓ */
+  --primary-foreground: #FFFFFF;
+  --secondary: #2A3D35;        /* Dark teal surface */
+  --secondary-foreground: #A8D4C4;
+  --accent: #1E2E40;           /* Dark blue surface */
+  --accent-foreground: #A0C0DC;
   
   /* Backgrounds — KINGA dark mode (spec §3) */
   --background: #1E1E1E;                    /* Near-black — spec §3 */
@@ -293,14 +306,14 @@
   --chart-5: oklch(0.72 0.18 290);   /* Bright purple */
   
   /* Sidebar — dark mode */
-  --sidebar: #252525;                        /* Slightly lighter than bg */
-  --sidebar-foreground: #E5E7EB;             /* Gray-200 — readable on dark */
-  --sidebar-primary: #34D399;                /* Emerald-400 accent */
-  --sidebar-primary-foreground: #052E16;     /* Dark green on emerald */
-  --sidebar-accent: #333333;                 /* Hover state */
-  --sidebar-accent-foreground: #F9FAFB;      /* Near-white on hover */
-  --sidebar-border: #3F3F3F;                 /* Neutral dark border */
-  --sidebar-ring: oklch(0.72 0.16 165);
+  --sidebar: #222222;
+  --sidebar-foreground: #D1D5DB;
+  --sidebar-primary: #5A9E64;   /* Lightened forest green for dark */
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #2A3A2D;    /* Forest green dark tint hover */
+  --sidebar-accent-foreground: #A8D4C4;
+  --sidebar-border: #333333;
+  --sidebar-ring: #5A9E64;
 
   /* BI Design System — dark mode variables */
   --bi-bg: oklch(0.155 0.012 250);

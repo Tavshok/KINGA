@@ -285,7 +285,7 @@ function DashboardLayoutContent({
           </SidebarHeader>
 
           <SidebarContent className="gap-0">
-            <SidebarMenu className="px-2 py-1">
+            <SidebarMenu className="px-2 py-2">
               {menuItems.map(item => {
                 const isActive = location === item.path;
                 return (
@@ -294,12 +294,25 @@ function DashboardLayoutContent({
                       isActive={isActive}
                       onClick={() => setLocation(item.path)}
                       tooltip={item.label}
-                      className={`h-10 transition-all font-normal`}
+                      className="h-10 transition-all rounded-md text-sm"
+                      style={isActive ? {
+                        background: '#F0F7F2',
+                        color: '#3C7844',
+                        fontWeight: 600,
+                        borderLeft: '3px solid #3C7844',
+                        paddingLeft: '10px',
+                      } : {
+                        borderLeft: '3px solid transparent',
+                        paddingLeft: '10px',
+                        color: 'var(--sidebar-foreground)',
+                        fontWeight: 400,
+                      }}
                     >
                       <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                        className="h-4 w-4 shrink-0"
+                        style={isActive ? { color: '#3C7844' } : {}}
                       />
-                      <span>{item.label}</span>
+                      <span className="truncate">{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
