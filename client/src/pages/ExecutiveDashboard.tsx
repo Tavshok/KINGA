@@ -35,6 +35,10 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
+import { ExecutiveAlertsCenter } from "@/components/executive/ExecutiveAlertsCenter";
+import { ExecutiveReportTab } from "@/components/executive/ExecutiveReportTab";
+import { ClaimsAgeingPanel } from "@/components/executive/ClaimsAgeingPanel";
+import { FraudInvestigationFunnel } from "@/components/executive/FraudInvestigationFunnel";
 import {
   DEMO_EXEC_SUMMARY,
   DEMO_KPI_SUMMARY,
@@ -245,6 +249,8 @@ export default function ExecutiveDashboard() {
   
   // Governance metrics
   const { data: governanceResponse, isLoading: governanceLoading } = trpc.governance.getGovernanceSummary.useQuery(undefined, { retry: 0 });
+  // Month-on-Month Comparison — replaces hardcoded DEMO_MONTH_COMPARISON
+  const { data: monthComparisonResponse } = trpc.analytics.getMonthComparison.useQuery(undefined, { retry: 0 });
   // Governance detail queries removed — executive sees snapshot KPIs only.
   
   // ── Demo mode: fall back to realistic fixture data when DB is empty ──
@@ -257,6 +263,9 @@ export default function ExecutiveDashboard() {
 
   const _govRaw = governanceResponse?.data;
   const governanceMetrics = (!_govRaw || isEmptyData(_govRaw)) ? DEMO_GOVERNANCE : _govRaw;
+  // Month comparison: use real data if available, fall back to demo fixture
+  const monthComparisonItems = monthComparisonResponse?.items ?? DEMO_MONTH_COMPARISON;
+  const monthComparisonLabel = monthComparisonResponse?.label ?? 'MONTH-ON-MONTH';
 
   // Search query - only execute when searchQuery has value
   const { data: searchResultsResponse, isLoading: searchLoading, refetch: executeSearch } = trpc.analytics.globalSearch.useQuery(
@@ -382,33 +391,31 @@ export default function ExecutiveDashboard() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+    <div className="exec-dashboard min-h-screen" style={{ background: 'var(--background)' }}>
 
       {/* ── Page Header ── */}
-      <div style={{ background: 'var(--background)', borderBottom: '1px solid var(--border)' }}>
-        <div className="max-w-[1600px] mx-auto px-8 py-6">
-          <div className="flex items-center justify-between">
+      <div style={{ background: 'var(--background)', borderBottom: '2px solid var(--border)' }}>
+        <div className="max-w-[1600px] mx-auto px-8" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
+          <div className="flex items-center justify-between gap-4">
+            {/* Left: Title block */}
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'var(--success)' }}>
-                <BarChart3 className="h-6 w-6 text-white" />
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--success)' }}>
+                <BarChart3 className="h-5 w-5 text-white" />
               </div>
               <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Executive Command Center</h1>
-                  <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'var(--success)', color: 'white' }}>LIVE</span>
+                <div className="flex items-center gap-2.5">
+                  <h1 className="font-bold tracking-tight" style={{ fontSize: '22px', color: 'var(--foreground)', fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>Executive Command Center</h1>
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold tracking-wide" style={{ background: 'var(--success)', color: 'white', fontSize: '10px' }}>LIVE</span>
                 </div>
-                <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Real-time insights · Decision intelligence · KINGA-powered analytics</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Decision intelligence · KINGA-powered analytics · {new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Last updated</p>
-                <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{new Date().toLocaleTimeString()}</p>
-              </div>
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2 shrink-0">
               <ThemeToggle />
               <Link href="/portal-hub">
-                <Button variant="outline" size="sm" style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'transparent' }}>
-                  <Target className="mr-2 h-4 w-4" />
+                <Button variant="outline" size="sm" style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'transparent', fontSize: '13px' }}>
+                  <Target className="mr-1.5 h-3.5 w-3.5" />
                   Switch Portal
                 </Button>
               </Link>
@@ -433,47 +440,52 @@ export default function ExecutiveDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
           {[
             {
-              label: 'Total Claims (30d)',
+              label: 'Total Claims',
               value: execSummaryLoading ? '…' : (effectiveExecSummary?.totalClaims ?? kpis?.totalClaims ?? 0).toLocaleString(),
               sub: 'Submitted in period',
-              color: 'var(--info)',
+              color: '#3B82F6',
               icon: FileText,
             },
             {
               label: 'KINGA Savings',
               value: execSummaryLoading ? '…' : (() => { const s = effectiveExecSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100).toLocaleString()}` : '—'; })(),
-              sub: 'Est. value − approved',
-              color: 'var(--success)',
+              sub: 'Est. value − approved payout',
+              color: '#10B981',
               icon: TrendingUp,
             },
             {
               label: 'Resolution Rate',
               value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.resolutionRate ?? 0).toFixed(1)}%`,
-              sub: 'Closed / total claims',
-              color: 'var(--chart-5)',
+              sub: 'Closed ÷ total claims',
+              color: '#8B5CF6',
               icon: CheckCircle,
             },
             {
-              label: 'Avg Cycle Days',
+              label: 'Avg Cycle Time',
               value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.avgCycleDays ?? 0).toFixed(1)}d`,
               sub: 'Submission to closure',
-              color: effectiveExecSummary?.avgCycleDays && effectiveExecSummary.avgCycleDays > 14 ? 'var(--warning)' : 'var(--success)',
+              color: effectiveExecSummary?.avgCycleDays && effectiveExecSummary.avgCycleDays > 14 ? '#F59E0B' : '#10B981',
               icon: Clock,
             },
           ].map(({ label, value, sub, color, icon: Icon }, i) => (
             <div
               key={i}
-              className="rounded-xl p-5"
-              style={{ background: 'var(--background)', border: '1px solid var(--border)', boxShadow: `0 0 24px ${color}20` }}
+              className="rounded-lg p-5"
+              style={{
+                background: 'var(--background)',
+                border: '1px solid var(--border)',
+                borderLeft: `4px solid ${color}`,
+                fontFamily: 'Inter, sans-serif',
+              }}
             >
               <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-                  <p className="text-3xl font-bold mt-1" style={{ color }}>{value}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)', letterSpacing: '0.08em' }}>{label}</p>
+                  <p className="font-bold tabular-nums" style={{ fontSize: '28px', lineHeight: '1.1', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{value}</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
                 </div>
-                <div className="p-2.5 rounded-lg" style={{ background: `${color}20` }}>
-                  <Icon className="h-5 w-5" style={{ color }} />
+                <div className="p-2 rounded-md shrink-0" style={{ background: `${color}15` }}>
+                  <Icon className="h-4 w-4" style={{ color }} />
                 </div>
               </div>
             </div>
@@ -484,57 +496,98 @@ export default function ExecutiveDashboard() {
       {/* ── Secondary KPI strip ── */}
       <div className="max-w-[1600px] mx-auto px-8 pb-6 pt-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div
-            className="rounded-lg px-4 py-3 flex items-center gap-3 cursor-pointer"
-            style={{ background: 'var(--fp-critical-bg)', border: '1px solid color-mix(in srgb, var(--chart-4) 30%, transparent)' }}
-            onClick={() => { setDrillDownFilter("high_fraud"); setDrillDownTitle("High Fraud Risk Claims"); setDrillDownOpen(true); }}
-          >
-            <AlertTriangle className="h-5 w-5 shrink-0" style={{ color: 'var(--chart-4)' }} />
-            <div>
-              <p className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>Fraud Exposure</p>
-              <p className="text-lg font-bold" style={{ color: 'var(--chart-4)' }}>{fmt((kpis?.fraudRiskAmount || 0) * 100)}</p>
+          {[
+            {
+              label: 'Fraud Exposure',
+              value: fmt((kpis?.fraudRiskAmount || 0) * 100),
+              color: '#EF4444',
+              icon: AlertTriangle,
+              onClick: () => { setDrillDownFilter('high_fraud'); setDrillDownTitle('High Fraud Risk Claims'); setDrillDownOpen(true); },
+            },
+            {
+              label: 'High-Risk Claims',
+              value: String(kpis?.highRiskClaimsCount || 0),
+              color: '#F59E0B',
+              icon: Shield,
+              onClick: undefined,
+            },
+            {
+              label: 'Fast-Track Rate',
+              value: `${kpis?.fastTrackPercentage || 0}%`,
+              color: '#10B981',
+              icon: Zap,
+              onClick: undefined,
+            },
+            {
+              label: 'Executive Overrides',
+              value: String(overrideMetrics.count),
+              color: '#6366F1',
+              icon: AlertCircle,
+              onClick: () => { setDrillDownFilter('overridden'); setDrillDownTitle('Executive Override History'); setDrillDownOpen(true); },
+            },
+          ].map(({ label, value, color, icon: Icon, onClick }, i) => (
+            <div
+              key={i}
+              className="rounded-lg px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'var(--background)',
+                border: '1px solid var(--border)',
+                borderLeft: `3px solid ${color}`,
+                cursor: onClick ? 'pointer' : 'default',
+                fontFamily: 'Inter, sans-serif',
+              }}
+              onClick={onClick}
+            >
+              <Icon className="h-4 w-4 shrink-0" style={{ color }} />
+              <div>
+                <p className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                <p className="text-base font-bold tabular-nums" style={{ color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{value}</p>
+              </div>
             </div>
-          </div>
-          <div className="rounded-lg px-4 py-3 flex items-center gap-3" style={{ background: 'var(--fp-warning-bg)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }}>
-            <Shield className="h-5 w-5 shrink-0" style={{ color: 'var(--warning)' }} />
-            <div>
-              <p className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>High-Risk Claims</p>
-              <p className="text-lg font-bold" style={{ color: 'var(--warning)' }}>{kpis?.highRiskClaimsCount || 0}</p>
-            </div>
-          </div>
-          <div className="rounded-lg px-4 py-3 flex items-center gap-3" style={{ background: 'var(--fp-success-bg)', border: '1px solid color-mix(in srgb, var(--success) 30%, transparent)' }}>
-            <Zap className="h-5 w-5 shrink-0" style={{ color: 'var(--success)' }} />
-            <div>
-              <p className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>Fast-Track Rate</p>
-              <p className="text-lg font-bold" style={{ color: 'var(--success)' }}>{kpis?.fastTrackPercentage || 0}%</p>
-            </div>
-          </div>
-          <div
-            className="rounded-lg px-4 py-3 flex items-center gap-3 cursor-pointer"
-            style={{ background: 'var(--fp-info-bg)', border: '1px solid color-mix(in srgb, var(--info) 30%, transparent)' }}
-            onClick={() => { setDrillDownFilter("overridden"); setDrillDownTitle("Executive Override History"); setDrillDownOpen(true); }}
-          >
-            <AlertCircle className="h-5 w-5 shrink-0" style={{ color: 'var(--info)' }} />
-            <div>
-              <p className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>Executive Overrides</p>
-              <p className="text-lg font-bold" style={{ color: 'var(--info)' }}>{overrideMetrics.count}</p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* ── 3-TAB SECTION ── */}
+      {/* ── TAB SECTION ── */}
       <div className="max-w-[1600px] mx-auto px-8 pb-12">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="operational-health">Operational Health</TabsTrigger>
-            <TabsTrigger value="roi-breakdown">ROI Breakdown</TabsTrigger>
-            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
-          </TabsList>
+          {/* Pill-style tab bar with emerald active indicator */}
+          <div style={{ borderBottom: '1px solid var(--border)', marginBottom: '0' }}>
+            <TabsList className="h-auto bg-transparent p-0 gap-0 rounded-none" style={{ display: 'flex', width: '100%', justifyContent: 'flex-start' }}>
+              {([
+                { value: 'overview', label: 'Overview' },
+                { value: 'operational-health', label: 'Operational Health' },
+                { value: 'roi-breakdown', label: 'ROI & Financials' },
+                { value: 'notifications', label: 'Notifications', badge: true },
+                { value: 'reports', label: 'Executive Report' },
+              ] as const).map(tab => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="rounded-none border-b-2 px-5 py-3 text-sm font-medium transition-colors"
+                  style={{
+                    borderBottomColor: activeTab === tab.value ? '#10B981' : 'transparent',
+                    color: activeTab === tab.value ? '#10B981' : 'var(--muted-foreground)',
+                    background: 'transparent',
+                    fontFamily: 'Inter, sans-serif',
+                    fontWeight: activeTab === tab.value ? 600 : 400,
+                  }}
+                >
+                  {tab.badge ? <NotificationsTabBadge /> : tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
           {/* ── Tab 1: Overview ── */}
           <TabsContent value="overview" className="space-y-6">
+
+            {/* ── Row 1: Alerts Centre + Ageing Panel + Fraud Funnel ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <ExecutiveAlertsCenter />
+              <ClaimsAgeingPanel />
+              <FraudInvestigationFunnel />
+            </div>
 
             {/* ── Month vs Prior Month Comparison Strip ── */}
             <div
@@ -543,7 +596,7 @@ export default function ExecutiveDashboard() {
             >
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-semibold" style={{ color: 'var(--muted-foreground)' }}>
-                  MAY 2026 vs APRIL 2026
+                  {monthComparisonLabel}
                 </p>
                 <span
                   className="text-xs px-2 py-0.5 rounded-full font-medium"
@@ -553,7 +606,7 @@ export default function ExecutiveDashboard() {
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                {DEMO_MONTH_COMPARISON.map((item) => {
+                {monthComparisonItems.map((item) => {
                   const delta = item.current - item.prior;
                   const pct = item.prior > 0 ? ((delta / item.prior) * 100).toFixed(1) : "0.0";
                   const isPositive = item.higherIsBetter ? delta >= 0 : delta <= 0;
@@ -898,12 +951,13 @@ export default function ExecutiveDashboard() {
                     <Activity className="h-8 w-8 animate-spin" style={{ color: 'var(--success)' }} />
                   </div>
                 ) : financials ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
                     {[
                       { label: 'Total Payouts', value: `$${(financials.totalPayouts || 0).toLocaleString()}`, sub: 'Approved claims paid', color: 'var(--info)' },
                       { label: 'Total Reserves', value: `$${(financials.totalReserves || 0).toLocaleString()}`, sub: 'Pending claims estimated', color: 'var(--warning)' },
                       { label: 'Fraud Prevented', value: `$${(financials.fraudPrevented || 0).toLocaleString()}`, sub: 'High-risk claims rejected', color: 'var(--success)' },
-                      { label: 'Net Exposure', value: `$${(financials.netExposure || 0).toLocaleString()}`, sub: 'Total financial exposure', color: 'var(--chart-5)' },
+                      { label: 'Net Exposure', value: `$${(financials.netExposure || 0).toLocaleString()}`, sub: 'Reserves minus recovered', color: 'var(--chart-5)' },
+                      { label: 'Leakage', value: `$${(financials.leakage || 0).toLocaleString()}`, sub: 'Paid above KINGA estimate', color: 'var(--destructive)' },
                     ].map(({ label, value, sub, color }) => (
                       <div key={label} className="rounded-xl p-5 text-center" style={{ background: `color-mix(in srgb, ${color} 10%, var(--background))`, border: `1px solid color-mix(in srgb, ${color} 25%, transparent)` }}>
                         <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
@@ -946,6 +1000,11 @@ export default function ExecutiveDashboard() {
           {/* ── Notifications Tab ─────────────────────────────────────── */}
           <TabsContent value="notifications" className="mt-6">
             <NotificationsInbox />
+          </TabsContent>
+
+          {/* ── Tab 6: Executive Report ── */}
+          <TabsContent value="reports" className="mt-6">
+            <ExecutiveReportTab />
           </TabsContent>
 </Tabs>
       </div>

@@ -1499,3 +1499,23 @@
 .approval-workflow-header.comparison-section-header {
   background: #ffffff !important;
 }
+
+/* ── Executive Dashboard v2 — Scoped Design Tokens ───────────────────────── */
+/* Applied via .exec-dashboard wrapper class on the ExecutiveDashboard page   */
+
+.exec-dashboard {
+  font-family: 'Inter', 'DM Sans', sans-serif;
+}
+
+.exec-dashboard .exec-number {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Executive Alerts Centre — severity left-border colours */
+.exec-alert-critical { border-left: 4px solid var(--destructive); }
+.exec-alert-high     { border-left: 4px solid var(--warning); }
+.exec-alert-medium   { border-left: 4px solid var(--info); }
+.exec-alert-low      { border-left: 4px solid var(--success); }

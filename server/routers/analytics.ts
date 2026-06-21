@@ -699,8 +699,28 @@ export const analyticsRouter = router({
         .leftJoin(aiAssessments, eq(claims.id, aiAssessments.claimId))
         .where(fraudFilter);
       const fraudPrevented = Math.round(safeNumber(fraudResult?.total, 0) / 100);
+      // Net Exposure = outstanding reserves minus what has already been recovered (not payouts + reserves)
+      const recoveryFilter = tenantFilter
+        ? and(tenantFilter, sql`${recoveryCases.recoveredAmount} IS NOT NULL`)
+        : sql`${recoveryCases.recoveredAmount} IS NOT NULL`;
+      const [recoveryResult] = await db
+        .select({ total: sql<number>`SUM(${recoveryCases.recoveredAmount})` })
+        .from(recoveryCases)
+        .where(recoveryFilter);
+      const totalRecovered = Math.round(safeNumber(recoveryResult?.total, 0) / 100);
+      const netExposure = Math.max(0, totalReserves - totalRecovered);
+      // Leakage = sum of (approved - estimated) where approved > estimated
+      const leakageFilter = tenantFilter
+        ? and(tenantFilter, sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.approvedAmount} > ${aiAssessments.estimatedCost}`)
+        : and(sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.approvedAmount} > ${aiAssessments.estimatedCost}`);
+      const [leakageResult] = await db
+        .select({ total: sql<number>`SUM(${claims.approvedAmount} - ${aiAssessments.estimatedCost})` })
+        .from(claims)
+        .leftJoin(aiAssessments, eq(claims.id, aiAssessments.claimId))
+        .where(leakageFilter);
+      const leakage = Math.round(safeNumber(leakageResult?.total, 0) / 100);
       return createAnalyticsResponse(
-        { summaryMetrics: { totalPayouts, totalReserves, fraudPrevented, netExposure: totalPayouts + totalReserves }, trends: {}, riskIndicators: {}, fraudSignals: { preventedAmount: fraudPrevented } },
+        { summaryMetrics: { totalPayouts, totalReserves, fraudPrevented, netExposure, totalRecovered, leakage }, trends: {}, riskIndicators: {}, fraudSignals: { preventedAmount: fraudPrevented } },
         { generatedAt: new Date(), role: ctx.user.insurerRole || ctx.user.role, dataScope: tenantId ? 'tenant' : 'global', tenantId }
       );
     } catch (error) {
@@ -940,5 +960,316 @@ export const analyticsRouter = router({
       }
 
       return { success: true, sentTo: recipientEmail };
+    }),
+
+  /**
+   * Get Month-on-Month Comparison
+   * Returns real current vs prior month metrics for the comparison strip.
+   * Replaces the hardcoded DEMO_MONTH_COMPARISON fixture.
+   */
+  getMonthComparison: analyticsRoleProcedure.query(async ({ ctx }) => {
+    try {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      const tenantId = ctx.user.tenantId;
+      const tenantFilter = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+
+      const now = new Date();
+      // Current month: 1st of this month → now
+      const curStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      // Prior month: 1st → last day of prior month
+      const priorStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const priorEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+      const curStartStr = curStart.toISOString();
+      const priorStartStr = priorStart.toISOString();
+      const priorEndStr = priorEnd.toISOString();
+
+      const result = await db.execute(sql`
+        SELECT
+          -- Total Claims
+          SUM(CASE WHEN c.created_at >= ${curStartStr} THEN 1 ELSE 0 END) AS cur_claims,
+          SUM(CASE WHEN c.created_at >= ${priorStartStr} AND c.created_at <= ${priorEndStr} THEN 1 ELSE 0 END) AS prior_claims,
+          -- KINGA Savings (cents → rands)
+          SUM(CASE WHEN c.created_at >= ${curStartStr} AND c.final_approved_amount IS NOT NULL AND ai.estimated_cost IS NOT NULL
+            THEN GREATEST(0, ai.estimated_cost - c.final_approved_amount) ELSE 0 END) / 100 AS cur_savings,
+          SUM(CASE WHEN c.created_at >= ${priorStartStr} AND c.created_at <= ${priorEndStr} AND c.final_approved_amount IS NOT NULL AND ai.estimated_cost IS NOT NULL
+            THEN GREATEST(0, ai.estimated_cost - c.final_approved_amount) ELSE 0 END) / 100 AS prior_savings,
+          -- Resolution Rate (completed / total)
+          SUM(CASE WHEN c.created_at >= ${curStartStr} AND c.status = 'completed' THEN 1 ELSE 0 END) AS cur_completed,
+          SUM(CASE WHEN c.created_at >= ${priorStartStr} AND c.created_at <= ${priorEndStr} AND c.status = 'completed' THEN 1 ELSE 0 END) AS prior_completed,
+          -- Avg Cycle Time (days)
+          AVG(CASE WHEN c.created_at >= ${curStartStr} AND c.status = 'completed' AND c.closed_at IS NOT NULL
+            THEN TIMESTAMPDIFF(DAY, c.created_at, c.closed_at) ELSE NULL END) AS cur_cycle,
+          AVG(CASE WHEN c.created_at >= ${priorStartStr} AND c.created_at <= ${priorEndStr} AND c.status = 'completed' AND c.closed_at IS NOT NULL
+            THEN TIMESTAMPDIFF(DAY, c.created_at, c.closed_at) ELSE NULL END) AS prior_cycle,
+          -- Fraud Flags
+          SUM(CASE WHEN c.created_at >= ${curStartStr} AND ai.fraud_risk_level = 'high' THEN 1 ELSE 0 END) AS cur_fraud,
+          SUM(CASE WHEN c.created_at >= ${priorStartStr} AND c.created_at <= ${priorEndStr} AND ai.fraud_risk_level = 'high' THEN 1 ELSE 0 END) AS prior_fraud,
+          -- Fast-Track Rate (auto_approved / total)
+          SUM(CASE WHEN c.created_at >= ${curStartStr} AND c.workflow_state = 'auto_approved' THEN 1 ELSE 0 END) AS cur_fasttrack,
+          SUM(CASE WHEN c.created_at >= ${priorStartStr} AND c.created_at <= ${priorEndStr} AND c.workflow_state = 'auto_approved' THEN 1 ELSE 0 END) AS prior_fasttrack
+        FROM claims c
+        LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
+        WHERE ${sql.raw(tenantFilter)}
+          AND c.created_at >= ${priorStartStr}
+      `);
+
+      const _rows = (result as any)[0];
+      const row = (Array.isArray(_rows) ? _rows[0] : _rows) as any;
+
+      const curClaims = safeNumber(row?.cur_claims, 0);
+      const priorClaims = safeNumber(row?.prior_claims, 0);
+      const curSavings = Math.round(safeNumber(row?.cur_savings, 0));
+      const priorSavings = Math.round(safeNumber(row?.prior_savings, 0));
+      const curCompleted = safeNumber(row?.cur_completed, 0);
+      const priorCompleted = safeNumber(row?.prior_completed, 0);
+      const curCycle = Math.round(safeNumber(row?.cur_cycle, 0) * 10) / 10;
+      const priorCycle = Math.round(safeNumber(row?.prior_cycle, 0) * 10) / 10;
+      const curFraud = safeNumber(row?.cur_fraud, 0);
+      const priorFraud = safeNumber(row?.prior_fraud, 0);
+      const curFasttrack = safeNumber(row?.cur_fasttrack, 0);
+      const priorFasttrack = safeNumber(row?.prior_fasttrack, 0);
+
+      const curResolution = curClaims > 0 ? Math.round((curCompleted / curClaims) * 100) : 0;
+      const priorResolution = priorClaims > 0 ? Math.round((priorCompleted / priorClaims) * 100) : 0;
+      const curFasttrackRate = curClaims > 0 ? Math.round((curFasttrack / curClaims) * 100) : 0;
+      const priorFasttackRate = priorClaims > 0 ? Math.round((priorFasttrack / priorClaims) * 100) : 0;
+
+      const curMonthLabel = curStart.toLocaleString('en-ZA', { month: 'long', year: 'numeric' }).toUpperCase();
+      const priorMonthLabel = priorStart.toLocaleString('en-ZA', { month: 'long', year: 'numeric' }).toUpperCase();
+
+      return {
+        label: `${curMonthLabel} vs ${priorMonthLabel}`,
+        items: [
+          { label: 'Total Claims', current: curClaims, prior: priorClaims, unit: '', higherIsBetter: true, isCurrency: false },
+          { label: 'KINGA Savings', current: curSavings, prior: priorSavings, unit: 'ZAR', higherIsBetter: true, isCurrency: true },
+          { label: 'Resolution Rate', current: curResolution, prior: priorResolution, unit: '%', higherIsBetter: true, isCurrency: false },
+          { label: 'Avg Cycle Time', current: curCycle, prior: priorCycle, unit: 'd', higherIsBetter: false, isCurrency: false },
+          { label: 'Fraud Flags', current: curFraud, prior: priorFraud, unit: '', higherIsBetter: false, isCurrency: false },
+          { label: 'Fast-Track Rate', current: curFasttackRate, prior: priorFasttackRate, unit: '%', higherIsBetter: true, isCurrency: false },
+        ],
+      };
+    } catch (error) {
+      console.error('[Analytics] getMonthComparison error:', error);
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch month comparison' });
+    }
+  }),
+
+  /**
+   * Get Executive Alerts
+   * Returns prioritised, actionable alerts for the executive — not raw data, but decisions.
+   */
+  getExecutiveAlerts: analyticsRoleProcedure
+    .query(async ({ ctx }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const tenantId = ctx.user.tenantId;
+        const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+        const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const result = await db.execute(sql`
+          SELECT
+            (SELECT COUNT(*) FROM claims c LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
+             WHERE ${sql.raw(tf)} AND ai.fraud_risk_level = 'high' AND c.status NOT IN ('completed','rejected')
+            ) as open_fraud_count,
+            (SELECT COALESCE(SUM(ai.estimated_cost),0) FROM claims c LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
+             WHERE ${sql.raw(tf)} AND ai.fraud_risk_level = 'high' AND c.status NOT IN ('completed','rejected')
+            ) as fraud_exposure_cents,
+            (SELECT COUNT(*) FROM claims c
+             WHERE ${sql.raw(tf)} AND c.status NOT IN ('completed','rejected','cancelled')
+               AND c.created_at < ${sevenDaysAgo.toISOString()}
+            ) as stale_claims_count,
+            (SELECT COUNT(*) FROM claims c
+             WHERE ${sql.raw(tf)} AND c.workflow_state = 'disputed'
+            ) as disputed_count,
+            (SELECT COUNT(*) FROM workflow_audit_trail wat
+             WHERE ${sql.raw(tenantId ? `wat.tenant_id = '${tenantId}'` : '1=1')}
+               AND wat.executive_override = 1
+               AND wat.created_at >= ${thirtyDaysAgo.toISOString()}
+            ) as override_count,
+            (SELECT COUNT(*) FROM recovery_cases rc
+             WHERE ${sql.raw(tenantId ? `rc.tenant_id = '${tenantId}'` : '1=1')}
+               AND rc.status = 'open'
+            ) as open_recovery_count,
+            (SELECT COALESCE(SUM(rc.recovery_amount),0) FROM recovery_cases rc
+             WHERE ${sql.raw(tenantId ? `rc.tenant_id = '${tenantId}'` : '1=1')}
+               AND rc.status = 'open'
+            ) as recovery_opportunity_cents
+        `);
+
+        const _rows = (result as any)[0];
+        const row = (Array.isArray(_rows) ? _rows[0] : _rows) as any;
+
+        const alerts: Array<{
+          id: string; severity: 'critical' | 'warning' | 'info';
+          title: string; description: string; value?: string; action?: string;
+        }> = [];
+
+        const fraudCount = safeNumber(row?.open_fraud_count, 0);
+        const fraudExposure = safeNumber(row?.fraud_exposure_cents, 0) / 100;
+        if (fraudCount > 0) {
+          alerts.push({
+            id: 'fraud_exposure',
+            severity: fraudCount >= 5 ? 'critical' : 'warning',
+            title: `${fraudCount} high-risk claim${fraudCount > 1 ? 's' : ''} require review`,
+            description: `Estimated fraud exposure: R ${fraudExposure.toLocaleString()}`,
+            value: `R ${fraudExposure.toLocaleString()}`,
+            action: 'Review in Risk Manager',
+          });
+        }
+
+        const staleCount = safeNumber(row?.stale_claims_count, 0);
+        if (staleCount > 0) {
+          alerts.push({
+            id: 'stale_claims',
+            severity: staleCount >= 10 ? 'critical' : 'warning',
+            title: `${staleCount} claim${staleCount > 1 ? 's' : ''} stalled beyond 7 days`,
+            description: 'Claims pending without workflow progression — SLA risk.',
+            value: String(staleCount),
+            action: 'View in Claims Manager',
+          });
+        }
+
+        const disputedCount = safeNumber(row?.disputed_count, 0);
+        if (disputedCount > 0) {
+          alerts.push({
+            id: 'disputed',
+            severity: 'warning',
+            title: `${disputedCount} disputed claim${disputedCount > 1 ? 's' : ''} open`,
+            description: 'Disputed claims require executive or legal resolution.',
+            value: String(disputedCount),
+            action: 'View disputes',
+          });
+        }
+
+        const overrideCount = safeNumber(row?.override_count, 0);
+        if (overrideCount > 5) {
+          alerts.push({
+            id: 'overrides',
+            severity: 'info',
+            title: `${overrideCount} executive overrides in last 30 days`,
+            description: 'Elevated override rate may indicate workflow friction or policy gaps.',
+            value: String(overrideCount),
+            action: 'Review governance log',
+          });
+        }
+
+        const recoveryCount = safeNumber(row?.open_recovery_count, 0);
+        const recoveryOpportunity = safeNumber(row?.recovery_opportunity_cents, 0) / 100;
+        if (recoveryCount > 0 && recoveryOpportunity > 0) {
+          alerts.push({
+            id: 'recovery_opportunity',
+            severity: 'info',
+            title: `R ${recoveryOpportunity.toLocaleString()} recovery opportunity`,
+            description: `${recoveryCount} open recovery case${recoveryCount > 1 ? 's' : ''} with actionable potential.`,
+            value: `R ${recoveryOpportunity.toLocaleString()}`,
+            action: 'View in Recoveries',
+          });
+        }
+
+        return { alerts, generatedAt: new Date().toISOString() };
+      } catch (error) {
+        console.error('[Analytics] getExecutiveAlerts error:', error);
+        return { alerts: [], generatedAt: new Date().toISOString() };
+      }
+    }),
+
+  /**
+   * Get Claims Ageing
+   * Returns open claims bucketed by age — tells the executive what is about to become a problem.
+   */
+  getClaimsAgeing: analyticsRoleProcedure
+    .query(async ({ ctx }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const tenantId = ctx.user.tenantId;
+        const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+
+        const result = await db.execute(sql`
+          SELECT
+            SUM(CASE WHEN DATEDIFF(NOW(), c.created_at) <= 7 THEN 1 ELSE 0 END) as bucket_0_7,
+            SUM(CASE WHEN DATEDIFF(NOW(), c.created_at) BETWEEN 8 AND 14 THEN 1 ELSE 0 END) as bucket_8_14,
+            SUM(CASE WHEN DATEDIFF(NOW(), c.created_at) BETWEEN 15 AND 30 THEN 1 ELSE 0 END) as bucket_15_30,
+            SUM(CASE WHEN DATEDIFF(NOW(), c.created_at) > 30 THEN 1 ELSE 0 END) as bucket_over_30,
+            SUM(CASE WHEN DATEDIFF(NOW(), c.created_at) <= 7 THEN COALESCE(ai.estimated_cost,0) ELSE 0 END) as value_0_7,
+            SUM(CASE WHEN DATEDIFF(NOW(), c.created_at) BETWEEN 8 AND 14 THEN COALESCE(ai.estimated_cost,0) ELSE 0 END) as value_8_14,
+            SUM(CASE WHEN DATEDIFF(NOW(), c.created_at) BETWEEN 15 AND 30 THEN COALESCE(ai.estimated_cost,0) ELSE 0 END) as value_15_30,
+            SUM(CASE WHEN DATEDIFF(NOW(), c.created_at) > 30 THEN COALESCE(ai.estimated_cost,0) ELSE 0 END) as value_over_30
+          FROM claims c
+          LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
+          WHERE ${sql.raw(tf)} AND c.status NOT IN ('completed','rejected','cancelled')
+        `);
+
+        const _rows = (result as any)[0];
+        const row = (Array.isArray(_rows) ? _rows[0] : _rows) as any;
+
+        return {
+          buckets: [
+            { label: '0–7 days', count: safeNumber(row?.bucket_0_7, 0), value: Math.round(safeNumber(row?.value_0_7, 0) / 100), color: '#10B981' },
+            { label: '8–14 days', count: safeNumber(row?.bucket_8_14, 0), value: Math.round(safeNumber(row?.value_8_14, 0) / 100), color: '#F59E0B' },
+            { label: '15–30 days', count: safeNumber(row?.bucket_15_30, 0), value: Math.round(safeNumber(row?.value_15_30, 0) / 100), color: '#EF4444' },
+            { label: '30+ days', count: safeNumber(row?.bucket_over_30, 0), value: Math.round(safeNumber(row?.value_over_30, 0) / 100), color: '#7C3AED' },
+          ],
+        };
+      } catch (error) {
+        console.error('[Analytics] getClaimsAgeing error:', error);
+        return { buckets: [] };
+      }
+    }),
+
+  /**
+   * Get Fraud Investigation Funnel
+   * Returns the funnel from flagged → investigated → confirmed → prevented.
+   */
+  getFraudInvestigationFunnel: analyticsRoleProcedure
+    .query(async ({ ctx }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const tenantId = ctx.user.tenantId;
+        const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+
+        const result = await db.execute(sql`
+          SELECT
+            COUNT(DISTINCT c.id) as total_claims,
+            SUM(CASE WHEN ai.fraud_risk_level IN ('high','medium') THEN 1 ELSE 0 END) as flagged,
+            SUM(CASE WHEN ai.fraud_risk_level = 'high' THEN 1 ELSE 0 END) as high_risk,
+            SUM(CASE WHEN ai.fraud_risk_level = 'high' AND c.workflow_state IN ('manual_review','technical_approval','financial_decision','disputed') THEN 1 ELSE 0 END) as under_investigation,
+            SUM(CASE WHEN ai.fraud_risk_level = 'high' AND c.status = 'rejected' THEN 1 ELSE 0 END) as repudiated,
+            SUM(CASE WHEN ai.fraud_risk_level = 'high' AND c.status = 'rejected' AND ai.estimated_cost IS NOT NULL THEN COALESCE(ai.estimated_cost,0) ELSE 0 END) as prevented_loss_cents
+          FROM claims c
+          LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
+          WHERE ${sql.raw(tf)}
+        `);
+
+        const _rows = (result as any)[0];
+        const row = (Array.isArray(_rows) ? _rows[0] : _rows) as any;
+
+        const totalClaims = safeNumber(row?.total_claims, 0);
+        const flagged = safeNumber(row?.flagged, 0);
+        const highRisk = safeNumber(row?.high_risk, 0);
+        const underInvestigation = safeNumber(row?.under_investigation, 0);
+        const repudiated = safeNumber(row?.repudiated, 0);
+        const preventedLoss = Math.round(safeNumber(row?.prevented_loss_cents, 0) / 100);
+
+        return {
+          stages: [
+            { label: 'All Claims', count: totalClaims, pct: 100 },
+            { label: 'Flagged (Med/High)', count: flagged, pct: totalClaims > 0 ? Math.round((flagged / totalClaims) * 100) : 0 },
+            { label: 'High Risk', count: highRisk, pct: totalClaims > 0 ? Math.round((highRisk / totalClaims) * 100) : 0 },
+            { label: 'Under Investigation', count: underInvestigation, pct: highRisk > 0 ? Math.round((underInvestigation / highRisk) * 100) : 0 },
+            { label: 'Repudiated', count: repudiated, pct: highRisk > 0 ? Math.round((repudiated / highRisk) * 100) : 0 },
+          ],
+          preventedLoss,
+          conversionRate: flagged > 0 ? Math.round((repudiated / flagged) * 100) : 0,
+        };
+      } catch (error) {
+        console.error('[Analytics] getFraudInvestigationFunnel error:', error);
+        return { stages: [], preventedLoss: 0, conversionRate: 0 };
+      }
     }),
 });

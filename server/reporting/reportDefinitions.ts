@@ -85,6 +85,7 @@ export const REPORT_ACCESS: Record<string, string[]> = {
   // ── Executive Reports ─────────────────────────────────────────────────────
   // Executives see high-level KPI summaries; managers also get trend data
   "executive.insurer_summary":         ["insurer_admin", "executive"],
+  "executive.full_report":              ["insurer_admin", "executive"],
   "executive.claims_trend":            ["insurer_admin", "claims_manager", "risk_manager", "executive"],
   "executive.financial_exposure":      ["insurer_admin", "claims_manager", "risk_manager", "executive"],
 
@@ -139,6 +140,7 @@ export async function generateReportHtml(
     case "governance.regulatory_compliance": return generateRegulatoryComplianceReport(params, tenantId);
     case "governance.data_retention":         return generateDataRetentionReport(params, tenantId);
     case "executive.insurer_summary":         return generateExecutiveInsurerSummary(params, tenantId);
+    case "executive.full_report":              return generateExecutiveFullReport(params, tenantId);
     case "executive.claims_trend":            return generateClaimsTrendReport(params, tenantId);
     case "executive.financial_exposure":      return generateFinancialExposureReport(params, tenantId);
     case "executive.cross_insurer_fraud":     return generateCrossInsurerFraudReport(params);
@@ -147,6 +149,9 @@ export async function generateReportHtml(
     case "assessor.performance_summary":      return generateAssessorPerformanceSummary(params, tenantId);
     case "panel_beater.quote_history":        return generatePanelBeaterQuoteHistoryReport(params, tenantId);
     case "panel_beater.job_completion":       return generatePanelBeaterJobCompletionReport(params, tenantId);
+    case "recovery.case_summary":             return generateRecoveryCaseSummaryReport(params, tenantId);
+    case "recovery.performance":              return generateRecoveryPerformanceReport(params, tenantId);
+    case "recovery.third_party_profiles":     return generateRecoveryThirdPartyProfilesReport(params, tenantId);
     default: throw new Error(`Unknown report key: ${reportKey}`);
   }
 }
@@ -1937,6 +1942,482 @@ export async function generatePanelBeaterJobCompletionReport(
           <div class="kv-item"><div class="kv-label">Avg Job Value</div><div class="kv-value">${fmtCurrency(Number(s.avg_job_value ?? 0))}</div></div>
           <div class="kv-item"><div class="kv-label">Avg Structural Gap</div><div class="kv-value">${Number(s.avg_gap ?? 0).toFixed(1)}%</div></div>
         </div>
+      </div>`;
+
+    return buildBaseHtml(meta, body);
+  } finally {
+    await conn.end();
+  }
+}
+
+// ─── Recovery Reports ─────────────────────────────────────────────────────────
+
+async function generateRecoveryCaseSummaryReport(
+  params: Record<string, unknown>,
+  tenantId?: string
+): Promise<string> {
+  const conn = await getConn();
+  try {
+    const tid = tenantId ?? (params.tenantId as string) ?? "Unknown";
+    const fromTs = params.from ? new Date(params.from as string).toISOString() : new Date(Date.now() - 90 * 86400000).toISOString();
+    const toTs = params.to ? new Date(params.to as string).toISOString() : new Date().toISOString();
+
+    const [rows] = await conn.execute(
+      `SELECT
+         COUNT(*) AS total_cases,
+         SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open_cases,
+         SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress,
+         SUM(CASE WHEN status = 'recovered' THEN 1 ELSE 0 END) AS recovered,
+         SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) AS closed,
+         SUM(potential_recovery_amount) / 100 AS total_potential,
+         SUM(CASE WHEN status = 'recovered' THEN recovered_amount ELSE 0 END) / 100 AS total_recovered
+       FROM recovery_cases
+       WHERE tenant_id = ? AND created_at BETWEEN ? AND ?`,
+      [tid, fromTs, toTs]
+    ) as [Record<string, unknown>[], unknown];
+    const s = (rows as Record<string, unknown>[])[0] ?? {};
+
+    const [caseRows] = await conn.execute(
+      `SELECT rc.id, rc.case_reference, rc.status, rc.recovery_type,
+              rc.potential_recovery_amount / 100 AS potential, rc.created_at,
+              c.claim_reference, c.vehicle_registration
+       FROM recovery_cases rc
+       LEFT JOIN claims c ON rc.claim_id = c.id
+       WHERE rc.tenant_id = ? AND rc.created_at BETWEEN ? AND ?
+       ORDER BY rc.created_at DESC LIMIT 50`,
+      [tid, fromTs, toTs]
+    ) as [Record<string, unknown>[], unknown];
+    const cases = caseRows as Record<string, unknown>[];
+
+    const meta: ReportMeta = {
+      title: "Recovery Case Summary",
+      subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`,
+      reportRef: `RPT-REC-CASES-${Date.now()}`,
+      generatedAt: new Date(),
+      generatedBy: "KINGA Intelligence Platform",
+      tenantName: tid,
+      classification: "CONFIDENTIAL",
+    };
+
+    const recoveryRate = Number(s.total_potential ?? 0) > 0
+      ? ((Number(s.total_recovered ?? 0) / Number(s.total_potential ?? 0)) * 100).toFixed(1)
+      : "0.0";
+
+    const caseTableRows = cases.map((c: any) => `
+      <tr>
+        <td>${escHtml(String(c.case_reference ?? "—"))}</td>
+        <td>${escHtml(String(c.claim_reference ?? "—"))}</td>
+        <td>${escHtml(String(c.vehicle_registration ?? "—"))}</td>
+        <td>${escHtml(String(c.recovery_type ?? "—").replace(/_/g, " ").toUpperCase())}</td>
+        <td>${fmtCurrency(Number(c.potential ?? 0))}</td>
+        <td>${riskBadge(c.status === "recovered" ? "low" : c.status === "open" ? "medium" : "low")}</td>
+        <td>${fmtDate(c.created_at as number)}</td>
+      </tr>`).join("");
+
+    const body = `
+      <div class="section">
+        <div class="section-title">Portfolio Overview</div>
+        <div class="kv-grid cols-4">
+          <div class="kv-item"><div class="kv-label">Total Cases</div><div class="kv-value bold">${Number(s.total_cases ?? 0).toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Open</div><div class="kv-value">${Number(s.open_cases ?? 0).toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">In Progress</div><div class="kv-value">${Number(s.in_progress ?? 0).toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Recovered</div><div class="kv-value">${Number(s.recovered ?? 0).toLocaleString()}</div></div>
+        </div>
+        <div class="kv-grid cols-3" style="margin-top:12px">
+          <div class="kv-item"><div class="kv-label">Total Potential</div><div class="kv-value bold">${fmtCurrency(Number(s.total_potential ?? 0))}</div></div>
+          <div class="kv-item"><div class="kv-label">Total Recovered</div><div class="kv-value bold">${fmtCurrency(Number(s.total_recovered ?? 0))}</div></div>
+          <div class="kv-item"><div class="kv-label">Recovery Rate</div><div class="kv-value bold">${recoveryRate}%</div></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">Case Register (Last 50)</div>
+        <table class="data-table">
+          <thead><tr>
+            <th>Case Ref</th><th>Claim Ref</th><th>Vehicle</th><th>Type</th><th>Potential</th><th>Status</th><th>Opened</th>
+          </tr></thead>
+          <tbody>${caseTableRows || '<tr><td colspan="7" style="text-align:center;color:#888">No cases in period</td></tr>'}</tbody>
+        </table>
+      </div>`;
+    return buildBaseHtml(meta, body);
+  } finally {
+    await conn.end();
+  }
+}
+
+async function generateRecoveryPerformanceReport(
+  params: Record<string, unknown>,
+  tenantId?: string
+): Promise<string> {
+  const conn = await getConn();
+  try {
+    const tid = tenantId ?? (params.tenantId as string) ?? "Unknown";
+    const fromTs = params.from ? new Date(params.from as string).toISOString() : new Date(Date.now() - 90 * 86400000).toISOString();
+    const toTs = params.to ? new Date(params.to as string).toISOString() : new Date().toISOString();
+
+    const [rows] = await conn.execute(
+      `SELECT
+         COUNT(*) AS total_cases,
+         SUM(CASE WHEN status = 'recovered' THEN 1 ELSE 0 END) AS recovered_count,
+         SUM(potential_recovery_amount) / 100 AS total_potential,
+         SUM(CASE WHEN status = 'recovered' THEN recovered_amount ELSE 0 END) / 100 AS total_recovered,
+         AVG(CASE WHEN status = 'recovered' AND closed_at IS NOT NULL
+           THEN TIMESTAMPDIFF(DAY, created_at, closed_at) ELSE NULL END) AS avg_days_to_recover,
+         SUM(CASE WHEN recovery_type = 'subrogation' THEN 1 ELSE 0 END) AS subrogation_count,
+         SUM(CASE WHEN recovery_type = 'third_party' THEN 1 ELSE 0 END) AS third_party_count,
+         SUM(CASE WHEN recovery_type = 'excess' THEN 1 ELSE 0 END) AS excess_count
+       FROM recovery_cases
+       WHERE tenant_id = ? AND created_at BETWEEN ? AND ?`,
+      [tid, fromTs, toTs]
+    ) as [Record<string, unknown>[], unknown];
+    const s = (rows as Record<string, unknown>[])[0] ?? {};
+
+    const meta: ReportMeta = {
+      title: "Recovery Performance Report",
+      subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`,
+      reportRef: `RPT-REC-PERF-${Date.now()}`,
+      generatedAt: new Date(),
+      generatedBy: "KINGA Intelligence Platform",
+      tenantName: tid,
+      classification: "CONFIDENTIAL",
+    };
+
+    const recoveryRate = Number(s.total_potential ?? 0) > 0
+      ? ((Number(s.total_recovered ?? 0) / Number(s.total_potential ?? 0)) * 100).toFixed(1)
+      : "0.0";
+    const successRate = Number(s.total_cases ?? 0) > 0
+      ? ((Number(s.recovered_count ?? 0) / Number(s.total_cases ?? 0)) * 100).toFixed(1)
+      : "0.0";
+
+    const body = `
+      <div class="section">
+        <div class="section-title">Performance Summary</div>
+        <div class="kv-grid cols-4">
+          <div class="kv-item"><div class="kv-label">Total Cases</div><div class="kv-value bold">${Number(s.total_cases ?? 0).toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Recovered</div><div class="kv-value bold">${Number(s.recovered_count ?? 0).toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Success Rate</div><div class="kv-value bold">${successRate}%</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Days to Recover</div><div class="kv-value bold">${Number(s.avg_days_to_recover ?? 0).toFixed(1)}d</div></div>
+        </div>
+        <div class="kv-grid cols-3" style="margin-top:12px">
+          <div class="kv-item"><div class="kv-label">Total Potential</div><div class="kv-value bold">${fmtCurrency(Number(s.total_potential ?? 0))}</div></div>
+          <div class="kv-item"><div class="kv-label">Total Recovered</div><div class="kv-value bold">${fmtCurrency(Number(s.total_recovered ?? 0))}</div></div>
+          <div class="kv-item"><div class="kv-label">Recovery Rate</div><div class="kv-value bold">${recoveryRate}%</div></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">Recovery Type Breakdown</div>
+        <div class="kv-grid cols-3">
+          <div class="kv-item"><div class="kv-label">Subrogation Cases</div><div class="kv-value">${Number(s.subrogation_count ?? 0).toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Third-Party Cases</div><div class="kv-value">${Number(s.third_party_count ?? 0).toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Excess Recovery Cases</div><div class="kv-value">${Number(s.excess_count ?? 0).toLocaleString()}</div></div>
+        </div>
+      </div>`;
+    return buildBaseHtml(meta, body);
+  } finally {
+    await conn.end();
+  }
+}
+
+async function generateRecoveryThirdPartyProfilesReport(
+  params: Record<string, unknown>,
+  tenantId?: string
+): Promise<string> {
+  const conn = await getConn();
+  try {
+    const tid = tenantId ?? (params.tenantId as string) ?? "Unknown";
+    const fromTs = params.from ? new Date(params.from as string).toISOString() : new Date(Date.now() - 90 * 86400000).toISOString();
+    const toTs = params.to ? new Date(params.to as string).toISOString() : new Date().toISOString();
+
+    const [rows] = await conn.execute(
+      `SELECT
+         tp.insurer_name,
+         COUNT(rc.id) AS case_count,
+         SUM(rc.potential_recovery_amount) / 100 AS total_potential,
+         SUM(CASE WHEN rc.status = 'recovered' THEN rc.recovered_amount ELSE 0 END) / 100 AS total_recovered,
+         AVG(tp.cooperation_score) AS avg_cooperation,
+         MAX(rc.created_at) AS last_case_date
+       FROM recovery_cases rc
+       LEFT JOIN third_party_insurers tp ON rc.third_party_insurer_id = tp.id
+       WHERE rc.tenant_id = ? AND rc.created_at BETWEEN ? AND ?
+         AND tp.insurer_name IS NOT NULL
+       GROUP BY tp.insurer_name
+       ORDER BY total_potential DESC LIMIT 20`,
+      [tid, fromTs, toTs]
+    ) as [Record<string, unknown>[], unknown];
+    const profiles = rows as Record<string, unknown>[];
+
+    const meta: ReportMeta = {
+      title: "Third-Party Insurer Profiles",
+      subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`,
+      reportRef: `RPT-REC-TP-${Date.now()}`,
+      generatedAt: new Date(),
+      generatedBy: "KINGA Intelligence Platform",
+      tenantName: tid,
+      classification: "CONFIDENTIAL",
+    };
+
+    const tableRows = profiles.map((p: any) => `
+      <tr>
+        <td>${escHtml(String(p.insurer_name ?? "Unknown"))}</td>
+        <td>${Number(p.case_count ?? 0).toLocaleString()}</td>
+        <td>${fmtCurrency(Number(p.total_potential ?? 0))}</td>
+        <td>${fmtCurrency(Number(p.total_recovered ?? 0))}</td>
+        <td>${Number(p.avg_cooperation ?? 0).toFixed(1)}/10</td>
+        <td>${p.last_case_date ? fmtDate(p.last_case_date as number) : "—"}</td>
+      </tr>`).join("");
+
+    const body = `
+      <div class="section">
+        <div class="section-title">Third-Party Insurer Intelligence (Top 20 by Potential)</div>
+        <table class="data-table">
+          <thead><tr>
+            <th>Insurer</th><th>Cases</th><th>Total Potential</th><th>Recovered</th><th>Cooperation Score</th><th>Last Case</th>
+          </tr></thead>
+          <tbody>${tableRows || '<tr><td colspan="6" style="text-align:center;color:#888">No third-party data in period</td></tr>'}</tbody>
+        </table>
+      </div>`;
+    return buildBaseHtml(meta, body);
+  } finally {
+    await conn.end();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Executive Full Report  (v2 — 7-section AI-narrated document)
+// ─────────────────────────────────────────────────────────────────────────────
+export async function generateExecutiveFullReport(
+  params: Record<string, unknown>,
+  tenantId?: string
+): Promise<string> {
+  const { invokeLLM } = await import("../_core/llm");
+  const conn = await getConn();
+  try {
+    const fromTs = (params.fromTs as number) ?? Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const toTs   = (params.toTs   as number) ?? Date.now();
+    const tid    = tenantId ?? (params.tenantId as string);
+    const wc     = tid ? "AND c.tenant_id=?" : "";
+    const wp     = (base: unknown[]) => (tid ? [tid, ...base] : base) as unknown[];
+
+    // ── Section 1: Portfolio KPIs ──────────────────────────────────────────
+    const [kpiRows] = await conn.execute(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN c.status='approved'   THEN 1 ELSE 0 END) AS approved,
+         SUM(CASE WHEN c.status='rejected'   THEN 1 ELSE 0 END) AS rejected,
+         SUM(CASE WHEN c.status='escalated'  THEN 1 ELSE 0 END) AS escalated,
+         SUM(CASE WHEN c.status IN ('submitted','under_review','pending') THEN 1 ELSE 0 END) AS open,
+         SUM(CASE WHEN a.fraud_score >= 70   THEN 1 ELSE 0 END) AS high_fraud,
+         SUM(CASE WHEN a.fraud_score BETWEEN 40 AND 69 THEN 1 ELSE 0 END) AS med_fraud,
+         AVG(a.estimated_cost)  AS avg_est_cost,
+         SUM(a.estimated_cost)  AS total_est_cost,
+         SUM(c.approved_amount) AS total_approved,
+         AVG(CASE WHEN c.status='approved' THEN (c.updated_at - c.created_at)/86400000.0 END) AS avg_cycle_days
+       FROM claims c LEFT JOIN ai_assessments a ON a.claim_id = c.id
+       WHERE c.created_at BETWEEN ? AND ? ${wc}`,
+      wp([fromTs, toTs])
+    ) as [Record<string, unknown>[], unknown];
+    const k = (kpiRows as Record<string, unknown>[])[0] ?? {};
+    const total         = Number(k.total        ?? 0);
+    const approved      = Number(k.approved     ?? 0);
+    const rejected      = Number(k.rejected     ?? 0);
+    const escalated     = Number(k.escalated    ?? 0);
+    const open          = Number(k.open         ?? 0);
+    const highFraud     = Number(k.high_fraud   ?? 0);
+    const medFraud      = Number(k.med_fraud    ?? 0);
+    const avgEstCost    = Number(k.avg_est_cost  ?? 0);
+    const totalApproved = Number(k.total_approved ?? 0);
+    const avgCycleDays  = Number(k.avg_cycle_days ?? 0);
+    const approvalRate  = total > 0 ? (approved / total * 100).toFixed(1) : "0.0";
+    const fraudRate     = total > 0 ? (highFraud / total * 100).toFixed(1) : "0.0";
+
+    // ── Section 2: Savings & Financial Impact ─────────────────────────────
+    const [savRows] = await conn.execute(
+      `SELECT
+         SUM(CASE WHEN c.status='approved' AND a.estimated_cost > 0
+               THEN a.estimated_cost - c.approved_amount ELSE 0 END) AS savings,
+         SUM(CASE WHEN c.status='rejected' AND a.fraud_score >= 70
+               THEN a.estimated_cost ELSE 0 END) AS fraud_prevented,
+         SUM(c.reserve_amount)  AS total_reserves,
+         SUM(CASE WHEN c.status='approved' THEN c.approved_amount ELSE 0 END) AS total_payouts
+       FROM claims c LEFT JOIN ai_assessments a ON a.claim_id = c.id
+       WHERE c.created_at BETWEEN ? AND ? ${wc}`,
+      wp([fromTs, toTs])
+    ) as [Record<string, unknown>[], unknown];
+    const sv = (savRows as Record<string, unknown>[])[0] ?? {};
+    const savings        = Math.max(0, Number(sv.savings         ?? 0));
+    const fraudPrevented = Number(sv.fraud_prevented ?? 0);
+    const totalReserves  = Number(sv.total_reserves  ?? 0);
+    const totalPayouts   = Number(sv.total_payouts   ?? 0);
+    const netExposure    = Math.max(0, totalReserves - totalPayouts);
+    const leakage        = totalApproved > 0 && totalApproved > (totalPayouts * 0.95) ? totalApproved - totalPayouts : 0;
+
+    // ── Section 3: Fraud Intelligence ────────────────────────────────────
+    const [fraudRows] = await conn.execute(
+      `SELECT AVG(a.fraud_score) AS avg_fraud_score,
+              SUM(CASE WHEN a.fraud_score >= 70 THEN a.estimated_cost ELSE 0 END) AS fraud_exposure
+       FROM claims c LEFT JOIN ai_assessments a ON a.claim_id = c.id
+       WHERE c.created_at BETWEEN ? AND ? ${wc}`,
+      wp([fromTs, toTs])
+    ) as [Record<string, unknown>[], unknown];
+    const fr = (fraudRows as Record<string, unknown>[])[0] ?? {};
+    const avgFraudScore = Number(fr.avg_fraud_score ?? 0).toFixed(1);
+    const fraudExposure = Number(fr.fraud_exposure  ?? 0);
+
+    // ── Section 4: Operational Performance ───────────────────────────────
+    const [opRows] = await conn.execute(
+      `SELECT
+         SUM(CASE WHEN c.status IN ('submitted','under_review') AND c.created_at < ? THEN 1 ELSE 0 END) AS aged_30,
+         SUM(CASE WHEN c.status IN ('submitted','under_review') AND c.created_at < ? THEN 1 ELSE 0 END) AS aged_60,
+         COUNT(DISTINCT c.assigned_to) AS active_handlers
+       FROM claims c WHERE c.created_at BETWEEN ? AND ? ${wc}`,
+      wp([Date.now() - 30*24*60*60*1000, Date.now() - 60*24*60*60*1000, fromTs, toTs])
+    ) as [Record<string, unknown>[], unknown];
+    const op = (opRows as Record<string, unknown>[])[0] ?? {};
+    const aged30         = Number(op.aged_30         ?? 0);
+    const aged60         = Number(op.aged_60         ?? 0);
+    const activeHandlers = Number(op.active_handlers ?? 0);
+
+    // ── Section 5: Recovery Pipeline ─────────────────────────────────────
+    const [recRows] = await conn.execute(
+      `SELECT COUNT(*) AS total_cases,
+              SUM(CASE WHEN status='recovered' THEN 1 ELSE 0 END) AS recovered,
+              SUM(CASE WHEN status='recovered' THEN recovered_amount ELSE 0 END) AS total_recovered,
+              SUM(potential_recovery_amount) AS total_potential
+       FROM recovery_cases WHERE created_at BETWEEN ? AND ?${tid ? " AND tenant_id=?" : ""}`,
+      tid ? [fromTs, toTs, tid] : [fromTs, toTs]
+    ) as [Record<string, unknown>[], unknown];
+    const rc = (recRows as Record<string, unknown>[])[0] ?? {};
+    const recTotal     = Number(rc.total_cases    ?? 0);
+    const recRecovered = Number(rc.recovered      ?? 0);
+    const recAmount    = Number(rc.total_recovered ?? 0);
+    const recPotential = Number(rc.total_potential ?? 0);
+    const recRate      = recTotal > 0 ? (recRecovered / recTotal * 100).toFixed(1) : "0.0";
+
+    // ── Section 6: Top Assessors ──────────────────────────────────────────
+    const [assessorRows] = await conn.execute(
+      `SELECT u.name, COUNT(c.id) AS claim_count, AVG(a.fraud_score) AS avg_fraud
+       FROM claims c JOIN users u ON u.id = c.assigned_to
+       LEFT JOIN ai_assessments a ON a.claim_id = c.id
+       WHERE c.created_at BETWEEN ? AND ? ${wc}
+       GROUP BY u.id, u.name ORDER BY claim_count DESC LIMIT 5`,
+      wp([fromTs, toTs])
+    ) as [Record<string, unknown>[], unknown];
+    const assessors = assessorRows as Record<string, unknown>[];
+
+    // ── AI Narrative (parallel) ───────────────────────────────────────────
+    const kpiCtx = `Portfolio: ${total} claims, ${approvalRate}% approval, ${fraudRate}% high-fraud rate, avg cycle ${avgCycleDays.toFixed(1)} days, ${open} open claims.`;
+    const finCtx = `Savings: ${fmtCurrency(savings)}, fraud prevented: ${fmtCurrency(fraudPrevented)}, leakage: ${fmtCurrency(leakage)}, net exposure: ${fmtCurrency(netExposure)}.`;
+    const frdCtx = `Avg fraud score: ${avgFraudScore}/100, ${highFraud} high-risk claims, fraud exposure: ${fmtCurrency(fraudExposure)}.`;
+    const opCtx  = `${aged30} claims aged 30+ days, ${aged60} aged 60+ days, ${activeHandlers} active handlers, avg cycle: ${avgCycleDays.toFixed(1)} days.`;
+    const recCtx = `${recTotal} recovery cases, ${recRate}% recovery rate, ${fmtCurrency(recAmount)} recovered of ${fmtCurrency(recPotential)} potential.`;
+    const sysPrompt = "You are a senior insurance analytics expert writing a concise, professional executive report narrative. Write 2-3 sentences only. Be specific and data-driven. Do not use bullet points.";
+
+    const [kpiNarr, finNarr, frdNarr, opNarr, recNarr, actionNarr] = await Promise.all([
+      invokeLLM({ messages: [{ role: "system", content: sysPrompt }, { role: "user", content: `Write a portfolio performance narrative. Data: ${kpiCtx}` }] }).then(r => String(r.choices[0]?.message?.content ?? "")),
+      invokeLLM({ messages: [{ role: "system", content: sysPrompt }, { role: "user", content: `Write a financial impact narrative. Data: ${finCtx}` }] }).then(r => String(r.choices[0]?.message?.content ?? "")),
+      invokeLLM({ messages: [{ role: "system", content: sysPrompt }, { role: "user", content: `Write a fraud intelligence narrative. Data: ${frdCtx}` }] }).then(r => String(r.choices[0]?.message?.content ?? "")),
+      invokeLLM({ messages: [{ role: "system", content: sysPrompt }, { role: "user", content: `Write an operational performance narrative. Data: ${opCtx}` }] }).then(r => String(r.choices[0]?.message?.content ?? "")),
+      invokeLLM({ messages: [{ role: "system", content: sysPrompt }, { role: "user", content: `Write a recoveries pipeline narrative. Data: ${recCtx}` }] }).then(r => String(r.choices[0]?.message?.content ?? "")),
+      invokeLLM({ messages: [
+        { role: "system", content: "You are a senior insurance operations advisor. Based on the portfolio data, identify 3-5 specific, actionable recommendations. Format each as: ACTION: [title] | OWNER: [role] | IMPACT: [financial or operational impact] | TIMELINE: [immediate/30 days/60 days]." },
+        { role: "user", content: `Portfolio data: ${kpiCtx} ${finCtx} ${frdCtx} ${opCtx} ${recCtx}` }
+      ]}).then(r => String(r.choices[0]?.message?.content ?? "")),
+    ]);
+
+    // ── Build HTML ────────────────────────────────────────────────────────
+    const meta: ReportMeta = {
+      title: "Executive Intelligence Report",
+      subtitle: `Period: ${fmtDate(fromTs)} — ${fmtDate(toTs)}`,
+      reportRef: `RPT-EXEC-FULL-${Date.now()}`,
+      generatedAt: new Date(),
+      generatedBy: "KINGA Intelligence Platform",
+      tenantName: tid,
+      classification: "CONFIDENTIAL — EXECUTIVE DISTRIBUTION ONLY",
+    };
+
+    const assessorTableRows = assessors.length > 0
+      ? assessors.map(a => `<tr><td>${escHtml(String(a.name ?? "—"))}</td><td class="text-right">${Number(a.claim_count ?? 0)}</td><td class="text-right">${Number(a.avg_fraud ?? 0).toFixed(0)}</td></tr>`).join("")
+      : `<tr><td colspan="3" style="text-align:center;color:#888">No assessor data for period</td></tr>`;
+
+    const actionHtml = escHtml(actionNarr)
+      .replace(/ACTION:/g, "<strong>ACTION:</strong>")
+      .replace(/OWNER:/g, "<strong>OWNER:</strong>")
+      .replace(/IMPACT:/g, "<strong>IMPACT:</strong>")
+      .replace(/TIMELINE:/g, "<strong>TIMELINE:</strong>")
+      .replace(/\n/g, "<br/>");
+
+    const body = `
+      <div class="section">
+        <div class="section-title">1. Portfolio Performance</div>
+        <p class="narrative">${escHtml(kpiNarr)}</p>
+        <div class="kv-grid cols-4">
+          <div class="kv-item"><div class="kv-label">Total Claims</div><div class="kv-value bold">${total.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Approval Rate</div><div class="kv-value">${approvalRate}%</div></div>
+          <div class="kv-item"><div class="kv-label">Open Claims</div><div class="kv-value">${open.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Cycle Time</div><div class="kv-value">${avgCycleDays.toFixed(1)} days</div></div>
+        </div>
+        <div class="kv-grid cols-3">
+          <div class="kv-item"><div class="kv-label">Approved</div><div class="kv-value">${approved.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Rejected</div><div class="kv-value">${rejected.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Escalated</div><div class="kv-value">${escalated.toLocaleString()}</div></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">2. Financial Impact</div>
+        <p class="narrative">${escHtml(finNarr)}</p>
+        <div class="kv-grid cols-3">
+          <div class="kv-item highlight-green"><div class="kv-label">KINGA Savings</div><div class="kv-value bold">${fmtCurrency(savings)}</div></div>
+          <div class="kv-item highlight-green"><div class="kv-label">Fraud Prevented</div><div class="kv-value bold">${fmtCurrency(fraudPrevented)}</div></div>
+          <div class="kv-item highlight-amber"><div class="kv-label">Leakage</div><div class="kv-value bold">${fmtCurrency(leakage)}</div></div>
+        </div>
+        <div class="kv-grid cols-3">
+          <div class="kv-item"><div class="kv-label">Total Payouts</div><div class="kv-value">${fmtCurrency(totalPayouts)}</div></div>
+          <div class="kv-item"><div class="kv-label">Total Reserves</div><div class="kv-value">${fmtCurrency(totalReserves)}</div></div>
+          <div class="kv-item"><div class="kv-label">Net Exposure</div><div class="kv-value">${fmtCurrency(netExposure)}</div></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">3. Fraud Intelligence</div>
+        <p class="narrative">${escHtml(frdNarr)}</p>
+        <div class="kv-grid cols-4">
+          <div class="kv-item"><div class="kv-label">High-Risk Claims</div><div class="kv-value bold">${highFraud.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Fraud Rate</div><div class="kv-value">${fraudRate}%</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Fraud Score</div><div class="kv-value">${avgFraudScore}/100</div></div>
+          <div class="kv-item highlight-red"><div class="kv-label">Fraud Exposure</div><div class="kv-value bold">${fmtCurrency(fraudExposure)}</div></div>
+        </div>
+        <div class="kv-grid cols-2">
+          <div class="kv-item"><div class="kv-label">Medium-Risk Claims</div><div class="kv-value">${medFraud.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Avg Estimated Cost</div><div class="kv-value">${fmtCurrency(avgEstCost)}</div></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">4. Operational Performance</div>
+        <p class="narrative">${escHtml(opNarr)}</p>
+        <div class="kv-grid cols-3">
+          <div class="kv-item ${aged30 > 10 ? "highlight-amber" : ""}"><div class="kv-label">Claims Aged 30+ Days</div><div class="kv-value bold">${aged30.toLocaleString()}</div></div>
+          <div class="kv-item ${aged60 > 5 ? "highlight-red" : ""}"><div class="kv-label">Claims Aged 60+ Days</div><div class="kv-value bold">${aged60.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Active Handlers</div><div class="kv-value">${activeHandlers.toLocaleString()}</div></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">5. Recovery Pipeline</div>
+        <p class="narrative">${escHtml(recNarr)}</p>
+        <div class="kv-grid cols-4">
+          <div class="kv-item"><div class="kv-label">Total Cases</div><div class="kv-value bold">${recTotal.toLocaleString()}</div></div>
+          <div class="kv-item"><div class="kv-label">Recovery Rate</div><div class="kv-value">${recRate}%</div></div>
+          <div class="kv-item highlight-green"><div class="kv-label">Amount Recovered</div><div class="kv-value bold">${fmtCurrency(recAmount)}</div></div>
+          <div class="kv-item"><div class="kv-label">Potential Pipeline</div><div class="kv-value">${fmtCurrency(recPotential)}</div></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">6. Top Assessors by Volume</div>
+        <table class="data-table">
+          <thead><tr><th>Assessor</th><th class="text-right">Claims</th><th class="text-right">Avg Fraud Score</th></tr></thead>
+          <tbody>${assessorTableRows}</tbody>
+        </table>
+      </div>
+      <div class="section">
+        <div class="section-title">7. Executive Action Register</div>
+        <div class="narrative" style="line-height:1.8;">${actionHtml}</div>
       </div>`;
 
     return buildBaseHtml(meta, body);

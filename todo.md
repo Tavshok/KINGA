@@ -131,6 +131,44 @@
 
 ---
 
+## Executive Dashboard v2 Implementation
+
+### Phase 1: Critical Fixes
+- [x] Replace hardcoded DEMO_MONTH_COMPARISON with real analytics.getMonthComparison procedure
+- [x] Add recovery report case handlers (recovery.case_summary, recovery.performance, recovery.third_party_profiles) to generateReportHtml
+- [x] Fix Net Exposure formula in analytics.getFinancialOverview (totalReserves - totalRecovered)
+
+### Phase 2: Visual Redesign
+- [x] Add Inter font via Google Fonts CDN in client/index.html
+- [x] Add exec design tokens to client/src/index.css
+- [ ] Create ExecutivePeriodContext with global period state (deferred — requires state management refactor)
+- [x] Redesign dashboard header (white bg, strong bottom border, period selector, action buttons)
+- [x] Redesign tab navigation (underline style, emerald active)
+- [x] Redesign KPI cards (white bg, 4px coloured left border, Inter font, tabular numbers)
+- [ ] Wire all existing queries to consume period context (deferred — depends on ExecutivePeriodContext)
+- [ ] Add Demo Mode banner (deferred)
+
+### Phase 3: New Components
+- [x] analytics.getExecutiveAlerts procedure + Executive Alerts Centre component
+- [x] analytics.getMonthComparison procedure + Month Comparison Strip component (real data)
+- [x] analytics.getClaimsAgeing procedure + Claims Ageing Panel component
+- [ ] analytics.getEscalationCounts procedure + Escalations Dashboard component
+- [x] analytics.getFraudInvestigationFunnel procedure + Investigation Funnel component
+- [ ] crossClaim.getTopEntities procedure + Cross-Claim Intelligence panel
+- [ ] analytics.getSettlementTrend procedure + Settlement Trend chart
+- [ ] governance.getExceptionsRegister procedure + Governance Exceptions Register
+- [x] Add Leakage tile to Financial Overview
+- [ ] Wire Recovery Dashboard to recovery.getKPIs + recovery.getCases
+
+### Phase 4: Executive Report
+- [x] executive.full_report added to REPORT_ACCESS + switch statement in reportDefinitions.ts
+- [x] generateExecutiveFullReport HTML template (7 sections)
+- [x] AI narrative integration (6 LLM calls, parallel)
+- [x] Tab 6 (Executive Reports) UI with generation form and progress indicator
+- [x] Recent reports table wired to reportingEngine.getMyJobs
+
+---
+
 ## OBSOLETE — Items to Delete on Next Cleanup
 > These sections existed in the original todo.md but have been fully superseded.
 > Safe to delete entirely:
