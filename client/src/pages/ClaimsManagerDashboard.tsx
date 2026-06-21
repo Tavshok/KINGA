@@ -435,11 +435,16 @@ export default function ClaimsManagerDashboard() {
         {/* Auto-Assignment Warning Badge */}
         <AutoAssignmentBadge />
         {/* Header */}
-        <header className="bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-600 rounded-xl p-6 text-white shadow-lg">
+        <header className="rounded-xl p-6 text-white shadow-lg" style={{ background: '#3C7844' }}>
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Claims Manager Dashboard</h1>
-              <p className="text-teal-100 mt-1">Review assessed claims and close for onward processing</p>
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <ClipboardList className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">Claims Manager Dashboard</h1>
+                <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.8)' }}>Review assessed claims and close for onward processing</p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <KingaReportButton
@@ -449,28 +454,28 @@ export default function ClaimsManagerDashboard() {
                 size="sm"
                 className="bg-white/10 border-white/30 text-white hover:bg-white/20"
               />
-              <div className="bg-white/15 dark:bg-card/15 backdrop-blur rounded-lg px-4 py-2 text-center">
+              <div className="rounded-lg px-4 py-2 text-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
                 <p className="text-2xl font-bold">{totalReviewable}</p>
-                <p className="text-xs text-teal-100">Pending Review</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.8)' }}>Pending Review</p>
               </div>
-              <div className="bg-white/15 dark:bg-card/15 backdrop-blur rounded-lg px-4 py-2 text-center">
-                <p className="text-2xl font-bold text-red-300">{highRiskCount}</p>
-                <p className="text-xs text-teal-100">High Risk</p>
+              <div className="rounded-lg px-4 py-2 text-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <p className="text-2xl font-bold">{highRiskCount}</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.8)' }}>High Risk</p>
               </div>
-              <div className="bg-white/15 dark:bg-card/15 backdrop-blur rounded-lg px-4 py-2 text-center">
-                <p className="text-2xl font-bold text-green-300">{recentlyClosed}</p>
-                <p className="text-xs text-teal-100">Closed</p>
+              <div className="rounded-lg px-4 py-2 text-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <p className="text-2xl font-bold">{recentlyClosed}</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.8)' }}>Closed</p>
               </div>
             </div>
           </div>
         </header>
 
         {/* Workflow Info */}
-        <div className="bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-lg p-4 flex items-start gap-3">
-          <Shield className="h-5 w-5 text-teal-600 flex-shrink-0 mt-0.5" />
+        <div className="rounded-lg p-4 flex items-start gap-3" style={{ background: '#F0F7F2', border: '1px solid #C8E0CE' }}>
+          <Shield className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: '#3C7844' }} />
           <div>
-            <p className="text-sm font-medium text-teal-800 dark:text-teal-200">Claims Manager Workflow</p>
-            <p className="text-xs text-teal-600 mt-1">
+            <p className="text-sm font-medium" style={{ color: '#2A5C44' }}>Claims Manager Workflow</p>
+            <p className="text-xs mt-1" style={{ color: '#3C7844' }}>
               Claims arrive here after Risk Manager review and technical approval. Your role is to conduct a final review 
               of all assessments (KINGA, assessor, panel beater quotes) and close claims for onward processing — either for 
               payment settlement, repair assignment, or further investigation.
@@ -494,15 +499,15 @@ export default function ClaimsManagerDashboard() {
               {/* ── Command Centre: Row 6 — Compact KPI Strip (period context) ── */}
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/50">
                 {[
-                  { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? (dashboardStats as any)?.totalClaims ?? 0, icon: <ClipboardList className="h-3 w-3" />, color: 'text-blue-600' },
-                  { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? (dashboardStats as any)?.activeClaims ?? 0, icon: <Activity className="h-3 w-3" />, color: 'text-teal-600' },
-                  { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? (dashboardStats as any)?.completedThisMonth ?? 0, icon: <CheckCircle className="h-3 w-3" />, color: 'text-green-600' },
-                  { label: 'Fraud Alerts', value: managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0, icon: <AlertTriangle className="h-3 w-3" />, color: 'text-red-600' },
-                  { label: 'Fast-Track', value: `${(dashboardStats as any)?.fastTrackEligible ?? 0}`, icon: <Shield className="h-3 w-3" />, color: 'text-orange-600' },
-                  { label: 'Avg Days', value: `${((dashboardStats as any)?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-3 w-3" />, color: 'text-purple-600' },
+                  { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? (dashboardStats as any)?.totalClaims ?? 0, icon: <ClipboardList className="h-3 w-3" />, color: '#4878A8' },
+                  { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? (dashboardStats as any)?.activeClaims ?? 0, icon: <Activity className="h-3 w-3" />, color: '#3C7844' },
+                  { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? (dashboardStats as any)?.completedThisMonth ?? 0, icon: <CheckCircle className="h-3 w-3" />, color: '#68A890' },
+                  { label: 'Fraud Alerts', value: managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0, icon: <AlertTriangle className="h-3 w-3" />, color: '#A32D2D' },
+                  { label: 'Fast-Track', value: `${(dashboardStats as any)?.fastTrackEligible ?? 0}`, icon: <Shield className="h-3 w-3" />, color: '#8A5C00' },
+                  { label: 'Avg Days', value: `${((dashboardStats as any)?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-3 w-3" />, color: '#484840' },
                 ].map((kpi, i) => (
                   <div key={i} className="flex items-center gap-1.5">
-                    <span className={kpi.color}>{kpi.icon}</span>
+                    <span style={{ color: kpi.color }}>{kpi.icon}</span>
                     <span className="text-sm font-bold">{overviewLoading ? '…' : kpi.value}</span>
                     <span className="text-xs text-muted-foreground">{kpi.label}</span>
                     {i < 5 && <span className="text-border ml-1">|</span>}
@@ -623,20 +628,19 @@ export default function ClaimsManagerDashboard() {
                       key={v}
                       onClick={() => setActiveTab(v)}
                       className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                        activeTab === v
-                          ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                                                activeTab === v
+                          ? "border-b-2"
                           : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                       }`}
+                      style={activeTab === v ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600 } : {}}
                     >
                       {labels[v]}
                     </button>
                   );
                 })}
               </div>
-
               {/* Divider */}
               <div className="w-px h-6 bg-border mx-1 mb-2 shrink-0 hidden sm:block" />
-
               {/* Section: Oversight */}
               <div className="flex items-end shrink-0">
                 <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2 hidden sm:block">
@@ -653,9 +657,10 @@ export default function ClaimsManagerDashboard() {
                       onClick={() => setActiveTab(v)}
                       className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                         activeTab === v
-                          ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                          ? "border-b-2"
                           : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                       }`}
+                      style={activeTab === v ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600 } : {}}
                     >
                       {labels[v]}
                     </button>
@@ -678,9 +683,10 @@ export default function ClaimsManagerDashboard() {
                       onClick={() => setActiveTab(v)}
                       className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                         activeTab === v
-                          ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                          ? "border-b-2"
                           : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                       }`}
+                      style={activeTab === v ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600 } : {}}
                     >
                       {v === "notifications" ? <NotificationsTabBadge /> : "Processed"}
                     </button>

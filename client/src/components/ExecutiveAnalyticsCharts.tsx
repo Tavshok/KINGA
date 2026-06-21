@@ -39,25 +39,25 @@ import {
   DEMO_COST_DELTA,
 } from "@/lib/demoData";
 
-/// ─── Colour palette — KINGA BI Dark Theme ─────────────────────────────────────────
+/// ─── Colour palette — KINGA Brand Palette ─────────────────────────────────────────
 
 const COLORS = {
-  blue:   "#5ba3f5",  // Bright blue for dark bg
-  red:    "#f87171",  // Soft red
-  green:  "#4ade80",  // Emerald green — KINGA primary
-  orange: "#fb923c",  // Amber
-  purple: "#c084fc",  // Soft purple
-  amber:  "#fbbf24",  // Gold amber
-  teal:   "#2dd4bf",  // Teal
-  slate:  "#94a3b8",  // Slate grey
+  blue:   "#4878A8",  // KINGA slate blue (shield upper)
+  red:    "#A32D2D",  // KINGA danger red
+  green:  "#3C7844",  // KINGA forest green (wordmark)
+  orange: "#8A5C00",  // KINGA warm amber
+  purple: "#4878A8",  // KINGA slate blue (substitute for purple)
+  amber:  "#8A5C00",  // KINGA warm amber
+  teal:   "#68A890",  // KINGA sage teal (shield centre)
+  slate:  "#484840",  // KINGA charcoal
 };
 
-// Chart grid and axis colors for dark theme
-const CHART_GRID = "rgba(255,255,255,0.06)";
-const CHART_AXIS = "rgba(255,255,255,0.35)";
+// Chart grid and axis colors for light theme
+const CHART_GRID = "rgba(0,0,0,0.06)";
+const CHART_AXIS = "rgba(0,0,0,0.45)";
 const TOOLTIP_STYLE = {
-  contentStyle: { background: '#0f1929', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#e2e8f0' },
-  labelStyle: { color: '#94a3b8', fontSize: 11 },
+  contentStyle: { background: '#ffffff', border: '1px solid #E5E7EB', borderRadius: '8px', color: '#111827' },
+  labelStyle: { color: '#6B7280', fontSize: 11 },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -96,12 +96,12 @@ interface MiniKPIProps {
 
 function MiniKPI({ title, value, subtitle, icon: Icon, color, loading }: MiniKPIProps) {
   const iconStyle: Record<MiniKPIProps["color"], React.CSSProperties> = {
-    blue:   { background: 'rgba(91,163,245,0.12)', color: '#5ba3f5' },
-    green:  { background: 'rgba(74,222,128,0.12)', color: '#4ade80' },
-    red:    { background: 'rgba(248,113,113,0.12)', color: '#f87171' },
-    amber:  { background: 'rgba(251,191,36,0.12)',  color: '#fbbf24' },
-    purple: { background: 'rgba(192,132,252,0.12)', color: '#c084fc' },
-    teal:   { background: 'rgba(45,212,191,0.12)',  color: '#2dd4bf' },
+    blue:   { background: 'rgba(72,120,168,0.12)', color: '#4878A8' },
+    green:  { background: 'rgba(60,120,68,0.12)',  color: '#3C7844' },
+    red:    { background: 'rgba(163,45,45,0.12)',  color: '#A32D2D' },
+    amber:  { background: 'rgba(138,92,0,0.12)',   color: '#8A5C00' },
+    purple: { background: 'rgba(72,120,168,0.12)', color: '#4878A8' },
+    teal:   { background: 'rgba(104,168,144,0.12)',color: '#68A890' },
   };
 
   return (

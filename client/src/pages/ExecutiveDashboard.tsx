@@ -399,13 +399,13 @@ export default function ExecutiveDashboard() {
           <div className="flex items-center justify-between gap-4">
             {/* Left: Title block */}
             <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--success)' }}>
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#3C7844' }}>
                 <BarChart3 className="h-5 w-5 text-white" />
               </div>
               <div>
                 <div className="flex items-center gap-2.5">
                   <h1 className="font-bold tracking-tight" style={{ fontSize: '22px', color: 'var(--foreground)', fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>Executive Command Center</h1>
-                  <span className="px-2 py-0.5 rounded text-xs font-semibold tracking-wide" style={{ background: 'var(--success)', color: 'white', fontSize: '10px' }}>LIVE</span>
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold tracking-wide" style={{ background: '#3C7844', color: 'white', fontSize: '10px' }}>LIVE</span>
                 </div>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Decision intelligence · KINGA-powered analytics · {new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
@@ -443,28 +443,28 @@ export default function ExecutiveDashboard() {
               label: 'Total Claims',
               value: execSummaryLoading ? '…' : (effectiveExecSummary?.totalClaims ?? kpis?.totalClaims ?? 0).toLocaleString(),
               sub: 'Submitted in period',
-              color: '#3B82F6',
+              color: '#4878A8',
               icon: FileText,
             },
             {
               label: 'KINGA Savings',
               value: execSummaryLoading ? '…' : (() => { const s = effectiveExecSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100).toLocaleString()}` : '—'; })(),
               sub: 'Est. value − approved payout',
-              color: '#10B981',
+              color: '#3C7844',
               icon: TrendingUp,
             },
             {
               label: 'Resolution Rate',
               value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.resolutionRate ?? 0).toFixed(1)}%`,
               sub: 'Closed ÷ total claims',
-              color: '#8B5CF6',
+              color: '#68A890',
               icon: CheckCircle,
             },
             {
               label: 'Avg Cycle Time',
               value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.avgCycleDays ?? 0).toFixed(1)}d`,
               sub: 'Submission to closure',
-              color: effectiveExecSummary?.avgCycleDays && effectiveExecSummary.avgCycleDays > 14 ? '#F59E0B' : '#10B981',
+              color: effectiveExecSummary?.avgCycleDays && effectiveExecSummary.avgCycleDays > 14 ? '#A32D2D' : '#3C7844',
               icon: Clock,
             },
           ].map(({ label, value, sub, color, icon: Icon }, i) => (
@@ -500,28 +500,28 @@ export default function ExecutiveDashboard() {
             {
               label: 'Fraud Exposure',
               value: fmt((kpis?.fraudRiskAmount || 0) * 100),
-              color: '#EF4444',
+              color: '#A32D2D',
               icon: AlertTriangle,
               onClick: () => { setDrillDownFilter('high_fraud'); setDrillDownTitle('High Fraud Risk Claims'); setDrillDownOpen(true); },
             },
             {
               label: 'High-Risk Claims',
               value: String(kpis?.highRiskClaimsCount || 0),
-              color: '#F59E0B',
+              color: '#8A5C00',
               icon: Shield,
               onClick: undefined,
             },
             {
               label: 'Fast-Track Rate',
               value: `${kpis?.fastTrackPercentage || 0}%`,
-              color: '#10B981',
+              color: '#3C7844',
               icon: Zap,
               onClick: undefined,
             },
             {
               label: 'Executive Overrides',
               value: String(overrideMetrics.count),
-              color: '#6366F1',
+              color: '#4878A8',
               icon: AlertCircle,
               onClick: () => { setDrillDownFilter('overridden'); setDrillDownTitle('Executive Override History'); setDrillDownOpen(true); },
             },
@@ -566,8 +566,8 @@ export default function ExecutiveDashboard() {
                   value={tab.value}
                   className="rounded-none border-b-2 px-5 py-3 text-sm font-medium transition-colors"
                   style={{
-                    borderBottomColor: activeTab === tab.value ? '#10B981' : 'transparent',
-                    color: activeTab === tab.value ? '#10B981' : 'var(--muted-foreground)',
+                    borderBottomColor: activeTab === tab.value ? '#3C7844' : 'transparent',
+                    color: activeTab === tab.value ? '#3C7844' : 'var(--muted-foreground)',
                     background: 'transparent',
                     fontFamily: 'Inter, sans-serif',
                     fontWeight: activeTab === tab.value ? 600 : 400,
