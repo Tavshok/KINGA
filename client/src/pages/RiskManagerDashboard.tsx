@@ -28,6 +28,7 @@ import {
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
+import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
 import { GeographicRiskClustersPanel } from "@/components/risk/GeographicRiskClustersPanel";
 ChartJS.register(Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
@@ -249,25 +250,26 @@ export default function RiskManagerDashboard() {
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Risk Manager</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Technical approvals, financial decisions, and risk oversight</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <KingaReportButton
-              reportKey="risk_manager_portfolio"
-              label="Export Risk Report"
-              variant="outline"
-              size="sm"
-            />
-            <Button variant="outline" size="sm" onClick={() => refetchQueue()}>
-              <RefreshCw className="h-4 w-4 mr-1.5" /> Refresh
-            </Button>
-            <KingaLogo showText={false} size="sm" />
-          </div>
-        </div>
+        {/* Header (C1) */}
+        <PortalHeader
+          icon={<Shield className="h-5 w-5 text-white" />}
+          title="Risk Manager"
+          description="Technical approvals, financial decisions, and risk oversight"
+          live
+          actions={
+            <div className="flex items-center gap-2">
+              <KingaReportButton
+                reportKey="risk_manager_portfolio"
+                label="Export Risk Report"
+                variant="outline"
+                size="sm"
+              />
+              <Button variant="outline" size="sm" onClick={() => refetchQueue()}>
+                <RefreshCw className="h-4 w-4 mr-1.5" /> Refresh
+              </Button>
+            </div>
+          }
+        />
 
         {/* ── Analytics Period Selector ── */}
         <div className="flex flex-wrap items-center gap-3">
@@ -278,60 +280,45 @@ export default function RiskManagerDashboard() {
           <input type="date" value={analyticsTo} onChange={e => setAnalyticsTo(e.target.value)} className="border rounded px-2 py-1 text-xs h-8 bg-background" />
         </div>
 
-        {/* ── FRAUD INTELLIGENCE KPI BAR (5 metrics, always visible) ── */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-          <StatCard
-            label="Fraud Rate"
-            value={riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.fraudRate ?? 0}%`}
-            sub="High-risk / total claims"
-            icon={AlertCircle}
-            accent={(riskAnalytics?.kpis?.fraudRate ?? 0) >= 15 ? 'text-red-600' : (riskAnalytics?.kpis?.fraudRate ?? 0) >= 8 ? 'text-amber-600' : 'text-green-600'}
-          />
-          <StatCard
-            label="Fraud Exposure"
-            value={riskAnalyticsLoading ? '…' : (() => { const sym = currencySymbol(undefined); const v = riskAnalytics?.kpis?.fraudExposure ?? 0; return v > 0 ? `${sym} ${(v/100).toLocaleString()}` : '—'; })()}
-            sub="Value at risk"
-            icon={DollarSign}
-            accent="text-orange-600"
-          />
-          <StatCard
-            label="High-Risk Claims"
-            value={riskAnalyticsLoading ? '…' : (riskAnalytics?.kpis?.fraudCount ?? escalationsData.length)}
-            sub="Flagged for review"
-            icon={Shield}
-            accent="text-red-600"
-          />
-          <StatCard
-            label="Avg Fraud Score"
-            value={riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.avgFraudScore ?? avgRisk}%`}
-            sub="Portfolio average"
-            icon={BarChart3}
-            accent={avgRisk >= 60 ? 'text-red-600' : avgRisk >= 35 ? 'text-amber-600' : 'text-green-600'}
-          />
-          <StatCard
-            label="Total Claims"
-            value={riskAnalyticsLoading ? '…' : (riskAnalytics?.kpis?.totalClaims ?? allClaims.length)}
-            sub="In period"
-            icon={Activity}
-            accent="text-foreground"
-          />
-          <StatCard
-            label="False Positive Rate"
-            value={
-              fraudRuleAccuracyLoading ? '…'
-              : !fraudRuleAccuracy?.hasData ? '—'
-              : `${fraudRuleAccuracy.falsePositiveRate}%`
-            }
-            sub={fraudRuleAccuracy?.hasData ? `${fraudRuleAccuracy.totalSignals} rule signals` : 'No signal data yet'}
-            icon={CheckCircle}
-            accent={
-              !fraudRuleAccuracy?.hasData ? 'text-muted-foreground'
-              : (fraudRuleAccuracy.falsePositiveRate ?? 0) >= 30 ? 'text-red-600'
-              : (fraudRuleAccuracy.falsePositiveRate ?? 0) >= 15 ? 'text-amber-600'
-              : 'text-green-600'
-            }
-          />
-        </div>
+        {/* ── FRAUD INTELLIGENCE KPI STRIP (C2) ── */}
+        <PortalKPIStrip kpis={[
+          {
+            label: 'Fraud Rate',
+            value: riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.fraudRate ?? 0}%`,
+            icon: <AlertCircle className="h-4 w-4" />,
+            accent: (riskAnalytics?.kpis?.fraudRate ?? 0) >= 15 ? 'red' : (riskAnalytics?.kpis?.fraudRate ?? 0) >= 8 ? 'amber' : 'green',
+          },
+          {
+            label: 'Fraud Exposure',
+            value: riskAnalyticsLoading ? '…' : (() => { const sym = currencySymbol(undefined); const v = riskAnalytics?.kpis?.fraudExposure ?? 0; return v > 0 ? `${sym} ${(v/100).toLocaleString()}` : '—'; })(),
+            icon: <DollarSign className="h-4 w-4" />,
+            accent: 'red',
+          },
+          {
+            label: 'High-Risk Claims',
+            value: riskAnalyticsLoading ? '…' : (riskAnalytics?.kpis?.fraudCount ?? escalationsData.length),
+            icon: <Shield className="h-4 w-4" />,
+            accent: 'red',
+          },
+          {
+            label: 'Avg Fraud Score',
+            value: riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.avgFraudScore ?? avgRisk}%`,
+            icon: <BarChart3 className="h-4 w-4" />,
+            accent: avgRisk >= 60 ? 'red' : avgRisk >= 35 ? 'amber' : 'green',
+          },
+          {
+            label: 'Total Claims',
+            value: riskAnalyticsLoading ? '…' : (riskAnalytics?.kpis?.totalClaims ?? allClaims.length),
+            icon: <Activity className="h-4 w-4" />,
+            accent: 'blue',
+          },
+          {
+            label: 'False Positive Rate',
+            value: fraudRuleAccuracyLoading ? '…' : !fraudRuleAccuracy?.hasData ? '—' : `${fraudRuleAccuracy.falsePositiveRate}%`,
+            icon: <CheckCircle className="h-4 w-4" />,
+            accent: !fraudRuleAccuracy?.hasData ? 'charcoal' : (fraudRuleAccuracy.falsePositiveRate ?? 0) >= 30 ? 'red' : (fraudRuleAccuracy.falsePositiveRate ?? 0) >= 15 ? 'amber' : 'green',
+          },
+        ] as PortalKPI[]} />
 
         {/* ── 3 SIGNATURE CHARTS (always visible, strategy-mandated) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
