@@ -63,6 +63,7 @@ import {
   DEMO_PROCESSED_CLAIMS,
   DEMO_DASHBOARD_STATS,
 } from "@/lib/demoData";
+import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 export default function ClaimsManagerDashboard() {
@@ -436,41 +437,23 @@ export default function ClaimsManagerDashboard() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Auto-Assignment Warning Badge */}
         <AutoAssignmentBadge />
-        {/* Header */}
-        <header className="rounded-xl p-6 text-white shadow-lg" style={{ background: '#3C7844' }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                <ClipboardList className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">Claims Manager Dashboard</h1>
-                <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.8)' }}>Review assessed claims and close for onward processing</p>
-              </div>
-            </div>
+        {/* Header — KingaPortalShell PortalHeader (C1) */}
+        <PortalHeader
+          icon={<ClipboardList className="h-5 w-5" />}
+          title="Claims Manager"
+          description="Review assessed claims and close for onward processing"
+          live
+          actions={
             <div className="flex items-center gap-3">
               <KingaReportButton
                 reportKey="portfolio.claims_summary"
                 label="Export Claims Report"
                 variant="outline"
                 size="sm"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20"
               />
-              <div className="rounded-lg px-4 py-2 text-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                <p className="text-2xl font-bold">{totalReviewable}</p>
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.8)' }}>Pending Review</p>
-              </div>
-              <div className="rounded-lg px-4 py-2 text-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                <p className="text-2xl font-bold">{highRiskCount}</p>
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.8)' }}>High Risk</p>
-              </div>
-              <div className="rounded-lg px-4 py-2 text-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                <p className="text-2xl font-bold">{recentlyClosed}</p>
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.8)' }}>Closed</p>
-              </div>
             </div>
-          </div>
-        </header>
+          }
+        />
 
         {/* Workflow Info */}
         <div className="rounded-lg p-4 flex items-start gap-3" style={{ background: '#F0F7F2', border: '1px solid #C8E0CE' }}>
@@ -498,33 +481,15 @@ export default function ClaimsManagerDashboard() {
 
           <>
           <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
-              {/* ── Command Centre: Row 6 — Compact KPI Strip (period context) ── */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/50">
-                {[
-                  { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? (dashboardStats as any)?.totalClaims ?? 0, icon: <ClipboardList className="h-3 w-3" />, color: '#4878A8' },
-                  { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? (dashboardStats as any)?.activeClaims ?? 0, icon: <Activity className="h-3 w-3" />, color: '#3C7844' },
-                  { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? (dashboardStats as any)?.completedThisMonth ?? 0, icon: <CheckCircle className="h-3 w-3" />, color: '#68A890' },
-                  { label: 'Fraud Alerts', value: managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0, icon: <AlertTriangle className="h-3 w-3" />, color: '#A32D2D', onClick: () => setActiveTab('fraud') },
-                  { label: 'Fast-Track', value: `${(dashboardStats as any)?.fastTrackEligible ?? 0}`, icon: <Shield className="h-3 w-3" />, color: '#8A5C00' },
-                  { label: 'Avg Days', value: `${((dashboardStats as any)?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-3 w-3" />, color: '#484840' },
-                ].map((kpi: any, i: number) => (
-                  kpi.onClick ? (
-                    <button key={i} onClick={kpi.onClick} className="flex items-center gap-1.5 hover:opacity-75 transition-opacity cursor-pointer">
-                      <span style={{ color: kpi.color }}>{kpi.icon}</span>
-                      <span className="text-sm font-bold">{overviewLoading ? '…' : kpi.value}</span>
-                      <span className="text-xs text-muted-foreground underline decoration-dotted">{kpi.label}</span>
-                      {i < 5 && <span className="text-border ml-1">|</span>}
-                    </button>
-                  ) : (
-                    <div key={i} className="flex items-center gap-1.5">
-                      <span style={{ color: kpi.color }}>{kpi.icon}</span>
-                      <span className="text-sm font-bold">{overviewLoading ? '…' : kpi.value}</span>
-                      <span className="text-xs text-muted-foreground">{kpi.label}</span>
-                      {i < 5 && <span className="text-border ml-1">|</span>}
-                    </div>
-                  )
-                ))}
-              </div>
+              {/* ── KPI Strip — PortalKPIStrip (C2) ── */}
+              <PortalKPIStrip kpis={([
+                { label: 'Total Claims', value: overviewLoading ? '…' : (managerOverview?.kpis?.totalClaims?.value ?? (dashboardStats as any)?.totalClaims ?? 0), icon: <ClipboardList className="h-4 w-4" />, accent: 'blue' },
+                { label: 'Active', value: overviewLoading ? '…' : (managerOverview?.kpis?.activeClaims?.value ?? (dashboardStats as any)?.activeClaims ?? 0), icon: <Activity className="h-4 w-4" />, accent: 'green' },
+                { label: 'Completed', value: overviewLoading ? '…' : (managerOverview?.kpis?.completedClaims?.value ?? (dashboardStats as any)?.completedThisMonth ?? 0), icon: <CheckCircle className="h-4 w-4" />, accent: 'teal' },
+                { label: 'Fraud Alerts', value: overviewLoading ? '…' : (managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0), icon: <AlertTriangle className="h-4 w-4" />, accent: 'red' },
+                { label: 'Fast-Track', value: overviewLoading ? '…' : `${(dashboardStats as any)?.fastTrackEligible ?? 0}`, icon: <Shield className="h-4 w-4" />, accent: 'amber' },
+                { label: 'Avg Days', value: overviewLoading ? '…' : `${((dashboardStats as any)?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-4 w-4" />, accent: 'charcoal' },
+              ] as PortalKPI[])} />
 
               {/* Recovery KPI Row removed — replaced by RecoveryWatchlist in Phase 3 command centre rows */}
               {/* Charts Row */}

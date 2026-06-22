@@ -433,3 +433,21 @@
 
 - [x] D-S4-02: Replace 2 residual hardcoded 2500000 values in server/routers.ts with FINANCIAL_APPROVAL_THRESHOLD_CENTS (lines ~3187, ~9657); add import to server/routers.ts
 - [x] D-S4-01 (optional): Remove EXEC_FINANCIAL_THRESHOLD_CENTS alias in executive.ts; use FINANCIAL_APPROVAL_THRESHOLD_CENTS directly at both call sites
+
+---
+
+## Sprint 5 — Shell Migration Sprint (June 22, 2026)
+
+Baseline: checkpoint 95a8ea31 | TS errors: 220 (all pre-existing)
+Reference pattern: Recovery T10 migration (rendering-only, no data source changes)
+
+- [x] S5-P1: Claims Manager — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3)
+- [ ] S5-P2: Fleet Manager — KingaPortalShell + PortalKPIStrip migration (needs C1, C2)
+- [ ] S5-P3: Claims Processor — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3)
+- [ ] S5-P4: Executive — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C4)
+- [ ] S5-P5: Risk Manager — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3, C4, C7)
+- [ ] S5-P6: Panel Beater — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3)
+- [ ] S5-P7: Claimant — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3, C4, C5, C7)
+- [ ] S5-P8: Admin — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3, C4, C5, C7)
+- [ ] S5-P9: Insurer Admin — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3, C4, C5, C7, C9)
+- [ ] S5-FINAL: 11-portal certification scorecard + remaining gaps report
