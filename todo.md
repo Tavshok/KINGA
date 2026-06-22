@@ -412,7 +412,7 @@
 
 ### Phase 1 — Sprint 2 Must-Fix Defects
 - [x] Task 1: D-S2-05 — Surface dispute reason in Claims Manager claim detail + notifyOwner trigger in initiateDispute
-- [ ] Task 2: D-S2-03 — WorkloadDistributionPanel staleness fix (poll interval or cross-portal invalidation)
+- [x] Task 2: D-S2-03 — WorkloadDistributionPanel staleness fix (poll interval or cross-portal invalidation)
 
 ### Phase 2 — Sprint 2 Deferred Fixes
 - [ ] Task 3: D-S2-02 — Consolidate financial threshold into server/shared/constants.ts

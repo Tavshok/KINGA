@@ -53,7 +53,10 @@ function AssigneeRow({ person, avgCount }: { person: Assignee; avgCount: number 
 }
 
 export function WorkloadDistributionPanel() {
-  const { data, isLoading } = trpc.claimsManager.getWorkloadDistribution.useQuery();
+  const { data, isLoading } = trpc.claimsManager.getWorkloadDistribution.useQuery(
+    undefined,
+    { refetchInterval: 30_000 } // Re-poll every 30 s so panel stays fresh after assessor assignments
+  );
 
   if (isLoading) {
     return (
