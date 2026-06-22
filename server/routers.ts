@@ -9,7 +9,7 @@
  * @module routers
  */
 
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "@shared/const";
 import { resolveDashboardRoute, getRolePermissions, ANALYTICS_ALLOWED_ROLES, GOVERNANCE_ALLOWED_ROLES, REPORT_SCHEDULE_ALLOWED_ROLES } from "@shared/role-permissions";
 import { REPORT_ACCESS } from "./reporting/reportDefinitions";
 import { canAccessReport } from "./routers/reporting";
@@ -3184,7 +3184,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Get active automation policy to determine approval threshold
         const { getActiveAutomationPolicy } = await import("./automation-policy-manager");
         const policy = await getActiveAutomationPolicy(tenantId);
-        const requireManagerApprovalAbove = policy?.requireManagerApprovalAbove || 2500000; // Default 25,000 USD in cents
+        const requireManagerApprovalAbove = policy?.requireManagerApprovalAbove || FINANCIAL_APPROVAL_THRESHOLD_CENTS; // Default threshold from shared/const.ts
         
         // Determine if financial approval is required
         const requiresFinancialApproval = approvedAmount > requireManagerApprovalAbove;
@@ -9654,7 +9654,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
 
         const today = new Date().toISOString().split('T')[0];
         const in90Days = new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0];
-        const highValueThreshold = 2500000;
+        const highValueThreshold = FINANCIAL_APPROVAL_THRESHOLD_CENTS;
 
         const recoveryEligible = rows.filter(r =>
           ['open', 'pending_review'].includes(r.status) && r.recoveryPotentialScore >= 60

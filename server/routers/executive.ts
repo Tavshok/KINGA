@@ -6,9 +6,6 @@ import { sql, eq, and, desc, gt } from "drizzle-orm";
 import { claims } from "../../drizzle/schema";
 import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "../../shared/const";
 
-/** Alias for local readability — value is the shared constant from shared/const.ts */
-const EXEC_FINANCIAL_THRESHOLD_CENTS = FINANCIAL_APPROVAL_THRESHOLD_CENTS;
-
 const daysSince = (d: string | null) => {
   if (!d) return 0;
   return Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
@@ -510,14 +507,14 @@ export const executiveRouter = router({
         and(
           eq(claims.tenantId, ctx.insurerTenantId),
           eq(claims.workflowState as any, "financial_decision"),
-          gt((claims as any).totalClaimAmount, EXEC_FINANCIAL_THRESHOLD_CENTS)
+          gt((claims as any).totalClaimAmount, FINANCIAL_APPROVAL_THRESHOLD_CENTS)
         )
       )
       .orderBy(desc((claims as any).totalClaimAmount))
       .limit(20);
 
     return {
-      threshold: EXEC_FINANCIAL_THRESHOLD_CENTS,
+      threshold: FINANCIAL_APPROVAL_THRESHOLD_CENTS,
       count: rows.length,
       totalExposure: rows.reduce((s, r) => s + ((r.totalClaimAmount as number) ?? 0), 0),
       items: rows.map(r => ({
