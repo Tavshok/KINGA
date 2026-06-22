@@ -21,7 +21,7 @@ import {
   Activity, Zap, Shield, GitBranch
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
-import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
+import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -167,6 +167,22 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
+      {/* C3 — PortalAlerts: submitted claims + high-risk flags */}
+      <PortalAlerts alerts={[
+        {
+          id: "submitted-claims",
+          severity: "critical" as const,
+          label: "new claim(s) awaiting intake processing",
+          count: submittedClaims.length,
+        },
+        {
+          id: "high-risk",
+          severity: "warning" as const,
+          label: "high-risk claim(s) (fraud score >70) requiring review",
+          count: highRiskClaims,
+        },
+      ] as PortalAlert[]}
+      />
       {/* Header (C1) */}
       <PortalHeader
         icon={<Shield className="h-5 w-5 text-white" />}
