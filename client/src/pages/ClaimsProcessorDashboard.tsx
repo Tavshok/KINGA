@@ -51,6 +51,7 @@ import {
 import { useAuth } from "@/_core/hooks/useAuth";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
+import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
 
 // Tier gating feature flag — set to true when Process/Protect/Prove tiers are enforced
 const TIER_GATE_ENABLED = false;
@@ -1030,43 +1031,21 @@ export default function ClaimsProcessorDashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
-      {/* Header — KINGA Portal Design Standard v1.0 */}
-      <header style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "1.25rem 1.5rem" }}>
-        <div className="max-w-7xl mx-auto flex justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center rounded-xl" style={{ width: 44, height: 44, background: "#F0F7F2" }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3C7844" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold" style={{ color: "#111827" }}>Claims Processor</h1>
-                <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: "#F0F7F2", color: "#3C7844", border: "1px solid #C8E0CE" }}>
-                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "#3C7844" }}></span>LIVE
-                </span>
-              </div>
-              <p className="text-sm" style={{ color: "#6B7280" }}>Process and manage insurance claims</p>
-            </div>
-          </div>
+      {/* Header — PortalHeader (C1) */}
+      <PortalHeader
+        icon={<CheckCircle2 className="h-5 w-5" />}
+        title="Claims Processor"
+        description="Process and manage insurance claims"
+        live
+        actions={
           <div className="flex gap-2">
-            <Button
-              variant="default"
-              style={{ background: "#3C7844", color: "#fff", border: "none" }}
-              className="hover:opacity-90"
-              onClick={() => window.location.href = "/processor/upload-documents"}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload New Claim
+            <Button variant="default" style={{ background: "#3C7844", color: "#fff", border: "none" }} className="hover:opacity-90" onClick={() => window.location.href = "/processor/upload-documents"}>
+              <Upload className="h-4 w-4 mr-2" />Upload New Claim
             </Button>
-            <Button variant="outline" onClick={() => refetchAll()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-            <Button variant="outline" onClick={() => window.location.href = "/portal-hub"}>
-              Portal Hub
-            </Button>
+            <Button variant="outline" onClick={() => refetchAll()}><RefreshCw className="h-4 w-4 mr-2" />Refresh</Button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <div className="max-w-7xl mx-auto space-y-6 p-6">
         {/* Search Bar */}
@@ -1080,48 +1059,17 @@ export default function ClaimsProcessorDashboard() {
           />
         </div>
 
-        {/* ── QUICK STATS BAR (always visible, first) ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          {/* KPI strip — KINGA brand palette */}
-          {[
-            { label: "Pending Review",  value: pendingClaims.length,   bg: "#FEF9EC", color: "#8A5C00" },
-            { label: "In Review",       value: inReviewClaims.length,   bg: "#EEF4FB", color: "#4878A8" },
-            { label: "KINGA Complete",  value: aiFlaggedClaims.length,  bg: "#EDF7F4", color: "#68A890" },
-            { label: "Completed",       value: completedClaims.length,  bg: "#F0F7F2", color: "#3C7844" },
-            { label: "SLA Breached",    value: allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length, bg: "#FEF2F2", color: "#A32D2D" },
-            { label: "SLA Critical",    value: allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length, bg: "#FEF9EC", color: "#8A5C00" },
-            {
-              label: "Throughput (7d)",
-              // Throughput: claims closed in the last 7 days
-              value: (() => {
-                const cutoff = Date.now() - 7 * 24 * 3600000;
-                return allClaims.filter((c: any) => c.status === "closed" && c.updatedAt && new Date(c.updatedAt).getTime() > cutoff).length;
-              })(),
-              bg: "#F0F7F2", color: "#3C7844",
-            },
-            {
-              label: "Rework Rate",
-              // Rework: claims that have been sent back (workflowState = disputed or re-entered intake)
-              value: (() => {
-                const reworked = allClaims.filter((c: any) =>
-                  c.workflowState === "disputed" ||
-                  (c.workflowState === "intake_queue" && c.status !== "intake_pending")
-                ).length;
-                const total = allClaims.length;
-                if (total === 0) return "—";
-                return `${Math.round((reworked / total) * 100)}%`;
-              })(),
-              bg: "#EEF4FB", color: "#4878A8",
-            },
-          ].map((kpi) => (
-            <Card key={kpi.label} style={{ border: "1px solid #E5E7EB" }}>
-              <CardContent className="p-4">
-                <p className="text-2xl font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
-                <p className="text-xs font-medium mt-0.5" style={{ color: "#6B7280" }}>{kpi.label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {/* KPI Strip — PortalKPIStrip (C2) */}
+        <PortalKPIStrip kpis={([
+          { label: 'Pending Review', value: pendingClaims.length, accent: 'amber' },
+          { label: 'In Review', value: inReviewClaims.length, accent: 'blue' },
+          { label: 'KINGA Complete', value: aiFlaggedClaims.length, accent: 'teal' },
+          { label: 'Completed', value: completedClaims.length, accent: 'green' },
+          { label: 'SLA Breached', value: allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length, accent: 'red' },
+          { label: 'SLA Critical', value: allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length, accent: 'amber' },
+          { label: 'Throughput (7d)', value: (() => { const cutoff = Date.now() - 7 * 24 * 3600000; return allClaims.filter((c: any) => c.status === 'closed' && c.updatedAt && new Date(c.updatedAt).getTime() > cutoff).length; })(), accent: 'green' },
+          { label: 'Rework Rate', value: (() => { const reworked = allClaims.filter((c: any) => c.workflowState === 'disputed' || (c.workflowState === 'intake_queue' && c.status !== 'intake_pending')).length; const total = allClaims.length; if (total === 0) return '—'; return `${Math.round((reworked / total) * 100)}%`; })(), accent: 'blue' },
+        ] as PortalKPI[])} />
 
         {/* ── ANALYTICS CHARTS (always visible) ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
