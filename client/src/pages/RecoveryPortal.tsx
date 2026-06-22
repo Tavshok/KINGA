@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
-import KingaPortalShell, { PortalKPI } from "@/components/KingaPortalShell";
+import KingaPortalShell, { PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 
 // Maps each status card tab to the DB status value(s) used in getCases
 const STATUS_CARDS = [
@@ -107,6 +107,22 @@ export default function RecoveryPortal() {
       description="Subrogation & third-party recovery case management"
       live
       kpis={portalKPIs}
+      alerts={[
+        {
+          id: "approaching-deadlines",
+          severity: "critical" as const,
+          label: "recovery case(s) approaching 90-day deadline",
+          count: kpis?.approachingDeadlines ?? 0,
+          onClick: () => setActiveTab("approaching"),
+        },
+        {
+          id: "pending-cases",
+          severity: "warning" as const,
+          label: "recovery case(s) pending action",
+          count: kpis?.pendingCases ?? kpis?.openCases ?? 0,
+          onClick: () => setActiveTab(null),
+        },
+      ] as PortalAlert[]}
       actions={
         <Button variant="ghost" size="sm" onClick={() => refetchKPIs()} className="gap-2 text-muted-foreground">
           <RefreshCw className="h-4 w-4" />
