@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FleetVehicleTrackingTab } from "@/components/FleetVehicleTrackingTab";
+import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
 import { FleetRiskAnalyticsTab } from "@/components/FleetRiskAnalyticsTab";
 import {
   Dialog,
@@ -318,91 +319,31 @@ export default function FleetManagerDashboard() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Building2 className="h-5 w-5" style={{ color: "#3C7844" }} />
-            <h1 className="text-xl font-bold text-foreground">{primaryAccount.accountName}</h1>
-            <Badge variant="outline" className="text-xs border" style={{ color: "#3C7844", borderColor: "#C8E0CE" }}>
-              Fleet Account
-            </Badge>
+      {/* Header — PortalHeader (C1) */}
+      <PortalHeader
+        icon={<Building2 className="h-5 w-5" />}
+        title={primaryAccount.accountName}
+        description={`Fleet Manager Dashboard — ${user?.name ?? ''}`}
+        live
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => downloadCSV(activeClaims, `${primaryAccount.accountName}-active-claims-${new Date().toISOString().slice(0, 10)}.csv`)}>
+              <Download className="mr-2 h-4 w-4" />Export Active
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => downloadCSV(completedClaims, `${primaryAccount.accountName}-completed-claims-${new Date().toISOString().slice(0, 10)}.csv`)}>
+              <Download className="mr-2 h-4 w-4" />Export Completed
+            </Button>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Fleet Manager Dashboard — {user?.name}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              downloadCSV(
-                activeClaims,
-                `${primaryAccount.accountName}-active-claims-${new Date().toISOString().slice(0, 10)}.csv`
-              )
-            }
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export Active
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              downloadCSV(
-                completedClaims,
-                `${primaryAccount.accountName}-completed-claims-${new Date().toISOString().slice(0, 10)}.csv`
-              )
-            }
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export Completed
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Car className="h-4 w-4" style={{ color: "#4878A8" }} />
-              <span className="text-xs text-muted-foreground">Total Claims</span>
-            </div>
-            <p className="text-2xl font-bold">{allClaims.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4" style={{ color: "#8A5C00" }} />
-              <span className="text-xs text-muted-foreground">Active / In Progress</span>
-            </div>
-            <p className="text-2xl font-bold" style={{ color: "#8A5C00" }}>{activeClaims.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="h-4 w-4" style={{ color: "#3C7844" }} />
-              <span className="text-xs text-muted-foreground">Completed</span>
-            </div>
-            <p className="text-2xl font-bold" style={{ color: "#3C7844" }}>{completedClaims.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="h-4 w-4" style={{ color: "#4878A8" }} />
-              <span className="text-xs text-muted-foreground">Unique Vehicles</span>
-            </div>
-            <p className="text-2xl font-bold">
-              {new Set(allClaims.map((c) => c.vehicleRegistration)).size}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* KPI Strip — PortalKPIStrip (C2) */}
+      <PortalKPIStrip kpis={([
+        { label: 'Total Claims', value: allClaims.length, icon: <Car className="h-4 w-4" />, accent: 'blue' },
+        { label: 'Active', value: activeClaims.length, icon: <Clock className="h-4 w-4" />, accent: 'amber' },
+        { label: 'Completed', value: completedClaims.length, icon: <CheckCircle2 className="h-4 w-4" />, accent: 'green' },
+        { label: 'Unique Vehicles', value: new Set(allClaims.map((c) => c.vehicleRegistration)).size, icon: <Users className="h-4 w-4" />, accent: 'teal' },
+      ] as PortalKPI[])} />
 
       {/* Main navigation tabs */}
       <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-4">

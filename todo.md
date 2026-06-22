@@ -442,7 +442,7 @@ Baseline: checkpoint 95a8ea31 | TS errors: 220 (all pre-existing)
 Reference pattern: Recovery T10 migration (rendering-only, no data source changes)
 
 - [x] S5-P1: Claims Manager — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3)
-- [ ] S5-P2: Fleet Manager — KingaPortalShell + PortalKPIStrip migration (needs C1, C2)
+- [x] S5-P2: Fleet Manager — KingaPortalShell + PortalKPIStrip migration (needs C1, C2)
 - [ ] S5-P3: Claims Processor — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3)
 - [ ] S5-P4: Executive — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C4)
 - [ ] S5-P5: Risk Manager — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3, C4, C7)
