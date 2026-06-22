@@ -12,7 +12,7 @@
  */
 
 import InsurerPortalLayout from "@/components/InsurerPortalLayout";
-import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
+import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { PendingTeamRequestQueue } from "@/components/insurer/PendingTeamRequestQueue";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -212,6 +212,22 @@ export default function InsurerAdminDashboard() {
   return (
     <InsurerPortalLayout>
       <div className="p-6 space-y-6">
+        {/* C3 — PortalAlerts: submitted claims + fraud-flagged */}
+        <PortalAlerts alerts={[
+          {
+            id: "submitted-claims",
+            severity: "critical" as const,
+            label: "submitted claim(s) awaiting triage",
+            count: submittedClaims.length,
+          },
+          {
+            id: "fraud-flagged",
+            severity: "warning" as const,
+            label: "fraud-flagged claim(s) requiring review",
+            count: fraudClaims.length,
+          },
+        ] as PortalAlert[]}
+        />
         {/* ── Page header (C1) ── */}
         <PortalHeader
           icon={<Building2 className="h-5 w-5 text-white" />}
