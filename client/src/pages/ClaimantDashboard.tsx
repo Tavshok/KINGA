@@ -18,6 +18,7 @@ import { useLocation } from "wouter";
 import KingaLogo from "@/components/KingaLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
+import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
 
 // Claim status → step index (0-based, 5 steps total)
 const STATUS_STEPS: Record<string, number> = {
@@ -195,36 +196,22 @@ export default function ClaimantDashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <KingaLogo showText size="sm" />
-            <Separator orientation="vertical" className="h-6" />
-            <div>
-              <h1 className="text-sm font-semibold text-gray-900">My Claims Portal</h1>
-              <p className="text-xs text-gray-500">Track and manage your insurance claims</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
+      {/* Header (C1) */}
+      <PortalHeader
+        icon={<Car className="h-5 w-5 text-white" />}
+        title="My Claims Portal"
+        description="Track and manage your insurance claims"
+        live
+        actions={
+          <div className="flex items-center gap-2">
             <RoleSwitcher />
             <NotificationBell />
-            {fleetRegStatus?.status === "pending" && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border" style={{ background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" }}>
-                <Building2 className="h-3 w-3" />
-                Fleet request pending
-              </span>
-            )}
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-              <p className="text-xs text-gray-500">Claimant</p>
-            </div>
             <Button variant="outline" size="sm" onClick={() => logout()}>
               Sign Out
             </Button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Welcome + Quick Action */}
@@ -248,54 +235,33 @@ export default function ClaimantDashboard() {
           </Button>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Claims</CardTitle>
-              <FileText className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{myClaims.length}</div>
-              <p className="text-xs text-gray-500 mt-1">All time</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Active</CardTitle>
-              <Clock className="h-4 w-4" style={{ color: "#8A5C00" }} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-600">{activeClaims.length}</div>
-              <p className="text-xs text-gray-500 mt-1">Being processed</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Completed</CardTitle>
-              <CheckCircle className="h-4 w-4 text-emerald-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-600">{completedClaims.length}</div>
-              <p className="text-xs text-gray-500 mt-1">Successfully resolved</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Avg Resolution</CardTitle>
-              <Clock className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900">
-                {avgResolutionDays !== null ? `${avgResolutionDays}d` : "—"}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Days to completion</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* KPI Strip (C2) */}
+        <PortalKPIStrip kpis={[
+          {
+            label: 'Total Claims',
+            value: myClaims.length,
+            icon: <FileText className="h-4 w-4" />,
+            accent: 'blue',
+          },
+          {
+            label: 'Active',
+            value: activeClaims.length,
+            icon: <Clock className="h-4 w-4" />,
+            accent: activeClaims.length > 0 ? 'amber' : 'charcoal',
+          },
+          {
+            label: 'Completed',
+            value: completedClaims.length,
+            icon: <CheckCircle className="h-4 w-4" />,
+            accent: 'green',
+          },
+          {
+            label: 'Avg Resolution',
+            value: avgResolutionDays !== null ? `${avgResolutionDays}d` : '—',
+            icon: <Calendar className="h-4 w-4" />,
+            accent: avgResolutionDays !== null && avgResolutionDays > 14 ? 'amber' : 'teal',
+          },
+        ] as PortalKPI[]} />
 
         {/* Claims List */}
         <Card>
