@@ -23,6 +23,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
 import { KingaReportButton } from "@/components/KingaReportButton";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
+import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
 
 function PerformanceTierBadge({ tier }: { tier: string | null | undefined }) {
   const config: Record<string, { label: string; className: string }> = {
@@ -92,20 +93,14 @@ export default function PanelBeaterDashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-10" style={{ borderColor: "#E5E7EB" }}>
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <KingaLogo showText size="sm" />
-            <Separator orientation="vertical" className="h-6" />
-            <div>
-              <h1 className="text-sm font-semibold text-foreground">Panel Beater Portal</h1>
-              {profile && (
-                <p className="text-xs text-muted-foreground">{profile.businessName}</p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
+      {/* Header (C1) */}
+      <PortalHeader
+        icon={<Hammer className="h-5 w-5 text-white" />}
+        title="Panel Beater Portal"
+        description={profile?.businessName ?? 'Repair partner workspace'}
+        live
+        actions={
+          <div className="flex items-center gap-2">
             <KingaReportButton
               reportKey="portfolio.panel_beater_performance"
               label="Export Performance Report"
@@ -114,75 +109,43 @@ export default function PanelBeaterDashboard() {
             />
             <RoleSwitcher />
             <NotificationBell />
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium text-foreground">{user?.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">Panel Beater</p>
-            </div>
             <Button variant="outline" size="sm" onClick={() => logout()}>
               Sign Out
             </Button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
 
 
-        {/* ── KPI STAT BAR ── */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Quote Requests</p>
-                  <p className="text-2xl font-bold mt-1 text-foreground">{pendingRequests.length}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Awaiting your quote</p>
-                </div>
-                <div className="p-2 rounded-lg bg-muted/50"><FileText className="h-5 w-5 text-muted-foreground" /></div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Acceptance Rate</p>
-                  <p className={`text-2xl font-bold mt-1 ${(myAnalytics?.stats?.acceptanceRate ?? 0) >= 70 ? 'text-emerald-600' : (myAnalytics?.stats?.acceptanceRate ?? 0) >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
-                    {myAnalytics?.stats?.acceptanceRate != null ? `${myAnalytics.stats.acceptanceRate}%` : '—'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{approvedQuotes} of {submittedQuotes} submitted</p>
-                </div>
-                <div className="p-2 rounded-lg bg-muted/50"><CheckCircle className="h-5 w-5 text-muted-foreground" /></div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Avg Variance from KINGA Est.</p>
-                  <p className={`text-2xl font-bold mt-1 ${Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) > 15 ? 'text-red-600' : Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) > 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                    {myAnalytics?.stats?.avgVariancePct != null ? `${myAnalytics.stats.avgVariancePct > 0 ? '+' : ''}${myAnalytics.stats.avgVariancePct}%` : '—'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">vs KINGA estimate</p>
-                </div>
-                <div className="p-2 rounded-lg bg-muted/50"><TrendingUp className="h-5 w-5 text-muted-foreground" /></div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Approved Revenue</p>
-                  <p className="text-2xl font-bold mt-1 text-foreground">{fmt(totalRevenue)}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">From approved quotes</p>
-                </div>
-                <div className="p-2 rounded-lg bg-muted/50"><DollarSign className="h-5 w-5 text-muted-foreground" /></div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* ── KPI STRIP (C2) ── */}
+        <PortalKPIStrip kpis={[
+          {
+            label: 'Quote Requests',
+            value: pendingRequests.length,
+            icon: <FileText className="h-4 w-4" />,
+            accent: pendingRequests.length > 0 ? 'amber' : 'charcoal',
+          },
+          {
+            label: 'Acceptance Rate',
+            value: myAnalytics?.stats?.acceptanceRate != null ? `${myAnalytics.stats.acceptanceRate}%` : '—',
+            icon: <CheckCircle className="h-4 w-4" />,
+            accent: (myAnalytics?.stats?.acceptanceRate ?? 0) >= 70 ? 'green' : (myAnalytics?.stats?.acceptanceRate ?? 0) >= 50 ? 'amber' : 'red',
+          },
+          {
+            label: 'Avg Variance',
+            value: myAnalytics?.stats?.avgVariancePct != null ? `${myAnalytics.stats.avgVariancePct > 0 ? '+' : ''}${myAnalytics.stats.avgVariancePct}%` : '—',
+            icon: <TrendingUp className="h-4 w-4" />,
+            accent: Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) > 15 ? 'red' : Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) > 5 ? 'amber' : 'green',
+          },
+          {
+            label: 'Approved Revenue',
+            value: fmt(totalRevenue),
+            icon: <DollarSign className="h-4 w-4" />,
+            accent: 'teal',
+          },
+        ] as PortalKPI[]} />
 
         {/* ── SIGNATURE CHARTS (always visible) ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
