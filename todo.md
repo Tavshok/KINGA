@@ -415,7 +415,7 @@
 - [x] Task 2: D-S2-03 — WorkloadDistributionPanel staleness fix (poll interval or cross-portal invalidation)
 
 ### Phase 2 — Sprint 2 Deferred Fixes
-- [ ] Task 3: D-S2-02 — Consolidate financial threshold into server/shared/constants.ts
+- [x] Task 3: D-S2-02 — Consolidate financial threshold into server/shared/constants.ts
 - [ ] Task 4: D-S2-04 — Add isActive/deactivatedAt to user schema; update deactivateUser + getPendingRegistrations
 
 ### Sprint 3 — Fleet Manager + Recovery Completion

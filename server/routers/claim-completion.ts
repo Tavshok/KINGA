@@ -13,6 +13,7 @@ import { claims } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { getClaimById } from "../db";
 import { createAuditEntry } from "../db";
+import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "../../shared/const";
 
 const db = getDb();
 
@@ -51,7 +52,7 @@ export const claimCompletionRouter = router({
       }
       
       // For high-value claims, verify financial approval
-      if (claim.approvedAmount && claim.approvedAmount > 2500000) { // High-value threshold (configurable per tenant)
+      if (claim.approvedAmount && claim.approvedAmount > FINANCIAL_APPROVAL_THRESHOLD_CENTS) { // High-value threshold — see shared/const.ts
         if (!claim.financiallyApprovedBy || !claim.financiallyApprovedAt) {
           throw new TRPCError({ 
             code: "PRECONDITION_FAILED", 

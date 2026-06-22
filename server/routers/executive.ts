@@ -4,11 +4,10 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { sql, eq, and, desc, gt } from "drizzle-orm";
 import { claims } from "../../drizzle/schema";
+import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "../../shared/const";
 
-/** Shared financial threshold: claims above this amount require executive sign-off.
- *  Must stay in sync with getApprovalWorkbenchMetrics in claims-manager.ts.
- */
-const EXEC_FINANCIAL_THRESHOLD_CENTS = 2_500_000; // ZAR 25,000
+/** Alias for local readability — value is the shared constant from shared/const.ts */
+const EXEC_FINANCIAL_THRESHOLD_CENTS = FINANCIAL_APPROVAL_THRESHOLD_CENTS;
 
 const daysSince = (d: string | null) => {
   if (!d) return 0;

@@ -18,6 +18,7 @@ import { getDb } from "../db";
 import { claims, workflowAuditTrail, users } from "../../drizzle/schema";
 import { eq, and, desc, gte, lte, inArray, sql, count, avg } from "drizzle-orm";
 import { z } from "zod";
+import { FINANCIAL_APPROVAL_THRESHOLD_CENTS } from "../../shared/const";
 
 const WORKFLOW_STAGES = [
   "intake_queue",
@@ -168,8 +169,8 @@ export const claimsManagerRouter = router({
       .orderBy(desc(claims.createdAt))
       .limit(1000);
 
-    // Rule 1: High Value Pending (> $25,000 = 2,500,000 cents)
-    const highValueThreshold = 2500000;
+    // Rule 1: High Value Pending (> ZAR 25,000 = 2,500,000 cents)
+    const highValueThreshold = FINANCIAL_APPROVAL_THRESHOLD_CENTS;
     const highValuePending = activeClaims.filter(c =>
       (c.totalClaimAmount ?? 0) > highValueThreshold &&
       !["closed", "rejected"].includes(c.status ?? "")
@@ -293,7 +294,7 @@ export const claimsManagerRouter = router({
       ? Math.round(arr.reduce((sum, c) => sum + daysSince(c.createdAt), 0) / arr.length)
       : 0;
 
-    const highValueThreshold = 2500000;
+    const highValueThreshold = FINANCIAL_APPROVAL_THRESHOLD_CENTS;
     const highValuePending = approvalClaims.filter(c => (c.totalClaimAmount ?? 0) > highValueThreshold);
 
     const oldestApproval = approvalClaims.reduce((oldest, c) => {
