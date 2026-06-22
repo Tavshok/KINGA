@@ -52,7 +52,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FleetVehicleTrackingTab } from "@/components/FleetVehicleTrackingTab";
-import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
+import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { FleetRiskAnalyticsTab } from "@/components/FleetRiskAnalyticsTab";
 import {
   Dialog,
@@ -319,6 +319,27 @@ export default function FleetManagerDashboard() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {/* C3 — PortalAlerts: SLA breaches + active claims */}
+      <PortalAlerts alerts={[
+        {
+          id: "sla-breach",
+          severity: "critical" as const,
+          label: "active claim(s) breached 72-hour SLA",
+          count: activeClaims.filter((c) => {
+            const submitted = c.createdAt ? new Date(c.createdAt).getTime() : 0;
+            return submitted > 0 && Date.now() - submitted > 72 * 3_600_000;
+          }).length,
+          onClick: () => setTab("active"),
+        },
+        {
+          id: "active-claims",
+          severity: "warning" as const,
+          label: "active claim(s) in progress",
+          count: activeClaims.length,
+          onClick: () => setTab("active"),
+        },
+      ] as PortalAlert[]}
+      />
       {/* Header — PortalHeader (C1) */}
       <PortalHeader
         icon={<Building2 className="h-5 w-5" />}
