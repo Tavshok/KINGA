@@ -63,7 +63,7 @@ import {
   DEMO_PROCESSED_CLAIMS,
   DEMO_DASHBOARD_STATS,
 } from "@/lib/demoData";
-import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
+import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 export default function ClaimsManagerDashboard() {
@@ -437,6 +437,24 @@ export default function ClaimsManagerDashboard() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Auto-Assignment Warning Badge */}
         <AutoAssignmentBadge />
+        {/* C3 — PortalAlerts: fraud alerts + review queue */}
+        <PortalAlerts alerts={[
+          {
+            id: "fraud-alerts",
+            severity: "critical" as const,
+            label: "high-risk fraud alert(s) requiring review",
+            count: fraudAlerts.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70 || c.fraudRiskLevel === "high" || c.fraudRiskLevel === "critical").length,
+            onClick: () => setActiveTab("fraud"),
+          },
+          {
+            id: "review-queue",
+            severity: "warning" as const,
+            label: "claim(s) awaiting final manager decision",
+            count: reviewQueue.length,
+            onClick: () => setActiveTab("review"),
+          },
+        ] as PortalAlert[]}
+        />
         {/* Header — KingaPortalShell PortalHeader (C1) */}
         <PortalHeader
           icon={<ClipboardList className="h-5 w-5" />}
