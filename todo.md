@@ -397,8 +397,8 @@
 - [x] T3: Claims Processor — assessor assignment action (already implemented: trpc.claims.assignToAssessor, dialog at lines 672/826)
 - [x] T4: Risk Manager — false positive rate KPI (fraudRules.falsePositiveCount / truePositiveCount, getFraudRuleAccuracy procedure)
 - [x] T5: Risk Manager — geographic risk clustering table in Fraud Intelligence tab (getGeographicRiskClusters, GeographicRiskClustersPanel)
-- [ ] T6: Admin — PendingRegistrationQueue + deactivate/role-change user actions
-- [ ] T7: Panel Beater — confirm D-07 chip present, add approval rate KPI
-- [ ] T8: Claimant — settlement acceptance button + dispute initiation action
-- [ ] T9: Insurer Admin — PendingTeamRequestQueue component
-- [ ] T10: Recovery — full KingaPortalShell migration + PortalKPIStrip visual parity
+- [x] T6: Admin — PendingRegistrationQueue + deactivate/role-change user actions (admin.getPendingRegistrations/deactivateUser/updateUserRole)
+- [x] T7: Panel Beater — D-07 chip confirmed at lines 378/493; Acceptance Rate KPI already present at line 149 (approvedQuotes/submittedQuotes)
+- [x] T8: Claimant — settlement acceptance button + dispute initiation action (acceptSettlement/initiateDispute mutations + confirm dialogs)
+- [x] T9: Insurer Admin — PendingTeamRequestQueue component (reuses teamMembers.listInvitations/cancelInvitation/resendInvitation)
+- [x] T10: Recovery — full KingaPortalShell migration + PortalKPIStrip visual parity

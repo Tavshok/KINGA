@@ -4020,6 +4020,85 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           .limit(1);
         return rows[0] ?? null;
       }),
+
+    /**
+     * Claimant accepts a settlement offer.
+     * Transitions the claim from payment_authorized → closed.
+     * Only the claimant who owns the claim may call this.
+     */
+    acceptSettlement: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const claim = await getDb()
+          .select()
+          .from(claims)
+          .where(eq(claims.id, input.claimId))
+          .limit(1)
+          .then(r => r[0]);
+        if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+        // Only the claimant who owns the claim may accept
+        if (claim.claimantId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only the claimant may accept a settlement' });
+        }
+        if (claim.workflowState !== 'payment_authorized') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `Settlement can only be accepted when claim is in payment_authorized state (current: ${claim.workflowState})` });
+        }
+        await getDb()
+          .update(claims)
+          .set({ workflowState: 'closed' as any, status: 'completed', updatedAt: new Date() })
+          .where(eq(claims.id, input.claimId));
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: 'settlement_accepted',
+          entityType: 'claim',
+          entityId: input.claimId,
+          changeDescription: `Settlement accepted by claimant. Claim closed.`,
+        });
+        return { success: true, newState: 'closed' };
+      }),
+
+    /**
+     * Claimant initiates a formal dispute on a closed or payment_authorized claim.
+     * Transitions the claim to disputed state.
+     * Only the claimant who owns the claim may call this.
+     */
+    initiateDispute: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        reason: z.string().min(10, 'Please provide a reason of at least 10 characters'),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const claim = await getDb()
+          .select()
+          .from(claims)
+          .where(eq(claims.id, input.claimId))
+          .limit(1)
+          .then(r => r[0]);
+        if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+        if (claim.claimantId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only the claimant may initiate a dispute' });
+        }
+        const allowedFromStates = ['payment_authorized', 'closed', 'financial_decision'];
+        if (!allowedFromStates.includes(claim.workflowState ?? '')) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `Dispute can only be initiated from payment_authorized, financial_decision, or closed state (current: ${claim.workflowState})` });
+        }
+        await getDb()
+          .update(claims)
+          .set({ workflowState: 'disputed' as any, status: 'disputed', updatedAt: new Date() })
+          .where(eq(claims.id, input.claimId));
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: 'dispute_initiated',
+          entityType: 'claim',
+          entityId: input.claimId,
+          changeDescription: `Dispute initiated by claimant. Reason: ${input.reason}`,
+        });
+        return { success: true, newState: 'disputed' };
+      }),
   }),
   // Assessor operationss
   assessors: router({

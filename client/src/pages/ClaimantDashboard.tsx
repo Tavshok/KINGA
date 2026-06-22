@@ -8,8 +8,11 @@ import { Separator } from "@/components/ui/separator";
 import {
   FileText, Clock, CheckCircle, Plus, ChevronRight, AlertCircle,
   Car, MapPin, Calendar, RefreshCw, Shield, FileCheck, Banknote,
-  Wrench, Eye, ArrowRight, Search, X, Building2, ChevronDown
+  Wrench, Eye, ArrowRight, Search, X, Building2, ChevronDown, ThumbsUp, MessageSquareWarning
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import KingaLogo from "@/components/KingaLogo";
@@ -120,6 +123,10 @@ export default function ClaimantDashboard() {
   const [, setLocation] = useLocation();
   const [expandedClaim, setExpandedClaim] = useState<number | null>(null);
   const [fleetBannerOpen, setFleetBannerOpen] = useState(false);
+  const [settlementDialog, setSettlementDialog] = useState<{ claimId: number; claimNumber: string } | null>(null);
+  const [disputeDialog, setDisputeDialog] = useState<{ claimId: number; claimNumber: string } | null>(null);
+  const [disputeReason, setDisputeReason] = useState("");
+  const { toast } = useToast();
 
   // Check if user already has a fleet registration — hides the banner once registered
   const { data: fleetRegStatus } = trpc.fleetAccounts.getMyRegistrationStatus.useQuery(
@@ -130,6 +137,26 @@ export default function ClaimantDashboard() {
 
   // Real data
   const { data: myClaims = [], isLoading, refetch } = trpc.claims.myClaims.useQuery();
+
+  // Claimant action mutations
+  const acceptSettlementMutation = trpc.claims.acceptSettlement.useMutation({
+    onSuccess: () => {
+      toast({ title: "Settlement accepted", description: "Your claim has been closed. Thank you." });
+      setSettlementDialog(null);
+      refetch();
+    },
+    onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const initiateDisputeMutation = trpc.claims.initiateDispute.useMutation({
+    onSuccess: () => {
+      toast({ title: "Dispute submitted", description: "Your dispute has been registered and will be reviewed." });
+      setDisputeDialog(null);
+      setDisputeReason("");
+      refetch();
+    },
+    onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -528,6 +555,46 @@ export default function ClaimantDashboard() {
                             </p>
                           </div>
                         )}
+
+                        {/* Claimant actions: accept settlement or initiate dispute */}
+                        {(claim.workflowState === "payment_authorized" || claim.workflowState === "financial_decision") && (
+                          <div className="flex flex-col gap-2 pt-1">
+                            <p className="text-xs font-medium text-gray-600">Your settlement offer is ready for review:</p>
+                            <div className="flex gap-2 flex-wrap">
+                              <Button
+                                size="sm"
+                                className="gap-1.5 text-white"
+                                style={{ background: "#3C7844" }}
+                                onClick={() => setSettlementDialog({ claimId: claim.id, claimNumber: claim.claimNumber })}
+                              >
+                                <ThumbsUp className="h-3.5 w-3.5" />
+                                Accept Settlement
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50"
+                                onClick={() => setDisputeDialog({ claimId: claim.id, claimNumber: claim.claimNumber })}
+                              >
+                                <MessageSquareWarning className="h-3.5 w-3.5" />
+                                Dispute Outcome
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {claim.workflowState === "closed" && claim.status === "completed" && (
+                          <div className="flex gap-2 flex-wrap pt-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50"
+                              onClick={() => setDisputeDialog({ claimId: claim.id, claimNumber: claim.claimNumber })}
+                            >
+                              <MessageSquareWarning className="h-3.5 w-3.5" />
+                              Raise a Dispute
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -620,6 +687,63 @@ export default function ClaimantDashboard() {
           </div>
         )}
       </main>
+
+      {/* Settlement acceptance confirmation dialog */}
+      <Dialog open={!!settlementDialog} onOpenChange={(open) => !open && setSettlementDialog(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Accept Settlement</DialogTitle>
+            <DialogDescription>
+              You are about to accept the settlement offer for claim <strong>{settlementDialog?.claimNumber}</strong>. This action is final and will close the claim.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setSettlementDialog(null)}>Cancel</Button>
+            <Button
+              className="text-white"
+              style={{ background: "#3C7844" }}
+              disabled={acceptSettlementMutation.isPending}
+              onClick={() => settlementDialog && acceptSettlementMutation.mutate({ claimId: settlementDialog.claimId })}
+            >
+              {acceptSettlementMutation.isPending ? "Processing..." : "Confirm Acceptance"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dispute initiation dialog */}
+      <Dialog open={!!disputeDialog} onOpenChange={(open) => { if (!open) { setDisputeDialog(null); setDisputeReason(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Raise a Dispute</DialogTitle>
+            <DialogDescription>
+              Describe why you are disputing the outcome of claim <strong>{disputeDialog?.claimNumber}</strong>. A claims manager will review your dispute.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Textarea
+              placeholder="Please explain your reason for disputing this claim outcome (minimum 10 characters)..."
+              value={disputeReason}
+              onChange={(e) => setDisputeReason(e.target.value)}
+              rows={4}
+              className="resize-none"
+            />
+            {disputeReason.length > 0 && disputeReason.length < 10 && (
+              <p className="text-xs text-red-500 mt-1">Please provide at least 10 characters.</p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setDisputeDialog(null); setDisputeReason(""); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={disputeReason.length < 10 || initiateDisputeMutation.isPending}
+              onClick={() => disputeDialog && initiateDisputeMutation.mutate({ claimId: disputeDialog.claimId, reason: disputeReason })}
+            >
+              {initiateDisputeMutation.isPending ? "Submitting..." : "Submit Dispute"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

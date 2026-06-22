@@ -1,14 +1,13 @@
-import InsurerPortalLayout from "@/components/InsurerPortalLayout";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { Scale, ClipboardList, Search, Activity, Send, Gavel, CheckSquare, Archive, AlertCircle, TrendingUp, Clock, DollarSign, AlertTriangle, ChevronRight, RefreshCw, Building2 } from "lucide-react";
+import { Scale, ClipboardList, Search, Activity, Send, Gavel, CheckSquare, Archive, TrendingUp, Clock, DollarSign, AlertTriangle, ChevronRight, RefreshCw, Building2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
-import { PortalHeader } from "@/components/KingaPortalShell";
+import KingaPortalShell, { PortalKPI } from "@/components/KingaPortalShell";
 
 // Maps each status card tab to the DB status value(s) used in getCases
 const STATUS_CARDS = [
@@ -68,22 +67,54 @@ export default function RecoveryPortal() {
 
   const cases = casesData ?? [];
 
+  // PortalKPI strip — maps the 4 recovery KPIs to the shared PortalKPIStrip format
+  const portalKPIs: PortalKPI[] = [
+    {
+      label: "Total Quantum",
+      value: kpisLoading ? "\u2014" : fmtCurrency(kpis?.totalSettlementAmount ?? 0),
+      icon: <DollarSign className="h-4 w-4" />,
+      accent: "blue",
+    },
+    {
+      label: "Recovery Rate",
+      value: kpisLoading ? "\u2014" : `${kpis?.recoveryRate ?? 0}%`,
+      icon: <TrendingUp className="h-4 w-4" />,
+      accent: "green",
+      trend: kpis ? {
+        value: `${kpis.recoveryRate ?? 0}%`,
+        direction: (kpis.recoveryRate ?? 0) >= 50 ? "up" : "down",
+        positive: (kpis.recoveryRate ?? 0) >= 50,
+      } : undefined,
+    },
+    {
+      label: "Total Recovered",
+      value: kpisLoading ? "\u2014" : fmtCurrency(kpis?.totalRecovered ?? 0),
+      icon: <CheckSquare className="h-4 w-4" />,
+      accent: "teal",
+    },
+    {
+      label: "Approaching Deadline",
+      value: kpisLoading ? "\u2014" : (kpis?.approachingDeadlines ?? 0),
+      icon: <Clock className="h-4 w-4" />,
+      accent: (kpis?.approachingDeadlines ?? 0) > 0 ? "amber" : "charcoal",
+    },
+  ];
+
   return (
-    <InsurerPortalLayout>
-      <div className="p-6 space-y-6">
-        {/* Header — KingaPortalShell Standard Header */}
-        <PortalHeader
-          icon={<Scale size={22} />}
-          title="Recovery Dashboard"
-          description="Subrogation & third-party recovery case management"
-          live
-          actions={
-            <Button variant="ghost" size="sm" onClick={() => refetchKPIs()} className="gap-2 text-muted-foreground">
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </Button>
-          }
-        />
+    <KingaPortalShell
+      icon={<Scale size={22} />}
+      title="Recovery Dashboard"
+      description="Subrogation & third-party recovery case management"
+      live
+      kpis={portalKPIs}
+      actions={
+        <Button variant="ghost" size="sm" onClick={() => refetchKPIs()} className="gap-2 text-muted-foreground">
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
+      }
+    >
+      <div className="space-y-6">
 
         {/* Recovery deadline warning banner */}
         {kpis && kpis.approachingDeadlines > 0 && (
@@ -98,59 +129,7 @@ export default function RecoveryPortal() {
           </div>
         )}
 
-        {/* KPI tiles */}
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Recovery KPIs</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {/* Total Quantum */}
-            <div className="rounded-lg border border-border p-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                <DollarSign className="h-3.5 w-3.5" />
-                Under recovery
-              </div>
-              <div className="text-xl font-bold text-foreground mt-1">
-                {kpisLoading ? <span className="text-muted-foreground/30">—</span> : fmtCurrency(kpis?.totalSettlementAmount ?? 0)}
-              </div>
-              <div className="text-sm font-medium text-muted-foreground mt-1">Total Quantum</div>
-            </div>
 
-            {/* Recovery Rate */}
-            <div className="rounded-lg border border-border p-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                <TrendingUp className="h-3.5 w-3.5" />
-                Recovered vs quantum
-              </div>
-              <div className="text-xl font-bold text-foreground mt-1">
-                {kpisLoading ? <span className="text-muted-foreground/30">—</span> : `${kpis?.recoveryRate ?? 0}%`}
-              </div>
-              <div className="text-sm font-medium text-muted-foreground mt-1">Recovery Rate</div>
-            </div>
-
-            {/* Total Recovered */}
-            <div className="rounded-lg border border-border p-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                <CheckSquare className="h-3.5 w-3.5" />
-                Amount recovered
-              </div>
-              <div className="text-xl font-bold mt-1" style={{ color: "#3C7844" }}>
-                {kpisLoading ? <span className="text-muted-foreground/30">—</span> : fmtCurrency(kpis?.totalRecovered ?? 0)}
-              </div>
-              <div className="text-sm font-medium text-muted-foreground mt-1">Total Recovered</div>
-            </div>
-
-            {/* Approaching Deadlines */}
-            <div className={`rounded-lg border p-4 ${kpis && kpis.approachingDeadlines > 0 ? "border" : "border-border"}`}>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                <Clock className="h-3.5 w-3.5" />
-                Within 90 days
-              </div>
-              <div className={`text-xl font-bold mt-1 ${kpis && kpis.approachingDeadlines > 0 ? "text-amber-400" : "text-foreground"}`}>
-                {kpisLoading ? <span className="text-muted-foreground/30">—</span> : (kpis?.approachingDeadlines ?? 0)}
-              </div>
-              <div className="text-sm font-medium text-muted-foreground mt-1">Approaching Deadline</div>
-            </div>
-          </div>
-        </div>
 
         {/* Status queue cards */}
         <div>
@@ -288,7 +267,7 @@ export default function RecoveryPortal() {
         {/* Inter-Insurer Intelligence Panel */}
         <InsurerIntelligencePanel />
       </div>
-    </InsurerPortalLayout>
+    </KingaPortalShell>
   );
 }
 

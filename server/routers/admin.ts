@@ -9,7 +9,8 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getDb, triggerAiAssessment } from "../db";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
-import { tenants } from "../../drizzle/schema";
+import { tenants, users } from "../../drizzle/schema";
+import { eq, and, gte } from "drizzle-orm";
 import { sendInvitation, getInvitationByToken, acceptInvitation } from "../invitation-service";
 import { sql } from "drizzle-orm";
 
@@ -766,7 +767,6 @@ export const adminRouter = router({
       try {
         const { collectAndStoreObservabilityMetrics } = await import("../observability-metrics");
         await collectAndStoreObservabilityMetrics(ctx.user.tenantId);
-        
         return {
           success: true,
           message: 'Observability metrics collected successfully',
@@ -778,5 +778,76 @@ export const adminRouter = router({
           message: `Failed to collect observability metrics: ${error.message}`,
         });
       }
+    }),
+
+  /**
+   * Pending Registration Queue — users registered but not yet email-verified.
+   * Returns users with emailVerified=0 created in the last 90 days.
+   */
+  getPendingRegistrations: protectedProcedure
+    .query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin" && ctx.user.role !== "platform_super_admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+      const db = await getDb();
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+        .toISOString().slice(0, 19).replace("T", " ");
+      const pending = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+          insurerRole: users.insurerRole,
+          createdAt: users.createdAt,
+          emailVerified: users.emailVerified,
+          tenantId: users.tenantId,
+        })
+        .from(users)
+        .where(and(eq(users.emailVerified, 0), gte(users.createdAt, ninetyDaysAgo)))
+        .orderBy(users.createdAt)
+        .limit(100);
+      return { pending, total: pending.length };
+    }),
+
+  /**
+   * Deactivate a user (soft-disable via emailVerified=0).
+   */
+  deactivateUser: protectedProcedure
+    .input(z.object({ userId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin" && ctx.user.role !== "platform_super_admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+      if (input.userId === ctx.user.id) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot deactivate your own account" });
+      }
+      const db = await getDb();
+      await db.update(users).set({ emailVerified: 0 }).where(eq(users.id, input.userId));
+      return { success: true, userId: input.userId };
+    }),
+
+  /**
+   * Update a user's platform role and/or insurer sub-role.
+   */
+  updateUserRole: protectedProcedure
+    .input(z.object({
+      userId: z.number().int().positive(),
+      role: z.enum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver']).optional(),
+      insurerRole: z.enum(['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']).nullable().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin" && ctx.user.role !== "platform_super_admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+      const db = await getDb();
+      const updateData: Record<string, any> = {};
+      if (input.role !== undefined) updateData.role = input.role;
+      if (input.insurerRole !== undefined) updateData.insurerRole = input.insurerRole;
+      if (Object.keys(updateData).length === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No fields to update" });
+      }
+      await db.update(users).set(updateData).where(eq(users.id, input.userId));
+      return { success: true, userId: input.userId };
     }),
 });

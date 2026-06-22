@@ -12,6 +12,7 @@
  */
 
 import InsurerPortalLayout from "@/components/InsurerPortalLayout";
+import { PendingTeamRequestQueue } from "@/components/insurer/PendingTeamRequestQueue";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
@@ -429,6 +430,11 @@ export default function InsurerAdminDashboard() {
             </Card>
           </div>
         </div>
+
+        {/* ── Pending Team Invitations ── */}
+        <section className="mt-2">
+          <PendingTeamRequestQueue />
+        </section>
 
         {/* ── Audit Log ── */}
         <section className="mt-2">

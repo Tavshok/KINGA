@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { PendingRegistrationQueue } from "@/components/admin/PendingRegistrationQueue";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -284,6 +285,9 @@ export default function AdminDashboard() {
             KINGA Agency
           </Button>
         </div>
+        {/* Pending Registration Queue — always visible to admins */}
+        <PendingRegistrationQueue />
+
         {/* Tenants Tab */}
         {selectedTab === "tenants" && (
           <Card>
