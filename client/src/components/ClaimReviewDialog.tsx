@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
-import { AlertTriangle, CheckCircle, Clock, DollarSign, FileText, TrendingUp, User, Download } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, DollarSign, FileText, TrendingUp, User, Download, MessageSquareWarning } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { exportClaimReportToPDF, type ClaimReportData } from "@/lib/export-pdf";
 import { toast } from "sonner";
@@ -18,6 +18,10 @@ interface ClaimReviewDialogProps {
 
 export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDialogProps) {
   const { fmt } = useTenantCurrency();
+  const { data: disputeInfo } = trpc.claims.getDisputeInfo.useQuery(
+    { claimId: claimId! },
+    { enabled: !!claimId }
+  );
   const { data: claim, isLoading: claimLoading } = trpc.claims.getById.useQuery(
     { id: claimId! },
     { enabled: !!claimId }
@@ -478,6 +482,21 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
 
             {/* Timeline Tab */}
             <TabsContent value="timeline" className="space-y-4">
+              {/* Dispute Reason Banner — visible only when a dispute has been initiated */}
+              {disputeInfo && (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-4">
+                  <MessageSquareWarning className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">Claimant Dispute Filed</p>
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                      {disputeInfo.changeDescription?.replace('Dispute initiated by claimant. Reason: ', '') ?? 'No reason provided'}
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Filed: {disputeInfo.createdAt ? new Date(disputeInfo.createdAt).toLocaleString() : 'Unknown'}
+                    </p>
+                  </div>
+                </div>
+              )}
               <Card className="p-4">
                 <h3 className="font-semibold text-lg mb-4">Claim Workflow Timeline</h3>
                 <div className="space-y-4">

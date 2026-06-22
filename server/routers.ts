@@ -4097,7 +4097,45 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           entityId: input.claimId,
           changeDescription: `Dispute initiated by claimant. Reason: ${input.reason}`,
         });
+        // Notify the platform owner (Claims Manager receives push signal)
+        try {
+          const { notifyOwner } = await import("./_core/notification");
+          await notifyOwner({
+            title: `Dispute Initiated \u2014 Claim ${claim.claimNumber}`,
+            content: `Claimant has disputed claim ${claim.claimNumber} (${claim.vehicleRegistration ?? 'N/A'}). Reason: ${input.reason}`,
+          });
+        } catch {
+          // Non-blocking \u2014 notification failure must not prevent dispute from being recorded
+        }
         return { success: true, newState: 'disputed' };
+      }),
+    /**
+     * Returns the most recent dispute_initiated audit entry for a claim.
+     * Used by Claims Manager to read the claimant's stated dispute reason
+     * without leaving the portal.
+     */
+    getDisputeInfo: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ input }) => {
+        const { auditTrail } = await import('../drizzle/schema');
+        const db = await getDb();
+        const entry = await db
+          .select({
+            id: auditTrail.id,
+            changeDescription: auditTrail.changeDescription,
+            createdAt: auditTrail.createdAt,
+          })
+          .from(auditTrail)
+          .where(
+            and(
+              eq(auditTrail.claimId, input.claimId),
+              eq(auditTrail.action, 'dispute_initiated'),
+            )
+          )
+          .orderBy(desc(auditTrail.createdAt))
+          .limit(1)
+          .then(r => r[0] ?? null);
+        return entry;
       }),
   }),
   // Assessor operationss

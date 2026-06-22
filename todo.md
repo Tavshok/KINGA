@@ -411,7 +411,7 @@
 - [x] Phase 0: Investigate Risk Manager SLADeadlineChip / AttentionRequired regression vs scoring error; document findings; restore if warranted
 
 ### Phase 1 — Sprint 2 Must-Fix Defects
-- [ ] Task 1: D-S2-05 — Surface dispute reason in Claims Manager claim detail + notifyOwner trigger in initiateDispute
+- [x] Task 1: D-S2-05 — Surface dispute reason in Claims Manager claim detail + notifyOwner trigger in initiateDispute
 - [ ] Task 2: D-S2-03 — WorkloadDistributionPanel staleness fix (poll interval or cross-portal invalidation)
 
 ### Phase 2 — Sprint 2 Deferred Fixes
