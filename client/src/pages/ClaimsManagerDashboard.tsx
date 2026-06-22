@@ -48,6 +48,7 @@ import { AttentionRequiredPanel } from "@/components/AttentionRequiredPanel";
 import { ApprovalWorkbench } from "@/components/ApprovalWorkbench";
 import { CapacityForecast } from "@/components/CapacityForecast";
 import { WorkforceIntelligence } from "@/components/WorkforceIntelligence";
+import { WorkloadDistributionPanel } from "@/components/WorkloadDistributionPanel";
 import { RecoveryWatchlist } from "@/components/RecoveryWatchlist";
 import { SendBackAnalytics } from "@/components/SendBackAnalytics";
 import { ClaimsManagerReportsCentre } from "@/components/ClaimsManagerReportsCentre";
@@ -659,8 +660,8 @@ export default function ClaimsManagerDashboard() {
               <div className="flex flex-col shrink-0">
                 <span className="text-[10px] font-semibold uppercase tracking-widest px-4 pt-2 pb-0 hidden sm:block" style={{ color: 'var(--muted-foreground)' }}>Oversight</span>
                 <div className="flex items-end">
-                  {(["fraud", "fleet-approvals"] as const).map((v) => {
-                    const labels: Record<string, string> = { fraud: "Fraud Alerts", "fleet-approvals": "Fleet Approvals" };
+                  {(["fraud", "fleet-approvals", "workload"] as const).map((v) => {
+                    const labels: Record<string, string> = { fraud: "Fraud Alerts", "fleet-approvals": "Fleet Approvals", workload: "Workload" };
                     const isActive = activeTab === v;
                     return (
                       <button
@@ -1646,6 +1647,11 @@ export default function ClaimsManagerDashboard() {
           {/* ── Fleet Manager Approvals Tab ───────────────────────────── */}
           <TabsContent value="fleet-approvals" className="mt-6">
             <FleetManagerApprovalsTab />
+          </TabsContent>
+
+          {/* ── Workload Distribution Tab ─────────────────────────────── */}
+          <TabsContent value="workload" className="mt-6">
+            <WorkloadDistributionPanel />
           </TabsContent>
 
           {/* ── Notifications Tab ─────────────────────────────────────── */}

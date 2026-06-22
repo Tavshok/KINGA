@@ -15,7 +15,7 @@ import { router } from "../_core/trpc";
 import { insurerDomainProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
-import { claims, workflowAuditTrail } from "../../drizzle/schema";
+import { claims, workflowAuditTrail, users } from "../../drizzle/schema";
 import { eq, and, desc, gte, lte, inArray, sql, count, avg } from "drizzle-orm";
 import { z } from "zod";
 
@@ -420,6 +420,104 @@ export const claimsManagerRouter = router({
       avgDailyCompletions,
       projectedBacklogIn7d: Math.max(0, activeBacklog + netBacklogChange),
     };
+  }),
+
+  /**
+   * Workload Distribution
+   *
+   * Returns per-assignee active claim count and oldest claim age for processors
+   * and assessors. Answers: "Which processor or assessor has the highest backlog?"
+   * Source: claims table joined to users table.
+   * Stalled threshold: 7 days without state change (same as getAttentionRequired).
+   */
+  getWorkloadDistribution: insurerDomainProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    // Fetch all active (non-terminal) claims with assignment fields
+    const activeClaims = await db
+      .select({
+        id: claims.id,
+        claimNumber: claims.claimNumber,
+        assignedProcessorId: claims.assignedProcessorId,
+        assignedAssessorId: claims.assignedAssessorId,
+        workflowState: claims.workflowState,
+        createdAt: claims.createdAt,
+        updatedAt: claims.updatedAt,
+      })
+      .from(claims)
+      .where(
+        and(
+          eq(claims.tenantId, ctx.insurerTenantId),
+          sql`${claims.status} NOT IN ('completed', 'closed', 'rejected')`
+        )
+      );
+
+    // Fetch all insurer-domain users for name resolution
+    const allUsers = await db
+      .select({ id: users.id, name: users.name, insurerRole: users.insurerRole })
+      .from(users)
+      .where(eq(users.tenantId, ctx.insurerTenantId));
+
+    const userMap = new Map<number, string>();
+    for (const u of allUsers) {
+      userMap.set(u.id, u.name ?? `User #${u.id}`);
+    }
+
+    // Aggregate by processor
+    const processorMap = new Map<string, { name: string; count: number; oldestCreatedAt: string | null }>();
+    // Aggregate by assessor
+    const assessorMap = new Map<number, { name: string; count: number; oldestCreatedAt: string | null }>();
+
+    for (const c of activeClaims) {
+      if (c.assignedProcessorId) {
+        const pid = c.assignedProcessorId;
+        const userId = parseInt(pid, 10);
+        const name = userMap.get(userId) ?? `Processor #${pid}`;
+        const existing = processorMap.get(pid);
+        if (!existing) {
+          processorMap.set(pid, { name, count: 1, oldestCreatedAt: c.createdAt ?? null });
+        } else {
+          existing.count++;
+          if (c.createdAt && (!existing.oldestCreatedAt || c.createdAt < existing.oldestCreatedAt)) {
+            existing.oldestCreatedAt = c.createdAt;
+          }
+        }
+      }
+      if (c.assignedAssessorId) {
+        const aid = c.assignedAssessorId;
+        const name = userMap.get(aid) ?? `Assessor #${aid}`;
+        const existing = assessorMap.get(aid);
+        if (!existing) {
+          assessorMap.set(aid, { name, count: 1, oldestCreatedAt: c.createdAt ?? null });
+        } else {
+          existing.count++;
+          if (c.createdAt && (!existing.oldestCreatedAt || c.createdAt < existing.oldestCreatedAt)) {
+            existing.oldestCreatedAt = c.createdAt;
+          }
+        }
+      }
+    }
+
+    const processors = Array.from(processorMap.entries())
+      .map(([id, v]) => ({
+        id,
+        name: v.name,
+        activeCount: v.count,
+        oldestDaysAgo: v.oldestCreatedAt ? daysSince(v.oldestCreatedAt) : 0,
+      }))
+      .sort((a, b) => b.activeCount - a.activeCount);
+
+    const assessors = Array.from(assessorMap.entries())
+      .map(([id, v]) => ({
+        id: String(id),
+        name: v.name,
+        activeCount: v.count,
+        oldestDaysAgo: v.oldestCreatedAt ? daysSince(v.oldestCreatedAt) : 0,
+      }))
+      .sort((a, b) => b.activeCount - a.activeCount);
+
+    return { processors, assessors, totalActive: activeClaims.length };
   }),
 
   /**
