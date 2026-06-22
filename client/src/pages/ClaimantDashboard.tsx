@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import { useLocation } from "wouter";
 import KingaLogo from "@/components/KingaLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
-import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
+import { PortalHeader, PortalKPIStrip, PortalAlerts, PortalTabBar, type PortalKPI, type PortalAlert, type PortalTab } from "@/components/KingaPortalShell";
 
 // Claim status → step index (0-based, 5 steps total)
 const STATUS_STEPS: Record<string, number> = {
@@ -56,8 +56,8 @@ function ClaimStatusTracker({ status }: { status: string }) {
         {/* Progress line */}
         <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200 z-0" />
         <div
-          className="absolute top-4 left-0 h-0.5 z-0 transition-all duration-500" style={{ background: "#3C7844" }}
-          style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
+          className="absolute top-4 left-0 h-0.5 z-0 transition-all duration-500"
+          style={{ background: "#3C7844", width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
         />
 
         {STEPS.map((step, idx) => {
@@ -95,25 +95,25 @@ function ClaimStatusTracker({ status }: { status: string }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; className: string }> = {
+  const map: Record<string, { label: string; className: string; style?: React.CSSProperties }> = {
     submitted: { label: "Submitted", className: "border", style: { background: "#EEF4FB", color: "#4878A8", borderColor: "#B8D0E8" } },
     intake_pending: { label: "Intake Pending", className: "border", style: { background: "#EEF4FB", color: "#4878A8", borderColor: "#B8D0E8" } },
     triage: { label: "Under Triage", className: "border", style: { background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" } },
-    assessment_pending: { label: "Assessment Pending", className: "bg-purple-100 text-purple-800" },
-    assessment_in_progress: { label: "Being Assessed", className: "bg-purple-100 text-purple-800" },
-    assessment_complete: { label: "Assessment Done", className: "bg-indigo-100 text-indigo-800" },
-    quotes_pending: { label: "Awaiting Quotes", className: "bg-orange-100 text-orange-800" },
-    comparison: { label: "Quote Comparison", className: "bg-orange-100 text-orange-800" },
+    assessment_pending: { label: "Assessment Pending", className: "border", style: { background: "#F0F0FA", color: "#4878A8", borderColor: "#B8D0E8" } },
+    assessment_in_progress: { label: "Being Assessed", className: "border", style: { background: "#F0F0FA", color: "#4878A8", borderColor: "#B8D0E8" } },
+    assessment_complete: { label: "Assessment Done", className: "border", style: { background: "#EEF4FB", color: "#4878A8", borderColor: "#B8D0E8" } },
+    quotes_pending: { label: "Awaiting Quotes", className: "border", style: { background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" } },
+    comparison: { label: "Quote Comparison", className: "border", style: { background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" } },
     repair_assigned: { label: "Repair Assigned", className: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
     repair_in_progress: { label: "Repair In Progress", className: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
-    financial_decision: { label: "Financial Decision", className: "bg-yellow-100 text-yellow-800" },
+    financial_decision: { label: "Financial Decision", className: "border", style: { background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" } },
     completed: { label: "Completed", className: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
     closed: { label: "Closed", className: "bg-gray-100 text-gray-800" },
     rejected: { label: "Rejected", className: "border", style: { background: "#FDF0F0", color: "#A32D2D", borderColor: "#E8B8B8" } },
   };
   const s = map[status] || { label: status.replace(/_/g, " "), className: "bg-gray-100 text-gray-800" };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${s.className}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${s.className}`} style={s.style}>
       {s.label}
     </span>
   );
@@ -124,6 +124,7 @@ export default function ClaimantDashboard() {
   const [, setLocation] = useLocation();
   const [expandedClaim, setExpandedClaim] = useState<number | null>(null);
   const [fleetBannerOpen, setFleetBannerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("my-claims");
   const [settlementDialog, setSettlementDialog] = useState<{ claimId: number; claimNumber: string } | null>(null);
   const [disputeDialog, setDisputeDialog] = useState<{ claimId: number; claimNumber: string } | null>(null);
   const [disputeReason, setDisputeReason] = useState("");
@@ -194,6 +195,34 @@ export default function ClaimantDashboard() {
       )
     : null;
 
+  // C3 — PortalAlerts: derive from existing claim data
+  const settlementReadyClaims = myClaims.filter((c: any) =>
+    c.workflowState === "payment_authorized" || c.workflowState === "financial_decision"
+  );
+  const claimantAlerts: PortalAlert[] = [
+    {
+      id: "settlement-ready",
+      severity: "critical",
+      label: "settlement offer(s) awaiting your response",
+      count: settlementReadyClaims.length,
+      onClick: () => setActiveTab("my-claims"),
+    },
+    {
+      id: "rejected",
+      severity: "warning",
+      label: "rejected claim(s) — review outcome",
+      count: rejectedClaims.length,
+      onClick: () => setActiveTab("my-claims"),
+    },
+  ];
+
+  // C4 — PortalTabBar tabs
+  const claimantTabs: PortalTab[] = [
+    { id: "my-claims", label: "My Claims", badge: activeClaims.length > 0 ? activeClaims.length : undefined },
+    { id: "completed", label: "Completed", badge: completedClaims.length > 0 ? completedClaims.length : undefined },
+    { id: "quick-actions", label: "Quick Actions" },
+  ];
+
   return (
     <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
       {/* Header (C1) */}
@@ -212,6 +241,12 @@ export default function ClaimantDashboard() {
           </div>
         }
       />
+
+      {/* C3 — Alert bar */}
+      <PortalAlerts alerts={claimantAlerts} />
+
+      {/* C4 — Tab navigation */}
+      <PortalTabBar tabs={claimantTabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Welcome + Quick Action */}
@@ -235,7 +270,7 @@ export default function ClaimantDashboard() {
           </Button>
         </div>
 
-        {/* KPI Strip (C2) */}
+        {/* KPI Strip (C2) — always visible */}
         <PortalKPIStrip kpis={[
           {
             label: 'Total Claims',
@@ -263,8 +298,82 @@ export default function ClaimantDashboard() {
           },
         ] as PortalKPI[]} />
 
-        {/* Claims List */}
-        <Card>
+        {/* Tab-gated content */}
+        {activeTab === "quick-actions" ? (
+          <div className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/claimant/submit-claim")}>
+                <CardContent className="pt-5 pb-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: "#EEF4FB" }}>
+                        <Plus className="h-5 w-5" style={{ color: "#4878A8" }} />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">Submit New Claim</p>
+                        <p className="text-xs text-gray-500">Start a new insurance claim</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => refetch()}>
+                <CardContent className="pt-5 pb-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: "#F0F7F2" }}>
+                        <RefreshCw className="h-5 w-5" style={{ color: "#3C7844" }} />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">Refresh Status</p>
+                        <p className="text-xs text-gray-500">Check for the latest updates</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        ) : activeTab === "completed" ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Completed Claims</CardTitle>
+              <CardDescription>Claims that have been resolved or closed</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {completedClaims.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No completed claims yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {completedClaims.map((claim: any) => (
+                    <div key={claim.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setLocation(`/claims/${claim.id}`)}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-9 w-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "#F0F7F2" }}>
+                          <Car className="h-4 w-4" style={{ color: "#3C7844" }} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-sm font-bold text-gray-900">{claim.claimNumber}</span>
+                            <StatusBadge status={claim.status} />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">{[claim.vehicleMake, claim.vehicleModel, claim.vehicleYear].filter(Boolean).join(" ") || "Vehicle details pending"}</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <>{/* Claims List */}
+          <Card>
           <CardHeader className="space-y-3">
             <div className="flex flex-row items-center justify-between">
               <div>
@@ -336,8 +445,8 @@ export default function ClaimantDashboard() {
                       onClick={() => setLocation(`/claims/${claim.id}`)}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                          <Car className="h-4 w-4 text-blue-500" />
+                        <div className="h-9 w-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "#EEF4FB" }}>
+                          <Car className="h-4 w-4" style={{ color: "#4878A8" }} />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -483,8 +592,8 @@ export default function ClaimantDashboard() {
                               <p className="text-xs font-medium text-gray-500 mb-1">Policy Status</p>
                               <span className={`inline-flex items-center gap-1 text-xs font-medium ${
                                 claim.policyVerified
-                                  ? "text-emerald-700"
-                                  : "text-amber-700"
+                                  ? "font-medium" /* style via inline below */
+                                  : "font-medium" /* style via inline below */
                               }`}>
                                 {claim.policyVerified ? (
                                   <><CheckCircle className="h-3 w-3" /> Verified</>
@@ -498,17 +607,17 @@ export default function ClaimantDashboard() {
 
                         {/* Status-specific guidance */}
                         {claim.status === "quotes_pending" && (
-                          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
-                            <Wrench className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                            <p className="text-amber-800">
+                          <div className="flex items-start gap-2 p-3 rounded-lg text-sm border" style={{ background: "#FFF8E6", borderColor: "#E8C97A" }}>
+                            <Wrench className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#8A5C00" }} />
+                            <p style={{ color: "#8A5C00" }}>
                               Your selected repair shops are preparing quotes. You will be notified once all quotes are received.
                             </p>
                           </div>
                         )}
                         {claim.status === "completed" && (
-                          <div className="flex items-start gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm">
-                            <CheckCircle className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
-                            <p className="text-emerald-800">
+                          <div className="flex items-start gap-2 p-3 rounded-lg text-sm border" style={{ background: "#F0F7F2", borderColor: "#C8E0CE" }}>
+                            <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#3C7844" }} />
+                            <p style={{ color: "#3C7844" }}>
                               Your claim has been resolved. If you have any questions, please contact your insurer.
                             </p>
                           </div>
@@ -539,7 +648,8 @@ export default function ClaimantDashboard() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50"
+                                className="gap-1.5"
+                                style={{ borderColor: "#E8C97A", color: "#8A5C00" }}
                                 onClick={() => setDisputeDialog({ claimId: claim.id, claimNumber: claim.claimNumber })}
                               >
                                 <MessageSquareWarning className="h-3.5 w-3.5" />
@@ -553,7 +663,8 @@ export default function ClaimantDashboard() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50"
+                              className="gap-1.5"
+                              style={{ borderColor: "#E8C97A", color: "#8A5C00" }}
                               onClick={() => setDisputeDialog({ claimId: claim.id, claimNumber: claim.claimNumber })}
                             >
                               <MessageSquareWarning className="h-3.5 w-3.5" />
@@ -570,42 +681,7 @@ export default function ClaimantDashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/claimant/submit-claim")}>
-            <CardContent className="pt-5 pb-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Plus className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm">Submit New Claim</p>
-                    <p className="text-xs text-gray-500">Start a new insurance claim</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-5 w-5 text-gray-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => refetch()}>
-            <CardContent className="pt-5 pb-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <RefreshCw className="h-5 w-5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm">Refresh Status</p>
-                    <p className="text-xs text-gray-500">Check for the latest updates</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-5 w-5 text-gray-400" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Quick Actions moved to Quick Actions tab */}
         {/* Fleet Manager CTA — collapsible, hidden once user is already registered */}
         {showFleetBanner && (
           <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
@@ -618,7 +694,7 @@ export default function ClaimantDashboard() {
                 <Building2 className="h-4 w-4 text-gray-400 shrink-0" />
                 <span className="text-sm text-gray-500 truncate">
                   Managing vehicles for a company?{" "}
-                  <span className="text-emerald-700 font-medium">Register as a Fleet Manager</span>
+                  <span className="font-medium" style={{ color: "#3C7844" }}>Register as a Fleet Manager</span>
                   {" "}to view all company claims in one place.
                 </span>
               </div>
@@ -641,7 +717,8 @@ export default function ClaimantDashboard() {
                   </div>
                   <Button
                     size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 shrink-0"
+                    className="shrink-0 text-white"
+                    style={{ background: "#3C7844" }}
                     onClick={() => setLocation("/claimant/fleet-register")}
                   >
                     <Building2 className="h-3.5 w-3.5 mr-1.5" />
@@ -651,6 +728,8 @@ export default function ClaimantDashboard() {
               </div>
             )}
           </div>
+        )}
+          </> /* end activeTab === 'my-claims' */
         )}
       </main>
 
