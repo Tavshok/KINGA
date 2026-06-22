@@ -35,7 +35,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
-import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
+import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { ExecutiveAlertsCenter } from "@/components/executive/ExecutiveAlertsCenter";
 import { ExecutiveEscalationQueue } from "@/components/executive/ExecutiveEscalationQueue";
 import { ExecutiveReportTab } from "@/components/executive/ExecutiveReportTab";
@@ -395,6 +395,24 @@ export default function ExecutiveDashboard() {
   return (
     <div className="exec-dashboard min-h-screen" style={{ background: 'var(--background)' }}>
 
+      {/* C3 — PortalAlerts: high-risk claims + governance flags */}
+      <PortalAlerts alerts={[
+        {
+          id: "high-risk",
+          severity: "critical" as const,
+          label: "high-risk claim(s) requiring executive attention",
+          count: kpis?.highRiskCount ?? 0,
+          onClick: () => setActiveTab("fraud"),
+        },
+        {
+          id: "governance",
+          severity: "warning" as const,
+          label: "governance flag(s) pending review",
+          count: governanceMetrics?.pendingFlags ?? governanceMetrics?.flaggedClaims ?? 0,
+          onClick: () => setActiveTab("governance"),
+        },
+      ] as PortalAlert[]}
+      />
       {/* ── Page Header ── */}
       <PortalHeader
         icon={<BarChart3 className="h-5 w-5 text-white" />}
