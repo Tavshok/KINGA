@@ -12,6 +12,7 @@
  */
 
 import InsurerPortalLayout from "@/components/InsurerPortalLayout";
+import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
 import { PendingTeamRequestQueue } from "@/components/insurer/PendingTeamRequestQueue";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -211,21 +212,13 @@ export default function InsurerAdminDashboard() {
   return (
     <InsurerPortalLayout>
       <div className="p-6 space-y-6">
-        {/* ── Page header ── */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Insurer Administration</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Company-wide overview, team management, and portal configuration
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted border border-border">
-              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs text-foreground font-medium">
-                {(user as any)?.tenantName ?? "Your Organisation"}
-              </span>
-            </div>
+        {/* ── Page header (C1) ── */}
+        <PortalHeader
+          icon={<Building2 className="h-5 w-5 text-white" />}
+          title="Insurer Administration"
+          description={`${(user as any)?.tenantName ?? 'Your Organisation'} — company-wide overview, team management, and portal configuration`}
+          live
+          actions={
             <Button
               variant="outline"
               size="sm"
@@ -234,40 +227,21 @@ export default function InsurerAdminDashboard() {
               <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
               Refresh
             </Button>
-          </div>
-        </div>
+          }
+        />
 
-        {/* ── KPI cards ── */}
-        <section>
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-            Live KPIs
-          </h2>
-          {kpisLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {kpiCards.map((card) => {
-                const Icon = card.icon;
-                return (
-                  <Card key={card.label} className="border-0 shadow-sm">
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={card.color}><Icon className="h-4 w-4" /></span>
-                      </div>
-                      <p className="text-xl font-bold">{card.value}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{card.label}</p>
-                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">{card.sub}</p>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        {/* ── KPI Strip (C2) ── */}
+        <PortalKPIStrip kpis={kpiCards.map(card => ({
+          label: card.label,
+          value: kpisLoading ? '…' : card.value,
+          icon: <card.icon className="h-4 w-4" />,
+          accent: card.color.includes('red') ? 'red'
+            : card.color.includes('green') ? 'green'
+            : card.color.includes('teal') ? 'teal'
+            : card.color.includes('orange') ? 'amber'
+            : card.color.includes('purple') ? 'blue'
+            : 'blue',
+        } as PortalKPI))} />
 
         {/* ── Quick actions ── */}
         <section>
