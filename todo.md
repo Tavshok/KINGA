@@ -402,3 +402,27 @@
 - [x] T8: Claimant — settlement acceptance button + dispute initiation action (acceptSettlement/initiateDispute mutations + confirm dialogs)
 - [x] T9: Insurer Admin — PendingTeamRequestQueue component (reuses teamMembers.listInvitations/cancelInvitation/resendInvitation)
 - [x] T10: Recovery — full KingaPortalShell migration + PortalKPIStrip visual parity
+
+---
+
+## Combined Sprint 2 Fix Pass + Sprint 3 (June 22, 2026)
+
+### Phase 0 — Risk Manager C4/C7 Investigation
+- [x] Phase 0: Investigate Risk Manager SLADeadlineChip / AttentionRequired regression vs scoring error; document findings; restore if warranted
+
+### Phase 1 — Sprint 2 Must-Fix Defects
+- [ ] Task 1: D-S2-05 — Surface dispute reason in Claims Manager claim detail + notifyOwner trigger in initiateDispute
+- [ ] Task 2: D-S2-03 — WorkloadDistributionPanel staleness fix (poll interval or cross-portal invalidation)
+
+### Phase 2 — Sprint 2 Deferred Fixes
+- [ ] Task 3: D-S2-02 — Consolidate financial threshold into server/shared/constants.ts
+- [ ] Task 4: D-S2-04 — Add isActive/deactivatedAt to user schema; update deactivateUser + getPendingRegistrations
+
+### Sprint 3 — Fleet Manager + Recovery Completion
+- [ ] Task 5: Fleet Manager Vehicle Tracking tab (real data, stubs flagged)
+- [ ] Task 6: Fleet Manager Risk Analytics tab (claim frequency + driver risk)
+- [ ] Task 7: Fleet Manager escalation action on claim rows (reuse escalateClaim)
+- [ ] Task 8: Confirm Fleet Manager SLADeadlineChip still present (D-03 regression check)
+- [ ] Task 9: Recovery settlement offer receipt + accept/reject on case rows
+- [ ] Task 10: Recovery legal escalation workflow on case rows
+- [ ] Task 11: Recovery stalled case detection (90-day indicator)
