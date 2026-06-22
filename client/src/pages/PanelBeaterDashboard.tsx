@@ -23,7 +23,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
 import { KingaReportButton } from "@/components/KingaReportButton";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
-import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
+import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 
 function PerformanceTierBadge({ tier }: { tier: string | null | undefined }) {
   const config: Record<string, { label: string; className: string }> = {
@@ -93,6 +93,24 @@ export default function PanelBeaterDashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
+      {/* C3 — PortalAlerts: pending quote requests + submitted awaiting approval */}
+      <PortalAlerts alerts={[
+        {
+          id: "pending-requests",
+          severity: "critical" as const,
+          label: "quote request(s) awaiting your response",
+          count: pendingRequests.length,
+          onClick: () => setActiveTab("queue"),
+        },
+        {
+          id: "submitted-quotes",
+          severity: "warning" as const,
+          label: "submitted quote(s) awaiting insurer approval",
+          count: submittedQuotes,
+          onClick: () => setActiveTab("history"),
+        },
+      ] as PortalAlert[]}
+      />
       {/* Header (C1) */}
       <PortalHeader
         icon={<Hammer className="h-5 w-5 text-white" />}
