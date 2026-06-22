@@ -423,6 +423,6 @@
 - [x] Task 6: Fleet Manager Risk Analytics tab (claim frequency + driver risk) — already complete in prior sprint
 - [x] Task 7: Fleet Manager escalation action on claim rows (Option A: flagClaimForReview procedure + dialog + AttentionRequiredPanel Rule 8)
 - [x] Task 8: Confirm Fleet Manager SLADeadlineChip still present (D-03 regression check) — confirmed at line 532 of FleetManagerDashboard.tsx
-- [ ] Task 9: Recovery settlement offer receipt + accept/reject on case rows
-- [ ] Task 10: Recovery legal escalation workflow on case rows
-- [ ] Task 11: Recovery stalled case detection (90-day indicator)
+- [x] Task 9: Recovery settlement offer receipt + accept/reject on case rows — already complete in RecoveryCaseDetail.tsx (settlementModal, settled_full/partial, recoveredAmount)
+- [x] Task 10: Recovery legal escalation workflow on case rows — already complete (disputed_legal status, legal_escalation responseOutcome, caseNotes timestamp)
+- [x] Task 11: Recovery stalled case detection (90-day indicator) — already complete (SLADeadlineChip on case rows, 90-day deadline banner, getKPIs in90Days window)
