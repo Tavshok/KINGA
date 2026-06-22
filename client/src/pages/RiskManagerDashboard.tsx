@@ -28,7 +28,7 @@ import {
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
-import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
+import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { GeographicRiskClustersPanel } from "@/components/risk/GeographicRiskClustersPanel";
 ChartJS.register(Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
@@ -250,6 +250,24 @@ export default function RiskManagerDashboard() {
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
 
+        {/* C3 — PortalAlerts: escalated claims + fraud flags */}
+        <PortalAlerts alerts={[
+          {
+            id: "escalated",
+            severity: "critical" as const,
+            label: "escalated claim(s) requiring risk review",
+            count: escalatedClaims.length,
+            onClick: () => setActiveTab("escalations"),
+          },
+          {
+            id: "fraud-flags",
+            severity: "warning" as const,
+            label: "claim(s) flagged for fraud investigation",
+            count: allClaims.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70 || c.fraudRiskLevel === "high" || c.fraudRiskLevel === "critical").length,
+            onClick: () => setActiveTab("fraud"),
+          },
+        ] as PortalAlert[]}
+        />
         {/* Header (C1) */}
         <PortalHeader
           icon={<Shield className="h-5 w-5 text-white" />}
