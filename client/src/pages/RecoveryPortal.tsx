@@ -7,6 +7,8 @@ import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
+import { PortalHeader } from "@/components/KingaPortalShell";
 
 // Maps each status card tab to the DB status value(s) used in getCases
 const STATUS_CARDS = [
@@ -20,17 +22,7 @@ const STATUS_CARDS = [
 ];
 
 // formatCurrency is provided by useTenantCurrency hook — no local stub needed
-
-function deadlineChip(deadline: string | null | undefined) {
-  if (!deadline) return null;
-  const today = new Date();
-  const dl = new Date(deadline);
-  const days = Math.round((dl.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (days < 0) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold border" style={{ background: "#FDF0F0", color: "#A32D2D", borderColor: "#E8B8B8" }}>OVERDUE</span>;
-  if (days <= 14) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold border" style={{ background: "#FDF0F0", color: "#A32D2D", borderColor: "#E8B8B8" }}>{days}d</span>;
-  if (days <= 60) return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold border" style={{ background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" }}>{days}d</span>;
-  return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold border" style={{ background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" }}>{days}d</span>;
-}
+// SLA deadline chip is provided by the shared SLADeadlineChip component (portal/SLADeadlineChip.tsx)
 
 export default function RecoveryPortal() {
   const { user } = useAuth();
@@ -79,22 +71,19 @@ export default function RecoveryPortal() {
   return (
     <InsurerPortalLayout>
       <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{ background: "#F0F7F2" }}>
-              <Scale className="h-6 w-6" style={{ color: "#3C7844" }} />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">Recovery Dashboard</h1>
-              <p className="text-sm text-muted-foreground">Subrogation &amp; third-party recovery case management</p>
-            </div>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => refetchKPIs()} className="gap-2 text-muted-foreground">
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
+        {/* Header — KingaPortalShell Standard Header */}
+        <PortalHeader
+          icon={<Scale size={22} />}
+          title="Recovery Dashboard"
+          description="Subrogation & third-party recovery case management"
+          live
+          actions={
+            <Button variant="ghost" size="sm" onClick={() => refetchKPIs()} className="gap-2 text-muted-foreground">
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+          }
+        />
 
         {/* Recovery deadline warning banner */}
         {kpis && kpis.approachingDeadlines > 0 && (
@@ -276,7 +265,7 @@ export default function RecoveryPortal() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4 flex-shrink-0">
-                      {deadlineChip(rc.recoveryDeadline)}
+                      <SLADeadlineChip deadline={rc.recoveryDeadline} warnOnly={false} showOk={true} />
                       <div className="text-right">
                         <div className={`text-sm font-bold ${rpsColor}`}>{rc.recoveryPotentialScore}</div>
                         <div className="text-xs text-muted-foreground">RPS</div>

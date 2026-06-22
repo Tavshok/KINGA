@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { 
   UserPlus, Clock, DollarSign, AlertTriangle, CheckCircle2, Loader2 
 } from "lucide-react";
+import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
 
 export function IntakeQueueTab() {
   const { fmt } = useTenantCurrency();
@@ -72,7 +73,7 @@ export function IntakeQueueTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#3C7844" }} />
       </div>
     );
   }
@@ -108,7 +109,7 @@ export function IntakeQueueTab() {
             <CardTitle className="text-sm font-medium text-muted-foreground">High Priority</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold" style={{ color: "#A32D2D" }}>
               {intakeClaims.filter((c: any) => c.priority === "high").length}
             </div>
           </CardContent>
@@ -118,7 +119,7 @@ export function IntakeQueueTab() {
             <CardTitle className="text-sm font-medium text-muted-foreground">With KINGA Score</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-bold" style={{ color: "#4878A8" }}>
               {intakeClaims.filter((c: any) => c.aiPreliminaryScore !== null).length}
             </div>
           </CardContent>
@@ -128,7 +129,7 @@ export function IntakeQueueTab() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Available Processors</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-teal-600">
+            <div className="text-2xl font-bold" style={{ color: "#3C7844" }}>
               {processors?.length || 0}
             </div>
           </CardContent>
@@ -157,7 +158,10 @@ export function IntakeQueueTab() {
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Claim Number</Label>
-                      <p className="font-mono font-semibold">{claim.claimNumber}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-mono font-semibold">{claim.claimNumber}</p>
+                        <SLADeadlineChip createdAt={claim.createdAt} slaHours={72} />
+                      </div>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Submission Time</Label>

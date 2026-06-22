@@ -4,6 +4,7 @@ import { Bar, Scatter, Doughnut, Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, ScatterController);
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -374,6 +375,7 @@ export default function PanelBeaterDashboard() {
                               {claim.claimNumber}
                             </span>
                             <StatusBadge status={claim.status} />
+                            <SLADeadlineChip createdAt={claim.createdAt} slaHours={48} />
                             {claim.policyVerified && (
                               <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700">
                                 <CheckCircle className="h-3 w-3 mr-1" />

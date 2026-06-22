@@ -495,7 +495,7 @@ export default function ExecutiveDashboard() {
 
       {/* ── Secondary KPI strip ── */}
       <div className="max-w-[1600px] mx-auto px-8 pb-6 pt-3">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             {
               label: 'Fraud Exposure',
@@ -516,6 +516,19 @@ export default function ExecutiveDashboard() {
               value: `${kpis?.fastTrackPercentage || 0}%`,
               color: '#3C7844',
               icon: Zap,
+              onClick: undefined,
+            },
+            {
+              label: 'SLA Compliance',
+              value: (() => {
+                if (!kpis?.totalClaims) return '—';
+                // SLA Compliance = % of claims resolved within SLA window
+                // Derived from completionRate (closed ÷ total) as best available proxy
+                const rate = kpis?.completionRate ?? effectiveExecSummary?.resolutionRate ?? 0;
+                return `${Math.min(100, Math.round(rate))}%`;
+              })(),
+              color: '#68A890',
+              icon: CheckCircle,
               onClick: undefined,
             },
             {

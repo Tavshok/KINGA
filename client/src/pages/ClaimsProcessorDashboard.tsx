@@ -4,6 +4,7 @@ import { Bar, Doughnut } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 import { trpc } from "@/lib/trpc";
 import { parseUtcTimestamp } from "@/lib/parseUtcTimestamp";
+import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -542,17 +543,8 @@ export default function ClaimsProcessorDashboard() {
                     {claim.fraudRiskScore >= 70 ? "High Risk" : claim.fraudRiskScore >= 40 ? "Medium Risk" : "Low Risk"} ({claim.fraudRiskScore}%)
                   </Badge>
                 )}
-                {/* SLA Badge */}
-                {(() => {
-                  const sla = getSlaStatus(claim.createdAt);
-                  if (!sla) return null;
-                  return (
-                    <Badge className={`text-xs ${sla.color} border-0 flex items-center gap-1`}>
-                      <Clock className="h-3 w-3" />
-                      {sla.label}
-                    </Badge>
-                  );
-                })()}
+                {/* SLA Chip */}
+                <SLADeadlineChip createdAt={claim.createdAt} slaHours={72} />
               </div>
 
               {/* KINGA Reference Number Badge */}
@@ -1099,7 +1091,7 @@ export default function ClaimsProcessorDashboard() {
         </div>
 
         {/* ── QUICK STATS BAR (always visible, first) ── */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           {/* KPI strip — KINGA brand palette */}
           {[
             { label: "Pending Review",  value: pendingClaims.length,   bg: "#FEF9EC", color: "#8A5C00" },
@@ -1108,6 +1100,29 @@ export default function ClaimsProcessorDashboard() {
             { label: "Completed",       value: completedClaims.length,  bg: "#F0F7F2", color: "#3C7844" },
             { label: "SLA Breached",    value: allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length, bg: "#FEF2F2", color: "#A32D2D" },
             { label: "SLA Critical",    value: allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length, bg: "#FEF9EC", color: "#8A5C00" },
+            {
+              label: "Throughput (7d)",
+              // Throughput: claims closed in the last 7 days
+              value: (() => {
+                const cutoff = Date.now() - 7 * 24 * 3600000;
+                return allClaims.filter((c: any) => c.status === "closed" && c.updatedAt && new Date(c.updatedAt).getTime() > cutoff).length;
+              })(),
+              bg: "#F0F7F2", color: "#3C7844",
+            },
+            {
+              label: "Rework Rate",
+              // Rework: claims that have been sent back (workflowState = disputed or re-entered intake)
+              value: (() => {
+                const reworked = allClaims.filter((c: any) =>
+                  c.workflowState === "disputed" ||
+                  (c.workflowState === "intake_queue" && c.status !== "intake_pending")
+                ).length;
+                const total = allClaims.length;
+                if (total === 0) return "—";
+                return `${Math.round((reworked / total) * 100)}%`;
+              })(),
+              bg: "#EEF4FB", color: "#4878A8",
+            },
           ].map((kpi) => (
             <Card key={kpi.label} style={{ border: "1px solid #E5E7EB" }}>
               <CardContent className="p-4">

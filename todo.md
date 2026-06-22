@@ -369,3 +369,21 @@
 - [ ] Apply portal certification checklist (85% pass threshold) to all 11 portals
 - [ ] Add keyboard arrow-key navigation to Claims Manager custom tab bar
 - [ ] Apply KingaPortalShell header component to Panel Beater, Claimant, and Fleet portals (currently use custom headers)
+
+---
+
+## Sprint 1 — Decision Alignment (June 2026)
+
+- [x] Create shared SLADeadlineChip component (client/src/components/portal/SLADeadlineChip.tsx)
+- [x] Recovery Portal: replace local deadlineChip with shared SLADeadlineChip
+- [x] Claims Processor Dashboard: replace local SLA badge with shared SLADeadlineChip
+- [x] IntakeQueueTab (Claims Manager): add SLADeadlineChip to claim rows
+- [x] Panel Beater Dashboard: add SLADeadlineChip to pending request claim rows
+- [x] AttentionRequiredPanel: already persistent above Claims Manager tab bar (inside ClaimsManagerCommandCentre) — no change needed
+- [x] Executive Dashboard: add SLA Compliance Rate KPI to secondary KPI strip (5th cell, sage teal)
+- [x] Claims Processor Dashboard: add Throughput (7d) and Rework Rate KPIs to KPI strip (8-cell grid)
+- [x] Recovery Portal: integrate PortalHeader from KingaPortalShell (replaces custom header div)
+- [x] Assessor Dashboard: already uses full KingaPortalShell — no change needed
+- [ ] Add keyboard arrow-key navigation to Claims Manager custom tab bar
+- [ ] Apply KingaPortalShell header component to Panel Beater, Claimant, and Fleet portals
+- [ ] Implement portal certification checklist (85% pass threshold per KINGA_Portal_Governance_Audit_v1.0.md)
