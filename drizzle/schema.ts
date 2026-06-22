@@ -3206,10 +3206,18 @@ export const users = mysqlTable("users", {
 	accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }).default('0.00'),
 	avgCompletionTime: decimal("avg_completion_time", { precision: 6, scale: 2 }).default('0.00'),
 	marketplaceProfileId: varchar("marketplace_profile_id", { length: 36 }),
+	/** 1 = active account, 0 = deactivated by admin. Separate from emailVerified (which tracks
+	 *  whether the user has completed email confirmation). isActive=0 means the account has been
+	 *  explicitly disabled; emailVerified=0 means it is pending email confirmation. */
+	isActive: tinyint("is_active").default(1).notNull(),
+	/** UTC timestamp of when an admin set isActive=0. Null for accounts that have never been
+	 *  deactivated. Provides an audit trail without requiring a separate audit table entry. */
+	deactivatedAt: timestamp("deactivated_at", { mode: 'string' }),
 },
 (table) => [
 		index("users_openId_unique").on(table.openId),
 	index("idx_users_tenant_id").on(table.tenantId),
+	index("idx_users_is_active").on(table.isActive),
 ]);
 export type User = typeof users.$inferSelect;
 export const varianceDatasets = mysqlTable("variance_datasets", {
