@@ -53,6 +53,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FleetVehicleTrackingTab } from "@/components/FleetVehicleTrackingTab";
 import { FleetRiskAnalyticsTab } from "@/components/FleetRiskAnalyticsTab";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -151,10 +161,25 @@ interface FleetClaim {
 
 export default function FleetManagerDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tab, setTab] = useState("active");
   const [mainTab, setMainTab] = useState("claims");
+  // Flag for review state
+  const [flagDialogClaimId, setFlagDialogClaimId] = useState<number | null>(null);
+  const [flagDialogClaimNumber, setFlagDialogClaimNumber] = useState<string>("");
+  const [flagReason, setFlagReason] = useState("");
+  const flagMutation = trpc.fleetAccounts.flagClaimForReview.useMutation({
+    onSuccess: (data) => {
+      toast({ title: "Flagged for review", description: `Claim ${data.claimNumber} has been flagged. The Claims Manager has been notified.` });
+      setFlagDialogClaimId(null);
+      setFlagReason("");
+    },
+    onError: (err) => {
+      toast({ title: "Flag failed", description: err.message, variant: "destructive" });
+    },
+  });
 
   // Check registration status first (for pending-approval gate)
   const { data: regStatus, isLoading: regLoading } =
@@ -559,6 +584,23 @@ export default function FleetManagerDashboard() {
                             <TableCell className="text-xs text-muted-foreground">
                               {c.claimantDepartment ?? "—"}
                             </TableCell>
+                            {tab === "active" && (
+                              <TableCell>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs h-7 px-2 border-red-200 text-red-700 hover:bg-red-50"
+                                  onClick={() => {
+                                    setFlagDialogClaimId(c.id);
+                                    setFlagDialogClaimNumber(c.claimNumber);
+                                    setFlagReason("");
+                                  }}
+                                >
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Flag
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         );
                       })}
@@ -582,6 +624,47 @@ export default function FleetManagerDashboard() {
           Elapsed &gt;72h — escalate
         </div>
       </div>
+
+      {/* Flag for Review Dialog */}
+      <Dialog open={flagDialogClaimId !== null} onOpenChange={(open) => { if (!open) { setFlagDialogClaimId(null); setFlagReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              Flag Claim for Review
+            </DialogTitle>
+            <DialogDescription>
+              Flagging <span className="font-mono font-semibold">{flagDialogClaimNumber}</span> will notify the Claims Manager to review this claim. This does not change the claim's status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <label className="text-sm font-medium">Reason for flagging</label>
+            <Textarea
+              placeholder="Describe the concern (e.g. repair taking too long, incorrect vehicle listed, suspected fraud)..."
+              value={flagReason}
+              onChange={(e) => setFlagReason(e.target.value)}
+              rows={4}
+              className="resize-none"
+            />
+            <p className="text-xs text-muted-foreground">{flagReason.length}/500 characters (minimum 10)</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setFlagDialogClaimId(null); setFlagReason(""); }}>Cancel</Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={flagReason.length < 10 || flagReason.length > 500 || flagMutation.isPending}
+              onClick={() => {
+                if (flagDialogClaimId !== null) {
+                  flagMutation.mutate({ claimId: flagDialogClaimId, reason: flagReason });
+                }
+              }}
+            >
+              {flagMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <AlertCircle className="h-4 w-4 mr-2" />}
+              Flag for Review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
         </TabsContent>
 
         {/* Vehicle Tracking Tab */}

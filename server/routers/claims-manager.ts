@@ -217,6 +217,24 @@ export const claimsManagerRouter = router({
       c.workflowState === "disputed" || c.workflowState === "manual_review"
     );
 
+    // Rule 8: Fleet-flagged for review (audit trail entries in last 30 days)
+    let fleetFlaggedClaims: typeof activeClaims = [];
+    try {
+      const { auditTrail } = await import("../../drizzle/schema");
+      const thirtyDaysAgo = new Date(now - 30 * oneDayMs).toISOString().slice(0, 19).replace("T", " ");
+      const flaggedEntries = await db
+        .select({ claimId: auditTrail.claimId })
+        .from(auditTrail)
+        .where(
+          and(
+            sql`${auditTrail.action} = 'fleet_flagged_for_review'`,
+            sql`${auditTrail.createdAt} >= ${thirtyDaysAgo}`
+          )
+        );
+      const flaggedClaimIds = new Set(flaggedEntries.map(e => e.claimId).filter(Boolean));
+      fleetFlaggedClaims = activeClaims.filter(c => flaggedClaimIds.has(c.id));
+    } catch { /* non-fatal — fleet flags are supplementary */ }
+
     const summarise = (arr: typeof activeClaims) => ({
       count: arr.length,
       topClaims: arr.slice(0, 5).map(c => ({
@@ -239,6 +257,7 @@ export const claimsManagerRouter = router({
       awaitingTechApproval: summarise(awaitingTechApproval),
       awaitingFinancialDecision: summarise(awaitingFinancialDecision),
       escalatedClaims: summarise(escalatedClaims),
+      fleetFlaggedClaims: summarise(fleetFlaggedClaims),
       totalAttentionRequired: new Set([
         ...highValuePending.map(c => c.id),
         ...highFraudActive.map(c => c.id),
@@ -247,6 +266,7 @@ export const claimsManagerRouter = router({
         ...awaitingTechApproval.map(c => c.id),
         ...awaitingFinancialDecision.map(c => c.id),
         ...escalatedClaims.map(c => c.id),
+        ...fleetFlaggedClaims.map(c => c.id),
       ]).size,
     };
   }),

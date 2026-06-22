@@ -21,7 +21,7 @@
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Clock, TrendingUp, Shield, Zap, FileWarning, BarChart3 } from "lucide-react";
+import { AlertTriangle, Clock, TrendingUp, Shield, Zap, FileWarning, BarChart3, Flag } from "lucide-react";
 
 interface CategoryRowProps {
   label: string;
@@ -140,6 +140,7 @@ export function AttentionRequiredPanel({ onNavigate }: AttentionRequiredPanelPro
     { label: "Awaiting Tech Approval",      count: data?.awaitingTechApproval?.count ?? 0,       icon: <FileWarning className="h-3.5 w-3.5" />, severity: "medium",   topClaims: data?.awaitingTechApproval?.topClaims,      tab: "review" },
     { label: "Awaiting Financial Decision", count: data?.awaitingFinancialDecision?.count ?? 0,  icon: <BarChart3 className="h-3.5 w-3.5" />,   severity: "medium",   topClaims: data?.awaitingFinancialDecision?.topClaims, tab: "active" },
     { label: "Escalated",                   count: data?.escalatedClaims?.count ?? 0,            icon: <Zap className="h-3.5 w-3.5" />,         severity: "critical", topClaims: data?.escalatedClaims?.topClaims,           tab: "fraud"  },
+    { label: "Fleet Flagged",               count: data?.fleetFlaggedClaims?.count ?? 0,          icon: <Flag className="h-3.5 w-3.5" />,        severity: "medium",   topClaims: data?.fleetFlaggedClaims?.topClaims,        tab: "active" },
   ];
 
   return (

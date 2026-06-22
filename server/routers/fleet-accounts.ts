@@ -793,4 +793,58 @@ export const fleetAccountsRouter = router({
       }
       return { success: true, message: `Fleet manager request for ${request.companyName} has been rejected.` };
     }),
+
+  /**
+   * Flag a claim for review by the Claims Manager.
+   *
+   * Lightweight governance action for fleet managers — does NOT change workflow state.
+   * Writes an audit trail entry and notifies the insurer's Claims Manager.
+   *
+   * @requires fleet_manager or fleet_admin role
+   */
+  flagClaimForReview: protectedProcedure
+    .input(z.object({
+      claimId: z.number().int().positive(),
+      reason: z.string().min(10, "Please provide at least 10 characters describing the concern.").max(500),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userRole = ctx.user.role;
+      if (userRole !== "fleet_manager" && userRole !== "fleet_admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only fleet managers can flag claims for review." });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      // Verify the claim exists
+      const [claim] = await db
+        .select({ id: claims.id, claimNumber: claims.claimNumber, status: claims.status })
+        .from(claims)
+        .where(eq(claims.id, input.claimId))
+        .limit(1);
+      if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found." });
+      const terminalStates = ["closed", "rejected", "archived"];
+      if (terminalStates.includes(claim.status ?? "")) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot flag a claim in a terminal state." });
+      }
+      // Write audit trail entry
+      const { auditTrail } = await import("../../drizzle/schema");
+      const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+      await db.insert(auditTrail).values({
+        claimId: input.claimId,
+        userId: ctx.user.id,
+        action: "fleet_flagged_for_review",
+        entityType: "claim",
+        entityId: input.claimId,
+        changeDescription: `Fleet manager flagged claim ${claim.claimNumber} for review: ${input.reason}`,
+        createdAt: now,
+      } as any);
+      // Notify the owner (Claims Manager / insurer admin) — non-blocking
+      try {
+        await notifyOwner({
+          title: `Fleet Flag: ${claim.claimNumber}`,
+          content: `Fleet manager ${ctx.user.name ?? String(ctx.user.id)} flagged claim ${claim.claimNumber} for review.\n\nReason: ${input.reason}`,
+        });
+      } catch { /* non-fatal */ }
+      console.log(`[FleetAccounts] Claim ${claim.claimNumber} flagged for review by fleet user ${ctx.user.id}.`);
+      return { success: true, claimId: input.claimId, claimNumber: claim.claimNumber };
+    }),
 });

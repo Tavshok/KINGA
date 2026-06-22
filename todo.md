@@ -419,10 +419,10 @@
 - [x] Task 4: D-S2-04 — Add isActive/deactivatedAt to user schema; update deactivateUser + getPendingRegistrations
 
 ### Sprint 3 — Fleet Manager + Recovery Completion
-- [ ] Task 5: Fleet Manager Vehicle Tracking tab (real data, stubs flagged)
-- [ ] Task 6: Fleet Manager Risk Analytics tab (claim frequency + driver risk)
-- [ ] Task 7: Fleet Manager escalation action on claim rows (reuse escalateClaim)
-- [ ] Task 8: Confirm Fleet Manager SLADeadlineChip still present (D-03 regression check)
+- [x] Task 5: Fleet Manager Vehicle Tracking tab (real data, stubs flagged) — already complete in prior sprint
+- [x] Task 6: Fleet Manager Risk Analytics tab (claim frequency + driver risk) — already complete in prior sprint
+- [x] Task 7: Fleet Manager escalation action on claim rows (Option A: flagClaimForReview procedure + dialog + AttentionRequiredPanel Rule 8)
+- [x] Task 8: Confirm Fleet Manager SLADeadlineChip still present (D-03 regression check) — confirmed at line 532 of FleetManagerDashboard.tsx
 - [ ] Task 9: Recovery settlement offer receipt + accept/reject on case rows
 - [ ] Task 10: Recovery legal escalation workflow on case rows
 - [ ] Task 11: Recovery stalled case detection (90-day indicator)
