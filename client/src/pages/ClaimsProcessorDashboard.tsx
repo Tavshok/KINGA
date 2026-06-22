@@ -52,7 +52,7 @@ import {
 import { useAuth } from "@/_core/hooks/useAuth";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
-import { PortalHeader, PortalKPIStrip, type PortalKPI, KINGA_GREEN, KINGA_TEAL, KINGA_BLUE, KINGA_AMBER, KINGA_GREEN_BG, KINGA_TEAL_BG, KINGA_BLUE_BG, KINGA_AMBER_BG, KINGA_GREEN_BORDER } from "@/components/KingaPortalShell";
+import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert, KINGA_GREEN, KINGA_TEAL, KINGA_BLUE, KINGA_AMBER, KINGA_GREEN_BG, KINGA_TEAL_BG, KINGA_BLUE_BG, KINGA_AMBER_BG, KINGA_GREEN_BORDER } from "@/components/KingaPortalShell";
 
 // Tier gating feature flag — set to true when Process/Protect/Prove tiers are enforced
 const TIER_GATE_ENABLED = false;
@@ -1038,6 +1038,22 @@ export default function ClaimsProcessorDashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
+      {/* C3 — PortalAlerts: AI-flagged claims + pending intake */}
+      <PortalAlerts alerts={[
+        {
+          id: "ai-flagged",
+          severity: "critical" as const,
+          label: "claim(s) completed KINGA analysis — awaiting processor action",
+          count: aiFlaggedClaims.length,
+        },
+        {
+          id: "pending-intake",
+          severity: "warning" as const,
+          label: "claim(s) pending intake processing",
+          count: pendingClaims.length,
+        },
+      ] as PortalAlert[]}
+      />
       {/* Header — PortalHeader (C1) */}
       <PortalHeader
         icon={<CheckCircle2 className="h-5 w-5" />}
