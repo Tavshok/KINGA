@@ -782,7 +782,8 @@ export const adminRouter = router({
 
   /**
    * Pending Registration Queue — users registered but not yet email-verified.
-   * Returns users with emailVerified=0 created in the last 90 days.
+   * Returns users with emailVerified=0 AND isActive=1 created in the last 90 days.
+   * isActive=0 users are deactivated accounts and must not appear here.
    */
   getPendingRegistrations: protectedProcedure
     .query(async ({ ctx }) => {
@@ -804,14 +805,21 @@ export const adminRouter = router({
           tenantId: users.tenantId,
         })
         .from(users)
-        .where(and(eq(users.emailVerified, 0), gte(users.createdAt, ninetyDaysAgo)))
+        .where(and(
+          eq(users.emailVerified, 0),
+          eq(users.isActive, 1),
+          gte(users.createdAt, ninetyDaysAgo)
+        ))
         .orderBy(users.createdAt)
         .limit(100);
       return { pending, total: pending.length };
     }),
 
   /**
-   * Deactivate a user (soft-disable via emailVerified=0).
+   * Deactivate a user (soft-disable).
+   * Sets isActive=0 (boolean gate for all queries) AND deactivatedAt=now() (audit timestamp).
+   * emailVerified is left unchanged so deactivated users do not re-appear in the
+   * Pending Registration Queue (which filters emailVerified=0 AND isActive=1).
    */
   deactivateUser: protectedProcedure
     .input(z.object({ userId: z.number().int().positive() }))
@@ -823,7 +831,13 @@ export const adminRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot deactivate your own account" });
       }
       const db = await getDb();
-      await db.update(users).set({ emailVerified: 0 }).where(eq(users.id, input.userId));
+      const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+      await db.update(users)
+        .set({
+          isActive: 0,
+          deactivatedAt: now,
+        })
+        .where(eq(users.id, input.userId));
       return { success: true, userId: input.userId };
     }),
 

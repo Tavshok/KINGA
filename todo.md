@@ -416,7 +416,7 @@
 
 ### Phase 2 — Sprint 2 Deferred Fixes
 - [x] Task 3: D-S2-02 — Consolidate financial threshold into server/shared/constants.ts
-- [ ] Task 4: D-S2-04 — Add isActive/deactivatedAt to user schema; update deactivateUser + getPendingRegistrations
+- [x] Task 4: D-S2-04 — Add isActive/deactivatedAt to user schema; update deactivateUser + getPendingRegistrations
 
 ### Sprint 3 — Fleet Manager + Recovery Completion
 - [ ] Task 5: Fleet Manager Vehicle Tracking tab (real data, stubs flagged)
