@@ -450,4 +450,17 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] S5-P7: Claimant — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3, C4, C5, C7)
 - [x] S5-P8: Admin — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3, C4, C5, C7)
 - [x] S5-P9: Insurer Admin — KingaPortalShell + PortalKPIStrip migration (needs C1, C2, C3, C4, C5, C7, C9)
-- [ ] S5-FINAL: 11-portal certification scorecard + remaining gaps report
+- [x] S5-FINAL: 11-portal certification scorecard + remaining gaps report
+
+## Sprint 6 — Certification Closure
+
+- [ ] S6-T1: Claims Processor — replace 46 foreign Tailwind colour instances with KINGA brand hex
+- [ ] S6-T2a: Claims Processor — replace 27 hardcoded monetary refs with useTenantCurrency/fmt()
+- [ ] S6-T2b: Fleet Manager — replace 32 hardcoded monetary refs with useTenantCurrency/fmt()
+- [ ] S6-T3a: Fleet Manager — add tab navigation (PortalTabBar)
+- [ ] S6-T3b: Claims Processor — add tab navigation (PortalTabBar)
+- [ ] S6-T3c: Claimant — add tab navigation (PortalTabBar)
+- [ ] S6-T4: Claimant — replace 21 foreign Tailwind colour instances with KINGA brand hex
+- [ ] S6-T5: Wire PortalAlerts across all 10 non-Assessor portals
+- [ ] S6-T6: Add C12 empty/error states to Fleet Manager, Claimant, Insurer Admin, Panel Beater
+- [ ] S6-VERIFY: Full 12-criterion re-score, tsc --noEmit baseline confirmation

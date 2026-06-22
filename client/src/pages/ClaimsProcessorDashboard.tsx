@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import React from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
@@ -51,7 +52,7 @@ import {
 import { useAuth } from "@/_core/hooks/useAuth";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import { ReportReadinessBadge } from "@/components/ReportReadinessBadge";
-import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
+import { PortalHeader, PortalKPIStrip, type PortalKPI, KINGA_GREEN, KINGA_TEAL, KINGA_BLUE, KINGA_AMBER, KINGA_GREEN_BG, KINGA_TEAL_BG, KINGA_BLUE_BG, KINGA_AMBER_BG, KINGA_GREEN_BORDER } from "@/components/KingaPortalShell";
 
 // Tier gating feature flag — set to true when Process/Protect/Prove tiers are enforced
 const TIER_GATE_ENABLED = false;
@@ -455,7 +456,7 @@ export default function ClaimsProcessorDashboard() {
     const getStatusBadge = () => {
       if (isProcessing) {
         return (
-          <Badge className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700 flex items-center gap-1">
+          <Badge className="flex items-center gap-1" style={{ background: KINGA_BLUE_BG, color: KINGA_BLUE, borderColor: '#BDD4EC' }}>
             <Loader2 className="h-3 w-3 animate-spin" />
             KINGA Processing...
           </Badge>
@@ -483,24 +484,24 @@ export default function ClaimsProcessorDashboard() {
         const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
         const elapsedLabel = elapsedMin > 0 ? `${elapsedMin}m ${elapsedSec}s` : `${elapsedSec}s`;
         return (
-          <Badge className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700 flex items-center gap-1">
+          <Badge className="flex items-center gap-1" style={{ background: KINGA_BLUE_BG, color: KINGA_BLUE, borderColor: '#BDD4EC' }}>
             <Loader2 className="h-3 w-3 animate-spin" />
             KINGA Analyzing... {elapsedLabel}
           </Badge>
         );
       }
 
-      const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-        intake_pending: { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-800 dark:text-amber-200", label: "PENDING REVIEW" },
-        quotes_pending: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-800 dark:text-blue-200", label: "QUOTES PENDING" },
-        assessment_complete: { bg: "bg-teal-100 dark:bg-teal-900/30", text: "text-teal-800 dark:text-teal-200", label: "ASSESSMENT COMPLETE" },
-        closed: { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-800 dark:text-green-200", label: "COMPLETED" },
+      const statusConfig: Record<string, { label: string; style: React.CSSProperties }> = { // eslint-disable-line
+        intake_pending: { label: "PENDING REVIEW", style: { background: KINGA_AMBER_BG, color: KINGA_AMBER, border: 'none' } },
+        quotes_pending: { label: "QUOTES PENDING", style: { background: KINGA_BLUE_BG, color: KINGA_BLUE, border: 'none' } },
+        assessment_complete: { label: "ASSESSMENT COMPLETE", style: { background: KINGA_TEAL_BG, color: KINGA_TEAL, border: 'none' } },
+        closed: { label: "COMPLETED", style: { background: KINGA_GREEN_BG, color: KINGA_GREEN, border: 'none' } },
       };
 
-      const config = statusConfig[claim.status] || { bg: "bg-slate-100 dark:bg-muted", text: "text-slate-800 dark:text-foreground", label: claim.status?.replace(/_/g, " ").toUpperCase() };
+      const config = statusConfig[claim.status] || { label: claim.status?.replace(/_/g, " ").toUpperCase(), style: {} };
 
       return (
-        <Badge className={`${config.bg} ${config.text} border-0`}>
+        <Badge className="border-0" style={config.style}>
           {config.label}
         </Badge>
       );
@@ -508,10 +509,7 @@ export default function ClaimsProcessorDashboard() {
 
     return (
       <Card className={`hover:shadow-md transition-shadow ${
-        isProcessing ? "border-l-4 border-l-purple-500 bg-purple-50/30 dark:bg-purple-950/30" :
-        section === "pending" ? "border-l-4 border-l-amber-400" :
-        section === "in_review" ? "border-l-4 border-l-blue-400" :
-        section === "ai_flagged" ? "border-l-4 border-l-teal-500" :
+        isProcessing ? "border-l-4" : section === "pending" ? "border-l-4" : section === "in_review" ? "border-l-4" : section === "ai_flagged" ? "border-l-4" :
         "border-l-4 border-l-green-400"
       }`}>
         <CardContent className="p-4">
@@ -523,7 +521,7 @@ export default function ClaimsProcessorDashboard() {
                 <h3 className="font-bold text-lg text-primary">{claim.claimNumber}</h3>
                 {getStatusBadge()}
                 {claim.aiConfidenceScore > 0 && (
-                  <Badge variant="outline" className="text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
+                  <Badge variant="outline" className="flex items-center gap-1" style={{ color: KINGA_GREEN, borderColor: KINGA_GREEN_BORDER }}>
                     <TrendingUp className="h-3 w-3" />
                     KINGA: {claim.aiConfidenceScore}%
                   </Badge>
@@ -542,7 +540,8 @@ export default function ClaimsProcessorDashboard() {
               {claim.kingaRef && (
                 <div className="flex items-center gap-1.5 mt-1">
                   <div
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 cursor-pointer select-all hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-semibold cursor-pointer select-all transition-colors"
+                    style={{ background: KINGA_BLUE_BG, color: KINGA_BLUE, border: '1px solid #BDD4EC' }}
                     title="Click to copy KINGA reference number"
                     onClick={() => {
                       navigator.clipboard.writeText(claim.kingaRef + '-FR');
@@ -571,12 +570,12 @@ export default function ClaimsProcessorDashboard() {
               {/* Data Source Badge */}
               {claim.sourceDocumentId && (
                 <div className="flex items-center gap-1.5">
-                  <Badge variant="outline" className="text-xs text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 flex items-center gap-1">
+                  <Badge variant="outline" className="text-xs flex items-center gap-1" style={{ color: KINGA_BLUE, borderColor: '#BDD4EC', background: KINGA_BLUE_BG }}>
                     <FileText className="h-3 w-3" />
                     PDF Document Ingestion
                   </Badge>
                   {claim.documentProcessingStatus === "parsing" && (
-                    <Badge variant="outline" className="text-xs text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/30 flex items-center gap-1">
+                    <Badge variant="outline" className="text-xs flex items-center gap-1" style={{ color: KINGA_BLUE, borderColor: '#BDD4EC', background: KINGA_BLUE_BG }}>
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Extracting...
                     </Badge>
@@ -658,7 +657,8 @@ export default function ClaimsProcessorDashboard() {
                     variant="default"
                     onClick={() => handleTriggerAI(claim.id)}
                     disabled={isTriggering || isProcessing || triggeringClaimId !== null}
-                    className="w-full justify-start bg-purple-600 hover:bg-purple-700"
+                    className="w-full justify-start"
+                    style={{ background: KINGA_BLUE, color: '#fff' }}
                   >
                     {isTriggering ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -671,7 +671,8 @@ export default function ClaimsProcessorDashboard() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleAssignAssessor(claim.id)}
-                    className="w-full justify-start border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:bg-blue-950/30"
+                    className="w-full justify-start"
+                    style={{ color: KINGA_BLUE, borderColor: '#BDD4EC', background: KINGA_BLUE_BG }}
                   >
                     <UserPlus className="h-4 w-4 mr-2" />
                     Assign Human Assessor
@@ -693,13 +694,12 @@ export default function ClaimsProcessorDashboard() {
                 <>
                   {isProcessing ? (
                     <>
-                      <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/30 rounded-md p-3">
+                      <div className="flex items-center gap-2 text-sm rounded-md p-3" style={{ color: KINGA_BLUE, background: KINGA_BLUE_BG }}>
                         <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
                         <span className="truncate">
                           {(claim as any).pipelineCurrentStage
                             ? (() => {
                                 const raw: string = (claim as any).pipelineCurrentStage;
-                                // Convert "Stage N — Description" → "Stage N of 10 — Description"
                                 return raw.replace(/^Stage (\d+)/, 'Stage $1 of 10');
                               })()
                             : "KINGA is analyzing this claim..."}
@@ -710,7 +710,8 @@ export default function ClaimsProcessorDashboard() {
                         variant="outline"
                         onClick={() => handleResetStuckClaim(claim.id)}
                         disabled={resetStuckClaimMutation.isPending}
-                        className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
+                        className="w-full justify-start text-xs"
+                        style={{ color: KINGA_AMBER, borderColor: '#E8C97A', background: KINGA_AMBER_BG }}
                         title="Use this if the KINGA has been processing for more than 5 minutes without completing"
                       >
                         <RotateCcw className="h-3 w-3 mr-2" />
@@ -745,7 +746,7 @@ export default function ClaimsProcessorDashboard() {
                 <>
                   {isProcessing ? (
                     <>
-                      <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/30 rounded-md p-3">
+                      <div className="flex items-center gap-2 text-sm rounded-md p-3" style={{ color: KINGA_BLUE, background: KINGA_BLUE_BG }}>
                         <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
                         <span className="truncate">
                           {(claim as any).pipelineCurrentStage
@@ -772,7 +773,8 @@ export default function ClaimsProcessorDashboard() {
                           <Button
                             size="sm"
                             variant="default"
-                            className="w-full justify-start bg-teal-600 hover:bg-teal-700"
+                            className="w-full justify-start"
+                            style={{ background: KINGA_TEAL, color: '#fff' }}
                           >
                             <Eye className="h-4 w-4 mr-2 flex-shrink-0" />
                             <span className="truncate flex-1 text-left text-sm">
@@ -791,11 +793,11 @@ export default function ClaimsProcessorDashboard() {
                             className="cursor-pointer py-2.5"
                           >
                             <div className="flex items-start gap-3 w-full">
-                              <FileText className="h-4 w-4 mt-0.5 text-teal-600 flex-shrink-0" />
+                              <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: KINGA_TEAL }} />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm">KINGA Claims Report</span>
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">PROCESS</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: KINGA_TEAL_BG, color: KINGA_TEAL }}>PROCESS</span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-0.5">Assessment summary, damage overview &amp; cost comparison</p>
                               </div>
@@ -803,17 +805,17 @@ export default function ClaimsProcessorDashboard() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
-                              if (TIER_GATE_ENABLED) return; // Future: show upgrade prompt
+                              if (TIER_GATE_ENABLED) return;
                               window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`;
                             }}
                             className="cursor-pointer py-2.5"
                           >
                             <div className="flex items-start gap-3 w-full">
-                              <FileSearch className="h-4 w-4 mt-0.5 text-purple-600 flex-shrink-0" />
+                              <FileSearch className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: KINGA_BLUE }} />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm">KINGA Forensic Audit</span>
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">PROVE</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: KINGA_BLUE_BG, color: KINGA_BLUE }}>PROVE</span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-0.5">Full forensic analysis, physics engine &amp; fraud indicators</p>
                               </div>
@@ -825,7 +827,8 @@ export default function ClaimsProcessorDashboard() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleAssignAssessor(claim.id)}
-                        className="w-full justify-start border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:bg-blue-950/30"
+                        className="w-full justify-start"
+                        style={{ color: KINGA_BLUE, borderColor: '#BDD4EC', background: KINGA_BLUE_BG }}
                       >
                         <UserPlus className="h-4 w-4 mr-2" />
                         Assign Human Assessor
@@ -835,7 +838,8 @@ export default function ClaimsProcessorDashboard() {
                         variant="outline"
                         onClick={() => handleTriggerAI(claim.id)}
                         disabled={triggerAiMutation.isPending}
-                        className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
+                        className="w-full justify-start"
+                        style={{ color: KINGA_BLUE, borderColor: '#BDD4EC', background: KINGA_BLUE_BG }}
                       >
                         <Brain className="h-4 w-4 mr-2" />
                         Re-run KINGA Assessment
@@ -862,7 +866,7 @@ export default function ClaimsProcessorDashboard() {
                        so we do NOT re-check documentProcessingStatus directly here. */}
                   {isProcessing ? (
                     <>
-                      <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/30 rounded-md p-3">
+                      <div className="flex items-center gap-2 text-sm rounded-md p-3" style={{ color: KINGA_BLUE, background: KINGA_BLUE_BG }}>
                         <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
                         <span className="truncate">
                           {(claim as any).pipelineCurrentStage
@@ -878,7 +882,8 @@ export default function ClaimsProcessorDashboard() {
                         variant="outline"
                         onClick={() => handleResetStuckClaim(claim.id)}
                         disabled={resetStuckClaimMutation.isPending}
-                        className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
+                        className="w-full justify-start text-xs"
+                        style={{ color: KINGA_AMBER, borderColor: '#E8C97A', background: KINGA_AMBER_BG }}
                         title="Use this if the KINGA has been processing for more than 5 minutes without completing"
                       >
                         <RotateCcw className="h-3 w-3 mr-2" />
@@ -893,7 +898,8 @@ export default function ClaimsProcessorDashboard() {
                           <Button
                             size="sm"
                             variant="default"
-                            className="w-full justify-start bg-teal-600 hover:bg-teal-700"
+                            className="w-full justify-start"
+                            style={{ background: KINGA_TEAL, color: '#fff' }}
                           >
                             <Eye className="h-4 w-4 mr-2 flex-shrink-0" />
                             <span className="truncate flex-1 text-left text-sm">
@@ -912,11 +918,11 @@ export default function ClaimsProcessorDashboard() {
                             className="cursor-pointer py-2.5"
                           >
                             <div className="flex items-start gap-3 w-full">
-                              <FileText className="h-4 w-4 mt-0.5 text-teal-600 flex-shrink-0" />
+                              <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: KINGA_TEAL }} />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm">KINGA Claims Report</span>
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">PROCESS</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: KINGA_TEAL_BG, color: KINGA_TEAL }}>PROCESS</span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-0.5">Assessment summary, damage overview &amp; cost comparison</p>
                               </div>
@@ -930,11 +936,11 @@ export default function ClaimsProcessorDashboard() {
                             className="cursor-pointer py-2.5"
                           >
                             <div className="flex items-start gap-3 w-full">
-                              <FileSearch className="h-4 w-4 mt-0.5 text-purple-600 flex-shrink-0" />
+                              <FileSearch className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: KINGA_BLUE }} />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm">KINGA Forensic Audit</span>
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">PROVE</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: KINGA_BLUE_BG, color: KINGA_BLUE }}>PROVE</span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-0.5">Full forensic analysis, physics engine &amp; fraud indicators</p>
                               </div>
@@ -947,7 +953,8 @@ export default function ClaimsProcessorDashboard() {
                         variant="outline"
                         onClick={() => handleTriggerAI(claim.id)}
                         disabled={triggerAiMutation.isPending}
-                        className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
+                        className="w-full justify-start"
+                        style={{ color: KINGA_BLUE, borderColor: '#BDD4EC', background: KINGA_BLUE_BG }}
                       >
                         <Brain className="h-4 w-4 mr-2" />
                         Re-run KINGA Assessment
@@ -960,7 +967,7 @@ export default function ClaimsProcessorDashboard() {
               {/* COMPLETED section: show reports-ready pill above the dropdown */}
               {section === "completed" && !isProcessing && (
                 <div className="flex items-center gap-1.5 px-1 -mt-1">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 border border-teal-200 dark:border-teal-700">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: KINGA_TEAL_BG, color: KINGA_TEAL, border: '1px solid #A8D4C4' }}>
                     <CheckCircle2 className="h-3 w-3" />
                     KINGA Reports Ready
                   </span>
@@ -1126,15 +1133,15 @@ export default function ClaimsProcessorDashboard() {
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="pending" className="flex items-center gap-1.5">
               Pending
-              {pendingClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold bg-amber-500 text-white">{pendingClaims.length}</span>}
+              {pendingClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold text-white" style={{ background: KINGA_AMBER }}>{pendingClaims.length}</span>}
             </TabsTrigger>
             <TabsTrigger value="review" className="flex items-center gap-1.5">
               In Review
-              {inReviewClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold bg-blue-500 text-white">{inReviewClaims.length}</span>}
+              {inReviewClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold text-white" style={{ background: KINGA_BLUE }}>{inReviewClaims.length}</span>}
             </TabsTrigger>
             <TabsTrigger value="ai_complete" className="flex items-center gap-1.5">
               KINGA Complete
-              {aiFlaggedClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold bg-teal-500 text-white">{aiFlaggedClaims.length}</span>}
+              {aiFlaggedClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold text-white" style={{ background: KINGA_TEAL }}>{aiFlaggedClaims.length}</span>}
             </TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
             <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
@@ -1147,7 +1154,7 @@ export default function ClaimsProcessorDashboard() {
           "pending",
           "No pending claims. Upload a new claim document to get started.",
           "border-t-amber-400",
-          "bg-amber-50/50 dark:bg-amber-950/50"
+          ""
         )}
 
           </TabsContent>
@@ -1159,7 +1166,7 @@ export default function ClaimsProcessorDashboard() {
           "in_review",
           "No claims currently in review",
           "border-t-blue-400",
-          "bg-blue-50/50 dark:bg-blue-950/50"
+          ""
         )}
 
           </TabsContent>
@@ -1171,7 +1178,7 @@ export default function ClaimsProcessorDashboard() {
           "ai_flagged",
           "No claims with completed KINGA assessment",
           "border-t-teal-500",
-          "bg-teal-50/50 dark:bg-teal-950/50"
+          ""
         )}
 
           </TabsContent>
@@ -1250,7 +1257,7 @@ export default function ClaimsProcessorDashboard() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-blue-600" />
+              <UserPlus className="h-5 w-5" style={{ color: KINGA_BLUE }} />
               Assign Human Assessor
             </DialogTitle>
             <DialogDescription>
@@ -1290,12 +1297,11 @@ export default function ClaimsProcessorDashboard() {
                     <button
                       key={assessor.id}
                       onClick={() => setSelectedAssessorId(isSelected ? null : assessor.id)}
-                      className={`w-full text-left p-3 hover:bg-blue-50 dark:bg-blue-950/30 transition-colors flex items-center gap-3 ${
-                        isSelected ? "bg-blue-100 dark:bg-blue-900/30 border-l-4 border-l-blue-600" : ""
-                      }`}
+                      className={`w-full text-left p-3 transition-colors flex items-center gap-3 ${isSelected ? 'border-l-4' : ''}`}
+                      style={isSelected ? { background: KINGA_BLUE_BG, borderLeftColor: KINGA_BLUE } : {}}
                     >
                       <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                        isSelected ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600 dark:text-muted-foreground"
+                        isSelected ? "text-white" : "bg-slate-200 text-slate-600 dark:text-muted-foreground"
                       }`}>
                         {(assessor.name || "A").charAt(0).toUpperCase()}
                       </div>
@@ -1315,7 +1321,7 @@ export default function ClaimsProcessorDashboard() {
                             ))
                           )}
                           {assessor.performanceRating && (
-                            <Badge variant="outline" className="text-xs bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                            <Badge variant="outline" className="text-xs" style={{ background: KINGA_AMBER_BG, color: KINGA_AMBER, borderColor: '#E8C97A' }}>
                               ★ {Number(assessor.performanceRating).toFixed(1)}
                             </Badge>
                           )}
@@ -1332,7 +1338,7 @@ export default function ClaimsProcessorDashboard() {
                         </div>
                       </div>
                       {isSelected && (
-                        <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                        <CheckCircle className="h-5 w-5 flex-shrink-0" style={{ color: KINGA_BLUE }} />
                       )}
                     </button>
                   );
@@ -1342,9 +1348,9 @@ export default function ClaimsProcessorDashboard() {
 
             {/* Selected Assessor Confirmation */}
             {selectedAssessorId && (
-              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                <p className="text-sm text-blue-800 dark:text-blue-200">
+              <div className="rounded-lg p-3 flex items-center gap-2" style={{ background: KINGA_BLUE_BG, border: '1px solid #BDD4EC' }}>
+                <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: KINGA_BLUE }} />
+                <p className="text-sm" style={{ color: KINGA_BLUE }}>
                   <strong>Selected:</strong>{" "}
                   {(() => { const a: any = filteredAssessors.find((a: any) => a.id === selectedAssessorId); return a?.userName || a?.name || "Assessor"; })()}
                 </p>
@@ -1360,7 +1366,8 @@ export default function ClaimsProcessorDashboard() {
                 }
                 setAssignDialogOpen(false);
               }}
-              className="border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
+              className=""
+              style={{ color: KINGA_BLUE, borderColor: '#BDD4EC', background: KINGA_BLUE_BG }}
             >
               <Brain className="h-4 w-4 mr-2" />
               Run KINGA Instead
@@ -1369,7 +1376,8 @@ export default function ClaimsProcessorDashboard() {
               variant="default"
               onClick={handleConfirmAssignment}
               disabled={!selectedAssessorId || assignToAssessorMutation.isPending}
-              className="bg-blue-600 hover:bg-blue-700"
+              className=""
+              style={{ background: KINGA_BLUE, color: '#fff' }}
             >
               {assignToAssessorMutation.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
