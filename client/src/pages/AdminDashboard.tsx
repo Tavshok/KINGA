@@ -21,6 +21,7 @@ import {
   Activity, Zap, Shield, GitBranch
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
+import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -166,77 +167,50 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
-      {/* Header */}
-      <header className="bg-white dark:bg-card border-b shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Admin Panel</p>
-                <p className="text-xs text-muted-foreground">System Management, KINGA Training &amp; Configuration</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => logout()}>
-                Sign Out
-              </Button>
-              <div className="h-5 w-px bg-border" />
-              <KingaLogo showText={false} size="sm" />
-            </div>
+      {/* Header (C1) */}
+      <PortalHeader
+        icon={<Shield className="h-5 w-5 text-white" />}
+        title="Admin Panel"
+        description="System Management, KINGA Training & Configuration"
+        live
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => logout()}>
+              Sign Out
+            </Button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="container mx-auto px-4 py-8">
-        {/* System Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Claims</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalClaims}</div>
-              <p className="text-xs text-muted-foreground">Across all statuses</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">High Risk Claims</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" style={{ color: "#A32D2D" }}>{highRiskClaims}</div>
-              <p className="text-xs text-muted-foreground">Fraud score &gt; 70</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed Claims</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" style={{ color: "#3C7844" }}>{completedClaims}</div>
-              <p className="text-xs text-muted-foreground">Successfully processed</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Processing</CardTitle>
-              <Settings className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{avgProcessingTime}d</div>
-              <p className="text-xs text-muted-foreground">Submission to completion</p>
-            </CardContent>
-          </Card>
+        {/* System Analytics KPI Strip (C2) */}
+        <div className="mb-8">
+          <PortalKPIStrip kpis={[
+            {
+              label: 'Total Claims',
+              value: totalClaims,
+              icon: <TrendingUp className="h-4 w-4" />,
+              accent: 'blue',
+            },
+            {
+              label: 'High Risk Claims',
+              value: highRiskClaims,
+              icon: <AlertTriangle className="h-4 w-4" />,
+              accent: highRiskClaims > 0 ? 'red' : 'charcoal',
+            },
+            {
+              label: 'Completed Claims',
+              value: completedClaims,
+              icon: <CheckCircle className="h-4 w-4" />,
+              accent: 'green',
+            },
+            {
+              label: 'Avg. Processing',
+              value: `${avgProcessingTime}d`,
+              icon: <Settings className="h-4 w-4" />,
+              accent: avgProcessingTime > 14 ? 'amber' : 'teal',
+            },
+          ] as PortalKPI[]} />
         </div>
 
         {/* Tab Navigation */}
