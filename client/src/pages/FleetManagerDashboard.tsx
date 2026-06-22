@@ -10,6 +10,7 @@
  *  - CSV download for in-progress and completed claims
  */
 import { useState, useMemo } from "react";
+import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import {
@@ -463,6 +464,7 @@ export default function FleetManagerDashboard() {
                         <TableHead>Incident Date</TableHead>
                         <TableHead>Location</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>SLA</TableHead>
                         <TableHead>Submitted By</TableHead>
                         <TableHead>
                           <div className="flex items-center gap-1">
@@ -526,6 +528,9 @@ export default function FleetManagerDashboard() {
                               )}
                             </TableCell>
                             <TableCell>{statusBadge(c.status)}</TableCell>
+                            <TableCell>
+                              <SLADeadlineChip createdAt={c.createdAt} slaHours={72} />
+                            </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               {c.submittedByName ?? "—"}
                             </TableCell>

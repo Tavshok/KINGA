@@ -4035,6 +4035,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           .orderBy(desc(claims.createdAt))
           .limit(20);
 
+        // D-06: Compute throughput this week (assessments completed in last 7 days)
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3_600_000);
+        const throughputThisWeek = recentAssessments.filter((a: any) => {
+          const ts = a.completedAt ?? a.createdAt;
+          return ts && new Date(ts) >= sevenDaysAgo;
+        }).length;
+
         return {
           tier: assessor.assessorTier || "free",
           tierActivatedAt: assessor.tierActivatedAt,
@@ -4042,6 +4049,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           performanceScore: assessor.performanceScore || 70,
           totalAssessmentsCompleted: assessor.totalAssessmentsCompleted || 0,
           averageVarianceFromFinal: assessor.averageVarianceFromFinal,
+          // D-06: New fields for Throughput and Avg Assessment Time KPIs
+          throughputThisWeek,
+          avgCompletionTimeHours: assessor.avgCompletionTime ? Number(assessor.avgCompletionTime) : null,
           recentAssessments,
           assignedClaims,
         };

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
 import { trpc } from "@/lib/trpc";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -502,16 +503,25 @@ export default function ClaimsManagerDashboard() {
                   { label: 'Total Claims', value: managerOverview?.kpis?.totalClaims?.value ?? (dashboardStats as any)?.totalClaims ?? 0, icon: <ClipboardList className="h-3 w-3" />, color: '#4878A8' },
                   { label: 'Active', value: managerOverview?.kpis?.activeClaims?.value ?? (dashboardStats as any)?.activeClaims ?? 0, icon: <Activity className="h-3 w-3" />, color: '#3C7844' },
                   { label: 'Completed', value: managerOverview?.kpis?.completedClaims?.value ?? (dashboardStats as any)?.completedThisMonth ?? 0, icon: <CheckCircle className="h-3 w-3" />, color: '#68A890' },
-                  { label: 'Fraud Alerts', value: managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0, icon: <AlertTriangle className="h-3 w-3" />, color: '#A32D2D' },
+                  { label: 'Fraud Alerts', value: managerOverview?.kpis?.fraudRate?.value ?? (dashboardStats as any)?.fraudAlerts ?? 0, icon: <AlertTriangle className="h-3 w-3" />, color: '#A32D2D', onClick: () => setActiveTab('fraud') },
                   { label: 'Fast-Track', value: `${(dashboardStats as any)?.fastTrackEligible ?? 0}`, icon: <Shield className="h-3 w-3" />, color: '#8A5C00' },
                   { label: 'Avg Days', value: `${((dashboardStats as any)?.avgProcessingDays ?? 0).toFixed(1)}d`, icon: <Clock className="h-3 w-3" />, color: '#484840' },
-                ].map((kpi, i) => (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <span style={{ color: kpi.color }}>{kpi.icon}</span>
-                    <span className="text-sm font-bold">{overviewLoading ? '…' : kpi.value}</span>
-                    <span className="text-xs text-muted-foreground">{kpi.label}</span>
-                    {i < 5 && <span className="text-border ml-1">|</span>}
-                  </div>
+                ].map((kpi: any, i: number) => (
+                  kpi.onClick ? (
+                    <button key={i} onClick={kpi.onClick} className="flex items-center gap-1.5 hover:opacity-75 transition-opacity cursor-pointer">
+                      <span style={{ color: kpi.color }}>{kpi.icon}</span>
+                      <span className="text-sm font-bold">{overviewLoading ? '…' : kpi.value}</span>
+                      <span className="text-xs text-muted-foreground underline decoration-dotted">{kpi.label}</span>
+                      {i < 5 && <span className="text-border ml-1">|</span>}
+                    </button>
+                  ) : (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span style={{ color: kpi.color }}>{kpi.icon}</span>
+                      <span className="text-sm font-bold">{overviewLoading ? '…' : kpi.value}</span>
+                      <span className="text-xs text-muted-foreground">{kpi.label}</span>
+                      {i < 5 && <span className="text-border ml-1">|</span>}
+                    </div>
+                  )
                 ))}
               </div>
 
@@ -597,7 +607,7 @@ export default function ClaimsManagerDashboard() {
         </div>
 
         {/* ── Command Centre (Rows 1–5) + Reports Centre ── */}
-        <ClaimsManagerCommandCentre />
+        <ClaimsManagerCommandCentre onNavigate={setActiveTab} />
 
         {/* ── Main Workspace Tabs ── */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -832,6 +842,7 @@ export default function ClaimsManagerDashboard() {
                             {(claim.status || 'pending').replace(/_/g, " ")}
                           </Badge>
                           <ReportReadinessBadge claimId={claim.id} variant="inline" />
+                          <SLADeadlineChip createdAt={claim.createdAt} slaHours={72} />
                           {claim.technicalApprovalStatus === "approved" && (
                             <Badge className="bg-green-600 text-white text-xs">
                               <CheckCircle className="h-3 w-3 mr-1" />
@@ -1449,6 +1460,7 @@ export default function ClaimsManagerDashboard() {
                           <th className="text-left py-2 px-3">Status</th>
                           <th className="text-left py-2 px-3">Workflow</th>
                           <th className="text-left py-2 px-3">Risk</th>
+                          <th className="text-left py-2 px-3">SLA</th>
                           <th className="text-left py-2 px-3">Amount</th>
                           <th className="text-left py-2 px-3">Actions</th>
                         </tr>
@@ -1467,6 +1479,9 @@ export default function ClaimsManagerDashboard() {
                             </td>
                             <td className="py-2 px-3">
                               <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
+                            </td>
+                            <td className="py-2 px-3">
+                              <SLADeadlineChip createdAt={claim.createdAt} slaHours={72} showOk />
                             </td>
                             <td className="py-2 px-3 text-xs font-medium">{claim.totalClaimAmount ? fmt(claim.totalClaimAmount) : "—"}</td>
                             <td className="py-2 px-3">

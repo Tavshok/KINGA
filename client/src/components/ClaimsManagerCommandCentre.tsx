@@ -24,7 +24,11 @@ import { RecoveryWatchlist } from "@/components/RecoveryWatchlist";
 import { SendBackAnalytics } from "@/components/SendBackAnalytics";
 import { ClaimsManagerReportsCentre } from "@/components/ClaimsManagerReportsCentre";
 
-export function ClaimsManagerCommandCentre() {
+interface ClaimsManagerCommandCentreProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export function ClaimsManagerCommandCentre({ onNavigate }: ClaimsManagerCommandCentreProps = {}) {
   return (
     <div className="space-y-4">
       {/* Row 1 — Queue Health Matrix */}
@@ -32,7 +36,7 @@ export function ClaimsManagerCommandCentre() {
 
       {/* Row 2 — Attention Required + Escalation Centre */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <AttentionRequiredPanel />
+        <AttentionRequiredPanel onNavigate={onNavigate} />
         <EscalationCentre />
       </div>
 

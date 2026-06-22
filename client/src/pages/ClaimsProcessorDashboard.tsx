@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
@@ -83,16 +83,6 @@ export default function ClaimsProcessorDashboard() {
   // Completion is only valid if aiAssessmentCompletedAt > rerunStartedAt.
   const rerunStartedAtRef = useRef<Map<number, number>>(new Map());
   const [searchQuery, setSearchQuery] = useState("");
-
-  // SLA helper: returns status based on claim age in hours
-  const getSlaStatus = useCallback((createdAt: any) => {
-    if (!createdAt) return null;
-    const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3600000;
-    if (ageHours > 72) return { label: `${Math.floor(ageHours / 24)}d BREACHED`, color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', urgent: true };
-    if (ageHours > 48) return { label: `${Math.floor(ageHours)}h Critical`, color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300', urgent: true };
-    if (ageHours > 24) return { label: `${Math.floor(ageHours)}h Warning`, color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300', urgent: false };
-    return { label: `${Math.floor(ageHours)}h On Track`, color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', urgent: false };
-  }, []);
 
   // Processor queue from dedicated procedure (enriched with priority scoring)
   const { data: processorQueueData } = trpc.claims.getProcessorQueue.useQuery(undefined, { refetchInterval: 60000 }); // eslint-disable-line react-hooks/rules-of-hooks

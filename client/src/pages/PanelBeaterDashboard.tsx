@@ -462,6 +462,7 @@ export default function PanelBeaterDashboard() {
                           <th className="text-right py-3 px-2 font-medium text-gray-600">Labour</th>
                           <th className="text-right py-3 px-2 font-medium text-gray-600">Parts</th>
                           <th className="text-center py-3 px-2 font-medium text-gray-600">Status</th>
+                          <th className="text-left py-3 px-2 font-medium text-gray-600">SLA at Submit</th>
                           <th className="text-left py-3 px-2 font-medium text-gray-600">Submitted</th>
                         </tr>
                       </thead>
@@ -484,6 +485,12 @@ export default function PanelBeaterDashboard() {
                             </td>
                             <td className="py-3 px-2 text-center">
                               <StatusBadge status={quote.status || "submitted"} />
+                            </td>
+                            <td className="py-3 px-2">
+                              {/* D-07: SLA chip on History tab rows shows the SLA status
+                                  at the time the quote was submitted (based on claim createdAt).
+                                  Uses slaHours=48 consistent with the Pending Requests tab. */}
+                              <SLADeadlineChip createdAt={quote.createdAt} slaHours={48} showOk />
                             </td>
                             <td className="py-3 px-2 text-gray-500 text-xs">
                               {quote.createdAt

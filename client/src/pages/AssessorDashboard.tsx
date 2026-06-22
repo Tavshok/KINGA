@@ -29,13 +29,18 @@ import {
   ClipboardList, Eye, AlertTriangle, Clock, CheckCircle2,
   Calendar, TrendingUp, Star, MapPin, Phone, BarChart3, ShieldAlert,
 } from "lucide-react";
+import { SLADeadlineChip, computeSLAFromCreatedAt } from "@/components/portal/SLADeadlineChip";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// D-02: slaBadge is now a thin wrapper around the shared computeSLAFromCreatedAt
+// so that existing filter expressions (slaBadge(c.createdAt)?.label === ...) still
+// compile while the actual chip logic is unified in SLADeadlineChip.
 function slaBadge(createdAt: string | Date | null | undefined) {
   if (!createdAt) return null;
-  const h = (Date.now() - new Date(createdAt as string).getTime()) / 3_600_000;
-  if (h > 72) return { label: "SLA Breached", color: KINGA_RED,   bg: KINGA_RED_BG };
-  if (h > 48) return { label: "SLA Warning",  color: KINGA_AMBER, bg: KINGA_AMBER_BG };
+  const chip = computeSLAFromCreatedAt(createdAt as string, 72);
+  if (!chip) return null;
+  if (chip.status === "breached") return { label: "SLA Breached", color: KINGA_RED,   bg: KINGA_RED_BG };
+  if (chip.status === "critical" || chip.status === "warning") return { label: "SLA Warning",  color: KINGA_AMBER, bg: KINGA_AMBER_BG };
   return null;
 }
 
@@ -56,7 +61,6 @@ function fmtTime(ts: string | Date | null | undefined) {
 
 // ── Claim row ─────────────────────────────────────────────────────────────────
 function ClaimRow({ claim, onView }: { claim: any; onView: () => void }) {
-  const sla = slaBadge(claim.createdAt);
   const aiConf = claim.aiConfidenceScore ?? claim.confidenceScore ?? null;
   const fraud  = claim.fraudScore ?? null;
   return (
@@ -64,11 +68,8 @@ function ClaimRow({ claim, onView }: { claim: any; onView: () => void }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-mono text-sm font-semibold" style={{ color: "#111827" }}>{claim.claimNumber}</span>
-          {sla && (
-            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: sla.bg, color: sla.color, border: `1px solid ${sla.color}30` }}>
-              <Clock size={10} />{sla.label}
-            </span>
-          )}
+          {/* D-02: Replaced local sla badge with shared SLADeadlineChip */}
+          <SLADeadlineChip createdAt={claim.createdAt} slaHours={72} />
           {claim.policyVerified && (
             <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: KINGA_GREEN_BG, color: KINGA_GREEN, border: `1px solid ${KINGA_GREEN}30` }}>
               <CheckCircle2 size={10} />Verified
@@ -138,7 +139,7 @@ export default function AssessorDashboard() {
   const [activeTab, setActiveTab] = useState("queue");
 
   const { data: perfData, isLoading: perfLoading } =
-    trpc.assessorEvaluations.getPerformanceDashboard.useQuery(undefined, { staleTime: 60_000 });
+    trpc.assessors.getPerformanceDashboard.useQuery(undefined, { staleTime: 60_000 });
 
   const { data: appointments, isLoading: apptsLoading } =
     trpc.appointments.myAppointments.useQuery(undefined, { staleTime: 60_000 });
@@ -152,12 +153,16 @@ export default function AssessorDashboard() {
   const upcomingAppts = useMemo(() => (appointments ?? []).filter((a: any) => a.scheduledAt && new Date(a.scheduledAt) > new Date()), [appointments]);
 
   const kpis: PortalKPI[] = [
-    { label: "Assigned Claims",        value: perfLoading ? "—" : assignedClaims.length,                         icon: <ClipboardList size={18} />, accent: "blue"  },
-    { label: "Pending Assessment",     value: perfLoading ? "—" : pendingAss,                                    icon: <Clock size={18} />,         accent: "amber" },
-    { label: "SLA Breached",           value: perfLoading ? "—" : slaBreached,                                   icon: <AlertTriangle size={18} />, accent: slaBreached > 0 ? "red" : "green" },
-    { label: "Completed",              value: perfLoading ? "—" : (perfData?.totalAssessmentsCompleted ?? 0),    icon: <CheckCircle2 size={18} />,  accent: "green" },
-    { label: "Performance Score",      value: perfLoading ? "—" : `${perfData?.performanceScore ?? 0}%`,         icon: <Star size={18} />,          accent: "teal"  },
-    { label: "Upcoming Appointments",  value: apptsLoading ? "—" : upcomingAppts.length,                        icon: <Calendar size={18} />,      accent: "blue"  },
+    { label: "Assigned Claims",        value: perfLoading ? "—" : assignedClaims.length,                                                                                                    icon: <ClipboardList size={18} />, accent: "blue"  },
+    { label: "Pending Assessment",     value: perfLoading ? "—" : pendingAss,                                                                                                               icon: <Clock size={18} />,         accent: "amber" },
+    { label: "SLA Breached",           value: perfLoading ? "—" : slaBreached,                                                                                                              icon: <AlertTriangle size={18} />, accent: slaBreached > 0 ? "red" : "green" },
+    { label: "Completed",              value: perfLoading ? "—" : (perfData?.totalAssessmentsCompleted ?? 0),                                                                               icon: <CheckCircle2 size={18} />,  accent: "green" },
+    // D-06: Throughput This Week
+    { label: "Throughput (7d)",        value: perfLoading ? "—" : (perfData?.throughputThisWeek ?? 0),                                                                                    icon: <TrendingUp size={18} />,    accent: "teal"  },
+    // D-06: Avg Assessment Time
+    { label: "Avg Assess. Time",       value: perfLoading ? "—" : (perfData?.avgCompletionTimeHours != null ? `${(perfData.avgCompletionTimeHours as number).toFixed(1)}h` : "—"),       icon: <BarChart3 size={18} />,     accent: "blue"  },
+    { label: "Performance Score",      value: perfLoading ? "—" : `${perfData?.performanceScore ?? 0}%`,                                                                                   icon: <Star size={18} />,          accent: "teal"  },
+    { label: "Upcoming Appointments",  value: apptsLoading ? "—" : upcomingAppts.length,                                                                                                   icon: <Calendar size={18} />,      accent: "blue"  },
   ];
 
   const alerts: PortalAlert[] = [

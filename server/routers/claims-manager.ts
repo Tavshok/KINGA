@@ -181,6 +181,11 @@ export const claimsManagerRouter = router({
     );
 
     // Rule 3: Stuck > 7 days in same state
+    // Threshold: 7 calendar days since last updatedAt (or createdAt if never updated).
+    // This is intentionally separate from the SLA chip (72h from createdAt) — the chip
+    // measures total claim age; "stuck" measures inactivity within the current state.
+    // Rationale: a claim can be within SLA but still stuck if it was submitted late and
+    // never progressed. The 7-day inactivity threshold is the agreed operations standard.
     const stuckClaims = activeClaims.filter(c => {
       const age = daysSince(c.updatedAt ?? c.createdAt);
       return age > 7;
