@@ -119,7 +119,7 @@ export default function RecoveryPortal() {
           id: "pending-cases",
           severity: "warning" as const,
           label: "recovery case(s) pending action",
-          count: kpis?.pendingCases ?? kpis?.openCases ?? 0,
+          count: kpis?.pendingReview ?? kpis?.open ?? 0,
           onClick: () => setActiveTab(null),
         },
       ] as PortalAlert[]}

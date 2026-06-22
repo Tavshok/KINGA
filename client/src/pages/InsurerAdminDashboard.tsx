@@ -18,7 +18,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +44,7 @@ import {
 } from "lucide-react";
 
 // ─── Role display helpers ─────────────────────────────────────────────────────
-const ROLE_LABELS: Record<string, { label: string; color: string }> = {
+const ROLE_LABELS: Record<string, { label: string; color: string; style?: React.CSSProperties }> = {
   executive:         { label: "Executive",          color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
   claims_manager:    { label: "Claims Manager",     color: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
   claims_processor:  { label: "Claims Processor",   color: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },

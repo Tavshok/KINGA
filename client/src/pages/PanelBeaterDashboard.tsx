@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, ScatterController } from 'chart.js';
 import { Bar, Scatter, Doughnut, Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, ScatterController);
@@ -26,7 +26,7 @@ import { NotificationsInbox, NotificationsTabBadge } from "@/components/Notifica
 import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 
 function PerformanceTierBadge({ tier }: { tier: string | null | undefined }) {
-  const config: Record<string, { label: string; className: string }> = {
+  const config: Record<string, { label: string; className: string; style?: React.CSSProperties }> = {
     A: { label: "Tier A — Excellent", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
     B: { label: "Tier B — Good", className: "bg-blue-100 text-blue-800 border-blue-200" },
     C: { label: "Tier C — Average", className: "border", style: { background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" } },

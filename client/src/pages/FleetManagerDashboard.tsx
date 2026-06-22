@@ -9,7 +9,7 @@
  *  - Current status
  *  - CSV download for in-progress and completed claims
  */
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -77,7 +77,7 @@ function formatDuration(ms: number): string {
 }
 
 function statusBadge(status: string) {
-  const map: Record<string, { label: string; className: string }> = {
+  const map: Record<string, { label: string; className: string; style?: React.CSSProperties }> = {
     submitted: { label: "Submitted", className: "border", style: { background: "#EEF4FB", color: "#4878A8", borderColor: "#B8D0E8" } },
     in_review: { label: "In Review", className: "border", style: { background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" } },
     ai_complete: { label: "KINGA Complete", className: "bg-purple-100 text-purple-700 border-purple-200" },
