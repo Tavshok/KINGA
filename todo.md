@@ -393,10 +393,10 @@
 ## Sprint 2 — Operational Completeness (baseline: checkpoint 9c78f96a, 218 TS errors)
 
 - [x] T1: Claims Manager — WorkloadDistributionPanel (new tRPC query, per-assignee backlog)
-- [ ] T2: Executive — ExecutiveEscalationQueue (reuse financial threshold, no new threshold constant)
-- [ ] T3: Claims Processor — assessor assignment action (reuse existing mutation)
-- [ ] T4: Risk Manager — false positive rate KPI (check flag-clear data first; block if absent)
-- [ ] T5: Risk Manager — geographic risk clustering table in Fraud Intelligence tab
+- [x] T2: Executive — ExecutiveEscalationQueue (reuse financial threshold, no new threshold constant)
+- [x] T3: Claims Processor — assessor assignment action (already implemented: trpc.claims.assignToAssessor, dialog at lines 672/826)
+- [x] T4: Risk Manager — false positive rate KPI (fraudRules.falsePositiveCount / truePositiveCount, getFraudRuleAccuracy procedure)
+- [x] T5: Risk Manager — geographic risk clustering table in Fraud Intelligence tab (getGeographicRiskClusters, GeographicRiskClustersPanel)
 - [ ] T6: Admin — PendingRegistrationQueue + deactivate/role-change user actions
 - [ ] T7: Panel Beater — confirm D-07 chip present, add approval rate KPI
 - [ ] T8: Claimant — settlement acceptance button + dispute initiation action

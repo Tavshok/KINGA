@@ -28,7 +28,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
 import { parsePhysicsAnalysis } from "./types/physics-validation";
-import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments, recoveryCases, recoveryCorrespondenceLog } from "../drizzle/schema";
+import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments, recoveryCases, recoveryCorrespondenceLog, fraudRules } from "../drizzle/schema";
 import { eq, and, desc, asc, inArray, notInArray, gt, gte, lte, or, sql, count, avg, isNotNull } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
@@ -1732,7 +1732,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             workflowState: claims.workflowState,
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
-            totalClaimAmount: claims.totalClaimAmount,
+            approvedAmount: claims.approvedAmount,
             estimatedClaimValue: claims.estimatedClaimValue,
             finalApprovedAmount: claims.finalApprovedAmount,
             incidentType: claims.incidentType,
@@ -1798,7 +1798,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             workflowState: claims.workflowState,
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
-            totalClaimAmount: claims.totalClaimAmount,
+            approvedAmount: claims.approvedAmount,
             estimatedClaimValue: claims.estimatedClaimValue,
             incidentType: claims.incidentType,
             vehicleMake: claims.vehicleMake,
@@ -1850,7 +1850,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             workflowState: claims.workflowState,
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
-            totalClaimAmount: claims.totalClaimAmount,
+            approvedAmount: claims.approvedAmount,
             estimatedClaimValue: claims.estimatedClaimValue,
             finalApprovedAmount: claims.finalApprovedAmount,
             incidentType: claims.incidentType,
@@ -1954,7 +1954,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             workflowState: claims.workflowState,
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
-            totalClaimAmount: claims.totalClaimAmount,
+            approvedAmount: claims.approvedAmount,
             estimatedClaimValue: claims.estimatedClaimValue,
             incidentType: claims.incidentType,
             vehicleMake: claims.vehicleMake,
@@ -2006,7 +2006,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             workflowState: claims.workflowState,
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
-            totalClaimAmount: claims.totalClaimAmount,
+            approvedAmount: claims.approvedAmount,
             estimatedClaimValue: claims.estimatedClaimValue,
             finalApprovedAmount: claims.finalApprovedAmount,
             incidentType: claims.incidentType,
@@ -2064,7 +2064,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             workflowState: claims.workflowState,
             fraudRiskLevel: claims.fraudRiskLevel,
             fraudRiskScore: claims.fraudRiskScore,
-            totalClaimAmount: claims.totalClaimAmount,
+            approvedAmount: claims.approvedAmount,
             estimatedClaimValue: claims.estimatedClaimValue,
             finalApprovedAmount: claims.finalApprovedAmount,
             incidentType: claims.incidentType,
@@ -2166,7 +2166,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           fraudRiskLevel: claims.fraudRiskLevel,
           fraudRiskScore: claims.fraudRiskScore,
           incidentType: claims.incidentType,
-          totalClaimAmount: claims.totalClaimAmount,
+          approvedAmount: claims.approvedAmount,
           estimatedClaimValue: claims.estimatedClaimValue,
           finalApprovedAmount: claims.finalApprovedAmount,
           createdAt: claims.createdAt,
@@ -2244,6 +2244,156 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         };
       }),
 
+    // ─── Risk Manager: Fraud Rule Accuracy (False Positive Rate) ───────────────
+    /**
+     * getFraudRuleAccuracy
+     *
+     * Aggregates truePositiveCount and falsePositiveCount across all active fraud
+     * rules to compute the portfolio-level false positive rate.
+     *
+     * False Positive Rate = SUM(falsePositiveCount) / (SUM(TP) + SUM(FP))
+     *
+     * Source: fraudRules table. No schema changes required.
+     */
+    getFraudRuleAccuracy: insurerDomainProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+
+      const rows = await db
+        .select({
+          truePositiveCount: fraudRules.truePositiveCount,
+          falsePositiveCount: fraudRules.falsePositiveCount,
+          timesTriggered: fraudRules.timesTriggered,
+          ruleName: fraudRules.ruleName,
+          severity: fraudRules.severity,
+          ruleCategory: fraudRules.ruleCategory,
+        })
+        .from(fraudRules)
+        .where(eq(fraudRules.isActive, 1));
+
+      const totalTP = rows.reduce((s, r) => s + (r.truePositiveCount ?? 0), 0);
+      const totalFP = rows.reduce((s, r) => s + (r.falsePositiveCount ?? 0), 0);
+      const totalSignals = totalTP + totalFP;
+      const falsePositiveRate = totalSignals > 0
+        ? Math.round((totalFP / totalSignals) * 10000) / 100
+        : null; // null = no signal data yet
+
+      return {
+        totalRules: rows.length,
+        totalTruePositives: totalTP,
+        totalFalsePositives: totalFP,
+        totalSignals,
+        falsePositiveRate,
+        hasData: totalSignals > 0,
+        topFalsePositiveRules: rows
+          .filter(r => (r.falsePositiveCount ?? 0) > 0)
+          .sort((a, b) => (b.falsePositiveCount ?? 0) - (a.falsePositiveCount ?? 0))
+          .slice(0, 5)
+          .map(r => ({
+            ruleName: r.ruleName,
+            severity: r.severity,
+            ruleCategory: r.ruleCategory,
+            truePositives: r.truePositiveCount ?? 0,
+            falsePositives: r.falsePositiveCount ?? 0,
+            timesTriggered: r.timesTriggered ?? 0,
+          })),
+      };
+    }),
+
+    // ─── Risk Manager: Geographic Risk Clustering ─────────────────────────────
+    /**
+     * getGeographicRiskClusters
+     *
+     * Groups high-risk claims (fraudRiskLevel = high/critical/elevated) by
+     * incidentLocation token (first segment before comma) to identify geographic
+     * hotspots. Returns top 20 clusters sorted by claim count descending.
+     *
+     * Source: claims table (incidentLocation free-text field).
+     * No schema changes required.
+     */
+    getGeographicRiskClusters: insurerDomainProcedure
+      .input(z.object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const now = new Date();
+        const toDate = input?.to ? new Date(input.to) : now;
+        const fromDate = input?.from ? new Date(input.from) : new Date(now.getTime() - 90 * 86400000);
+        const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+        const rows = await db
+          .select({
+            incidentLocation: claims.incidentLocation,
+            fraudRiskLevel: claims.fraudRiskLevel,
+            fraudRiskScore: claims.fraudRiskScore,
+            incidentType: claims.incidentType,
+            approvedAmount: claims.approvedAmount,
+          })
+          .from(claims)
+          .where(and(
+            eq(claims.tenantId, ctx.insurerTenantId),
+            gte(claims.createdAt, fmt(fromDate)),
+            lte(claims.createdAt, fmt(toDate) + ' 23:59:59'),
+            isNotNull(claims.incidentLocation),
+          ))
+          .limit(5000);
+
+        // Parse location token: first segment before comma, trimmed, max 40 chars
+        const parseLocation = (loc: string | null): string => {
+          if (!loc) return 'Unknown';
+          const token = loc.split(',')[0].trim();
+          return token.length > 40 ? token.slice(0, 40) : token || 'Unknown';
+        };
+
+        // Aggregate by location token
+        const clusterMap: Record<string, {
+          totalClaims: number;
+          highRiskClaims: number;
+          totalExposure: number;
+          incidentTypes: Record<string, number>;
+          avgFraudScore: number;
+          fraudScoreSum: number;
+        }> = {};
+
+        for (const r of rows) {
+          const loc = parseLocation(r.incidentLocation);
+          if (!clusterMap[loc]) {
+            clusterMap[loc] = { totalClaims: 0, highRiskClaims: 0, totalExposure: 0, incidentTypes: {}, avgFraudScore: 0, fraudScoreSum: 0 };
+          }
+          const c = clusterMap[loc];
+          c.totalClaims++;
+          if (['high', 'critical', 'elevated'].includes(r.fraudRiskLevel ?? '')) c.highRiskClaims++;
+          c.totalExposure += Number(r.approvedAmount ?? 0);
+          c.fraudScoreSum += r.fraudRiskScore ?? 0;
+          const it = r.incidentType ?? 'other';
+          c.incidentTypes[it] = (c.incidentTypes[it] ?? 0) + 1;
+        }
+
+        const clusters = Object.entries(clusterMap)
+          .map(([location, c]) => ({
+            location,
+            totalClaims: c.totalClaims,
+            highRiskClaims: c.highRiskClaims,
+            fraudRate: c.totalClaims > 0 ? Math.round((c.highRiskClaims / c.totalClaims) * 100) : 0,
+            totalExposure: Math.round(c.totalExposure),
+            avgFraudScore: c.totalClaims > 0 ? Math.round(c.fraudScoreSum / c.totalClaims) : 0,
+            dominantIncidentType: Object.entries(c.incidentTypes).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other',
+          }))
+          .sort((a, b) => b.highRiskClaims - a.highRiskClaims || b.fraudRate - a.fraudRate)
+          .slice(0, 20);
+
+        return {
+          period: { from: fmt(fromDate), to: fmt(toDate) },
+          clusters,
+          totalLocations: Object.keys(clusterMap).length,
+          hasData: rows.length > 0,
+        };
+      }),
+
+
     // ─── Analytics: Executive Summary ────────────────────────────────────────────
     // 3 hero numbers with deltas, savings trend, resolution rate, ROI breakdown
     getExecutiveSummary: insurerDomainProcedure
@@ -2266,7 +2416,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           db.select({
             id: claims.id,
             status: claims.status,
-            totalClaimAmount: claims.totalClaimAmount,
+            approvedAmount: claims.approvedAmount,
             estimatedClaimValue: claims.estimatedClaimValue,
             finalApprovedAmount: claims.finalApprovedAmount,
             createdAt: claims.createdAt,
@@ -2369,7 +2519,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           workflowState: claims.workflowState,
           fraudRiskLevel: claims.fraudRiskLevel,
           fraudRiskScore: claims.fraudRiskScore,
-          totalClaimAmount: claims.totalClaimAmount,
+          approvedAmount: claims.approvedAmount,
           estimatedClaimValue: claims.estimatedClaimValue,
           incidentType: claims.incidentType,
           vehicleMake: claims.vehicleMake,

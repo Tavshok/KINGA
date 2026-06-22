@@ -2,7 +2,18 @@ import { router, insurerDomainProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { sql } from "drizzle-orm";
+import { sql, eq, and, desc, gt } from "drizzle-orm";
+import { claims } from "../../drizzle/schema";
+
+/** Shared financial threshold: claims above this amount require executive sign-off.
+ *  Must stay in sync with getApprovalWorkbenchMetrics in claims-manager.ts.
+ */
+const EXEC_FINANCIAL_THRESHOLD_CENTS = 2_500_000; // ZAR 25,000
+
+const daysSince = (d: string | null) => {
+  if (!d) return 0;
+  return Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
+};
 
 /**
  * Executive Router
@@ -468,4 +479,60 @@ export const executiveRouter = router({
         };
       }
     }),
+
+  /**
+   * Escalation Queue
+   *
+   * Returns claims in `financial_decision` state that exceed the executive
+   * financial threshold (ZAR 25,000 / 2,500,000 cents). These require
+   * executive sign-off before settlement can proceed.
+   * Sorted by amount descending so the highest-value claim appears first.
+   */
+  getEscalationQueue: executiveProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const rows = await db
+      .select({
+        id: claims.id,
+        claimNumber: claims.claimNumber,
+        totalClaimAmount: (claims as any).totalClaimAmount,
+        approvedAmount: (claims as any).approvedAmount,
+        fraudRiskLevel: claims.fraudRiskLevel,
+        fraudRiskScore: claims.fraudRiskScore,
+        priority: claims.priority,
+        vehicleRegistration: claims.vehicleRegistration,
+        workflowState: claims.workflowState,
+        createdAt: claims.createdAt,
+        updatedAt: claims.updatedAt,
+      })
+      .from(claims)
+      .where(
+        and(
+          eq(claims.tenantId, ctx.insurerTenantId),
+          eq(claims.workflowState as any, "financial_decision"),
+          gt((claims as any).totalClaimAmount, EXEC_FINANCIAL_THRESHOLD_CENTS)
+        )
+      )
+      .orderBy(desc((claims as any).totalClaimAmount))
+      .limit(20);
+
+    return {
+      threshold: EXEC_FINANCIAL_THRESHOLD_CENTS,
+      count: rows.length,
+      totalExposure: rows.reduce((s, r) => s + ((r.totalClaimAmount as number) ?? 0), 0),
+      items: rows.map(r => ({
+        id: r.id,
+        claimNumber: r.claimNumber,
+        amount: (r.totalClaimAmount as number) ?? 0,
+        approvedAmount: (r.approvedAmount as number) ?? null,
+        fraudRiskLevel: r.fraudRiskLevel,
+        fraudRiskScore: r.fraudRiskScore,
+        priority: r.priority,
+        vehicleRegistration: r.vehicleRegistration,
+        ageDays: daysSince(r.createdAt),
+        updatedAt: r.updatedAt,
+      })),
+    };
+  }),
 });

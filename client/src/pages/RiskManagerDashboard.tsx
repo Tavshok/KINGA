@@ -28,6 +28,7 @@ import {
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
+import { GeographicRiskClustersPanel } from "@/components/risk/GeographicRiskClustersPanel";
 ChartJS.register(Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -121,6 +122,10 @@ export default function RiskManagerDashboard() {
   // Risk Portfolio Analytics: fraud heatmap, risk distribution
   const { data: riskAnalytics, isLoading: riskAnalyticsLoading } =
     trpc.claims.getRiskPortfolioAnalytics.useQuery({ from: analyticsFrom, to: analyticsTo });
+
+  // T4: Fraud Rule Accuracy — false positive rate from fraudRules table
+  const { data: fraudRuleAccuracy, isLoading: fraudRuleAccuracyLoading } =
+    trpc.claims.getFraudRuleAccuracy.useQuery();
 
   const approveTechnical = trpc.claims.approveClaim.useMutation({
     onSuccess: () => {
@@ -274,7 +279,7 @@ export default function RiskManagerDashboard() {
         </div>
 
         {/* ── FRAUD INTELLIGENCE KPI BAR (5 metrics, always visible) ── */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <StatCard
             label="Fraud Rate"
             value={riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.fraudRate ?? 0}%`}
@@ -309,6 +314,22 @@ export default function RiskManagerDashboard() {
             sub="In period"
             icon={Activity}
             accent="text-foreground"
+          />
+          <StatCard
+            label="False Positive Rate"
+            value={
+              fraudRuleAccuracyLoading ? '…'
+              : !fraudRuleAccuracy?.hasData ? '—'
+              : `${fraudRuleAccuracy.falsePositiveRate}%`
+            }
+            sub={fraudRuleAccuracy?.hasData ? `${fraudRuleAccuracy.totalSignals} rule signals` : 'No signal data yet'}
+            icon={CheckCircle}
+            accent={
+              !fraudRuleAccuracy?.hasData ? 'text-muted-foreground'
+              : (fraudRuleAccuracy.falsePositiveRate ?? 0) >= 30 ? 'text-red-600'
+              : (fraudRuleAccuracy.falsePositiveRate ?? 0) >= 15 ? 'text-amber-600'
+              : 'text-green-600'
+            }
           />
         </div>
 
@@ -688,7 +709,12 @@ export default function RiskManagerDashboard() {
           </TabsContent>
         
           {/* ── Notifications Tab ─────────────────────────────────────── */}
-          <TabsContent value="notifications" className="mt-6">
+          {/* ── Fraud Intelligence Tab ── */}
+          <TabsContent value="fraud-intelligence" className="mt-4 space-y-4">
+            <GeographicRiskClustersPanel analyticsFrom={analyticsFrom} analyticsTo={analyticsTo} />
+          </TabsContent>
+
+                    <TabsContent value="notifications" className="mt-6">
             <NotificationsInbox />
           </TabsContent>
 </Tabs>

@@ -36,6 +36,7 @@ import { NotificationsInbox, NotificationsTabBadge } from "@/components/Notifica
 
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import { ExecutiveAlertsCenter } from "@/components/executive/ExecutiveAlertsCenter";
+import { ExecutiveEscalationQueue } from "@/components/executive/ExecutiveEscalationQueue";
 import { ExecutiveReportTab } from "@/components/executive/ExecutiveReportTab";
 import { ClaimsAgeingPanel } from "@/components/executive/ClaimsAgeingPanel";
 import { FraudInvestigationFunnel } from "@/components/executive/FraudInvestigationFunnel";
@@ -607,6 +608,16 @@ export default function ExecutiveDashboard() {
                 <ClaimsAgeingPanel />
                 <FraudInvestigationFunnel />
               </div>
+            </section>
+
+            {/* ── Section A2: Escalation Queue ── */}
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-base font-semibold" style={{ color: 'var(--foreground)', fontFamily: 'Inter, sans-serif' }}>Escalation Queue</h2>
+                <span className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>High-value claims awaiting executive sign-off</span>
+              </div>
+              <ExecutiveEscalationQueue />
             </section>
 
             {/* ── Section B: Period Comparison ── */}
