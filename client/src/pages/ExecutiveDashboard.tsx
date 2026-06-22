@@ -35,6 +35,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
+import { PortalHeader, PortalKPIStrip, type PortalKPI } from "@/components/KingaPortalShell";
 import { ExecutiveAlertsCenter } from "@/components/executive/ExecutiveAlertsCenter";
 import { ExecutiveEscalationQueue } from "@/components/executive/ExecutiveEscalationQueue";
 import { ExecutiveReportTab } from "@/components/executive/ExecutiveReportTab";
@@ -395,35 +396,23 @@ export default function ExecutiveDashboard() {
     <div className="exec-dashboard min-h-screen" style={{ background: 'var(--background)' }}>
 
       {/* ── Page Header ── */}
-      <div style={{ background: 'var(--background)', borderBottom: '2px solid var(--border)' }}>
-        <div className="max-w-[1600px] mx-auto px-8" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
-          <div className="flex items-center justify-between gap-4">
-            {/* Left: Title block */}
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#3C7844' }}>
-                <BarChart3 className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="font-bold tracking-tight" style={{ fontSize: '22px', color: 'var(--foreground)', fontFamily: 'Inter, sans-serif', letterSpacing: '-0.02em' }}>Executive Command Center</h1>
-                  <span className="px-2 py-0.5 rounded text-xs font-semibold tracking-wide" style={{ background: '#3C7844', color: 'white', fontSize: '10px' }}>LIVE</span>
-                </div>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Decision intelligence · KINGA-powered analytics · {new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-              </div>
-            </div>
-            {/* Right: Actions */}
-            <div className="flex items-center gap-2 shrink-0">
-              <ThemeToggle />
-              <Link href="/portal-hub">
-                <Button variant="outline" size="sm" style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'transparent', fontSize: '13px' }}>
-                  <Target className="mr-1.5 h-3.5 w-3.5" />
-                  Switch Portal
-                </Button>
-              </Link>
-            </div>
+      <PortalHeader
+        icon={<BarChart3 className="h-5 w-5 text-white" />}
+        title="Executive Command Center"
+        description="Decision intelligence · KINGA-powered analytics"
+        live
+        actions={
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link href="/portal-hub">
+              <Button variant="outline" size="sm">
+                <Target className="mr-1.5 h-3.5 w-3.5" />
+                Switch Portal
+              </Button>
+            </Link>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* ── Demo Mode Banner ── */}
       {isDemo && (
@@ -435,132 +424,50 @@ export default function ExecutiveDashboard() {
         </div>
       )}
 
-      {/* ── HERO NUMBERS: Three Large Numbers, Full Width, Always Visible ── */}
-          <div className="flex justify-end mb-3"><ReportsBadgeWidget compact /></div>
-      <div className="max-w-[1600px] mx-auto px-8 pt-8 pb-2">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          {[
-            {
-              label: 'Total Claims',
-              value: execSummaryLoading ? '…' : (effectiveExecSummary?.totalClaims ?? kpis?.totalClaims ?? 0).toLocaleString(),
-              sub: 'Submitted in period',
-              color: '#4878A8',
-              icon: FileText,
-            },
-            {
-              label: 'KINGA Savings',
-              value: execSummaryLoading ? '…' : (() => { const s = effectiveExecSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100).toLocaleString()}` : '—'; })(),
-              sub: 'Est. value − approved payout',
-              color: '#3C7844',
-              icon: TrendingUp,
-            },
-            {
-              label: 'Resolution Rate',
-              value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.resolutionRate ?? 0).toFixed(1)}%`,
-              sub: 'Closed ÷ total claims',
-              color: '#68A890',
-              icon: CheckCircle,
-            },
-            {
-              label: 'Avg Cycle Time',
-              value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.avgCycleDays ?? 0).toFixed(1)}d`,
-              sub: 'Submission to closure',
-              color: effectiveExecSummary?.avgCycleDays && effectiveExecSummary.avgCycleDays > 14 ? '#A32D2D' : '#3C7844',
-              icon: Clock,
-            },
-          ].map(({ label, value, sub, color, icon: Icon }, i) => (
-            <div
-              key={i}
-              className="rounded-lg p-5"
-              style={{
-                background: 'var(--background)',
-                border: '1px solid var(--border)',
-                borderLeft: `4px solid ${color}`,
-                fontFamily: 'Inter, sans-serif',
-              }}
-            >
-              <div className="flex items-start justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-widest mb-1" style={{ color: 'var(--muted-foreground)', letterSpacing: '0.08em' }}>{label}</p>
-                  <p className="font-bold tabular-nums" style={{ fontSize: '28px', lineHeight: '1.1', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{value}</p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
-                </div>
-                <div className="p-2 rounded-md shrink-0" style={{ background: `${color}15` }}>
-                  <Icon className="h-4 w-4" style={{ color }} />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Secondary KPI strip ── */}
-      <div className="max-w-[1600px] mx-auto px-8 pb-6 pt-3">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {[
-            {
-              label: 'Fraud Exposure',
-              value: fmt((kpis?.fraudRiskAmount || 0) * 100),
-              color: '#A32D2D',
-              icon: AlertTriangle,
-              onClick: () => { setDrillDownFilter('high_fraud'); setDrillDownTitle('High Fraud Risk Claims'); setDrillDownOpen(true); },
-            },
-            {
-              label: 'High-Risk Claims',
-              value: String(kpis?.highRiskClaimsCount || 0),
-              color: '#8A5C00',
-              icon: Shield,
-              onClick: undefined,
-            },
-            {
-              label: 'Fast-Track Rate',
-              value: `${kpis?.fastTrackPercentage || 0}%`,
-              color: '#3C7844',
-              icon: Zap,
-              onClick: undefined,
-            },
-            {
-              label: 'SLA Compliance',
-              value: (() => {
-                if (!kpis?.totalClaims) return '—';
-                // SLA Compliance = % of claims resolved within SLA window
-                // Derived from completionRate (closed ÷ total) as best available proxy
-                const rate = kpis?.completionRate ?? effectiveExecSummary?.resolutionRate ?? 0;
-                return `${Math.min(100, Math.round(rate))}%`;
-              })(),
-              color: '#68A890',
-              icon: CheckCircle,
-              onClick: undefined,
-            },
-            {
-              label: 'Executive Overrides',
-              value: String(overrideMetrics.count),
-              color: '#4878A8',
-              icon: AlertCircle,
-              onClick: () => { setDrillDownFilter('overridden'); setDrillDownTitle('Executive Override History'); setDrillDownOpen(true); },
-            },
-          ].map(({ label, value, color, icon: Icon, onClick }, i) => (
-            <div
-              key={i}
-              className="rounded-lg px-4 py-3 flex items-center gap-3"
-              style={{
-                background: 'var(--background)',
-                border: '1px solid var(--border)',
-                borderLeft: `3px solid ${color}`,
-                cursor: onClick ? 'pointer' : 'default',
-                fontFamily: 'Inter, sans-serif',
-              }}
-              onClick={onClick}
-            >
-              <Icon className="h-4 w-4 shrink-0" style={{ color }} />
-              <div>
-                <p className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-                <p className="text-base font-bold tabular-nums" style={{ color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* ── KPI Strip (C2) ── */}
+      <div className="flex justify-end max-w-[1600px] mx-auto px-8 pt-4 pb-1"><ReportsBadgeWidget compact /></div>
+      <PortalKPIStrip kpis={[
+        {
+          label: 'Total Claims',
+          value: execSummaryLoading ? '…' : (effectiveExecSummary?.totalClaims ?? kpis?.totalClaims ?? 0).toLocaleString(),
+          icon: <FileText className="h-4 w-4" />,
+          accent: 'blue',
+        },
+        {
+          label: 'KINGA Savings',
+          value: execSummaryLoading ? '…' : (() => { const s = effectiveExecSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100).toLocaleString()}` : '—'; })(),
+          icon: <TrendingUp className="h-4 w-4" />,
+          accent: 'green',
+        },
+        {
+          label: 'Resolution Rate',
+          value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.resolutionRate ?? 0).toFixed(1)}%`,
+          icon: <CheckCircle className="h-4 w-4" />,
+          accent: 'teal',
+        },
+        {
+          label: 'Avg Cycle Time',
+          value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.avgCycleDays ?? 0).toFixed(1)}d`,
+          icon: <Clock className="h-4 w-4" />,
+          accent: effectiveExecSummary?.avgCycleDays && effectiveExecSummary.avgCycleDays > 14 ? 'red' : 'green',
+        },
+        {
+          label: 'Fraud Exposure',
+          value: fmt((kpis?.fraudRiskAmount || 0) * 100),
+          icon: <AlertTriangle className="h-4 w-4" />,
+          accent: 'red',
+        },
+        {
+          label: 'SLA Compliance',
+          value: (() => {
+            if (!kpis?.totalClaims) return '—';
+            const rate = kpis?.completionRate ?? effectiveExecSummary?.resolutionRate ?? 0;
+            return `${Math.min(100, Math.round(rate))}%`;
+          })(),
+          icon: <ShieldCheck className="h-4 w-4" />,
+          accent: 'teal',
+        },
+      ] as PortalKPI[]} />
 
       {/* ── TAB SECTION ── */}
       <div className="max-w-[1600px] mx-auto px-8 pb-12">
