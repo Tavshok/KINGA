@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
-import KingaPortalShell, { PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
+import { KingaPortalShell, PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 
 // Maps each status card tab to the DB status value(s) used in getCases
 const STATUS_CARDS = [

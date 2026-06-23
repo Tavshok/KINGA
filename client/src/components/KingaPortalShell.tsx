@@ -1,48 +1,55 @@
 /**
  * KingaPortalShell — Unified Portal Layout Component
  *
- * KINGA Portal Design Standard v1.0
- * Every portal must use this shell to ensure consistent:
- * - Header (Standard 1)
- * - KPI Strip (Standard 2)
- * - Navigation / Tabs (Standard 3)
- * - Alert Visibility (Standard 4)
- * - Brand Palette (Standard 8)
+ * KINGA Portal Design Standard v1.0 — Phase 11 Visual Refresh
  *
- * Usage:
- *   <KingaPortalShell
- *     icon={<Shield />}
- *     title="Claims Processor"
- *     description="Manage incoming claims and trigger KINGA AI"
- *     kpis={[...]}
- *     alerts={[...]}
- *     tabs={[...]}
- *     activeTab={activeTab}
- *     onTabChange={setActiveTab}
- *     actions={<Button>...</Button>}
- *   >
- *     {tabContent}
- *   </KingaPortalShell>
+ * Shell layers (top → bottom):
+ *   1. IdentityStrip  — white bar: KINGA logo + portal name + user actions
+ *   2. Gold separator — 2px solid var(--p11-gold-400)
+ *   3. HeroBand       — dark green gradient: KPI grid (headline metric in gold)
+ *   4. Gold separator — 2px solid var(--p11-gold-400)
+ *   5. TabBar         — white, Inter medium, active = g-700 underline
+ *   6. AlertBar       — cream, left-accent severity strips
+ *   7. Body           — var(--p11-body-bg) content area
+ *
+ * Public API is unchanged — all 11 portals compile without modification.
  */
 
 import React from "react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 // ── Brand constants (KINGA Design Standard v1.0) ──────────────────────────────
-export const KINGA_GREEN = "#3C7844";
-export const KINGA_TEAL = "#68A890";
-export const KINGA_BLUE = "#4878A8";
-export const KINGA_RED = "#A32D2D";
-export const KINGA_AMBER = "#8A5C00";
+export const KINGA_GREEN    = "#3C7844";
+export const KINGA_TEAL     = "#68A890";
+export const KINGA_BLUE     = "#4878A8";
+export const KINGA_RED      = "#A32D2D";
+export const KINGA_AMBER    = "#8A5C00";
 export const KINGA_CHARCOAL = "#484840";
 
-export const KINGA_GREEN_BG = "#F0F7F2";
+export const KINGA_GREEN_BG    = "#F0F7F2";
 export const KINGA_GREEN_BORDER = "#C8E0CE";
-export const KINGA_TEAL_BG = "#EEF6F3";
-export const KINGA_BLUE_BG = "#EEF3F9";
-export const KINGA_RED_BG = "#FDF1F1";
-export const KINGA_AMBER_BG = "#FDF6EC";
+export const KINGA_TEAL_BG     = "#EEF6F3";
+export const KINGA_BLUE_BG     = "#EEF3F9";
+export const KINGA_RED_BG      = "#FDF1F1";
+export const KINGA_AMBER_BG    = "#FDF6EC";
+
+// ── Phase 11 shell palette ────────────────────────────────────────────────────
+const P11 = {
+  heroBgStart:    "#103A23",
+  heroBgEnd:      "#1C5C39",
+  goldSep:        "#D4A800",
+  heroText:       "#FFFFFF",
+  heroMuted:      "rgba(255,255,255,0.65)",
+  heroKpiBorder:  "rgba(255,255,255,0.12)",
+  heroHeadline:   "#E8C84A",   // gold-300 — headline metric number
+  tabActive:      "#1C5C39",
+  tabInactive:    "#6B7280",
+  alertBg:        "#FAFAFA",
+  bodyBg:         "#F7F8F6",
+  ink:            "#111827",
+  inkMuted:       "#6B7280",
+  line:           "#E5E7EB",
+};
 
 // ── KPI Card type ─────────────────────────────────────────────────────────────
 export interface PortalKPI {
@@ -51,10 +58,12 @@ export interface PortalKPI {
   icon: React.ReactNode;
   /** One of the KINGA brand accent colours */
   accent?: "green" | "teal" | "blue" | "red" | "amber" | "charcoal";
+  /** If true, renders this KPI as the headline metric (gold number, gold rule above) */
+  headline?: boolean;
   trend?: {
     value: string;
     direction: "up" | "down" | "neutral";
-    positive?: boolean; // true = green, false = red, undefined = neutral
+    positive?: boolean;
   };
 }
 
@@ -76,15 +85,15 @@ export interface PortalTab {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface KingaPortalShellProps {
-  /** Lucide icon element for the header icon container */
+  /** Lucide icon element for the identity strip icon container */
   icon: React.ReactNode;
   title: string;
   description?: string;
-  /** Optional right-side actions in the header */
+  /** Optional right-side actions in the identity strip */
   actions?: React.ReactNode;
-  /** KPI strip items */
+  /** KPI strip items — rendered in the dark hero band */
   kpis?: PortalKPI[];
-  /** Alert bar items (Attention Required / SLA / Escalation) */
+  /** Alert bar items */
   alerts?: PortalAlert[];
   /** Tab definitions */
   tabs?: PortalTab[];
@@ -94,177 +103,238 @@ interface KingaPortalShellProps {
   children?: React.ReactNode;
   /** Extra className on the outer wrapper */
   className?: string;
-  /** Show LIVE badge in header */
+  /** Show LIVE badge in identity strip */
   live?: boolean;
 }
 
-// ── Accent colour helpers ─────────────────────────────────────────────────────
-function accentColour(accent: PortalKPI["accent"]) {
-  switch (accent) {
-    case "teal":    return { bg: KINGA_TEAL_BG,  icon: KINGA_TEAL,     text: KINGA_TEAL };
-    case "blue":    return { bg: KINGA_BLUE_BG,  icon: KINGA_BLUE,     text: KINGA_BLUE };
-    case "red":     return { bg: KINGA_RED_BG,   icon: KINGA_RED,      text: KINGA_RED };
-    case "amber":   return { bg: KINGA_AMBER_BG, icon: KINGA_AMBER,    text: KINGA_AMBER };
-    case "charcoal":return { bg: "#F5F5F4",      icon: KINGA_CHARCOAL, text: KINGA_CHARCOAL };
-    default:        return { bg: KINGA_GREEN_BG, icon: KINGA_GREEN,    text: KINGA_GREEN };
-  }
-}
-
-function alertColour(severity: PortalAlert["severity"]) {
+// ── Alert colour helpers ──────────────────────────────────────────────────────
+function alertAccent(severity: PortalAlert["severity"]) {
   switch (severity) {
-    case "critical": return { bg: KINGA_RED_BG,   border: "#F5C6C6", text: KINGA_RED,   dot: KINGA_RED };
-    case "warning":  return { bg: KINGA_AMBER_BG, border: "#F5DFA0", text: KINGA_AMBER, dot: KINGA_AMBER };
-    default:         return { bg: KINGA_BLUE_BG,  border: "#BDD4EC", text: KINGA_BLUE,  dot: KINGA_BLUE };
+    case "critical": return { accent: "#A32D2D", bg: "#FDF1F1", border: "#F5C6C6", text: "#A32D2D" };
+    case "warning":  return { accent: "#8A5C00", bg: "#FDF6EC", border: "#F5DFA0", text: "#8A5C00" };
+    default:         return { accent: "#4878A8", bg: "#EEF3F9", border: "#BDD4EC", text: "#4878A8" };
   }
 }
 
-// ── PortalHeader ──────────────────────────────────────────────────────────────
+// ── PortalHeader (Phase 11: IdentityStrip) ────────────────────────────────────
 export function PortalHeader({
   icon, title, description, actions, live,
 }: Pick<KingaPortalShellProps, "icon" | "title" | "description" | "actions" | "live">) {
   return (
-    <div
-      className="flex items-center justify-between px-6 py-4 border-b"
-      style={{ background: "#fff", borderColor: "#E5E7EB" }}
-    >
-      {/* Left: icon + text */}
-      <div className="flex items-center gap-4">
-        <div
-          className="flex items-center justify-center rounded-lg flex-shrink-0"
-          style={{
-            width: 44, height: 44,
-            background: KINGA_GREEN,
-            color: "#fff",
-          }}
-        >
-          {icon}
-        </div>
-        <div>
+    <>
+      {/* ── Layer 1: White identity strip ── */}
+      <div
+        className="flex items-center justify-between px-6"
+        style={{
+          background: "#FFFFFF",
+          borderBottom: `1px solid ${P11.line}`,
+          minHeight: 60,
+        }}
+      >
+        {/* Left: logo + divider + portal name */}
+        <div className="flex items-center gap-0">
+          {/* KINGA logo */}
+          <img
+            src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png"
+            alt="KINGA"
+            style={{ height: 32, width: "auto", objectFit: "contain", flexShrink: 0 }}
+          />
+          {/* Vertical divider */}
+          <div
+            style={{
+              width: 1,
+              height: 28,
+              background: P11.line,
+              margin: "0 16px",
+              flexShrink: 0,
+            }}
+          />
+          {/* Portal name + optional description */}
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold" style={{ color: "#111827" }}>
+            <h1
+              className="text-base font-semibold leading-tight"
+              style={{ color: P11.ink, letterSpacing: "-0.01em" }}
+            >
               {title}
             </h1>
             {live && (
               <span
                 className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
-                style={{ background: KINGA_GREEN_BG, color: KINGA_GREEN, border: `1px solid ${KINGA_GREEN_BORDER}` }}
+                style={{
+                  background: KINGA_GREEN_BG,
+                  color: KINGA_GREEN,
+                  border: `1px solid ${KINGA_GREEN_BORDER}`,
+                }}
               >
                 <span
                   className="inline-block rounded-full"
-                  style={{ width: 6, height: 6, background: KINGA_GREEN }}
+                  style={{ width: 5, height: 5, background: KINGA_GREEN }}
                 />
                 LIVE
               </span>
             )}
           </div>
           {description && (
-            <p className="text-sm mt-0.5" style={{ color: "#6B7280" }}>
+            <span
+              className="text-sm ml-3 hidden md:inline"
+              style={{ color: P11.inkMuted }}
+            >
               {description}
-            </p>
+            </span>
           )}
         </div>
+
+        {/* Right: actions */}
+        {actions && (
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {actions}
+          </div>
+        )}
       </div>
-      {/* Right: actions */}
-      {actions && (
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {actions}
-        </div>
-      )}
-    </div>
+
+      {/* ── Gold separator ── */}
+      <div style={{ height: 2, background: P11.goldSep }} />
+    </>
   );
 }
 
-// ── PortalKPIStrip ────────────────────────────────────────────────────────────
+// ── PortalKPIStrip (Phase 11: HeroBand KPI grid) ──────────────────────────────
 export function PortalKPIStrip({ kpis }: { kpis: PortalKPI[] }) {
   if (!kpis || kpis.length === 0) return null;
+
+  // First kpi with headline=true gets gold treatment; fall back to first kpi
+  const headlineIndex = kpis.findIndex((k) => k.headline) ?? 0;
+
   return (
-    <div
-      className="grid border-b"
-      style={{
-        gridTemplateColumns: `repeat(${kpis.length}, 1fr)`,
-        background: "#fff",
-        borderColor: "#E5E7EB",
-      }}
-    >
-      {kpis.map((kpi, i) => {
-        const c = accentColour(kpi.accent);
-        return (
-          <div
-            key={i}
-            className="flex items-center gap-3 px-5 py-4"
-            style={{
-              borderRight: i < kpis.length - 1 ? "1px solid #E5E7EB" : undefined,
-            }}
-          >
-            {/* Icon container */}
+    <>
+      {/* ── Layer 3: Dark green hero band ── */}
+      <div
+        style={{
+          background: `linear-gradient(135deg, ${P11.heroBgStart} 0%, ${P11.heroBgEnd} 100%)`,
+          display: "grid",
+          gridTemplateColumns: `repeat(${kpis.length}, 1fr)`,
+        }}
+      >
+        {kpis.map((kpi, i) => {
+          const isHeadline = i === headlineIndex;
+          return (
             <div
-              className="flex items-center justify-center rounded-lg flex-shrink-0"
-              style={{ width: 36, height: 36, background: c.bg }}
+              key={i}
+              className="flex flex-col justify-center px-5 py-4"
+              style={{
+                borderRight:
+                  i < kpis.length - 1
+                    ? `1px solid ${P11.heroKpiBorder}`
+                    : undefined,
+                position: "relative",
+              }}
             >
-              <span style={{ color: c.icon, display: "flex" }}>{kpi.icon}</span>
-            </div>
-            {/* Value + label */}
-            <div className="min-w-0">
-              <div className="text-xl font-bold leading-tight" style={{ color: "#111827" }}>
-                {kpi.value}
-              </div>
-              <div className="text-xs font-medium truncate" style={{ color: "#6B7280" }}>
+              {/* Gold rule above headline metric */}
+              {isHeadline && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 20,
+                    right: 20,
+                    height: 2,
+                    background: P11.goldSep,
+                    borderRadius: "0 0 2px 2px",
+                  }}
+                />
+              )}
+
+              {/* Label */}
+              <div
+                className="text-xs font-medium uppercase tracking-wide mb-1"
+                style={{
+                  color: P11.heroMuted,
+                  letterSpacing: "0.06em",
+                  fontSize: "0.6875rem",
+                }}
+              >
                 {kpi.label}
               </div>
+
+              {/* Value */}
+              <div
+                className="font-bold leading-none"
+                style={{
+                  color: isHeadline ? P11.heroHeadline : P11.heroText,
+                  fontSize: isHeadline ? "1.5rem" : "1.25rem",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {kpi.value}
+              </div>
+
+              {/* Trend */}
               {kpi.trend && (
                 <div
-                  className="text-xs font-medium mt-0.5"
+                  className="text-xs font-medium mt-1"
                   style={{
                     color:
                       kpi.trend.positive === true
-                        ? KINGA_GREEN
+                        ? "#86EFAC"   // green-300 on dark bg
                         : kpi.trend.positive === false
-                        ? KINGA_RED
-                        : "#9CA3AF",
+                        ? "#FCA5A5"  // red-300 on dark bg
+                        : P11.heroMuted,
                   }}
                 >
                   {kpi.trend.value}
                 </div>
               )}
             </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+
+      {/* ── Gold separator ── */}
+      <div style={{ height: 2, background: P11.goldSep }} />
+    </>
   );
 }
 
-// ── PortalAlerts ──────────────────────────────────────────────────────────────
+// ── PortalAlerts (Phase 11: tight alert bar) ──────────────────────────────────
 export function PortalAlerts({ alerts }: { alerts: PortalAlert[] }) {
   if (!alerts || alerts.length === 0) return null;
   const visible = alerts.filter((a) => a.count > 0);
   if (visible.length === 0) return null;
+
   return (
     <div
-      className="flex items-center gap-3 px-6 py-3 border-b flex-wrap"
-      style={{ background: "#FAFAFA", borderColor: "#E5E7EB" }}
+      className="flex items-center gap-3 px-6 border-b flex-wrap"
+      style={{
+        background: P11.alertBg,
+        borderColor: P11.line,
+        minHeight: 44,
+        paddingTop: 10,
+        paddingBottom: 10,
+      }}
     >
-      <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>
+      <span
+        className="text-xs font-semibold uppercase tracking-wide flex-shrink-0"
+        style={{ color: "#9CA3AF", letterSpacing: "0.07em", fontSize: "0.6875rem" }}
+      >
         Attention Required
       </span>
       {visible.map((alert) => {
-        const c = alertColour(alert.severity);
+        const c = alertAccent(alert.severity);
         return (
           <button
             key={alert.id}
             onClick={alert.onClick}
-            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full transition-opacity hover:opacity-80"
+            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 transition-opacity hover:opacity-80"
             style={{
               background: c.bg,
               border: `1px solid ${c.border}`,
+              borderLeft: `3px solid ${c.accent}`,
+              borderRadius: 4,
               color: c.text,
               cursor: alert.onClick ? "pointer" : "default",
+              fontSize: "0.75rem",
             }}
           >
-            <span
-              className="inline-block rounded-full flex-shrink-0"
-              style={{ width: 6, height: 6, background: c.dot }}
-            />
             {alert.count} {alert.label}
           </button>
         );
@@ -273,7 +343,7 @@ export function PortalAlerts({ alerts }: { alerts: PortalAlert[] }) {
   );
 }
 
-// ── PortalTabBar ──────────────────────────────────────────────────────────────
+// ── PortalTabBar (Phase 11: clean Inter tab bar) ──────────────────────────────
 export function PortalTabBar({
   tabs, activeTab, onTabChange,
 }: {
@@ -284,7 +354,7 @@ export function PortalTabBar({
   return (
     <div
       className="flex items-center gap-1 px-6 border-b overflow-x-auto"
-      style={{ background: "#fff", borderColor: "#E5E7EB" }}
+      style={{ background: "#FFFFFF", borderColor: P11.line }}
       role="tablist"
     >
       {tabs.map((tab) => {
@@ -304,10 +374,14 @@ export function PortalTabBar({
             }}
             className="relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
             style={{
-              color: isActive ? KINGA_GREEN : "#6B7280",
-              borderBottom: isActive ? `2px solid ${KINGA_GREEN}` : "2px solid transparent",
+              color: isActive ? P11.tabActive : P11.tabInactive,
+              borderBottom: isActive
+                ? `2px solid ${P11.tabActive}`
+                : "2px solid transparent",
               background: "transparent",
               marginBottom: -1,
+              fontSize: "0.875rem",
+              letterSpacing: "-0.005em",
             }}
           >
             {tab.label}
@@ -315,9 +389,12 @@ export function PortalTabBar({
               <span
                 className="inline-flex items-center justify-center rounded-full text-xs font-semibold"
                 style={{
-                  minWidth: 18, height: 18, padding: "0 5px",
-                  background: isActive ? KINGA_GREEN : "#E5E7EB",
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 5px",
+                  background: isActive ? P11.tabActive : P11.line,
                   color: isActive ? "#fff" : "#374151",
+                  fontSize: "0.6875rem",
                 }}
               >
                 {tab.badge}
@@ -337,27 +414,34 @@ export function KingaPortalShell({
   children, className,
 }: KingaPortalShellProps) {
   return (
-    <div className={cn("flex flex-col min-h-full", className)} style={{ background: "#F9FAFB" }}>
-      {/* 1 — Header */}
-      <PortalHeader icon={icon} title={title} description={description} actions={actions} live={live} />
+    <div
+      className={cn("flex flex-col min-h-full", className)}
+      style={{ background: P11.bodyBg }}
+    >
+      {/* 1+2 — Identity strip + gold separator */}
+      <PortalHeader
+        icon={icon}
+        title={title}
+        description={description}
+        actions={actions}
+        live={live}
+      />
 
-      {/* 2 — KPI Strip */}
+      {/* 3+4 — Hero band KPI grid + gold separator */}
       {kpis && kpis.length > 0 && <PortalKPIStrip kpis={kpis} />}
 
-      {/* 3 — Alert Bar */}
-      {alerts && alerts.length > 0 && <PortalAlerts alerts={alerts} />}
-
-      {/* 4 — Tab Bar */}
+      {/* 5 — Tab bar */}
       {tabs && tabs.length > 0 && activeTab && onTabChange && (
         <PortalTabBar tabs={tabs} activeTab={activeTab} onTabChange={onTabChange} />
       )}
 
-      {/* 5 — Content */}
+      {/* 6 — Alert bar */}
+      {alerts && alerts.length > 0 && <PortalAlerts alerts={alerts} />}
+
+      {/* 7 — Content */}
       <div className="flex-1 p-6">
         {children}
       </div>
     </div>
   );
 }
-
-export default KingaPortalShell;

@@ -14,33 +14,33 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#10b981" />
     
-    <!-- Inter font for Executive Dashboard premium typography -->
+    <!-- Phase 11: Inter (UI) + JetBrains Mono (claim IDs, numerics) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800&display=swap" rel="stylesheet" />
-    <!-- KINGA Design Prompt v2: Helvetica / system-ui for body; Courier New for monospace -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <style>
-      /* Apply Helvetica/system-ui globally as per KINGA Design Prompt v2 */
+      /* Phase 11 — Global typography baseline */
       :root {
-        --font-sans: Helvetica, Arial, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        --font-mono: 'Courier New', Courier, monospace;
+        --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        --font-mono: 'JetBrains Mono', 'Courier New', Courier, monospace;
       }
       body {
         font-family: var(--font-sans);
         font-weight: 400;
-      }
-      /* Executive Dashboard: scoped Inter typography for premium BI feel */
-      .exec-dashboard {
-        font-family: 'Inter', Helvetica, Arial, system-ui, sans-serif;
+        /* Inter optical sizing + tabular numerics platform-wide */
         font-feature-settings: 'tnum' 1, 'cv02' 1, 'cv03' 1, 'cv04' 1;
-      }
-      .exec-dashboard .tabular-nums {
         font-variant-numeric: tabular-nums;
       }
-      /* Monospace: SHA-256 hash, document identity strip, run IDs */
+      /* Monospace: claim IDs, SHA-256 hashes, run IDs, document identity */
       .font-mono, code, pre, .mono,
-      .report-hash, .report-run-id, .report-identity {
+      .claim-id, .report-hash, .report-run-id, .report-identity {
         font-family: var(--font-mono) !important;
+        font-variant-numeric: tabular-nums;
+      }
+      /* Legacy exec-dashboard scope — kept for backward compat */
+      .exec-dashboard {
+        font-family: var(--font-sans);
+        font-feature-settings: 'tnum' 1, 'cv02' 1, 'cv03' 1, 'cv04' 1;
       }
     </style>
   </head>

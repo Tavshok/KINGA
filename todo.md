@@ -464,3 +464,17 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] S6-T5: Wire PortalAlerts across all 10 non-Assessor portals
 - [ ] S6-T6: Add C12 empty/error states to Fleet Manager, Claimant, Insurer Admin, Panel Beater
 - [ ] S6-VERIFY: Full 12-criterion re-score, tsc --noEmit baseline confirmation
+
+## Phase 11 — Design System Implementation
+
+- [ ] P11-1: CSS token foundation — index.css overhaul (g-950→g-100, gold, cream, tabular-nums, JetBrains Mono)
+- [ ] P11-2: Rebuild KingaPortalShell — IdentityStrip + HeroBand + PortalKPIStrip + TabBar + AlertBar
+- [ ] P11-3: Claims Manager — Phase 11 reskin (data table, escalation queue, attention panel)
+- [ ] P11-4: Executive Dashboard — Phase 11 reskin (Overview tab: ageing chart, fraud funnel, escalation queue, period comparison, AI confidence)
+- [ ] P11-5: Risk Manager — Phase 11 reskin
+- [ ] P11-6: Claims Processor — Phase 11 reskin
+- [ ] P11-7: Fleet Manager — Phase 11 reskin
+- [ ] P11-8: Claimant — Phase 11 reskin
+- [ ] P11-9: Panel Beater — Phase 11 reskin
+- [ ] P11-10: Admin, Insurer Admin, Assessor, Recovery — Phase 11 reskin
+- [ ] P11-11: Full visual QA + TS baseline + checkpoint

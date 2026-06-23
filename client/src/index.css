@@ -217,6 +217,63 @@
   --fp-badge-bg: oklch(0.94 0.01 250);           /* generic badge bg */
   --fp-badge-text: oklch(0.35 0.02 250);         /* generic badge text */
 
+  /* ── Phase 11 Portal Shell Tokens ──────────────────────────────────────────
+   * Green scale: g-950 (darkest) → g-100 (lightest)
+   * Gold scale:  gold-700 → gold-100
+   * Used exclusively by KingaPortalShell and portal pages
+   * ────────────────────────────────────────────────────────────────────────── */
+  --p11-g-950: #061A0C;
+  --p11-g-900: #0A2B14;
+  --p11-g-800: #103A23;
+  --p11-g-700: #1C5C39;
+  --p11-g-600: #2D7A52;
+  --p11-g-500: #3C7844;
+  --p11-g-400: #68A890;
+  --p11-g-300: #A8CCBC;
+  --p11-g-200: #D4E8DF;
+  --p11-g-100: #EEF6F2;
+
+  --p11-gold-700: #7A5A00;
+  --p11-gold-600: #A07800;
+  --p11-gold-500: #C49A00;
+  --p11-gold-400: #D4A800;
+  --p11-gold-300: #E8C84A;
+  --p11-gold-200: #F2DC8A;
+  --p11-gold-100: #FBF4D0;
+
+  --p11-cream: #FAF7F1;
+  --p11-ink: #111827;
+  --p11-ink-muted: #6B7280;
+  --p11-line: #E5E7EB;
+  --p11-line-subtle: #F3F4F6;
+  --p11-body-bg: #F7F8F6;
+
+  /* Shell layer backgrounds */
+  --p11-identity-bg: #FFFFFF;
+  --p11-hero-bg-start: #103A23;
+  --p11-hero-bg-end: #1C5C39;
+  --p11-hero-separator: var(--p11-gold-400);
+  --p11-hero-text: #FFFFFF;
+  --p11-hero-text-muted: rgba(255,255,255,0.65);
+  --p11-hero-kpi-border: rgba(255,255,255,0.12);
+
+  /* Tab bar */
+  --p11-tab-bg: #FFFFFF;
+  --p11-tab-active-color: var(--p11-g-700);
+  --p11-tab-active-border: var(--p11-g-700);
+  --p11-tab-inactive-color: #6B7280;
+
+  /* Alert bar */
+  --p11-alert-bg: #FAFAFA;
+  --p11-alert-critical-accent: #A32D2D;
+  --p11-alert-warning-accent: #8A5C00;
+  --p11-alert-info-accent: #4878A8;
+
+  /* Content body */
+  --p11-card-bg: #FFFFFF;
+  --p11-card-border: #E5E7EB;
+  --p11-card-radius: 10px;
+
   --sidebar: #F8FAFC;                        /* Slate-50 sidebar bg */
   --sidebar-foreground: #1A1A1A;             /* Near-black sidebar text */
   --sidebar-accent: #ECFDF5;                 /* Emerald-50 hover — spec §1 */
