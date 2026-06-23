@@ -45,24 +45,41 @@ export function ClaimsAgeingPanel({ compact }: { compact?: boolean } = {}) {
           {buckets.map(b => (
             <div
               key={b.label}
-              className="flex items-center justify-between rounded-md px-3 py-2"
+              className="flex items-center justify-between rounded-md px-3 py-2.5"
               style={{
                 background: 'var(--muted)',
                 borderLeft: `3px solid ${b.color}`,
               }}
             >
+              {/* Left: colour dot + age label */}
               <div className="flex items-center gap-2.5">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: b.color }} />
-                <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{b.label}</span>
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: b.color }} />
+                <span className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{b.label}</span>
               </div>
-              <div className="text-right">
-                <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>
-                  {b.count}
-                </span>
-                {b.value > 0 && (
-                  <span className="text-xs ml-2" style={{ color: 'var(--muted-foreground)' }}>
-                    {fmt(b.value)}
+              {/* Right: count pill + exposure value */}
+              <div className="flex items-center gap-3">
+                {/* Claim count — prominent */}
+                <div className="flex items-center gap-1">
+                  <span className="text-base font-bold tabular-nums" style={{ color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                    {b.count}
                   </span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>claim{b.count !== 1 ? 's' : ''}</span>
+                </div>
+                {/* Exposure value — clearly styled, not muted */}
+                {b.value > 0 && (
+                  <div
+                    className="px-2 py-0.5 rounded text-xs font-semibold tabular-nums"
+                    style={{
+                      background: `${b.color}22`,
+                      color: b.color,
+                      border: `1px solid ${b.color}44`,
+                      fontVariantNumeric: 'tabular-nums',
+                      minWidth: '64px',
+                      textAlign: 'right',
+                    }}
+                  >
+                    {fmt(b.value)}
+                  </div>
                 )}
               </div>
             </div>
