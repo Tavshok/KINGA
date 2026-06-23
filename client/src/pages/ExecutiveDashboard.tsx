@@ -450,7 +450,7 @@ export default function ExecutiveDashboard() {
             </button>
             <button style={{ padding: '7px 16px', border: 'none', borderRadius: '6px', background: '#B8923A', color: '#FFFFFF', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <FileText className="h-3 w-3" />
-              Board Report
+              Executive Report
             </button>
           </div>
         </div>
