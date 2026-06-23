@@ -885,7 +885,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white dark:bg-card rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
+                  <div className="rounded-lg p-4" style={{ background: '#FFFFFF', border: '1px solid #B8D4C0', borderRadius: 8 }}>
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3C7844" }} />
                       <span className="text-sm font-medium">Auto-Feed Active</span>
@@ -894,7 +894,7 @@ export default function AdminDashboard() {
                       Every approved/completed claim automatically feeds into the historical database for model improvement
                     </p>
                   </div>
-                  <div className="bg-white dark:bg-card rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
+                  <div className="rounded-lg p-4" style={{ background: '#FFFFFF', border: '1px solid #B8D4C0', borderRadius: 8 }}>
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3C7844" }} />
                       <span className="text-sm font-medium">Cost Benchmarks</span>
@@ -903,7 +903,7 @@ export default function AdminDashboard() {
                       New claims are automatically compared against historical cost data for the same vehicle make/model
                     </p>
                   </div>
-                  <div className="bg-white dark:bg-card rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
+                  <div className="rounded-lg p-4" style={{ background: '#FFFFFF', border: '1px solid #B8D4C0', borderRadius: 8 }}>
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3C7844" }} />
                       <span className="text-sm font-medium">Fraud Pattern Learning</span>

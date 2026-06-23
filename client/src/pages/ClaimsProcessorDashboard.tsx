@@ -92,7 +92,7 @@ export default function ClaimsProcessorDashboard() {
   // Role validation — allow admin users to bypass for testing
   if (user?.role !== "admin" && user?.insurerRole !== "claims_processor") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-muted/50">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F7F8F6' }}>
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600">
@@ -994,7 +994,7 @@ export default function ClaimsProcessorDashboard() {
     const sectionId = section === "pending" ? "intake-queue" : section === "in_review" ? "in-progress" : section === "ai_flagged" ? "ai-flagged" : "completed";
 
     return (
-      <Card id={sectionId} className={`shadow-lg border-t-4 ${borderColor} scroll-mt-20`}>
+      <Card id={sectionId} className="scroll-mt-20 shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
         <CardHeader className={`${headerBg} rounded-t-lg`}>
           <CardTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
@@ -1037,7 +1037,7 @@ export default function ClaimsProcessorDashboard() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
+    <div className="min-h-screen" style={{ background: 'var(--p11-body-bg, #F7F8F6)' }}>
       {/* C3 — PortalAlerts: AI-flagged claims + pending intake */}
       <PortalAlerts alerts={[
         {

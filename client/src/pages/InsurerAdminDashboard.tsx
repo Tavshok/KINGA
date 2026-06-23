@@ -270,7 +270,7 @@ export default function InsurerAdminDashboard() {
               return (
                 <Card
                   key={action.label}
-                  className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                  className="cursor-pointer transition-shadow" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF', boxShadow: 'none' }}
                   onClick={() => setLocation(action.href)}
                 >
                   <CardContent className="p-4 flex flex-col gap-3">
@@ -347,7 +347,7 @@ export default function InsurerAdminDashboard() {
           {/* Admin profile + role directory */}
           <div className="space-y-4">
             {/* Admin profile card */}
-            <Card className="border-0 shadow-sm">
+            <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-semibold">Your Admin Profile</CardTitle>
               </CardHeader>
@@ -383,7 +383,7 @@ export default function InsurerAdminDashboard() {
             </Card>
 
             {/* Role directory */}
-            <Card className="border-0 shadow-sm">
+            <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-semibold">Portal Roles</CardTitle>
               </CardHeader>
@@ -432,7 +432,7 @@ export default function InsurerAdminDashboard() {
             <History className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">Recent Governance Activity</h2>
           </div>
-          <Card className="border-0 shadow-sm">
+          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
             <CardContent className="px-0 pb-0">
               {auditLoading ? (
                 <div className="flex items-center justify-center py-8">

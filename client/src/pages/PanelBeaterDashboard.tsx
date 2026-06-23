@@ -167,7 +167,7 @@ export default function PanelBeaterDashboard() {
 
         {/* ── SIGNATURE CHARTS (always visible) ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <Card className="border shadow-sm">
+          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-blue-500" />
@@ -202,7 +202,7 @@ export default function PanelBeaterDashboard() {
               </div>
             </CardContent>
           </Card>
-          <Card className="border shadow-sm">
+          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-emerald-500" />

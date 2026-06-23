@@ -291,7 +291,7 @@ function InsurerIntelligencePanel() {
   const { data, isLoading } = trpc.recovery.getInsurerIntelligence.useQuery();
   if (isLoading || !data || data.length === 0) return null;
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
+    <div className="rounded-lg p-5" style={{ border: '1px solid #E5E7EB', background: '#FFFFFF' }}>
       <div className="flex items-center gap-2 mb-4">
         <Building2 className="h-4 w-4 text-violet-400" />
         <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Third-Party Insurer Intelligence</h3>
