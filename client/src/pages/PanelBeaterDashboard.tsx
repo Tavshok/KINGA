@@ -16,13 +16,14 @@ import {
   FileText, Clock, CheckCircle, DollarSign, FileEdit, Star,
   TrendingUp, AlertTriangle, BarChart3, Wrench, Award, RefreshCw,
   ChevronRight, Eye, Phone, MapPin, Calendar, Hammer
-} from "lucide-react";
+, Download} from "lucide-react";
 import { useLocation } from "wouter";
 import KingaLogo from "@/components/KingaLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
 import { KingaReportButton } from "@/components/KingaReportButton";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
+import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/components/PortalHeroBand";
 import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 
 function PerformanceTierBadge({ tier }: { tier: string | null | undefined }) {
@@ -92,78 +93,32 @@ export default function PanelBeaterDashboard() {
   const avgQualityScore = profile?.avgQualityScore ? parseFloat(String(profile.avgQualityScore)) : null;
 
   return (
-    <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
-      {/* C3 — PortalAlerts: pending quote requests + submitted awaiting approval */}
-      <PortalAlerts alerts={[
-        {
-          id: "pending-requests",
-          severity: "critical" as const,
-          label: "quote request(s) awaiting your response",
-          count: pendingRequests.length,
-          onClick: () => setActiveTab("queue"),
-        },
-        {
-          id: "submitted-quotes",
-          severity: "warning" as const,
-          label: "submitted quote(s) awaiting insurer approval",
-          count: submittedQuotes,
-          onClick: () => setActiveTab("history"),
-        },
-      ] as PortalAlert[]}
+    <div className="min-h-screen" style={{ background: '#F7F8F6', fontFamily: 'Inter, sans-serif' }}>
+      <PortalHeroBand
+        portalName="Panel Beater Portal"
+        title={profile?.businessName ?? 'Repair Partner Workspace'}
+        subtitle="Last refreshed: just now"
+        actions={[
+          { label: 'Export Performance', icon: <Download className="h-3 w-3" />, primary: true },
+        ]}
+        kpis={[
+          { label: 'Quote Requests', value: pendingRequests.length, delta: 'Awaiting response', up: null, headline: true },
+          { label: 'Acceptance Rate', value: myAnalytics?.stats?.acceptanceRate != null ? `${myAnalytics.stats.acceptanceRate}%` : '—', delta: 'Approved / submitted', up: (myAnalytics?.stats?.acceptanceRate ?? 0) >= 70 },
+          { label: 'Avg Variance', value: myAnalytics?.stats?.avgVariancePct != null ? `${myAnalytics.stats.avgVariancePct > 0 ? '+' : ''}${myAnalytics.stats.avgVariancePct}%` : '—', delta: 'vs KINGA estimate', up: Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) <= 5 },
+          { label: 'Approved Revenue', value: fmt(totalRevenue), delta: 'This period', up: true },
+        ]}
       />
-      {/* Header (C1) */}
-      <PortalHeader
-        icon={<Hammer className="h-5 w-5 text-white" />}
-        title="Panel Beater Portal"
-        description={profile?.businessName ?? 'Repair partner workspace'}
-        live
-        actions={
-          <div className="flex items-center gap-2">
-            <KingaReportButton
-              reportKey="portfolio.panel_beater_performance"
-              label="Export Performance Report"
-              variant="outline"
-              size="sm"
-            />
-            <RoleSwitcher />
-            <NotificationBell />
-            <Button variant="outline" size="sm" onClick={() => logout()}>
-              Sign Out
-            </Button>
-          </div>
-        }
+      <ProtoAlertBar
+        alerts={[
+          { count: pendingRequests.length, label: 'pending quote request(s) awaiting your response', severity: 'amber' },
+        ]}
+        ctaLabel="View requests"
       />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
 
 
-        {/* ── KPI STRIP (C2) ── */}
-        <PortalKPIStrip kpis={[
-          {
-            label: 'Quote Requests',
-            value: pendingRequests.length,
-            icon: <FileText className="h-4 w-4" />,
-            accent: pendingRequests.length > 0 ? 'amber' : 'charcoal',
-          },
-          {
-            label: 'Acceptance Rate',
-            value: myAnalytics?.stats?.acceptanceRate != null ? `${myAnalytics.stats.acceptanceRate}%` : '—',
-            icon: <CheckCircle className="h-4 w-4" />,
-            accent: (myAnalytics?.stats?.acceptanceRate ?? 0) >= 70 ? 'green' : (myAnalytics?.stats?.acceptanceRate ?? 0) >= 50 ? 'amber' : 'red',
-          },
-          {
-            label: 'Avg Variance',
-            value: myAnalytics?.stats?.avgVariancePct != null ? `${myAnalytics.stats.avgVariancePct > 0 ? '+' : ''}${myAnalytics.stats.avgVariancePct}%` : '—',
-            icon: <TrendingUp className="h-4 w-4" />,
-            accent: Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) > 15 ? 'red' : Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) > 5 ? 'amber' : 'green',
-          },
-          {
-            label: 'Approved Revenue',
-            value: fmt(totalRevenue),
-            icon: <DollarSign className="h-4 w-4" />,
-            accent: 'teal',
-          },
-        ] as PortalKPI[]} />
+
 
         {/* ── SIGNATURE CHARTS (always visible) ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

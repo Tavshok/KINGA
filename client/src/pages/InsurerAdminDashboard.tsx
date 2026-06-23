@@ -12,6 +12,7 @@
  */
 
 import InsurerPortalLayout from "@/components/InsurerPortalLayout";
+import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/components/PortalHeroBand";
 import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { PendingTeamRequestQueue } from "@/components/insurer/PendingTeamRequestQueue";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -41,6 +42,7 @@ import {
   ArrowRight,
   History,
   UserCog,
+  Download,
 } from "lucide-react";
 
 // ─── Role display helpers ─────────────────────────────────────────────────────
@@ -210,56 +212,32 @@ export default function InsurerAdminDashboard() {
   ];
 
   return (
-    <InsurerPortalLayout>
-      <div className="p-6 space-y-6">
-        {/* C3 — PortalAlerts: submitted claims + fraud-flagged */}
-        <PortalAlerts alerts={[
-          {
-            id: "submitted-claims",
-            severity: "critical" as const,
-            label: "submitted claim(s) awaiting triage",
-            count: submittedClaims.length,
-          },
-          {
-            id: "fraud-flagged",
-            severity: "warning" as const,
-            label: "fraud-flagged claim(s) requiring review",
-            count: fraudClaims.length,
-          },
-        ] as PortalAlert[]}
-        />
-        {/* ── Page header (C1) ── */}
-        <PortalHeader
-          icon={<Building2 className="h-5 w-5 text-white" />}
-          title="Insurer Administration"
-          description={`${(user as any)?.tenantName ?? 'Your Organisation'} — company-wide overview, team management, and portal configuration`}
-          live
-          actions={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRefreshKey(k => k + 1)}
-            >
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-              Refresh
-            </Button>
-          }
-        />
-
-        {/* ── KPI Strip (C2) ── */}
-        <PortalKPIStrip kpis={kpiCards.map(card => ({
+    <div className="min-h-screen" style={{ background: '#F7F8F6', fontFamily: 'Inter, sans-serif' }}>
+      <PortalHeroBand
+        portalName="Insurer Administration"
+        title={(user as any)?.tenantName ?? 'Your Organisation'}
+        subtitle="Company-wide overview, team management, and portal configuration"
+        actions={[
+          { label: 'Refresh', icon: <RefreshCw className="h-3 w-3" />, onClick: () => setRefreshKey(k => k + 1) },
+          { label: 'Export Report', icon: <Download className="h-3 w-3" />, primary: true },
+        ]}
+        kpis={kpiCards.map(card => ({
           label: card.label,
           value: kpisLoading ? '…' : card.value,
-          icon: <card.icon className="h-4 w-4" />,
-          accent: card.color.includes('red') ? 'red'
-            : card.color.includes('green') ? 'green'
-            : card.color.includes('teal') ? 'teal'
-            : card.color.includes('orange') ? 'amber'
-            : card.color.includes('purple') ? 'blue'
-            : 'blue',
-        } as PortalKPI))} />
-
-        {/* ── Quick actions ── */}
+          delta: '',
+          up: null as any,
+          headline: false,
+        }))}
+      />
+      <ProtoAlertBar
+        alerts={[
+          { count: submittedClaims.length, label: 'submitted claim(s) awaiting triage', severity: 'red' as const },
+          { count: fraudClaims.length, label: 'fraud-flagged claim(s) requiring review', severity: 'amber' as const },
+        ]}
+        ctaLabel="View all alerts"
+      />
+      <div className="p-6 space-y-6">
+                {/* ── Quick actions ── */}
         <section>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
             Quick Actions
@@ -482,6 +460,6 @@ export default function InsurerAdminDashboard() {
           </Card>
         </section>
       </div>
-    </InsurerPortalLayout>
+    </div>
   );
 }

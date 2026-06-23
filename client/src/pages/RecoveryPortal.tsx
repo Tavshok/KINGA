@@ -1,6 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { Scale, ClipboardList, Search, Activity, Send, Gavel, CheckSquare, Archive, TrendingUp, Clock, DollarSign, AlertTriangle, ChevronRight, RefreshCw, Building2 } from "lucide-react";
+import { Scale, ClipboardList, Search, Activity, Send, Gavel, CheckSquare, Archive, TrendingUp, Clock, DollarSign, AlertTriangle, ChevronRight, RefreshCw, Building2, Download } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
 import { KingaPortalShell, PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
+import { PortalHeroBand, ProtoAlertBar } from "@/components/PortalHeroBand";
 
 // Maps each status card tab to the DB status value(s) used in getCases
 const STATUS_CARDS = [
@@ -101,36 +102,30 @@ export default function RecoveryPortal() {
   ];
 
   return (
-    <KingaPortalShell
-      icon={<Scale size={22} />}
-      title="Recovery Dashboard"
-      description="Subrogation & third-party recovery case management"
-      live
-      kpis={portalKPIs}
-      alerts={[
-        {
-          id: "approaching-deadlines",
-          severity: "critical" as const,
-          label: "recovery case(s) approaching 90-day deadline",
-          count: kpis?.approachingDeadlines ?? 0,
-          onClick: () => setActiveTab("approaching"),
-        },
-        {
-          id: "pending-cases",
-          severity: "warning" as const,
-          label: "recovery case(s) pending action",
-          count: kpis?.pendingReview ?? kpis?.open ?? 0,
-          onClick: () => setActiveTab(null),
-        },
-      ] as PortalAlert[]}
-      actions={
-        <Button variant="ghost" size="sm" onClick={() => refetchKPIs()} className="gap-2 text-muted-foreground">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
-      }
-    >
-      <div className="space-y-6">
+    <div className="min-h-screen" style={{ background: '#F7F8F6', fontFamily: 'Inter, sans-serif' }}>
+      <PortalHeroBand
+        portalName="Recovery Portal"
+        title="Recovery Dashboard"
+        subtitle="Subrogation & third-party recovery case management"
+        actions={[
+          { label: 'Refresh', icon: <RefreshCw className="h-3 w-3" />, onClick: () => refetchKPIs() },
+          { label: 'Export Report', icon: <Download className="h-3 w-3" />, primary: true },
+        ]}
+        kpis={[
+          { label: 'Total Quantum', value: kpisLoading ? '—' : fmtCurrency(kpis?.totalSettlementAmount ?? 0), delta: 'Settlement value', up: null, headline: true },
+          { label: 'Recovery Rate', value: kpisLoading ? '—' : `${kpis?.recoveryRate ?? 0}%`, delta: 'Of total quantum', up: (kpis?.recoveryRate ?? 0) >= 50 },
+          { label: 'Total Recovered', value: kpisLoading ? '—' : fmtCurrency(kpis?.totalRecovered ?? 0), delta: 'Collected', up: true },
+          { label: 'Approaching Deadline', value: kpisLoading ? '—' : (kpis?.approachingDeadlines ?? 0), delta: 'Within 90 days', up: false },
+        ]}
+      />
+      <ProtoAlertBar
+        alerts={[
+          { count: kpis?.approachingDeadlines ?? 0, label: 'recovery case(s) approaching 90-day deadline', severity: 'red', onClick: () => setActiveTab('approaching') },
+          { count: kpis?.pendingReview ?? kpis?.open ?? 0, label: 'recovery case(s) pending action', severity: 'amber', onClick: () => setActiveTab(null) },
+        ]}
+        ctaLabel="View all alerts"
+      />
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
 
         {/* Recovery deadline warning banner */}
         {kpis && kpis.approachingDeadlines > 0 && (
@@ -283,7 +278,7 @@ export default function RecoveryPortal() {
         {/* Inter-Insurer Intelligence Panel */}
         <InsurerIntelligencePanel />
       </div>
-    </KingaPortalShell>
+    </div>
   );
 }
 

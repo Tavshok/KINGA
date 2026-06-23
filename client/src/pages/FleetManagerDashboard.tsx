@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FleetVehicleTrackingTab } from "@/components/FleetVehicleTrackingTab";
+import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/components/PortalHeroBand";
 import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { FleetRiskAnalyticsTab } from "@/components/FleetRiskAnalyticsTab";
 import {
@@ -318,53 +319,26 @@ export default function FleetManagerDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* C3 — PortalAlerts: SLA breaches + active claims */}
-      <PortalAlerts alerts={[
-        {
-          id: "sla-breach",
-          severity: "critical" as const,
-          label: "active claim(s) breached 72-hour SLA",
-          count: activeClaims.filter((c) => {
-            const submitted = c.createdAt ? new Date(c.createdAt).getTime() : 0;
-            return submitted > 0 && Date.now() - submitted > 72 * 3_600_000;
-          }).length,
-          onClick: () => setTab("active"),
-        },
-        {
-          id: "active-claims",
-          severity: "warning" as const,
-          label: "active claim(s) in progress",
-          count: activeClaims.length,
-          onClick: () => setTab("active"),
-        },
-      ] as PortalAlert[]}
+    <div className="min-h-screen" style={{ background: '#F7F8F6', fontFamily: 'Inter, sans-serif' }}>
+      <PortalHeroBand
+        portalName="Fleet Manager"
+        title="Fleet Management Overview"
+        subtitle="Last refreshed: just now"
+        actions={[
+          { label: 'Export Report', icon: <Download className="h-3 w-3" />, primary: true },
+        ]}
+        kpis={[
+          { label: 'Active Claims', value: 0, delta: 'In progress', up: null, headline: true },
+          { label: 'Fleet Vehicles', value: 0, delta: 'Registered', up: null },
+          { label: 'Pending Review', value: 0, delta: 'Awaiting action', up: false },
+          { label: 'SLA Breached', value: 0, delta: '>72h outstanding', up: false },
+        ]}
       />
-      {/* Header — PortalHeader (C1) */}
-      <PortalHeader
-        icon={<Building2 className="h-5 w-5" />}
-        title={primaryAccount.accountName}
-        description={`Fleet Manager Dashboard — ${user?.name ?? ''}`}
-        live
-        actions={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => downloadCSV(activeClaims, `${primaryAccount.accountName}-active-claims-${new Date().toISOString().slice(0, 10)}.csv`)}>
-              <Download className="mr-2 h-4 w-4" />Export Active
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => downloadCSV(completedClaims, `${primaryAccount.accountName}-completed-claims-${new Date().toISOString().slice(0, 10)}.csv`)}>
-              <Download className="mr-2 h-4 w-4" />Export Completed
-            </Button>
-          </div>
-        }
-      />
+      <div className="p-6 space-y-6 max-w-7xl mx-auto">
 
-      {/* KPI Strip — PortalKPIStrip (C2) */}
-      <PortalKPIStrip kpis={([
-        { label: 'Total Claims', value: allClaims.length, icon: <Car className="h-4 w-4" />, accent: 'blue' },
-        { label: 'Active', value: activeClaims.length, icon: <Clock className="h-4 w-4" />, accent: 'amber' },
-        { label: 'Completed', value: completedClaims.length, icon: <CheckCircle2 className="h-4 w-4" />, accent: 'green' },
-        { label: 'Unique Vehicles', value: new Set(allClaims.map((c) => c.vehicleRegistration)).size, icon: <Users className="h-4 w-4" />, accent: 'teal' },
-      ] as PortalKPI[])} />
+
+
+
 
       {/* Main navigation tabs */}
       <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-4">
@@ -640,5 +614,6 @@ export default function FleetManagerDashboard() {
         </TabsContent>
       </Tabs>
     </div>
+      </div>
   );
 }

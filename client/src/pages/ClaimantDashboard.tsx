@@ -18,6 +18,7 @@ import { useLocation } from "wouter";
 import KingaLogo from "@/components/KingaLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
+import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/components/PortalHeroBand";
 import { PortalHeader, PortalKPIStrip, PortalAlerts, PortalTabBar, type PortalKPI, type PortalAlert, type PortalTab } from "@/components/KingaPortalShell";
 
 // Claim status → step index (0-based, 5 steps total)
@@ -224,81 +225,25 @@ export default function ClaimantDashboard() {
   ];
 
   return (
-    <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
-      {/* Header (C1) */}
-      <PortalHeader
-        icon={<Car className="h-5 w-5 text-white" />}
-        title="My Claims Portal"
-        description="Track and manage your insurance claims"
-        live
-        actions={
-          <div className="flex items-center gap-2">
-            <RoleSwitcher />
-            <NotificationBell />
-            <Button variant="outline" size="sm" onClick={() => logout()}>
-              Sign Out
-            </Button>
-          </div>
-        }
+    <div className="min-h-screen" style={{ background: '#F7F8F6', fontFamily: 'Inter, sans-serif' }}>
+      <PortalHeroBand
+        portalName="My Claims Portal"
+        title={`Welcome back, ${user?.name?.split(' ')[0] || 'there'}`}
+        subtitle={activeClaims.length > 0 ? `${activeClaims.length} active claim${activeClaims.length > 1 ? 's' : ''} in progress` : 'No active claims — submit a new claim to get started'}
+        actions={[
+          { label: 'Submit New Claim', icon: <Plus className="h-3 w-3" />, onClick: () => setLocation('/claimant/submit-claim'), primary: true },
+        ]}
+        kpis={[
+          { label: 'Total Claims', value: myClaims.length, delta: 'All time', up: null, headline: true },
+          { label: 'Active', value: activeClaims.length, delta: 'In progress', up: null },
+          { label: 'Completed', value: completedClaims.length, delta: 'Resolved', up: true },
+          { label: 'Avg Resolution', value: avgResolutionDays !== null ? `${avgResolutionDays}d` : '—', delta: 'Days to resolve', up: avgResolutionDays !== null && avgResolutionDays <= 14 },
+        ]}
       />
-
-      {/* C3 — Alert bar */}
-      <PortalAlerts alerts={claimantAlerts} />
-
-      {/* C4 — Tab navigation */}
-      <PortalTabBar tabs={claimantTabs} activeTab={activeTab} onTabChange={setActiveTab} />
-
+      <ProtoAlertBar alerts={claimantAlerts.map((a: any) => ({ count: a.count, label: a.label, severity: a.severity === 'critical' ? 'red' : 'amber' }))} ctaLabel="View alerts" />
+      <ProtoTabBar tabs={claimantTabs.map((t: any) => ({ id: t.id, label: t.label, badge: t.badge }))} activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Welcome + Quick Action */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              Welcome back, {user?.name?.split(" ")[0] || "there"}
-            </h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {activeClaims.length > 0
-                ? `You have ${activeClaims.length} active claim${activeClaims.length > 1 ? "s" : ""} in progress`
-                : "No active claims — submit a new claim to get started"}
-            </p>
-          </div>
-          <Button
-            onClick={() => setLocation("/claimant/submit-claim")}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Submit New Claim
-          </Button>
-        </div>
-
-        {/* KPI Strip (C2) — always visible */}
-        <PortalKPIStrip kpis={[
-          {
-            label: 'Total Claims',
-            value: myClaims.length,
-            icon: <FileText className="h-4 w-4" />,
-            accent: 'blue',
-          },
-          {
-            label: 'Active',
-            value: activeClaims.length,
-            icon: <Clock className="h-4 w-4" />,
-            accent: activeClaims.length > 0 ? 'amber' : 'charcoal',
-          },
-          {
-            label: 'Completed',
-            value: completedClaims.length,
-            icon: <CheckCircle className="h-4 w-4" />,
-            accent: 'green',
-          },
-          {
-            label: 'Avg Resolution',
-            value: avgResolutionDays !== null ? `${avgResolutionDays}d` : '—',
-            icon: <Calendar className="h-4 w-4" />,
-            accent: avgResolutionDays !== null && avgResolutionDays > 14 ? 'amber' : 'teal',
-          },
-        ] as PortalKPI[]} />
-
-        {/* Tab-gated content */}
+                {/* Tab-gated content */}
         {activeTab === "quick-actions" ? (
           <div className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">

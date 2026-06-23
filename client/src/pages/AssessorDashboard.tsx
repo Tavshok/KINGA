@@ -14,7 +14,7 @@ import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import DashboardLayout from "@/components/DashboardLayout";
+import { PortalHeroBand, ProtoAlertBar, ProtoTabBar } from "@/components/PortalHeroBand";
 import {
   KingaPortalShell,
   KINGA_GREEN, KINGA_TEAL, KINGA_BLUE, KINGA_RED, KINGA_AMBER,
@@ -27,7 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AssessorSubscriptionBanner } from "@/components/AssessorSubscriptionBanner";
 import {
   ClipboardList, Eye, AlertTriangle, Clock, CheckCircle2,
-  Calendar, TrendingUp, Star, MapPin, Phone, BarChart3, ShieldAlert,
+  Calendar, TrendingUp, Star, MapPin, Phone, BarChart3, ShieldAlert, Download,
 } from "lucide-react";
 import { SLADeadlineChip, computeSLAFromCreatedAt } from "@/components/portal/SLADeadlineChip";
 
@@ -178,18 +178,32 @@ export default function AssessorDashboard() {
   ];
 
   return (
-    <DashboardLayout>
-      <KingaPortalShell
-        icon={<ClipboardList size={22} />}
-        title="Assessor Workspace"
-        description={`Welcome back, ${user?.name ?? "Assessor"} — manage your assessment queue and track performance`}
-        live
-        kpis={kpis}
-        alerts={alerts}
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      >
+    <div className="min-h-screen" style={{ background: '#F7F8F6', fontFamily: 'Inter, sans-serif' }}>
+      <PortalHeroBand
+        portalName="Assessor Workspace"
+        title={`Welcome back, ${user?.name ?? 'Assessor'}`}
+        subtitle="Manage your assessment queue and track performance"
+        actions={[
+          { label: 'Export Report', icon: <Download className="h-3 w-3" />, primary: true },
+        ]}
+        kpis={[
+          { label: 'Assigned Claims', value: perfLoading ? '—' : assignedClaims.length, delta: 'In queue', up: null, headline: true },
+          { label: 'Pending Assessment', value: perfLoading ? '—' : pendingAss, delta: 'Awaiting action', up: false },
+          { label: 'SLA Breached', value: perfLoading ? '—' : slaBreached, delta: 'Immediate action', up: false },
+          { label: 'Completed', value: perfLoading ? '—' : (perfData?.totalAssessmentsCompleted ?? 0), delta: 'Resolved', up: true },
+          { label: 'Throughput (7d)', value: perfLoading ? '—' : (perfData?.throughputThisWeek ?? 0), delta: 'This week', up: null },
+          { label: 'Performance Score', value: perfLoading ? '—' : `${perfData?.performanceScore ?? 0}%`, delta: 'Overall rating', up: (perfData?.performanceScore ?? 0) >= 70 },
+        ]}
+      />
+      <ProtoAlertBar
+        alerts={[
+          { count: slaBreached, label: 'SLA Breached — immediate action required', severity: 'red', onClick: () => setActiveTab('queue') },
+          { count: slaWarning, label: 'SLA Warning — approaching deadline', severity: 'amber', onClick: () => setActiveTab('queue') },
+        ]}
+        ctaLabel="View queue"
+      />
+      <ProtoTabBar tabs={tabs.map(t => ({ id: t.id, label: t.label, badge: t.badge }))} activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {/* Subscription banner */}
         <AssessorSubscriptionBanner />
 
@@ -313,7 +327,7 @@ export default function AssessorDashboard() {
             )}
           </div>
         )}
-      </KingaPortalShell>
-    </DashboardLayout>
+      </div>
+    </div>
   );
 }

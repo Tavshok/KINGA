@@ -9,7 +9,7 @@ function fmt(v: number) {
 
 const STAGE_COLORS = ['#6366F1', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981'];
 
-export function FraudInvestigationFunnel() {
+export function FraudInvestigationFunnel({ compact }: { compact?: boolean } = {}) {
   const { data, isLoading } = trpc.analytics.getFraudInvestigationFunnel.useQuery();
   const stages = data?.stages ?? [];
   const preventedLoss = data?.preventedLoss ?? 0;

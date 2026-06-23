@@ -18,9 +18,10 @@ import { Separator } from "@/components/ui/separator";
 import {
   Users, TrendingUp, AlertTriangle, CheckCircle, XCircle, Settings,
   Brain, Database, BarChart3, Target, Loader2, FileText, ArrowUpDown,
-  Activity, Zap, Shield, GitBranch
+  Activity, Zap, Shield, GitBranch, LogOut, Download
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
+import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/components/PortalHeroBand";
 import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -166,68 +167,34 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#F9FAFB" }}>
-      {/* C3 — PortalAlerts: submitted claims + high-risk flags */}
-      <PortalAlerts alerts={[
-        {
-          id: "submitted-claims",
-          severity: "critical" as const,
-          label: "new claim(s) awaiting intake processing",
-          count: submittedClaims.length,
-        },
-        {
-          id: "high-risk",
-          severity: "warning" as const,
-          label: "high-risk claim(s) (fraud score >70) requiring review",
-          count: highRiskClaims,
-        },
-      ] as PortalAlert[]}
+    <div className="min-h-screen" style={{ background: '#F7F8F6', fontFamily: 'Inter, sans-serif' }}>
+      <PortalHeroBand
+        portalName="Admin Panel"
+        title="System Management"
+        subtitle="KINGA AutoVerify · Platform Administration"
+        actions={[
+          { label: 'Sign Out', icon: <LogOut className="h-3 w-3" />, onClick: () => logout() },
+          { label: 'Export Report', icon: <Download className="h-3 w-3" />, primary: true },
+        ]}
+        kpis={[
+          { label: 'Total Claims', value: totalClaims, delta: 'All time', up: null, headline: true },
+          { label: 'High Risk Claims', value: highRiskClaims, delta: 'Fraud score >70', up: false },
+          { label: 'Completed Claims', value: completedClaims, delta: 'Resolved', up: true },
+          { label: 'Avg Processing', value: `${avgProcessingTime}d`, delta: 'Resolution time', up: avgProcessingTime <= 14 },
+        ]}
       />
-      {/* Header (C1) */}
-      <PortalHeader
-        icon={<Shield className="h-5 w-5 text-white" />}
-        title="Admin Panel"
-        description="System Management, KINGA Training & Configuration"
-        live
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => logout()}>
-              Sign Out
-            </Button>
-          </div>
-        }
+      <ProtoAlertBar
+        alerts={[
+          { count: submittedClaims.length, label: 'new claim(s) awaiting intake processing', severity: 'red' },
+          { count: highRiskClaims, label: 'high-risk claim(s) (fraud score >70) requiring review', severity: 'amber' },
+        ]}
+        ctaLabel="View all alerts"
       />
 
+
+
       <main className="container mx-auto px-4 py-8">
-        {/* System Analytics KPI Strip (C2) */}
-        <div className="mb-8">
-          <PortalKPIStrip kpis={[
-            {
-              label: 'Total Claims',
-              value: totalClaims,
-              icon: <TrendingUp className="h-4 w-4" />,
-              accent: 'blue',
-            },
-            {
-              label: 'High Risk Claims',
-              value: highRiskClaims,
-              icon: <AlertTriangle className="h-4 w-4" />,
-              accent: highRiskClaims > 0 ? 'red' : 'charcoal',
-            },
-            {
-              label: 'Completed Claims',
-              value: completedClaims,
-              icon: <CheckCircle className="h-4 w-4" />,
-              accent: 'green',
-            },
-            {
-              label: 'Avg. Processing',
-              value: `${avgProcessingTime}d`,
-              icon: <Settings className="h-4 w-4" />,
-              accent: avgProcessingTime > 14 ? 'amber' : 'teal',
-            },
-          ] as PortalKPI[]} />
-        </div>
+
 
         {/* Tab Navigation */}
         <div className="flex flex-wrap gap-2 mb-6">

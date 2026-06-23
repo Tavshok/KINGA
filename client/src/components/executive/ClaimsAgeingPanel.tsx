@@ -7,10 +7,73 @@ function fmt(v: number) {
   return `R ${v.toLocaleString()}`;
 }
 
-export function ClaimsAgeingPanel() {
+export function ClaimsAgeingPanel({ compact }: { compact?: boolean } = {}) {
   const { data, isLoading } = trpc.analytics.getClaimsAgeing.useQuery();
   const buckets = data?.buckets ?? [];
   const total = buckets.reduce((s, b) => s + b.count, 0);
+
+  const bucketContent = (
+    <>
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-8 rounded-md animate-pulse" style={{ background: 'var(--muted)' }} />
+          ))}
+        </div>
+      ) : buckets.length === 0 ? (
+        <p className="text-sm text-center py-4" style={{ color: 'var(--muted-foreground)' }}>No open claims</p>
+      ) : (
+        <>
+          {/* Stacked bar */}
+          {total > 0 && (
+            <div className="flex rounded-full overflow-hidden h-2 mb-3">
+              {buckets.map(b => (
+                <div
+                  key={b.label}
+                  style={{
+                    width: `${(b.count / total) * 100}%`,
+                    background: b.color,
+                    minWidth: b.count > 0 ? '2px' : '0',
+                  }}
+                  title={`${b.label}: ${b.count}`}
+                />
+              ))}
+            </div>
+          )}
+
+          {buckets.map(b => (
+            <div
+              key={b.label}
+              className="flex items-center justify-between rounded-md px-3 py-2"
+              style={{
+                background: 'var(--muted)',
+                borderLeft: `3px solid ${b.color}`,
+              }}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: b.color }} />
+                <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{b.label}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>
+                  {b.count}
+                </span>
+                {b.value > 0 && (
+                  <span className="text-xs ml-2" style={{ color: 'var(--muted-foreground)' }}>
+                    {fmt(b.value)}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </>
+  );
+
+  if (compact) {
+    return <div className="space-y-2">{bucketContent}</div>;
+  }
 
   return (
     <div
@@ -42,60 +105,7 @@ export function ClaimsAgeingPanel() {
 
       {/* Buckets */}
       <div className="p-4 space-y-3">
-        {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-12 rounded-md animate-pulse" style={{ background: 'var(--muted)' }} />
-            ))}
-          </div>
-        ) : buckets.length === 0 ? (
-          <p className="text-sm text-center py-6" style={{ color: 'var(--muted-foreground)' }}>No open claims</p>
-        ) : (
-          <>
-            {/* Stacked bar */}
-            {total > 0 && (
-              <div className="flex rounded-full overflow-hidden h-2 mb-4">
-                {buckets.map(b => (
-                  <div
-                    key={b.label}
-                    style={{
-                      width: `${(b.count / total) * 100}%`,
-                      background: b.color,
-                      minWidth: b.count > 0 ? '2px' : '0',
-                    }}
-                    title={`${b.label}: ${b.count}`}
-                  />
-                ))}
-              </div>
-            )}
-
-            {buckets.map(b => (
-              <div
-                key={b.label}
-                className="flex items-center justify-between rounded-md px-3 py-2.5"
-                style={{
-                  background: 'var(--muted)',
-                  borderLeft: `3px solid ${b.color}`,
-                }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: b.color }} />
-                  <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{b.label}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>
-                    {b.count}
-                  </span>
-                  {b.value > 0 && (
-                    <span className="text-xs ml-2" style={{ color: 'var(--muted-foreground)' }}>
-                      {fmt(b.value)}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </>
-        )}
+        {bucketContent}
       </div>
     </div>
   );
