@@ -67,7 +67,7 @@ function StatCard({ label, value, sub, icon: Icon, accent }: {
 }) {
   const color = accent ? (RISK_ACCENT[accent] ?? "") : "";
   return (
-    <Card>
+    <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
       <CardContent className="pt-5 pb-4">
         <div className="flex items-start justify-between">
           <div>
@@ -195,7 +195,7 @@ export default function RiskManagerDashboard() {
 
   // ── Claim Row ─────────────────────────────────────────────────────────────
   const ClaimRow = ({ claim, actions }: { claim: any; actions: React.ReactNode }) => (
-    <div className="p-4 rounded-lg border border-border hover:border-foreground/20 transition-colors bg-card">
+    <div className="p-4 rounded-lg transition-colors" style={{ border: '1px solid #E5E7EB', background: '#FFFFFF', borderRadius: 8 }}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -247,7 +247,7 @@ export default function RiskManagerDashboard() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen" style={{ background: 'var(--p11-body-bg, #F7F8F6)' }}>
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
 
         {/* C3 — PortalAlerts: escalated claims + fraud flags */}
@@ -341,7 +341,7 @@ export default function RiskManagerDashboard() {
         {/* ── 3 SIGNATURE CHARTS (always visible, strategy-mandated) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Chart 1: Fraud Rate Trend */}
-          <Card className="border shadow-sm">
+          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-orange-500" />
@@ -374,7 +374,7 @@ export default function RiskManagerDashboard() {
           </Card>
 
           {/* Chart 2: Incident Type × Risk Level Heatmap */}
-          <Card className="border shadow-sm">
+          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Shield className="h-4 w-4 text-red-500" />
@@ -427,7 +427,7 @@ export default function RiskManagerDashboard() {
           </Card>
 
           {/* Chart 3: Frequency vs Severity */}
-          <Card className="border shadow-sm">
+          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-blue-500" />
