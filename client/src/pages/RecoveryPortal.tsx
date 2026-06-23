@@ -133,6 +133,27 @@ export default function RecoveryPortal() {
         ]}
         ctaLabel="View all alerts"
       />
+      {/* ── TAB BAR ── */}
+      <nav style={{ background: '#FFFFFF', borderBottom: '1px solid #E5E7EB', padding: '0 24px', display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto' }}>
+        <button
+          onClick={() => setActiveTab(null)}
+          style={{ padding: '12px 16px', fontSize: '13px', fontWeight: activeTab === null ? 600 : 500, color: activeTab === null ? '#1C5C39' : '#6B7568', cursor: 'pointer', borderBottom: `2px solid ${activeTab === null ? '#1C5C39' : 'transparent'}`, marginBottom: '-1px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', background: 'none', border: 'none', borderBottomStyle: 'solid', borderBottomWidth: '2px', borderBottomColor: activeTab === null ? '#1C5C39' : 'transparent', fontFamily: 'inherit' }}
+        >All Cases</button>
+        {STATUS_CARDS.map(card => {
+          const isActive = activeTab === card.tab;
+          const count = statusCounts[card.tab] ?? 0;
+          return (
+            <button
+              key={card.tab}
+              onClick={() => setActiveTab(card.tab)}
+              style={{ padding: '12px 16px', fontSize: '13px', fontWeight: isActive ? 600 : 500, color: isActive ? '#1C5C39' : '#6B7568', cursor: 'pointer', borderBottom: `2px solid ${isActive ? '#1C5C39' : 'transparent'}`, marginBottom: '-1px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', background: 'none', border: 'none', borderBottomStyle: 'solid', borderBottomWidth: '2px', borderBottomColor: isActive ? '#1C5C39' : 'transparent', fontFamily: 'inherit' }}
+            >
+              {card.label}
+              {count > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '18px', height: '18px', padding: '0 5px', borderRadius: '9px', fontSize: '10px', fontWeight: 600, background: isActive ? '#1C5C39' : '#E7F1EA', color: isActive ? '#FFFFFF' : '#1C5C39' }}>{count}</span>}
+            </button>
+          );
+        })}
+      </nav>
       {/* ── BODY ── */}
       <div className="p11-body">
         <div className="p11-body-2col">
