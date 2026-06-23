@@ -433,7 +433,7 @@ export default function ClaimsManagerDashboard() {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--background)' }}>
+    <div className="min-h-screen p-6" style={{ background: 'var(--p11-body-bg, #F7F8F6)' }}>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Auto-Assignment Warning Badge */}
         <AutoAssignmentBadge />
@@ -513,7 +513,7 @@ export default function ClaimsManagerDashboard() {
               {/* Charts Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Status Donut */}
-                <Card className="border-0 shadow-sm">
+                <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
                   <CardHeader className="pb-2 pt-4 px-4">
                     <CardTitle className="text-sm font-semibold">Claim Status Distribution</CardTitle>
                   </CardHeader>
@@ -534,7 +534,7 @@ export default function ClaimsManagerDashboard() {
                 </Card>
 
                 {/* Incident Type Bar */}
-                <Card className="border-0 shadow-sm">
+                <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
                   <CardHeader className="pb-2 pt-4 px-4">
                     <CardTitle className="text-sm font-semibold">Claims by Incident Type</CardTitle>
                   </CardHeader>
@@ -557,7 +557,7 @@ export default function ClaimsManagerDashboard() {
                 </Card>
 
                 {/* Leakage / Savings Bar */}
-                <Card className="border-0 shadow-sm">
+                <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
                   <CardHeader className="pb-2 pt-4 px-4">
                     <CardTitle className="text-sm font-semibold">KINGA Savings Identified</CardTitle>
                     <p className="text-xs text-muted-foreground">KINGA estimate vs final approved</p>
@@ -604,7 +604,7 @@ export default function ClaimsManagerDashboard() {
            * Uses a flex row with section labels instead of grid-cols-7 so
            * each tab gets enough horizontal space and labels never wrap.
            */}
-          <div className="border-b border-border" style={{ background: 'var(--card)' }}>
+          <div className="border-b" style={{ background: '#FFFFFF', borderColor: '#E5E7EB' }}>
             <div role="tablist" aria-label="Claims Manager sections" className="flex items-stretch gap-0 overflow-x-auto">
 
               {/* ── Section: Workflow ── */}
@@ -626,8 +626,8 @@ export default function ClaimsManagerDashboard() {
                         }}
                         className="shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                         style={isActive
-                          ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600, background: 'transparent' }
-                          : { borderBottomColor: 'transparent', color: 'var(--muted-foreground)', background: 'transparent' }}
+                          ? { borderBottomColor: '#1C5C39', color: '#1C5C39', fontWeight: 600, background: 'transparent', letterSpacing: '-0.005em' }
+                          : { borderBottomColor: 'transparent', color: '#6B7280', background: 'transparent', letterSpacing: '-0.005em' }}
                       >
                         {labels[v]}
                       </button>
@@ -658,8 +658,8 @@ export default function ClaimsManagerDashboard() {
                         }}
                         className="shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                         style={isActive
-                          ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600, background: 'transparent' }
-                          : { borderBottomColor: 'transparent', color: 'var(--muted-foreground)', background: 'transparent' }}
+                          ? { borderBottomColor: '#1C5C39', color: '#1C5C39', fontWeight: 600, background: 'transparent', letterSpacing: '-0.005em' }
+                          : { borderBottomColor: 'transparent', color: '#6B7280', background: 'transparent', letterSpacing: '-0.005em' }}
                       >
                         {labels[v]}
                       </button>
@@ -689,8 +689,8 @@ export default function ClaimsManagerDashboard() {
                         }}
                         className="shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                         style={isActive
-                          ? { borderBottomColor: '#3C7844', color: '#3C7844', fontWeight: 600, background: 'transparent' }
-                          : { borderBottomColor: 'transparent', color: 'var(--muted-foreground)', background: 'transparent' }}
+                          ? { borderBottomColor: '#1C5C39', color: '#1C5C39', fontWeight: 600, background: 'transparent', letterSpacing: '-0.005em' }
+                          : { borderBottomColor: 'transparent', color: '#6B7280', background: 'transparent', letterSpacing: '-0.005em' }}
                       >
                         {v === "notifications" ? <NotificationsTabBadge /> : "Processed"}
                       </button>
@@ -710,8 +710,8 @@ export default function ClaimsManagerDashboard() {
           {/* Review Queue Tab */}
           <TabsContent value="review" className="space-y-6">
             {/* Filters */}
-            <Card className="shadow-lg border-0">
-          <CardHeader style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+            <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
+          <CardHeader style={{ background: '#FAFAFA', borderBottom: '1px solid #E5E7EB' }}>
             <CardTitle className="flex items-center gap-2 text-base">
               <Filter className="h-4 w-4" style={{ color: '#3C7844' }} />
               Filters
@@ -815,12 +815,13 @@ export default function ClaimsManagerDashboard() {
                   {paginatedClaims.map((claim: any) => (
                   <div
                     key={claim.id}
-                    className="p-4 bg-white dark:bg-card rounded-lg border border-slate-200 dark:border-border hover:border-teal-300 dark:border-teal-700 hover:shadow-md transition-all"
+                    className="p-4 rounded-lg transition-colors"
+                    style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8 }}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-2">
-                          <h3 className="font-semibold text-base">{claim.claimNumber}</h3>
+                          <h3 className="font-semibold text-base font-mono" style={{ letterSpacing: '0.02em', color: '#103A23' }}>{claim.claimNumber}</h3>
                           <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
                           <Badge variant="outline" className="text-xs capitalize">
                             {(claim.status || 'pending').replace(/_/g, " ")}
@@ -877,7 +878,7 @@ export default function ClaimsManagerDashboard() {
                       </div>
 
                       <div className="flex flex-col gap-2 flex-shrink-0">
-                        <Button onClick={() => handleClose(claim)} size="sm" className="bg-teal-600 hover:bg-teal-700 text-white">
+                        <Button onClick={() => handleClose(claim)} size="sm" style={{ background: '#1C5C39', color: '#FFFFFF' }} className="hover:opacity-90">
                           <FileCheck className="h-4 w-4 mr-2" />
                           Close for Processing
                         </Button>
@@ -1392,25 +1393,25 @@ export default function ClaimsManagerDashboard() {
             {/* Stats bar from real getDashboardStats */}
             {dashboardStats && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Card className="shadow-sm border-0">
+                <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
                   <CardContent className="p-4">
                     <p className="text-2xl font-bold">{dashboardStats.total}</p>
                     <p className="text-xs text-muted-foreground mt-1">Total Claims</p>
                   </CardContent>
                 </Card>
-                <Card className="shadow-sm border-0">
+                <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
                   <CardContent className="p-4">
                     <p className="text-2xl font-bold text-amber-600">{dashboardStats.activeCount}</p>
                     <p className="text-xs text-muted-foreground mt-1">In-Flight</p>
                   </CardContent>
                 </Card>
-                <Card className="shadow-sm border-0">
+                <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
                   <CardContent className="p-4">
                     <p className="text-2xl font-bold" style={{ color: '#A32D2D' }}>{dashboardStats.fraudRate}%</p>
                     <p className="text-xs text-muted-foreground mt-1">Fraud Rate</p>
                   </CardContent>
                 </Card>
-                <Card className="shadow-sm border-0">
+                <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
                   <CardContent className="p-4">
                     <p className="text-2xl font-bold" style={{ color: '#3C7844' }}>{dashboardStats.avgProcessingDays ?? "—"}</p>
                     <p className="text-xs text-muted-foreground mt-1">Avg Days to Close</p>
@@ -1418,10 +1419,10 @@ export default function ClaimsManagerDashboard() {
                 </Card>
               </div>
             )}
-            <Card className="shadow-sm border-0">
-              <CardHeader>
+            <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
+              <CardHeader style={{ borderBottom: '1px solid #E5E7EB', background: '#FAFAFA' }}>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4" style={{ color: '#68A890' }} />
+                  <ClipboardList className="h-4 w-4" style={{ color: '#1C5C39' }} />
                   All Active Claims
                   <Badge variant="secondary" className="ml-auto text-xs">{activeClaims.length}</Badge>
                 </CardTitle>
@@ -1451,8 +1452,8 @@ export default function ClaimsManagerDashboard() {
                       </thead>
                       <tbody>
                         {activeClaims.map((claim: any) => (
-                          <tr key={claim.id} className="border-b hover:bg-muted/30 transition-colors">
-                            <td className="py-2 px-3 font-mono text-xs">{claim.claimNumber ?? `#${claim.id}`}</td>
+                          <tr key={claim.id} style={{ borderBottom: '1px solid #F3F4F6' }} className="hover:bg-[#F7F8F6] transition-colors">
+                            <td className="py-2 px-3 text-xs" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#103A23', fontWeight: 600 }}>{claim.claimNumber ?? `#${claim.id}`}</td>
                             <td className="py-2 px-3 text-xs">{claim.claimantName ?? "—"}</td>
                             <td className="py-2 px-3 text-xs">{claim.vehicleMake} {claim.vehicleModel} {claim.vehicleYear ? `(${claim.vehicleYear})` : ""}</td>
                             <td className="py-2 px-3">
@@ -1532,19 +1533,19 @@ export default function ClaimsManagerDashboard() {
           <TabsContent value="processed" className="space-y-4">
             {dashboardStats && (
               <div className="grid grid-cols-3 gap-3">
-                <Card className="shadow-sm border-0">
+                <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
                   <CardContent className="p-4">
                     <p className="text-2xl font-bold" style={{ color: '#3C7844' }}>{dashboardStats.completedCount}</p>
                     <p className="text-xs text-muted-foreground mt-1">Completed</p>
                   </CardContent>
                 </Card>
-                <Card className="shadow-sm border-0">
+                <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
                   <CardContent className="p-4">
                     <p className="text-2xl font-bold" style={{ color: '#A32D2D' }}>{dashboardStats.rejectedCount}</p>
                     <p className="text-xs text-muted-foreground mt-1">Rejected</p>
                   </CardContent>
                 </Card>
-                <Card className="shadow-sm border-0">
+                <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10 }}>
                   <CardContent className="p-4">
                     <p className="text-2xl font-bold">{dashboardStats.avgProcessingDays ?? "—"}</p>
                     <p className="text-xs text-muted-foreground mt-1">Avg Days to Close</p>
@@ -1583,8 +1584,8 @@ export default function ClaimsManagerDashboard() {
                       </thead>
                       <tbody>
                         {processedClaims.map((claim: any) => (
-                          <tr key={claim.id} className="border-b hover:bg-muted/30 transition-colors">
-                            <td className="py-2 px-3 font-mono text-xs">{claim.claimNumber ?? `#${claim.id}`}</td>
+                          <tr key={claim.id} style={{ borderBottom: '1px solid #F3F4F6' }} className="hover:bg-[#F7F8F6] transition-colors">
+                            <td className="py-2 px-3 text-xs" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#103A23', fontWeight: 600 }}>{claim.claimNumber ?? `#${claim.id}`}</td>
                             <td className="py-2 px-3 text-xs">{claim.claimantName ?? "—"}</td>
                             <td className="py-2 px-3 text-xs">{claim.vehicleMake} {claim.vehicleModel}</td>
                             <td className="py-2 px-3">
