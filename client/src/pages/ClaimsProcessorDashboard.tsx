@@ -86,6 +86,7 @@ export default function ClaimsProcessorDashboard() {
   // Completion is only valid if aiAssessmentCompletedAt > rerunStartedAt.
   const rerunStartedAtRef = useRef<Map<number, number>>(new Map());
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("pending");
 
   // Processor queue from dedicated procedure (enriched with priority scoring)
   const { data: processorQueueData } = trpc.claims.getProcessorQueue.useQuery(undefined, { refetchInterval: 60000 }); // eslint-disable-line react-hooks/rules-of-hooks
@@ -1037,170 +1038,382 @@ export default function ClaimsProcessorDashboard() {
     );
   };
 
+  // Determine active section's claims
+  const activeClaims =
+    activeTab === "pending" ? pendingClaims :
+    activeTab === "review" ? inReviewClaims :
+    activeTab === "ai_complete" ? aiFlaggedClaims :
+    activeTab === "completed" ? completedClaims : [];
+
   return (
-    <div className="min-h-screen" style={{ background: '#F7F8F6', fontFamily: 'Inter, sans-serif' }}>
-      <PortalHeroBand
-        portalName="Claims Processor"
-        title="Claims Processing Queue"
-        subtitle={`Last refreshed: just now · ${allClaims.length} total claims`}
-        actions={[
-          { label: 'Upload New Claim', icon: <Upload className="h-3 w-3" />, onClick: () => window.location.href = '/processor/upload-documents' },
-          { label: 'Refresh', icon: <RefreshCw className="h-3 w-3" />, onClick: () => refetchAll() },
-          { label: 'Export Report', icon: <Download className="h-3 w-3" />, primary: true },
-        ]}
-        kpis={[
-          { label: 'Pending Review', value: pendingClaims.length, delta: 'Awaiting action', up: null, headline: true },
-          { label: 'In Review', value: inReviewClaims.length, delta: 'Being processed', up: null },
-          { label: 'KINGA Complete', value: aiFlaggedClaims.length, delta: 'AI analysis done', up: true },
-          { label: 'Completed', value: completedClaims.length, delta: 'Resolved', up: true },
-          { label: 'SLA Breached', value: allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length, delta: '>72h outstanding', up: false },
-          { label: 'SLA Critical', value: allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length, delta: '48–72h window', up: false },
-        ]}
-      />
-      <ProtoAlertBar
-        alerts={[
-          { count: aiFlaggedClaims.length, label: 'claim(s) completed KINGA analysis — awaiting processor action', severity: 'red' },
-          { count: pendingClaims.length, label: 'claim(s) pending intake processing', severity: 'amber' },
-        ]}
-        ctaLabel="View queue"
-      />
-      <div className="max-w-7xl mx-auto space-y-6 p-6">
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#9AA293' }} />
-          <Input
-            placeholder="Search by claim number, policyholder, vehicle registration, or policy number..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-            style={{ background: '#FFFFFF', border: '1px solid #E7E2D6', borderRadius: '8px' }}
-          />
+    <div style={{ background: 'var(--body-bg)', fontFamily: 'Inter, sans-serif', minHeight: '100vh' }}>
+      {/* ── IDENTITY STRIP ── */}
+      <div className="p11-identity-strip">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>KINGA</span>
+          <span style={{ width: 1, height: 22, background: 'var(--line-strong)' }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Claims Processor</span>
         </div>
-
-        {/* ── ANALYTICS CHARTS (always visible) ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-muted-foreground">SLA Compliance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div style={{ height: 220 }}>
-                  <Doughnut
-                    data={{
-                      labels: ['On Track', 'Warning (24-48h)', 'Critical (48-72h)', 'Breached (72h+)'],
-                      datasets: [{
-                        data: [
-                          allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 <= 24).length,
-                          allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 24 && h <= 48; }).length,
-                          allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length,
-                          allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length,
-                        ],
-                        backgroundColor: ['#3C7844', '#8A5C00', '#68A890', '#A32D2D'],
-                        borderWidth: 0,
-                      }],
-                    }}
-                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-muted-foreground">Queue by Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div style={{ height: 220 }}>
-                  <Bar
-                    data={{
-                      labels: ['Pending', 'In Review', 'KINGA Complete', 'Completed'],
-                      datasets: [{
-                        label: 'Claims',
-                        data: [pendingClaims.length, inReviewClaims.length, aiFlaggedClaims.length, completedClaims.length],
-                        backgroundColor: ['#8A5C00', '#4878A8', '#68A890', '#3C7844'],
-                        borderRadius: 4,
-                      }],
-                    }}
-                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-        {/* ── WORKFLOW TABS ── */}
-        <Tabs defaultValue="pending" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="pending" className="flex items-center gap-1.5">
-              Pending
-              {pendingClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold text-white" style={{ background: KINGA_AMBER }}>{pendingClaims.length}</span>}
-            </TabsTrigger>
-            <TabsTrigger value="review" className="flex items-center gap-1.5">
-              In Review
-              {inReviewClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold text-white" style={{ background: KINGA_BLUE }}>{inReviewClaims.length}</span>}
-            </TabsTrigger>
-            <TabsTrigger value="ai_complete" className="flex items-center gap-1.5">
-              KINGA Complete
-              {aiFlaggedClaims.length > 0 && <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full text-xs font-semibold text-white" style={{ background: KINGA_TEAL }}>{aiFlaggedClaims.length}</span>}
-            </TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
-          </TabsList>
-          <TabsContent value="pending">
-        {renderSection(
-          "Pending Claims",
-          Clock,
-          pendingClaims,
-          "pending",
-          "No pending claims. Upload a new claim document to get started.",
-          "border-t-amber-400",
-          ""
-        )}
-
-          </TabsContent>
-          <TabsContent value="review">
-        {renderSection(
-          "In Review",
-          Brain,
-          inReviewClaims,
-          "in_review",
-          "No claims currently in review",
-          "border-t-blue-400",
-          ""
-        )}
-
-          </TabsContent>
-          <TabsContent value="ai_complete">
-        {renderSection(
-          "KINGA Assessment Complete",
-          CheckCircle,
-          aiFlaggedClaims,
-          "ai_flagged",
-          "No claims with completed KINGA assessment",
-          "border-t-teal-500",
-          ""
-        )}
-
-          </TabsContent>
-          <TabsContent value="completed">
-            {renderSection(
-              "Completed",
-              FileText,
-              completedClaims,
-              "completed",
-              "No completed claims",
-              "border-t-green-500",
-              "bg-green-50/50 dark:bg-green-950/50"
-            )}
-          </TabsContent>
-
-          {/* ── Notifications Tab ─────────────────────────────────────── */}
-          <TabsContent value="notifications" className="mt-6">
-            <NotificationsInbox />
-          </TabsContent>
-        </Tabs>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className="p11-btn-outline" onClick={() => refetchAll()}>
+            <RefreshCw style={{ width: 13, height: 13 }} />
+            Refresh
+          </button>
+          <button className="p11-btn-outline" onClick={() => window.location.href = '/portal-hub'}>
+            Portal Hub
+          </button>
+        </div>
       </div>
 
-      {/* Upload Evidence Dialog */}
+      {/* ── HERO BAND ── */}
+      <div className="p11-hero">
+        <div className="p11-hero-top">
+          <div>
+            <div className="p11-breadcrumb">KINGA AutoVerify · Claims Processor</div>
+            <div className="p11-hero-title">Claims Processing Queue</div>
+            <div className="p11-hero-subtitle">
+              {allClaimsLoading ? 'Loading...' : `${allClaims.length} total claims · Last refreshed just now`}
+            </div>
+          </div>
+          <div className="p11-hero-actions">
+            <button className="p11-btn-ghost" onClick={() => window.location.href = '/processor/upload-documents'}>
+              <Upload style={{ width: 13, height: 13 }} />
+              Upload Claim
+            </button>
+            <button className="p11-btn-gold" onClick={() => window.location.href = '/processor/upload-documents'}>
+              <FileText style={{ width: 13, height: 13 }} />
+              New Claim
+            </button>
+          </div>
+        </div>
+        {/* KPI Strip */}
+        <div className="p11-kpi-grid">
+          <div className="p11-kpi-tile headline">
+            <div className="p11-kpi-label">Pending Review</div>
+            <div className="p11-kpi-value num">{pendingClaims.length}</div>
+            <div className="p11-kpi-delta">Awaiting action</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">In Review</div>
+            <div className="p11-kpi-value num">{inReviewClaims.length}</div>
+            <div className="p11-kpi-delta">Being processed</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">KINGA Complete</div>
+            <div className="p11-kpi-value num">{aiFlaggedClaims.length}</div>
+            <div className="p11-kpi-delta up">AI analysis done</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">Completed</div>
+            <div className="p11-kpi-value num">{completedClaims.length}</div>
+            <div className="p11-kpi-delta up">Resolved</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">SLA Breached</div>
+            <div className="p11-kpi-value num">{allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length}</div>
+            <div className="p11-kpi-delta down">&gt;72h outstanding</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">SLA Critical</div>
+            <div className="p11-kpi-value num">{allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length}</div>
+            <div className="p11-kpi-delta down">48–72h window</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── TAB BAR ── */}
+      <nav className="p11-tab-bar">
+        {[
+          { id: 'pending', label: 'Pending', count: pendingClaims.length, countClass: 'amber' },
+          { id: 'review', label: 'In Review', count: inReviewClaims.length, countClass: '' },
+          { id: 'ai_complete', label: 'KINGA Complete', count: aiFlaggedClaims.length, countClass: '' },
+          { id: 'completed', label: 'Completed', count: completedClaims.length, countClass: '' },
+          { id: 'notifications', label: 'Notifications', count: 0, countClass: '' },
+        ].map(tab => (
+          <div
+            key={tab.id}
+            className={`p11-tab-item${activeTab === tab.id ? ' active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={`p11-tab-badge${tab.countClass === 'amber' ? ' alert' : ''}`}>{tab.count}</span>
+            )}
+          </div>
+        ))}
+      </nav>
+
+      {/* ── ALERT BAR ── */}
+      {(aiFlaggedClaims.length > 0 || pendingClaims.length > 0) && (
+        <div className="p11-alert-bar">
+          {aiFlaggedClaims.length > 0 && (
+            <div className="p11-alert-item red">
+              <span className="p11-alert-count">{aiFlaggedClaims.length}</span>
+              <span>claim(s) completed KINGA analysis — awaiting processor action</span>
+            </div>
+          )}
+          {pendingClaims.length > 0 && (
+            <div className="p11-alert-item amber">
+              <span className="p11-alert-count">{pendingClaims.length}</span>
+              <span>claim(s) pending intake processing</span>
+            </div>
+          )}
+          <div className="p11-alert-cta" onClick={() => setActiveTab('pending')}>
+            View queue →
+          </div>
+        </div>
+      )}
+
+      {/* ── BODY ── */}
+      <div className="p11-body">
+        {activeTab === 'notifications' ? (
+          <NotificationsInbox />
+        ) : (
+          <div className="p11-body-2col">
+            {/* ── MAIN COLUMN ── */}
+            <div className="p11-card">
+              {/* Filter bar */}
+              <div className="p11-filter-bar">
+                <div className="p11-search-wrap">
+                  <Search className="p11-search-icon" style={{ width: 14, height: 14 }} />
+                  <input
+                    className="p11-search-input"
+                    placeholder="Search by claim number, policyholder, vehicle reg, or policy…"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <select className="p11-select" value={activeTab} onChange={e => setActiveTab(e.target.value)}>
+                  <option value="pending">Pending ({pendingClaims.length})</option>
+                  <option value="review">In Review ({inReviewClaims.length})</option>
+                  <option value="ai_complete">KINGA Complete ({aiFlaggedClaims.length})</option>
+                  <option value="completed">Completed ({completedClaims.length})</option>
+                </select>
+                <button className="p11-btn-outline" onClick={() => refetchAll()}>
+                  <RefreshCw style={{ width: 13, height: 13 }} />
+                  Refresh
+                </button>
+              </div>
+
+              {/* Claims table */}
+              {allClaimsLoading ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
+                  <Loader2 style={{ width: 24, height: 24, margin: '0 auto 8px', animation: 'spin 1s linear infinite' }} />
+                  Loading claims…
+                </div>
+              ) : activeClaims.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
+                  <FileText style={{ width: 32, height: 32, margin: '0 auto 8px', color: 'var(--muted-2)' }} />
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>No claims in this queue</div>
+                  <div style={{ fontSize: 12 }}>
+                    {activeTab === 'pending' ? 'Upload a new claim document to get started.' : 'Claims will appear here when they reach this stage.'}
+                  </div>
+                </div>
+              ) : (
+                <div className="p11-table-wrap">
+                  <table className="p11-table">
+                    <thead>
+                      <tr>
+                        <th>Claim ID</th>
+                        <th>Policyholder</th>
+                        <th>Vehicle</th>
+                        <th>Status</th>
+                        <th>SLA</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeClaims.slice(0, 20).map((claim: any) => {
+                        const isAlreadyComplete = claim.status === "assessment_complete" || claim.status === "closed";
+                        const isProcessing = !isAlreadyComplete && (
+                          aiProcessingClaimIds.has(claim.id) ||
+                          claim.documentProcessingStatus === "parsing" ||
+                          claim.documentProcessingStatus === "processing"
+                        );
+                        const hoursOld = (Date.now() - new Date(claim.createdAt).getTime()) / 3600000;
+                        const slaClass = hoursOld > 72 ? 'red' : hoursOld > 48 ? 'amber' : 'green';
+                        const statusMap: Record<string, { label: string; cls: string }> = {
+                          intake_pending: { label: 'Pending', cls: 'amber' },
+                          assessment_in_progress: { label: 'In Review', cls: 'blue' },
+                          quotes_pending: { label: 'Quotes Pending', cls: 'blue' },
+                          assessment_complete: { label: 'KINGA Complete', cls: 'green' },
+                          closed: { label: 'Completed', cls: 'green' },
+                        };
+                        const st = statusMap[claim.status] || { label: claim.status, cls: 'muted' };
+                        return (
+                          <tr key={claim.id}>
+                            <td>
+                              <span className="p11-id-mono">{claim.claimNumber || `#${claim.id}`}</span>
+                            </td>
+                            <td style={{ fontWeight: 500 }}>{claim.claimantName || claim.policyholderName || '—'}</td>
+                            <td style={{ color: 'var(--muted)' }}>{claim.vehicleRegistration || '—'}</td>
+                            <td>
+                              {isProcessing ? (
+                                <span className="p11-badge blue">
+                                  <Loader2 style={{ width: 10, height: 10, animation: 'spin 1s linear infinite' }} />
+                                  Processing…
+                                </span>
+                              ) : (
+                                <span className={`p11-badge ${st.cls}`}>{st.label}</span>
+                              )}
+                            </td>
+                            <td>
+                              <span className={`p11-badge ${slaClass}`}>
+                                {hoursOld > 72 ? 'Breached' : hoursOld > 48 ? 'Critical' : 'On Track'}
+                              </span>
+                            </td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>
+                              {new Date(claim.createdAt).toLocaleDateString()}
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                  onClick={() => handleViewDetails(claim.id)}>
+                                  <Eye style={{ width: 11, height: 11 }} /> View
+                                </button>
+                                {claim.status === 'intake_pending' && (
+                                  <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                    onClick={() => handleTriggerAI(claim.id)}
+                                    disabled={triggeringClaimId === claim.id}>
+                                    <Brain style={{ width: 11, height: 11 }} /> KINGA
+                                  </button>
+                                )}
+                                {claim.status === 'assessment_complete' && (
+                                  <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                    onClick={() => handleDownloadReport(claim.id)}>
+                                    <Download style={{ width: 11, height: 11 }} /> Report
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {activeClaims.length > 0 && (
+                <div className="p11-pagination">
+                  <span>Showing {Math.min(activeClaims.length, 20)} of {activeClaims.length} claims</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="p11-page-btn" disabled>← Prev</button>
+                    <button className="p11-page-btn" disabled={activeClaims.length <= 20}>Next →</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── SIDEBAR ── */}
+            <div className="p11-sidebar">
+              {/* Attention Required */}
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div>
+                    <div className="p11-card-title">
+                      <AlertCircle style={{ width: 14, height: 14, color: 'var(--red)' }} />
+                      Attention Required
+                    </div>
+                    <div className="p11-card-subtitle">Claims needing immediate action</div>
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  {pendingClaims.length === 0 && aiFlaggedClaims.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--muted)' }}>
+                      <CheckCircle style={{ width: 24, height: 24, margin: '0 auto 6px', color: 'var(--g-500)' }} />
+                      <div style={{ fontSize: 12 }}>All clear</div>
+                    </div>
+                  ) : (
+                    <>
+                      {aiFlaggedClaims.slice(0, 3).map((c: any) => (
+                        <div key={c.id} className="p11-attention-item">
+                          <div className="p11-attention-dot green" />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }} className="p11-id-mono">
+                              {c.claimNumber || `#${c.id}`}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>KINGA complete — review ready</div>
+                          </div>
+                          <button className="p11-btn-outline" style={{ padding: '3px 7px', fontSize: 10 }}
+                            onClick={() => handleViewDetails(c.id)}>View</button>
+                        </div>
+                      ))}
+                      {pendingClaims.slice(0, 3).map((c: any) => (
+                        <div key={c.id} className="p11-attention-item">
+                          <div className="p11-attention-dot amber" />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }} className="p11-id-mono">
+                              {c.claimNumber || `#${c.id}`}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Pending intake processing</div>
+                          </div>
+                          <button className="p11-btn-outline" style={{ padding: '3px 7px', fontSize: 10 }}
+                            onClick={() => handleTriggerAI(c.id)}>KINGA</button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Queue Summary */}
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <TrendingUp style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    Queue Summary
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  {[
+                    { label: 'Pending', value: pendingClaims.length, cls: 'amber', pct: allClaims.length > 0 ? Math.round(pendingClaims.length / allClaims.length * 100) : 0 },
+                    { label: 'In Review', value: inReviewClaims.length, cls: 'blue', pct: allClaims.length > 0 ? Math.round(inReviewClaims.length / allClaims.length * 100) : 0 },
+                    { label: 'KINGA Complete', value: aiFlaggedClaims.length, cls: 'green', pct: allClaims.length > 0 ? Math.round(aiFlaggedClaims.length / allClaims.length * 100) : 0 },
+                    { label: 'Completed', value: completedClaims.length, cls: 'muted', pct: allClaims.length > 0 ? Math.round(completedClaims.length / allClaims.length * 100) : 0 },
+                  ].map(row => (
+                    <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className={`p11-badge ${row.cls}`}>{row.label}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{row.pct}%</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SLA Status */}
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <Clock style={{ width: 14, height: 14, color: 'var(--amber)' }} />
+                    SLA Status
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  {[
+                    { label: 'On Track (0–48h)', value: allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 <= 48).length, cls: 'green' },
+                    { label: 'Critical (48–72h)', value: allClaims.filter((c: any) => { const h = (Date.now() - new Date(c.createdAt).getTime()) / 3600000; return h > 48 && h <= 72; }).length, cls: 'amber' },
+                    { label: 'Breached (>72h)', value: allClaims.filter((c: any) => (Date.now() - new Date(c.createdAt).getTime()) / 3600000 > 72).length, cls: 'red' },
+                  ].map(row => (
+                    <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                      <span className={`p11-badge ${row.cls}`}>{row.label}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+            {/* Upload Evidence Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
         <DialogContent>
           <DialogHeader>

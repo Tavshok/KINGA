@@ -203,9 +203,13 @@ export default function AssessorDashboard() {
         ctaLabel="View queue"
       />
       <ProtoTabBar tabs={tabs.map(t => ({ id: t.id, label: t.label, badge: t.badge }))} activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      {/* ── BODY ── */}
+      <div className="p11-body">
         {/* Subscription banner */}
         <AssessorSubscriptionBanner />
+        <div className="p11-body-2col">
+          {/* ── MAIN COLUMN ── */}
+          <div>
 
         {/* ── My Queue ── */}
         {activeTab === "queue" && (
@@ -327,6 +331,75 @@ export default function AssessorDashboard() {
             )}
           </div>
         )}
+          </div>
+          {/* ── SIDEBAR ── */}
+          <div className="p11-sidebar">
+            {/* Performance Summary */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <BarChart3 style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Performance Summary
+                </div>
+              </div>
+              <div className="p11-card-body">
+                {[
+                  { label: 'Performance Score', value: `${perfData?.performanceScore ?? 0}%`, cls: (perfData?.performanceScore ?? 0) >= 70 ? 'green' : 'amber' },
+                  { label: 'Completed (Total)', value: perfData?.totalAssessmentsCompleted ?? 0, cls: 'green' },
+                  { label: 'Throughput (7d)', value: perfData?.throughputThisWeek ?? 0, cls: 'muted' },
+                  { label: 'Avg Variance', value: perfData?.averageVarianceFromFinal != null ? `${Math.round((perfData.averageVarianceFromFinal as number) * 100) / 100}%` : '—', cls: 'muted' },
+                ].map(row => (
+                  <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{row.label}</span>
+                    <span className={`p11-badge ${row.cls}`}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* SLA Status */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <Clock style={{ width: 14, height: 14, color: 'var(--amber)' }} />
+                  SLA Status
+                </div>
+              </div>
+              <div className="p11-card-body">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>Breached</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: slaBreached > 0 ? 'var(--red)' : 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{slaBreached}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>Warning</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: slaWarning > 0 ? 'var(--amber)' : 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{slaWarning}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>On Track</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--g-600)', fontVariantNumeric: 'tabular-nums' }}>{assignedClaims.length - slaBreached - slaWarning}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Subscription Tier */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <Star style={{ width: 14, height: 14, color: 'var(--gold)' }} />
+                  Subscription Tier
+                </div>
+              </div>
+              <div className="p11-card-body" style={{ textAlign: 'center', padding: '12px 0' }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--g-800)', textTransform: 'capitalize' }}>
+                  {perfData?.tier ?? 'Free'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Current plan</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

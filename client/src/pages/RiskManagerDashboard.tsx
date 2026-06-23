@@ -248,433 +248,489 @@ export default function RiskManagerDashboard() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen" style={{ background: '#F7F8F6', fontFamily: 'Inter, sans-serif' }}>
-      <PortalHeroBand
-        portalName="Risk Manager"
-        title="Risk & Fraud Intelligence"
-        subtitle={`Last refreshed: just now · ${allClaims.length} total claims`}
-        actions={[
-          { label: 'Refresh', icon: <RefreshCw className="h-3 w-3" />, onClick: () => refetchQueue() },
-          { label: 'Export Risk Report', icon: <Shield className="h-3 w-3" />, primary: true },
-        ]}
-        kpis={[
-          { label: 'Fraud Rate', value: riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.fraudRate ?? 0}%`, delta: 'Of total claims', up: (riskAnalytics?.kpis?.fraudRate ?? 0) < 8, headline: true },
-          { label: 'High-Risk Claims', value: riskAnalyticsLoading ? '…' : (riskAnalytics?.kpis?.fraudCount ?? escalationsData.length), delta: 'Require review', up: false },
-          { label: 'Avg Fraud Score', value: riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.avgFraudScore ?? avgRisk}%`, delta: 'Portfolio average', up: avgRisk < 35 },
-          { label: 'Escalations', value: escalatedClaims.length, delta: 'Pending review', up: false },
-          { label: 'Total Claims', value: riskAnalyticsLoading ? '…' : (riskAnalytics?.kpis?.totalClaims ?? allClaims.length), delta: 'In portfolio', up: null },
-          { label: 'False Positive Rate', value: fraudRuleAccuracyLoading ? '…' : !fraudRuleAccuracy?.hasData ? '—' : `${fraudRuleAccuracy.falsePositiveRate}%`, delta: 'AI accuracy', up: true },
-        ]}
-      />
-      <ProtoAlertBar
-        alerts={[
-          { count: escalatedClaims.length, label: 'escalated claim(s) requiring risk review', severity: 'red', onClick: () => setActiveTab('escalations') },
-          { count: allClaims.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70 || c.fraudRiskLevel === 'high' || c.fraudRiskLevel === 'critical').length, label: 'claim(s) flagged for fraud investigation', severity: 'amber', onClick: () => setActiveTab('fraud') },
-        ]}
-        ctaLabel="View all alerts"
-      />
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-
-
-        {/* ── Analytics Period Selector ── */}
-        <div className="flex flex-wrap items-center gap-3">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Period:</span>
-          <input type="date" value={analyticsFrom} onChange={e => setAnalyticsFrom(e.target.value)} className="border rounded px-2 py-1 text-xs h-8 bg-background" />
-          <span className="text-xs text-muted-foreground">to</span>
-          <input type="date" value={analyticsTo} onChange={e => setAnalyticsTo(e.target.value)} className="border rounded px-2 py-1 text-xs h-8 bg-background" />
+    <div style={{ background: 'var(--body-bg)', fontFamily: 'Inter, sans-serif', minHeight: '100vh' }}>
+      {/* ── IDENTITY STRIP ── */}
+      <div className="p11-identity-strip">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>KINGA</span>
+          <span style={{ width: 1, height: 22, background: 'var(--line-strong)' }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Risk Manager</span>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className="p11-btn-outline" onClick={() => refetchQueue()}>
+            <RefreshCw style={{ width: 13, height: 13 }} />
+            Refresh
+          </button>
+          <button className="p11-btn-outline" onClick={() => window.location.href = '/portal-hub'}>
+            Portal Hub
+          </button>
+        </div>
+      </div>
 
+      {/* ── HERO BAND ── */}
+      <div className="p11-hero">
+        <div className="p11-hero-top">
+          <div>
+            <div className="p11-breadcrumb">KINGA AutoVerify · Risk Manager</div>
+            <div className="p11-hero-title">Risk & Fraud Intelligence</div>
+            <div className="p11-hero-subtitle">
+              {riskAnalyticsLoading ? 'Loading analytics…' : `Portfolio risk overview · ${allClaims.length} total claims`}
+            </div>
+          </div>
+          <div className="p11-hero-actions">
+            <button className="p11-btn-ghost" onClick={() => setActiveTab('oversight')}>
+              <Shield style={{ width: 13, height: 13 }} />
+              Portfolio View
+            </button>
+            <button className="p11-btn-gold">
+              <Shield style={{ width: 13, height: 13 }} />
+              Export Risk Report
+            </button>
+          </div>
+        </div>
+        {/* KPI Strip */}
+        <div className="p11-kpi-grid">
+          <div className="p11-kpi-tile headline">
+            <div className="p11-kpi-label">Fraud Rate</div>
+            <div className="p11-kpi-value num">{riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.fraudRate ?? 0}%`}</div>
+            <div className="p11-kpi-delta">Of total claims</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">Pending Approval</div>
+            <div className="p11-kpi-value num">{approvalQueue.length}</div>
+            <div className="p11-kpi-delta">Technical basis review</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">Financial Decisions</div>
+            <div className="p11-kpi-value num">{financialQueue.length}</div>
+            <div className="p11-kpi-delta">Awaiting sign-off</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">Escalations</div>
+            <div className="p11-kpi-value num">{escalatedClaims.length}</div>
+            <div className="p11-kpi-delta down">Disputed / review</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">High-Value Claims</div>
+            <div className="p11-kpi-value num">{highValueClaims.length}</div>
+            <div className="p11-kpi-delta">Above threshold</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">Avg Fraud Score</div>
+            <div className="p11-kpi-value num">{riskAnalyticsLoading ? '…' : `${riskAnalytics?.kpis?.avgFraudScore ?? avgRisk}%`}</div>
+            <div className="p11-kpi-delta">Portfolio average</div>
+          </div>
+        </div>
+      </div>
 
+      {/* ── TAB BAR ── */}
+      <nav className="p11-tab-bar">
+        {[
+          { id: 'approval', label: 'Approval Queue', count: approvalQueue.length, countClass: approvalQueue.length > 0 ? 'alert' : '' },
+          { id: 'financial', label: 'Financial Decisions', count: financialQueue.length, countClass: '' },
+          { id: 'escalations', label: 'Escalations', count: escalatedClaims.length, countClass: escalatedClaims.length > 0 ? 'alert' : '' },
+          { id: 'oversight', label: 'Portfolio Oversight', count: 0, countClass: '' },
+          { id: 'notifications', label: 'Notifications', count: 0, countClass: '' },
+        ].map(tab => (
+          <div
+            key={tab.id}
+            className={`p11-tab-item${activeTab === tab.id ? ' active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={`p11-tab-badge ${tab.countClass}`}>{tab.count}</span>
+            )}
+          </div>
+        ))}
+      </nav>
 
-        {/* ── 3 SIGNATURE CHARTS (always visible, strategy-mandated) ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Chart 1: Fraud Rate Trend */}
-          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-orange-500" />
-                Fraud Rate Trend
-              </CardTitle>
-              <CardDescription className="text-xs">Weekly fraud rate % over the period</CardDescription>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              {riskAnalyticsLoading ? (
-                <div className="h-48 flex items-center justify-center"><Activity className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-              ) : riskAnalytics?.fraudRateTrend && riskAnalytics.fraudRateTrend.length > 0 ? (
-                <Bar
-                  data={{
-                    labels: riskAnalytics.fraudRateTrend.map((d: any) => d.week),
-                    datasets: [{
-                      label: 'Fraud Rate %',
-                      data: riskAnalytics.fraudRateTrend.map((d: any) => d.fraudRate),
-                      backgroundColor: riskAnalytics.fraudRateTrend.map((d: any) =>
-                        d.fraudRate >= 15 ? '#ef4444' : d.fraudRate >= 8 ? '#f59e0b' : '#22c55e'
-                      ),
-                      borderRadius: 4,
-                    }],
-                  }}
-                  options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, ticks: { callback: (v: any) => `${v}%` } }, x: { ticks: { font: { size: 9 }, maxRotation: 45 } } } }}
-                />
-              ) : (
-                <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No trend data for period</div>
-              )}
-            </CardContent>
-          </Card>
+      {/* ── ALERT BAR ── */}
+      {(escalatedClaims.length > 0 || allClaims.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70).length > 0) && (
+        <div className="p11-alert-bar">
+          {escalatedClaims.length > 0 && (
+            <div className="p11-alert-item red">
+              <span className="p11-alert-count">{escalatedClaims.length}</span>
+              <span>escalated claim(s) requiring risk review</span>
+            </div>
+          )}
+          {allClaims.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70).length > 0 && (
+            <div className="p11-alert-item amber">
+              <span className="p11-alert-count">{allClaims.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70).length}</span>
+              <span>claim(s) flagged for fraud investigation</span>
+            </div>
+          )}
+          <div className="p11-alert-cta" onClick={() => setActiveTab('escalations')}>
+            View escalations →
+          </div>
+        </div>
+      )}
 
-          {/* Chart 2: Incident Type × Risk Level Heatmap */}
-          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Shield className="h-4 w-4 text-red-500" />
-                Risk Heatmap
-              </CardTitle>
-              <CardDescription className="text-xs">Incident type × risk level — high counts = hot</CardDescription>
-            </CardHeader>
-            <CardContent className="px-3 pb-4">
-              {riskAnalyticsLoading ? (
-                <div className="h-48 flex items-center justify-center"><Activity className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-              ) : riskAnalytics?.heatmap ? (() => {
-                const incidentTypes = Object.keys(riskAnalytics.heatmap);
-                const riskLevels = ['low','medium','high','critical','elevated'];
-                const riskColors: Record<string,string> = { low:'#22c55e', medium:'#f59e0b', high:'#f97316', critical:'#ef4444', elevated:'#dc2626' };
-                const maxVal = Math.max(1, ...incidentTypes.flatMap(it => riskLevels.map(rl => riskAnalytics.heatmap[it]?.[rl] ?? 0)));
-                return (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs border-collapse">
-                      <thead>
-                        <tr>
-                          <th className="text-left py-1 pr-2 text-muted-foreground font-medium">Type</th>
-                          {riskLevels.map(rl => <th key={rl} className="text-center py-1 px-1 text-muted-foreground font-medium capitalize" style={{ fontSize: '9px' }}>{rl}</th>)}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {incidentTypes.map(it => (
-                          <tr key={it}>
-                            <td className="py-1 pr-2 text-muted-foreground capitalize" style={{ fontSize: '9px' }}>{it}</td>
-                            {riskLevels.map(rl => {
-                              const v = riskAnalytics.heatmap[it]?.[rl] ?? 0;
-                              const intensity = maxVal > 0 ? v / maxVal : 0;
-                              const alpha = Math.round(intensity * 220 + 35).toString(16).padStart(2,'0');
-                              const bg = v === 0 ? 'transparent' : `${riskColors[rl]}${alpha}`;
-                              return (
-                                <td key={rl} className="text-center py-1 px-1 rounded font-semibold" style={{ background: bg, color: intensity > 0.4 ? 'white' : 'inherit', fontSize: '10px', minWidth: '28px' }}>
-                                  {v > 0 ? v : ''}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+      {/* ── BODY ── */}
+      <div className="p11-body">
+        {activeTab === 'notifications' ? (
+          <NotificationsInbox />
+        ) : (
+          <div className="p11-body-2col">
+            {/* ── MAIN COLUMN ── */}
+            <div>
+              {activeTab === 'approval' && (
+                <div className="p11-card">
+                  <div className="p11-card-header">
+                    <div>
+                      <div className="p11-card-title">
+                        <Shield style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                        Approval Queue
+                      </div>
+                      <div className="p11-card-subtitle">Claims awaiting technical basis review</div>
+                    </div>
                   </div>
-                );
-              })() : (
-                <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No heatmap data for period</div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Chart 3: Frequency vs Severity */}
-          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-blue-500" />
-                Frequency vs Severity
-              </CardTitle>
-              <CardDescription className="text-xs">Claim count vs avg value per incident type</CardDescription>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              {riskAnalyticsLoading ? (
-                <div className="h-48 flex items-center justify-center"><Activity className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-              ) : riskAnalytics?.scatter && riskAnalytics.scatter.length > 0 ? (
-                <Bar
-                  data={{
-                    labels: riskAnalytics.scatter.map((d: any) => d.incidentType.replace(/_/g,' ')),
-                    datasets: [
-                      { label: 'Frequency', data: riskAnalytics.scatter.map((d: any) => d.frequency), backgroundColor: '#3b82f6', borderRadius: 4, yAxisID: 'y' },
-                      { label: 'Avg Value (÷100)', data: riskAnalytics.scatter.map((d: any) => Math.round(d.avgSeverity / 100)), backgroundColor: '#f97316', borderRadius: 4, yAxisID: 'y1' },
-                    ],
-                  }}
-                  options={{
-                    responsive: true,
-                    plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } },
-                    scales: {
-                      y: { beginAtZero: true, position: 'left', title: { display: true, text: 'Count', font: { size: 9 } } },
-                      y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Avg Value', font: { size: 9 } } },
-                      x: { ticks: { font: { size: 9 }, maxRotation: 35 } },
-                    },
-                  }}
-                />
-              ) : (
-                <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No scatter data for period</div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ── QUEUE STAT BAR (operational, below charts) ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            label="Pending Approval"
-            value={approvalQueue.length}
-            sub="Technical basis review"
-            icon={Shield}
-            accent={approvalQueue.length > 0 ? "text-amber-600" : undefined}
-          />
-          <StatCard
-            label="Financial Decisions"
-            value={financialQueue.length}
-            sub="Awaiting financial sign-off"
-            icon={DollarSign}
-            accent={financialQueue.length > 0 ? "text-blue-600" : undefined}
-          />
-          <StatCard
-            label="High-Value Claims"
-            value={highValueClaims.length}
-            sub={`Above ${currencySymbol(undefined)} ${HIGH_VALUE_THRESHOLD.toLocaleString()}`}
-            icon={TrendingUp}
-          />
-          <StatCard
-            label="Escalations"
-            value={escalatedClaims.length}
-            sub="Disputed / manual review"
-            icon={AlertCircle}
-            accent={escalatedClaims.length > 0 ? "text-red-600" : undefined}
-          />
-        </div>
-
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-5 w-full max-w-3xl">
-            <TabsTrigger value="approval" className="relative">
-              Technical Approval
-              {approvalQueue.length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold" style={{ background: "#8A5C00" }}>
-                  {approvalQueue.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="financial">
-              Financial Decisions
-              {financialQueue.length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold" style={{ background: "#4878A8" }}>
-                  {financialQueue.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="escalations">
-              Escalations
-              {escalatedClaims.length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold" style={{ background: "#A32D2D" }}>
-                  {escalatedClaims.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="oversight">Portfolio Oversight</TabsTrigger>
-            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
-          </TabsList>
-
-          {/* ── Technical Approval Queue ── */}
-          <TabsContent value="approval" className="mt-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Claims requiring technical basis approval before financial processing.
-              </p>
-            </div>
-            {queueLoading ? (
-              <p className="text-center text-muted-foreground py-12">Loading approval queue…</p>
-            ) : approvalQueue.length > 0 ? (
-              <div className="space-y-3">
-                {approvalQueue.map((claim: any) => (
-                  <ClaimRow key={claim.id} claim={claim} actions={<ApprovalActions claim={claim} />} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16 border border-dashed border-border rounded-lg">
-                <Shield className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium text-foreground">No claims pending technical approval</p>
-                <p className="text-sm text-muted-foreground mt-1">Approved claims move to the financial decision queue</p>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ── Financial Decisions ── */}
-          <TabsContent value="financial" className="mt-4 space-y-3">
-            {/* Summary banner */}
-            {financialQueue.length > 0 && (
-              <div className="rounded-lg p-3 flex items-center gap-3 border" style={{ background: "#EEF4FB", borderColor: "#B8D0E8" }}>
-                <DollarSign className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>{financialQueue.length}</strong> claim{financialQueue.length !== 1 ? "s" : ""} awaiting financial sign-off
-                  {financialQueue.length > 0 && (
-                    <> — Total exposure: <strong>
-                      {(() => {
-                        const total = financialQueue.reduce((s: number, c: any) => s + (c.totalClaimAmount ?? 0), 0);
-                        return total > 0 ? `${currencySymbol((financialQueue[0] as any)?.currencyCode)} ${total.toLocaleString()}` : "—";
-                      })()}
-                    </strong></>
+                  {queueLoading ? (
+                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>Loading…</div>
+                  ) : approvalQueue.length === 0 ? (
+                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
+                      <CheckCircle style={{ width: 32, height: 32, margin: '0 auto 8px', color: 'var(--g-500)' }} />
+                      <div style={{ fontWeight: 600 }}>No claims pending approval</div>
+                    </div>
+                  ) : (
+                    <div className="p11-table-wrap">
+                      <table className="p11-table">
+                        <thead>
+                          <tr>
+                            <th>Claim</th>
+                            <th>Vehicle</th>
+                            <th>Risk Score</th>
+                            <th>Value</th>
+                            <th>Submitted</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {approvalQueue.map((claim: any) => (
+                            <tr key={claim.id}>
+                              <td><span className="p11-id-mono">{claim.claimNumber}</span></td>
+                              <td style={{ color: 'var(--muted)' }}>{claim.vehicleRegistration || '—'}</td>
+                              <td>
+                                <span className={`p11-badge ${(claim.fraudRiskScore ?? 0) >= 70 ? 'red' : (claim.fraudRiskScore ?? 0) >= 40 ? 'amber' : 'green'}`}>
+                                  {claim.fraudRiskScore ?? 0}%
+                                </span>
+                              </td>
+                              <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmtCost(claim)}</td>
+                              <td style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(claim.createdAt).toLocaleDateString()}</td>
+                              <td>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                    onClick={() => openDialog(claim, 'approve')}>
+                                    <CheckCircle style={{ width: 11, height: 11 }} /> Approve
+                                  </button>
+                                  <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                    onClick={() => openDialog(claim, 'reject')}>
+                                    <XCircle style={{ width: 11, height: 11 }} /> Reject
+                                  </button>
+                                  <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
+                                    <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}>
+                                      <Eye style={{ width: 11, height: 11 }} /> Review
+                                    </button>
+                                  </Link>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
-                </p>
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground">
-              Claims in <code className="text-xs bg-muted px-1 rounded">financial_decision</code> workflow state — ordered by claim amount descending.
-            </p>
-            {finLoading ? (
-              <p className="text-center text-muted-foreground py-12">Loading financial queue…</p>
-            ) : financialQueue.length > 0 ? (
-              <div className="space-y-3">
-                {financialQueue.map((claim: any) => (
-                  <ClaimRow
-                    key={claim.id}
-                    claim={{ ...claim, approvedAmount: claim.totalClaimAmount }}
-                    actions={
-                      <>
-                        <Button size="sm" onClick={() => authorisePayment.mutate({ claimId: claim.id })} disabled={authorisePayment.isPending}>
-                          <CheckCircle className="h-4 w-4 mr-1.5" /> {authorisePayment.isPending ? 'Authorising…' : 'Authorise Payment'}
-                        </Button>
-                        <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => openDialog(claim, "reject")}>
-                          <XCircle className="h-4 w-4 mr-1.5" /> Dispute
-                        </Button>
-                        <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
-                          <Button size="sm" variant="ghost" className="w-full"><Eye className="h-4 w-4 mr-1.5" /> Review</Button>
-                        </Link>
-                      </>
-                    }
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16 border border-dashed border-border rounded-lg">
-                <DollarSign className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium text-foreground">No claims awaiting financial decision</p>
-                <p className="text-sm text-muted-foreground mt-1">Claims appear here after technical approval and move to <code className="text-xs bg-muted px-1 rounded">financial_decision</code> workflow state</p>
-              </div>
-            )}
-          </TabsContent>
+                </div>
+              )}
 
-          {/* ── Escalations ── */}
-          <TabsContent value="escalations" className="mt-4 space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Claims in disputed/manual_review workflow states or with high/critical fraud risk — requiring direct risk manager attention.
-            </p>
-            {escalationsLoading ? (
-              <p className="text-center text-muted-foreground py-12">Loading…</p>
-            ) : escalatedClaims.length > 0 ? (
-              <div className="space-y-3">
-                {escalatedClaims.map((claim: any) => (
-                  <ClaimRow
-                    key={claim.id}
-                    claim={claim}
-                    actions={
-                      <>
-                        <AiAssessButton claimId={claim.id} currentStatus={claim.status} onSuccess={() => {}} />
-                        <Button size="sm" variant="outline" onClick={() => openDialog(claim, "request_info")}>
-                          <MessageSquare className="h-4 w-4 mr-1.5" /> Request Info
-                        </Button>
-                        <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
-                          <Button size="sm" variant="ghost" className="w-full"><Eye className="h-4 w-4 mr-1.5" /> Review</Button>
-                        </Link>
-                      </>
-                    }
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16 border border-dashed border-border rounded-lg">
-                <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium text-foreground">No high-risk escalations</p>
-                <p className="text-sm text-muted-foreground mt-1">Claims with fraud score ≥ 70 appear here automatically</p>
-              </div>
-            )}
-          </TabsContent>
+              {activeTab === 'financial' && (
+                <div className="p11-card">
+                  <div className="p11-card-header">
+                    <div>
+                      <div className="p11-card-title">
+                        <DollarSign style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                        Financial Decisions
+                      </div>
+                      <div className="p11-card-subtitle">Claims awaiting financial sign-off</div>
+                    </div>
+                  </div>
+                  {finLoading ? (
+                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>Loading…</div>
+                  ) : financialQueue.length === 0 ? (
+                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
+                      <CheckCircle style={{ width: 32, height: 32, margin: '0 auto 8px', color: 'var(--g-500)' }} />
+                      <div style={{ fontWeight: 600 }}>No financial decisions pending</div>
+                    </div>
+                  ) : (
+                    <div className="p11-table-wrap">
+                      <table className="p11-table">
+                        <thead>
+                          <tr>
+                            <th>Claim</th>
+                            <th>Vehicle</th>
+                            <th>Risk</th>
+                            <th>Value</th>
+                            <th>Submitted</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {financialQueue.map((claim: any) => (
+                            <tr key={claim.id}>
+                              <td><span className="p11-id-mono">{claim.claimNumber}</span></td>
+                              <td style={{ color: 'var(--muted)' }}>{claim.vehicleRegistration || '—'}</td>
+                              <td>
+                                <span className={`p11-badge ${(claim.fraudRiskScore ?? 0) >= 70 ? 'red' : (claim.fraudRiskScore ?? 0) >= 40 ? 'amber' : 'green'}`}>
+                                  {claim.fraudRiskScore ?? 0}%
+                                </span>
+                              </td>
+                              <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmtCost(claim)}</td>
+                              <td style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(claim.createdAt).toLocaleDateString()}</td>
+                              <td>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                    onClick={() => openDialog(claim, 'approve')}>
+                                    Approve
+                                  </button>
+                                  <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                    onClick={() => openDialog(claim, 'request_info')}>
+                                    Request Info
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
-          {/* ── Portfolio Oversight ── */}
-          <TabsContent value="oversight" className="mt-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by claim number, vehicle…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">{filteredAll.length} claims</p>
+              {activeTab === 'escalations' && (
+                <div className="p11-card">
+                  <div className="p11-card-header">
+                    <div>
+                      <div className="p11-card-title">
+                        <AlertCircle style={{ width: 14, height: 14, color: 'var(--red)' }} />
+                        Escalations
+                      </div>
+                      <div className="p11-card-subtitle">High-risk claims requiring manual review</div>
+                    </div>
+                  </div>
+                  {escalatedClaims.length === 0 ? (
+                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
+                      <CheckCircle style={{ width: 32, height: 32, margin: '0 auto 8px', color: 'var(--g-500)' }} />
+                      <div style={{ fontWeight: 600 }}>No escalations</div>
+                      <div style={{ fontSize: 12, marginTop: 4 }}>Claims with fraud score ≥ 70 appear here automatically</div>
+                    </div>
+                  ) : (
+                    <div className="p11-table-wrap">
+                      <table className="p11-table">
+                        <thead>
+                          <tr>
+                            <th>Claim</th>
+                            <th>Vehicle</th>
+                            <th>Fraud Score</th>
+                            <th>Value</th>
+                            <th>Submitted</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {escalatedClaims.map((claim: any) => (
+                            <tr key={claim.id}>
+                              <td><span className="p11-id-mono">{claim.claimNumber}</span></td>
+                              <td style={{ color: 'var(--muted)' }}>{claim.vehicleRegistration || '—'}</td>
+                              <td>
+                                <span className="p11-badge red">{claim.fraudRiskScore ?? 0}%</span>
+                              </td>
+                              <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmtCost(claim)}</td>
+                              <td style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(claim.createdAt).toLocaleDateString()}</td>
+                              <td>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <AiAssessButton claimId={claim.id} currentStatus={claim.status} onSuccess={() => {}} />
+                                  <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                    onClick={() => openDialog(claim, 'request_info')}>
+                                    <MessageSquare style={{ width: 11, height: 11 }} /> Request Info
+                                  </button>
+                                  <Link href={`/insurer/claims/${claim.id}/comparison?report=standard`}>
+                                    <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}>
+                                      <Eye style={{ width: 11, height: 11 }} /> Review
+                                    </button>
+                                  </Link>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'oversight' && (
+                <div className="p11-card">
+                  <div className="p11-filter-bar">
+                    <div className="p11-search-wrap">
+                      <Search className="p11-search-icon" style={{ width: 14, height: 14 }} />
+                      <input
+                        className="p11-search-input"
+                        placeholder="Search by claim number, vehicle…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                      />
+                    </div>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{filteredAll.length} claims</span>
+                  </div>
+                  {allLoading ? (
+                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>Loading portfolio…</div>
+                  ) : (
+                    <div className="p11-table-wrap">
+                      <table className="p11-table">
+                        <thead>
+                          <tr>
+                            <th>Claim</th>
+                            <th>Vehicle</th>
+                            <th>Status</th>
+                            <th>Risk</th>
+                            <th style={{ textAlign: 'right' }}>Value</th>
+                            <th>Submitted</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredAll.length === 0 ? (
+                            <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>No claims found</td></tr>
+                          ) : filteredAll.map((claim: any) => (
+                            <tr key={claim.id}>
+                              <td><span className="p11-id-mono">{claim.claimNumber}</span></td>
+                              <td style={{ color: 'var(--muted)', fontSize: 12 }}>
+                                {[claim.vehicleRegistration, claim.vehicleMake, claim.vehicleModel].filter(Boolean).join(' · ') || '—'}
+                              </td>
+                              <td>
+                                <span className="p11-badge muted">{statusLabel(claim.workflowState ?? claim.status ?? 'pending')}</span>
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <RiskTrend score={claim.fraudRiskScore ?? 0} />
+                                  <span style={{ fontSize: 12 }}>{claim.fraudRiskScore ?? 0}%</span>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmtCost(claim)}</td>
+                              <td style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(claim.createdAt).toLocaleDateString()}</td>
+                              <td><OversightActions claim={claim} /></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {allLoading ? (
-              <p className="text-center text-muted-foreground py-12">Loading portfolio…</p>
-            ) : (
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Claim</TableHead>
-                      <TableHead>Vehicle</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Risk</TableHead>
-                      <TableHead className="text-right">Value</TableHead>
-                      <TableHead>Submitted</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAll.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          No claims found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredAll.map((claim: any) => (
-                        <TableRow key={claim.id}>
-                          <TableCell className="font-medium">{claim.claimNumber}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {[claim.vehicleRegistration, claim.vehicleMake, claim.vehicleModel].filter(Boolean).join(" · ") || "—"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {statusLabel(claim.workflowState ?? claim.status ?? "pending")}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <RiskTrend score={claim.fraudRiskScore ?? 0} />
-                              <span className="text-sm">{claim.fraudRiskScore ?? 0}%</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">{fmtCost(claim)}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(claim.createdAt).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <OversightActions claim={claim} />
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-            )}
-          </TabsContent>
-        
-          {/* ── Notifications Tab ─────────────────────────────────────── */}
-          {/* ── Fraud Intelligence Tab ── */}
-          <TabsContent value="fraud-intelligence" className="mt-4 space-y-4">
-            <GeographicRiskClustersPanel analyticsFrom={analyticsFrom} analyticsTo={analyticsTo} />
-          </TabsContent>
+            {/* ── SIDEBAR ── */}
+            <div className="p11-sidebar">
+              {/* Attention Required */}
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div>
+                    <div className="p11-card-title">
+                      <AlertCircle style={{ width: 14, height: 14, color: 'var(--red)' }} />
+                      Attention Required
+                    </div>
+                    <div className="p11-card-subtitle">High-priority risk items</div>
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  {escalatedClaims.length === 0 && approvalQueue.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--muted)' }}>
+                      <CheckCircle style={{ width: 24, height: 24, margin: '0 auto 6px', color: 'var(--g-500)' }} />
+                      <div style={{ fontSize: 12 }}>No urgent items</div>
+                    </div>
+                  ) : (
+                    <>
+                      {escalatedClaims.slice(0, 3).map((c: any) => (
+                        <div key={c.id} className="p11-attention-item">
+                          <div className="p11-attention-dot red" />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }} className="p11-id-mono">{c.claimNumber}</div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Fraud score: {c.fraudRiskScore ?? 0}%</div>
+                          </div>
+                          <button className="p11-btn-outline" style={{ padding: '3px 7px', fontSize: 10 }}
+                            onClick={() => openDialog(c, 'approve')}>Review</button>
+                        </div>
+                      ))}
+                      {approvalQueue.slice(0, 3).map((c: any) => (
+                        <div key={c.id} className="p11-attention-item">
+                          <div className="p11-attention-dot amber" />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }} className="p11-id-mono">{c.claimNumber}</div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Pending approval</div>
+                          </div>
+                          <button className="p11-btn-outline" style={{ padding: '3px 7px', fontSize: 10 }}
+                            onClick={() => openDialog(c, 'approve')}>Approve</button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
 
-                    <TabsContent value="notifications" className="mt-6">
-            <NotificationsInbox />
-          </TabsContent>
-</Tabs>
+              {/* Risk Summary */}
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <TrendingUp style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    Risk Summary
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  {[
+                    { label: 'Low Risk (0–39%)', value: allClaims.filter((c: any) => (c.fraudRiskScore ?? 0) < 40).length, cls: 'green' },
+                    { label: 'Medium Risk (40–69%)', value: allClaims.filter((c: any) => { const s = c.fraudRiskScore ?? 0; return s >= 40 && s < 70; }).length, cls: 'amber' },
+                    { label: 'High Risk (70%+)', value: allClaims.filter((c: any) => (c.fraudRiskScore ?? 0) >= 70).length, cls: 'red' },
+                  ].map(row => (
+                    <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                      <span className={`p11-badge ${row.cls}`}>{row.label}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-        {/* ── Action Dialog ── */}
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+              {/* Analytics Period */}
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <Calendar style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    Analytics Period
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>From</div>
+                      <input type="date" value={analyticsFrom} onChange={e => setAnalyticsFrom(e.target.value)}
+                        className="p11-select" style={{ width: '100%' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>To</div>
+                      <input type="date" value={analyticsTo} onChange={e => setAnalyticsTo(e.target.value)}
+                        className="p11-select" style={{ width: '100%' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Action Dialog ── */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
@@ -732,9 +788,7 @@ export default function RiskManagerDashboard() {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
-
-      </div>
+      </Dialog>
     </div>
   );
 }

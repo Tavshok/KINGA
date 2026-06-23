@@ -67,6 +67,14 @@ export default function RecoveryPortal() {
   };
 
   const cases = casesData ?? [];
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCase, setSelectedCase] = useState<any>(null);
+  const displayedCases = searchQuery
+    ? cases.filter((c: any) =>
+        (c.claimNumber ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.thirdPartyName ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : cases;
 
   // PortalKPI strip — maps the 4 recovery KPIs to the shared PortalKPIStrip format
   const portalKPIs: PortalKPI[] = [
@@ -125,163 +133,156 @@ export default function RecoveryPortal() {
         ]}
         ctaLabel="View all alerts"
       />
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-
-        {/* Recovery deadline warning banner */}
-        {kpis && kpis.approachingDeadlines > 0 && (
-          <div className="rounded-lg border p-4 flex gap-3" style={{ borderColor: "#E8C97A", background: "#FFF8E6" }}>
-            <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: "#8A5C00" }} />
-            <div className="text-sm text-muted-foreground">
-              <span className="font-medium" style={{ color: "#8A5C00" }}>
-                {kpis.approachingDeadlines} case{kpis.approachingDeadlines > 1 ? "s" : ""} approaching recovery deadline
-              </span>{" "}
-              within 90 days. Review and action these cases to avoid losing recovery rights.
-            </div>
-          </div>
-        )}
-
-
-
-        {/* Status queue cards */}
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Case Queues</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {STATUS_CARDS.map((card) => {
-              const count = statusCounts[card.tab];
-              const isActive = activeTab === card.tab;
-              return (
-                <button
-                  key={card.tab}
-                  onClick={() => setActiveTab(isActive ? null : card.tab)}
-                  className={`rounded-lg border p-4 text-left transition-colors ${
-                    isActive
-                      ? "border-emerald-500/50 bg-emerald-500/10"
-                      : "border-border hover:border-emerald-500/30 hover:bg-emerald-500/5"
-                  }`}
-                >
-                  <div className={`inline-flex p-2 rounded-lg ${card.bg} mb-3`}>
-                    <card.icon className={`h-4 w-4 ${card.color}`} />
-                  </div>
-                  <div className="font-medium text-sm text-foreground">{card.label}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{card.description}</div>
-                  <div className={`text-lg font-bold mt-2 ${kpisLoading ? "text-muted-foreground/30" : card.color}`}>
-                    {kpisLoading ? "—" : count}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Case list — shown when a queue card is selected or by default */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              {activeTab ? `${STATUS_CARDS.find(c => c.tab === activeTab)?.label} Cases` : "Recent Cases"}
-            </h2>
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Repeat Offenders filter chip */}
-              <button
-                onClick={() => setRepeatOffendersOnly(v => !v)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                  repeatOffendersOnly
-                    ? "bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30"
-                    : "bg-transparent text-muted-foreground border-border hover:border-rose-500/40 hover:text-rose-300"
-                }`}
-              >
-                <AlertTriangle className="h-3 w-3" />
-                Repeat Offenders
-                {repeatOffendersOnly && <span className="ml-0.5">×</span>}
-              </button>
-              {activeTab && (
-                <button onClick={() => setActiveTab(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  Clear queue filter
-                </button>
-              )}
-            </div>
-          </div>
-
-          {casesLoading ? (
-            <div className="space-y-2">
-              {[1,2,3].map(i => (
-                <div key={i} className="rounded-lg border border-border p-4 animate-pulse">
-                  <div className="h-4 bg-muted rounded w-1/3 mb-2" />
-                  <div className="h-3 bg-muted rounded w-1/2" />
+      {/* ── BODY ── */}
+      <div className="p11-body">
+        <div className="p11-body-2col">
+          {/* ── MAIN COLUMN ── */}
+          <div>
+            {/* Recovery Cases Table */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <Scale style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Recovery Cases
                 </div>
-              ))}
-            </div>
-          ) : cases.length === 0 ? (
-            <div className="rounded-lg border border-border p-8 text-center">
-              <Scale className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">
-                {activeTab ? "No cases in this queue." : "No recovery cases yet. Cases are created automatically when claims are settled with third-party liability."}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {cases.map((rc: any) => {
-                const rpsColor = rc.recoveryPotentialScore >= 70 ? "text-emerald-400" : rc.recoveryPotentialScore >= 40 ? "text-amber-400" : "text-rose-400";
-                const statusLabel = rc.status?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) ?? "—";
-                return (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    placeholder="Search cases…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ fontSize: 12, padding: '4px 10px', border: '1px solid var(--line)', borderRadius: 4, outline: 'none', width: 160 }}
+                  />
                   <button
-                    key={rc.id}
-                    onClick={() => navigate(`/insurer-portal/recovery/${rc.id}`)}
-                    className="w-full rounded-lg border border-border p-4 text-left hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-colors flex items-center justify-between gap-4"
+                    onClick={() => setActiveTab(null)}
+                    style={{ fontSize: 11, color: 'var(--g-600)', background: 'none', border: '1px solid var(--g-300)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm text-foreground">
-                          {rc.claimNumber ?? `RC-${rc.id}`}
-                        </span>
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {statusLabel}
-                        </Badge>
-                        {rc.wrongedParty === "insured" && (
-                          <Badge variant="outline" className="text-xs text-emerald-400 border-emerald-500/30">
-                            Insured wronged
-                          </Badge>
-                        )}
-                        {rc.isRepeatOffender && (
-                          <Badge variant="outline" className="text-xs text-rose-400 border-rose-500/30 gap-1">
-                            <AlertTriangle className="h-3 w-3" />
-                            Repeat offender
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
-                        {rc.vehicleRegistration && <span>{rc.vehicleRegistration}</span>}
-                        {rc.incidentDate && <span>{new Date(rc.incidentDate).toLocaleDateString("en-ZA")}</span>}
-                        {rc.thirdPartyName && <span>3rd party: {rc.thirdPartyName}</span>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 flex-shrink-0">
-                      <SLADeadlineChip deadline={rc.recoveryDeadline} warnOnly={false} showOk={true} />
-                      <div className="text-right">
-                        <div className={`text-sm font-bold ${rpsColor}`}>{rc.recoveryPotentialScore}</div>
-                        <div className="text-xs text-muted-foreground">RPS</div>
-                      </div>
-                      {rc.approvedSettlementAmount && (
-                        <div className="text-right hidden sm:block">
-                          <div className="text-sm font-medium text-foreground">{fmtCurrency(rc.approvedSettlementAmount)}</div>
-                          <div className="text-xs text-muted-foreground">Quantum</div>
-                        </div>
-                      )}
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
+                    All
                   </button>
-                );
-              })}
+                  <button
+                    onClick={() => setActiveTab('approaching')}
+                    style={{ fontSize: 11, color: 'var(--red)', background: 'none', border: '1px solid var(--red)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
+                  >
+                    Approaching Deadline
+                  </button>
+                </div>
+              </div>
+              <div className="p11-card-body" style={{ padding: 0 }}>
+                {casesLoading ? (
+                  <div style={{ padding: '16px 20px' }}>
+                    {[1,2,3].map(i => <div key={i} style={{ height: 48, background: '#F3F4F6', borderRadius: 6, marginBottom: 8 }} />)}
+                  </div>
+                ) : displayedCases.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px 20px', color: 'var(--muted)', fontSize: 13 }}>No recovery cases found</div>
+                ) : (
+                  <table className="p11-table">
+                    <thead>
+                      <tr>
+                        <th>Claim #</th>
+                        <th>Third Party</th>
+                        <th>Quantum</th>
+                        <th>RPS</th>
+                        <th>Deadline</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayedCases.map((rc: any) => {
+                        const rps = rc.recoveryPotentialScore ?? 0;
+                        const rpsColor = rps >= 70 ? 'var(--green)' : rps >= 40 ? 'var(--amber)' : 'var(--red)';
+                        return (
+                          <tr key={rc.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedCase(rc)}>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--ink)', fontSize: 12 }}>
+                              {rc.claimNumber ?? `CLM-${String(rc.id).slice(0, 8).toUpperCase()}`}
+                            </td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>{rc.thirdPartyName ?? '—'}</td>
+                            <td style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 12 }}>
+                              {rc.approvedSettlementAmount ? fmtCurrency(rc.approvedSettlementAmount) : '—'}
+                            </td>
+                            <td>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: rpsColor }}>{rps}</span>
+                            </td>
+                            <td>
+                              <SLADeadlineChip deadline={rc.recoveryDeadline} warnOnly={false} showOk={true} />
+                            </td>
+                            <td>
+                              <span className={`p11-badge ${rc.status === 'settled' ? 'green' : rc.status === 'disputed' ? 'red' : 'amber'}`}>
+                                {rc.status?.replace(/_/g, ' ') ?? 'Open'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Inter-Insurer Intelligence Panel */}
-        <InsurerIntelligencePanel />
+          {/* ── SIDEBAR ── */}
+          <div className="p11-sidebar">
+            {/* Attention Required */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <AlertTriangle style={{ width: 14, height: 14, color: 'var(--amber)' }} />
+                  Attention Required
+                </div>
+              </div>
+              <div className="p11-card-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { label: 'Approaching Deadline', value: kpis?.approachingDeadlines ?? 0, severity: 'red' as const },
+                  { label: 'Pending Action', value: kpis?.pendingReview ?? kpis?.open ?? 0, severity: 'amber' as const },
+                ].map(item => (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: item.severity === 'red' ? '#FDF0F0' : '#FFF8E6', border: `1px solid ${item.severity === 'red' ? '#E8B8B8' : '#E8C97A'}`, borderRadius: 6 }}>
+                    <span className={`p11-badge ${item.severity}`}>{item.value}</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink)' }}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Recovery Performance */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <TrendingUp style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Recovery Performance
+                </div>
+              </div>
+              <div className="p11-card-body">
+                {[
+                  { label: 'Total Quantum', value: kpisLoading ? '—' : fmtCurrency(kpis?.totalSettlementAmount ?? 0) },
+                  { label: 'Total Recovered', value: kpisLoading ? '—' : fmtCurrency(kpis?.totalRecovered ?? 0) },
+                  { label: 'Recovery Rate', value: kpisLoading ? '—' : `${kpis?.recoveryRate ?? 0}%` },
+                ].map(item => (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{item.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Insurer Intelligence */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <Building2 style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Insurer Intelligence
+                </div>
+              </div>
+              <div className="p11-card-body" style={{ padding: 0 }}>
+                <InsurerIntelligencePanel />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-
 function InsurerIntelligencePanel() {
   const { data, isLoading } = trpc.recovery.getInsurerIntelligence.useQuery();
   if (isLoading || !data || data.length === 0) return null;

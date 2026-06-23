@@ -193,763 +193,313 @@ export default function AdminDashboard() {
 
 
 
-      <main className="container mx-auto px-4 py-8">
+      {/* ── BODY ── */}
+      <div className="p11-body">
+        <div className="p11-body-2col">
+          {/* ── MAIN COLUMN ── */}
+          <div>
+            {/* Pending Registration Queue */}
+            <PendingRegistrationQueue />
 
-
-        {/* Tab Navigation */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          <Button
-            variant={selectedTab === "panel-beaters" ? "default" : "outline"}
-            onClick={() => setSelectedTab("panel-beaters")}
-          >
-            <Users className="mr-2 h-4 w-4" />
-            Panel Beaters
-          </Button>
-          <Button
-            variant={selectedTab === "analytics" ? "default" : "outline"}
-            onClick={() => setSelectedTab("analytics")}
-          >
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Analytics
-          </Button>
-          <Button
-            variant={selectedTab === "intelligence" ? "default" : "outline"}
-            onClick={() => setSelectedTab("intelligence")}
-            style={selectedTab === "intelligence" ? { background: "#3C7844", color: "#fff", border: "none" } : {}}
-          >
-            <Brain className="mr-2 h-4 w-4" />
-            KINGA Intelligence Training
-          </Button>
-          <Button
-            variant={selectedTab === "settings" ? "default" : "outline"}
-            onClick={() => setSelectedTab("settings")}
-          >
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </Button>
-          <Button
-            variant={selectedTab === "tenants" ? "default" : "outline"}
-            onClick={() => setSelectedTab("tenants")}
-          >
-            <GitBranch className="mr-2 h-4 w-4" />
-            Tenants
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setLocation("/admin/market-quotes")}
-          >
-            <Database className="mr-2 h-4 w-4" />
-            KINGA Agency
-          </Button>
-        </div>
-        {/* Pending Registration Queue — always visible to admins */}
-        <PendingRegistrationQueue />
-
-        {/* Tenants Tab */}
-        {selectedTab === "tenants" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Insurer Tenant Management</CardTitle>
-              <CardDescription>View and configure all insurer tenants on the KINGA platform</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {tenantsLoading ? (
-                <div className="flex items-center gap-2 py-8 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading tenants…</div>
-              ) : tenantList.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center">No tenants found</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tenant ID</TableHead>
-                      <TableHead>Display Name</TableHead>
-                      <TableHead>Currency</TableHead>
-                      <TableHead>Auto-Approve Below</TableHead>
-                      <TableHead>High-Value Threshold</TableHead>
-                      <TableHead>Fraud Flag Threshold</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tenantList.map((t: any) => (
-                      <TableRow key={t.id}>
-                        <TableCell className="font-mono text-xs">{t.id}</TableCell>
-                        <TableCell>
-                          {editingTenantId === t.id ? (
-                            <Input
-                              value={tenantEditName}
-                              onChange={(e) => setTenantEditName(e.target.value)}
-                              className="h-7 text-sm"
-                            />
-                          ) : (
-                            t.displayName
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {editingTenantId === t.id ? (
-                            <Input
-                              value={tenantEditCurrency}
-                              onChange={(e) => setTenantEditCurrency(e.target.value)}
-                              className="h-7 w-20 text-sm"
-                              maxLength={3}
-                            />
-                          ) : (
-                            <Badge variant="outline">{t.primaryCurrency ?? "USD"}</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{t.autoApproveBelow ?? "—"}</TableCell>
-                        <TableCell>{t.highValueThreshold ?? "—"}</TableCell>
-                        <TableCell>
-                          <Badge variant={Number(t.fraudFlagThreshold) >= 0.8 ? "destructive" : "secondary"}>
-                            {t.fraudFlagThreshold ?? "—"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {t.createdAt ? new Date(t.createdAt).toLocaleDateString() : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {editingTenantId === t.id ? (
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  updateTenant.mutate({ tenantId: t.id, name: tenantEditName });
-                                  setEditingTenantId(null);
-                                }}
-                              >
-                                Save
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => setEditingTenantId(null)}>Cancel</Button>
-                            </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setEditingTenantId(t.id);
-                                setTenantEditName(t.displayName);
-                                setTenantEditCurrency(t.primaryCurrency ?? "USD");
-                              }}
-                            >
-                              Edit
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Panel Beater Approvals Tab */}
-        {selectedTab === "panel-beaters" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Panel Beater Approval Workflow</CardTitle>
-              <CardDescription>
-                Review and approve panel beater applications to join the KINGA network
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {panelBeaters.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p>No panel beaters registered</p>
-                  <p className="text-sm mt-2">Panel beater applications will appear here</p>
+            {/* Panel Beaters Table */}
+            {selectedTab === "panel-beaters" && (
+              <div className="p11-card" style={{ marginTop: 16 }}>
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <Users style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    Panel Beater Registry
+                  </div>
+                  <button
+                    onClick={() => setSelectedTab("panel-beaters")}
+                    style={{ fontSize: 11, color: 'var(--g-600)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
+                  >
+                    Refresh
+                  </button>
                 </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Business Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Rating</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {panelBeaters.map((pb) => (
-                      <TableRow key={pb.id}>
-                        <TableCell className="font-medium">{pb.businessName}</TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>{pb.name}</div>
-                            <div className="text-muted-foreground">{pb.email}</div>
-                            <div className="text-muted-foreground">{pb.phone}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{pb.city || "N/A"}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <span className="text-yellow-500">&#9733;</span>
-                            <span>4.5</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(pb.approved)}</TableCell>
-                        <TableCell>
-                          {pb.approved === null && (
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline" className="h-8 px-3" onClick={() => handleApprove(pb.id)}>
-                                <CheckCircle className="h-3 w-3 mr-1 text-green-600" />
-                                Approve
-                              </Button>
-                              <Button size="sm" variant="outline" className="h-8 px-3" onClick={() => handleReject(pb.id)}>
-                                <XCircle className="h-3 w-3 mr-1 text-red-600" />
-                                Reject
-                              </Button>
-                            </div>
-                          )}
-                          {pb.approved !== null && (
-                            <span className="text-sm text-muted-foreground">
-                              {pb.approved === 1 ? "Active" : "Rejected"}
-                            </span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Analytics Tab */}
-        {selectedTab === "analytics" && (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Claims by Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { status: "submitted", label: "Submitted", color: "text-primary" },
-                    { status: "triage", label: "In Triage", color: "text-yellow-600" },
-                    { status: "assessment_pending", label: "Assessment Pending", color: "text-orange-600" },
-                    { status: "completed", label: "Completed", color: "text-[#3C7844]" },
-                  ].map(({ status, label, color }) => {
-                    const count = allClaims.filter((c: any) => c.status === status).length;
-                    return (
-                      <div key={status} className="border rounded-lg p-4">
-                        <div className={`text-2xl font-bold ${color}`}>{count}</div>
-                        <div className="text-sm text-muted-foreground">{label}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Fraud Detection Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="border rounded-lg p-4">
-                    <div className="text-2xl font-bold" style={{ color: "#3C7844" }}>
-                      {allClaims.filter((c: any) => (c.fraudRiskScore || 0) < 40).length}
+                <div className="p11-card-body" style={{ padding: 0 }}>
+                  {false ? (
+                    <div style={{ padding: '16px 20px' }}>
+                      {[1,2,3].map(i => <div key={i} style={{ height: 48, background: '#F3F4F6', borderRadius: 6, marginBottom: 8 }} />)}
                     </div>
-                    <div className="text-sm text-muted-foreground">Low Risk (&lt;40)</div>
-                  </div>
-                  <div className="border rounded-lg p-4">
-                    <div className="text-2xl font-bold text-yellow-600">
-                      {allClaims.filter((c: any) => (c.fraudRiskScore || 0) >= 40 && (c.fraudRiskScore || 0) < 70).length}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Medium Risk (40-70)</div>
-                  </div>
-                  <div className="border rounded-lg p-4">
-                    <div className="text-2xl font-bold" style={{ color: "#A32D2D" }}>{highRiskClaims}</div>
-                    <div className="text-sm text-muted-foreground">High Risk (&gt;70)</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* KINGA Intelligence Training Tab */}
-        {selectedTab === "intelligence" && (
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="flex gap-3">
-              <Button
-                onClick={() => setLocation("/historical-claims")}
-                style={{ background: "#3C7844", color: "#fff", border: "none" }}
-              >
-                <Database className="mr-2 h-4 w-4" />
-                Historical Claims Pipeline
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setLocation("/ml/review/queue")}
-              >
-                <Brain className="mr-2 h-4 w-4" />
-                ML Review Queue
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setLocation("/admin/workflows")}
-              >
-                <GitBranch className="mr-2 h-4 w-4" />
-                Workflow Templates
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setLocation("/admin/escalation")}
-              >
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                Escalation Queue
-              </Button>
-            </div>
-            {/* Training Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="border-emerald-200 dark:border-emerald-800">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Historical Claims</CardTitle>
-                  <Database className="h-4 w-4 text-emerald-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-emerald-600">
-                    {analyticsData?.qualityStats?.totalClaims || 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground">In training database</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-emerald-200 dark:border-emerald-800">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Ground Truth Records</CardTitle>
-                  <Target className="h-4 w-4 text-emerald-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-emerald-600">
-                    {analyticsData?.statusCounts?.find((s: any) => s.status === "ground_truth_captured")?.count || 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Validated outcomes</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-emerald-200 dark:border-emerald-800">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Variance</CardTitle>
-                  <ArrowUpDown className="h-4 w-4 text-emerald-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-emerald-600">
-                    {analyticsData?.varianceStats?.[0]?.avgAbsVariancePercent
-                      ? `${Number(analyticsData.varianceStats[0].avgAbsVariancePercent).toFixed(1)}%`
-                      : "N/A"}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Quote vs actual cost</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-emerald-200 dark:border-emerald-800">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Data Quality</CardTitle>
-                  <Activity className="h-4 w-4 text-emerald-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-emerald-600">
-                    {analyticsData?.qualityStats?.avgQuality
-                      ? `${Number(analyticsData.qualityStats.avgQuality).toFixed(0)}%`
-                      : "N/A"}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Average extraction quality</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Ground Truth Capture */}
-            <Card className="border-emerald-200 dark:border-emerald-800">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-emerald-600" />
-                  <CardTitle>Capture Ground Truth</CardTitle>
-                </div>
-                <CardDescription>
-                  Record the final approved cost and decision for a claim. This data trains KINGA to improve
-                  cost predictions, fraud detection accuracy, and assessor benchmarking over time.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label>Claim ID *</Label>
-                    <Input
-                      type="number"
-                      value={gtClaimId}
-                      onChange={(e) => setGtClaimId(e.target.value)}
-                      placeholder="e.g., 42"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Decision *</Label>
-                    <Select value={gtDecision || "none"} onValueChange={(v) => setGtDecision(v === "none" ? "" : v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select decision" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Select...</SelectItem>
-                        <SelectItem value="approved_repair">Approved Repair</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                        <SelectItem value="cash_settlement">Cash Settlement</SelectItem>
-                        <SelectItem value="approved_total_loss">Total Loss / Write-Off</SelectItem>
-                        <SelectItem value="withdrawn">Withdrawn</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Final Approved Cost *</Label>
-                    <Input
-                      type="number"
-                      value={gtFinalCost}
-                      onChange={(e) => setGtFinalCost(e.target.value)}
-                      placeholder="e.g., 45000"
-                    />
-                  </div>
-                </div>
-
-                <Separator />
-                <p className="text-sm font-medium text-muted-foreground">Cost Breakdown (optional — improves model accuracy)</p>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label>Parts Cost</Label>
-                    <Input
-                      type="number"
-                      value={gtPartsCost}
-                      onChange={(e) => setGtPartsCost(e.target.value)}
-                      placeholder="e.g., 25000"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Labour Cost</Label>
-                    <Input
-                      type="number"
-                      value={gtLabourCost}
-                      onChange={(e) => setGtLabourCost(e.target.value)}
-                      placeholder="e.g., 12000"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Paint Cost</Label>
-                    <Input
-                      type="number"
-                      value={gtPaintCost}
-                      onChange={(e) => setGtPaintCost(e.target.value)}
-                      placeholder="e.g., 8000"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Assessor Name</Label>
-                    <Input
-                      value={gtAssessorName}
-                      onChange={(e) => setGtAssessorName(e.target.value)}
-                      placeholder="Name of assessor who reviewed"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Repair Shop</Label>
-                    <Input
-                      value={gtRepairShop}
-                      onChange={(e) => setGtRepairShop(e.target.value)}
-                      placeholder="Panel beater / repair shop name"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Input
-                    value={gtNotes}
-                    onChange={(e) => setGtNotes(e.target.value)}
-                    placeholder="Any additional notes about this outcome..."
-                  />
-                </div>
-
-                <Button
-                  onClick={handleSubmitGroundTruth}
-                  disabled={submittingGt || !gtClaimId || !gtDecision || !gtFinalCost}
-                  style={{ background: "#3C7844", color: "#fff", border: "none" }}
-                >
-                  {submittingGt ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
+                  ) : panelBeaters.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '24px 20px', color: 'var(--muted)', fontSize: 13 }}>No panel beaters registered yet</div>
                   ) : (
-                    <>
-                      <Target className="mr-2 h-4 w-4" />
-                      Capture Ground Truth
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Variance Analytics */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-emerald-600" />
-                  <CardTitle>Cost Variance Analysis</CardTitle>
-                </div>
-                <CardDescription>
-                  How KINGA-predicted costs compare to final approved costs. Lower variance means better KINGA accuracy.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {varianceData?.distribution && varianceData.distribution.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      {varianceData.distribution.map((bucket: any) => (
-                        <div key={bucket.category} className="border rounded-lg p-3 text-center">
-                          <div className="text-lg font-bold">{bucket.count}</div>
-                          <div className="text-xs text-muted-foreground capitalize">{bucket.category?.replace(/_/g, " ")}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Distribution of variance between KINGA-predicted and actual approved costs across all ground truth records.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                    <p>No variance data available yet</p>
-                    <p className="text-sm mt-1">Capture ground truth records to see cost variance analysis</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Assessor Benchmarks */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-emerald-600" />
-                  <CardTitle>Assessor Performance Benchmarks</CardTitle>
-                </div>
-                <CardDescription>
-                  Track assessor accuracy over time. KINGA learns which assessors are most reliable.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {assessorBenchmarks && assessorBenchmarks.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Assessor</TableHead>
-                        <TableHead>Claims Assessed</TableHead>
-                        <TableHead>Avg Variance</TableHead>
-                        <TableHead>Fraud Suspected</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {assessorBenchmarks.map((assessor: any, i: number) => {
-                        const avgVar = Number(assessor.avgAbsVariancePercent || 0);
-                        return (
-                          <TableRow key={i}>
-                            <TableCell className="font-medium">
-                              {assessor.assessorName || "Unknown"}
-                              {assessor.assessorLicenseNumber && (
-                                <span className="text-xs text-muted-foreground ml-1">({assessor.assessorLicenseNumber})</span>
-                              )}
-                            </TableCell>
-                            <TableCell>{assessor.claimsAssessed}</TableCell>
-                            <TableCell>
-                              <span className={avgVar < 15 ? "text-green-600" : avgVar < 30 ? "text-yellow-600" : "text-red-600"}>
-                                {avgVar.toFixed(1)}%
+                    <table className="p11-table">
+                      <thead>
+                        <tr>
+                          <th>Business Name</th>
+                          <th>City</th>
+                          <th>Status</th>
+                          <th>Performance</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {panelBeaters.map((pb: any) => (
+                          <tr key={pb.id}>
+                            <td style={{ fontWeight: 600, color: 'var(--ink)' }}>{pb.businessName}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>{pb.city || '—'}</td>
+                            <td>
+                              <span className={`p11-badge ${pb.approved ? 'green' : 'amber'}`}>
+                                {pb.approved ? 'Approved' : 'Pending'}
                               </span>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={assessor.fraudSuspected > 0 ? "destructive" : "secondary"}>
-                                {assessor.fraudSuspected || 0}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                    <p>No assessor benchmark data yet</p>
-                    <p className="text-sm mt-1">Data populates as ground truth records are captured</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Vehicle Cost Patterns */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-emerald-600" />
-                  <CardTitle>Vehicle Cost Patterns</CardTitle>
+                            </td>
+                            <td>
+                              <span className={`p11-badge ${pb.performanceTier === 'A' ? 'green' : pb.performanceTier === 'D' ? 'red' : 'amber'}`}>
+                                Tier {pb.performanceTier || 'B'}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                {!pb.approved && (
+                                  <button
+                                    onClick={() => handleApprove(pb.id)}
+                                    style={{ fontSize: 11, color: '#fff', background: 'var(--g-600)', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
+                                  >
+                                    Approve
+                                  </button>
+                                )}
+                                {pb.approved && (
+                                  <button
+                                    onClick={() => handleReject(pb.id)}
+                                    style={{ fontSize: 11, color: 'var(--red)', background: 'none', border: '1px solid var(--red)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
+                                  >
+                                    Revoke
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
-                <CardDescription>
-                  Average repair costs by vehicle make/model. Used to benchmark new claims automatically.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {vehiclePatterns && vehiclePatterns.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Make / Model</TableHead>
-                        <TableHead>Claims</TableHead>
-                        <TableHead>Avg Quote</TableHead>
-                        <TableHead>Avg Final</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {vehiclePatterns.map((pattern: any, i: number) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-medium">
-                            {pattern.vehicleMake || "Unknown"} {pattern.vehicleModel || ""}
-                          </TableCell>
-                          <TableCell>{pattern.claimCount}</TableCell>
-                          <TableCell>R {Number(pattern.avgQuoteCost || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                          <TableCell>R {Number(pattern.avgFinalCost || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Zap className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                    <p>No vehicle cost pattern data yet</p>
-                    <p className="text-sm mt-1">Patterns emerge as historical claims are ingested and processed</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              </div>
+            )}
 
-            {/* Continuous Learning Status */}
-            <Card className="border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-emerald-600" />
-                  <CardTitle className="text-emerald-800 dark:text-emerald-200">Continuous Learning Status</CardTitle>
-                </div>
-                <CardDescription>
-                  KINGA continuously learns from every claim processed through the system
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="rounded-lg p-4" style={{ background: '#FFFFFF', border: '1px solid #B8D4C0', borderRadius: 8 }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3C7844" }} />
-                      <span className="text-sm font-medium">Auto-Feed Active</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Every approved/completed claim automatically feeds into the historical database for model improvement
-                    </p>
-                  </div>
-                  <div className="rounded-lg p-4" style={{ background: '#FFFFFF', border: '1px solid #B8D4C0', borderRadius: 8 }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3C7844" }} />
-                      <span className="text-sm font-medium">Cost Benchmarks</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      New claims are automatically compared against historical cost data for the same vehicle make/model
-                    </p>
-                  </div>
-                  <div className="rounded-lg p-4" style={{ background: '#FFFFFF', border: '1px solid #B8D4C0', borderRadius: 8 }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#3C7844" }} />
-                      <span className="text-sm font-medium">Fraud Pattern Learning</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Fraud indicators are refined as more ground truth data confirms or refutes KINGA predictions
-                    </p>
+            {/* Tenants Tab */}
+            {selectedTab === "tenants" && (
+              <div className="p11-card" style={{ marginTop: 16 }}>
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <GitBranch style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    Insurer Tenants
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Settings Tab */}
-        {selectedTab === "settings" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>System Configuration</CardTitle>
-              <CardDescription>
-                Configure fraud detection thresholds and system parameters
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold mb-2">Fraud Detection Thresholds</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Current thresholds for automated fraud detection
-                  </p>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Cost Discrepancy Threshold</span>
-                      <Badge>30%</Badge>
+                <div className="p11-card-body" style={{ padding: 0 }}>
+                  {tenantsLoading ? (
+                    <div style={{ padding: '16px 20px' }}>
+                      {[1,2,3].map(i => <div key={i} style={{ height: 48, background: '#F3F4F6', borderRadius: 6, marginBottom: 8 }} />)}
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">High Risk Score Threshold</span>
-                      <Badge>70/100</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Medium Risk Score Threshold</span>
-                      <Badge>40/100</Badge>
-                    </div>
-                  </div>
-                  <Button className="mt-4" variant="outline" size="sm" onClick={() => setLocation("/admin/workflow-settings")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Configure Thresholds
-                  </Button>
+                  ) : tenantList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '24px 20px', color: 'var(--muted)', fontSize: 13 }}>No tenants found</div>
+                  ) : (
+                    <table className="p11-table">
+                      <thead>
+                        <tr>
+                          <th>Tenant ID</th>
+                          <th>Name</th>
+                          <th>Currency</th>
+                          <th>Auto-Approve Below</th>
+                          <th>Created</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tenantList.map((t: any) => (
+                          <tr key={t.id}>
+                            <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted)' }}>{t.id}</td>
+                            <td style={{ fontWeight: 600, color: 'var(--ink)' }}>
+                              {editingTenantId === t.id ? (
+                                <Input
+                                  value={tenantEditName}
+                                  onChange={(e) => setTenantEditName(e.target.value)}
+                                  className="h-7 text-xs w-40"
+                                />
+                              ) : (
+                                t.displayName || t.id
+                              )}
+                            </td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>{t.currency || 'ZAR'}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>R {Number(t.autoApproveBelow || 0).toLocaleString()}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '—'}</td>
+                            <td>
+                              {editingTenantId === t.id ? (
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  <button
+                                    onClick={() => updateTenant.mutate({ tenantId: t.id, name: tenantEditName })}
+                                    style={{ fontSize: 11, color: '#fff', background: 'var(--g-600)', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingTenantId(null)}
+                                    style={{ fontSize: 11, color: 'var(--muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setEditingTenantId(t.id); setTenantEditName(t.displayName || t.id); }}
+                                  style={{ fontSize: 11, color: 'var(--g-600)', background: 'none', border: '1px solid var(--g-300)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
+                                >
+                                  Edit
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
+              </div>
+            )}
 
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold mb-2">KINGA Assessment Settings</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Configuration for automated KINGA damage assessment
-                  </p>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Model Version</span>
-                      <Badge variant="outline">GPT-4 Vision v1</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Confidence Threshold</span>
-                      <Badge variant="outline">85%</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Cross-Validation</span>
-                      <Badge variant="outline" className="text-emerald-600 border-emerald-300 dark:border-emerald-700">Enabled</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Physics Engine</span>
-                      <Badge variant="outline" className="text-emerald-600 border-emerald-300 dark:border-emerald-700">Enabled</Badge>
-                    </div>
+            {/* Analytics Tab */}
+            {selectedTab === "analytics" && (
+              <div className="p11-card" style={{ marginTop: 16 }}>
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <TrendingUp style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    Platform Analytics
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {[
+                      { label: 'Total Claims', value: totalClaims },
+                      { label: 'Active Claims', value: allClaims.filter((c: any) => !["completed","closed","rejected"].includes(c.status)).length },
+                      { label: 'Total Panel Beaters', value: panelBeaters.length },
+                      { label: 'Avg Processing Days', value: `${avgProcessingTime}d` },
+                    ].map(row => (
+                      <div key={row.label} style={{ padding: '12px 16px', background: '#F7F8F6', borderRadius: 6, border: '1px solid var(--line)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{row.label}</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>{row.value}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
-      </main>
+            )}
+
+            {/* Intelligence Tab */}
+            {selectedTab === "intelligence" && (
+              <div className="p11-card" style={{ marginTop: 16 }}>
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <Brain style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    KINGA Intelligence Training
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {[
+                      { label: 'Model Version', value: 'GPT-4 Vision v1' },
+                      { label: 'Confidence Threshold', value: '85%' },
+                      { label: 'Cross-Validation', value: 'Enabled' },
+                      { label: 'Physics Engine', value: 'Enabled' },
+                    ].map(row => (
+                      <div key={row.label} style={{ padding: '12px 16px', background: '#F7F8F6', borderRadius: 6, border: '1px solid var(--line)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{row.label}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--g-600)' }}>{row.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Settings Tab */}
+            {selectedTab === "settings" && (
+              <div className="p11-card" style={{ marginTop: 16 }}>
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <Settings style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    Platform Settings
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  <p style={{ fontSize: 13, color: 'var(--muted)' }}>Platform configuration settings will appear here.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── SIDEBAR ── */}
+          <div className="p11-sidebar">
+            {/* Platform Stats */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <BarChart3 style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Platform Stats
+                </div>
+              </div>
+              <div className="p11-card-body">
+                {[
+                  { label: 'Total Claims', value: totalClaims, cls: 'muted' },
+                  { label: 'Active Claims', value: allClaims.filter((c: any) => !["completed","closed","rejected"].includes(c.status)).length, cls: 'amber' },
+                  { label: 'Panel Beaters', value: panelBeaters.length, cls: 'muted' },
+                  { label: 'Pending Approval', value: panelBeaters.filter((pb: any) => !pb.approved).length, cls: 'red' },
+                ].map(row => (
+                  <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{row.label}</span>
+                    <span className={`p11-badge ${row.cls}`}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <Settings style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Admin Navigation
+                </div>
+              </div>
+              <div className="p11-card-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {[
+                  { id: 'panel-beaters', label: 'Panel Beaters', icon: Users },
+                  { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+                  { id: 'intelligence', label: 'KINGA Intelligence', icon: Brain },
+                  { id: 'tenants', label: 'Tenants', icon: GitBranch },
+                  { id: 'settings', label: 'Settings', icon: Settings },
+                ].map(item => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setSelectedTab(item.id as any)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                        background: selectedTab === item.id ? 'var(--g-50)' : 'none',
+                        color: selectedTab === item.id ? 'var(--g-700)' : 'var(--muted)',
+                        border: selectedTab === item.id ? '1px solid var(--g-200)' : '1px solid transparent',
+                        borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: selectedTab === item.id ? 600 : 400,
+                        textAlign: 'left',
+                      }}
+                    >
+                      <Icon style={{ width: 13, height: 13 }} />
+                      {item.label}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setLocation("/admin/market-quotes")}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', color: 'var(--muted)', border: '1px solid transparent', borderRadius: 6, cursor: 'pointer', fontSize: 12, textAlign: 'left' }}
+                >
+                  <Database style={{ width: 13, height: 13 }} />
+                  KINGA Agency
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

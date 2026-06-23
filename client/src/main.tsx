@@ -12,6 +12,7 @@ import App from "./App";
 import { KingaErrorBoundary } from "./components/KingaErrorBoundary";
 import { getLoginUrl } from "./const";
 import "./index.css";
+import "./styles/phase11.css";
 
 const queryClient = new QueryClient();
 

@@ -43,6 +43,8 @@ import {
   History,
   UserCog,
   Download,
+  Zap,
+  FileText
 } from "lucide-react";
 
 // ─── Role display helpers ─────────────────────────────────────────────────────
@@ -236,229 +238,128 @@ export default function InsurerAdminDashboard() {
         ]}
         ctaLabel="View all alerts"
       />
-      <div className="p-6 space-y-6">
-                {/* ── Quick actions ── */}
-        <section>
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {QUICK_ACTIONS.map((action) => {
-              const Icon = action.icon;
-              return (
-                <Card
-                  key={action.label}
-                  className="cursor-pointer transition-shadow" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF', boxShadow: 'none' }}
-                  onClick={() => setLocation(action.href)}
-                >
-                  <CardContent className="p-4 flex flex-col gap-3">
-                    <div className={`w-9 h-9 rounded-lg ${action.bg} flex items-center justify-center`}>
-                      <Icon className={`h-4 w-4 ${action.color}`} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold leading-tight">{action.label}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed line-clamp-2">{action.description}</p>
-                    </div>
-                    <div className="flex items-center gap-1 mt-auto">
-                      <span className={`text-[10px] font-medium ${action.color}`}>Open</span>
-                      <ArrowRight className={`h-3 w-3 ${action.color}`} />
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* ── Bottom grid: recent claims + role summary ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent claims */}
-          <Card className="lg:col-span-2 border-0 shadow-sm">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Recent Claims Activity</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground hover:text-foreground h-7 px-2"
-                  onClick={() => setLocation("/insurer/claims/triage")}
-                >
-                  View all <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                </Button>
+      {/* ── BODY ── */}
+      <div className="p11-body">
+        <div className="p11-body-2col">
+          {/* ── MAIN COLUMN ── */}
+          <div>
+            {/* Quick Actions */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <Zap style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Quick Actions
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="px-0 pb-0">
-              <div className="divide-y divide-border">
-                {recentClaims.length === 0 ? (
-                  <div className="px-5 py-8 text-center text-muted-foreground text-sm">
-                    No recent claims activity
-                  </div>
-                ) : (
-                  recentClaims.map((claim: any) => (
-                    <div
-                      key={claim.id}
-                      className="px-5 py-3 flex items-center gap-4 hover:bg-muted/40 cursor-pointer transition-colors"
-                      onClick={() => setLocation(`/insurer/claims/${claim.id}`)}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {claim.claimNumber ?? `CLM-${claim.id.slice(0, 8).toUpperCase()}`}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {claim.vehicleRegistration ?? "—"} · {claim.incidentType ?? "Motor"}
-                        </p>
-                      </div>
-                      <StatusChip status={claim.status} />
-                      <p className="text-xs text-muted-foreground flex-shrink-0 hidden sm:block">
-                        {claim.createdAt
-                          ? new Date(claim.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
-                          : "—"}
-                      </p>
-                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Admin profile + role directory */}
-          <div className="space-y-4">
-            {/* Admin profile card */}
-            <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold">Your Admin Profile</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-teal-700">
-                        {(user?.name ?? user?.email ?? "A").charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{user?.name ?? "Admin User"}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user?.email ?? ""}</p>
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-border space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Role</span>
-                      <RoleBadge role="insurer_admin" />
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Access Level</span>
-                      <span className="font-medium">Full Admin</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Permissions</span>
-                      <span className="text-teal-600 font-medium">All modules</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Role directory */}
-            <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold">Portal Roles</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="space-y-2">
-                  {Object.entries(ROLE_LABELS).map(([roleKey, cfg]) => (
-                    <div key={roleKey} className="flex items-center justify-between">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${cfg.color}`}>
-                        {cfg.label}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-                        onClick={() => {
-                          const paths: Record<string, string> = {
-                            executive:         "/insurer-portal/executive",
-                            claims_manager:    "/insurer-portal/claims-manager",
-                            claims_processor:  "/insurer-portal/claims-processor",
-                            assessor_internal: "/insurer-portal/internal-assessor",
-                            risk_manager:      "/insurer-portal/risk-manager",
-                            recovery_officer:  "/insurer-portal/recovery",
-                            insurer_admin:     "/insurer-portal/insurer-admin",
-                          };
-                          setLocation(paths[roleKey] ?? "/insurer-portal");
-                        }}
-                      >
-                        View
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* ── Pending Team Invitations ── */}
-        <section className="mt-2">
-          <PendingTeamRequestQueue />
-        </section>
-
-        {/* ── Audit Log ── */}
-        <section className="mt-2">
-          <div className="flex items-center gap-2 mb-3">
-            <History className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold">Recent Governance Activity</h2>
-          </div>
-          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
-            <CardContent className="px-0 pb-0">
-              {auditLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : auditLog.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
-                  <History className="h-8 w-8 opacity-30" />
-                  <p className="text-sm">No role changes recorded yet.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {auditLog.map((entry: any) => {
-                    const prevRole = entry.previousInsurerRole ?? entry.previousRole ?? "—";
-                    const newRole  = entry.newInsurerRole  ?? entry.newRole  ?? "—";
-                    const isDeactivation = !entry.newInsurerRole && entry.newRole === "user";
+              <div className="p11-card-body">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  {QUICK_ACTIONS.map((action) => {
+                    const Icon = action.icon;
                     return (
-                      <div key={entry.id} className="flex items-start gap-3 px-4 py-3">
-                        <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isDeactivation ? "bg-[#FDF0F0]" : "bg-[#F0F7F2]"}`}>
-                          <UserCog className={`h-3.5 w-3.5 ${isDeactivation ? "text-red-500" : "text-teal-600"}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium">
-                            <span className="text-foreground">{entry.actorName}</span>
-                            {isDeactivation ? (
-                              <span className="text-muted-foreground"> deactivated </span>
-                            ) : (
-                              <span className="text-muted-foreground"> changed role of </span>
-                            )}
-                            <span className="text-foreground">{entry.subjectName}</span>
-                          </p>
-                          {!isDeactivation && (
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
-                              {prevRole.replace(/_/g, " ")} → {newRole.replace(/_/g, " ")}
-                            </p>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-muted-foreground flex-shrink-0 pt-0.5">
-                          {new Date(entry.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                        </span>
-                      </div>
+                      <button
+                        key={action.label}
+                        onClick={() => setLocation(action.href)}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, padding: '10px 12px', background: '#F7F8F6', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', textAlign: 'left' }}
+                      >
+                        <Icon style={{ width: 16, height: 16, color: 'var(--g-600)' }} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{action.label}</span>
+                        <span style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>{action.description}</span>
+                      </button>
                     );
                   })}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </section>
+              </div>
+            </div>
+
+            {/* Recent Claims Activity */}
+            <div className="p11-card" style={{ marginTop: 16 }}>
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <FileText style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Recent Claims Activity
+                </div>
+                <button
+                  onClick={() => setLocation("/insurer/claims/triage")}
+                  style={{ fontSize: 11, color: 'var(--g-600)', background: 'none', border: '1px solid var(--g-300)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
+                >
+                  View All
+                </button>
+              </div>
+              <div className="p11-card-body" style={{ padding: 0 }}>
+                {recentClaims.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px 20px', color: 'var(--muted)', fontSize: 13 }}>No recent claims activity</div>
+                ) : (
+                  <table className="p11-table">
+                    <thead>
+                      <tr>
+                        <th>Claim #</th>
+                        <th>Vehicle</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentClaims.map((claim: any) => (
+                        <tr key={claim.id} style={{ cursor: 'pointer' }} onClick={() => setLocation(`/insurer/claims/${claim.id}`)}>
+                          <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--ink)', fontSize: 12 }}>
+                            {claim.claimNumber ?? `CLM-${String(claim.id).slice(0, 8).toUpperCase()}`}
+                          </td>
+                          <td style={{ color: 'var(--muted)', fontSize: 12 }}>{claim.vehicleRegistration ?? '—'}</td>
+                          <td><StatusChip status={claim.status} /></td>
+                          <td style={{ color: 'var(--muted)', fontSize: 12 }}>
+                            {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── SIDEBAR ── */}
+          <div className="p11-sidebar">
+            {/* KPI Summary */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <BarChart3 style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Portfolio Summary
+                </div>
+              </div>
+              <div className="p11-card-body">
+                {kpiCards.map((card: any) => (
+                  <div key={card.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{card.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{kpisLoading ? '…' : card.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Attention Required */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <AlertTriangle style={{ width: 14, height: 14, color: 'var(--amber)' }} />
+                  Attention Required
+                </div>
+              </div>
+              <div className="p11-card-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { label: 'Awaiting Triage', value: submittedClaims.length, severity: 'red' as const },
+                  { label: 'Fraud Flagged', value: fraudClaims.length, severity: 'amber' as const },
+                ].map(item => (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: item.severity === 'red' ? '#FDF0F0' : '#FFF8E6', border: `1px solid ${item.severity === 'red' ? '#E8B8B8' : '#E8C97A'}`, borderRadius: 6 }}>
+                    <span className={`p11-badge ${item.severity === 'red' ? 'red' : 'amber'}`}>{item.value}</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink)' }}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

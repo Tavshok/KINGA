@@ -115,604 +115,211 @@ export default function PanelBeaterDashboard() {
         ctaLabel="View requests"
       />
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
-
-
-
-
-        {/* ── SIGNATURE CHARTS (always visible) ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-blue-500" />
-                Quote Competitiveness
-              </CardTitle>
-              <CardDescription className="text-xs">Your quote (Y) vs KINGA estimate (X). Dots above the line = over-quoted. Green = accepted.</CardDescription>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div style={{ height: 240 }}>
-                {myAnalytics?.quotes && myAnalytics.quotes.filter((q: any) => q.estimatedClaimValue && q.quotedAmount).length > 0 ? (
-                  <Scatter
-                    data={{
-                      datasets: [
-                        {
-                          label: 'Your Quotes',
-                          data: myAnalytics.quotes.filter((q: any) => q.estimatedClaimValue && q.quotedAmount).map((q: any) => ({ x: q.estimatedClaimValue, y: q.quotedAmount })),
-                          backgroundColor: myAnalytics.quotes.filter((q: any) => q.estimatedClaimValue && q.quotedAmount).map((q: any) => q.status === 'accepted' ? 'rgba(34,197,94,0.7)' : 'rgba(59,130,246,0.6)'),
-                          pointRadius: 5,
-                        },
-                        {
-                          label: 'Perfect Match',
-                          data: (() => { const vals = myAnalytics.quotes.map((q: any) => q.estimatedClaimValue).filter(Boolean); if (!vals.length) return []; const min = Math.min(...vals); const max = Math.max(...vals); return [{ x: min, y: min }, { x: max, y: max }]; })(),
-                          type: 'line' as any, borderColor: '#22c55e', borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0,
-                        },
-                      ],
-                    }}
-                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } }, scales: { x: { title: { display: true, text: 'KINGA Estimate', font: { size: 10 } } }, y: { title: { display: true, text: 'Your Quote', font: { size: 10 } } } } }}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No quote data with KINGA estimates yet</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-none" style={{ border: '1px solid #E5E7EB', borderRadius: 10, background: '#FFFFFF' }}>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
-                Quote Outcomes
-              </CardTitle>
-              <CardDescription className="text-xs">Approved vs pending vs rejected across your quotes</CardDescription>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div style={{ height: 240 }}>
-                {quoteHistory.length > 0 ? (() => { const approved = quoteHistory.filter((q: any) => q.status === 'approved').length; const pending = quoteHistory.filter((q: any) => ['submitted','pending','comparison'].includes(q.status)).length; const rejected = quoteHistory.filter((q: any) => q.status === 'rejected').length; return (<Bar data={{ labels: ['Approved', 'Pending Review', 'Rejected'], datasets: [{ label: 'Quotes', data: [approved, pending, rejected], backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'], borderRadius: 6 }] }} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }} />); })() : (<div className="flex items-center justify-center h-full text-muted-foreground text-sm">No quote history yet</div>)}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Performance Metrics */}
-        {profile && (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Star className="h-4 w-4 text-amber-500" />
-                  Quality Score
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end gap-2 mb-2">
-                  <span className="text-3xl font-bold text-gray-900">
-                    {avgQualityScore !== null ? avgQualityScore.toFixed(1) : "—"}
-                  </span>
-                  <span className="text-sm text-gray-500 mb-1">/ 100</span>
+      {/* ── BODY ── */}
+      <div className="p11-body">
+        <div className="p11-body-2col">
+          {/* ── MAIN COLUMN ── */}
+          <div>
+            {/* Quote Queue */}
+            <div className="p11-card" style={{ marginBottom: 16 }}>
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <FileText style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Quote Queue
+                  {pendingRequests.length > 0 && (
+                    <span className="p11-badge red" style={{ marginLeft: 6 }}>{pendingRequests.length}</span>
+                  )}
                 </div>
-                {avgQualityScore !== null && (
-                  <Progress value={avgQualityScore} className="h-2" />
-                )}
-                <p className="text-xs text-gray-500 mt-2">Based on {profile.totalRepairs} completed repairs</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-blue-500" />
-                  Cost Accuracy
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end gap-2 mb-2">
-                  <span className="text-3xl font-bold text-gray-900">
-                    {avgCostRatio !== null ? `${(avgCostRatio * 100).toFixed(0)}%` : "—"}
-                  </span>
-                </div>
-                {avgCostRatio !== null && (
-                  <Progress value={Math.min(avgCostRatio * 100, 100)} className="h-2" />
-                )}
-                <p className="text-xs text-gray-500 mt-2">Quote vs KINGA benchmark ratio</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                  Fraud Flags
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end gap-2 mb-2">
-                  <span className="text-3xl font-bold text-gray-900">
-                    {profile.fraudFlagCount || 0}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  {(profile.fraudFlagCount || 0) === 0
-                    ? "Clean record — no flags raised"
-                    : "Flags raised on your quotes"}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Main Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex">
-            <TabsTrigger value="queue" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Quote Queue
-              {pendingRequests.length > 0 && (
-                <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs text-white" style={{ background: "#A32D2D" }}>
-                  {pendingRequests.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Quote History
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Performance
-            </TabsTrigger>
-            <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
-          </TabsList>
-
-          {/* Quote Queue Tab */}
-          <TabsContent value="queue" className="mt-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Active Quote Requests</CardTitle>
-                  <CardDescription>
-                    Claims where you were selected — submit your quote to proceed
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={() => refetchRequests()}
-                  className="flex items-center gap-2"
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--g-600)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw style={{ width: 11, height: 11 }} />
                   Refresh
-                </Button>
-              </CardHeader>
-              <CardContent>
+                </button>
+              </div>
+              <div className="p11-card-body" style={{ padding: 0 }}>
                 {requestsLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse" />
-                    ))}
+                  <div style={{ padding: '16px 20px' }}>
+                    {[1,2,3].map(i => <div key={i} style={{ height: 56, background: '#F3F4F6', borderRadius: 6, marginBottom: 8 }} />)}
                   </div>
                 ) : pendingRequests.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Wrench className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500 font-medium">No active quote requests</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      When claimants select you, their claims will appear here
-                    </p>
+                  <div style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--muted)' }}>
+                    <Wrench style={{ width: 32, height: 32, margin: '0 auto 8px', color: '#D1D5DB' }} />
+                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>No active quote requests</p>
+                    <p style={{ fontSize: 12, marginTop: 4 }}>When claimants select you, their claims will appear here</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {pendingRequests.map((claim: any) => (
-                      <div
-                        key={claim.id}
-                        className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all"
-                      >
-                        <div className="space-y-1 flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono text-sm font-semibold text-gray-900">
-                              {claim.claimNumber}
-                            </span>
-                            <StatusBadge status={claim.status} />
-                            <SLADeadlineChip createdAt={claim.createdAt} slaHours={48} />
-                            {claim.policyVerified && (
-                              <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Policy Verified
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-700">
-                            {[claim.vehicleMake, claim.vehicleModel, claim.vehicleYear]
-                              .filter(Boolean).join(" ")}
-                          </p>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
-                            {claim.incidentLocation && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {claim.incidentLocation}
-                              </span>
-                            )}
-                            {claim.incidentDate && (
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(claim.incidentDate).toLocaleDateString()}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 ml-4 shrink-0">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setLocation(`/panel-beater/claims/${claim.id}/quote`)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => setLocation(`/panel-beater/claims/${claim.id}/quote`)}
-                          >
-                            <FileEdit className="h-4 w-4 mr-1" />
-                            Submit Quote
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <table className="p11-table">
+                    <thead>
+                      <tr>
+                        <th>Claim #</th>
+                        <th>Vehicle</th>
+                        <th>Status</th>
+                        <th>SLA</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingRequests.map((claim: any) => (
+                        <tr key={claim.id}>
+                          <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--ink)' }}>{claim.claimNumber}</td>
+                          <td style={{ color: 'var(--muted)', fontSize: 12 }}>{claim.vehicleDescription || '—'}</td>
+                          <td><StatusBadge status={claim.status} /></td>
+                          <td><SLADeadlineChip createdAt={claim.createdAt} slaHours={48} /></td>
+                          <td>
+                            <button
+                              onClick={() => setLocation(`/panel-beater/claims/${claim.id}`)}
+                              style={{ fontSize: 11, color: 'var(--g-600)', background: 'none', border: '1px solid var(--g-300)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
+            </div>
 
-          {/* Quote History Tab */}
-          <TabsContent value="history" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Quote History</CardTitle>
-                <CardDescription>
-                  All quotes you have submitted — with status and outcome
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+            {/* Quote History */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <BarChart3 style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Quote History
+                </div>
+              </div>
+              <div className="p11-card-body" style={{ padding: 0 }}>
                 {historyLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
-                    ))}
+                  <div style={{ padding: '16px 20px' }}>
+                    {[1,2,3].map(i => <div key={i} style={{ height: 48, background: '#F3F4F6', borderRadius: 6, marginBottom: 8 }} />)}
                   </div>
                 ) : quoteHistory.length === 0 ? (
-                  <div className="text-center py-12">
-                    <BarChart3 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500 font-medium">No quotes submitted yet</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      Your submitted quotes and their outcomes will appear here
-                    </p>
-                  </div>
+                  <div style={{ textAlign: 'center', padding: '24px 20px', color: 'var(--muted)', fontSize: 13 }}>No quote history yet</div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-2 font-medium text-gray-600">Claim #</th>
-                          <th className="text-right py-3 px-2 font-medium text-gray-600">Your Quote</th>
-                          <th className="text-right py-3 px-2 font-medium text-gray-600">Labour</th>
-                          <th className="text-right py-3 px-2 font-medium text-gray-600">Parts</th>
-                          <th className="text-center py-3 px-2 font-medium text-gray-600">Status</th>
-                          <th className="text-left py-3 px-2 font-medium text-gray-600">SLA at Submit</th>
-                          <th className="text-left py-3 px-2 font-medium text-gray-600">Submitted</th>
+                  <table className="p11-table">
+                    <thead>
+                      <tr>
+                        <th>Claim #</th>
+                        <th>Quoted</th>
+                        <th>KINGA Est.</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quoteHistory.slice(0, 10).map((q: any) => (
+                        <tr key={q.id}>
+                          <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--ink)' }}>{q.claimNumber || `#${q.claimId}`}</td>
+                          <td style={{ color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>R {Number(q.quotedAmount || 0).toLocaleString()}</td>
+                          <td style={{ color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{q.estimatedClaimValue ? `R ${Number(q.estimatedClaimValue).toLocaleString()}` : '—'}</td>
+                          <td>
+                            <span className={`p11-badge ${q.status === 'approved' ? 'green' : q.status === 'rejected' ? 'red' : 'amber'}`}>
+                              {q.status}
+                            </span>
+                          </td>
+                          <td style={{ color: 'var(--muted)', fontSize: 12 }}>{q.createdAt ? new Date(q.createdAt).toLocaleDateString() : '—'}</td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {quoteHistory.map((quote: any) => (
-                          <tr key={quote.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="py-3 px-2">
-                              <span className="font-mono text-xs text-gray-700">
-                                #{quote.claimId}
-                              </span>
-                            </td>
-                            <td className="py-3 px-2 text-right font-semibold text-gray-900">
-                              {fmt(quote.quotedAmount || 0)}
-                            </td>
-                            <td className="py-3 px-2 text-right text-gray-600">
-                              {quote.laborCost ? fmt(quote.laborCost) : "—"}
-                            </td>
-                            <td className="py-3 px-2 text-right text-gray-600">
-                              {quote.partsCost ? fmt(quote.partsCost) : "—"}
-                            </td>
-                            <td className="py-3 px-2 text-center">
-                              <StatusBadge status={quote.status || "submitted"} />
-                            </td>
-                            <td className="py-3 px-2">
-                              {/* D-07: SLA chip on History tab rows shows the SLA status
-                                  at the time the quote was submitted (based on claim createdAt).
-                                  Uses slaHours=48 consistent with the Pending Requests tab. */}
-                              <SLADeadlineChip createdAt={quote.createdAt} slaHours={48} showOk />
-                            </td>
-                            <td className="py-3 px-2 text-gray-500 text-xs">
-                              {quote.createdAt
-                                ? new Date(quote.createdAt).toLocaleDateString()
-                                : "—"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="mt-4">
-            <div className="space-y-6">
-              {/* Period + Insurer Selectors */}
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-                  <button
-                    onClick={() => setPerfPeriod('monthly')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${perfPeriod === 'monthly' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                  >Monthly</button>
-                  <button
-                    onClick={() => setPerfPeriod('weekly')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${perfPeriod === 'weekly' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                  >Weekly</button>
-                </div>
-                {/* Insurer filter pills */}
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => setSelectedInsurerId(null)}
-                    className={`px-3 py-1 text-xs rounded-full border transition-colors ${selectedInsurerId === null ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-foreground'}`}
-                  >All Insurers</button>
-                  {perfTrend?.insurers?.map((ins: any) => (
-                    <button
-                      key={ins.tenantId}
-                      onClick={() => setSelectedInsurerId(ins.tenantId)}
-                      className={`px-3 py-1 text-xs rounded-full border transition-colors ${selectedInsurerId === ins.tenantId ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-foreground'}`}
-                    >{ins.displayName}</button>
-                  ))}
-                </div>
               </div>
-
-              {/* Summary KPI bar for selected filter */}
-              {perfTrend?.summary && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { label: 'Total Quotes', value: perfTrend.summary.totalQuotes, icon: '📋', color: 'text-foreground' },
-                    { label: 'Accepted', value: perfTrend.summary.acceptedQuotes, icon: '✅', color: 'text-emerald-600' },
-                    { label: 'Acceptance Rate', value: perfTrend.summary.overallAcceptanceRate != null ? `${perfTrend.summary.overallAcceptanceRate}%` : '—', icon: '📈', color: perfTrend.summary.overallAcceptanceRate != null && perfTrend.summary.overallAcceptanceRate >= 70 ? 'text-emerald-600' : 'text-amber-600' },
-                    { label: 'Avg Congruency', value: perfTrend.summary.overallCongruencyScore != null ? `${perfTrend.summary.overallCongruencyScore}%` : '—', icon: '🎯', color: 'text-blue-600' },
-                  ].map((kpi, i) => (
-                    <div key={i} className="p-3 rounded-lg border border-border bg-card">
-                      <p className="text-xs text-muted-foreground">{kpi.label}</p>
-                      <p className={`text-xl font-bold mt-0.5 ${kpi.color}`}>{kpi.value ?? '—'}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Per-Insurer Breakdown Table */}
-              {perfTrend?.byInsurer && perfTrend.byInsurer.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4 text-blue-500" /> Performance by Insurer
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground">Your acceptance rate and congruency score for each insurer you work with</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border">
-                            <th className="text-left py-2 px-3 font-medium text-muted-foreground">Insurer</th>
-                            <th className="text-right py-2 px-3 font-medium text-muted-foreground">Quotes</th>
-                            <th className="text-right py-2 px-3 font-medium text-muted-foreground">Accepted</th>
-                            <th className="text-right py-2 px-3 font-medium text-muted-foreground">Acceptance Rate</th>
-                            <th className="text-right py-2 px-3 font-medium text-muted-foreground">Avg Congruency</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {perfTrend.byInsurer.map((ins: any) => (
-                            <tr
-                              key={ins.tenantId}
-                              className={`hover:bg-muted/30 cursor-pointer transition-colors ${selectedInsurerId === ins.tenantId ? 'bg-primary/5' : ''}`}
-                              onClick={() => setSelectedInsurerId(selectedInsurerId === ins.tenantId ? null : ins.tenantId)}
-                            >
-                              <td className="py-2.5 px-3 font-medium text-foreground">{ins.displayName}</td>
-                              <td className="py-2.5 px-3 text-right text-muted-foreground">{ins.totalQuotes}</td>
-                              <td className="py-2.5 px-3 text-right text-emerald-600">{ins.acceptedQuotes}</td>
-                              <td className="py-2.5 px-3 text-right">
-                                {ins.acceptanceRate != null ? (
-                                  <span className={`font-semibold ${ins.acceptanceRate >= 70 ? 'text-emerald-600' : ins.acceptanceRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
-                                    {ins.acceptanceRate}%
-                                  </span>
-                                ) : '—'}
-                              </td>
-                              <td className="py-2.5 px-3 text-right">
-                                {ins.avgCongruencyScore != null ? (
-                                  <span className={`font-semibold ${ins.avgCongruencyScore >= 70 ? 'text-emerald-600' : ins.avgCongruencyScore >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
-                                    {ins.avgCongruencyScore}%
-                                  </span>
-                                ) : '—'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">Click a row to filter the trend charts below to that insurer</p>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Trend Charts */}
-              {perfTrend?.trend && perfTrend.trend.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Acceptance Rate Trend */}
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-semibold">Acceptance Rate Trend</CardTitle>
-                      <p className="text-xs text-muted-foreground">{selectedInsurerId ? perfTrend.insurers?.find((i: any) => i.tenantId === selectedInsurerId)?.displayName : 'All Insurers'} · {perfPeriod === 'monthly' ? 'Monthly' : 'Weekly'}</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div style={{ height: 200 }}>
-                        <Line
-                          data={{
-                            labels: perfTrend.trend.map((b: any) => b.label),
-                            datasets: [{
-                              label: 'Acceptance Rate %',
-                              data: perfTrend.trend.map((b: any) => b.acceptanceRate),
-                              borderColor: '#22c55e',
-                              backgroundColor: 'rgba(34,197,94,0.1)',
-                              fill: true,
-                              tension: 0.4,
-                              pointRadius: 4,
-                            }]
-                          }}
-                          options={{
-                            responsive: true, maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                              y: { min: 0, max: 100, ticks: { callback: (v: any) => `${v}%`, font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.1)' } },
-                              x: { ticks: { font: { size: 10 } }, grid: { display: false } }
-                            }
-                          }}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                  {/* Quote Volume Trend */}
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-semibold">Quote Volume</CardTitle>
-                      <p className="text-xs text-muted-foreground">Total submitted per {perfPeriod === 'monthly' ? 'month' : 'week'}</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div style={{ height: 200 }}>
-                        <Bar
-                          data={{
-                            labels: perfTrend.trend.map((b: any) => b.label),
-                            datasets: [
-                              {
-                                label: 'Accepted',
-                                data: perfTrend.trend.map((b: any) => b.acceptedQuotes),
-                                backgroundColor: 'rgba(34,197,94,0.8)',
-                                borderRadius: 4,
-                              },
-                              {
-                                label: 'Total',
-                                data: perfTrend.trend.map((b: any) => b.totalQuotes - b.acceptedQuotes),
-                                backgroundColor: 'rgba(148,163,184,0.5)',
-                                borderRadius: 4,
-                              }
-                            ]
-                          }}
-                          options={{
-                            responsive: true, maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } },
-                            scales: {
-                              x: { stacked: true, ticks: { font: { size: 10 } }, grid: { display: false } },
-                              y: { stacked: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.1)' } }
-                            }
-                          }}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                  {/* Congruency Score Trend */}
-                  <Card className="md:col-span-2">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-semibold">Quote Congruency Score Trend</CardTitle>
-                      <p className="text-xs text-muted-foreground">How closely your quotes align with the KINGA cost estimate — higher is better</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div style={{ height: 180 }}>
-                        <Bar
-                          data={{
-                            labels: perfTrend.trend.map((b: any) => b.label),
-                            datasets: [{
-                              label: 'Avg Congruency %',
-                              data: perfTrend.trend.map((b: any) => b.avgCongruencyScore),
-                              backgroundColor: perfTrend.trend.map((b: any) =>
-                                b.avgCongruencyScore == null ? 'rgba(148,163,184,0.3)' :
-                                b.avgCongruencyScore >= 70 ? 'rgba(34,197,94,0.75)' :
-                                b.avgCongruencyScore >= 50 ? 'rgba(245,158,11,0.75)' :
-                                'rgba(239,68,68,0.75)'
-                              ),
-                              borderRadius: 4,
-                            }]
-                          }}
-                          options={{
-                            responsive: true, maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                              y: { min: 0, max: 100, ticks: { callback: (v: any) => `${v}%`, font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.1)' } },
-                              x: { ticks: { font: { size: 10 } }, grid: { display: false } }
-                            }
-                          }}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <TrendingUp className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No performance data yet</p>
-                  <p className="text-sm mt-1">Submit quotes to start building your performance history</p>
-                </div>
-              )}
             </div>
-          </TabsContent>
-        
-          {/* ── Notifications Tab ─────────────────────────────────────── */}
-          <TabsContent value="notifications" className="mt-6">
-            <NotificationsInbox />
-          </TabsContent>
-</Tabs>
+          </div>
 
-        {/* Workshop Details */}
-        {profile && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Workshop Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid sm:grid-cols-3 gap-4 text-sm">
-                {profile.address && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-medium text-gray-700">Address</p>
-                      <p className="text-gray-500">{profile.address}</p>
-                    </div>
+          {/* ── SIDEBAR ── */}
+          <div className="p11-sidebar">
+            {/* Performance Summary */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <TrendingUp style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Performance
+                </div>
+              </div>
+              <div className="p11-card-body">
+                {[
+                  { label: 'Acceptance Rate', value: myAnalytics?.stats?.acceptanceRate != null ? `${myAnalytics.stats.acceptanceRate}%` : '—', cls: (myAnalytics?.stats?.acceptanceRate ?? 0) >= 70 ? 'green' : 'amber' },
+                  { label: 'Avg Variance', value: myAnalytics?.stats?.avgVariancePct != null ? `${myAnalytics.stats.avgVariancePct}%` : '—', cls: Math.abs(myAnalytics?.stats?.avgVariancePct ?? 0) <= 5 ? 'green' : 'amber' },
+                  { label: 'Total Quotes', value: quoteHistory.length, cls: 'muted' },
+                  { label: 'Approved Revenue', value: `R ${Number(totalRevenue || 0).toLocaleString()}`, cls: 'green' },
+                ].map(row => (
+                  <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{row.label}</span>
+                    <span className={`p11-badge ${row.cls}`}>{row.value}</span>
                   </div>
-                )}
-                {profile.phone && (
-                  <div className="flex items-start gap-2">
-                    <Phone className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-medium text-gray-700">Phone</p>
-                      <p className="text-gray-500">{profile.phone}</p>
+                ))}
+              </div>
+            </div>
+
+            {/* Quote Outcomes */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <BarChart3 style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Quote Outcomes
+                </div>
+              </div>
+              <div className="p11-card-body" style={{ padding: '12px 16px' }}>
+                {quoteHistory.length > 0 ? (() => {
+                  const approved = quoteHistory.filter((q: any) => q.status === 'approved').length;
+                  const pending = quoteHistory.filter((q: any) => ['submitted','pending','comparison'].includes(q.status)).length;
+                  const rejected = quoteHistory.filter((q: any) => q.status === 'rejected').length;
+                  const total = quoteHistory.length;
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {[
+                        { label: 'Approved', count: approved, color: 'var(--g-500)' },
+                        { label: 'Pending', count: pending, color: 'var(--amber)' },
+                        { label: 'Rejected', count: rejected, color: 'var(--red)' },
+                      ].map(item => (
+                        <div key={item.label}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
+                            <span style={{ color: 'var(--muted)' }}>{item.label}</span>
+                            <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{item.count}</span>
+                          </div>
+                          <div style={{ height: 6, background: '#F3F4F6', borderRadius: 3 }}>
+                            <div style={{ height: 6, background: item.color, borderRadius: 3, width: total > 0 ? `${(item.count / total) * 100}%` : '0%' }} />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                )}
-                {profile.avgRepairDurationDays && (
-                  <div className="flex items-start gap-2">
-                    <Clock className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-medium text-gray-700">Avg Repair Time</p>
-                      <p className="text-gray-500">
-                        {parseFloat(String(profile.avgRepairDurationDays)).toFixed(1)} days
-                      </p>
-                    </div>
-                  </div>
+                  );
+                })() : (
+                  <div style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12 }}>No data yet</div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        )}
-      </main>
+            </div>
+
+            {/* Profile Summary */}
+            {profile && (
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <Wrench style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    Workshop Profile
+                  </div>
+                </div>
+                <div className="p11-card-body">
+                  {[
+                    { label: 'Rating', value: (profile as any).rating ? `${Number((profile as any).rating).toFixed(1)}/5` : '—' },
+                    { label: 'Avg Repair Time', value: profile.avgRepairDurationDays ? `${parseFloat(String(profile.avgRepairDurationDays)).toFixed(1)}d` : '—' },
+                    { label: 'Tier', value: (profile as any).tier ?? 'Free' },
+                  ].map(row => (
+                    <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>{row.label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
