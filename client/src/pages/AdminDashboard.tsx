@@ -171,7 +171,7 @@ export default function AdminDashboard() {
       <PortalHeroBand
         portalName="Admin Panel"
         title="System Management"
-        subtitle="KINGA AutoVerify · Platform Administration"
+        subtitle="KINGA · Platform Administration"
         actions={[
           { label: 'Sign Out', icon: <LogOut className="h-3 w-3" />, onClick: () => logout() },
           { label: 'Export Report', icon: <Download className="h-3 w-3" />, primary: true },

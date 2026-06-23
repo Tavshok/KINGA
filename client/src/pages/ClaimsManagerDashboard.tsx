@@ -381,9 +381,20 @@ export default function ClaimsManagerDashboard() {
   return (
     <div style={{ minHeight: '100vh', background: G.bodyBg, fontFamily: 'Inter, sans-serif' }}>
 
-      {/* ═══════════════════════════════════════════════════════
-          LAYER 1 — DARK GREEN HERO BAND
-      ═══════════════════════════════════════════════════════ */}
+      {/* ── WHITE IDENTITY STRIP ── */}
+      <header style={{ background: '#FFFFFF', borderBottom: '1px solid #E7E2D6', padding: '0 24px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100, fontFamily: 'Inter, sans-serif' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style={{ height: '28px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+          <div style={{ width: '1px', height: '22px', background: '#C8C4BA' }} />
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#15201A', letterSpacing: '-0.01em' }}>Claims Manager</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button title="Notifications" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', cursor: 'pointer', color: '#6B7568', background: 'none', border: 'none' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
+        </div>
+      </header>
+      {/* ── DARK GREEN HERO BAND ── */}
       <section style={{
         background: `linear-gradient(155deg, ${G.g900} 0%, ${G.g700} 100%)`,
         borderBottom: `2px solid ${G.gold600}`,
@@ -393,7 +404,7 @@ export default function ClaimsManagerDashboard() {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '4px' }}>
-              KINGA AutoVerify · Claims Manager
+              KINGA · Claims Manager
             </div>
             <div style={{ fontSize: '22px', fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
               Claims Overview

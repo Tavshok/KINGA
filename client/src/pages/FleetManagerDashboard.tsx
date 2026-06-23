@@ -321,22 +321,12 @@ export default function FleetManagerDashboard() {
   return (
     <div style={{ background: 'var(--body-bg)', fontFamily: 'Inter, sans-serif', minHeight: '100vh' }}>
       {/* ── IDENTITY STRIP ── */}
-      <div className="p11-identity-strip">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>KINGA</span>
-          <span style={{ width: 1, height: 22, background: 'var(--line-strong)' }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Fleet Manager</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="p11-btn-outline" onClick={() => window.location.href = '/portal-hub'}>Portal Hub</button>
-        </div>
-      </div>
 
       {/* ── HERO BAND ── */}
       <div className="p11-hero">
         <div className="p11-hero-top">
           <div>
-            <div className="p11-breadcrumb">KINGA AutoVerify · Fleet Manager</div>
+            <div className="p11-breadcrumb">KINGA · Fleet Manager</div>
             <div className="p11-hero-title">Fleet Management Overview</div>
             <div className="p11-hero-subtitle">
               {primaryAccount ? primaryAccount.accountName : 'Loading fleet account…'}

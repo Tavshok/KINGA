@@ -63,6 +63,9 @@ interface PortalHeroBandProps {
   kpis?: KPITile[];
 }
 
+// ── KINGA logo URL (from approved prototype) ─────────────────────────────────
+const KINGA_LOGO_URL = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png';
+
 export function PortalHeroBand({
   portalName,
   title,
@@ -71,6 +74,48 @@ export function PortalHeroBand({
   kpis = [],
 }: PortalHeroBandProps) {
   return (
+    <>
+    {/* ── WHITE IDENTITY STRIP ── */}
+    <header
+      style={{
+        background: '#FFFFFF',
+        borderBottom: '1px solid #E7E2D6',
+        padding: '0 24px',
+        height: '52px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        fontFamily: 'Inter, sans-serif',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <img
+          src={KINGA_LOGO_URL}
+          alt="KINGA"
+          style={{ height: '28px', width: 'auto', objectFit: 'contain', flexShrink: 0 }}
+        />
+        <div style={{ width: '1px', height: '22px', background: '#C8C4BA' }} />
+        <span style={{ fontSize: '13px', fontWeight: 600, color: '#15201A', letterSpacing: '-0.01em' }}>
+          {portalName}
+        </span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {/* Notification bell */}
+        <button
+          title="Notifications"
+          style={{ position: 'relative', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', cursor: 'pointer', color: '#6B7568', background: 'none', border: 'none', fontFamily: 'inherit' }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+    {/* ── DARK GREEN HERO BAND ── */}
     <section
       style={{
         background: `linear-gradient(155deg, ${P.g900} 0%, ${P.g700} 100%)`,
@@ -99,7 +144,7 @@ export function PortalHeroBand({
               marginBottom: '4px',
             }}
           >
-            KINGA AutoVerify · {portalName}
+            KINGA · {portalName}
           </div>
           <div
             style={{
@@ -263,10 +308,10 @@ export function PortalHeroBand({
           ))}
         </div>
       )}
-    </section>
+        </section>
+    </>
   );
 }
-
 /**
  * ProtoTabBar — prototype-exact tab bar (white bg, green active underline)
  */

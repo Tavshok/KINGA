@@ -1048,28 +1048,12 @@ export default function ClaimsProcessorDashboard() {
   return (
     <div style={{ background: 'var(--body-bg)', fontFamily: 'Inter, sans-serif', minHeight: '100vh' }}>
       {/* ── IDENTITY STRIP ── */}
-      <div className="p11-identity-strip">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>KINGA</span>
-          <span style={{ width: 1, height: 22, background: 'var(--line-strong)' }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Claims Processor</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="p11-btn-outline" onClick={() => refetchAll()}>
-            <RefreshCw style={{ width: 13, height: 13 }} />
-            Refresh
-          </button>
-          <button className="p11-btn-outline" onClick={() => window.location.href = '/portal-hub'}>
-            Portal Hub
-          </button>
-        </div>
-      </div>
 
       {/* ── HERO BAND ── */}
       <div className="p11-hero">
         <div className="p11-hero-top">
           <div>
-            <div className="p11-breadcrumb">KINGA AutoVerify · Claims Processor</div>
+            <div className="p11-breadcrumb">KINGA · Claims Processor</div>
             <div className="p11-hero-title">Claims Processing Queue</div>
             <div className="p11-hero-subtitle">
               {allClaimsLoading ? 'Loading...' : `${allClaims.length} total claims · Last refreshed just now`}
