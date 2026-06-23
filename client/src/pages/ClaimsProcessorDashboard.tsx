@@ -1051,7 +1051,7 @@ export default function ClaimsProcessorDashboard() {
       <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 24px', background:'#fff', borderBottom:'1px solid #E5E7EB', position:'sticky', top:0, zIndex:50 }}>
         <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style={{ height:32, width:'auto' }} />
         <div style={{ width:1, height:24, background:'#E5E7EB' }} />
-        <span style={{ fontSize:13, fontWeight:600, color:'#103A23', letterSpacing:'0.01em' }}>KINGA</span>
+        <span style={{ fontSize:13, fontWeight:600, color:'#103A23', letterSpacing:'0.01em' }}>Claims Processor</span>
       </div>
 
       {/* ── HERO BAND ── */}
