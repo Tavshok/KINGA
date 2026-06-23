@@ -393,7 +393,7 @@ export default function ExecutiveDashboard() {
   }
 
   return (
-    <div className="exec-dashboard min-h-screen" style={{ background: 'var(--background)' }}>
+    <div className="exec-dashboard min-h-screen" style={{ background: 'var(--p11-body-bg, #F7F8F6)' }}>
 
       {/* C3 — PortalAlerts: high-risk claims + governance flags */}
       <PortalAlerts alerts={[
@@ -491,7 +491,7 @@ export default function ExecutiveDashboard() {
       <div className="max-w-[1600px] mx-auto px-8 pb-12">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           {/* Pill-style tab bar with emerald active indicator */}
-          <div style={{ borderBottom: '1px solid var(--border)', marginBottom: '0' }}>
+          <div style={{ borderBottom: '1px solid #E5E7EB', marginBottom: '0', background: '#FFFFFF' }}>
             <TabsList className="h-auto bg-transparent p-0 gap-0 rounded-none" style={{ display: 'flex', width: '100%', justifyContent: 'flex-start' }}>
               {([
                 { value: 'overview', label: 'Overview' },
@@ -505,11 +505,12 @@ export default function ExecutiveDashboard() {
                   value={tab.value}
                   className="rounded-none border-b-2 px-5 py-3 text-sm font-medium transition-colors"
                   style={{
-                    borderBottomColor: activeTab === tab.value ? '#3C7844' : 'transparent',
-                    color: activeTab === tab.value ? '#3C7844' : 'var(--muted-foreground)',
+                    borderBottomColor: activeTab === tab.value ? '#1C5C39' : 'transparent',
+                    color: activeTab === tab.value ? '#1C5C39' : '#6B7280',
                     background: 'transparent',
                     fontFamily: 'Inter, sans-serif',
                     fontWeight: activeTab === tab.value ? 600 : 400,
+                    letterSpacing: '-0.005em',
                   }}
                 >
                   {tab.badge ? <NotificationsTabBadge /> : tab.label}
@@ -554,7 +555,7 @@ export default function ExecutiveDashboard() {
               </div>
             <div
               className="rounded-xl p-4"
-              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+              style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}
             >
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-semibold" style={{ color: 'var(--muted-foreground)' }}>
@@ -583,7 +584,7 @@ export default function ExecutiveDashboard() {
                     <div
                       key={item.label}
                       className="rounded-lg px-3 py-3 flex flex-col gap-1"
-                      style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+                      style={{ background: '#F7F8F6', border: '1px solid #E5E7EB' }}
                     >
                       <p className="text-xs font-medium truncate" style={{ color: 'var(--muted-foreground)' }}>{item.label}</p>
                       <p className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>{displayCurrent}</p>
@@ -616,7 +617,7 @@ export default function ExecutiveDashboard() {
               </div>
             {/* Chart row: Savings Trend + Fast-Track Analytics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card style={{ border: '1px solid var(--border)' }}>
+              <Card style={{ border: '1px solid #E5E7EB', boxShadow: 'none', background: '#FFFFFF' }}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -645,11 +646,11 @@ export default function ExecutiveDashboard() {
                   ) : savingsTrends && savingsTrends.length > 0 ? (
                     <ResponsiveContainer width="100%" height={280}>
                       <LineChart data={savingsTrends}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                         <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                         <YAxis tick={{ fontSize: 12 }} />
                         <Tooltip />
-                        <Line type="monotone" dataKey="savings" stroke="var(--success)" strokeWidth={3} dot={{ fill: 'var(--success)', r: 5 }} />
+                        <Line type="monotone" dataKey="savings" stroke="#B8860B" strokeWidth={3} dot={{ fill: '#B8860B', r: 5 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
@@ -658,7 +659,7 @@ export default function ExecutiveDashboard() {
                 </CardContent>
               </Card>
 
-              <Card style={{ border: '1px solid var(--border)' }}>
+              <Card style={{ border: '1px solid #E5E7EB', boxShadow: 'none', background: '#FFFFFF' }}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Gauge className="h-5 w-5" style={{ color: 'var(--info)' }} />
@@ -668,15 +669,15 @@ export default function ExecutiveDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 gap-4 text-center mb-4">
-                    <div className="rounded-xl p-4" style={{ background: 'var(--fp-success-bg)' }}>
+                    <div className="rounded-xl p-4" style={{ background: '#F0FAF4', border: '1px solid #BBE8C8' }}>
                       <p className="text-3xl font-bold" style={{ color: 'var(--success)' }}>{kpis?.lowRiskCount || 0}</p>
                       <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>Low Risk</p>
                     </div>
-                    <div className="rounded-xl p-4" style={{ background: 'var(--fp-warning-bg)' }}>
+                    <div className="rounded-xl p-4" style={{ background: '#FEF9EC', border: '1px solid #F5D97A' }}>
                       <p className="text-3xl font-bold" style={{ color: 'var(--warning)' }}>{kpis?.mediumRiskCount || 0}</p>
                       <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>Medium Risk</p>
                     </div>
-                    <div className="rounded-xl p-4" style={{ background: 'var(--fp-critical-bg)' }}>
+                    <div className="rounded-xl p-4" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
                       <p className="text-3xl font-bold" style={{ color: 'var(--chart-4)' }}>{kpis?.highRiskCount || 0}</p>
                       <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>High Risk</p>
                     </div>
@@ -695,7 +696,7 @@ export default function ExecutiveDashboard() {
                 <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Global search · Fast-track analytics</span>
               </div>
             {/* Global Search */}
-            <Card style={{ border: '1px solid var(--border)' }}>
+            <Card style={{ border: '1px solid #E5E7EB', boxShadow: 'none', background: '#FFFFFF' }}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Search className="h-5 w-5" />
@@ -724,7 +725,7 @@ export default function ExecutiveDashboard() {
                         <div className="space-y-2">
                           {searchResults.claims.map((claim: any) => (
                             <Link key={claim.id} href={`/insurer/claims/${claim.id}`}>
-                              <div className="p-3 rounded-lg hover:opacity-80 transition-opacity cursor-pointer" style={{ background: 'var(--muted)' }}>
+                              <div className="p-3 rounded-lg hover:opacity-80 transition-opacity cursor-pointer" style={{ background: '#F7F8F6' }}>
                                 <div className="flex items-center justify-between">
                                   <span className="font-medium">Claim #{claim.id}</span>
                                   <Badge>{claim.status}</Badge>
@@ -762,7 +763,7 @@ export default function ExecutiveDashboard() {
                 <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Compliance indicators</span>
               </div>
             {/* Governance Summary — executive-level KPI snapshot */}
-            <Card style={{ border: '1px solid var(--border)' }}>
+            <Card style={{ border: '1px solid #E5E7EB', boxShadow: 'none', background: '#FFFFFF' }}>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
@@ -812,7 +813,7 @@ export default function ExecutiveDashboard() {
                 <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Bottlenecks · Assessors · Panel beaters</span>
               </div>
             {/* Workflow Bottleneck */}
-            <Card style={{ border: '1px solid var(--border)' }}>
+            <Card style={{ border: '1px solid #E5E7EB', boxShadow: 'none', background: '#FFFFFF' }}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" style={{ color: 'var(--chart-5)' }} />
@@ -828,7 +829,7 @@ export default function ExecutiveDashboard() {
                 ) : bottleneckChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={320}>
                     <BarChart data={bottleneckChartData} margin={{ top: 10, right: 20, left: 10, bottom: 80 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                       <XAxis dataKey="state" angle={-40} textAnchor="end" height={90} tick={{ fontSize: 11 }} />
                       <YAxis label={{ value: 'Hours', angle: -90, position: 'insideLeft' }} tick={{ fontSize: 11 }} />
                       <Tooltip />
@@ -852,7 +853,7 @@ export default function ExecutiveDashboard() {
 
             {/* Assessor + Panel Beater compact tables */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card style={{ border: '1px solid var(--border)' }}>
+              <Card style={{ border: '1px solid #E5E7EB', boxShadow: 'none', background: '#FFFFFF' }}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
@@ -870,7 +871,7 @@ export default function ExecutiveDashboard() {
                   ) : assessorPerf && assessorPerf.length > 0 ? (
                     <div className="space-y-2">
                       {assessorPerf.slice(0, 5).map((assessor: any, index: number) => (
-                        <div key={assessor.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--muted)' }}>
+                        <div key={assessor.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: '#F7F8F6' }}>
                           <div className="flex items-center gap-3">
                             <span className="text-lg font-bold w-6 text-center" style={{ color: 'var(--muted-foreground)' }}>#{index + 1}</span>
                             <div>
@@ -888,7 +889,7 @@ export default function ExecutiveDashboard() {
                 </CardContent>
               </Card>
 
-              <Card style={{ border: '1px solid var(--border)' }}>
+              <Card style={{ border: '1px solid #E5E7EB', boxShadow: 'none', background: '#FFFFFF' }}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
@@ -906,7 +907,7 @@ export default function ExecutiveDashboard() {
                   ) : panelBeaterAnalytics && panelBeaterAnalytics.length > 0 ? (
                     <div className="space-y-2">
                       {panelBeaterAnalytics.slice(0, 5).map((beater: any) => (
-                        <div key={beater.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--muted)' }}>
+                        <div key={beater.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: '#F7F8F6' }}>
                           <div>
                             <p className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>{beater.name}</p>
                             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{beater.quotesSubmitted} quotes</p>
@@ -927,7 +928,7 @@ export default function ExecutiveDashboard() {
           {/* ── Tab 3: ROI Breakdown ── */}
           <TabsContent value="roi-breakdown" className="space-y-6">
             {/* Financial Overview: 4 big numbers */}
-            <Card style={{ border: '1px solid var(--border)' }}>
+            <Card style={{ border: '1px solid #E5E7EB', boxShadow: 'none', background: '#FFFFFF' }}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -970,7 +971,7 @@ export default function ExecutiveDashboard() {
             </Card>
 
             {/* KPI Export */}
-            <Card style={{ border: '1px solid var(--border)' }}>
+            <Card style={{ border: '1px solid #E5E7EB', boxShadow: 'none', background: '#FFFFFF' }}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Download className="h-5 w-5" style={{ color: 'var(--info)' }} />
