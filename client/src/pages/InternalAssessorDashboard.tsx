@@ -47,6 +47,8 @@ import { Link } from "wouter";
 import { currencySymbol, fmtCurrency } from "@/lib/currency";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
+import { PortalHeroBand, ProtoAlertBar, ProtoTabBar } from "@/components/PortalHeroBand";
+import { Download } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -681,205 +683,51 @@ export default function InternalAssessorDashboard() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const p11Tabs = [
+    { id: 'queue', label: 'Assessment Queue', badge: assessmentQueue.length || undefined },
+    { id: 'claims', label: 'My Claims', badge: myAssignments.length || undefined },
+    { id: 'appointments', label: 'Appointments', badge: upcomingAppointments.length || undefined },
+    { id: 'completed', label: 'Completed' },
+    { id: 'performance', label: 'Performance' },
+    { id: 'notifications', label: 'Notifications' },
+  ];
+
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Internal Assessor</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {user?.name ?? "Assessor"} · Review claims and submit internal evaluations
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {assessmentQueue.length > 0 && (
-            <Badge variant="destructive" className="text-sm px-3 py-1">
-              <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
-              {assessmentQueue.length} pending
-            </Badge>
-          )}
-          {upcomingAppointments.length > 0 && (
-            <Badge variant="outline" className="text-sm px-3 py-1">
-              <Calendar className="h-3.5 w-3.5 mr-1.5" />
-              {upcomingAppointments.length} upcoming
-            </Badge>
-          )}
-        </div>
-      </div>
+    <div style={{ background: 'var(--body-bg)', fontFamily: 'Inter, sans-serif', minHeight: '100vh' }}>
+      <PortalHeroBand
+        portalName="Internal Assessor"
+        title={`Welcome back, ${user?.name ?? 'Assessor'}`}
+        subtitle="Review assigned claims, conduct internal evaluations, and track performance"
+        actions={[
+          { label: 'Export Report', icon: <Download className="h-3 w-3" />, primary: true },
+        ]}
+        kpis={[
+          { label: 'Assessment Queue', value: assessmentQueue.length, delta: 'Awaiting evaluation', up: null, headline: true },
+          { label: 'Total Assigned', value: myAssignments.length, delta: `${inProgressClaims.length} in progress`, up: null },
+          { label: 'Completed', value: completedClaims.length, delta: 'Evaluations submitted', up: true },
+          { label: 'Appointments', value: upcomingAppointments.length, delta: 'Upcoming', up: null },
+          { label: 'Performance Score', value: perfData ? `${perfData.performanceScore ?? 0}%` : '—', delta: 'Overall rating', up: (perfData?.performanceScore ?? 0) >= 70 },
+          { label: 'Avg Variance', value: perfData?.averageVarianceFromFinal != null ? `${perfData.averageVarianceFromFinal > 0 ? '+' : ''}${perfData.averageVarianceFromFinal}%` : '—', delta: 'vs final approved', up: Math.abs(perfData?.averageVarianceFromFinal ?? 0) <= 5 },
+        ]}
+      />
+      <ProtoAlertBar
+        alerts={[
+          { count: assessmentQueue.length, label: 'Claims pending internal assessment', severity: 'red', onClick: () => setActiveTab('queue') },
+          { count: upcomingAppointments.length, label: 'Upcoming inspection appointments', severity: 'amber', onClick: () => setActiveTab('appointments') },
+        ]}
+        ctaLabel="View queue"
+      />
+      <ProtoTabBar tabs={p11Tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Stat bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard
-          label="Assessment Queue"
-          value={assessmentQueue.length}
-          sub="Awaiting evaluation"
-          icon={ClipboardList}
-          accent={assessmentQueue.length > 0 ? "text-amber-600" : undefined}
-        />
-        <StatCard
-          label="Total Assigned"
-          value={myAssignments.length}
-          sub={`${inProgressClaims.length} in progress`}
-          icon={Target}
-        />
-        <StatCard
-          label="Completed"
-          value={completedClaims.length}
-          sub="Evaluations submitted"
-          icon={CheckCheck}
-          accent="text-green-600"
-        />
-        <StatCard
-          label="Appointments"
-          value={upcomingAppointments.length}
-          sub="Upcoming inspections"
-          icon={Calendar}
-        />
-      </div>
 
-      {/* ── PERFORMANCE SUMMARY (always visible) ── */}
-      {perfData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card>
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-foreground">Your Performance</p>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs capitalize">
-                    <Shield className="h-3 w-3 mr-1" />
-                    {perfData.tier ?? "free"}
-                  </Badge>
-                  {perfData.performanceScore != null && (
-                    <Badge variant={perfData.performanceScore >= 80 ? "default" : "secondary"} className="text-xs">
-                      {perfData.performanceScore}%
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-2 rounded-lg bg-muted/40">
-                  <p className="text-xl font-bold text-foreground">{perfData.totalAssessmentsCompleted ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">Total Completed</p>
-                </div>
-                <div className="text-center p-2 rounded-lg bg-muted/40">
-                  <p className={`text-xl font-bold ${Math.abs(perfData.averageVarianceFromFinal ?? 0) > 15 ? 'text-red-600' : Math.abs(perfData.averageVarianceFromFinal ?? 0) > 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                    {perfData.averageVarianceFromFinal != null ? `${perfData.averageVarianceFromFinal > 0 ? '+' : ''}${perfData.averageVarianceFromFinal}%` : '—'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Avg Variance</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          {/* Variance trend mini-chart */}
-          {perfData.recentAssessments && perfData.recentAssessments.length >= 3 && (() => {
-            const sorted = [...perfData.recentAssessments].reverse().slice(-10);
-            const labels = sorted.map((_: any, i: number) => `#${i + 1}`);
-            const variances = sorted.map((ev: any) => ev.averageVarianceFromFinal ?? ev.varianceFromFinal ?? 0);
-            return (
-              <Card>
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-blue-500" /> Variance Trend (Last {sorted.length} Assessments)
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground">Your estimate vs final approved amount — closer to 0% is better</p>
-                </CardHeader>
-                <CardContent className="pb-4">
-                  <div style={{ height: '140px' }}>
-                    <Bar
-                      data={{
-                        labels,
-                        datasets: [{
-                          label: 'Variance %',
-                          data: variances,
-                          backgroundColor: variances.map((v: number) =>
-                            Math.abs(v) > 15 ? 'rgba(239,68,68,0.7)' : Math.abs(v) > 5 ? 'rgba(245,158,11,0.7)' : 'rgba(16,185,129,0.7)'
-                          ),
-                          borderRadius: 4,
-                        }]
-                      }}
-                      options={{
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw > 0 ? '+' : ''}${ctx.raw}%` } } },
-                        scales: {
-                          y: { grid: { color: 'rgba(128,128,128,0.1)' }, ticks: { callback: (v: any) => `${v}%`, font: { size: 10 } } },
-                          x: { grid: { display: false }, ticks: { font: { size: 10 } } }
-                        }
-                      }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
-          {perfData.recentAssessments && perfData.recentAssessments.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-purple-500" /> Recent Evaluations
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 pb-2">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b bg-muted/30">
-                        <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground">Claim</th>
-                        <th className="text-right py-1.5 px-3 font-semibold text-muted-foreground hidden sm:table-cell">Est. Cost</th>
-                        <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground">Risk</th>
-                        <th className="text-left py-1.5 px-3 font-semibold text-muted-foreground hidden md:table-cell">Submitted</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {perfData.recentAssessments.slice(0, 5).map((ev: any) => (
-                        <tr key={ev.id} className="border-b hover:bg-muted/20">
-                          <td className="py-1.5 px-3 font-mono">#{ev.claimId}</td>
-                          <td className="py-1.5 px-3 text-right hidden sm:table-cell">
-                            {ev.estimatedRepairCost ? `${(ev.estimatedRepairCost / 100).toLocaleString()}` : '—'}
-                          </td>
-                          <td className="py-1.5 px-3">
-                            <span className={`font-medium capitalize ${riskColor(ev.fraudRiskLevel)}`}>{ev.fraudRiskLevel ?? '—'}</span>
-                          </td>
-                          <td className="py-1.5 px-3 text-muted-foreground hidden md:table-cell">{fmtDate(ev.createdAt)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex flex-wrap h-auto gap-1 w-full sm:w-auto">
-          <TabsTrigger value="queue" className="relative">
-            Queue
-            {assessmentQueue.length > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold">
-                {assessmentQueue.length > 9 ? "9+" : assessmentQueue.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="claims">My Claims</TabsTrigger>
-          <TabsTrigger value="appointments">
-            Appointments
-            {upcomingAppointments.length > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full bg-blue-600 text-white text-[10px] font-bold">
-                {upcomingAppointments.length > 9 ? "9+" : upcomingAppointments.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="performance" className="flex items-center gap-1.5">
-            <span>Performance</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications"><NotificationsTabBadge /></TabsTrigger>
-        </TabsList>
+      {/* ── BODY ── */}
+      <div className="p11-body">
+        <div className="p11-body-2col">
+          {/* ── MAIN COLUMN ── */}
+          <div>
 
         {/* ── Tab 1: Assessment Queue ── */}
-        <TabsContent value="queue" className="mt-4 space-y-3">
+        {activeTab === 'queue' && <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Claims assigned to you that are in <code className="text-xs bg-muted px-1 rounded">assessment_pending</code> or <code className="text-xs bg-muted px-1 rounded">under_assessment</code> state.
           </p>
@@ -976,10 +824,10 @@ export default function InternalAssessorDashboard() {
               <p className="text-sm text-muted-foreground mt-1">No claims pending internal assessment</p>
             </div>
           )}
-        </TabsContent>
+        </div>}
 
         {/* ── Tab 2: My Claims ── */}
-        <TabsContent value="claims" className="mt-4 space-y-3">
+        {activeTab === 'claims' && <div className="space-y-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="relative flex-1 max-w-sm w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1065,10 +913,10 @@ export default function InternalAssessorDashboard() {
               </p>
             </div>
           )}
-        </TabsContent>
+        </div>}
 
         {/* ── Tab 3: Appointments ── */}
-        <TabsContent value="appointments" className="mt-4 space-y-5">
+        {activeTab === 'appointments' && <div className="space-y-5">
           {appointmentsLoading ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
               <Loader2 className="h-5 w-5 animate-spin" /> Loading appointments…
@@ -1168,10 +1016,10 @@ export default function InternalAssessorDashboard() {
               )}
             </>
           )}
-        </TabsContent>
+        </div>}
 
         {/* ── Tab 4: Completed ── */}
-        <TabsContent value="completed" className="mt-4 space-y-3">
+        {activeTab === 'completed' && <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Claims where you have submitted an internal assessment and the workflow has progressed.
           </p>
@@ -1202,10 +1050,10 @@ export default function InternalAssessorDashboard() {
               <p className="text-sm text-muted-foreground mt-1">Assessments you submit will appear here</p>
             </div>
           )}
-        </TabsContent>
+        </div>}
 
-          {/* ── Performance Tab ─────────────────────────────────────── */}
-          <TabsContent value="performance" className="mt-4 space-y-4">
+          {/* ── Performance Tab ── */}
+          {activeTab === 'performance' && <div className="space-y-4">
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-3">
               <Select value={perfPeriod} onValueChange={(v) => setPerfPeriod(v as 'weekly' | 'monthly')}>
@@ -1409,13 +1257,75 @@ export default function InternalAssessorDashboard() {
                 )}
               </div>
             )}
-          </TabsContent>
+          </div>}
 
-          {/* ── Notifications Tab ─────────────────────────────────────── */}
-          <TabsContent value="notifications" className="mt-6">
-            <NotificationsInbox />
-          </TabsContent>
-</Tabs>
+          {/* ── Notifications Tab ── */}
+          {activeTab === 'notifications' && <div className="mt-4"><NotificationsInbox /></div>}
+
+          </div>
+          {/* ── SIDEBAR ── */}
+          <div className="p11-sidebar">
+            {/* Performance Summary */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <BarChart3 style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Performance Summary
+                </div>
+              </div>
+              <div className="p11-card-body">
+                {[
+                  { label: 'Performance Score', value: `${perfData?.performanceScore ?? 0}%`, cls: (perfData?.performanceScore ?? 0) >= 70 ? 'green' : 'amber' },
+                  { label: 'Completed (Total)', value: perfData?.totalAssessmentsCompleted ?? 0, cls: 'green' },
+                  { label: 'In Queue', value: assessmentQueue.length, cls: assessmentQueue.length > 0 ? 'amber' : 'muted' },
+                  { label: 'Avg Variance', value: perfData?.averageVarianceFromFinal != null ? `${Math.round((perfData.averageVarianceFromFinal as number) * 100) / 100}%` : '—', cls: 'muted' },
+                ].map(row => (
+                  <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{row.label}</span>
+                    <span className={`p11-badge ${row.cls}`}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Appointments */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <Calendar style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                  Appointments
+                </div>
+              </div>
+              <div className="p11-card-body">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>Upcoming</span>
+                  <span style={{ fontSize: 20, fontWeight: 700, color: upcomingAppointments.length > 0 ? 'var(--amber)' : 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{upcomingAppointments.length}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>Past</span>
+                  <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{pastAppointments.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Subscription Tier */}
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <Shield style={{ width: 14, height: 14, color: 'var(--gold-600)' }} />
+                  Subscription Tier
+                </div>
+              </div>
+              <div className="p11-card-body" style={{ textAlign: 'center', padding: '12px 0' }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--g-800)', textTransform: 'capitalize' }}>
+                  {perfData?.tier ?? 'Free'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Current plan</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Assessment dialog */}
       {selectedClaim && (
