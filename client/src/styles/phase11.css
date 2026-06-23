@@ -483,3 +483,17 @@
 
 /* ── NUMERIC UTILITY ── */
 .num { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* ── Shadcn Card override inside Phase 11 body ── */
+/* Makes any shadcn <Card> inside a p11-body look like a p11-card */
+.p11-body .rounded-xl,
+.p11-body [class*="rounded-xl"],
+.p11-body [class*="rounded-lg"] {
+  border-radius: 4px !important;
+}
+.p11-body [class*="shadow"] {
+  box-shadow: none !important;
+}
+.p11-body .border {
+  border-color: var(--line) !important;
+}

@@ -24,69 +24,146 @@ export default function KingaAgency() {
   const [activeTab, setActiveTab] = useState("quotations");
   const [showNewQuoteForm, setShowNewQuoteForm] = useState(false);
 
+  const tabs = [
+    { id: 'quotations', label: 'Quotations' },
+    { id: 'policies', label: 'Policies' },
+    { id: 'documents', label: 'Documents' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
-      {/* Header */}
-      <header className="bg-white/80 dark:bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={() => setLocation("/portal")}>
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Portal Hub
-              </Button>
-              <div className="h-6 w-px bg-gray-300" />
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                  <Building2 className="h-5 w-5 text-white" />
+    <div style={{ background: 'var(--body-bg)', fontFamily: 'Inter, sans-serif', minHeight: '100vh' }}>
+      {/* ── IDENTITY STRIP ── */}
+      <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 24px', background:'#fff', borderBottom:'1px solid #E5E7EB', position:'sticky', top:0, zIndex:50 }}>
+        <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style={{ height:32, width:'auto' }} />
+        <div style={{ width:1, height:24, background:'#E5E7EB' }} />
+        <span style={{ fontSize:13, fontWeight:600, color:'#103A23', letterSpacing:'0.01em' }}>KINGA</span>
+      </div>
+
+      {/* ── HERO BAND ── */}
+      <div className="p11-hero">
+        <div className="p11-hero-top">
+          <div>
+            <div className="p11-breadcrumb">KINGA · Agency</div>
+            <div className="p11-hero-title">Agency Portal</div>
+            <div className="p11-hero-subtitle">Insurance Quotations &amp; Policy Renewals</div>
+          </div>
+          <div className="p11-hero-actions">
+            <button className="p11-btn-ghost" onClick={() => setLocation('/portal')}>
+              <ArrowLeft style={{ width:13, height:13 }} />
+              Portal Hub
+            </button>
+            <button className="p11-btn-gold" onClick={() => setShowNewQuoteForm(true)}>
+              <Plus style={{ width:13, height:13 }} />
+              Request Quote
+            </button>
+          </div>
+        </div>
+        {/* KPI Strip */}
+        <div className="p11-kpi-grid">
+          <div className="p11-kpi-tile headline">
+            <div className="p11-kpi-label">My Quotations</div>
+            <div className="p11-kpi-value num">—</div>
+            <div className="p11-kpi-delta">Total submitted</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">Active Policies</div>
+            <div className="p11-kpi-value num">—</div>
+            <div className="p11-kpi-delta">In force</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">Pending Review</div>
+            <div className="p11-kpi-value num">—</div>
+            <div className="p11-kpi-delta">Awaiting response</div>
+          </div>
+          <div className="p11-kpi-tile">
+            <div className="p11-kpi-label">Documents</div>
+            <div className="p11-kpi-value num">—</div>
+            <div className="p11-kpi-delta">Uploaded</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── TAB BAR ── */}
+      <nav className="p11-tab-bar">
+        {tabs.map(tab => (
+          <div
+            key={tab.id}
+            className={`p11-tab-item${activeTab === tab.id ? ' active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </div>
+        ))}
+      </nav>
+
+      {/* ── BODY ── */}
+      <div className="p11-body">
+        <div className="p11-body-2col">
+          {/* ── MAIN COLUMN ── */}
+          <div>
+            {activeTab === 'quotations' && <QuotationsTab />}
+            {activeTab === 'policies' && <PoliciesTab />}
+            {activeTab === 'documents' && <DocumentsTab />}
+          </div>
+          {/* ── SIDEBAR ── */}
+          <div className="p11-sidebar">
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <FileText style={{ width:14, height:14, color:'var(--g-600)' }} />
+                  Quick Actions
                 </div>
-                <div>
-                  <h1 className="text-lg font-bold text-gray-900 dark:text-foreground">KINGA Agency</h1>
-                  <p className="text-xs text-muted-foreground">Insurance Quotations & Renewals</p>
+              </div>
+              <div className="p11-card-body">
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  <button className="p11-btn-gold" style={{ width:'100%', justifyContent:'center' }} onClick={() => setShowNewQuoteForm(true)}>
+                    <Plus style={{ width:13, height:13 }} />
+                    Request New Quote
+                  </button>
+                  <button className="p11-btn-outline" style={{ width:'100%', justifyContent:'center' }} onClick={() => setActiveTab('documents')}>
+                    <Upload style={{ width:13, height:13 }} />
+                    Upload Document
+                  </button>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Button onClick={() => setShowNewQuoteForm(true)} className="bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Request Quote
-              </Button>
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <Shield style={{ width:14, height:14, color:'var(--g-600)' }} />
+                  Coverage Types
+                </div>
+              </div>
+              <div className="p11-card-body">
+                {[
+                  { label: 'Comprehensive', desc: 'Full vehicle cover' },
+                  { label: 'Third Party', desc: 'Liability only' },
+                  { label: 'Third Party Fire & Theft', desc: 'Extended liability' },
+                ].map(item => (
+                  <div key={item.label} style={{ padding:'7px 0', borderBottom:'1px solid var(--line)' }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:'var(--ink)' }}>{item.label}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{item.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p11-card">
+              <div className="p11-card-header">
+                <div className="p11-card-title">
+                  <Phone style={{ width:14, height:14, color:'var(--g-600)' }} />
+                  Support
+                </div>
+              </div>
+              <div className="p11-card-body">
+                <div style={{ fontSize:12, color:'var(--muted)', lineHeight:1.6 }}>
+                  Need help with your quotation or policy? Contact our agency support team.
+                </div>
+                <div style={{ marginTop:10, fontSize:12, fontWeight:600, color:'var(--g-700)' }}>agency@kinga.co.zw</div>
+              </div>
             </div>
           </div>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-md grid-cols-3 mb-8">
-            <TabsTrigger value="quotations">
-              <FileText className="h-4 w-4 mr-2" />
-              Quotations
-            </TabsTrigger>
-            <TabsTrigger value="policies">
-              <Shield className="h-4 w-4 mr-2" />
-              Policies
-            </TabsTrigger>
-            <TabsTrigger value="documents">
-              <Upload className="h-4 w-4 mr-2" />
-              Documents
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="quotations">
-            <QuotationsTab />
-          </TabsContent>
-
-          <TabsContent value="policies">
-            <PoliciesTab />
-          </TabsContent>
-
-          <TabsContent value="documents">
-            <DocumentsTab />
-          </TabsContent>
-        </Tabs>
-      </main>
+      </div>
 
       {/* New Quote Dialog */}
       <NewQuoteDialog open={showNewQuoteForm} onOpenChange={setShowNewQuoteForm} />
