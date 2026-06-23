@@ -1,13 +1,14 @@
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Timer } from "lucide-react";
 
-function fmt(v: number) {
-  if (v >= 1_000_000) return `R ${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `R ${(v / 1_000).toFixed(0)}K`;
-  return `R ${v.toLocaleString()}`;
-}
-
 export function ClaimsAgeingPanel({ compact }: { compact?: boolean } = {}) {
+  const { currencySymbol } = useTenantCurrency();
+  function fmt(v: number) {
+    if (v >= 1_000_000) return `${currencySymbol} ${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `${currencySymbol} ${(v / 1_000).toFixed(0)}K`;
+    return `${currencySymbol} ${v.toLocaleString()}`;
+  }
   const { data, isLoading } = trpc.analytics.getClaimsAgeing.useQuery();
   const buckets = data?.buckets ?? [];
   const total = buckets.reduce((s, b) => s + b.count, 0);

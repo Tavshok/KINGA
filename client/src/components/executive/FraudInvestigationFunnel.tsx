@@ -1,15 +1,16 @@
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Filter } from "lucide-react";
-
-function fmt(v: number) {
-  if (v >= 1_000_000) return `R ${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `R ${(v / 1_000).toFixed(0)}K`;
-  return `R ${v.toLocaleString()}`;
-}
 
 const STAGE_COLORS = ['#6366F1', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981'];
 
 export function FraudInvestigationFunnel({ compact }: { compact?: boolean } = {}) {
+  const { currencySymbol } = useTenantCurrency();
+  function fmt(v: number) {
+    if (v >= 1_000_000) return `${currencySymbol} ${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `${currencySymbol} ${(v / 1_000).toFixed(0)}K`;
+    return `${currencySymbol} ${v.toLocaleString()}`;
+  }
   const { data, isLoading } = trpc.analytics.getFraudInvestigationFunnel.useQuery();
   const stages = data?.stages ?? [];
   const preventedLoss = data?.preventedLoss ?? 0;

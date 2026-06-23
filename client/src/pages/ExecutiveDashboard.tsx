@@ -400,9 +400,9 @@ export default function ExecutiveDashboard() {
     line: '#E7E2D6', card: '#FFFFFF', bodyBg: '#F7F8F6',
     red: '#B1402F', redSoft: '#F8E9E4', amber: '#A6730B',
   };
-  const slaBreach = kpis?.highRiskCount ?? 7;
-  const fraudFlags = 3;
-  const highRisk = kpis?.highRiskCount ?? 12;
+  const slaBreach = kpis?.slaBreachedCount ?? kpis?.highRiskCount ?? 0;
+  const fraudFlags = kpis?.fraudFlagCount ?? 0;
+  const highRisk = kpis?.highRiskCount ?? 0;
 
   return (
     <div className="exec-dashboard min-h-screen" style={{ background: G.bodyBg, fontFamily: 'Inter, sans-serif' }}>
@@ -457,12 +457,12 @@ export default function ExecutiveDashboard() {
         {/* KPI grid — 6 columns, white-on-dark */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px 8px 0 0', overflow: 'hidden', marginTop: '4px' }}>
           {[
-            { label: 'Total Claims Value', value: execSummaryLoading ? '…' : (() => { const s = effectiveExecSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100/1000).toFixed(0)}K` : `${currencySymbol} 847M`; })(), delta: '↑ 12% vs Q1', up: true, headline: true },
-            { label: 'Active Claims', value: execSummaryLoading ? '…' : (effectiveExecSummary?.totalClaims ?? kpis?.totalClaims ?? 4821).toLocaleString(), delta: '247 new today', up: null },
-            { label: 'KINGA Savings', value: execSummaryLoading ? '…' : (() => { const s = effectiveExecSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100/1000).toFixed(0)}K` : `${currencySymbol} 62M`; })(), delta: '↑ 8% vs Q1', up: true },
-            { label: 'Resolution Rate', value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.resolutionRate ?? 87).toFixed(0)}%`, delta: '↑ 3pp vs Q1', up: true },
-            { label: 'Avg Cycle Time', value: execSummaryLoading ? '…' : `${(effectiveExecSummary?.avgCycleDays ?? 4.2).toFixed(1)}d`, delta: '↓ 0.8d vs Q1', up: true },
-            { label: 'SLA Compliance', value: (() => { const rate = kpis?.completionRate ?? effectiveExecSummary?.resolutionRate ?? 91; return `${Math.min(100, Math.round(rate))}%`; })(), delta: '↓ 2pp vs Q1', up: false },
+            { label: 'Total Claims Value', value: execSummaryLoading ? '…' : (() => { const s = (execSummary as any)?.roiBreakdown?.totalEstimated ?? 0; return s > 0 ? `${currencySymbol} ${(s/100/1000).toFixed(0)}K` : '—'; })(), delta: '', up: true, headline: true },
+            { label: 'Active Claims', value: execSummaryLoading ? '…' : ((effectiveExecSummary?.totalClaims ?? kpis?.totalClaims ?? 0) > 0 ? (effectiveExecSummary?.totalClaims ?? kpis?.totalClaims ?? 0).toLocaleString() : '—'), delta: 'Open claims', up: null },
+            { label: 'KINGA Savings', value: execSummaryLoading ? '…' : (() => { const s = effectiveExecSummary?.totalSavings ?? 0; return s > 0 ? `${currencySymbol} ${(s/100/1000).toFixed(0)}K` : '—'; })(), delta: '', up: true },
+            { label: 'Resolution Rate', value: execSummaryLoading ? '…' : (() => { const r = effectiveExecSummary?.resolutionRate ?? 0; return r > 0 ? `${r.toFixed(0)}%` : '—'; })(), delta: '', up: true },
+            { label: 'Avg Cycle Time', value: execSummaryLoading ? '…' : (() => { const d = effectiveExecSummary?.avgCycleDays ?? 0; return d > 0 ? `${d.toFixed(1)}d` : '—'; })(), delta: '', up: true },
+            { label: 'SLA Compliance', value: (() => { const rate = kpis?.completionRate ?? 0; return rate > 0 ? `${Math.min(100, Math.round(rate))}%` : '—'; })(), delta: '', up: false },
           ].map((kpi, i) => (
             <div key={i} style={{ padding: '14px 16px 16px', borderRight: i < 5 ? '1px solid rgba(255,255,255,0.1)' : 'none', position: 'relative' }}>
               {kpi.headline && <div style={{ position: 'absolute', top: 0, left: '16px', right: '16px', height: '2px', background: G.gold600, borderRadius: '0 0 2px 2px' }} />}
@@ -566,7 +566,7 @@ export default function ExecutiveDashboard() {
                   </div>
                   <button style={{ padding: '5px 10px', border: '1px solid #E7E2D6', borderRadius: '6px', background: 'transparent', color: '#6B7568', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>View all</button>
                 </div>
-                <div style={{ padding: '16px', height: '200px' }}>
+                <div style={{ padding: '16px' }}>
                   <ClaimsAgeingPanel compact />
                 </div>
                 {/* Fraud Detection Funnel embedded below ageing chart */}
@@ -653,10 +653,10 @@ export default function ExecutiveDashboard() {
                   <div style={{ position: 'relative', width: '130px', height: '130px', flexShrink: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={[
-                        { name: 'Auto-approved', value: kpis?.lowRiskCount || 2841, fill: '#2E8557' },
-                        { name: 'Escalated', value: kpis?.mediumRiskCount || 724, fill: '#A6730B' },
-                        { name: 'Fraud flagged', value: kpis?.highRiskCount || 241, fill: '#B1402F' },
-                        { name: 'Pending', value: 193, fill: '#D8D2C2' },
+                        { name: 'Auto-approved', value: kpis?.lowRiskCount || 0, fill: '#2E8557' },
+                        { name: 'Escalated', value: kpis?.mediumRiskCount || 0, fill: '#A6730B' },
+                        { name: 'Fraud flagged', value: kpis?.highRiskCount || 0, fill: '#B1402F' },
+                        { name: 'Pending', value: kpis?.pendingCount || 0, fill: '#D8D2C2' },
                       ]} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                         <XAxis type="number" hide />
                         <YAxis type="category" dataKey="name" hide />
@@ -668,16 +668,16 @@ export default function ExecutiveDashboard() {
                       </BarChart>
                     </ResponsiveContainer>
                     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center' }}>
-                      <div style={{ fontSize: '18px', fontWeight: 700, color: '#15201A', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>96%</div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, color: '#15201A', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{kpis?.aiAccuracy ? `${kpis.aiAccuracy}%` : '—'}</div>
                       <div style={{ fontSize: '10px', color: '#6B7568' }}>accuracy</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                     {[
-                      { color: '#2E8557', label: 'Auto-approved', count: kpis?.lowRiskCount || 2841 },
-                      { color: '#A6730B', label: 'Escalated', count: kpis?.mediumRiskCount || 724 },
-                      { color: '#B1402F', label: 'Fraud flagged', count: kpis?.highRiskCount || 241 },
-                      { color: '#D8D2C2', label: 'Pending review', count: 193 },
+                      { color: '#2E8557', label: 'Auto-approved', count: kpis?.lowRiskCount || 0 },
+                      { color: '#A6730B', label: 'Escalated', count: kpis?.mediumRiskCount || 0 },
+                      { color: '#B1402F', label: 'Fraud flagged', count: kpis?.highRiskCount || 0 },
+                      { color: '#D8D2C2', label: 'Pending review', count: kpis?.pendingCount || 0 },
                     ].map(item => (
                       <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ width: '9px', height: '9px', borderRadius: '2px', background: item.color, flexShrink: 0 }} />
@@ -728,22 +728,11 @@ export default function ExecutiveDashboard() {
                         <td style={{ padding: '10px 12px', fontSize: '12.5px', borderBottom: '1px solid #E7E2D6', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{claim.estimatedValue ? `${currencySymbol} ${(claim.estimatedValue/100).toLocaleString()}` : '—'}</td>
                         <td style={{ padding: '10px 12px', fontSize: '12px', borderBottom: '1px solid #E7E2D6', color: '#6B7568', fontVariantNumeric: 'tabular-nums' }}>{claim.ageDays != null ? `${claim.ageDays}d` : '—'}</td>
                       </tr>
-                    )) : [
-                      { id: 'KGA-2024-04892', claimant: 'T. Dlamini', vehicle: 'GP 42 BK FR', status: 'Fraud Flag', statusBg: '#F8E9E4', statusColor: '#B1402F', assessor: 'S. Mokoena', value: 'R 84,200', age: '2d' },
-                      { id: 'KGA-2024-04891', claimant: 'M. Sithole', vehicle: 'WC 18 HJ PL', status: 'In Assessment', statusBg: '#E7F1EA', statusColor: '#1C5C39', assessor: 'A. van Wyk', value: 'R 31,500', age: '1d' },
-                      { id: 'KGA-2024-04890', claimant: 'P. Nkosi', vehicle: 'NP 77 GH TK', status: 'SLA Watch', statusBg: '#F8EFDD', statusColor: '#A6730B', assessor: 'B. Khumalo', value: 'R 52,800', age: '7d' },
-                      { id: 'KGA-2024-04889', claimant: 'L. Botha', vehicle: 'EC 55 MN QR', status: 'Completed', statusBg: '#E7F1EA', statusColor: '#237049', assessor: 'R. Ndlovu', value: 'R 18,400', age: '3d' },
-                    ].map((row: any) => (
-                      <tr key={row.id}>
-                        <td style={{ padding: '10px 12px', fontSize: '12.5px', borderBottom: '1px solid #E7E2D6', fontFamily: 'JetBrains Mono, monospace', color: '#1C5C39', fontWeight: 500 }}>{row.id}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '12.5px', borderBottom: '1px solid #E7E2D6', color: '#15201A' }}>{row.claimant}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '12px', borderBottom: '1px solid #E7E2D6', color: '#6B7568' }}>{row.vehicle}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '12.5px', borderBottom: '1px solid #E7E2D6' }}><span style={{ background: row.statusBg, color: row.statusColor, padding: '2px 7px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>{row.status}</span></td>
-                        <td style={{ padding: '10px 12px', fontSize: '12px', borderBottom: '1px solid #E7E2D6', color: '#6B7568' }}>{row.assessor}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '12.5px', borderBottom: '1px solid #E7E2D6', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{row.value}</td>
-                        <td style={{ padding: '10px 12px', fontSize: '12px', borderBottom: '1px solid #E7E2D6', color: '#6B7568', fontVariantNumeric: 'tabular-nums' }}>{row.age}</td>
+                    )) : (
+                      <tr>
+                        <td colSpan={7} style={{ padding: '24px 12px', textAlign: 'center', fontSize: '13px', color: '#9AA293' }}>Use the search box above to find claims</td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -756,24 +745,14 @@ export default function ExecutiveDashboard() {
                   </div>
                   Fast-Track Analytics
                 </div>
-                <div style={{ padding: '16px', height: '120px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={[
-                      { day: 'Mon', count: 8 }, { day: 'Tue', count: 12 }, { day: 'Wed', count: 6 },
-                      { day: 'Thu', count: 15 }, { day: 'Fri', count: 11 }, { day: 'Sat', count: 4 }, { day: 'Sun', count: 2 },
-                    ]} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9AA293', fontFamily: 'Inter' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#9AA293', fontFamily: 'Inter' }} />
-                      <Tooltip contentStyle={{ fontFamily: 'Inter', fontSize: 11, background: '#15201A', border: 'none', borderRadius: '6px', color: '#fff', padding: '8px' }} />
-                      <Bar dataKey="count" fill="#2E8557" radius={[3, 3, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div style={{ padding: '16px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '12px', color: '#9AA293' }}>No throughput data yet</span>
                 </div>
                 <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {[
-                    { label: 'Fast-tracked today', value: kpis?.fastTrackCount || 38, color: '#1C5C39' },
-                    { label: 'Avg fast-track time', value: '1.4h', color: '#15201A' },
-                    { label: 'Savings vs standard', value: `${currencySymbol} 142K`, color: '#237049' },
+                    { label: 'Fast-tracked today', value: kpis?.fastTrackCount || '—', color: '#1C5C39' },
+                    { label: 'Avg fast-track time', value: '—', color: '#15201A' },
+                    { label: 'Savings vs standard', value: '—', color: '#237049' },
                   ].map(item => (
                     <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '12px', color: '#6B7568' }}>{item.label}</span>
