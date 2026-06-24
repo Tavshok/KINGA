@@ -250,10 +250,17 @@ export default function RiskManagerDashboard() {
   return (
     <div style={{ background: 'var(--body-bg)', fontFamily: 'Inter, sans-serif', minHeight: '100vh' }}>
          {/* ── IDENTITY STRIP ── */}
-      <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 24px', background:'#fff', borderBottom:'1px solid #E5E7EB', position:'sticky', top:0, zIndex:50 }}>
-        <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style={{ height:32, width:'auto' }} />
-        <div style={{ width:1, height:24, background:'#E5E7EB' }} />
-        <span style={{ fontSize:13, fontWeight:600, color:'#103A23', letterSpacing:'0.01em' }}>Risk Manager</span>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', background:'#FFFFFF', borderBottom:'1px solid #E7E2D6', position:'sticky', top:0, zIndex:100, height:'52px', fontFamily:'Inter, sans-serif' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style={{ height:28, width:'auto', objectFit:'contain', flexShrink:0 }} />
+          <div style={{ width:1, height:22, background:'#C8C4BA' }} />
+          <span style={{ fontSize:13, fontWeight:600, color:'#15201A', letterSpacing:'-0.01em' }}>Risk Manager</span>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <button title="Notifications" style={{ width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:6, cursor:'pointer', color:'#6B7568', background:'none', border:'none' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
+        </div>
       </div>
 
       {/* ── HERO BAND ── */}
