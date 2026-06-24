@@ -381,11 +381,11 @@ export default function InsurerPortalLayout({
               style={{
                 background: "rgba(184,146,58,0.15)",
                 border: "1px solid rgba(184,146,58,0.25)",
-                color: "#F0C96B",
+                color: "#D4A800",
                 letterSpacing: "0.02em",
               }}
             >
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#F0C96B", flexShrink: 0, display: "inline-block" }} />
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#D4A800", flexShrink: 0, display: "inline-block" }} />
               {badge.label}
             </span>
           </div>
@@ -408,19 +408,21 @@ export default function InsurerPortalLayout({
                     location === hrefBase ||
                     (hrefBase.length > 1 && location.startsWith(hrefBase));
                   return (
-                    <Link key={item.href} href={item.href}>
-                      <a
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg group"
-                        style={{
-                          borderLeft: active ? "2px solid #B8923A" : "2px solid transparent",
-                          background: active ? "rgba(184,146,58,0.10)" : "transparent",
-                          transition: "background-color 120ms ease, border-color 120ms ease",
-                          cursor: "pointer",
-                          textDecoration: "none",
-                        }}
-                        onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.borderLeftColor = "rgba(184,146,58,0.3)"; } }}
-                        onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderLeftColor = "transparent"; } }}
-                      >
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "8px",
+                        padding: "6px 8px", borderRadius: "8px",
+                        borderLeft: active ? "2px solid #B8923A" : "2px solid transparent",
+                        background: active ? "rgba(184,146,58,0.10)" : "transparent",
+                        transition: "background-color 120ms ease, border-color 120ms ease",
+                        cursor: "pointer",
+                        textDecoration: "none",
+                      }}
+                      onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.borderLeftColor = "rgba(184,146,58,0.3)"; } }}
+                      onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderLeftColor = "transparent"; } }}
+                    >
                         {/* Icon container */}
                         <div
                           className="flex-shrink-0 flex items-center justify-center rounded-md"
@@ -433,7 +435,7 @@ export default function InsurerPortalLayout({
                           <item.icon
                             style={{
                               width: 13, height: 13,
-                              color: active ? "#F0C96B" : "rgba(255,255,255,0.40)",
+                              color: active ? "#D4A800" : "rgba(255,255,255,0.60)",
                               transition: "color 120ms ease",
                               flexShrink: 0,
                             }}
@@ -445,7 +447,7 @@ export default function InsurerPortalLayout({
                               className="text-[12.5px] leading-none truncate"
                               style={{
                                 fontWeight: active ? 600 : 500,
-                                color: active ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.72)",
+                                color: active ? "#D4A800" : "rgba(255,255,255,0.82)",
                                 transition: "color 120ms ease",
                               }}
                             >
@@ -462,12 +464,11 @@ export default function InsurerPortalLayout({
                           </div>
                           <p
                             className="text-[10px] mt-0.5 truncate"
-                            style={{ color: "rgba(255,255,255,0.38)", transition: "color 120ms ease" }}
+                            style={{ color: "rgba(255,255,255,0.45)", transition: "color 120ms ease" }}
                           >
                             {item.description}
                           </p>
                         </div>
-                      </a>
                     </Link>
                   );
                 })}
@@ -495,15 +496,15 @@ export default function InsurerPortalLayout({
               <p className="text-[12.5px] font-semibold truncate leading-none" style={{ color: "rgba(255,255,255,0.90)" }}>
                 {user?.name ?? "—"}
               </p>
-              <p className="text-[10px] truncate mt-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>{user?.email ?? "—"}</p>
+              <p className="text-[10px] truncate mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{user?.email ?? "—"}</p>
             </div>
           </div>
           <button
             onClick={logout}
             className="flex items-center gap-1.5 w-full"
-            style={{ fontSize: "11.5px", color: "rgba(255,255,255,0.35)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "color 120ms ease" }}
+            style={{ fontSize: "11.5px", color: "rgba(255,255,255,0.50)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "color 120ms ease" }}
             onMouseEnter={e => (e.currentTarget.style.color = "#F87171")}
-            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.35)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.50)")}
           >
             <LogOut style={{ width: 12, height: 12 }} />
             Sign out
