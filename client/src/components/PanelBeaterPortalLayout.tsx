@@ -2,11 +2,11 @@
  * PanelBeaterPortalLayout
  *
  * Persistent sidebar layout for all panel beater pages.
- * All sections always visible — no collapsibles.
+ * Phase 11: Forest green sidebar, gold accent, WCAG-compliant contrast.
+ * Fixed: removed nested <a> inside <Link> (caused render crash).
  */
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   FileText,
@@ -17,112 +17,85 @@ import {
   DollarSign,
 } from "lucide-react";
 
+const KINGA_LOGO = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png";
+
 const sections = [
   {
     title: "My Work",
     items: [
-      {
-        label: "Dashboard",
-        href: "/panel-beater/dashboard",
-        icon: LayoutDashboard,
-        description: "Overview & active quotes",
-      },
-      {
-        label: "Quote Requests",
-        href: "/panel-beater/dashboard",
-        icon: ClipboardList,
-        description: "Claims awaiting quotes",
-      },
+      { label: "Dashboard", href: "/panel-beater/dashboard", icon: LayoutDashboard, description: "Overview & active quotes" },
+      { label: "Quote Requests", href: "/panel-beater/dashboard", icon: ClipboardList, description: "Claims awaiting quotes" },
     ],
   },
   {
     title: "Financials",
     items: [
-      {
-        label: "Quote History",
-        href: "/panel-beater/dashboard",
-        icon: DollarSign,
-        description: "Submitted quotes & status",
-      },
+      { label: "Quote History", href: "/panel-beater/dashboard", icon: DollarSign, description: "Submitted quotes & status" },
     ],
   },
   {
     title: "Performance",
     items: [
-      {
-        label: "My Performance",
-        href: "/panel-beater/dashboard",
-        icon: TrendingUp,
-        description: "Cost accuracy & quality score",
-      },
+      { label: "My Performance", href: "/panel-beater/dashboard", icon: TrendingUp, description: "Cost accuracy & quality score" },
+      { label: "Documents", href: "/panel-beater/dashboard", icon: FileText, description: "Claim documents & photos" },
     ],
   },
 ];
 
-export default function PanelBeaterPortalLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function PanelBeaterPortalLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-background">
-      <aside className="w-60 flex-shrink-0 bg-white dark:bg-card border-r border-border flex flex-col">
-        {/* Brand */}
-        <div className="px-4 py-4 border-b border-border flex items-center gap-2.5">
-          <img
-            src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png"
-            alt="KINGA"
-            className="h-8 w-auto object-contain"
-          />
+    <div style={{ display: "flex", minHeight: "100vh", background: "#F7F8F6" }}>
+      {/* Phase 11 sidebar */}
+      <aside style={{ width: "240px", flexShrink: 0, background: "#1A3320", display: "flex", flexDirection: "column", borderRight: "1px solid rgba(255,255,255,0.08)" }}>
+        {/* Brand header */}
+        <div style={{ padding: "16px", borderBottom: "1px solid rgba(255,255,255,0.10)", display: "flex", alignItems: "center", gap: "10px" }}>
+          <img src={KINGA_LOGO} alt="KINGA" style={{ height: "28px", width: "auto", objectFit: "contain", flexShrink: 0 }} />
           <div>
-            <div className="text-xs font-semibold leading-none text-foreground">KINGA</div>
-            <div className="text-[10px] text-muted-foreground leading-none mt-0.5">
-              Panel Beater Portal
-            </div>
+            <div style={{ fontSize: "12px", fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.01em", lineHeight: 1 }}>KINGA</div>
+            <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", marginTop: "3px", lineHeight: 1 }}>Panel Beater Portal</div>
           </div>
         </div>
 
+        {/* Role badge */}
+        <div style={{ padding: "10px 16px 0" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: "rgba(184,146,58,0.18)", border: "1px solid rgba(184,146,58,0.35)", borderRadius: "999px", padding: "3px 10px", fontSize: "10px", fontWeight: 600, color: "#D4A800", letterSpacing: "0.02em" }}>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4CAF50", flexShrink: 0 }} />
+            PANEL BEATER
+          </span>
+        </div>
+
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+        <nav style={{ flex: 1, overflowY: "auto", padding: "12px 8px", display: "flex", flexDirection: "column", gap: "16px" }}>
           {sections.map((section) => (
             <div key={section.title}>
-              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <p style={{ padding: "0 12px", marginBottom: "4px", fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.72)" }}>
                 {section.title}
               </p>
-              <div className="space-y-0.5">
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                 {section.items.map((item) => {
                   const active = location === item.href;
                   return (
-                    <Link key={item.label} href={item.href}>
-                      <a
-                        className={cn(
-                          "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors group",
-                          active
-                            ? "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium"
-                            : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                        )}
-                      >
-                        <item.icon
-                          className={cn(
-                            "w-4 h-4 flex-shrink-0",
-                            active
-                              ? "text-orange-600 dark:text-orange-400"
-                              : "text-muted-foreground group-hover:text-foreground"
-                          )}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="leading-none truncate">{item.label}</div>
-                          <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                            {item.description}
-                          </div>
-                        </div>
-                        {active && (
-                          <ChevronRight className="w-3 h-3 text-orange-500 flex-shrink-0" />
-                        )}
-                      </a>
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "10px",
+                        padding: "8px 12px", borderRadius: "6px", textDecoration: "none",
+                        background: active ? "rgba(184,146,58,0.18)" : "transparent",
+                        transition: "background 120ms ease",
+                      }}
+                    >
+                      <div style={{ width: "26px", height: "26px", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: active ? "rgba(184,146,58,0.25)" : "rgba(255,255,255,0.06)" }}>
+                        <item.icon style={{ width: "14px", height: "14px", color: active ? "#D4A800" : "rgba(255,255,255,0.60)" }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "13px", fontWeight: active ? 600 : 400, color: active ? "#D4A800" : "rgba(255,255,255,0.82)", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
+                        <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.45)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.description}</div>
+                      </div>
+                      {active && <ChevronRight style={{ width: "12px", height: "12px", color: "#D4A800", flexShrink: 0 }} />}
                     </Link>
                   );
                 })}
@@ -132,29 +105,30 @@ export default function PanelBeaterPortalLayout({
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-border">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-semibold text-orange-700 dark:text-orange-300">
-                {user?.name?.charAt(0).toUpperCase() ?? "?"}
-              </span>
+        <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,0.10)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+            <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "linear-gradient(135deg, #1A3320, #B8923A)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>{user?.name?.charAt(0).toUpperCase() ?? "?"}</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate text-foreground">{user?.name ?? "—"}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{user?.email ?? "—"}</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: "12px", fontWeight: 500, color: "rgba(255,255,255,0.90)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>{user?.name ?? "—"}</p>
+              <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.45)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>{user?.email ?? "—"}</p>
             </div>
           </div>
           <button
             onClick={logout}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors w-full"
+            style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "rgba(255,255,255,0.50)", background: "none", border: "none", cursor: "pointer", padding: 0, width: "100%", transition: "color 120ms ease" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#EF4444")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.50)")}
           >
-            <LogOut className="w-3 h-3" />
+            <LogOut style={{ width: "12px", height: "12px" }} />
             Sign out
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">{children}</main>
+      {/* Main content */}
+      <main style={{ flex: 1, overflowY: "auto" }}>{children}</main>
     </div>
   );
 }
