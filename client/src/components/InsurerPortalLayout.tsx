@@ -299,15 +299,15 @@ function getRoleFromPath(path: string): { role: string; label: string } {
   return { role: "", label: "Insurer Portal" };
 }
 
-// ─── Role badge colours (subtle, consistent) ───────────────────────────────
-const ROLE_BADGE: Record<string, { bg: string; text: string; label: string }> = {
-  claims_manager:   { bg: "bg-blue-500/15",   text: "text-blue-300",   label: "Claims Manager" },
-  claims_processor: { bg: "bg-slate-500/20",  text: "text-slate-300",  label: "Claims Processor" },
-  risk_manager:     { bg: "bg-amber-500/15",  text: "text-amber-300",  label: "Risk Manager" },
-  executive:        { bg: "bg-violet-500/15", text: "text-violet-300", label: "Executive" },
-  assessor_internal:{ bg: "bg-teal-500/15",   text: "text-teal-300",   label: "Internal Assessor" },
-  insurer_admin:    { bg: "bg-rose-500/15",   text: "text-rose-300",   label: "Insurer Admin" },
-  recovery_officer: { bg: "bg-emerald-500/15", text: "text-emerald-300", label: "Recovery Officer" },
+// ─── Role badge — unified gold pill for all roles ─────────────────────────
+const ROLE_BADGE: Record<string, { label: string }> = {
+  claims_manager:   { label: "Claims Manager" },
+  claims_processor: { label: "Claims Processor" },
+  risk_manager:     { label: "Risk Manager" },
+  executive:        { label: "Executive" },
+  assessor_internal:{ label: "Internal Assessor" },
+  insurer_admin:    { label: "Insurer Admin" },
+  recovery_officer: { label: "Recovery Officer" },
 };
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -340,52 +340,68 @@ export default function InsurerPortalLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-background">
-      {/* ── Persistent sidebar — dark slate, single teal accent ── */}
+      {/* ── Persistent sidebar — KINGA forest green, gold accent ── */}
       <aside
         className="w-64 flex-shrink-0 flex flex-col"
-        style={{ background: "#0F172A", borderRight: "1px solid rgba(255,255,255,0.06)" }}
+        style={{
+          background: "#1A3320",
+          borderRight: "1px solid rgba(255,255,255,0.07)",
+          position: "relative",
+        }}
       >
+        {/* Subtle depth texture */}
+        <div
+          style={{
+            position: "absolute", inset: 0, pointerEvents: "none",
+            background: "radial-gradient(ellipse at 10% 15%, rgba(184,146,58,0.05) 0%, transparent 55%), radial-gradient(ellipse at 90% 85%, rgba(46,96,53,0.20) 0%, transparent 55%)",
+            zIndex: 0,
+          }}
+        />
         {/* ── Brand header ── */}
         <div
-          className="px-5 py-4 flex items-center gap-3"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+          className="px-4 py-3.5 flex items-center gap-2.5"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", position: "relative", zIndex: 1 }}
         >
           <img
             src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png"
             alt="KINGA"
-            className="h-8 w-auto object-contain flex-shrink-0"
+            className="h-7 w-auto object-contain flex-shrink-0"
           />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-white leading-none tracking-wide">KINGA</p>
-            <p className="text-[10px] text-slate-400 leading-none mt-1">Claims Intelligence</p>
+            <p className="text-[13px] font-bold leading-none" style={{ color: "rgba(255,255,255,0.92)", letterSpacing: "0.02em" }}>KINGA</p>
+            <p className="text-[10px] leading-none mt-1" style={{ color: "rgba(255,255,255,0.50)" }}>Claims Intelligence</p>
           </div>
         </div>
 
-        {/* ── Role badge ── */}
+        {/* ── Role badge — unified gold pill ── */}
         {badge && (
-          <div className="px-5 pt-3 pb-1">
+          <div className="px-4 pt-2.5 pb-0.5" style={{ position: "relative", zIndex: 1 }}>
             <span
-              className={cn(
-                "inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium",
-                badge.bg, badge.text
-              )}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+              style={{
+                background: "rgba(184,146,58,0.15)",
+                border: "1px solid rgba(184,146,58,0.25)",
+                color: "#F0C96B",
+                letterSpacing: "0.02em",
+              }}
             >
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#F0C96B", flexShrink: 0, display: "inline-block" }} />
               {badge.label}
             </span>
           </div>
         )}
 
         {/* ── Navigation ── */}
-        <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-5">
+        <nav className="flex-1 overflow-y-auto py-2.5 px-2" style={{ position: "relative", zIndex: 1, scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent" }}>
           {visibleSections.map((section) => (
-            <div key={section.title}>
+            <div key={section.title} className="mb-4">
               <p
-                className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-widest"
-                style={{ color: "rgba(148,163,184,0.6)" }}
+                className="px-2 mb-1 text-[9.5px] font-bold uppercase"
+                style={{ color: "rgba(255,255,255,0.72)", letterSpacing: "0.12em" }}
               >
                 {section.title}
               </p>
-              <div className="space-y-0.5">
+              <div className="space-y-px">
                 {section.items.map((item) => {
                   const hrefBase = item.href.split("?")[0].split("#")[0];
                   const active =
@@ -394,49 +410,60 @@ export default function InsurerPortalLayout({
                   return (
                     <Link key={item.href} href={item.href}>
                       <a
-                        className={cn(
-                          "flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-all duration-150 group relative",
-                          active
-                            ? "text-white"
-                            : "text-slate-400 hover:text-slate-100"
-                        )}
-                        style={
-                          active
-                            ? {
-                                background: "rgba(77,184,168,0.12)",
-                                borderLeft: "2px solid #4DB8A8",
-                                paddingLeft: "6px",
-                              }
-                            : {
-                                borderLeft: "2px solid transparent",
-                              }
-                        }
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg group"
+                        style={{
+                          borderLeft: active ? "2px solid #B8923A" : "2px solid transparent",
+                          background: active ? "rgba(184,146,58,0.10)" : "transparent",
+                          transition: "background-color 120ms ease, border-color 120ms ease",
+                          cursor: "pointer",
+                          textDecoration: "none",
+                        }}
+                        onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.borderLeftColor = "rgba(184,146,58,0.3)"; } }}
+                        onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderLeftColor = "transparent"; } }}
                       >
-                        <item.icon
-                          className={cn(
-                            "w-4 h-4 flex-shrink-0 transition-colors",
-                            active
-                              ? "text-teal-400"
-                              : "text-slate-500 group-hover:text-slate-300"
-                          )}
-                        />
+                        {/* Icon container */}
+                        <div
+                          className="flex-shrink-0 flex items-center justify-center rounded-md"
+                          style={{
+                            width: 26, height: 26,
+                            background: active ? "rgba(184,146,58,0.18)" : "rgba(255,255,255,0.05)",
+                            transition: "background-color 120ms ease",
+                          }}
+                        >
+                          <item.icon
+                            style={{
+                              width: 13, height: 13,
+                              color: active ? "#F0C96B" : "rgba(255,255,255,0.40)",
+                              transition: "color 120ms ease",
+                              flexShrink: 0,
+                            }}
+                          />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <p
-                              className={cn(
-                                "text-[13px] leading-none truncate font-medium",
-                                active ? "text-white" : "text-slate-300 group-hover:text-white"
-                              )}
+                              className="text-[12.5px] leading-none truncate"
+                              style={{
+                                fontWeight: active ? 600 : 500,
+                                color: active ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.72)",
+                                transition: "color 120ms ease",
+                              }}
                             >
                               {item.label}
                             </p>
                             {item.badgeKey && hasRecoveryAccess && (recoveryBadgeCounts[item.badgeKey] ?? 0) > 0 && (
-                              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-none flex-shrink-0 bg-teal-500 text-white">
+                              <span
+                                className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-none flex-shrink-0"
+                                style={{ background: "#B8923A", color: "#fff" }}
+                              >
                                 {(recoveryBadgeCounts[item.badgeKey] ?? 0) > 99 ? "99+" : recoveryBadgeCounts[item.badgeKey]}
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] mt-0.5 truncate text-slate-500 group-hover:text-slate-400">
+                          <p
+                            className="text-[10px] mt-0.5 truncate"
+                            style={{ color: "rgba(255,255,255,0.38)", transition: "color 120ms ease" }}
+                          >
                             {item.description}
                           </p>
                         </div>
@@ -451,28 +478,34 @@ export default function InsurerPortalLayout({
 
         {/* ── Footer — user info + logout ── */}
         <div
-          className="px-4 py-3"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+          className="px-3.5 py-3"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.07)", position: "relative", zIndex: 1 }}
         >
-          <div className="flex items-center gap-2.5 mb-2.5">
+          <div className="flex items-center gap-2 mb-2.5">
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
-              style={{ background: "linear-gradient(135deg, #4DB8A8 0%, #2B4C7E 100%)" }}
+              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold text-white"
+              style={{
+                background: "linear-gradient(135deg, #2E6035 0%, #B8923A 100%)",
+                border: "1.5px solid rgba(184,146,58,0.3)",
+              }}
             >
               {user?.name?.charAt(0).toUpperCase() ?? "?"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium text-white truncate leading-none">
+              <p className="text-[12.5px] font-semibold truncate leading-none" style={{ color: "rgba(255,255,255,0.90)" }}>
                 {user?.name ?? "—"}
               </p>
-              <p className="text-[10px] text-slate-500 truncate mt-0.5">{user?.email ?? "—"}</p>
+              <p className="text-[10px] truncate mt-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>{user?.email ?? "—"}</p>
             </div>
           </div>
           <button
             onClick={logout}
-            className="flex items-center gap-2 text-[12px] text-slate-500 hover:text-rose-400 transition-colors w-full"
+            className="flex items-center gap-1.5 w-full"
+            style={{ fontSize: "11.5px", color: "rgba(255,255,255,0.35)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "color 120ms ease" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "#F87171")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.35)")}
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut style={{ width: 12, height: 12 }} />
             Sign out
           </button>
         </div>
