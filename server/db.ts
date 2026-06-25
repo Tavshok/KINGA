@@ -787,6 +787,13 @@ export async function triggerAiAssessment(claimId: number) {
       // Also keep flat URL array for backward compatibility
       damagePhotos = _extractedImagesWithMetadata.map((img: any) => img.url);
       console.log(`[KINGA Assessment] Claim ${claimId}: Rendered ${damagePhotos.length} page(s) from PDF (${extractedImages.length} total pages rendered)`);
+      // Log per-page upload errors so production Cloud Run logs surface silent storagePut failures
+      if (renderResult.errors && renderResult.errors.length > 0) {
+        console.error(`[KINGA Assessment] Claim ${claimId}: PDF render produced ${renderResult.errors.length} page upload error(s):`);
+        for (const err of renderResult.errors) {
+          console.error(`[KINGA Assessment] Claim ${claimId}:   Page upload error: ${err}`);
+        }
+      }
       // Persist extracted photos to claim record so future re-runs skip this step
       if (damagePhotos.length > 0) {
         await db.update(claims).set({

@@ -182,31 +182,36 @@ function canonicaliseIncidentType(raw: string | null | undefined): string | null
  *
  * PASS  — damage_photos = PRESENT and at least one photo was processed
  * WARN  — damage_photos = PRESENT but processed count is unknown/null
- * FAIL  — damage_photos = ABSENT
- * FAIL  — damage_photos = UNKNOWN (cannot confirm presence)
+ * WARN  — damage_photos = ABSENT (text-only assessment is valid; adjuster is notified)
+ * WARN  — damage_photos = UNKNOWN (text-only assessment proceeds with caution)
+ *
+ * NOTE: Photos are desirable but NOT a hard blocker. A claim can be assessed
+ * from text evidence alone. The adjuster will be flagged to request photos.
  */
 function checkPhotosProcessed(input: PhotosProcessedInput): ReadinessCheck {
   const { damage_photos_status, photos_processed_count } = input;
 
   if (damage_photos_status === "ABSENT") {
+    // WARN only — text-based assessment is valid without photos.
     return {
       check_id: "PHOTOS_PROCESSED",
       label: "Damage photographs processed",
-      status: "FAIL",
+      status: "WARN",
       detail:
-        "No damage photographs are present in the claim document. Visual evidence is mandatory before a recommendation can be issued.",
-      is_critical: true,
+        "No damage photographs are present in the claim document. Assessment is based on text evidence only. Adjuster should request photos if available.",
+      is_critical: false,
     };
   }
 
   if (damage_photos_status === "UNKNOWN") {
+    // WARN only — photograph presence could not be confirmed but text analysis proceeds.
     return {
       check_id: "PHOTOS_PROCESSED",
       label: "Damage photographs processed",
-      status: "FAIL",
+      status: "WARN",
       detail:
-        "Photograph presence could not be confirmed. The Evidence Registry returned UNKNOWN — the document must be re-processed before a decision can be made.",
-      is_critical: true,
+        "Photograph presence could not be confirmed. Assessment proceeds with available text evidence. Adjuster should verify document completeness.",
+      is_critical: false,
     };
   }
 
@@ -216,13 +221,14 @@ function checkPhotosProcessed(input: PhotosProcessedInput): ReadinessCheck {
     photos_processed_count !== undefined &&
     photos_processed_count === 0
   ) {
+    // WARN only — photos present but not processed; text analysis still valid.
     return {
       check_id: "PHOTOS_PROCESSED",
       label: "Damage photographs processed",
-      status: "FAIL",
+      status: "WARN",
       detail:
-        "Damage photographs are present in the document but zero photographs were processed by the image analysis stage. Processing must complete before a decision can be issued.",
-      is_critical: true,
+        "Damage photographs are present in the document but zero photographs were processed by the image analysis stage. Assessment is based on text evidence only.",
+      is_critical: false,
     };
   }
 

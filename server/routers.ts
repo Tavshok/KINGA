@@ -8692,7 +8692,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
             driverAgeRisk: input.driverAge < 25 ? 'high' : input.driverAge > 60 ? 'medium' : 'low',
             mileageRisk: input.annualMileage,
           }),
-          quoteValidUntil,
+          quoteValidUntil: quoteValidUntil.toISOString(),
           status: 'pending',
           tenantId: 'default',
         });
@@ -8752,8 +8752,8 @@ If any value is not found, use null or 0. Line items category must be one of: pa
             status: 'payment_submitted',
             paymentMethod: input.paymentMethod,
             paymentReferenceNumber: input.referenceNumber || null,
-            paymentDate: input.paymentDate,
-            paymentSubmittedAt: new Date(),
+            paymentDate: input.paymentDate instanceof Date ? input.paymentDate.toISOString() : input.paymentDate,
+            paymentSubmittedAt: new Date().toISOString(),
             paymentProofS3Key: s3Key,
             paymentProofS3Url: s3Url,
             paymentAmount: quote.premiumAmount, // Store the premium amount for verification
@@ -8799,7 +8799,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         await db.update(insuranceQuotes)
           .set({
             status: 'payment_verified',
-            paymentVerifiedAt: new Date(),
+            paymentVerifiedAt: new Date().toISOString(),
             paymentVerifiedBy: ctx.user.id,
           })
           .where(eq(insuranceQuotes.id, input.quoteId));
