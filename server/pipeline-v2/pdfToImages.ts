@@ -305,8 +305,13 @@ export async function renderSpecificPdfPages(
     fs.writeFileSync(pdfPath, pdfBuffer);
     (pdfBuffer as any) = null; // release memory
 
-    // Render each requested page individually using pdftoppm -f <page> -l <page>
-    for (const pageNum of pageNumbers) {
+    // ── Parallel rendering: render all pages concurrently (pdftoppm is CPU-bound
+    //    but each invocation is independent), then upload to S3 in parallel with
+    //    a concurrency limit of 4 to avoid overwhelming the storage API.
+    const RENDER_CONCURRENCY = 4;
+
+    // Helper: render one page to a PNG buffer
+    const renderPage = async (pageNum: number): Promise<{ pageNum: number; pngBuf: Buffer; imgWidth: number; imgHeight: number } | null> => {
       const outputPrefix = path.join(tmpDir, `page-${pageNum}`);
       try {
         await execFileAsync(
@@ -314,19 +319,14 @@ export async function renderSpecificPdfPages(
           ["-r", String(dpi), "-f", String(pageNum), "-l", String(pageNum), "-png", pdfPath, outputPrefix],
           { timeout: 30_000, maxBuffer: 50 * 1024 * 1024 }
         );
-
-        // Find the output file — pdftoppm names it <prefix>-<padded>.png
         const pngFiles = fs.readdirSync(tmpDir)
           .filter(f => f.startsWith(`page-${pageNum}-`) && f.endsWith(".png"));
-
         if (pngFiles.length === 0) {
           log(`Page ${pageNum}: pdftoppm produced no output`);
-          continue;
+          return null;
         }
-
         const pngPath = path.join(tmpDir, pngFiles[0]);
         let pngBuf: Buffer = fs.readFileSync(pngPath);
-
         // Auto-rotate landscape pages to portrait
         try {
           const meta = await sharp(pngBuf).metadata();
@@ -335,32 +335,49 @@ export async function renderSpecificPdfPages(
             pngBuf = Buffer.from(await sharp(pngBuf).rotate(90).png().toBuffer());
           }
         } catch { /* non-fatal */ }
-
-        // Read final dimensions
         let imgWidth = 0, imgHeight = 0;
         try {
           const finalMeta = await sharp(pngBuf).metadata();
           imgWidth = finalMeta.width ?? 0;
           imgHeight = finalMeta.height ?? 0;
         } catch { /* non-fatal */ }
+        // Clean up immediately after reading into memory
+        try { fs.unlinkSync(pngPath); } catch { /* non-fatal */ }
+        return { pageNum, pngBuf, imgWidth, imgHeight };
+      } catch (err: any) {
+        log(`ERROR: Page ${pageNum} render failed: ${err.message}`);
+        return null;
+      }
+    };
 
+    // Helper: upload one rendered page to S3
+    const uploadPage = async (item: { pageNum: number; pngBuf: Buffer; imgWidth: number; imgHeight: number }): Promise<void> => {
+      const { pageNum, pngBuf, imgWidth, imgHeight } = item;
+      try {
         const s3Key = `${keyPrefix}/${urlHash}/damage-page-${String(pageNum).padStart(3, "0")}.png`;
         const { url, key } = await storagePut(s3Key, pngBuf, "image/png");
-        result.set(pageNum, {
-          pageNumber: pageNum,
-          url,
-          key,
-          fileSizeBytes: pngBuf.length,
-          width: imgWidth,
-          height: imgHeight,
-        });
+        result.set(pageNum, { pageNumber: pageNum, url, key, fileSizeBytes: pngBuf.length, width: imgWidth, height: imgHeight });
         log(`Rendered + uploaded damage page ${pageNum} → ${url}`);
-
-        // Clean up the rendered file immediately to free disk space
-        try { fs.unlinkSync(pngPath); } catch { /* non-fatal */ }
       } catch (err: any) {
-        log(`ERROR: Page ${pageNum} render/upload failed: ${err.message}`);
+        log(`ERROR: Page ${pageNum} upload failed: ${err.message}`);
       }
+    };
+
+    // Run renders in parallel batches of RENDER_CONCURRENCY
+    const rendered: Array<{ pageNum: number; pngBuf: Buffer; imgWidth: number; imgHeight: number }> = [];
+    for (let i = 0; i < pageNumbers.length; i += RENDER_CONCURRENCY) {
+      const batch = pageNumbers.slice(i, i + RENDER_CONCURRENCY);
+      const batchResults = await Promise.all(batch.map(renderPage));
+      for (const r of batchResults) {
+        if (r) rendered.push(r);
+      }
+    }
+    log(`Rendered ${rendered.length}/${pageNumbers.length} pages — uploading to S3 in parallel...`);
+
+    // Upload all rendered pages in parallel batches of RENDER_CONCURRENCY
+    for (let i = 0; i < rendered.length; i += RENDER_CONCURRENCY) {
+      const batch = rendered.slice(i, i + RENDER_CONCURRENCY);
+      await Promise.all(batch.map(uploadPage));
     }
 
     log(`Targeted render complete: ${result.size}/${pageNumbers.length} damage pages uploaded`);

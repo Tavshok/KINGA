@@ -891,9 +891,12 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
   }
 
   // Determine which pages to render: vehicle damage/overview pages with usable quality
+  // Include any page that has a vehicle OR visible damage, and is not unusable quality.
+  // This captures scene photos with vehicle damage and close-up component shots
+  // that may not show the full vehicle but are critical for forensic analysis.
   const damagePageNumbers: number[] = pass1
     ? pass1.photo_pages
-        .filter(p => p.has_vehicle && p.photo_quality !== "unusable")
+        .filter(p => (p.has_vehicle || p.has_visible_damage) && p.photo_quality !== "unusable")
         .map(p => p.page_number)
     : [];
 
@@ -905,8 +908,10 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
   let renderedPageMap = new Map<number, { url: string; pageNumber: number }>();
   if (damagePageNumbers.length > 0) {
     try {
+      // 150 DPI gives ~1240×1754px for A4 — sufficient for LLM detail:high vision
+      // and precise measurement extraction without excessive memory usage.
       const rendered = await renderSpecificPdfPages(pdfUrl, damagePageNumbers, {
-        dpi: 100,
+        dpi: 150,
         keyPrefix: "pdf-damage-pages",
         log,
       });
@@ -931,8 +936,13 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
 
   if (renderedPageMap.size > 0) {
     // Per-image analysis on rendered pages (highest precision)
-    log(`Running per-image analysis on ${renderedPageMap.size} rendered damage page(s)`);
-    for (const [pageNum, img] of renderedPageMap.entries()) {
+    // Run in parallel batches of 3 to maximise LLM throughput without rate-limiting
+    const ANALYSIS_CONCURRENCY = 3;
+    const pageEntries = Array.from(renderedPageMap.entries()); // [[pageNum, img], ...]
+    log(`Running per-image analysis on ${pageEntries.length} rendered damage page(s) (concurrency=${ANALYSIS_CONCURRENCY})`);
+
+    // Analyse one page and return a structured result (never throws)
+    const analyseOnePage = async (pageNum: number, img: { url: string; pageNumber: number }) => {
       const pass1Page = pass1?.photo_pages.find(p => p.page_number === pageNum);
       try {
         const imgResult = await analyseOneImage(
@@ -942,68 +952,82 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
           collisionDirection,
           (msg: string) => ctx.log("Stage 6 [PDF Vision]", msg)
         );
-        photosProcessed++;
-        for (const c of (imgResult.components || [])) {
-          const normName = normalisePartName(c.name || "Unknown Component");
-          const dedupeKey = `${normName}::${c.location || "general"}`;
-          if (seen.has(dedupeKey)) continue;
-          seen.add(dedupeKey);
-          allComponents.push({
-            name: normName,
-            location: c.location || "general",
-            damageType: c.damageType || "impact",
-            severity: normaliseSeverity(c.severity),
-            visible: c.visible !== false,
-            distanceFromImpact: allComponents.length * 0.3,
-            panelDeformation: c.panelDeformation,
-            crushDepthM: typeof c.crushDepthM === "number" ? Math.min(0.55, Math.max(0.0, c.crushDepthM)) : undefined,
-            deformationEnergyJ: typeof c.deformationEnergyJ === "number" ? Math.min(500000, Math.max(0, c.deformationEnergyJ)) : undefined,
-            structuralDisplacementM: typeof c.structuralDisplacementM === "number" ? Math.min(0.30, Math.max(0.0, c.structuralDisplacementM)) : undefined,
-            visionConfidenceScore: typeof c.visionConfidenceScore === "number" ? Math.min(100, Math.max(0, c.visionConfidenceScore)) : undefined,
-            damageFractionEstimate: typeof c.damageFractionEstimate === "number" ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate)) : undefined,
+        log(`Page ${pageNum}: ${imgResult.components?.length ?? 0} components extracted`);
+        return { pageNum, img, pass1Page, imgResult, error: null };
+      } catch (imgErr: any) {
+        log(`Page ${pageNum} analysis failed: ${imgErr.message}`);
+        return { pageNum, img, pass1Page, imgResult: null, error: imgErr.message as string };
+      }
+    };
+
+    // Process in parallel batches
+    for (let i = 0; i < pageEntries.length; i += ANALYSIS_CONCURRENCY) {
+      const batch = pageEntries.slice(i, i + ANALYSIS_CONCURRENCY);
+      const batchResults = await Promise.all(batch.map(([pn, im]) => analyseOnePage(pn, im)));
+
+      for (const { pageNum, img, pass1Page, imgResult, error } of batchResults) {
+        if (imgResult && !error) {
+          photosProcessed++;
+          for (const c of (imgResult.components || [])) {
+            const normName = normalisePartName(c.name || "Unknown Component");
+            const dedupeKey = `${normName}::${c.location || "general"}`;
+            if (seen.has(dedupeKey)) continue;
+            seen.add(dedupeKey);
+            allComponents.push({
+              name: normName,
+              location: c.location || "general",
+              damageType: c.damageType || "impact",
+              severity: normaliseSeverity(c.severity),
+              visible: c.visible !== false,
+              distanceFromImpact: allComponents.length * 0.3,
+              panelDeformation: c.panelDeformation,
+              crushDepthM: typeof c.crushDepthM === "number" ? Math.min(0.55, Math.max(0.0, c.crushDepthM)) : undefined,
+              deformationEnergyJ: typeof c.deformationEnergyJ === "number" ? Math.min(500000, Math.max(0, c.deformationEnergyJ)) : undefined,
+              structuralDisplacementM: typeof c.structuralDisplacementM === "number" ? Math.min(0.30, Math.max(0.0, c.structuralDisplacementM)) : undefined,
+              visionConfidenceScore: typeof c.visionConfidenceScore === "number" ? Math.min(100, Math.max(0, c.visionConfidenceScore)) : undefined,
+              damageFractionEstimate: typeof c.damageFractionEstimate === "number" ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate)) : undefined,
+            });
+          }
+          const severity = imgResult.components && imgResult.components.length > 0
+            ? (imgResult.components.some((c: any) => c.severity === "severe" || c.severity === "catastrophic") ? "severe"
+              : imgResult.components.some((c: any) => c.severity === "moderate") ? "moderate" : "minor")
+            : "unknown";
+          enrichedPhotoSummary.push({
+            url: img.url,
+            pageNumber: pageNum,
+            index: enrichedPhotoSummary.length,
+            componentCount: imgResult.components?.length ?? 0,
+            severity,
+            impactZone: imgResult.components?.[0]?.location ?? pass1Page?.brief_description ?? "unknown",
+            detectedComponents: (imgResult.components || []).map((c: any) => normalisePartName(c.name || "Unknown")),
+            caption: imgResult.components && imgResult.components.length > 0
+              ? `Page ${pageNum}: ${imgResult.components.length} component(s) — ${imgResult.components.slice(0, 3).map((c: any) => c.name).join(", ")}${imgResult.components.length > 3 ? "..." : ""}`
+              : `Page ${pageNum}: ${pass1Page?.brief_description ?? "No damage components detected"}`,
+            confidenceScore: imgResult.confidence === "high" ? 90 : imgResult.confidence === "medium" ? 70 : 50,
+            imageQuality: pass1Page?.photo_quality ?? "good",
+            usedFallback: imgResult.usedFallback ?? false,
+            enrichedAt: new Date().toISOString(),
+            source: "pdf_targeted_render",
+          });
+        } else {
+          // Analysis failed — still include the image URL so it appears in the report
+          photosFailed++;
+          enrichedPhotoSummary.push({
+            url: img.url,
+            pageNumber: pageNum,
+            index: enrichedPhotoSummary.length,
+            componentCount: 0,
+            severity: "unknown",
+            impactZone: pass1Page?.brief_description ?? "unknown",
+            detectedComponents: [],
+            caption: `Page ${pageNum}: Analysis failed — ${(error ?? "").slice(0, 60)}`,
+            confidenceScore: 0,
+            imageQuality: pass1Page?.photo_quality ?? "unknown",
+            usedFallback: true,
+            enrichedAt: new Date().toISOString(),
+            source: "pdf_targeted_render",
           });
         }
-        const severity = imgResult.components && imgResult.components.length > 0
-          ? (imgResult.components.some((c: any) => c.severity === "severe" || c.severity === "catastrophic") ? "severe"
-            : imgResult.components.some((c: any) => c.severity === "moderate") ? "moderate" : "minor")
-          : "unknown";
-        enrichedPhotoSummary.push({
-          url: img.url,
-          pageNumber: pageNum,
-          index: enrichedPhotoSummary.length,
-          componentCount: imgResult.components?.length ?? 0,
-          severity,
-          impactZone: imgResult.components?.[0]?.location ?? pass1Page?.brief_description ?? "unknown",
-          detectedComponents: (imgResult.components || []).map((c: any) => normalisePartName(c.name || "Unknown")),
-          caption: imgResult.components && imgResult.components.length > 0
-            ? `Page ${pageNum}: ${imgResult.components.length} component(s) — ${imgResult.components.slice(0, 3).map((c: any) => c.name).join(", ")}${imgResult.components.length > 3 ? "..." : ""}`
-            : `Page ${pageNum}: ${pass1Page?.brief_description ?? "No damage components detected"}`,
-          confidenceScore: imgResult.confidence === "high" ? 90 : imgResult.confidence === "medium" ? 70 : 50,
-          imageQuality: pass1Page?.photo_quality ?? "good",
-          usedFallback: imgResult.usedFallback ?? false,
-          enrichedAt: new Date().toISOString(),
-          source: "pdf_targeted_render",
-        });
-        log(`Page ${pageNum}: ${imgResult.components?.length ?? 0} components extracted`);
-      } catch (imgErr: any) {
-        photosFailed++;
-        log(`Page ${pageNum} analysis failed: ${imgErr.message}`);
-        // Still include the image URL in enrichedPhotos even if analysis failed
-        enrichedPhotoSummary.push({
-          url: img.url,
-          pageNumber: pageNum,
-          index: enrichedPhotoSummary.length,
-          componentCount: 0,
-          severity: "unknown",
-          impactZone: pass1Page?.brief_description ?? "unknown",
-          detectedComponents: [],
-          caption: `Page ${pageNum}: Analysis failed — ${imgErr.message.slice(0, 60)}`,
-          confidenceScore: 0,
-          imageQuality: pass1Page?.photo_quality ?? "unknown",
-          usedFallback: true,
-          enrichedAt: new Date().toISOString(),
-          source: "pdf_targeted_render",
-        });
       }
     }
     log(`Per-image analysis complete: ${allComponents.length} unique components from ${photosProcessed} page(s)`);
