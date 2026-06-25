@@ -1710,11 +1710,20 @@ export async function runPipelineV2(
       : null;
     const ctlKingaEstimateSource = stage9Data?.costDecision?.cost_basis ?? "ai_estimate";
 
+    // Parse enrichedPhotosJson from ctx for CTL fallback (Stage 6 vision output)
+    const ctlEnrichedPhotos: { url: string; confidenceScore?: number }[] = (() => {
+      try {
+        const raw = (ctx as any).enrichedPhotosJson;
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.filter((p: any) => p?.url) : [];
+      } catch { return []; }
+    })();
     claimTruth = buildClaimTruth({
       claimRecord: claimRecord!,
       stage3Data: stage3Data ?? null,
       evidenceRegistry: evidenceRegistryData ?? null,
       classifiedImages: ctx.classifiedImages ?? null,
+      enrichedPhotos: ctlEnrichedPhotos.length > 0 ? ctlEnrichedPhotos : null,
       extractedQuotes: ctlExtractedQuotes,
       kingaEstimateUsd: ctlKingaEstimate,
       kingaEstimateSource: ctlKingaEstimateSource,

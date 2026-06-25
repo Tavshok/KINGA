@@ -163,6 +163,8 @@ export interface ClaimTruthInput {
     vehicleOverviews: { url: string; pageIndex?: number }[];
     quotationImages: { url: string; pageIndex?: number; repairerName?: string }[];
   } | null;
+  /** Stage 6 vision-enriched photos — used as fallback when classifiedImages is null */
+  enrichedPhotos?: { url: string; confidenceScore?: number }[] | null;
   extractedQuotes: ExtractedQuote[];
   kingaEstimateUsd: number | null;
   kingaEstimateSource: string | null;
@@ -264,6 +266,11 @@ function resolveEvidence(input: ClaimTruthInput, conflicts: ConflictResolved[]):
         rejected: "Evidence registry reported MISSING",
         reason: "Image classifier (Stage 2.6) is authoritative — it actually inspected the images",
       });
+    }
+  } else if (input.enrichedPhotos && input.enrichedPhotos.length > 0) {
+    // Fallback: Stage 6 vision-enriched photos (found by PDF direct vision or page analysis)
+    for (const photo of input.enrichedPhotos) {
+      damagePhotos.push({ url: photo.url, pageRef: 0, classification: "damage_photo" });
     }
   } else if (claimRecord.damage?.imageUrls?.length > 0) {
     // Fallback: use claimRecord image URLs if classifier didn't run
