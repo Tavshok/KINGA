@@ -1462,7 +1462,17 @@ export async function triggerAiAssessment(claimId: number) {
     damagePhotosJson: (() => {
       const fromPipeline: string[] = damagePhotos ?? [];
       const fromClaimRecord: string[] = claimRecord?.damage?.imageUrls ?? [];
-      const merged = Array.from(new Set([...fromPipeline, ...fromClaimRecord]));
+      // Also include URLs from Stage 6 enriched photos — these are the vision-analysed images.
+      // enrichedPhotosJson is an array of objects with a .url field; extract the URLs.
+      const fromEnriched: string[] = (() => {
+        try {
+          const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
+          return Array.isArray(enriched)
+            ? enriched.map((p: any) => p.url ?? p.imageUrl ?? '').filter(Boolean)
+            : [];
+        } catch { return []; }
+      })();
+      const merged = Array.from(new Set([...fromPipeline, ...fromClaimRecord, ...fromEnriched]));
       return JSON.stringify(merged.length > 0 ? merged : []);
     })(),
     pipelineRunSummary: JSON.stringify({
