@@ -259,3 +259,113 @@ export async function renderPdfToImages(
 export function extractImageUrls(result: PdfToImagesResult): string[] {
   return result.pages.map((p) => p.url);
 }
+
+/**
+ * Render specific pages of a PDF to PNG images and upload to S3.
+ *
+ * Used by Stage 6 PDF direct vision path: after the LLM identifies which
+ * pages contain vehicle damage photos, only those pages are rendered and
+ * uploaded — avoiding the memory/time cost of rendering all pages upfront.
+ *
+ * @param pdfUrl       Public URL of the PDF (presigned or CDN)
+ * @param pageNumbers  1-based page numbers to render (e.g. [3, 7, 12])
+ * @param options      Rendering options (dpi, keyPrefix, log)
+ * @returns            Map of page number → uploaded image URL
+ */
+export async function renderSpecificPdfPages(
+  pdfUrl: string,
+  pageNumbers: number[],
+  options: PdfToImagesOptions = {}
+): Promise<Map<number, PdfPageImage>> {
+  const {
+    dpi = 100,
+    keyPrefix = "pdf-damage-pages",
+    log = () => {},
+  } = options;
+
+  const result = new Map<number, PdfPageImage>();
+  if (pageNumbers.length === 0) return result;
+
+  const urlHash = createHash("md5").update(pdfUrl).digest("hex").slice(0, 12);
+
+  // Download PDF once
+  let pdfBuffer: Buffer;
+  try {
+    pdfBuffer = await downloadPdfBuffer(pdfUrl);
+    log(`PDF downloaded for targeted render: ${pdfBuffer.length} bytes, ${pageNumbers.length} page(s) to render`);
+  } catch (err: any) {
+    log(`ERROR: PDF download failed for targeted render: ${err.message}`);
+    return result;
+  }
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kinga-pdf-targeted-"));
+  const pdfPath = path.join(tmpDir, "input.pdf");
+
+  try {
+    fs.writeFileSync(pdfPath, pdfBuffer);
+    (pdfBuffer as any) = null; // release memory
+
+    // Render each requested page individually using pdftoppm -f <page> -l <page>
+    for (const pageNum of pageNumbers) {
+      const outputPrefix = path.join(tmpDir, `page-${pageNum}`);
+      try {
+        await execFileAsync(
+          "pdftoppm",
+          ["-r", String(dpi), "-f", String(pageNum), "-l", String(pageNum), "-png", pdfPath, outputPrefix],
+          { timeout: 30_000, maxBuffer: 50 * 1024 * 1024 }
+        );
+
+        // Find the output file — pdftoppm names it <prefix>-<padded>.png
+        const pngFiles = fs.readdirSync(tmpDir)
+          .filter(f => f.startsWith(`page-${pageNum}-`) && f.endsWith(".png"));
+
+        if (pngFiles.length === 0) {
+          log(`Page ${pageNum}: pdftoppm produced no output`);
+          continue;
+        }
+
+        const pngPath = path.join(tmpDir, pngFiles[0]);
+        let pngBuf: Buffer = fs.readFileSync(pngPath);
+
+        // Auto-rotate landscape pages to portrait
+        try {
+          const meta = await sharp(pngBuf).metadata();
+          if (meta.width && meta.height && meta.width > meta.height) {
+            log(`Page ${pageNum}: landscape detected (${meta.width}×${meta.height}) — rotating 90° to portrait`);
+            pngBuf = Buffer.from(await sharp(pngBuf).rotate(90).png().toBuffer());
+          }
+        } catch { /* non-fatal */ }
+
+        // Read final dimensions
+        let imgWidth = 0, imgHeight = 0;
+        try {
+          const finalMeta = await sharp(pngBuf).metadata();
+          imgWidth = finalMeta.width ?? 0;
+          imgHeight = finalMeta.height ?? 0;
+        } catch { /* non-fatal */ }
+
+        const s3Key = `${keyPrefix}/${urlHash}/damage-page-${String(pageNum).padStart(3, "0")}.png`;
+        const { url, key } = await storagePut(s3Key, pngBuf, "image/png");
+        result.set(pageNum, {
+          pageNumber: pageNum,
+          url,
+          key,
+          fileSizeBytes: pngBuf.length,
+          width: imgWidth,
+          height: imgHeight,
+        });
+        log(`Rendered + uploaded damage page ${pageNum} → ${url}`);
+
+        // Clean up the rendered file immediately to free disk space
+        try { fs.unlinkSync(pngPath); } catch { /* non-fatal */ }
+      } catch (err: any) {
+        log(`ERROR: Page ${pageNum} render/upload failed: ${err.message}`);
+      }
+    }
+
+    log(`Targeted render complete: ${result.size}/${pageNumbers.length} damage pages uploaded`);
+    return result;
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* non-fatal */ }
+  }
+}

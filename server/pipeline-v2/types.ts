@@ -58,7 +58,9 @@ export type RecoveryStrategy =
   | "partial_data"
   | "llm_vision"
   | "skip"
-  | "none";
+  | "none"
+  | "pdf_targeted_render"
+  | "pdf_direct_vision";
 
 export interface RecoveryAction {
   target: string;

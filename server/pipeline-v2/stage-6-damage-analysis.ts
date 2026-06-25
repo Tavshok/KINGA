@@ -32,6 +32,7 @@
 import { ensureDamageContract } from "./engineFallback";
 import { invokeLLM } from "../_core/llm";
 import { normalisePartName, CANONICAL_PARTS_PROMPT_LIST } from "./canonicalPartsVocabulary";
+import { renderSpecificPdfPages } from "./pdfToImages";
 import { KINGA_REPORT_SYSTEM_PROMPT } from "./kingaReportSystemPrompt";
 import { selectDamagePhotoPages } from "./imageIntelligence";
 import type {
@@ -766,94 +767,66 @@ async function readDamageFromPdf(
   ].filter(Boolean).join(" ");
   const collisionDirection = claimRecord.accidentDetails.collisionDirection || "unknown";
 
-  log(`Invoking PDF direct vision on: ${pdfUrl.substring(0, 80)}...`);
+  log(`Invoking PDF two-pass vision on: ${pdfUrl.substring(0, 80)}...`);
   log(`Vehicle context: ${vehicleContext || "Unknown vehicle"}, collision: ${collisionDirection}`);
 
-  const PDF_VISION_TIMEOUT_MS = 90_000; // 90s — PDF analysis is slower than single image
+  // ─── PASS 1: PAGE IDENTIFICATION ─────────────────────────────────────────
+  // Ask the LLM to scan the entire PDF and identify ONLY the page numbers that
+  // contain vehicle photographs. This is fast (no component extraction yet) and
+  // gives us the page list needed for targeted rendering.
+  const PASS1_TIMEOUT_MS = 60_000;
 
-  // JSON schema for PDF-level damage extraction
-  const PDF_VISION_SCHEMA = {
+  const PASS1_SCHEMA = {
     type: "json_schema" as const,
     json_schema: {
-      name: "pdf_damage_extraction",
+      name: "pdf_page_identification",
       strict: true,
       schema: {
         type: "object",
         properties: {
-          damage_photo_pages: {
+          photo_pages: {
             type: "array",
+            description: "Pages that contain actual photographs (not text/forms)",
             items: {
               type: "object",
               properties: {
                 page_number: { type: "integer" },
-                photo_type: {
+                page_type: {
                   type: "string",
-                  enum: ["vehicle_damage", "vehicle_overview", "document", "other"],
+                  enum: ["vehicle_damage", "vehicle_overview", "scene_photo", "document_photo", "other_photo"],
                 },
-                components: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name:          { type: "string" },
-                      location:      { type: "string" },
-                      damageType:    { type: "string" },
-                      severity: {
-                        type: "string",
-                        enum: ["cosmetic", "minor", "moderate", "severe", "catastrophic"],
-                      },
-                      visible:       { type: "boolean" },
-                      notes:         { type: "string" },
-                      crushDepthM:             { type: "number" },
-                      deformationEnergyJ:      { type: "number" },
-                      structuralDisplacementM: { type: "number" },
-                      visionConfidenceScore:   { type: "number" },
-                      panelDeformation:        { type: "boolean" },
-                      damageFractionEstimate:  { type: "number" },
-                    },
-                    required: ["name", "location", "damageType", "severity", "visible",
-                               "crushDepthM", "deformationEnergyJ", "structuralDisplacementM",
-                               "visionConfidenceScore", "panelDeformation", "damageFractionEstimate"],
-                    additionalProperties: false,
-                  },
-                },
+                has_vehicle: { type: "boolean" },
+                has_visible_damage: { type: "boolean" },
+                photo_quality: { type: "string", enum: ["clear", "blurry", "partial", "unusable"] },
+                brief_description: { type: "string" },
               },
-              required: ["page_number", "photo_type", "components"],
+              required: ["page_number", "page_type", "has_vehicle", "has_visible_damage", "photo_quality", "brief_description"],
               additionalProperties: false,
             },
           },
-          overall_severity_assessment: { type: "string" },
-          structural_damage_suspected: { type: "boolean" },
-          confidence: { type: "string", enum: ["high", "medium", "low"] },
-          total_damage_photos_found: { type: "integer" },
+          total_pages_scanned: { type: "integer" },
+          scan_confidence: { type: "string", enum: ["high", "medium", "low"] },
         },
-        required: ["damage_photo_pages", "overall_severity_assessment",
-                   "structural_damage_suspected", "confidence", "total_damage_photos_found"],
+        required: ["photo_pages", "total_pages_scanned", "scan_confidence"],
         additionalProperties: false,
       },
     },
   };
 
-  type PdfVisionResult = {
-    damage_photo_pages: Array<{
+  type Pass1Result = {
+    photo_pages: Array<{
       page_number: number;
-      photo_type: string;
-      components: Array<{
-        name: string; location: string; damageType: string; severity: string;
-        visible: boolean; notes?: string; panelDeformation?: boolean;
-        crushDepthM?: number; deformationEnergyJ?: number;
-        structuralDisplacementM?: number; visionConfidenceScore?: number;
-        damageFractionEstimate?: number;
-      }>;
+      page_type: string;
+      has_vehicle: boolean;
+      has_visible_damage: boolean;
+      photo_quality: string;
+      brief_description: string;
     }>;
-    overall_severity_assessment: string;
-    structural_damage_suspected: boolean;
-    confidence: string;
-    total_damage_photos_found: number;
+    total_pages_scanned: number;
+    scan_confidence: string;
   };
 
-  let parsed: PdfVisionResult | null = null;
-  let succeeded = false;
+  let pass1: Pass1Result | null = null;
 
   try {
     const response = await withTimeout(
@@ -861,148 +834,339 @@ async function readDamageFromPdf(
         messages: [
           {
             role: "system",
-            content: `${KINGA_REPORT_SYSTEM_PROMPT}\n\nYou are an expert vehicle damage assessor for insurance claims in South Africa, operating within the KINGA Intelligence system.\nYou are given a vehicle insurance claim PDF document. Your task:\n1. SCAN EVERY PAGE of this PDF.\n2. IDENTIFY every page that contains a photograph of a vehicle (damage photos, overview shots, etc.).\n3. For each vehicle damage photo page, EXTRACT every visibly damaged component with full measurements.\n4. IGNORE pages that are text-only (forms, declarations, signatures) — only analyse pages with actual photographs.\n\nPART NAMING — CRITICAL: Use ONLY the following authorised part names:\n${CANONICAL_PARTS_PROMPT_LIST}\nSide prefix rules: "LH" for left-hand (driver) side, "RH" for right-hand (passenger) side.\nUse "Bonnet" (not Hood), "Boot Lid" (not Trunk), "Windscreen" (not Windshield).\n\nABSOLUTE NUMERIC MEASUREMENTS — for each component:\n  crushDepthM [metres]: 0.0=cosmetic, 0.01=scratch, 0.02-0.04=shallow dent, 0.05-0.10=moderate, 0.12-0.22=severe, 0.25-0.45=catastrophic\n  deformationEnergyJ [Joules]: 0=cosmetic, 50-500=minor, 500-5000=moderate, 5000-30000=severe, >30000=catastrophic\n  structuralDisplacementM [metres]: 0.0=cosmetic, 0.005-0.015=minor flex, 0.020-0.050=confirmed displacement\n  visionConfidenceScore [0-100]: 90-100=clear view, 70-89=minor occlusion, 40-69=partial, <40=poor quality\n  panelDeformation [boolean]: true if panel shape is visibly distorted\n  damageFractionEstimate [0.0-1.0]: fraction of panel surface visibly damaged\n\nCRITICAL: If no vehicle damage photos are found in the PDF, return an empty damage_photo_pages array.\nReturn ONLY a JSON object matching the schema — no prose, no markdown.`,
+            content: `You are a document analyst for a vehicle insurance claims system in South Africa.
+Your ONLY task in this step is to SCAN every page of the provided PDF and identify which pages contain PHOTOGRAPHS.
+
+PAGE CLASSIFICATION RULES:
+- "vehicle_damage": page contains a photo showing a damaged vehicle or damaged vehicle parts
+- "vehicle_overview": page contains a photo of the whole vehicle (undamaged overview or pre-loss)
+- "scene_photo": page contains a photo of the accident scene, road, or surroundings
+- "document_photo": page contains a photo of a document (ID, licence, police report photo)
+- "other_photo": page contains a photo that does not fit the above
+
+CRITICAL IDENTIFICATION RULES:
+1. A page with PHOTOGRAPHS has visual image content — you can see a vehicle, scene, or object as a real photograph
+2. Text-only pages (claim forms, declarations, signatures, tables, printed text) are NOT photo pages — exclude them
+3. Pages with embedded diagrams or drawings are NOT photo pages — exclude them
+4. A page may contain BOTH text AND a photo — if it has a photo, include it
+5. Look carefully for small embedded photos within form pages — these are common in SA claim forms
+6. If a page is unclear, include it with photo_quality="partial" rather than excluding it
+
+For each photo page found, set:
+- has_vehicle: true if a vehicle (car, truck, bakkie, etc.) is visible in the photo
+- has_visible_damage: true if damage (dents, scratches, cracks, deformation) is visible
+- photo_quality: "clear" (sharp, well-lit), "blurry" (motion blur or out of focus), "partial" (cropped or partially visible), "unusable" (too dark/small to analyse)
+
+Return ONLY the JSON — no prose, no markdown.`,
           },
           {
             role: "user",
             content: [
               {
                 type: "text" as const,
-                text: `Vehicle: ${vehicleContext || "Unknown vehicle"}.\nCollision direction: ${collisionDirection}.\nPlease scan this entire insurance claim PDF, identify all vehicle damage photographs, and extract damage components from each photo page.`,
+                text: `This is a vehicle insurance claim PDF for a ${vehicleContext || "vehicle"} involved in a ${collisionDirection} collision.
+Please scan EVERY page and identify all pages that contain photographs. Be thorough — do not miss any photo pages.`,
               },
               {
                 type: "file_url" as const,
-                file_url: {
-                  url: pdfUrl,
-                  mime_type: "application/pdf" as const,
-                },
+                file_url: { url: pdfUrl, mime_type: "application/pdf" as const },
               },
             ],
           },
         ],
-        response_format: PDF_VISION_SCHEMA,
+        response_format: PASS1_SCHEMA,
       }),
-      PDF_VISION_TIMEOUT_MS
+      PASS1_TIMEOUT_MS
     );
-
     const rawContent = response.choices?.[0]?.message?.content || "{}";
     const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
-    parsed = JSON.parse(content) as PdfVisionResult;
-    succeeded = true;
-    log(`PDF vision succeeded: found ${parsed.total_damage_photos_found} damage photo page(s), confidence: ${parsed.confidence}`);
+    pass1 = JSON.parse(content) as Pass1Result;
+    log(`Pass 1 complete: scanned ${pass1.total_pages_scanned} pages, found ${pass1.photo_pages.length} photo page(s), confidence: ${pass1.scan_confidence}`);
+    for (const p of pass1.photo_pages) {
+      log(`  Page ${p.page_number}: ${p.page_type} | vehicle=${p.has_vehicle} | damage=${p.has_visible_damage} | quality=${p.photo_quality} | "${p.brief_description.slice(0, 60)}"`);
+    }
   } catch (e) {
-    log(`PDF vision FAILED: ${String(e)}`);
-    recoveryActions.push({
-      target: "pdf_direct_vision",
-      strategy: "partial_data",
-      success: false,
-      description: `PDF direct vision failed: ${String(e)}. Falling back to text-only damage analysis.`,
-    });
-    return {
-      components: [],
-      perPhotoResults: [],
-      photosProcessed: 0,
-      photosDeferred: 0,
-      photosFailed: 1,
-      enrichedPhotosJson: "[]",
-    };
+    log(`Pass 1 (page identification) FAILED: ${String(e)} — falling back to single-pass PDF vision`);
+    pass1 = null;
   }
 
-  if (!parsed || !parsed.damage_photo_pages) {
-    log("PDF vision returned no structured data");
-    return {
-      components: [],
-      perPhotoResults: [],
-      photosProcessed: 0,
-      photosDeferred: 0,
-      photosFailed: 0,
-      enrichedPhotosJson: "[]",
-    };
-  }
+  // Determine which pages to render: vehicle damage/overview pages with usable quality
+  const damagePageNumbers: number[] = pass1
+    ? pass1.photo_pages
+        .filter(p => p.has_vehicle && p.photo_quality !== "unusable")
+        .map(p => p.page_number)
+    : [];
 
-  // Filter to pages with vehicle damage (either tagged as vehicle_damage or has components)
-  const damagePages = parsed.damage_photo_pages.filter(
-    p => p.photo_type === "vehicle_damage" || (p.components && p.components.length > 0)
-  );
-  log(`Damage pages found: ${damagePages.length} of ${parsed.damage_photo_pages.length} total photo pages`);
+  log(`Pages to render for targeted analysis: [${damagePageNumbers.join(", ")}]`);
 
-  // Flatten and normalise all components from all damage pages (deduplicate by name+location)
-  const allComponents: DamageAnalysisComponent[] = [];
-  const seen = new Set<string>();
-  for (const page of damagePages) {
-    for (const c of (page.components || [])) {
-      const normName = normalisePartName(c.name || "Unknown Component");
-      const dedupeKey = `${normName}::${c.location || "general"}`;
-      if (seen.has(dedupeKey)) continue;
-      seen.add(dedupeKey);
-      allComponents.push({
-        name: normName,
-        location: c.location || "general",
-        damageType: c.damageType || "impact",
-        severity: normaliseSeverity(c.severity),
-        visible: c.visible !== false,
-        distanceFromImpact: allComponents.length * 0.3,
-        panelDeformation: c.panelDeformation,
-        crushDepthM: typeof c.crushDepthM === "number"
-          ? Math.min(0.55, Math.max(0.0, c.crushDepthM)) : undefined,
-        deformationEnergyJ: typeof c.deformationEnergyJ === "number"
-          ? Math.min(500000, Math.max(0, c.deformationEnergyJ)) : undefined,
-        structuralDisplacementM: typeof c.structuralDisplacementM === "number"
-          ? Math.min(0.30, Math.max(0.0, c.structuralDisplacementM)) : undefined,
-        visionConfidenceScore: typeof c.visionConfidenceScore === "number"
-          ? Math.min(100, Math.max(0, c.visionConfidenceScore)) : undefined,
-        damageFractionEstimate: typeof c.damageFractionEstimate === "number"
-          ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate)) : undefined,
+  // ─── TARGETED PAGE RENDERING ─────────────────────────────────────────────
+  // Render only the identified damage pages to real PNG images and upload to S3.
+  // This gives Stage 6 actual image URLs (not PDF fragment URLs) for forensics.
+  let renderedPageMap = new Map<number, { url: string; pageNumber: number }>();
+  if (damagePageNumbers.length > 0) {
+    try {
+      const rendered = await renderSpecificPdfPages(pdfUrl, damagePageNumbers, {
+        dpi: 100,
+        keyPrefix: "pdf-damage-pages",
+        log,
       });
+      for (const [pageNum, img] of rendered.entries()) {
+        renderedPageMap.set(pageNum, { url: img.url, pageNumber: pageNum });
+      }
+      log(`Targeted rendering complete: ${renderedPageMap.size}/${damagePageNumbers.length} pages uploaded as real images`);
+    } catch (renderErr: any) {
+      log(`Targeted rendering failed (non-fatal): ${renderErr.message} — will use PDF fragment URLs as fallback`);
     }
   }
 
-  log(`PDF vision extracted ${allComponents.length} unique components from ${damagePages.length} damage photo page(s)`);
+  // ─── PASS 2: COMPONENT EXTRACTION ────────────────────────────────────────
+  // For each rendered damage page, run per-image vision analysis to extract
+  // components with full measurements. If rendering failed, fall back to
+  // single-pass PDF vision for component extraction.
+  const allComponents: DamageAnalysisComponent[] = [];
+  const seen = new Set<string>();
+  const enrichedPhotoSummary: Array<Record<string, unknown>> = [];
+  let photosProcessed = 0;
+  let photosFailed = 0;
 
-  if (allComponents.length > 0) {
+  if (renderedPageMap.size > 0) {
+    // Per-image analysis on rendered pages (highest precision)
+    log(`Running per-image analysis on ${renderedPageMap.size} rendered damage page(s)`);
+    for (const [pageNum, img] of renderedPageMap.entries()) {
+      const pass1Page = pass1?.photo_pages.find(p => p.page_number === pageNum);
+      try {
+        const imgResult = await analyseOneImage(
+          img.url,
+          pageNum,
+          vehicleContext,
+          collisionDirection,
+          (msg: string) => ctx.log("Stage 6 [PDF Vision]", msg)
+        );
+        photosProcessed++;
+        for (const c of (imgResult.components || [])) {
+          const normName = normalisePartName(c.name || "Unknown Component");
+          const dedupeKey = `${normName}::${c.location || "general"}`;
+          if (seen.has(dedupeKey)) continue;
+          seen.add(dedupeKey);
+          allComponents.push({
+            name: normName,
+            location: c.location || "general",
+            damageType: c.damageType || "impact",
+            severity: normaliseSeverity(c.severity),
+            visible: c.visible !== false,
+            distanceFromImpact: allComponents.length * 0.3,
+            panelDeformation: c.panelDeformation,
+            crushDepthM: typeof c.crushDepthM === "number" ? Math.min(0.55, Math.max(0.0, c.crushDepthM)) : undefined,
+            deformationEnergyJ: typeof c.deformationEnergyJ === "number" ? Math.min(500000, Math.max(0, c.deformationEnergyJ)) : undefined,
+            structuralDisplacementM: typeof c.structuralDisplacementM === "number" ? Math.min(0.30, Math.max(0.0, c.structuralDisplacementM)) : undefined,
+            visionConfidenceScore: typeof c.visionConfidenceScore === "number" ? Math.min(100, Math.max(0, c.visionConfidenceScore)) : undefined,
+            damageFractionEstimate: typeof c.damageFractionEstimate === "number" ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate)) : undefined,
+          });
+        }
+        const severity = imgResult.components && imgResult.components.length > 0
+          ? (imgResult.components.some((c: any) => c.severity === "severe" || c.severity === "catastrophic") ? "severe"
+            : imgResult.components.some((c: any) => c.severity === "moderate") ? "moderate" : "minor")
+          : "unknown";
+        enrichedPhotoSummary.push({
+          url: img.url,
+          pageNumber: pageNum,
+          index: enrichedPhotoSummary.length,
+          componentCount: imgResult.components?.length ?? 0,
+          severity,
+          impactZone: imgResult.components?.[0]?.location ?? pass1Page?.brief_description ?? "unknown",
+          detectedComponents: (imgResult.components || []).map((c: any) => normalisePartName(c.name || "Unknown")),
+          caption: imgResult.components && imgResult.components.length > 0
+            ? `Page ${pageNum}: ${imgResult.components.length} component(s) — ${imgResult.components.slice(0, 3).map((c: any) => c.name).join(", ")}${imgResult.components.length > 3 ? "..." : ""}`
+            : `Page ${pageNum}: ${pass1Page?.brief_description ?? "No damage components detected"}`,
+          confidenceScore: imgResult.confidence === "high" ? 90 : imgResult.confidence === "medium" ? 70 : 50,
+          imageQuality: pass1Page?.photo_quality ?? "good",
+          usedFallback: imgResult.usedFallback ?? false,
+          enrichedAt: new Date().toISOString(),
+          source: "pdf_targeted_render",
+        });
+        log(`Page ${pageNum}: ${imgResult.components?.length ?? 0} components extracted`);
+      } catch (imgErr: any) {
+        photosFailed++;
+        log(`Page ${pageNum} analysis failed: ${imgErr.message}`);
+        // Still include the image URL in enrichedPhotos even if analysis failed
+        enrichedPhotoSummary.push({
+          url: img.url,
+          pageNumber: pageNum,
+          index: enrichedPhotoSummary.length,
+          componentCount: 0,
+          severity: "unknown",
+          impactZone: pass1Page?.brief_description ?? "unknown",
+          detectedComponents: [],
+          caption: `Page ${pageNum}: Analysis failed — ${imgErr.message.slice(0, 60)}`,
+          confidenceScore: 0,
+          imageQuality: pass1Page?.photo_quality ?? "unknown",
+          usedFallback: true,
+          enrichedAt: new Date().toISOString(),
+          source: "pdf_targeted_render",
+        });
+      }
+    }
+    log(`Per-image analysis complete: ${allComponents.length} unique components from ${photosProcessed} page(s)`);
+  } else {
+    // Fallback: single-pass PDF vision for component extraction (no rendered images)
+    log(`No rendered pages available — running single-pass PDF vision for component extraction`);
+    const PDF_VISION_TIMEOUT_MS = 90_000;
+    const PDF_VISION_SCHEMA = {
+      type: "json_schema" as const,
+      json_schema: {
+        name: "pdf_damage_extraction",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            damage_photo_pages: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  page_number: { type: "integer" },
+                  photo_type: { type: "string", enum: ["vehicle_damage", "vehicle_overview", "document", "other"] },
+                  components: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" }, location: { type: "string" }, damageType: { type: "string" },
+                        severity: { type: "string", enum: ["cosmetic", "minor", "moderate", "severe", "catastrophic"] },
+                        visible: { type: "boolean" }, notes: { type: "string" },
+                        crushDepthM: { type: "number" }, deformationEnergyJ: { type: "number" },
+                        structuralDisplacementM: { type: "number" }, visionConfidenceScore: { type: "number" },
+                        panelDeformation: { type: "boolean" }, damageFractionEstimate: { type: "number" },
+                      },
+                      required: ["name", "location", "damageType", "severity", "visible", "notes",
+                                 "crushDepthM", "deformationEnergyJ", "structuralDisplacementM",
+                                 "visionConfidenceScore", "panelDeformation", "damageFractionEstimate"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["page_number", "photo_type", "components"],
+                additionalProperties: false,
+              },
+            },
+            overall_severity_assessment: { type: "string" },
+            structural_damage_suspected: { type: "boolean" },
+            confidence: { type: "string", enum: ["high", "medium", "low"] },
+            total_damage_photos_found: { type: "integer" },
+          },
+          required: ["damage_photo_pages", "overall_severity_assessment", "structural_damage_suspected", "confidence", "total_damage_photos_found"],
+          additionalProperties: false,
+        },
+      },
+    };
+    type PdfVisionResult = {
+      damage_photo_pages: Array<{ page_number: number; photo_type: string; components: Array<{ name: string; location: string; damageType: string; severity: string; visible: boolean; notes?: string; panelDeformation?: boolean; crushDepthM?: number; deformationEnergyJ?: number; structuralDisplacementM?: number; visionConfidenceScore?: number; damageFractionEstimate?: number; }>; }>;
+      overall_severity_assessment: string; structural_damage_suspected: boolean; confidence: string; total_damage_photos_found: number;
+    };
+    let parsed: PdfVisionResult | null = null;
+    let succeeded = false;
+    try {
+      const response = await withTimeout(
+        () => invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `${KINGA_REPORT_SYSTEM_PROMPT}\n\nYou are an expert vehicle damage assessor for insurance claims in South Africa, operating within the KINGA Intelligence system.\nYou are given a vehicle insurance claim PDF. Scan every page, identify vehicle damage photos, and extract all damaged components with full SI-unit measurements.\nPART NAMING: Use ONLY these authorised SA/Audatex ZA names: ${CANONICAL_PARTS_PROMPT_LIST}\nSide prefixes: LH=driver side, RH=passenger side. Use Bonnet/Boot Lid/Windscreen (not Hood/Trunk/Windshield).\nMEASUREMENTS: crushDepthM(0-0.55m), deformationEnergyJ(0-500000J), structuralDisplacementM(0-0.30m), visionConfidenceScore(0-100), panelDeformation(bool), damageFractionEstimate(0-1.0).\nReturn ONLY JSON.`,
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text" as const, text: `Vehicle: ${vehicleContext || "Unknown"}, collision: ${collisionDirection}. Extract all damage from this claim PDF.` },
+                { type: "file_url" as const, file_url: { url: pdfUrl, mime_type: "application/pdf" as const } },
+              ],
+            },
+          ],
+          response_format: PDF_VISION_SCHEMA,
+        }),
+        PDF_VISION_TIMEOUT_MS
+      );
+      const rawContent = response.choices?.[0]?.message?.content || "{}";
+      parsed = JSON.parse(typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent)) as PdfVisionResult;
+      succeeded = true;
+      log(`Single-pass PDF vision: ${parsed.total_damage_photos_found} damage photo page(s), confidence: ${parsed.confidence}`);
+    } catch (e) {
+      log(`Single-pass PDF vision FAILED: ${String(e)}`);
+      recoveryActions.push({ target: "pdf_direct_vision", strategy: "partial_data", success: false, description: `PDF vision failed: ${String(e)}` });
+      return { components: [], perPhotoResults: [], photosProcessed: 0, photosDeferred: 0, photosFailed: 1, enrichedPhotosJson: "[]" };
+    }
+    if (!parsed || !parsed.damage_photo_pages) {
+      return { components: [], perPhotoResults: [], photosProcessed: 0, photosDeferred: 0, photosFailed: 0, enrichedPhotosJson: "[]" };
+    }
+    const damagePages = parsed.damage_photo_pages.filter(p => p.photo_type === "vehicle_damage" || (p.components && p.components.length > 0));
+    log(`Single-pass damage pages: ${damagePages.length}`);
+    for (const page of damagePages) {
+      for (const c of (page.components || [])) {
+        const normName = normalisePartName(c.name || "Unknown Component");
+        const dedupeKey = `${normName}::${c.location || "general"}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        allComponents.push({
+          name: normName, location: c.location || "general", damageType: c.damageType || "impact",
+          severity: normaliseSeverity(c.severity), visible: c.visible !== false,
+          distanceFromImpact: allComponents.length * 0.3, panelDeformation: c.panelDeformation,
+          crushDepthM: typeof c.crushDepthM === "number" ? Math.min(0.55, Math.max(0.0, c.crushDepthM)) : undefined,
+          deformationEnergyJ: typeof c.deformationEnergyJ === "number" ? Math.min(500000, Math.max(0, c.deformationEnergyJ)) : undefined,
+          structuralDisplacementM: typeof c.structuralDisplacementM === "number" ? Math.min(0.30, Math.max(0.0, c.structuralDisplacementM)) : undefined,
+          visionConfidenceScore: typeof c.visionConfidenceScore === "number" ? Math.min(100, Math.max(0, c.visionConfidenceScore)) : undefined,
+          damageFractionEstimate: typeof c.damageFractionEstimate === "number" ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate)) : undefined,
+        });
+      }
+      enrichedPhotoSummary.push({
+        url: `${pdfUrl}#page=${page.page_number}`,
+        pageNumber: page.page_number,
+        index: enrichedPhotoSummary.length,
+        componentCount: page.components?.length ?? 0,
+        severity: page.components && page.components.length > 0
+          ? (page.components.some(c => c.severity === "severe" || c.severity === "catastrophic") ? "severe"
+            : page.components.some(c => c.severity === "moderate") ? "moderate" : "minor") : "unknown",
+        impactZone: page.components?.[0]?.location ?? "unknown",
+        detectedComponents: (page.components || []).map(c => normalisePartName(c.name || "Unknown")),
+        caption: page.components && page.components.length > 0
+          ? `Page ${page.page_number}: ${page.components.length} component(s) — ${page.components.slice(0, 3).map(c => c.name).join(", ")}${page.components.length > 3 ? "..." : ""}`
+          : `Page ${page.page_number}: No damage components detected`,
+        confidenceScore: parsed!.confidence === "high" ? 85 : parsed!.confidence === "medium" ? 65 : 40,
+        imageQuality: parsed!.confidence === "high" ? "good" : "poor",
+        usedFallback: false, enrichedAt: new Date().toISOString(), source: "pdf_single_pass_vision",
+      });
+    }
+    photosProcessed = succeeded ? 1 : 0;
+    photosFailed = succeeded ? 0 : 1;
+  }
+
+  log(`readDamageFromPdf complete: ${allComponents.length} components, ${enrichedPhotoSummary.length} photo entries, ${photosProcessed} processed, ${photosFailed} failed`);
+
+  if (allComponents.length > 0 || enrichedPhotoSummary.length > 0) {
     recoveryActions.push({
       target: "damagePhotoUrls",
       strategy: "partial_data",
       success: true,
-      description: `No pre-rendered page images available. Used PDF direct vision to analyse ${damagePages.length} damage photo page(s) and extract ${allComponents.length} components.`,
+      description: renderedPageMap.size > 0
+        ? `PDF two-pass vision: rendered ${renderedPageMap.size} damage page(s) as real images, extracted ${allComponents.length} components.`
+        : `PDF single-pass vision: identified ${enrichedPhotoSummary.length} damage page(s), extracted ${allComponents.length} components.`,
     });
     assumptions.push({
       field: "visionSource",
-      assumedValue: `PDF direct vision (${damagePages.length} damage pages)`,
-      reason: "PDF page images were not pre-rendered (storagePut unavailable). PDF passed directly to LLM vision.",
-      strategy: "pdf_direct_vision",
-      confidence: parsed.confidence === "high" ? 80 : parsed.confidence === "medium" ? 60 : 40,
+      assumedValue: renderedPageMap.size > 0 ? `PDF targeted render (${renderedPageMap.size} pages)` : `PDF single-pass vision`,
+      reason: renderedPageMap.size > 0
+        ? `Pass 1 identified ${damagePageNumbers.length} damage page(s); targeted rendering produced ${renderedPageMap.size} real image(s) for per-image analysis.`
+        : "Pass 1 page identification ran but rendering failed; fell back to single-pass PDF vision.",
+      strategy: renderedPageMap.size > 0 ? "pdf_targeted_render" : "pdf_direct_vision",
+      confidence: renderedPageMap.size > 0 ? 85 : 60,
       stage: "Stage 6",
     });
   }
 
-  // Build enrichedPhotosJson for downstream stages (Stage 7, Stage 7b)
-  const enrichedPhotoSummary = damagePages.map((page, idx) => ({
-    url: `${pdfUrl}#page=${page.page_number}`,
-    index: idx,
-    componentCount: page.components?.length ?? 0,
-    severity: page.components && page.components.length > 0
-      ? (page.components.some(c => c.severity === "severe" || c.severity === "catastrophic") ? "severe"
-        : page.components.some(c => c.severity === "moderate") ? "moderate" : "minor")
-      : "unknown",
-    impactZone: page.components?.[0]?.location ?? "unknown",
-    detectedComponents: (page.components || []).map(c => normalisePartName(c.name || "Unknown")),
-    caption: page.components && page.components.length > 0
-      ? `Page ${page.page_number}: ${page.components.length} component(s) — ${page.components.slice(0, 3).map(c => c.name).join(", ")}${page.components.length > 3 ? "..." : ""}`
-      : `Page ${page.page_number}: No damage components detected`,
-    confidenceScore: parsed!.confidence === "high" ? 85 : parsed!.confidence === "medium" ? 65 : 40,
-    imageQuality: parsed!.confidence === "high" ? "good" : "poor",
-    usedFallback: false,
-    enrichedAt: new Date().toISOString(),
-    source: "pdf_direct_vision",
-  }));
-
   return {
     components: allComponents,
     perPhotoResults: [],
-    photosProcessed: succeeded ? 1 : 0,
+    photosProcessed,
     photosDeferred: 0,
-    photosFailed: succeeded ? 0 : 1,
+    photosFailed,
     enrichedPhotosJson: JSON.stringify(enrichedPhotoSummary),
   };
 }
@@ -1195,22 +1359,22 @@ export async function runDamageAnalysisStage(
       const pdfVisionResult = await readDamageFromPdf(
         ctx.pdfUrl, claimRecord, ctx, assumptions, recoveryActions
       );
+      // Always persist enrichedPhotosJson — even if 0 components, the photo URLs are
+      // still valuable for the report UI and claimTruthLayer photo count.
+      (ctx as any).enrichedPhotosJson = pdfVisionResult.enrichedPhotosJson;
+      visionPhotosFailed = pdfVisionResult.photosFailed;
       if (pdfVisionResult.components.length > 0) {
         visionParts = pdfVisionResult.components;
         visionPerPhotoResults = pdfVisionResult.perPhotoResults;
         visionPhotosProcessed = pdfVisionResult.photosProcessed;
         visionPhotosDeferred = pdfVisionResult.photosDeferred;
-        visionPhotosFailed = pdfVisionResult.photosFailed;
-        // Persist enrichedPhotosJson for downstream stages (Stage 7, Stage 7b)
-        (ctx as any).enrichedPhotosJson = pdfVisionResult.enrichedPhotosJson;
         ctx.log("Stage 6",
-          `PDF direct vision: ${visionParts.length} components extracted from PDF`
+          `PDF two-pass vision: ${visionParts.length} components from ${pdfVisionResult.photosProcessed} photo page(s)`
         );
       } else {
         ctx.log("Stage 6",
-          "PDF direct vision returned 0 components — no vehicle damage photos found in PDF"
+          `PDF two-pass vision: 0 components extracted. Photos found: ${JSON.parse(pdfVisionResult.enrichedPhotosJson || "[]").length}`
         );
-        visionPhotosFailed = pdfVisionResult.photosFailed;
       }
     } else if (visionSourceUrls.length > 0) {
       // ── PHOTO / PDF-PAGE VISION PATH (normal path) ────────────────────────
