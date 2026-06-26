@@ -755,11 +755,9 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
               <div>
                 <div style={S.divider} />
                 <p style={{ ...S.label, marginBottom: 8 }}>Damage Photographs ({photoUrls.length}{allPhotoUrls.length > photoUrls.length ? ` of ${allPhotoUrls.length}` : ''} shown)</p>
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${photoUrls.length === 1 ? 1 : photoUrls.length === 2 ? 2 : 3}, 1fr)`, gap: 10 }}>
+                {/* 2-column horizontal card grid: image left, structured summary right */}
+                <div style={{ display: 'grid', gridTemplateColumns: photoUrls.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 8 }}>
                   {photoUrls.map((url: string, i: number) => {
-                    // Use enriched photo metadata when available — KINGA-verified caption
-                    // for what was actually detected in THIS specific image.
-                    // Falls back to positional matching only when enrichedPhotosJson is absent.
                     const enriched = displayPhotos[i];
                     const caption = enriched
                       ? expandShorthand(enriched.caption)
@@ -771,22 +769,55 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                               ? toTitleCase(damageZones[i])
                               : `Photo ${i + 1}`;
                         })();
-                    const subCaption = enriched
-                      ? `${toTitleCase(enriched.impactZone)} · ${toTitleCase(enriched.severity)} severity`
-                      : `Photo ${i + 1}`;
+                    const sev = (enriched?.severity ?? '').toLowerCase();
+                    const zone = enriched?.impactZone && enriched.impactZone !== 'unknown'
+                      ? toTitleCase(enriched.impactZone)
+                      : null;
+                    const parts = enriched?.detectedComponents ?? [];
+                    const sevColour: Record<string, string> = {
+                      catastrophic: '#b91c1c', severe: '#c2410c',
+                      moderate: '#b45309', minor: '#15803d', cosmetic: '#1d4ed8',
+                    };
+                    const sevTextCol = sevColour[sev] ?? '#64748b';
                     return (
-                      <div key={i} style={{ borderRadius: 6, overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                        <div style={{ aspectRatio: "4/3", overflow: "hidden", background: "#ffffff" }}>
+                      <div key={i} style={{ display: 'flex', border: '1px solid #e2e8f0', borderRadius: 6, overflow: 'hidden', background: '#fff', minHeight: 120 }}>
+                        {/* Image panel */}
+                        <div style={{ position: 'relative', width: 160, minWidth: 160, flexShrink: 0, background: '#f1f5f9' }}>
                           <img
                             src={url}
                             alt={caption}
-                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                            onError={(ev) => { (ev.target as HTMLImageElement).style.display = "none"; }}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }}
+                            onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }}
                           />
+                          <div style={{ position: 'absolute', top: 5, left: 5, background: 'rgba(15,23,42,0.7)', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 2, letterSpacing: '0.05em' }}>
+                            {String(i + 1).padStart(2, '0')}
+                          </div>
+                          {sev && (
+                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: sevTextCol, color: '#fff', fontSize: 7, fontWeight: 800, padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: 'center' }}>
+                              {sev}
+                            </div>
+                          )}
                         </div>
-                        <div style={{ padding: "5px 8px", background: "#ffffff", borderTop: "1px solid #e2e8f0" }}>
-                          <p style={{ fontSize: 10, color: "#0f172a", fontWeight: 600, margin: 0, lineHeight: 1.3 }}>{caption}</p>
-                          <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>{subCaption}</p>
+                        {/* Summary panel */}
+                        <div style={{ flex: 1, padding: '8px 10px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0', lineHeight: 1.3 }}>{caption}</p>
+                          {(zone || parts.length > 0) && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                              {zone && (
+                                <span style={{ fontSize: 8, fontWeight: 700, color: '#1e40af', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 2, padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                                  {zone}
+                                </span>
+                              )}
+                              {parts.slice(0, 4).map((p: string, pi: number) => (
+                                <span key={pi} style={{ fontSize: 8, fontWeight: 500, color: '#374151', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 2, padding: '1px 5px' }}>
+                                  {p}
+                                </span>
+                              ))}
+                              {parts.length > 4 && (
+                                <span style={{ fontSize: 8, color: '#94a3b8', padding: '1px 3px' }}>+{parts.length - 4}</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

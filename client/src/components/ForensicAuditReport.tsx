@@ -5182,6 +5182,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
     detectedComponents: string[];
     impactZone: string;
     severity: string;
+    confidenceScore?: number;
   }
   // Build a lookup map from resolvedPhotosOverride for O(1) URL swapping
   const _farResolvedUrlMap = new Map<number, string>();
@@ -5207,6 +5208,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
               detectedComponents: Array.isArray(p.detectedComponents) ? p.detectedComponents : [],
               impactZone: p.impactZone ?? 'unknown',
               severity: p.severity ?? 'unknown',
+              confidenceScore: typeof p.confidenceScore === 'number' ? Math.round(p.confidenceScore) : undefined,
             }));
         }
       } catch { /* fall through */ }
@@ -5435,14 +5437,15 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                     <p className="sub-heading">
                       4.1 Damage Photo Gallery ({damagePhotoUrls.length} image{damagePhotoUrls.length !== 1 ? 's' : ''})
                     </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-                      {damagePhotoUrls.slice(0, 9).map((url, i) => {
+                    {/* Professional horizontal card layout — image left, structured forensics panel right */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {damagePhotoUrls.slice(0, 12).map((url, i) => {
                         const enrichedIdx = photoUrls.indexOf(url);
                         const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
                         const forensics = getForensics(url);
                         const fr = forensics?.analysisResult ?? {};
 
-                        // Caption / zone label
+                        // Caption
                         const caption = enriched?.caption
                           ?? (enriched?.detectedComponents?.slice(0, 2).join(', '))
                           ?? (() => {
@@ -5450,84 +5453,113 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                               return dz[i] ? dz[i].replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : `Photo ${i + 1}`;
                             })();
 
-                        // Severity colour
+                        // Severity
                         const sevColour: Record<string, string> = {
-                          catastrophic: '#ef4444', severe: '#f97316',
-                          moderate: '#f59e0b', minor: '#22c55e', cosmetic: '#3b82f6',
+                          catastrophic: '#b91c1c', severe: '#c2410c',
+                          moderate: '#b45309', minor: '#15803d', cosmetic: '#1d4ed8',
                         };
                         const sev = (enriched?.severity ?? '').toLowerCase();
-                        const sevBg = sevColour[sev] ?? '#94a3b8';
+                        const sevTextCol = sevColour[sev] ?? '#64748b';
 
-                        // EXIF status
-                        const exifPresent = !!(fr.capture_datetime || fr.camera_make || fr.camera_model || fr._camera_make || fr._camera_model);
-                        const gpsPresent = !!(fr.gps_coordinates);
-                        const manipScore = Math.round((fr.manipulation_indicators?.manipulation_score ?? 0) * 100);
-                        const isSuspicious = fr.is_suspicious ?? false;
-                        const flags: string[] = fr.flags ?? (forensics?.error ? [forensics.error] : []);
+                        // AI description — clean of markdown/EXIF noise
                         const aiDesc = fr.ai_vision_description ?? null;
+                        const cleanDesc = aiDesc
+                          ? aiDesc
+                              .replace(/\*\*([^*]+)\*\*/g, '$1')
+                              .replace(/\*([^*]+)\*/g, '$1')
+                              .replace(/^[A-Z][A-Z\s]{2,}:\s*/gm, '')
+                              .replace(/\b(EXIF|exif|manipulation|Manipulation|suspicious|SUSPICIOUS|flag|Flag|FLAG)[^.\n]*/gi, '')
+                              .replace(/\s{2,}/g, ' ')
+                              .trim()
+                          : null;
+
+                        const parts = enriched?.detectedComponents ?? [];
+                        const zone = enriched?.impactZone && enriched.impactZone !== 'unknown'
+                          ? enriched.impactZone.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+                          : null;
+                        const confScore = typeof enriched?.confidenceScore === 'number' ? enriched.confidenceScore : null;
 
                         return (
-                          <div key={i} style={{ border: '1px solid var(--kr-rule)', borderRadius: 8, overflow: 'hidden', background: 'var(--kr-white)', display: 'flex', flexDirection: 'column' }}>
-                            {/* Photo */}
-                            <div style={{ position: 'relative', aspectRatio: '4/3', overflow: 'hidden', flexShrink: 0 }}>
+                          <div key={i} style={{
+                            display: 'flex',
+                            border: '1px solid var(--kr-rule)',
+                            borderRadius: 6,
+                            overflow: 'hidden',
+                            background: 'var(--kr-white)',
+                            minHeight: 148,
+                          }}>
+                            {/* Left: image — fixed 210px wide, full height */}
+                            <div style={{ position: 'relative', width: 210, minWidth: 210, flexShrink: 0, background: '#e2e8f0' }}>
                               <img
                                 src={url}
-                                alt={`Photo ${i + 1} — ${caption}`}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                alt={`Photo ${i + 1}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
-                              {/* Photo number badge */}
-                              <div style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(0,0,0,0.65)', color: 'var(--kr-white)', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3 }}>
-                                #{i + 1}
+                              {/* Index badge */}
+                              <div style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(15,23,42,0.72)', color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 3, letterSpacing: '0.05em' }}>
+                                {String(i + 1).padStart(2, '0')}
                               </div>
-                              {/* Severity badge */}
+                              {/* Severity chip */}
                               {sev && (
-                                <div style={{ position: 'absolute', top: 6, right: 6, background: sevBg, color: 'var(--kr-white)', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: sevTextCol, color: '#fff', fontSize: 8, fontWeight: 800, padding: '3px 8px', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: 'center' }}>
                                   {sev}
                                 </div>
                               )}
-                              {/* Suspicious overlay removed — forensic flags shown in Section 4.3 only */}
                             </div>
 
-                            {/* Analysis bullets */}
-                            <div style={{ padding: '8px 10px', flex: 1 }}>
+                            {/* Right: forensics panel */}
+                            <div style={{ flex: 1, padding: '10px 14px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                               {/* Caption */}
-                              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--kr-text)', marginBottom: 5, lineHeight: 1.4 }}>{caption}</p>
+                              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--kr-text)', margin: '0 0 5px 0', lineHeight: 1.35 }}>{caption}</p>
 
-                              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                {/* Impact zone */}
-                                {enriched?.impactZone && enriched.impactZone !== 'unknown' && (
-                                  <li style={{ fontSize: 10, color: 'var(--kr-muted)', display: 'flex', gap: 5 }}>
-                                    <span style={{ color: 'var(--kr-muted)', flexShrink: 0 }}>Zone</span>
-                                    <span style={{ fontWeight: 600 }}>{enriched.impactZone.replace(/_/g, ' ')}</span>
-                                  </li>
-                                )}
-                                {/* Detected components */}
-                                {enriched?.detectedComponents && enriched.detectedComponents.length > 0 && (
-                                  <li style={{ fontSize: 10, color: 'var(--kr-muted)', display: 'flex', gap: 5, alignItems: 'flex-start' }}>
-                                    <span style={{ color: 'var(--kr-muted)', flexShrink: 0 }}>Parts</span>
-                                    <span style={{ fontWeight: 500 }}>{enriched.detectedComponents.slice(0, 4).join(', ')}{enriched.detectedComponents.length > 4 ? ` +${enriched.detectedComponents.length - 4}` : ''}</span>
-                                  </li>
-                                )}
-                                {/* KINGA damage description — capped at 3 lines, no EXIF/manip/flag text */}
-                                {aiDesc && !fr.is_non_vehicle && (
-                                  <li style={{ fontSize: 10, color: 'var(--kr-muted)', marginTop: 2, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                    {aiDesc
-                                      .replace(/\*\*([^*]+)\*\*/g, '$1')
-                                      .replace(/\*([^*]+)\*/g, '$1')
-                                      .replace(/^[A-Z][A-Z\s]+:\s*/gm, '')
-                                      .replace(/\b(EXIF|exif|manipulation|Manipulation|suspicious|SUSPICIOUS|flag|Flag|FLAG)[^.\n]*/gi, '')
-                                      .trim()}
-                                  </li>
-                                )}
-                              </ul>
+                              {/* Zone + parts chips */}
+                              {(zone || parts.length > 0) && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 7 }}>
+                                  {zone && (
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#1e40af', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 3, padding: '1px 6px', letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+                                      {zone}
+                                    </span>
+                                  )}
+                                  {parts.slice(0, 6).map((p: string, pi: number) => (
+                                    <span key={pi} style={{ fontSize: 9, fontWeight: 500, color: '#374151', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 3, padding: '1px 6px' }}>
+                                      {p}
+                                    </span>
+                                  ))}
+                                  {parts.length > 6 && (
+                                    <span style={{ fontSize: 9, color: 'var(--kr-muted)', padding: '1px 4px' }}>+{parts.length - 6} more</span>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* AI forensic description */}
+                              {cleanDesc && !fr.is_non_vehicle && (
+                                <p style={{ fontSize: 10, color: '#374151', lineHeight: 1.65, margin: 0, display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                  {cleanDesc}
+                                </p>
+                              )}
+
+                              {/* No AI description fallback */}
+                              {!cleanDesc && (
+                                <p style={{ fontSize: 10, color: 'var(--kr-muted)', fontStyle: 'italic', margin: 0 }}>
+                                  Forensic description pending analysis.
+                                </p>
+                              )}
+
+                              {/* Confidence score — bottom */}
+                              {confScore != null && (
+                                <div style={{ marginTop: 'auto', paddingTop: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <span style={{ fontSize: 9, color: 'var(--kr-muted)' }}>Detection confidence</span>
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: confScore >= 80 ? '#15803d' : confScore >= 60 ? '#b45309' : '#b91c1c' }}>{confScore}%</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                    {damagePhotoUrls.length > 9 && (
-                      <p className="text-xs mt-2 font-medium" style={{ color: 'var(--kr-muted)' }}>+{damagePhotoUrls.length - 9} more images not shown</p>
+                    {damagePhotoUrls.length > 12 && (
+                      <p style={{ fontSize: 10, marginTop: 6, color: 'var(--kr-muted)', fontStyle: 'italic' }}>+{damagePhotoUrls.length - 12} additional images not shown</p>
                     )}
                   </>
                 );
