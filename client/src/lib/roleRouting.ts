@@ -78,6 +78,25 @@ export const PORTAL_ROUTE_ROLES: Array<{
   { prefix: "/insurer-portal/team-members",                allowedRoles: [] },
   // ── Root insurer-portal (role selection page) ──────────────────────────
   { prefix: "/insurer-portal",                    allowedRoles: [] },
+
+  // ── /insurer/* shared feature pages ─────────────────────────────────────
+  // These are shared cross-portal pages reached from sidebar nav items.
+  // Registering them here ensures getRoleFromPath() resolves portal identity
+  // correctly (falling back to user.insurerRole) rather than returning empty.
+  // allowedRoles mirrors the RoleGuard constraints in App.tsx.
+  { prefix: "/insurer/fraud-analytics",           allowedRoles: ["risk_manager", "claims_manager", "executive", "insurer_admin"] },
+  { prefix: "/insurer/batch-export",              allowedRoles: ["insurer_admin", "claims_manager", "executive"] },
+  { prefix: "/insurer/external-assessment",       allowedRoles: ["insurer_admin", "risk_manager", "claims_manager", "executive"] },
+  { prefix: "/insurer/automation-policies",       allowedRoles: ["insurer_admin", "executive"] },
+  { prefix: "/insurer/replay-dashboard",          allowedRoles: ["insurer_admin", "executive", "claims_manager"] },
+  { prefix: "/insurer/vehicle-registry",          allowedRoles: ["insurer_admin", "risk_manager", "claims_manager", "executive", "claims_processor"] },
+  { prefix: "/insurer/panel-beater-performance",  allowedRoles: ["insurer_admin", "risk_manager", "claims_manager", "executive"] },
+  // Claim detail & comparison pages — open to all insurer roles
+  { prefix: "/insurer/claims",                    allowedRoles: [] },
+  { prefix: "/insurer/comparison",                allowedRoles: [] },
+  { prefix: "/insurer/quote-optimization",        allowedRoles: [] },
+  // Root /insurer — legacy landing, redirects to /insurer-portal
+  { prefix: "/insurer",                           allowedRoles: [] },
 ];
 
 /**
