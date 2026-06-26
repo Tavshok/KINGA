@@ -1,0 +1,115 @@
+
+    // ─── Resolve PDF fragment URLs → renderable PNG URLs ─────────────────────
+    // The pipeline stores PDF fragment URLs (e.g. ...pdf#page=12) in enrichedPhotosJson
+    // when using pdf_single_pass_vision mode. These cannot be rendered by <img> tags.
+    // This procedure renders the referenced pages to PNG, uploads to S3, and returns
+    // fresh PNG URLs. Results are also written back to enrichedPhotosJson so subsequent
+    // loads skip this step.
+    resolvePdfPhotoUrls: protectedProcedure
+      .input(z.object({
+        claimId: z.number().int(),
+        photos: z.array(z.object({
+          index: z.number().int(),
+          url: z.string(),
+          pageNumber: z.number().int().optional(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const { getDb: _getDb2, getAiAssessmentByClaimId: _getAssessment } = await import("./db");
+        const { aiAssessments: _aiAssessmentsTable } = await import("../drizzle/schema");
+        const { eq: _eq } = await import("drizzle-orm");
+        const _tenantId = ctx.user.role === "admin" ? undefined : ((ctx.user as any).tenantId || "default");
+        const _db = await _getDb2();
+        if (!_db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+        // Separate PDF fragment URLs from already-renderable URLs
+        const _pdfFragmentPattern = /\.pdf#page=(\d+)$/i;
+        const _toRender = input.photos.filter(p => _pdfFragmentPattern.test(p.url));
+
+        if (_toRender.length === 0) {
+          return { resolved: input.photos.map(p => ({ index: p.index, url: p.url, resolved: false })) };
+        }
+
+        // Group by base PDF URL to minimise downloads
+        const _byPdf = new Map<string, Array<{ index: number; pageNumber: number }>>();
+        for (const p of _toRender) {
+          const _match = p.url.match(/^(.+\.pdf)#page=(\d+)$/i);
+          if (!_match) continue;
+          const [, _basePdfUrl, _pageStr] = _match;
+          const _pageNum = p.pageNumber ?? parseInt(_pageStr, 10);
+          if (!_byPdf.has(_basePdfUrl)) _byPdf.set(_basePdfUrl, []);
+          _byPdf.get(_basePdfUrl)!.push({ index: p.index, pageNumber: _pageNum });
+        }
+
+        const _resolvedMap = new Map<number, string>(); // index → PNG URL
+
+        for (const [_basePdfUrl, _pages] of _byPdf.entries()) {
+          try {
+            const { storageGet: _storageGet } = await import("./storage");
+            let _pdfDownloadUrl = _basePdfUrl;
+            try {
+              const _urlObj = new URL(_basePdfUrl);
+              const _s3Key = _urlObj.pathname.slice(1);
+              const { url: _presigned } = await _storageGet(_s3Key);
+              _pdfDownloadUrl = _presigned;
+            } catch {
+              _pdfDownloadUrl = _basePdfUrl;
+            }
+
+            const _pageNumbers = _pages.map(p => p.pageNumber);
+            const { renderSpecificPdfPages: _renderPages } = await import("./pipeline-v2/pdfToImages");
+            const _rendered = await _renderPages(
+              _pdfDownloadUrl,
+              _pageNumbers,
+              {
+                dpi: 100,
+                keyPrefix: `claims/${input.claimId}/report-photos`,
+                log: (msg: string) => console.log(`[resolvePdfPhotoUrls] Claim ${input.claimId}: ${msg}`),
+              } as any
+            );
+
+            for (const _p of _pages) {
+              const _page = _rendered.get(_p.pageNumber);
+              if (_page?.url) {
+                _resolvedMap.set(_p.index, _page.url);
+              }
+            }
+          } catch (_err: any) {
+            console.error(`[resolvePdfPhotoUrls] Claim ${input.claimId}: Failed to render PDF ${_basePdfUrl}: ${_err.message}`);
+          }
+        }
+
+        // Build resolved array
+        const _resolved = input.photos.map(p => ({
+          index: p.index,
+          url: _resolvedMap.get(p.index) ?? p.url,
+          resolved: _resolvedMap.has(p.index),
+        }));
+
+        // Write resolved PNG URLs back to enrichedPhotosJson in DB
+        if (_resolvedMap.size > 0) {
+          try {
+            const _assessment = await _getAssessment(input.claimId, _tenantId);
+            if (_assessment) {
+              let _enriched: any[] = [];
+              try {
+                const _raw = (_assessment as any).enrichedPhotosJson;
+                _enriched = _raw ? (typeof _raw === 'string' ? JSON.parse(_raw) : _raw) : [];
+              } catch { _enriched = []; }
+              for (const [_idx, _pngUrl] of _resolvedMap.entries()) {
+                const _entry = _enriched.find((e: any) => e.index === _idx);
+                if (_entry) _entry.url = _pngUrl;
+                else if (_enriched[_idx]) _enriched[_idx].url = _pngUrl;
+              }
+              await _db.update(_aiAssessmentsTable)
+                .set({ enrichedPhotosJson: JSON.stringify(_enriched) } as any)
+                .where(_eq(_aiAssessmentsTable.claimId, input.claimId));
+            }
+          } catch (_writeErr: any) {
+            console.warn(`[resolvePdfPhotoUrls] Claim ${input.claimId}: Failed to write back resolved URLs (non-fatal): ${_writeErr.message}`);
+          }
+        }
+
+        return { resolved: _resolved };
+      }),

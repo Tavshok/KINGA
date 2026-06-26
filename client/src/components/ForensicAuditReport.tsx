@@ -80,6 +80,11 @@ interface ForensicAuditReportProps {
   isDraft?: boolean;
   /** List of missing fields that caused the draft status */
   draftMissingFields?: string[];
+  /**
+   * Optional override for resolved photo URLs. When provided, these URLs replace the
+   * ones stored in enrichedPhotosJson (used to swap PDF fragment URLs for rendered PNGs).
+   */
+  resolvedPhotosOverride?: Array<{ index: number; url: string; resolved: boolean }>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -5158,7 +5163,7 @@ function PhotoReextractButton({ assessmentId, claimId }: { assessmentId?: number
   );
 }
 
-function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: any; enforcement: any; claim: any }) {
+function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOverride }: { aiAssessment: any; enforcement: any; claim: any; resolvedPhotosOverride?: Array<{ index: number; url: string; resolved: boolean }> }) {
   // Currency-aware formatter — derived from claim currency code
   const fmtMoney = makeFmtCurrency((aiAssessment as any)?.currencyCode ?? (aiAssessment as any)?.claimCurrency ?? null);
   const phase2 = (enforcement as any)?._phase2 as any;
@@ -5178,6 +5183,13 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
     impactZone: string;
     severity: string;
   }
+  // Build a lookup map from resolvedPhotosOverride for O(1) URL swapping
+  const _farResolvedUrlMap = new Map<number, string>();
+  if (resolvedPhotosOverride) {
+    for (const r of resolvedPhotosOverride) {
+      if (r.resolved) _farResolvedUrlMap.set(r.index, r.url);
+    }
+  }
   const enrichedPhotosFAR: EnrichedPhotoFAR[] = (() => {
     const raw = aiAssessment?.enrichedPhotosJson;
     if (raw) {
@@ -5186,11 +5198,12 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed
             .filter((p: any) => p?.url)
-            .map((p: any) => ({
-              url: p.url,
+            .map((p: any, idx: number) => ({
+              // Use resolved PNG URL if available, otherwise use stored URL
+              url: _farResolvedUrlMap.get(p.index ?? idx) ?? p.url,
               caption: p.caption ?? (Array.isArray(p.detectedComponents) && p.detectedComponents.length > 0
                 ? p.detectedComponents.slice(0, 3).join(', ')
-                : `Photo ${(p.index ?? 0) + 1}`),
+                : `Photo ${(p.index ?? idx) + 1}`),
               detectedComponents: Array.isArray(p.detectedComponents) ? p.detectedComponents : [],
               impactZone: p.impactZone ?? 'unknown',
               severity: p.severity ?? 'unknown',
@@ -8105,7 +8118,7 @@ const REPORT_CSS = `
 `;
 
 
-export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, approvalHistory = [], workflowStages = [], claimId, pipelineRunId, isDraft = false, draftMissingFields = [] }: ForensicAuditReportProps) {
+export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, approvalHistory = [], workflowStages = [], claimId, pipelineRunId, isDraft = false, draftMissingFields = [], resolvedPhotosOverride }: ForensicAuditReportProps) {
   if (!enforcement || !aiAssessment) return null;
 
   // ── Currency-aware formatter ─────────────────────────────────────────────
@@ -8182,7 +8195,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
 
       <div className="section-heading" data-section="4">4 &nbsp; Evidence Inventory</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="evidence_inventory" pipelineRunId={pipelineRunId} />}
-      <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
+      <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} resolvedPhotosOverride={resolvedPhotosOverride} />
 
       <div className="section-heading" data-section="5">5 &nbsp; Risk &amp; Fraud Assessment</div>
       {claimId != null && <ReportSectionThread claimId={claimId} sectionKey="fraud_risk" pipelineRunId={pipelineRunId} />}

@@ -101,6 +101,12 @@ interface KingaClaimsReportProps {
   isDraft?: boolean;
   /** List of missing fields that caused the draft status */
   draftMissingFields?: string[];
+  /**
+   * Optional override for resolved photo URLs. When provided, these URLs replace the
+   * ones stored in enrichedPhotosJson (used to swap PDF fragment URLs for rendered PNGs).
+   * Array of { index: number; url: string } matching enrichedPhotosJson entry indices.
+   */
+  resolvedPhotosOverride?: Array<{ index: number; url: string; resolved: boolean }>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -338,7 +344,7 @@ const DECISION_STYLES_KCR: Record<string, { label: string; bg: string; color: st
   external_received: { label: "Ext. Received", bg: "#ffffff", color: "#0f172a", border: "#334155" },
 };
 
-export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [], approvalHistory = [], workflowStages = [], claimId, pipelineRunId, isDraft = false, draftMissingFields = [] }: KingaClaimsReportProps) {
+export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [], approvalHistory = [], workflowStages = [], claimId, pipelineRunId, isDraft = false, draftMissingFields = [], resolvedPhotosOverride }: KingaClaimsReportProps) {
   const e = enforcement as any;
   const phase2 = e?._phase2 as any;
   const ci = parseJson(aiAssessment?.costIntelligenceJson);
@@ -430,6 +436,13 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
     impactZone: string;
     severity: string;
   }
+  // Build a lookup map from resolvedPhotosOverride for O(1) URL swapping
+  const _resolvedUrlMap = new Map<number, string>();
+  if (resolvedPhotosOverride) {
+    for (const r of resolvedPhotosOverride) {
+      if (r.resolved) _resolvedUrlMap.set(r.index, r.url);
+    }
+  }
   const enrichedPhotos: EnrichedPhoto[] = (() => {
     const raw = aiAssessment?.enrichedPhotosJson;
     if (raw) {
@@ -438,11 +451,12 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed
             .filter((p: any) => p?.url)
-            .map((p: any) => ({
-              url: p.url,
+            .map((p: any, idx: number) => ({
+              // Use resolved PNG URL if available, otherwise use stored URL
+              url: _resolvedUrlMap.get(p.index ?? idx) ?? p.url,
               caption: p.caption ?? (Array.isArray(p.detectedComponents) && p.detectedComponents.length > 0
                 ? p.detectedComponents.slice(0, 3).join(', ')
-                : `Photo ${(p.index ?? 0) + 1}`),
+                : `Photo ${(p.index ?? idx) + 1}`),
               detectedComponents: Array.isArray(p.detectedComponents) ? p.detectedComponents : [],
               impactZone: p.impactZone ?? 'unknown',
               severity: p.severity ?? 'unknown',

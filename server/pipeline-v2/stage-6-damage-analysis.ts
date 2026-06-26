@@ -1123,6 +1123,30 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
     }
     const damagePages = parsed.damage_photo_pages.filter(p => p.photo_type === "vehicle_damage" || (p.components && p.components.length > 0));
     log(`Single-pass damage pages: ${damagePages.length}`);
+
+    // ─── RENDER IDENTIFIED DAMAGE PAGES TO PNG ────────────────────────────────
+    // Now that we know which pages contain damage, render them to real PNGs.
+    // This replaces the PDF fragment URL pattern (pdf#page=N) with actual S3
+    // image URLs that <img> tags can render in the report UI.
+    // If rendering fails, we fall back to the fragment URL (non-fatal).
+    let singlePassRenderedMap = new Map<number, string>(); // pageNumber → PNG URL
+    if (damagePages.length > 0) {
+      try {
+        const singlePassPageNums = damagePages.map(p => p.page_number);
+        const singlePassRendered = await renderSpecificPdfPages(pdfUrl, singlePassPageNums, {
+          dpi: 100,
+          keyPrefix: "pdf-damage-pages",
+          log,
+        });
+        for (const [pageNum, img] of singlePassRendered.entries()) {
+          singlePassRenderedMap.set(pageNum, img.url);
+        }
+        log(`Single-pass post-render: ${singlePassRenderedMap.size}/${damagePages.length} pages rendered as PNG`);
+      } catch (renderErr: any) {
+        log(`Single-pass post-render failed (non-fatal): ${renderErr.message} — will use PDF fragment URLs`);
+      }
+    }
+
     for (const page of damagePages) {
       for (const c of (page.components || [])) {
         const normName = normalisePartName(c.name || "Unknown Component");
@@ -1140,8 +1164,11 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
           damageFractionEstimate: typeof c.damageFractionEstimate === "number" ? Math.min(1.0, Math.max(0.0, c.damageFractionEstimate)) : undefined,
         });
       }
+      // Use rendered PNG URL if available; fall back to PDF fragment URL
+      const pageUrl = singlePassRenderedMap.get(page.page_number) ?? `${pdfUrl}#page=${page.page_number}`;
+      const usedRenderedPng = singlePassRenderedMap.has(page.page_number);
       enrichedPhotoSummary.push({
-        url: `${pdfUrl}#page=${page.page_number}`,
+        url: pageUrl,
         pageNumber: page.page_number,
         index: enrichedPhotoSummary.length,
         componentCount: page.components?.length ?? 0,
@@ -1155,7 +1182,9 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
           : `Page ${page.page_number}: No damage components detected`,
         confidenceScore: parsed!.confidence === "high" ? 85 : parsed!.confidence === "medium" ? 65 : 40,
         imageQuality: parsed!.confidence === "high" ? "good" : "poor",
-        usedFallback: false, enrichedAt: new Date().toISOString(), source: "pdf_single_pass_vision",
+        usedFallback: !usedRenderedPng,
+        enrichedAt: new Date().toISOString(),
+        source: usedRenderedPng ? "pdf_single_pass_then_render" : "pdf_single_pass_vision",
       });
     }
     photosProcessed = succeeded ? 1 : 0;

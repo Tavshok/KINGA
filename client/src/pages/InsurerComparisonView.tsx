@@ -252,6 +252,48 @@ export default function InsurerComparisonView() {
     onError: (err) => toast.error(`Failed to re-run assessment: ${err.message}`),
   });
 
+  // ─── PDF fragment URL resolution ─────────────────────────────────────────
+  // When enrichedPhotosJson contains PDF fragment URLs (e.g. ...pdf#page=12),
+  // they cannot be rendered by <img> tags. We call resolvePdfPhotoUrls on mount
+  // to render those pages to PNG and get back renderable S3 URLs.
+  const [resolvedPhotos, setResolvedPhotos] = useState<Array<{ index: number; url: string; resolved: boolean }> | null>(null);
+  const resolvePdfMutation = trpc.aiAssessments.resolvePdfPhotoUrls.useMutation({
+    onSuccess: (data) => {
+      if (data.resolved.some(r => r.resolved)) {
+        setResolvedPhotos(data.resolved);
+      }
+    },
+    onError: (err) => {
+      console.warn('[resolvePdfPhotoUrls] Resolution failed (non-fatal):', err.message);
+    },
+  });
+  useEffect(() => {
+    if (!aiAssessment || !claimId) return;
+    const raw = (aiAssessment as any).enrichedPhotosJson;
+    if (!raw) return;
+    let parsed: any[];
+    try { parsed = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return; }
+    if (!Array.isArray(parsed) || parsed.length === 0) return;
+    // Check if any URL is a PDF fragment URL
+    const pdfPattern = /\.pdf#page=\d+$/i;
+    const hasPdfFragments = parsed.some((p: any) => p?.url && pdfPattern.test(p.url));
+    if (!hasPdfFragments) return;
+    // Only trigger if not already resolved
+    if (resolvedPhotos !== null) return;
+    const photos = parsed
+      .filter((p: any) => p?.url)
+      .map((p: any, idx: number) => ({
+        index: p.index ?? idx,
+        url: p.url,
+        pageNumber: (() => {
+          const m = p.url.match(/\.pdf#page=(\d+)$/i);
+          return m ? parseInt(m[1], 10) : undefined;
+        })(),
+      }));
+    resolvePdfMutation.mutate({ claimId: Number(claimId), photos });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiAssessment?.id, claimId]);
+
   // Handler for exporting damage report PDF
   const handleExportDamageReport = (aiAssessment: any, claim: any) => {
     // damagedComponentsJson stores objects: {name, location, damageType, severity}
@@ -999,6 +1041,7 @@ export default function InsurerComparisonView() {
                   ...(approvalStatus?.pending_stages ?? []),
                   ...(approvalStatus?.optional_stages ?? []),
                 ].sort((a: any, b: any) => (a.stage_order ?? 0) - (b.stage_order ?? 0)) as any[]}
+                resolvedPhotosOverride={resolvedPhotos ?? undefined}
               />
             </div>
 
@@ -1023,6 +1066,7 @@ export default function InsurerComparisonView() {
                   ...(approvalStatus?.pending_stages ?? []),
                   ...(approvalStatus?.optional_stages ?? []),
                 ].sort((a: any, b: any) => (a.stage_order ?? 0) - (b.stage_order ?? 0)) as any[]}
+                resolvedPhotosOverride={resolvedPhotos ?? undefined}
               />
             </div>
           </>
