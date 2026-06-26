@@ -5437,179 +5437,158 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                     <p className="sub-heading">
                       4.1 Damage Photo Gallery ({damagePhotoUrls.length} image{damagePhotoUrls.length !== 1 ? 's' : ''})
                     </p>
-                    {/* ── TIER 1: Featured Evidence — top 5 highest-severity photos, full forensic card ── */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {damagePhotoUrls.slice(0, 5).map((url, i) => {
-                        const enrichedIdx = photoUrls.indexOf(url);
-                        const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
-                        const forensics = getForensics(url);
-                        const fr = forensics?.analysisResult ?? {};
-
-                        // Caption
-                        const caption = enriched?.caption
-                          ?? (enriched?.detectedComponents?.slice(0, 2).join(', '))
-                          ?? (() => {
-                              const dz = (phase2?.damageZones ?? []) as string[];
-                              return dz[i] ? dz[i].replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : `Photo ${i + 1}`;
-                            })();
-
-                        // Severity
-                        const sevColour: Record<string, string> = {
-                          catastrophic: '#b91c1c', severe: '#c2410c',
-                          moderate: '#b45309', minor: '#15803d', cosmetic: '#1d4ed8',
-                        };
-                        const sev = (enriched?.severity ?? '').toLowerCase();
-                        const sevTextCol = sevColour[sev] ?? '#64748b';
-
-                        // AI description — clean of markdown/EXIF noise
-                        const aiDesc = fr.ai_vision_description ?? null;
-                        const cleanDesc = aiDesc
-                          ? aiDesc
-                              .replace(/\*\*([^*]+)\*\*/g, '$1')
-                              .replace(/\*([^*]+)\*/g, '$1')
-                              .replace(/^[A-Z][A-Z\s]{2,}:\s*/gm, '')
-                              .replace(/\b(EXIF|exif|manipulation|Manipulation|suspicious|SUSPICIOUS|flag|Flag|FLAG)[^.\n]*/gi, '')
-                              .replace(/\s{2,}/g, ' ')
-                              .trim()
-                          : null;
-
-                        const parts = enriched?.detectedComponents ?? [];
-                        const zone = enriched?.impactZone && enriched.impactZone !== 'unknown'
-                          ? enriched.impactZone.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-                          : null;
-                        const confScore = typeof enriched?.confidenceScore === 'number' ? enriched.confidenceScore : null;
-
-                        return (
-                          <div key={i} style={{
-                            display: 'flex',
-                            border: '1px solid var(--kr-rule)',
-                            borderRadius: 6,
-                            overflow: 'hidden',
-                            background: 'var(--kr-white)',
-                            minHeight: 148,
-                          }}>
-                            {/* Left: image — fixed 210px wide, full height */}
-                            <div style={{ position: 'relative', width: 210, minWidth: 210, flexShrink: 0, background: '#e2e8f0' }}>
-                              <img
-                                src={url}
-                                alt={`Photo ${i + 1}`}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }}
-                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                              />
-                              {/* Index badge */}
-                              <div style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(15,23,42,0.72)', color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 3, letterSpacing: '0.05em' }}>
-                                {String(i + 1).padStart(2, '0')}
+                    {/* ── TIER 1: Featured Evidence — top 5 photos, clean horizontal card ── */}
+                    {(() => {
+                      const SEV_COLOUR: Record<string, string> = {
+                        catastrophic: '#7f1d1d', severe: '#9a3412',
+                        moderate: '#92400e', minor: '#14532d', cosmetic: '#1e3a5f',
+                      };
+                      const SEV_BG: Record<string, string> = {
+                        catastrophic: '#fef2f2', severe: '#fff7ed',
+                        moderate: '#fffbeb', minor: '#f0fdf4', cosmetic: '#eff6ff',
+                      };
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {damagePhotoUrls.slice(0, 5).map((url, i) => {
+                            const enrichedIdx = photoUrls.indexOf(url);
+                            const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
+                            const forensics = getForensics(url);
+                            const fr = forensics?.analysisResult ?? {};
+                            const caption = enriched?.caption
+                              ?? (enriched?.detectedComponents?.slice(0, 2).join(', '))
+                              ?? (() => {
+                                  const dz = (phase2?.damageZones ?? []) as string[];
+                                  return dz[i] ? dz[i].replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : `Photo ${i + 1}`;
+                                })();
+                            const sev = (enriched?.severity ?? '').toLowerCase();
+                            const sevCol = SEV_COLOUR[sev] ?? '#475569';
+                            const sevBg = SEV_BG[sev] ?? '#f8fafc';
+                            const aiDesc = fr.ai_vision_description ?? null;
+                            const cleanDesc = aiDesc
+                              ? aiDesc
+                                  .replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1')
+                                  .replace(/^[A-Z][A-Z\s]{2,}:\s*/gm, '')
+                                  .replace(/\b(EXIF|exif|manipulation|Manipulation|suspicious|SUSPICIOUS|flag|Flag|FLAG)[^.\n]*/gi, '')
+                                  .replace(/\s{2,}/g, ' ').trim()
+                              : null;
+                            const parts = enriched?.detectedComponents ?? [];
+                            const zone = enriched?.impactZone && enriched.impactZone !== 'unknown'
+                              ? enriched.impactZone.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+                              : null;
+                            const confScore = typeof enriched?.confidenceScore === 'number' ? enriched.confidenceScore : null;
+                            return (
+                              <div key={i} style={{ display: 'flex', border: '1px solid #e2e8f0', borderRadius: 5, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                                {/* Severity left-edge bar */}
+                                <div style={{ width: 4, flexShrink: 0, background: sevCol, opacity: 0.85 }} />
+                                {/* Image panel — contain so full page is visible */}
+                                <div style={{ width: 200, minWidth: 200, flexShrink: 0, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: 150 }}>
+                                  <img
+                                    src={url}
+                                    alt={`Photo ${i + 1}`}
+                                    style={{ maxWidth: '100%', maxHeight: 180, objectFit: 'contain', display: 'block' }}
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                  />
+                                  <div style={{ position: 'absolute', top: 5, left: 5, background: 'rgba(15,23,42,0.65)', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 6px', borderRadius: 2, letterSpacing: '0.06em' }}>
+                                    {String(i + 1).padStart(2, '0')}
+                                  </div>
+                                </div>
+                                {/* Forensics panel */}
+                                <div style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column', minWidth: 0, gap: 5 }}>
+                                  {/* Header row: caption + severity badge */}
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                                    <p style={{ fontSize: 10.5, fontWeight: 700, color: '#0f172a', margin: 0, lineHeight: 1.4, flex: 1 }}>{caption}</p>
+                                    {sev && (
+                                      <span style={{ fontSize: 8, fontWeight: 700, color: sevCol, background: sevBg, border: `1px solid ${sevCol}30`, borderRadius: 3, padding: '2px 7px', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                        {sev}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {/* Zone + parts row */}
+                                  {(zone || parts.length > 0) && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                      {zone && (
+                                        <span style={{ fontSize: 8, fontWeight: 600, color: '#1e40af', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 3, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                          {zone}
+                                        </span>
+                                      )}
+                                      {parts.slice(0, 5).map((p: string, pi: number) => (
+                                        <span key={pi} style={{ fontSize: 8, color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 3, padding: '1px 6px' }}>{p}</span>
+                                      ))}
+                                      {parts.length > 5 && <span style={{ fontSize: 8, color: '#94a3b8', padding: '1px 3px' }}>+{parts.length - 5}</span>}
+                                    </div>
+                                  )}
+                                  {/* Divider */}
+                                  <div style={{ height: 1, background: '#f1f5f9', margin: '1px 0' }} />
+                                  {/* AI description */}
+                                  {cleanDesc && !fr.is_non_vehicle ? (
+                                    <p style={{ fontSize: 9.5, color: '#374151', lineHeight: 1.7, margin: 0, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                      {cleanDesc}
+                                    </p>
+                                  ) : (
+                                    <p style={{ fontSize: 9, color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>Forensic description pending analysis.</p>
+                                  )}
+                                  {/* Confidence */}
+                                  {confScore != null && (
+                                    <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <span style={{ fontSize: 8, color: '#94a3b8' }}>Detection confidence</span>
+                                      <span style={{ fontSize: 8, fontWeight: 700, color: confScore >= 80 ? '#15803d' : confScore >= 60 ? '#b45309' : '#b91c1c' }}>{confScore}%</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              {/* Severity chip */}
-                              {sev && (
-                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: sevTextCol, color: '#fff', fontSize: 8, fontWeight: 800, padding: '3px 8px', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: 'center' }}>
-                                  {sev}
-                                </div>
-                              )}
-                            </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
 
-                            {/* Right: forensics panel */}
-                            <div style={{ flex: 1, padding: '10px 14px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                              {/* Caption */}
-                              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--kr-text)', margin: '0 0 5px 0', lineHeight: 1.35 }}>{caption}</p>
-
-                              {/* Zone + parts chips */}
-                              {(zone || parts.length > 0) && (
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 7 }}>
-                                  {zone && (
-                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#1e40af', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 3, padding: '1px 6px', letterSpacing: '0.03em', textTransform: 'uppercase' }}>
-                                      {zone}
-                                    </span>
-                                  )}
-                                  {parts.slice(0, 6).map((p: string, pi: number) => (
-                                    <span key={pi} style={{ fontSize: 9, fontWeight: 500, color: '#374151', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 3, padding: '1px 6px' }}>
-                                      {p}
-                                    </span>
-                                  ))}
-                                  {parts.length > 6 && (
-                                    <span style={{ fontSize: 9, color: 'var(--kr-muted)', padding: '1px 4px' }}>+{parts.length - 6} more</span>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* AI forensic description */}
-                              {cleanDesc && !fr.is_non_vehicle && (
-                                <p style={{ fontSize: 10, color: '#374151', lineHeight: 1.65, margin: 0, display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                  {cleanDesc}
-                                </p>
-                              )}
-
-                              {/* No AI description fallback */}
-                              {!cleanDesc && (
-                                <p style={{ fontSize: 10, color: 'var(--kr-muted)', fontStyle: 'italic', margin: 0 }}>
-                                  Forensic description pending analysis.
-                                </p>
-                              )}
-
-                              {/* Confidence score — bottom */}
-                              {confScore != null && (
-                                <div style={{ marginTop: 'auto', paddingTop: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
-                                  <span style={{ fontSize: 9, color: 'var(--kr-muted)' }}>Detection confidence</span>
-                                  <span style={{ fontSize: 9, fontWeight: 700, color: confScore >= 80 ? '#15803d' : confScore >= 60 ? '#b45309' : '#b91c1c' }}>{confScore}%</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {/* ── TIER 2: Supporting Evidence — remaining photos as compact 3-column thumbnail grid ── */}
+                    {/* ── TIER 2: Supporting Evidence — 4-column thumbnail grid ── */}
                     {damagePhotoUrls.length > 5 && (() => {
                       const remaining = damagePhotoUrls.slice(5);
+                      const SEV_COL: Record<string, string> = {
+                        catastrophic: '#7f1d1d', severe: '#9a3412', moderate: '#92400e', minor: '#14532d', cosmetic: '#1e3a5f',
+                      };
                       return (
-                        <div style={{ marginTop: 10 }}>
-                          <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--kr-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px 0' }}>
-                            Supporting Evidence — {remaining.length} additional image{remaining.length !== 1 ? 's' : ''}
-                          </p>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+                        <div style={{ marginTop: 14 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                            <p style={{ fontSize: 8.5, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0, whiteSpace: 'nowrap' }}>
+                              Supporting Evidence &mdash; {remaining.length} image{remaining.length !== 1 ? 's' : ''}
+                            </p>
+                            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
                             {remaining.map((url, ri) => {
                               const globalIdx = ri + 5;
                               const enrichedIdx = photoUrls.indexOf(url);
                               const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
                               const sev = (enriched?.severity ?? '').toLowerCase();
-                              const sevColour: Record<string, string> = {
-                                catastrophic: '#b91c1c', severe: '#c2410c',
-                                moderate: '#b45309', minor: '#15803d', cosmetic: '#1d4ed8',
-                              };
-                              const sevTextCol = sevColour[sev] ?? '#64748b';
+                              const sevCol = SEV_COL[sev] ?? '#475569';
                               const caption = enriched?.caption
-                                ?? (enriched?.detectedComponents?.slice(0, 2).join(', '))
+                                ?? (enriched?.detectedComponents?.slice(0, 1).join(', '))
                                 ?? `Photo ${globalIdx + 1}`;
                               const zone = enriched?.impactZone && enriched.impactZone !== 'unknown'
                                 ? enriched.impactZone.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
                                 : null;
                               return (
-                                <div key={ri} style={{ border: '1px solid var(--kr-rule)', borderRadius: 4, overflow: 'hidden', background: 'var(--kr-white)' }}>
-                                  {/* Thumbnail image */}
-                                  <div style={{ position: 'relative', aspectRatio: '4/3', background: '#e2e8f0' }}>
+                                <div key={ri} style={{ border: '1px solid #e2e8f0', borderRadius: 4, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                                  <div style={{ position: 'relative', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 90 }}>
                                     <img
                                       src={url}
                                       alt={caption}
-                                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }}
+                                      style={{ maxWidth: '100%', maxHeight: 90, objectFit: 'contain', display: 'block' }}
                                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                     />
-                                    {/* Index badge */}
-                                    <div style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(15,23,42,0.7)', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 4px', borderRadius: 2 }}>
+                                    <div style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(15,23,42,0.6)', color: '#fff', fontSize: 7, fontWeight: 800, padding: '1px 4px', borderRadius: 2 }}>
                                       {String(globalIdx + 1).padStart(2, '0')}
                                     </div>
-                                    {/* Severity strip */}
-                                    {sev && (
-                                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: sevTextCol, color: '#fff', fontSize: 7, fontWeight: 800, padding: '2px 5px', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>
-                                        {sev}
-                                      </div>
-                                    )}
                                   </div>
-                                  {/* Compact caption */}
-                                  <div style={{ padding: '4px 6px' }}>
-                                    <p style={{ fontSize: 9, fontWeight: 600, color: 'var(--kr-text)', margin: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{caption}</p>
-                                    {zone && (
-                                      <p style={{ fontSize: 8, color: 'var(--kr-muted)', margin: 0, marginTop: 1 }}>{zone}</p>
-                                    )}
+                                  <div style={{ padding: '5px 7px', borderTop: `2px solid ${sev ? sevCol : '#e2e8f0'}` }}>
+                                    <p style={{ fontSize: 8, fontWeight: 600, color: '#0f172a', margin: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{caption}</p>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                                      {zone && <p style={{ fontSize: 7.5, color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{zone}</p>}
+                                      {sev && <span style={{ fontSize: 7, fontWeight: 700, color: sevCol, textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>{sev}</span>}
+                                    </div>
                                   </div>
                                 </div>
                               );

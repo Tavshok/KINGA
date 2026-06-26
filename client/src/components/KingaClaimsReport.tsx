@@ -756,16 +756,18 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                 <div style={S.divider} />
                 <p style={{ ...S.label, marginBottom: 8 }}>Damage Photographs ({photoUrls.length}{allPhotoUrls.length > photoUrls.length ? ` of ${allPhotoUrls.length}` : ''} shown)</p>
 
-                {/* ── TIER 1: Featured — top 6 photos, 2-column card layout ── */}
                 {(() => {
                   const featuredUrls = photoUrls.slice(0, 6);
                   const remainingUrls = photoUrls.slice(6);
-                  const sevColour: Record<string, string> = {
-                    catastrophic: '#b91c1c', severe: '#c2410c',
-                    moderate: '#b45309', minor: '#15803d', cosmetic: '#1d4ed8',
+                  const SEV_COL: Record<string, string> = {
+                    catastrophic: '#7f1d1d', severe: '#9a3412', moderate: '#92400e', minor: '#14532d', cosmetic: '#1e3a5f',
+                  };
+                  const SEV_BG: Record<string, string> = {
+                    catastrophic: '#fef2f2', severe: '#fff7ed', moderate: '#fffbeb', minor: '#f0fdf4', cosmetic: '#eff6ff',
                   };
                   return (
                     <>
+                      {/* ── TIER 1: Featured — 2-column card grid, contain image, left severity bar ── */}
                       <div style={{ display: 'grid', gridTemplateColumns: featuredUrls.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 8 }}>
                         {featuredUrls.map((url: string, i: number) => {
                           const enriched = displayPhotos[i];
@@ -780,34 +782,41 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                           const sev = (enriched?.severity ?? '').toLowerCase();
                           const zone = enriched?.impactZone && enriched.impactZone !== 'unknown' ? toTitleCase(enriched.impactZone) : null;
                           const parts = enriched?.detectedComponents ?? [];
-                          const sevTextCol = sevColour[sev] ?? '#64748b';
+                          const sevCol = SEV_COL[sev] ?? '#475569';
+                          const sevBg = SEV_BG[sev] ?? '#f8fafc';
                           return (
-                            <div key={i} style={{ display: 'flex', border: '1px solid #e2e8f0', borderRadius: 6, overflow: 'hidden', background: '#fff', minHeight: 120 }}>
-                              <div style={{ position: 'relative', width: 160, minWidth: 160, flexShrink: 0, background: '#f1f5f9' }}>
+                            <div key={i} style={{ display: 'flex', border: '1px solid #e2e8f0', borderRadius: 5, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                              {/* Severity left-edge bar */}
+                              <div style={{ width: 3, flexShrink: 0, background: sevCol, opacity: 0.8 }} />
+                              {/* Image: contain so full page renders cleanly */}
+                              <div style={{ width: 130, minWidth: 130, flexShrink: 0, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: 110 }}>
                                 <img src={url} alt={caption}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }}
+                                  style={{ maxWidth: '100%', maxHeight: 130, objectFit: 'contain', display: 'block' }}
                                   onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }}
                                 />
-                                <div style={{ position: 'absolute', top: 5, left: 5, background: 'rgba(15,23,42,0.7)', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 2, letterSpacing: '0.05em' }}>
+                                <div style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(15,23,42,0.6)', color: '#fff', fontSize: 7.5, fontWeight: 800, padding: '1px 5px', borderRadius: 2, letterSpacing: '0.05em' }}>
                                   {String(i + 1).padStart(2, '0')}
                                 </div>
-                                {sev && (
-                                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: sevTextCol, color: '#fff', fontSize: 7, fontWeight: 800, padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: 'center' }}>
-                                    {sev}
-                                  </div>
-                                )}
                               </div>
-                              <div style={{ flex: 1, padding: '8px 10px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                                <p style={{ fontSize: 10, fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0', lineHeight: 1.3 }}>{caption}</p>
+                              {/* Summary panel */}
+                              <div style={{ flex: 1, padding: '9px 10px', display: 'flex', flexDirection: 'column', minWidth: 0, gap: 4 }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
+                                  <p style={{ fontSize: 9.5, fontWeight: 700, color: '#0f172a', margin: 0, lineHeight: 1.35, flex: 1 }}>{caption}</p>
+                                  {sev && (
+                                    <span style={{ fontSize: 7.5, fontWeight: 700, color: sevCol, background: sevBg, border: `1px solid ${sevCol}25`, borderRadius: 3, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                      {sev}
+                                    </span>
+                                  )}
+                                </div>
                                 {(zone || parts.length > 0) && (
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                                     {zone && (
-                                      <span style={{ fontSize: 8, fontWeight: 700, color: '#1e40af', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 2, padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{zone}</span>
+                                      <span style={{ fontSize: 7.5, fontWeight: 600, color: '#1e40af', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 3, padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{zone}</span>
                                     )}
-                                    {parts.slice(0, 4).map((p: string, pi: number) => (
-                                      <span key={pi} style={{ fontSize: 8, fontWeight: 500, color: '#374151', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 2, padding: '1px 5px' }}>{p}</span>
+                                    {parts.slice(0, 3).map((p: string, pi: number) => (
+                                      <span key={pi} style={{ fontSize: 7.5, color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 3, padding: '1px 5px' }}>{p}</span>
                                     ))}
-                                    {parts.length > 4 && <span style={{ fontSize: 8, color: '#94a3b8', padding: '1px 3px' }}>+{parts.length - 4}</span>}
+                                    {parts.length > 3 && <span style={{ fontSize: 7.5, color: '#94a3b8', padding: '1px 3px' }}>+{parts.length - 3}</span>}
                                   </div>
                                 )}
                               </div>
@@ -816,18 +825,22 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                         })}
                       </div>
 
-                      {/* ── TIER 2: Supporting thumbnails — remaining photos, 4-column compact grid ── */}
+                      {/* ── TIER 2: Supporting thumbnails — 4-column grid, contain image, top-border accent ── */}
                       {remainingUrls.length > 0 && (
-                        <div style={{ marginTop: 8 }}>
-                          <p style={{ fontSize: 8, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 5px 0' }}>
-                            Additional Evidence — {remainingUrls.length} image{remainingUrls.length !== 1 ? 's' : ''} · Full forensic analysis in Forensic Audit Report
-                          </p>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+                        <div style={{ marginTop: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+                            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                            <p style={{ fontSize: 8, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0, whiteSpace: 'nowrap' }}>
+                              {remainingUrls.length} additional image{remainingUrls.length !== 1 ? 's' : ''} · see Forensic Audit Report for full analysis
+                            </p>
+                            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
                             {remainingUrls.map((url: string, ri: number) => {
                               const globalIdx = ri + 6;
                               const enriched = displayPhotos[globalIdx];
                               const sev = (enriched?.severity ?? '').toLowerCase();
-                              const sevTextCol = sevColour[sev] ?? '#64748b';
+                              const sevCol = SEV_COL[sev] ?? '#475569';
                               const caption = enriched
                                 ? expandShorthand(enriched.caption)
                                 : (() => {
@@ -835,23 +848,19 @@ export function KingaClaimsReport({ claim, aiAssessment, enforcement, quotes = [
                                     return part ? expandShorthand(part.name ?? '') : `Photo ${globalIdx + 1}`;
                                   })();
                               return (
-                                <div key={ri} style={{ border: '1px solid #e2e8f0', borderRadius: 3, overflow: 'hidden', background: '#fff' }}>
-                                  <div style={{ position: 'relative', aspectRatio: '4/3', background: '#f1f5f9' }}>
+                                <div key={ri} style={{ border: '1px solid #e2e8f0', borderRadius: 4, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                                  <div style={{ background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 80, position: 'relative' }}>
                                     <img src={url} alt={caption}
-                                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }}
+                                      style={{ maxWidth: '100%', maxHeight: 80, objectFit: 'contain', display: 'block' }}
                                       onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }}
                                     />
-                                    <div style={{ position: 'absolute', top: 3, left: 3, background: 'rgba(15,23,42,0.7)', color: '#fff', fontSize: 7, fontWeight: 800, padding: '1px 4px', borderRadius: 2 }}>
+                                    <div style={{ position: 'absolute', top: 3, left: 3, background: 'rgba(15,23,42,0.6)', color: '#fff', fontSize: 7, fontWeight: 800, padding: '1px 4px', borderRadius: 2 }}>
                                       {String(globalIdx + 1).padStart(2, '0')}
                                     </div>
-                                    {sev && (
-                                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: sevTextCol, color: '#fff', fontSize: 6, fontWeight: 800, padding: '1px 4px', textTransform: 'uppercase', textAlign: 'center' }}>
-                                        {sev}
-                                      </div>
-                                    )}
                                   </div>
-                                  <div style={{ padding: '3px 5px' }}>
-                                    <p style={{ fontSize: 8, fontWeight: 600, color: '#0f172a', margin: 0, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{caption}</p>
+                                  <div style={{ padding: '4px 6px', borderTop: `2px solid ${sev ? sevCol : '#e2e8f0'}` }}>
+                                    <p style={{ fontSize: 7.5, fontWeight: 600, color: '#0f172a', margin: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{caption}</p>
+                                    {sev && <p style={{ fontSize: 7, fontWeight: 700, color: sevCol, margin: '1px 0 0 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{sev}</p>}
                                   </div>
                                 </div>
                               );
