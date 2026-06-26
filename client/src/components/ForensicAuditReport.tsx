@@ -5437,9 +5437,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                     <p className="sub-heading">
                       4.1 Damage Photo Gallery ({damagePhotoUrls.length} image{damagePhotoUrls.length !== 1 ? 's' : ''})
                     </p>
-                    {/* Professional horizontal card layout — image left, structured forensics panel right */}
+                    {/* ── TIER 1: Featured Evidence — top 5 highest-severity photos, full forensic card ── */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {damagePhotoUrls.slice(0, 12).map((url, i) => {
+                      {damagePhotoUrls.slice(0, 5).map((url, i) => {
                         const enrichedIdx = photoUrls.indexOf(url);
                         const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
                         const forensics = getForensics(url);
@@ -5558,9 +5558,66 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                         );
                       })}
                     </div>
-                    {damagePhotoUrls.length > 12 && (
-                      <p style={{ fontSize: 10, marginTop: 6, color: 'var(--kr-muted)', fontStyle: 'italic' }}>+{damagePhotoUrls.length - 12} additional images not shown</p>
-                    )}
+                    {/* ── TIER 2: Supporting Evidence — remaining photos as compact 3-column thumbnail grid ── */}
+                    {damagePhotoUrls.length > 5 && (() => {
+                      const remaining = damagePhotoUrls.slice(5);
+                      return (
+                        <div style={{ marginTop: 10 }}>
+                          <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--kr-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px 0' }}>
+                            Supporting Evidence — {remaining.length} additional image{remaining.length !== 1 ? 's' : ''}
+                          </p>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+                            {remaining.map((url, ri) => {
+                              const globalIdx = ri + 5;
+                              const enrichedIdx = photoUrls.indexOf(url);
+                              const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
+                              const sev = (enriched?.severity ?? '').toLowerCase();
+                              const sevColour: Record<string, string> = {
+                                catastrophic: '#b91c1c', severe: '#c2410c',
+                                moderate: '#b45309', minor: '#15803d', cosmetic: '#1d4ed8',
+                              };
+                              const sevTextCol = sevColour[sev] ?? '#64748b';
+                              const caption = enriched?.caption
+                                ?? (enriched?.detectedComponents?.slice(0, 2).join(', '))
+                                ?? `Photo ${globalIdx + 1}`;
+                              const zone = enriched?.impactZone && enriched.impactZone !== 'unknown'
+                                ? enriched.impactZone.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+                                : null;
+                              return (
+                                <div key={ri} style={{ border: '1px solid var(--kr-rule)', borderRadius: 4, overflow: 'hidden', background: 'var(--kr-white)' }}>
+                                  {/* Thumbnail image */}
+                                  <div style={{ position: 'relative', aspectRatio: '4/3', background: '#e2e8f0' }}>
+                                    <img
+                                      src={url}
+                                      alt={caption}
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }}
+                                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                    />
+                                    {/* Index badge */}
+                                    <div style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(15,23,42,0.7)', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 4px', borderRadius: 2 }}>
+                                      {String(globalIdx + 1).padStart(2, '0')}
+                                    </div>
+                                    {/* Severity strip */}
+                                    {sev && (
+                                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: sevTextCol, color: '#fff', fontSize: 7, fontWeight: 800, padding: '2px 5px', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>
+                                        {sev}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {/* Compact caption */}
+                                  <div style={{ padding: '4px 6px' }}>
+                                    <p style={{ fontSize: 9, fontWeight: 600, color: 'var(--kr-text)', margin: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{caption}</p>
+                                    {zone && (
+                                      <p style={{ fontSize: 8, color: 'var(--kr-muted)', margin: 0, marginTop: 1 }}>{zone}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </>
                 );
               })()}
