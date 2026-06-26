@@ -7,6 +7,7 @@
  * data that can auto-populate the claim submission form.
  */
 
+import { TRPCError } from "@trpc/server";
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -279,12 +280,27 @@ For phone numbers, normalize to international format with country code if availa
     }
   });
 
-  const messageContent = response.choices?.[0]?.message?.content;
+    const messageContent = response.choices?.[0]?.message?.content;
   if (!messageContent) {
-    throw new Error("Failed to extract data from document — no response from AI");
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Failed to extract data from document — no response from AI",
+    });
   }
 
-  const extracted = JSON.parse(typeof messageContent === "string" ? messageContent : JSON.stringify(messageContent));
+  let extracted: Record<string, unknown>;
+  try {
+    const raw = typeof messageContent === "string" ? messageContent : JSON.stringify(messageContent);
+    // Strip any markdown code fences the LLM may have added
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    extracted = JSON.parse(cleaned);
+  } catch (parseErr) {
+    console.error("[extractClaimFormData] JSON parse failed:", parseErr, "raw content:", messageContent);
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "The AI returned an unreadable response. Please try again or upload a clearer document.",
+    });
+  }
 
   return {
     ...extracted,

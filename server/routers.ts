@@ -1045,12 +1045,33 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const base64Data = input.fileData.replace(/^data:[^;]+;base64,/, "");
         const fileBuffer = Buffer.from(base64Data, "base64");
 
+        // Guard: reject files larger than 15 MB (LLM API limit)
+        const MAX_BYTES = 15 * 1024 * 1024;
+        if (fileBuffer.length > MAX_BYTES) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `File is too large (${(fileBuffer.length / 1024 / 1024).toFixed(1)} MB). Please upload a file smaller than 15 MB.`,
+          });
+        }
+
         // Extract data using AI vision
-        const extracted = await extractClaimFormData(
-          fileBuffer,
-          input.mimeType,
-          input.fileName
-        );
+        let extracted: Awaited<ReturnType<typeof extractClaimFormData>>;
+        try {
+          extracted = await extractClaimFormData(
+            fileBuffer,
+            input.mimeType,
+            input.fileName
+          );
+        } catch (err: unknown) {
+          // Re-throw TRPCErrors as-is; wrap everything else with a clear message
+          if (err && typeof err === "object" && "code" in err) throw err;
+          const msg = err instanceof Error ? err.message : "Unknown extraction error";
+          console.error("[extractFromDocument] Extraction failed:", msg);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Document extraction failed: ${msg}`,
+          });
+        }
 
         // Create audit entry
         await createAuditEntry({
