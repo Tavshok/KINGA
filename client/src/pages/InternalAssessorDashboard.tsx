@@ -9,7 +9,7 @@
  *  4. Completed      — evaluations already submitted (trpc.assessorEvaluations.byClaim per claim)
  *  5. Analytics      — performance metrics (trpc.assessors.getPerformanceDashboard)
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
@@ -43,7 +43,7 @@ import {
   ChevronDown, ChevronUp, Zap, Activity, TrendingDown,
 } from "lucide-react";
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { currencySymbol, fmtCurrency } from "@/lib/currency";
 import { NotificationsInbox, NotificationsTabBadge } from "@/components/NotificationsInbox";
 import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
@@ -580,7 +580,23 @@ function AssessmentDialog({
 
 export default function InternalAssessorDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("queue");
+  // Sync active tab with sidebar navigation.
+  // Sidebar uses query params: /insurer-portal/internal-assessor?tab=queue etc.
+  const searchStr = useSearch();
+  const getTabFromSearch = (s: string) => {
+    const params = new URLSearchParams(s);
+    const tabParam = params.get("tab") ?? "";
+    const tabMap: Record<string, string> = {
+      "queue":       "queue",
+      "in-progress": "claims",
+      "completed":   "completed",
+    };
+    return tabMap[tabParam] ?? "queue";
+  };
+  const [activeTab, setActiveTab] = useState(() => getTabFromSearch(searchStr));
+  useEffect(() => {
+    setActiveTab(getTabFromSearch(searchStr));
+  }, [searchStr]);
   const [perfPeriod, setPerfPeriod] = useState<'weekly' | 'monthly'>('monthly');
   const [selectedInsurerId, setSelectedInsurerId] = useState<string | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<any>(null);

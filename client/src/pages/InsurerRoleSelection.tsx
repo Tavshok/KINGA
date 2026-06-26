@@ -127,6 +127,12 @@ export default function InsurerRoleSelection() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
+  // Auto-redirect users who already have an insurerRole to their own portal.
+  // This prevents the role-selection page from being used as a portal-switching
+  // mechanism by non-admin users.
+  const isAdmin = user?.role === "admin";
+  const userInsurerRole = user?.insurerRole ?? null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
       {/* Header */}
@@ -165,11 +171,18 @@ export default function InsurerRoleSelection() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {ROLES.map((role) => {
               const Icon = role.icon;
+              // Non-admin users can only navigate to their own role's portal.
+              // Other role cards are shown in a disabled/locked state.
+              const isOwnRole = isAdmin || !userInsurerRole || role.id === userInsurerRole;
               return (
                 <Card
                   key={role.id}
-                  className="group hover:shadow-xl transition-all duration-300 cursor-pointer border-2 hover:border-primary/50 flex flex-col"
-                  onClick={() => setLocation(role.path)}
+                  className={`group transition-all duration-300 flex flex-col border-2 ${
+                    isOwnRole
+                      ? "hover:shadow-xl cursor-pointer hover:border-primary/50"
+                      : "opacity-50 cursor-not-allowed border-gray-200"
+                  }`}
+                  onClick={() => isOwnRole && setLocation(role.path)}
                 >
                   <CardHeader>
                     <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${role.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
@@ -193,11 +206,18 @@ export default function InsurerRoleSelection() {
                       </ul>
                     </div>
                     <Button
-                      className="w-full mt-6 group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
-                      variant="outline"
+                      className="w-full mt-6 transition-colors"
+                      variant={isOwnRole ? "outline" : "ghost"}
+                      disabled={!isOwnRole}
                     >
-                      Enter Portal
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      {isOwnRole ? (
+                        <>
+                          Enter Portal
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
+                      ) : (
+                        "Access Restricted"
+                      )}
                     </Button>
                   </CardContent>
                 </Card>

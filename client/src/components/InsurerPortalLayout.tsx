@@ -6,6 +6,7 @@
  * No role-specific colour overrides — one consistent palette across all roles.
  */
 import { Link, useLocation } from "wouter";
+import { PORTAL_ROUTE_ROLES } from "@/lib/roleRouting";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
@@ -274,26 +275,36 @@ const defaultNav: NavSection[] = [
   },
 ];
 
-// Map URL path prefixes to role keys
-const pathToRole: Array<{ prefix: string; role: string; label: string }> = [
-  { prefix: "/insurer-portal/executive",               role: "executive",         label: "Executive" },
-  { prefix: "/insurer-portal/claims-manager",          role: "claims_manager",    label: "Claims Manager" },
-  { prefix: "/insurer-portal/claims-processor",        role: "claims_processor",  label: "Claims Processor" },
-  { prefix: "/insurer-portal/risk-manager",            role: "risk_manager",      label: "Risk Manager" },
-  { prefix: "/insurer-portal/internal-assessor",       role: "assessor_internal", label: "Internal Assessor" },
-  { prefix: "/insurer-portal/insurer-admin",            role: "insurer_admin",     label: "Insurer Admin" },
-  { prefix: "/insurer-portal/recovery",                 role: "recovery_officer",  label: "Recovery Officer" },
-  { prefix: "/insurer/fraud-analytics",                role: "",                  label: "Fraud Analytics" },
-  { prefix: "/insurer-portal/workflow-analytics",      role: "",                  label: "Workflow Analytics" },
-  { prefix: "/insurer-portal/exception-intelligence",  role: "",                  label: "Exception Intelligence" },
-  { prefix: "/insurer-portal/relationship-intelligence", role: "",                label: "Relationship Intelligence" },
-  { prefix: "/insurer-portal/reports-centre",          role: "",                  label: "Reports Centre" },
-];
+// Role label map — derived from PORTAL_ROUTE_ROLES (single source of truth)
+const ROLE_LABEL: Record<string, string> = {
+  executive:         "Executive",
+  claims_manager:    "Claims Manager",
+  claims_processor:  "Claims Processor",
+  risk_manager:      "Risk Manager",
+  assessor_internal: "Internal Assessor",
+  insurer_admin:     "Insurer Admin",
+  recovery_officer:  "Recovery Officer",
+};
 
+/**
+ * getRoleFromPath — derives the active portal role from the current URL.
+ * Uses PORTAL_ROUTE_ROLES as the single source of truth (longest-prefix match).
+ * Returns { role: "", label: "Insurer Portal" } for shared/root routes.
+ */
 function getRoleFromPath(path: string): { role: string; label: string } {
-  for (const entry of pathToRole) {
-    if (path === entry.prefix || path.startsWith(entry.prefix + "/") || path.startsWith(entry.prefix + "?")) {
-      return { role: entry.role, label: entry.label };
+  // Sort by prefix length descending so longest match wins
+  const sorted = [...PORTAL_ROUTE_ROLES].sort((a, b) => b.prefix.length - a.prefix.length);
+  for (const entry of sorted) {
+    const matches =
+      path === entry.prefix ||
+      path.startsWith(entry.prefix + "/") ||
+      path.startsWith(entry.prefix + "?") ||
+      path.startsWith(entry.prefix + "#");
+    if (matches) {
+      // Shared routes have empty allowedRoles — no specific role
+      const role = entry.allowedRoles.length === 1 ? entry.allowedRoles[0] : "";
+      const label = role ? (ROLE_LABEL[role] ?? role) : "Insurer Portal";
+      return { role, label };
     }
   }
   return { role: "", label: "Insurer Portal" };

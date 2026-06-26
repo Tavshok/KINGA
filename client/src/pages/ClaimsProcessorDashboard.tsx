@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import React from 'react';
+import { useSearch } from "wouter";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
@@ -86,7 +87,26 @@ export default function ClaimsProcessorDashboard() {
   // Completion is only valid if aiAssessmentCompletedAt > rerunStartedAt.
   const rerunStartedAtRef = useRef<Map<number, number>>(new Map());
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("pending");
+  // Sync active tab with sidebar navigation.
+  // Sidebar uses hash fragments: /insurer-portal/claims-processor#intake-queue etc.
+  const searchStr = useSearch();
+  const getTabFromHash = () => {
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    const hashMap: Record<string, string> = {
+      "#intake-queue": "pending",
+      "#in-progress":  "review",
+      "#ai-flagged":   "ai_complete",
+      "#completed":    "completed",
+    };
+    return hashMap[hash] ?? "pending";
+  };
+  const [activeTab, setActiveTab] = useState(() => getTabFromHash());
+  useEffect(() => { // eslint-disable-line react-hooks/rules-of-hooks
+    const onHashChange = () => setActiveTab(getTabFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    onHashChange();
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [searchStr]);
 
   // Processor queue from dedicated procedure (enriched with priority scoring)
   const { data: processorQueueData } = trpc.claims.getProcessorQueue.useQuery(undefined, { refetchInterval: 60000 }); // eslint-disable-line react-hooks/rules-of-hooks
