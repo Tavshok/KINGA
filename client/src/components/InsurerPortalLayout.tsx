@@ -5,6 +5,7 @@
  * Design: dark slate sidebar (#0F172A) with KINGA teal accent for active states.
  * No role-specific colour overrides — one consistent palette across all roles.
  */
+import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { PORTAL_ROUTE_ROLES } from "@/lib/roleRouting";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -332,7 +333,27 @@ export default function InsurerPortalLayout({
   const { user, logout } = useAuth();
 
   const { role: pathRole, label: _pathLabel } = getRoleFromPath(location);
-  const derivedRole = pathRole || (user?.insurerRole ?? "");
+
+  // ── Active portal role session tracking ──────────────────────────────────
+  // When the user is on a single-role portal page (e.g. /insurer-portal/executive),
+  // store that role in sessionStorage so shared feature pages (/insurer/*) can
+  // maintain the correct sidebar context instead of falling back to user.insurerRole.
+  // Clear the session role when the user returns to the role-selection hub.
+  useEffect(() => {
+    if (pathRole) {
+      // On a single-role portal page — record it as the active portal
+      sessionStorage.setItem("kinga_active_portal_role", pathRole);
+    } else if (location === "/insurer-portal" || location === "/insurer-portal/") {
+      // User returned to role selection — clear the active portal
+      sessionStorage.removeItem("kinga_active_portal_role");
+    }
+  }, [pathRole, location]);
+
+  // Priority: URL-derived role > sessionStorage active portal > user.insurerRole from DB
+  const sessionRole = typeof window !== "undefined"
+    ? (sessionStorage.getItem("kinga_active_portal_role") ?? "")
+    : "";
+  const derivedRole = pathRole || sessionRole || (user?.insurerRole ?? "");
   const visibleSections: NavSection[] = (derivedRole ? navByRole[derivedRole] : undefined) ?? defaultNav;
   const badge = ROLE_BADGE[derivedRole];
 
