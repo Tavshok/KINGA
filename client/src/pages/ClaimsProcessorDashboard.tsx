@@ -1263,25 +1263,151 @@ export default function ClaimsProcessorDashboard() {
                               {new Date(claim.createdAt).toLocaleDateString()}
                             </td>
                             <td>
-                              <div style={{ display: 'flex', gap: 6 }}>
-                                <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
-                                  onClick={() => handleViewDetails(claim.id)}>
-                                  <Eye style={{ width: 11, height: 11 }} /> View
-                                </button>
-                                {claim.status === 'intake_pending' && (
-                                  <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
-                                    onClick={() => handleTriggerAI(claim.id)}
-                                    disabled={triggeringClaimId === claim.id}>
-                                    <Brain style={{ width: 11, height: 11 }} /> KINGA
+                              {isProcessing ? (
+                                /* Live pipeline stage — shown while KINGA is running or re-running */
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span className="p11-badge blue" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, maxWidth: 200 }}>
+                                    <Loader2 style={{ width: 10, height: 10, animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {(claim as any).pipelineCurrentStage
+                                        ? (claim as any).pipelineCurrentStage.replace(/^Stage (\d+)/, 'Stage $1 of 10')
+                                        : 'Analysing…'}
+                                    </span>
+                                  </span>
+                                  <button className="p11-btn-outline" style={{ padding: '3px 6px', fontSize: 10, color: '#8A5C00', borderColor: '#E8C97A' }}
+                                    onClick={() => handleResetStuckClaim(claim.id)}
+                                    disabled={resetStuckClaimMutation.isPending}
+                                    title="Reset if stuck for more than 5 minutes">
+                                    <RotateCcw style={{ width: 10, height: 10 }} />
                                   </button>
-                                )}
-                                {claim.status === 'assessment_complete' && (
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+                                  {/* Always: View */}
                                   <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
-                                    onClick={() => handleDownloadReport(claim.id)}>
-                                    <Download style={{ width: 11, height: 11 }} /> Report
+                                    onClick={() => handleViewDetails(claim.id)}>
+                                    <Eye style={{ width: 11, height: 11 }} /> View
                                   </button>
-                                )}
-                              </div>
+
+                                  {/* PENDING: Run KINGA + Assign Assessor */}
+                                  {claim.status === 'intake_pending' && (
+                                    <>
+                                      <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                        onClick={() => handleTriggerAI(claim.id)}
+                                        disabled={triggeringClaimId === claim.id}
+                                        title="Run KINGA AI analysis">
+                                        <Brain style={{ width: 11, height: 11 }} /> KINGA
+                                      </button>
+                                      <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                        onClick={() => handleAssignAssessor(claim.id)}
+                                        title="Assign a human assessor">
+                                        <UserPlus style={{ width: 11, height: 11 }} /> Assign
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {/* STUCK IN PROGRESS: Reset */}
+                                  {claim.status === 'assessment_in_progress' && (
+                                    <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11, color: '#8A5C00', borderColor: '#E8C97A' }}
+                                      onClick={() => handleResetStuckClaim(claim.id)}
+                                      disabled={resetStuckClaimMutation.isPending}
+                                      title="Reset stuck claim to Pending">
+                                      <RotateCcw style={{ width: 11, height: 11 }} /> Reset
+                                    </button>
+                                  )}
+
+                                  {/* KINGA COMPLETE: Report dropdown + Re-run + Assign */}
+                                  {claim.status === 'assessment_complete' && (
+                                    <>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                            <FileText style={{ width: 11, height: 11 }} /> Reports <ChevronDown style={{ width: 9, height: 9 }} />
+                                          </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-60">
+                                          <DropdownMenuLabel style={{ fontSize: 11, fontWeight: 400, paddingBottom: 4 }}>Select report</DropdownMenuLabel>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=standard`; }}
+                                            className="cursor-pointer py-2">
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                              <FileText style={{ width: 13, height: 13, marginTop: 2, flexShrink: 0, color: '#3C7844' }} />
+                                              <div>
+                                                <div style={{ fontWeight: 600, fontSize: 12 }}>KINGA Claims Report</div>
+                                                <div style={{ fontSize: 11, color: 'var(--muted)' }}>Assessment summary &amp; cost comparison</div>
+                                              </div>
+                                            </div>
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem
+                                            onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`; }}
+                                            className="cursor-pointer py-2">
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                              <FileSearch style={{ width: 13, height: 13, marginTop: 2, flexShrink: 0, color: '#2563EB' }} />
+                                              <div>
+                                                <div style={{ fontWeight: 600, fontSize: 12 }}>KINGA Forensic Audit</div>
+                                                <div style={{ fontSize: 11, color: 'var(--muted)' }}>Physics engine &amp; fraud indicators</div>
+                                              </div>
+                                            </div>
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                      <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                        onClick={() => handleTriggerAI(claim.id)}
+                                        disabled={triggerAiMutation.isPending}
+                                        title="Re-run KINGA AI analysis">
+                                        <Brain style={{ width: 11, height: 11 }} /> Re-run
+                                      </button>
+                                      <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                        onClick={() => handleAssignAssessor(claim.id)}
+                                        title="Assign a human assessor">
+                                        <UserPlus style={{ width: 11, height: 11 }} /> Assign
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {/* CLOSED: Report dropdown + Re-run */}
+                                  {claim.status === 'closed' && (
+                                    <>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                            <FileText style={{ width: 11, height: 11 }} /> Reports <ChevronDown style={{ width: 9, height: 9 }} />
+                                          </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-60">
+                                          <DropdownMenuLabel style={{ fontSize: 11, fontWeight: 400, paddingBottom: 4 }}>Select report</DropdownMenuLabel>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=standard`; }} className="cursor-pointer py-2">
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                              <FileText style={{ width: 13, height: 13, marginTop: 2, flexShrink: 0, color: '#3C7844' }} />
+                                              <div>
+                                                <div style={{ fontWeight: 600, fontSize: 12 }}>KINGA Claims Report</div>
+                                                <div style={{ fontSize: 11, color: 'var(--muted)' }}>Assessment summary &amp; cost comparison</div>
+                                              </div>
+                                            </div>
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`; }} className="cursor-pointer py-2">
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                              <FileSearch style={{ width: 13, height: 13, marginTop: 2, flexShrink: 0, color: '#2563EB' }} />
+                                              <div>
+                                                <div style={{ fontWeight: 600, fontSize: 12 }}>KINGA Forensic Audit</div>
+                                                <div style={{ fontSize: 11, color: 'var(--muted)' }}>Physics engine &amp; fraud indicators</div>
+                                              </div>
+                                            </div>
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                      <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
+                                        onClick={() => handleTriggerAI(claim.id)}
+                                        disabled={triggerAiMutation.isPending}
+                                        title="Re-run KINGA AI analysis">
+                                        <Brain style={{ width: 11, height: 11 }} /> Re-run
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
                             </td>
                           </tr>
                         );

@@ -5958,6 +5958,14 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           enrichedPhotosJson: (assessment as any).enrichedPhotosJson ?? null,
           // Also expose damagePhotosJson as fallback for photo URL resolution
           damagePhotosJson: (assessment as any).damagePhotosJson ?? null,
+          // Expose pipeline run summary for frontend stage progress display
+          // pipelineRunSummary is a DB column not in IntelligenceEnforcementResult
+          pipelineRunSummary: (assessment as any).pipelineRunSummary ?? null,
+          // Expose raw photo counts for frontend issue detection
+          imageAnalysisTotalCount: photosDetectedCount,
+          imageAnalysisSuccessCount: photosProcessedCount,
+          // Expose degraded stages list for quick issue surfacing
+          pipelineDegradedStagesJson: (assessment as any).pipelineDegradedStagesJson ?? null,
         };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
         // Wrapped in try-catch: validation warnings are logged server-side but never block the UI.

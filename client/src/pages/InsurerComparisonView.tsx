@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download, Zap, Activity, Printer, Copy, Hash, Share2, Send } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download, Zap, Activity, Printer, Copy, Hash, Share2, Send, Brain, RotateCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -917,6 +917,20 @@ export default function InsurerComparisonView() {
                     {sharedWithRoles.length}
                   </span>
                 )}
+              </Button>
+              {/* Re-run KINGA — wired to reRunMutation */}
+              <Button
+                variant="outline"
+                size="sm"
+                style={{ borderColor: '#1C5C39', color: '#1C5C39', background: 'transparent' }}
+                onClick={() => reRunMutation.mutate({ claimId })}
+                disabled={reRunMutation.isPending}
+                title="Re-run the full KINGA AI analysis pipeline for this claim"
+              >
+                {reRunMutation.isPending
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <Brain className="mr-2 h-4 w-4" />}
+                {reRunMutation.isPending ? 'Re-running…' : 'Re-run KINGA'}
               </Button>
               <ThemeToggle />
               <Button
