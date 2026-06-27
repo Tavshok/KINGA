@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KINGA Claims Intelligence Report — KNG-TENANT17-2026-000080</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; }
+    body {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1a1d23;
+      line-height: 1.55;
+    }
+
+    /* ─── Page Shell ────────────────────────────────────────────── */
+    .page-wrap { max-width: 1060px; margin: 0 auto; padding: 28px 20px 80px; }
+
+    /* ─── Confidential Banner ────────────────────────────────────── */
+    .conf-banner {
+      background: #1e293b;
+      color: #94a3b8;
+      text-align: center;
+      padding: 7px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      border-radius: 6px;
+      margin-bottom: 18px;
+    }
+
+    /* ─── Report Header ─────────────────────────────────────────── */
+    .report-header {
+      background: #0b1120;
+      border-radius: 12px;
+      padding: 32px 36px 28px;
+      margin-bottom: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    .report-header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #3C7844 0%, #2d6a35 40%, #1a4d26 100%);
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+    .brand-mark { display: flex; align-items: center; gap: 10px; }
+    .brand-logo {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #3C7844, #2d6a35);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px; color: #fff;
+    }
+    .brand-name { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+    .brand-sub { font-size: 11px; color: #6b7280; letter-spacing: 1.5px; text-transform: uppercase; }
+    .report-badge {
+      background: rgba(60,120,68,0.15);
+      border: 1px solid rgba(60,120,68,0.4);
+      color: #6fcf7a;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      padding: 5px 12px; border-radius: 20px;
+    }
+    .header-title { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .header-subtitle { font-size: 13px; color: #9ca3af; margin-bottom: 22px; }
+    .header-meta {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 18px;
+    }
+    .meta-item label {
+      display: block; font-size: 10px; font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase; color: #6b7280; margin-bottom: 3px;
+    }
+    .meta-item span { font-size: 12px; font-weight: 600; color: #e5e7eb; }
+
+    /* ─── Score Banner ──────────────────────────────────────────── */
+    .score-banner {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 18px;
+      border: 1px solid #e5e7eb;
+    }
+    .score-top-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 28px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .score-ring { position: relative; width: 96px; height: 96px; }
+    .score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .score-ring .track { fill: none; stroke: #f3f4f6; stroke-width: 8; }
+    .score-ring .fill { fill: none; stroke-width: 8; stroke-linecap: round; }
+    .fill-low { stroke: #3C7844; }
+    .fill-medium { stroke: #f59e0b; }
+    .fill-high { stroke: #ef4444; }
+    .score-center {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%); text-align: center;
+    }
+    .score-number { font-size: 24px; font-weight: 800; color: #1a1d23; line-height: 1; }
+    .score-label { font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: #6b7280; }
+    .score-details h2 { font-size: 19px; font-weight: 700; color: #1a1d23; margin-bottom: 4px; }
+    .score-details p { font-size: 13px; color: #4b5563; max-width: 460px; line-height: 1.6; }
+    .score-action { text-align: right; }
+    .action-pill {
+      display: inline-block; padding: 8px 18px; border-radius: 8px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px;
+    }
+    .action-review { background: #fef3c7; color: #92400e; border: 1.5px solid #f59e0b; }
+    .action-approve { background: #dcfce7; color: #166534; border: 1.5px solid #3C7844; }
+    .action-decline { background: #fee2e2; color: #991b1b; border: 1.5px solid #ef4444; }
+    .action-meta { font-size: 11px; color: #9ca3af; }
+
+    /* KPI Strip */
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      padding-top: 18px;
+      border-top: 1px solid #f3f4f6;
+    }
+    .kpi-item {
+      text-align: center; padding: 12px 8px;
+      background: #fafafa; border-radius: 8px; border: 1px solid #f3f4f6;
+    }
+    .kpi-val { font-size: 20px; font-weight: 800; color: #111827; line-height: 1; }
+    .kpi-lbl { font-size: 10px; color: #6b7280; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.6px; }
+    .kpi-sub { font-size: 10px; font-weight: 600; margin-top: 2px; }
+    .kpi-green { color: #3C7844; }
+    .kpi-amber { color: #d97706; }
+    .kpi-red { color: #dc2626; }
+
+    /* ─── Key Finding Box ────────────────────────────────────────── */
+    .key-finding {
+      background: #fffbeb; border: 1px solid #fde68a;
+      border-left: 4px solid #f59e0b; border-radius: 8px;
+      padding: 13px 16px; margin-bottom: 18px;
+      font-size: 13px; color: #78350f; line-height: 1.6;
+    }
+    .key-finding strong { color: #92400e; }
+
+    /* ─── Data Integrity Warning ─────────────────────────────────── */
+    .integrity-warn {
+      background: #fef2f2; border: 1px solid #fca5a5;
+      border-left: 4px solid #ef4444; border-radius: 8px;
+      padding: 13px 16px; margin-bottom: 18px;
+      font-size: 12px; color: #7f1d1d; line-height: 1.6;
+    }
+    .integrity-warn strong { color: #991b1b; }
+
+    /* ─── Section Cards ──────────────────────────────────────────── */
+    .section {
+      background: #fff; border-radius: 12px;
+      border: 1px solid #e5e7eb; margin-bottom: 18px; overflow: hidden;
+    }
+    .section-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 22px; border-bottom: 1px solid #f3f4f6; background: #fafafa;
+    }
+    .section-icon {
+      width: 30px; height: 30px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .icon-fraud { background: #fef2f2; }
+    .icon-physics { background: #f0fdf4; }
+    .icon-financial { background: #eff6ff; }
+    .icon-claimant { background: #f5f3ff; }
+    .icon-temporal { background: #faf5ff; }
+    .icon-actions { background: #fff7ed; }
+    .section-title { font-size: 14px; font-weight: 700; color: #111827; }
+    .section-subtitle { font-size: 11px; color: #6b7280; margin-top: 1px; }
+    .section-body { padding: 22px; }
+
+    /* ─── Signal Grid ────────────────────────────────────────────── */
+    .signal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .signal-card { border-radius: 8px; padding: 13px 14px; border: 1px solid; }
+    .signal-card.sev-high { background: #fef2f2; border-color: #fca5a5; }
+    .signal-card.sev-medium { background: #fffbeb; border-color: #fde68a; }
+    .signal-card.sev-low { background: #f0fdf4; border-color: #86efac; }
+    .signal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+    .signal-name { font-size: 12px; font-weight: 700; color: #111827; }
+    .signal-score { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
+    .chip-high { background: #fee2e2; color: #b91c1c; }
+    .chip-medium { background: #fef3c7; color: #92400e; }
+    .chip-low { background: #dcfce7; color: #166534; }
+    .signal-desc { font-size: 12px; color: #4b5563; line-height: 1.5; }
+    .signal-cat { display: inline-block; margin-top: 5px; font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #9ca3af; }
+
+    /* ─── Score Bars ─────────────────────────────────────────────── */
+    .score-breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+    .score-row { display: flex; align-items: center; gap: 8px; }
+    .score-row-label { font-size: 12px; color: #374151; min-width: 155px; }
+    .score-bar-wrap { flex: 1; height: 5px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
+    .score-bar-fill { height: 100%; border-radius: 3px; }
+    .bar-green { background: #3C7844; }
+    .bar-yellow { background: #f59e0b; }
+    .bar-red { background: #ef4444; }
+    .score-row-val { font-size: 11px; font-weight: 700; color: #374151; min-width: 26px; text-align: right; }
+
+    /* ─── Data Table ─────────────────────────────────────────────── */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .data-table th {
+      text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 0.8px;
+      text-transform: uppercase; color: #6b7280; padding: 7px 10px;
+      border-bottom: 2px solid #e5e7eb; background: #fafafa;
+    }
+    .data-table td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: top; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #fafafa; }
+    .data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .data-table .total-row td { font-weight: 700; background: #f9fafb; border-top: 2px solid #e5e7eb; }
+    .flag-missing { color: #dc2626; font-size: 11px; font-weight: 600; }
+    .flag-inflated { color: #d97706; font-size: 11px; font-weight: 600; }
+    .flag-ok { color: #3C7844; font-size: 11px; font-weight: 600; }
+    .flag-warn { color: #d97706; font-size: 11px; font-weight: 600; }
+
+    /* ─── Financial Cards ────────────────────────────────────────── */
+    .fin-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .fin-card { border-radius: 10px; padding: 16px 18px; border: 1px solid #e5e7eb; }
+    .fin-card label { display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #9ca3af; margin-bottom: 5px; }
+    .fin-card .amount { font-size: 20px; font-weight: 800; color: #111827; letter-spacing: -0.5px; }
+    .fin-card .amount-sub { font-size: 11px; color: #6b7280; margin-top: 3px; }
+    .fin-card.highlight { background: #fef2f2; border-color: #fca5a5; }
+    .fin-card.highlight .amount { color: #dc2626; }
+    .fin-card.safe { background: #f0fdf4; border-color: #86efac; }
+    .fin-card.safe .amount { color: #3C7844; }
+    .fin-card.kinga { background: #f0fdf4; border-color: #3C7844; border-left: 4px solid #3C7844; }
+    .fin-card.kinga .amount { color: #3C7844; }
+
+    /* ─── Quote Comparison ───────────────────────────────────────── */
+    .quote-compare { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+    .quote-card { border-radius: 8px; padding: 14px; border: 1px solid #e5e7eb; background: #fafafa; }
+    .quote-card.dup { border-color: #dc2626; background: #fef2f2; }
+    .quote-card.kinga-est { border-color: #3C7844; background: #f0fdf4; border-left: 4px solid #3C7844; }
+    .quote-card label { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7280; display: block; margin-bottom: 3px; }
+    .quote-card .pb-name { font-size: 12px; font-weight: 600; color: #111827; margin-bottom: 6px; line-height: 1.3; }
+    .quote-card .pb-amount { font-size: 17px; font-weight: 800; color: #1a1d23; }
+    .quote-card.dup .pb-amount { color: #dc2626; }
+    .quote-card.kinga-est .pb-amount { color: #3C7844; }
+    .quote-card .pb-detail { font-size: 11px; color: #6b7280; margin-top: 3px; }
+
+    /* ─── Physics Grid ───────────────────────────────────────────── */
+    .physics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+    .phys-card { text-align: center; padding: 14px 10px; background: #fafafa; border-radius: 8px; border: 1px solid #f3f4f6; }
+    .phys-val { font-size: 20px; font-weight: 800; color: #111827; line-height: 1; }
+    .phys-lbl { font-size: 10px; color: #6b7280; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+    /* ─── Timeline ───────────────────────────────────────────────── */
+    .timeline { position: relative; padding-left: 26px; }
+    .timeline::before { content: ''; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 2px; background: #e5e7eb; }
+    .timeline-item { position: relative; margin-bottom: 14px; }
+    .timeline-item::before {
+      content: ''; position: absolute; left: -22px; top: 5px;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #3C7844; border: 2px solid #fff; box-shadow: 0 0 0 2px #3C7844;
+    }
+    .timeline-item.warn::before { background: #f59e0b; box-shadow: 0 0 0 2px #f59e0b; }
+    .timeline-item.danger::before { background: #ef4444; box-shadow: 0 0 0 2px #ef4444; }
+    .timeline-date { font-size: 11px; color: #9ca3af; font-weight: 600; margin-bottom: 1px; }
+    .timeline-event { font-size: 13px; color: #374151; }
+    .timeline-note { font-size: 11px; color: #6b7280; margin-top: 2px; }
+
+    /* ─── Action List ────────────────────────────────────────────── */
+    .action-list { list-style: none; }
+    .action-list li { display: flex; align-items: flex-start; gap: 12px; padding: 13px 0; border-bottom: 1px solid #f3f4f6; }
+    .action-list li:last-child { border-bottom: none; }
+    .action-num {
+      width: 22px; height: 22px; border-radius: 50%; background: #3C7844;
+      color: #fff; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+    }
+    .action-text { font-size: 13px; color: #374151; line-height: 1.55; flex: 1; }
+    .action-text strong { color: #111827; }
+    .action-priority {
+      margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+      text-transform: uppercase; padding: 3px 8px; border-radius: 10px; white-space: nowrap; flex-shrink: 0;
+    }
+    .pri-urgent { background: #fee2e2; color: #b91c1c; }
+    .pri-high { background: #fef3c7; color: #92400e; }
+    .pri-normal { background: #dcfce7; color: #166534; }
+
+    /* ─── Chips ──────────────────────────────────────────────────── */
+    .chip { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin: 2px; }
+    .chip-green { background: #dcfce7; color: #166534; }
+    .chip-red { background: #fee2e2; color: #b91c1c; }
+    .chip-yellow { background: #fef3c7; color: #92400e; }
+    .chip-blue { background: #dbeafe; color: #1d4ed8; }
+    .chip-purple { background: #ede9fe; color: #5b21b6; }
+    .chip-gray { background: #f3f4f6; color: #374151; }
+
+    /* ─── Divider ────────────────────────────────────────────────── */
+    .divider { height: 1px; background: #f3f4f6; margin: 18px 0; }
+
+    /* ─── Forensic CTA ───────────────────────────────────────────── */
+    .forensic-cta {
+      background: linear-gradient(135deg, #0f172a 0%, #1a2e1c 100%);
+      border-radius: 12px; padding: 24px 28px; margin-top: 18px;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    }
+    .forensic-cta-text h3 { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 5px; }
+    .forensic-cta-text p { font-size: 12px; color: #94a3b8; max-width: 500px; }
+    .forensic-cta-btn {
+      background: linear-gradient(135deg, #3C7844, #2d6a35);
+      color: #fff; font-size: 12px; font-weight: 700; padding: 11px 22px;
+      border-radius: 8px; white-space: nowrap; cursor: pointer; border: none;
+    }
+
+    /* ─── Footer ─────────────────────────────────────────────────── */
+    .report-footer {
+      text-align: center; padding: 18px; font-size: 11px; color: #9ca3af;
+      border-top: 1px solid #e5e7eb; margin-top: 28px;
+    }
+
+    @media (max-width: 768px) {
+      .header-meta { grid-template-columns: repeat(2, 1fr); }
+      .score-top-row { grid-template-columns: 1fr; }
+      .kpi-strip { grid-template-columns: repeat(3, 1fr); }
+      .fin-summary { grid-template-columns: 1fr 1fr; }
+      .signal-grid { grid-template-columns: 1fr; }
+      .quote-compare { grid-template-columns: 1fr 1fr; }
+      .physics-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <div class="conf-banner">⚑ Confidential — Claims Intelligence Report — Authorised Personnel Only</div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       REPORT HEADER
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="report-header">
+    <div class="header-top">
+      <div class="brand-mark">
+        <div class="brand-logo">K</div>
+        <div>
+          <div class="brand-name">KINGA AutoVerify AI</div>
+          <div class="brand-sub">Claims Intelligence Platform</div>
+        </div>
+      </div>
+      <div class="report-badge">Claims Intelligence Report</div>
+    </div>
+    <div class="header-title">Claims Intelligence Report</div>
+    <div class="header-subtitle">ISUZU MU-X 2021 · Mvuma–Kwekwe Road Depression Impact · CELL INSURANCE · VOLTRON MINING</div>
+    <div class="header-meta">
+      <div class="meta-item">
+        <label>KINGA Reference</label>
+        <span>KNG-TENANT17-2026-000080</span>
+      </div>
+      <div class="meta-item">
+        <label>Claim Reference</label>
+        <span>DOC-20260626-33B1FDFE</span>
+      </div>
+      <div class="meta-item">
+        <label>Report Generated</label>
+        <span>26 Jun 2026, 14:02 UTC</span>
+      </div>
+      <div class="meta-item">
+        <label>Pipeline Version</label>
+        <span>KINGA v2.4 · Stage 8/8</span>
+      </div>
+      <div class="meta-item">
+        <label>Vehicle</label>
+        <span>ISUZU MU-X 2021 (AFU 7783)</span>
+      </div>
+      <div class="meta-item">
+        <label>Incident Date &amp; Time</label>
+        <span>25 May 2025 · 08:15</span>
+      </div>
+      <div class="meta-item">
+        <label>Claimant</label>
+        <span>VOLTRON MINING</span>
+      </div>
+      <div class="meta-item">
+        <label>Driver</label>
+        <span>NATHANIEL MAIPISI</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 1 — INTELLIGENCE SUMMARY
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="score-banner">
+    <div class="score-top-row">
+      <div class="score-ring">
+        <svg viewBox="0 0 100 100">
+          <circle class="track" cx="50" cy="50" r="42" />
+          <!-- 22/100 → circumference 263.9; fill = 263.9×0.22 = 58.1; offset = 263.9−58.1 = 205.8 -->
+          <circle class="fill fill-low" cx="50" cy="50" r="42"
+            stroke-dasharray="263.9" stroke-dashoffset="205.8" />
+        </svg>
+        <div class="score-center">
+          <div class="score-number">22</div>
+          <div class="score-label">/ 100</div>
+        </div>
+      </div>
+      <div class="score-details">
+        <h2>KINGA Intelligence Score: <span style="color:#3C7844">LOW RISK</span></h2>
+        <p>The claim presents a low overall fraud risk score of 22/100. The primary concern is a confirmed <strong>quote duplication anomaly</strong> — two of four submitted quotes originate from entities sharing the KINGFISHER AUTO MOTORS trading name and are near-identical in structure. A further 44 damage components identified by KINGA are absent from all submitted quotes. The KINGA Optimised Estimate of <strong>USD 18,244</strong> represents a potential saving of USD 6,538 (26.4%) against the lowest submitted quote. The claim also carries a <strong>13-month reporting delay</strong> that requires explanation.</p>
+      </div>
+      <div class="score-action">
+        <div class="action-pill action-review">⚑ REVIEW</div>
+        <div class="action-meta">Recommended by KINGA AI<br/>Confidence: 85%</div>
+      </div>
+    </div>
+
+    <!-- KPI Strip -->
+    <div class="kpi-strip">
+      <div class="kpi-item">
+        <div class="kpi-val kpi-green">22</div>
+        <div class="kpi-lbl">Fraud Risk</div>
+        <div class="kpi-sub kpi-green">Low Risk</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-val kpi-amber">50</div>
+        <div class="kpi-lbl">Physics Score</div>
+        <div class="kpi-sub kpi-amber">Minor Anomaly</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-val kpi-red">32</div>
+        <div class="kpi-lbl">FCDI</div>
+        <div class="kpi-sub kpi-red">Low Evidence</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-val kpi-amber">80%</div>
+        <div class="kpi-lbl">Data Completeness</div>
+        <div class="kpi-sub kpi-amber">Below 90% Threshold</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-val" style="font-size:16px; font-weight:800; color:#111827;">USD 18,244</div>
+        <div class="kpi-lbl">KINGA Optimised</div>
+        <div class="kpi-sub kpi-green">↓ 26.4% vs Lowest Quote</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Finding -->
+  <div class="key-finding">
+    <strong>Key Finding:</strong> Quote duplication confirmed between two KINGFISHER AUTO MOTORS entities (T/A GRAND AUT and T/A GRAND AUTO PREMIER) — both submitted near-identical totals of USD 24,782.31. A further 44 components identified in KINGA's damage analysis are absent from all submitted quotes, and 27 quoted components were not identified in the damage analysis. The KINGA Optimised Estimate of USD 18,244.29 provides a validated cost benchmark. The claim carries a 13-month reporting delay (incident 25 May 2025, lodged 26 Jun 2026) and the FCDI score of 32/100 indicates low evidence quality — results carry reduced confidence and require human verification before authorisation.
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 2 — FRAUD SIGNAL ANALYSIS
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon icon-fraud">🔍</div>
+      <div>
+        <div class="section-title">Section 2 — Fraud Signal Analysis</div>
+        <div class="section-subtitle">4 signals evaluated · Headline score 22/100 · Low Risk</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="signal-grid">
+        <div class="signal-card sev-high">
+          <div class="signal-header">
+            <div class="signal-name">Quote Similarity / Duplication</div>
+            <div class="signal-score chip-high">+40 pts (raw)</div>
+          </div>
+          <div class="signal-desc">Near-identical quotes confirmed from KINGFISHER AUTO MOTORS T/A GRAND AUT and KINGFISHER AUTO MOTORS T/A GRAND AUTO PREMIER — both submitted totals of USD 24,782.31. Structural fingerprint analysis indicates common authorship. Recommend independent verification that these are separately registered, independently operating entities.</div>
+          <div class="signal-cat">Category: Financial</div>
+        </div>
+
+        <div class="signal-card sev-medium">
+          <div class="signal-header">
+            <div class="signal-name">Cost Deviation from KINGA Estimate</div>
+            <div class="signal-score chip-medium">+15 pts (raw)</div>
+          </div>
+          <div class="signal-desc">The lowest submitted quote (USD 24,782.31) exceeds the KINGA Optimised Estimate (USD 18,244.29) by USD 6,538 — a 26.4% deviation. This deviation is above the standard threshold and contributes to the cost deviation signal. The KINGA estimate is based on regional market benchmarks for the ISUZU MU-X 2021 in Zimbabwe.</div>
+          <div class="signal-cat">Category: Financial</div>
+        </div>
+
+        <div class="signal-card sev-medium">
+          <div class="signal-header">
+            <div class="signal-name">Missing Data / Low Evidence Quality</div>
+            <div class="signal-score chip-medium">+10 pts (raw)</div>
+          </div>
+          <div class="signal-desc">FCDI score of 32/100 reflects low evidence quality. VIN not provided (required for vehicle verification), policy number not provided, and data completeness is 80% — below the 90% required threshold. No contemporaneous damage photographs were submitted by the claimant at lodgement.</div>
+          <div class="signal-cat">Category: Documentation</div>
+        </div>
+
+        <div class="signal-card sev-medium">
+          <div class="signal-header">
+            <div class="signal-name">Severity vs Physics Inconsistency</div>
+            <div class="signal-score chip-medium">+10 pts (raw)</div>
+          </div>
+          <div class="signal-desc">Kinetic energy of 18.0 kJ falls within the Moderate band (8–20 kJ) per KINGA's own glossary, yet the impact is classified as Severe. Additionally, 0 of 2 physics constraints passed: airbag deployment is flagged as Advisory at 15.0 km/h delta-V (threshold 25 km/h), and seatbelt pretensioner is Failed. Physics consistency score is 50/100.</div>
+          <div class="signal-cat">Category: Physics</div>
+        </div>
+      </div>
+
+      <!-- Score Breakdown -->
+      <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:8px;">Fraud Score Component Breakdown (Raw → Normalised to 22/100)</div>
+      <div class="score-breakdown">
+        <div class="score-row">
+          <div class="score-row-label">Quote Similarity</div>
+          <div class="score-bar-wrap"><div class="score-bar-fill bar-red" style="width:40%"></div></div>
+          <div class="score-row-val">40</div>
+        </div>
+        <div class="score-row">
+          <div class="score-row-label">Damage Consistency</div>
+          <div class="score-bar-wrap"><div class="score-bar-fill bar-green" style="width:0%"></div></div>
+          <div class="score-row-val">0</div>
+        </div>
+        <div class="score-row">
+          <div class="score-row-label">Cost Deviation</div>
+          <div class="score-bar-wrap"><div class="score-bar-fill bar-yellow" style="width:15%"></div></div>
+          <div class="score-row-val">15</div>
+        </div>
+        <div class="score-row">
+          <div class="score-row-label">Direction Anomaly</div>
+          <div class="score-bar-wrap"><div class="score-bar-fill bar-green" style="width:0%"></div></div>
+          <div class="score-row-val">0</div>
+        </div>
+        <div class="score-row">
+          <div class="score-row-label">Missing Data</div>
+          <div class="score-bar-wrap"><div class="score-bar-fill bar-yellow" style="width:10%"></div></div>
+          <div class="score-row-val">10</div>
+        </div>
+        <div class="score-row">
+          <div class="score-row-label">Repeat Claimant</div>
+          <div class="score-bar-wrap"><div class="score-bar-fill bar-green" style="width:0%"></div></div>
+          <div class="score-row-val">0</div>
+        </div>
+        <div class="score-row">
+          <div class="score-row-label">Severity vs Physics</div>
+          <div class="score-bar-wrap"><div class="score-bar-fill bar-yellow" style="width:10%"></div></div>
+          <div class="score-row-val">10</div>
+        </div>
+        <div class="score-row">
+          <div class="score-row-label">Narrative Consistency</div>
+          <div class="score-bar-wrap"><div class="score-bar-fill bar-green" style="width:0%"></div></div>
+          <div class="score-row-val">0</div>
+        </div>
+      </div>
+      <div style="font-size:11px; color:#6b7280; margin-top:8px; font-style:italic;">Raw factor sum = 75 pts. Final score of 22/100 reflects KINGA's normalisation and weighting model applied to raw signals.</div>
+
+      <div class="divider"></div>
+
+      <!-- Narrative -->
+      <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:8px;">Narrative Consistency Analysis</div>
+      <div style="background:#f9fafb; border-radius:8px; padding:12px 14px; border:1px solid #e5e7eb; font-size:13px; color:#374151; line-height:1.6; margin-bottom:10px;">
+        <strong>Claimant Narrative:</strong> "At approximately the 25km peg along the Mvuma Kwekwe road, the vehicle struck a depression on the road. This impact caused the front airbags to deploy, a radiator leak, and a puncture to the rear left tire."
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:11px 13px;">
+          <div style="font-size:11px; font-weight:700; color:#166534; margin-bottom:3px;">✓ CONSISTENT WITH DAMAGE</div>
+          <div style="font-size:12px; color:#374151;">Front airbag deployment, radiator damage, and front-end structural damage are consistent with a high-speed road depression impact. Narrative is uncontaminated and factually coherent. Police report (5826549, GWERY TRAFFIC) partially corroborates — status UNDER_INVESTIGATION.</div>
+        </div>
+        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:11px 13px;">
+          <div style="font-size:11px; font-weight:700; color:#92400e; margin-bottom:3px;">⚠ LOCATION UNVERIFIABLE</div>
+          <div style="font-size:12px; color:#374151;">No GPS coordinates or specific landmarks provided. The 25km peg reference cannot be independently verified. Officer findings rated PARTIAL ALIGNMENT — limited corroborating detail available, further verification recommended.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 3 — PHYSICS RECONSTRUCTION
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon icon-physics">⚙️</div>
+      <div>
+        <div class="section-title">Section 3 — Physics Reconstruction</div>
+        <div class="section-subtitle">Physics score 50/100 · Minor anomaly · 0 of 2 constraints passed</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="physics-grid">
+        <div class="phys-card">
+          <div class="phys-val">15.0 km/h</div>
+          <div class="phys-lbl">Delta-V</div>
+        </div>
+        <div class="phys-card">
+          <div class="phys-val">18.0 kJ</div>
+          <div class="phys-lbl">Kinetic Energy</div>
+        </div>
+        <div class="phys-card">
+          <div class="phys-val">2,709.6 kN</div>
+          <div class="phys-lbl">Impact Force</div>
+        </div>
+        <div class="phys-card">
+          <div class="phys-val">50.0 g</div>
+          <div class="phys-lbl">Deceleration</div>
+        </div>
+        <div class="phys-card">
+          <div class="phys-val">2,150 kg</div>
+          <div class="phys-lbl">Vehicle Mass</div>
+        </div>
+        <div class="phys-card">
+          <div class="phys-val">4%</div>
+          <div class="phys-lbl">Energy Absorbed</div>
+        </div>
+        <div class="phys-card">
+          <div class="phys-val" style="color:#d97706">Moderate</div>
+          <div class="phys-lbl">KE Band (Glossary)</div>
+        </div>
+        <div class="phys-card">
+          <div class="phys-val" style="color:#dc2626">Severe</div>
+          <div class="phys-lbl">Reported Severity</div>
+        </div>
+      </div>
+
+      <div class="integrity-warn">
+        <strong>⚠ Severity Classification Inconsistency:</strong> The kinetic energy of 18.0 kJ falls within the <strong>Moderate band (8–20 kJ)</strong> per KINGA's own glossary definition, yet the impact is classified as <strong>Severe</strong>. This inconsistency between the energy figure and the severity label should be resolved before the report is used for any decision or legal purpose. Additionally, the energy absorbed figure of 4% is unusually low for a Severe classification.
+      </div>
+
+      <!-- Speed Analysis -->
+      <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:10px;">Speed Analysis — <span style="color:#d97706; font-weight:600;">Low Confidence</span></div>
+      <div style="background:#fafafa; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:12px;">
+          <div style="text-align:center;">
+            <div style="font-size:28px; font-weight:800; color:#111827; line-height:1;">70</div>
+            <div style="font-size:10px; color:#6b7280; text-transform:uppercase; letter-spacing:0.6px;">km/h Consensus</div>
+          </div>
+          <div style="font-size:13px; color:#374151; flex:1;">
+            Driver stated 70 km/h. Consensus speed of 70 km/h is consistent with moderate urban-speed impact and general road traffic on the Mvuma–Kwekwe route.
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Analysis Method</th>
+              <th class="num">Result</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>KINGA Crush-Depth Analysis</td>
+              <td class="num" style="color:#d97706; font-weight:700;">7 km/h</td>
+              <td><span class="flag-warn">⚠ Outlier vs 70 km/h consensus</span></td>
+            </tr>
+            <tr>
+              <td>Safety System Activation</td>
+              <td class="num" style="color:#d97706; font-weight:700;">28 km/h</td>
+              <td><span class="flag-warn">⚠ Outlier vs 70 km/h consensus</span></td>
+            </tr>
+            <tr>
+              <td>KINGA Vision Deformation</td>
+              <td class="num" style="color:#d97706; font-weight:700;">9 km/h</td>
+              <td><span class="flag-warn">⚠ Outlier vs 70 km/h consensus</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-size:11px; color:#9ca3af; margin-top:8px; font-style:italic;">Note: The three listed method outputs (7, 28, 9 km/h) are not consistent with each other or with the 70 km/h consensus. These values may represent delta-V or sub-component outputs rather than full speed estimates. Low confidence badge applies. Detailed methodology available to qualified experts under confidentiality undertaking.</div>
+      </div>
+
+      <!-- Physics Constraints -->
+      <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:8px;">Physics Constraints — 0 of 2 Passed</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:12px 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="font-size:12px; font-weight:700; color:#374151;">airbag_deployment</div>
+            <span class="chip chip-yellow">Advisory</span>
+          </div>
+          <div style="font-size:12px; color:#374151;">Airbag deployment unlikely at 15.0 km/h delta-V (threshold 25 km/h). Constraint suppressed — advisory only.</div>
+        </div>
+        <div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; padding:12px 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="font-size:12px; font-weight:700; color:#374151;">seatbelt_pretensioner</div>
+            <span class="chip chip-red">Failed</span>
+          </div>
+          <div style="font-size:12px; color:#374151;">Seatbelt pretensioner activation is inconsistent with the reconstructed impact parameters. Requires assessor review.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 4 — FINANCIAL INTELLIGENCE
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon icon-financial">💰</div>
+      <div>
+        <div class="section-title">Section 4 — Financial Intelligence</div>
+        <div class="section-subtitle">4 quotes received · KINGA Optimised USD 18,244 · Potential savings USD 6,538</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="fin-summary">
+        <div class="fin-card">
+          <label>Highest Submitted Quote</label>
+          <div class="amount">USD 25,553</div>
+          <div class="amount-sub">Swiss Motors</div>
+        </div>
+        <div class="fin-card">
+          <label>Lowest Submitted Quote</label>
+          <div class="amount">USD 24,782</div>
+          <div class="amount-sub">Kingfisher / Cedric Jonker</div>
+        </div>
+        <div class="fin-card kinga">
+          <label>KINGA Optimised Estimate</label>
+          <div class="amount">USD 18,244</div>
+          <div class="amount-sub">KINGA-validated cost benchmark</div>
+        </div>
+        <div class="fin-card safe">
+          <label>Potential Savings</label>
+          <div class="amount">USD 6,538</div>
+          <div class="amount-sub">26.4% vs lowest submitted quote</div>
+        </div>
+      </div>
+
+      <!-- Quote Comparison -->
+      <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:8px;">Panel Beater Quote Comparison</div>
+      <div class="quote-compare">
+        <div class="quote-card dup">
+          <label>Quote 1 — ⚠ DUPLICATE FLAG</label>
+          <div class="pb-name">KINGFISHER AUTO MOTORS T/A GRAND AUTO PREMIER</div>
+          <div class="pb-amount">USD 24,782</div>
+          <div class="pb-detail">Parts: USD 24,981 (exceeds total — math error in source)</div>
+        </div>
+        <div class="quote-card dup">
+          <label>Quote 2 — ⚠ DUPLICATE FLAG</label>
+          <div class="pb-name">KINGFISHER AUTO MOTORS T/A GRAND AUT</div>
+          <div class="pb-amount">USD 24,782</div>
+          <div class="pb-detail">Parts: USD 23,862 · Identical total to Quote 1</div>
+        </div>
+        <div class="quote-card">
+          <label>Quote 3</label>
+          <div class="pb-name">Swiss Motors</div>
+          <div class="pb-amount">USD 25,553</div>
+          <div class="pb-detail">Parts: USD 22,220 · Highest submitted</div>
+        </div>
+        <div class="quote-card">
+          <label>Quote 4</label>
+          <div class="pb-name">Cedric Jonker Spraypaints</div>
+          <div class="pb-amount">USD 25,006</div>
+          <div class="pb-detail">Parts: USD 21,714 · Selected repairer</div>
+        </div>
+      </div>
+
+      <div class="quote-card kinga-est" style="margin-bottom:18px; padding:14px 18px;">
+        <label>KINGA Optimised Estimate</label>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div>
+            <div class="pb-amount" style="font-size:22px;">USD 18,244.29</div>
+            <div class="pb-detail">↓ 26.4% vs lowest submitted quote (USD 24,782.31)</div>
+          </div>
+          <div style="font-size:12px; color:#374151; flex:1;">KINGA's AI-validated cost benchmark based on regional market pricing for the ISUZU MU-X 2021 in Zimbabwe. Potential savings of USD 6,538.02 if authorised at KINGA Optimised rate.</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Quote Line Items -->
+      <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:8px;">Key Quote Line Items (Cedric Jonker Spraypaints — Selected Repairer)</div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Category</th>
+            <th class="num">Quoted (USD)</th>
+            <th>KINGA Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Windscreen (Windshield)</td><td>Parts</td><td class="num">1,242.00</td><td><span class="flag-ok">✓ Matched</span></td></tr>
+          <tr><td>Front Grille</td><td>Parts</td><td class="num">3,047.50</td><td><span class="flag-ok">✓ Matched</span></td></tr>
+          <tr><td>Front Bumper</td><td>Parts</td><td class="num">1,552.50</td><td><span class="flag-ok">✓ Matched</span></td></tr>
+          <tr><td>Passenger Airbag</td><td>Parts</td><td class="num">1,708.61</td><td><span class="flag-ok">✓ Matched</span></td></tr>
+          <tr><td>Driver Airbag</td><td>Parts</td><td class="num">1,807.80</td><td><span class="flag-ok">✓ Matched</span></td></tr>
+          <tr><td>Curtain Airbag (Right)</td><td>Parts</td><td class="num">1,164.38</td><td><span class="flag-ok">✓ Matched</span></td></tr>
+          <tr><td>Seat Belt (Front Left)</td><td>Parts</td><td class="num">1,242.00</td><td><span class="flag-inflated">⚠ Price Variance &gt;30%</span></td></tr>
+          <tr><td>Seat Belt (Front Right) ×2</td><td>Parts</td><td class="num">1,428.30</td><td><span class="flag-inflated">⚠ Duplicate line item</span></td></tr>
+          <tr><td>Headlight Assembly (Left)</td><td>Parts</td><td class="num">1,415.80</td><td><span class="flag-inflated">⚠ Price Variance &gt;30%</span></td></tr>
+          <tr><td>Headlight Assembly (Right)</td><td>Parts</td><td class="num">1,462.21</td><td><span class="flag-inflated">⚠ Price Variance &gt;30%</span></td></tr>
+          <tr><td>ABS Module</td><td>Other</td><td class="num">884.93</td><td><span class="flag-ok">✓ Matched</span></td></tr>
+          <tr><td>Cab Mountings</td><td>Parts</td><td class="num">931.50</td><td><span class="flag-ok">✓ Matched</span></td></tr>
+          <tr><td>Cross Member Bracket</td><td>Parts</td><td class="num">546.25</td><td><span class="flag-ok">✓ Matched</span></td></tr>
+          <tr><td>LHS Rear Tyre</td><td>Other</td><td class="num">465.75</td><td><span class="flag-ok">✓ Matched</span></td></tr>
+          <tr class="total-row"><td colspan="2"><strong>Submitted Total (Cedric Jonker)</strong></td><td class="num"><strong>25,005.60</strong></td><td></td></tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <!-- Parts Reconciliation -->
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:4px;">
+        <div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; padding:13px 14px;">
+          <div style="font-size:20px; font-weight:800; color:#dc2626;">44</div>
+          <div style="font-size:12px; color:#374151; margin-top:3px;">KINGA-identified components <strong>absent from all quotes</strong></div>
+          <div style="font-size:11px; color:#6b7280; margin-top:3px;">Includes R/F Slide, L/S Headlamp, R/S Headlamp + 41 more</div>
+        </div>
+        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:13px 14px;">
+          <div style="font-size:20px; font-weight:800; color:#d97706;">27</div>
+          <div style="font-size:12px; color:#374151; margin-top:3px;">Quoted components <strong>not in damage analysis</strong></div>
+          <div style="font-size:11px; color:#6b7280; margin-top:3px;">May indicate pre-existing damage included in scope</div>
+        </div>
+        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:13px 14px;">
+          <div style="font-size:20px; font-weight:800; color:#3C7844;">54.8%</div>
+          <div style="font-size:12px; color:#374151; margin-top:3px;">Repair-to-value ratio</div>
+          <div style="font-size:11px; color:#6b7280; margin-top:3px;">Market value USD 48,500 · Below 70% total loss threshold</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 5 — CLAIMANT & NETWORK INTELLIGENCE
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon icon-claimant">👤</div>
+      <div>
+        <div class="section-title">Section 5 — Claimant &amp; Network Intelligence</div>
+        <div class="section-subtitle">Claimant · Driver · Vehicle · Police · Network linkage</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:18px;">
+        <div>
+          <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:10px;">Claimant &amp; Driver Profile</div>
+          <table class="data-table">
+            <tbody>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Claimant</td><td><strong>VOLTRON MINING</strong> (Company)</td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Driver</td><td>NATHANIEL MAIPISI</td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Driver Licence</td><td>9295850</td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Insurer</td><td>CELL INSURANCE</td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Policy Number</td><td><span style="color:#dc2626; font-weight:600;">Not Provided</span></td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Policy Excess</td><td>USD 2,110.53</td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Prior Claims (Platform)</td><td><span style="color:#3C7844; font-weight:600;">0 — No prior history</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:10px;">Vehicle &amp; Police Report</div>
+          <table class="data-table">
+            <tbody>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Registration</td><td>AFU 7783</td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Vehicle</td><td>ISUZU MU-X 2021</td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">VIN</td><td><span style="color:#dc2626; font-weight:600;">Not Provided</span></td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Odometer</td><td>75,000 km</td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Market Value</td><td>USD 48,500 (KINGA benchmark)</td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Police Report</td><td>5826549 · GWERY TRAFFIC</td></tr>
+              <tr><td style="color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Police Status</td><td><span style="color:#d97706; font-weight:600;">UNDER_INVESTIGATION · Partial Alignment</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Network Linkage -->
+      <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:10px;">Network Linkage Analysis</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; padding:13px 14px;">
+          <div style="font-size:11px; font-weight:700; color:#b91c1c; margin-bottom:5px;">⚠ PANEL BEATER NETWORK FLAG</div>
+          <div style="font-size:12px; color:#374151; line-height:1.55;">Two of four submitted quotes originate from entities sharing the KINGFISHER AUTO MOTORS trading name. KINGA recommends verifying that these entities are independently registered, operating from separate premises, and not under common directorship.</div>
+        </div>
+        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:13px 14px;">
+          <div style="font-size:11px; font-weight:700; color:#166534; margin-bottom:5px;">✓ ASSESSOR NETWORK — CLEAR</div>
+          <div style="font-size:12px; color:#374151; line-height:1.55;">No network linkage anomalies detected between the assessor (Tatenda) and the panel beaters or claimant. Assessor deviation metrics are within normal range for this claim type and region.</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Photo Intelligence -->
+      <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:10px;">Damage Photo Intelligence (9 Images Analysed)</div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:10px;">
+        <div style="text-align:center; padding:12px; background:#fafafa; border-radius:8px; border:1px solid #f3f4f6;">
+          <div style="font-size:20px; font-weight:800; color:#111827;">9</div>
+          <div style="font-size:10px; color:#6b7280; margin-top:2px;">Photos Analysed</div>
+        </div>
+        <div style="text-align:center; padding:12px; background:#fafafa; border-radius:8px; border:1px solid #f3f4f6;">
+          <div style="font-size:20px; font-weight:800; color:#dc2626;">4</div>
+          <div style="font-size:10px; color:#6b7280; margin-top:2px;">Severe Severity</div>
+        </div>
+        <div style="text-align:center; padding:12px; background:#fafafa; border-radius:8px; border:1px solid #f3f4f6;">
+          <div style="font-size:20px; font-weight:800; color:#d97706;">3</div>
+          <div style="font-size:10px; color:#6b7280; margin-top:2px;">Moderate Severity</div>
+        </div>
+        <div style="text-align:center; padding:12px; background:#fafafa; border-radius:8px; border:1px solid #f3f4f6;">
+          <div style="font-size:20px; font-weight:800; color:#3C7844;">0</div>
+          <div style="font-size:10px; color:#6b7280; margin-top:2px;">Inconsistencies</div>
+        </div>
+      </div>
+      <div style="font-size:12px; color:#4b5563; background:#f9fafb; border-radius:8px; padding:11px 13px; border:1px solid #e5e7eb;">
+        <strong>Impact Zones:</strong>
+        <span class="chip chip-red">Front-Center</span>
+        <span class="chip chip-red">Interior-Front</span>
+        <span class="chip chip-yellow">Front-Left</span>
+        <span class="chip chip-yellow">Front-Right</span>
+        <span class="chip chip-blue">Underbody</span>
+        <span class="chip chip-gray">Rear-Left</span>
+        &nbsp;·&nbsp; <strong>Components:</strong>
+        <span class="chip chip-purple">Radiator</span>
+        <span class="chip chip-purple">AC Condenser</span>
+        <span class="chip chip-purple">Driver Airbag</span>
+        <span class="chip chip-purple">Passenger Airbag</span>
+        <span class="chip chip-purple">Radiator Support Panel</span>
+        <span class="chip chip-gray">Front Bumper Bar</span>
+        <span class="chip chip-gray">LH Headlamp</span>
+      </div>
+      <div style="font-size:11px; color:#9ca3af; margin-top:6px; font-style:italic;">Note: Forensic image descriptions pending analysis on all 9 photos. Full photo forensics available in the KINGA Forensic Audit Report (Prove tier).</div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 6 — TEMPORAL & CONTEXTUAL INTELLIGENCE
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon icon-temporal">📅</div>
+      <div>
+        <div class="section-title">Section 6 — Temporal &amp; Contextual Intelligence</div>
+        <div class="section-subtitle">13-month reporting delay · Incident context · Portfolio signals</div>
+      </div>
+    </div>
+    <div class="section-body">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:22px;">
+        <div>
+          <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:12px;">Claim Timeline</div>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-date">25 May 2025 · 08:15</div>
+              <div class="timeline-event">Incident: Road depression impact, Mvuma–Kwekwe Road</div>
+              <div class="timeline-note">Front airbags deployed, radiator leak, rear left tyre puncture. Dust road surface.</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-date">25 May 2025</div>
+              <div class="timeline-event">Police report filed — Case 5826549, GWERY TRAFFIC</div>
+              <div class="timeline-note">Status: UNDER_INVESTIGATION · Officer findings: PARTIAL ALIGNMENT</div>
+            </div>
+            <div class="timeline-item warn">
+              <div class="timeline-date">26 Jun 2026 — 13 months later</div>
+              <div class="timeline-event">Claim lodged — DOC-20260626-33B1FDFE</div>
+              <div class="timeline-note">⚠ Significant reporting delay — requires written explanation from claimant</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-date">26 Jun 2026</div>
+              <div class="timeline-event">KINGA AI pipeline completed (Stage 8/8)</div>
+              <div class="timeline-note">All stages completed · Assessment status: REVIEW</div>
+            </div>
+          </div>
+          <div style="background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:10px 13px; margin-top:10px; font-size:12px; color:#78350f;">
+            <strong>⚠ 13-Month Reporting Delay:</strong> The incident occurred 25 May 2025 and was lodged 26 June 2026. A written explanation is required. Confirm whether the policy's notification clause has been triggered.
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px; font-weight:700; color:#374151; margin-bottom:12px;">Incident Context</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="background:#fafafa; border:1px solid #e5e7eb; border-radius:8px; padding:11px 13px;">
+              <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Location Risk Profile</div>
+              <div style="font-size:12px; color:#374151;">Mvuma–Kwekwe Road (A5 corridor, Midlands Province, Zimbabwe). Rural highway with known road quality issues. Depression-type incidents are not uncommon on this route. <span class="chip chip-yellow">MODERATE</span></div>
+            </div>
+            <div style="background:#fafafa; border:1px solid #e5e7eb; border-radius:8px; padding:11px 13px;">
+              <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Incident Type</div>
+              <div style="font-size:12px; color:#374151;">Single vehicle, dust road, 08:15, good weather. Road depression impact with airbag deployment is consistent with a high-velocity pothole strike. Narrative rated Consistent. <span class="chip chip-green">PLAUSIBLE</span></div>
+            </div>
+            <div style="background:#fafafa; border:1px solid #e5e7eb; border-radius:8px; padding:11px 13px;">
+              <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Portfolio Context</div>
+              <div style="font-size:12px; color:#374151;">No cluster pattern detected. This claim does not form part of a coordinated submission group within the current portfolio. <span class="chip chip-green">ISOLATED</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 7 — INTELLIGENCE ACTIONS & RECOMMENDATIONS
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon icon-actions">⚡</div>
+      <div>
+        <div class="section-title">Section 7 — Intelligence Actions &amp; Recommendations</div>
+        <div class="section-subtitle">6 recommended actions · KINGA recommendation: REVIEW before authorisation</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <ul class="action-list">
+        <li>
+          <div class="action-num">1</div>
+          <div class="action-text">
+            <strong>Reject duplicate quotes and require independent replacement.</strong> Quotes from KINGFISHER AUTO MOTORS T/A GRAND AUT and T/A GRAND AUTO PREMIER are confirmed near-identical. A genuine independent quote from an unrelated panel beater is required. Verify that the two KINGFISHER entities are separately registered, operating from distinct premises, and not under common directorship.
+          </div>
+          <div class="action-priority pri-urgent">Urgent</div>
+        </li>
+        <li>
+          <div class="action-num">2</div>
+          <div class="action-text">
+            <strong>Reconcile 44 unquoted damage components.</strong> KINGA identified 44 components in the damage analysis absent from all submitted quotes. The assessor must confirm whether these components are damaged (and thus missing from repair scope) or were included in error. This reconciliation may materially affect the authorised amount.
+          </div>
+          <div class="action-priority pri-urgent">Urgent</div>
+        </li>
+        <li>
+          <div class="action-num">3</div>
+          <div class="action-text">
+            <strong>Obtain written explanation for 13-month reporting delay.</strong> The incident occurred 25 May 2025; the claim was lodged 26 June 2026. A written explanation is required from VOLTRON MINING. Confirm whether the policy notification clause has been triggered and whether coverage is affected.
+          </div>
+          <div class="action-priority pri-urgent">Urgent</div>
+        </li>
+        <li>
+          <div class="action-num">4</div>
+          <div class="action-text">
+            <strong>Obtain VIN and policy number.</strong> Both are flagged as not provided. VIN is required for vehicle history verification. Policy number is required to confirm coverage and link the claim to the correct schedule. Without these, identity and coverage verification remain incomplete.
+          </div>
+          <div class="action-priority pri-high">High</div>
+        </li>
+        <li>
+          <div class="action-num">5</div>
+          <div class="action-text">
+            <strong>Review 27 quoted components not identified in damage analysis.</strong> These components may represent pre-existing damage or unrelated repairs included in the claim scope. The assessor should physically verify each item against the vehicle before authorisation.
+          </div>
+          <div class="action-priority pri-high">High</div>
+        </li>
+        <li>
+          <div class="action-num">6</div>
+          <div class="action-text">
+            <strong>Negotiate towards KINGA Optimised Estimate (USD 18,244.29).</strong> The KINGA Optimised Estimate represents a USD 6,538 saving (26.4%) against the lowest submitted quote. Use this as the negotiation anchor with the selected repairer (Cedric Jonker Spraypaints) before authorisation.
+          </div>
+          <div class="action-priority pri-normal">Normal</div>
+        </li>
+      </ul>
+
+      <div class="divider"></div>
+
+      <div class="forensic-cta">
+        <div class="forensic-cta-text">
+          <h3>Is a Forensic Audit Report warranted?</h3>
+          <p>Given the quote duplication anomaly, 44 unreconciled components, physics constraint failures, and the 13-month reporting delay, a Forensic Audit Report would provide physics-based damage reconstruction, full evidentiary chain, and legal-grade documentation. Estimated investigation value: <strong style="color:#6fcf7a;">USD 1,800</strong> against a claim exposure of <strong style="color:#6fcf7a;">USD 18,244–25,553</strong>.</p>
+        </div>
+        <button class="forensic-cta-btn">Request Forensic Audit →</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="report-footer">
+    <div style="margin-bottom:5px;"><strong>KINGA AutoVerify AI</strong> · Claims Intelligence Report · KNG-TENANT17-2026-000080 · COR 6002812</div>
+    <div>Generated 26 Jun 2026 · Pipeline v2.4 · This report is generated by an AI system and is intended to assist human decision-making. All recommendations require review by a qualified claims professional. FCDI 32/100 — results carry reduced confidence and require human verification. This document is confidential and intended solely for CELL INSURANCE.</div>
+    <div style="margin-top:6px; color:#d1d5db;">© 2026 KINGA AutoVerify AI · Not for distribution</div>
+  </div>
+
+</div>
+</body>
+</html>

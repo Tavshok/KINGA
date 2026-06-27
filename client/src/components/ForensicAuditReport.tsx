@@ -109,13 +109,15 @@ function makeFmtCurrency(currencyCode: string | null | undefined) {
   const symbol = SYMBOL_MAP[code] ?? code;
   return function fmtCurrency(n: number | null | undefined): string {
     if (n == null || isNaN(n) || n === 0) return '—';
-    return `${symbol}${fmt(n)}`;
+    // Bug #15 fix: always render exactly 2 decimal places
+    return `${symbol}${fmt(Math.round(n * 100) / 100)}`;
   };
 }
 // Legacy alias — replaced at component level with currency-aware version
 function fmtUsd(n: number | null | undefined): string {
   if (n == null || isNaN(n) || n === 0) return '—';
-  return `$${fmt(n)}`;
+  // Bug #15 fix: always render exactly 2 decimal places to prevent $25,005.6 style output
+  return `$${fmt(Math.round(n * 100) / 100)}`;
 }
 
 /** Convert a string to Title Case (first letter of each word capitalised) */
@@ -978,12 +980,18 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         {(enforcement as any)?.kingaRef && (
           <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 6px', borderBottom: '1.5px solid var(--kr-navy)', marginBottom: 4 }}>
             <span className="di-label" style={{ color: 'var(--kr-text)', fontWeight: 800, fontSize: 10, letterSpacing: '0.08em' }}>KINGA REF</span>
-            <span style={{ fontFamily: 'var(--kr-sans)', fontSize: 13, fontWeight: 800, color: 'var(--kr-text)', letterSpacing: 0 }}>{(enforcement as any).kingaRef}-FR</span>
+            <span style={{ fontFamily: 'var(--kr-sans)', fontSize: 13, fontWeight: 800, color: 'var(--kr-text)', letterSpacing: 0 }}>{(() => {
+              // Bug #15 fix: strip raw internal tenant segment from client-facing ref.
+              // Format: KNG-{INSURERCODE}-{YEAR}-{SEQ} — replace TENANT\d+ with a clean code.
+              const raw: string = (enforcement as any).kingaRef ?? '';
+              const cleaned = raw.replace(/TENANT\d+/gi, 'KINGA');
+              return `${cleaned}-FR`;
+            })()}</span>
             <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--kr-muted)', fontStyle: 'italic' }}>Forensic Audit Report</span>
           </div>
         )}
         <div><span className="di-label">Claim Ref</span>{claim?.claimNumber ?? claim?.claimReference ?? '—'}</div>
-        <div><span className="di-label">Report Hash</span><span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10 }}>#{[aiAssessment?.id, aiAssessment?.claimId, aiAssessment?.processingTime].filter(Boolean).map(n => (n as number).toString(16)).join('').toUpperCase().slice(0, 8) || 'N/A'}</span></div>
+        <div><span className="di-label">Report Hash</span><span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10 }}>{(() => { const parts = [aiAssessment?.id, aiAssessment?.claimId, aiAssessment?.processingTime].filter(Boolean); return parts.length > 0 ? `#${parts.map((n: any) => Number(n).toString(16)).join('').toUpperCase().slice(0, 8)}` : '#N/A'; })()}</span></div>
         <div><span className="di-label">Generated</span>{fmtDate(aiAssessment?.createdAt)}</div>
         <div><span className="di-label">Adjuster</span>{(() => {
             const cr0 = (aiAssessment as any)?._claimRecord;
@@ -997,13 +1005,17 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
 
       {/* ── Decision Strip — compact horizontal: verdict | score cluster | cost cluster ── */}
       {(() => {
-        const vClass = fraudScore >= 70 ? 'decline' : fraudScore >= 40 ? 'review' : 'approve';
-        const vText = fraudScore >= 70 ? 'DECLINE' : fraudScore >= 40 ? 'REVIEW REQUIRED' : 'APPROVED';
-        const vSub = fraudScore >= 70
+        // ── Cover decision strip: use rawDecision (Claim Truth Layer) as primary ──
+        const _coverDecisionNorm = rawDecision.toUpperCase();
+        const vClass = (_coverDecisionNorm === 'DECLINE' || _coverDecisionNorm === 'REJECT') ? 'decline'
+          : (_coverDecisionNorm === 'APPROVE' || _coverDecisionNorm === 'FINALISE_CLAIM') ? 'approve'
+          : 'review';
+        const vText = decisionLabel(rawDecision);
+        const vSub = (vClass === 'decline')
           ? 'High fraud risk — senior authorisation required'
-          : fraudScore >= 40
-          ? 'Moderate risk — human review required'
-          : 'Low risk — standard settlement checks apply';
+          : (vClass === 'approve')
+          ? 'Low risk — standard settlement checks apply'
+          : 'Moderate risk — human review required';
         const fraudClass = fraudScore >= 70 ? 'high' : fraudScore >= 40 ? 'mid' : 'low';
         const physClass = physicsScore >= 70 ? 'low' : physicsScore >= 30 ? 'mid' : 'high';
         const fcdiClass = fcdiTileScore >= 70 ? 'low' : fcdiTileScore >= 40 ? 'mid' : 'high';
@@ -1178,7 +1190,9 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         })();
         const claimTypeCg = (phase2?.incidentType ?? (aiAssessment as any)?._normalised?.incidentType ?? claim?.incidentType ?? 'Motor Vehicle').toString().replace(/_/g,' ').replace(/\b\w/g,(c:string)=>c.toUpperCase());
         const dcColor = dataCompleteness >= 75 ? '#16a34a' : dataCompleteness >= 50 ? '#d97706' : '#dc2626';
-        const dcLabel = dataCompleteness >= 75 ? 'Sufficient' : dataCompleteness >= 50 ? 'Partial' : 'Insufficient';
+        // Bug #14 fix: 80% triggers REVIEW_REQUIRED (threshold 90%), so it must NOT be labelled 'Sufficient'.
+        // Use 90% as the threshold for 'Sufficient' to match the review trigger used in Section 6.
+        const dcLabel = dataCompleteness >= 90 ? 'Sufficient' : dataCompleteness >= 50 ? 'Partial' : 'Insufficient';
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: '#e2e8f0', border: '1px solid var(--kr-rule)', margin: '12px 0 0' }}>
             {[
@@ -1199,7 +1213,14 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
       {(() => {
         const cr0vp = (aiAssessment as any)?._claimRecord;
         const _valEngineResultCov = (enforcement as any)?._vehicleValuation ?? null;
-        const marketValueUsdCov = _valEngineResultCov?.marketValueUsd ?? cr0vp?.vehicle?.marketValueUsd ?? null;
+        // ── Market value: prefer costIntelligenceJson (most recently computed), then valuation engine,
+        // then claimRecord.vehicle — same priority chain as Section 3 ──
+        const _ci0cov = (aiAssessment as any)?.costIntelligenceJson
+          ? (typeof (aiAssessment as any).costIntelligenceJson === 'string'
+              ? (() => { try { return JSON.parse((aiAssessment as any).costIntelligenceJson); } catch { return null; } })()
+              : (aiAssessment as any).costIntelligenceJson)
+          : null;
+        const marketValueUsdCov = _ci0cov?.marketValueUsd ?? _valEngineResultCov?.marketValueUsd ?? cr0vp?.vehicle?.marketValueUsd ?? null;
         const policyNumberCov = cr0vp?.insuranceContext?.policyNumber ?? claim?.policyNumber ?? null;
         const driverNameCov = cr0vp?.driver?.name ?? claim?.driverName ?? null;
         const claimantNameCov = claim?.claimantName ?? cr0vp?.insuranceContext?.policyholderName ?? null;
@@ -2397,7 +2418,22 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
   const estimatedSpeedKmh = (_phys?.estimatedSpeedKmh ?? 0) > 0 ? _phys!.estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? 0);
   const physicsInferredSpeed = estimatedSpeedKmh > 0 ? estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? null);
   const _sc2 = (_phys as any)?.severityConsensus;
-  const severity = _sc2?.final_severity ?? aiAssessment?.structuralDamageSeverity ?? "unknown";
+  // ── EBS-aligned severity: map energyKj to the glossary bands when the stored severity
+  // label does not match (e.g. pipeline emits 'Severe' for 18 kJ which is Moderate per EBS).
+  // Glossary: Cosmetic <2 kJ, Minor 2–8 kJ, Moderate 8–20 kJ, Severe 20–50 kJ, Catastrophic >50 kJ
+  const _rawSeverity: string = _sc2?.final_severity ?? aiAssessment?.structuralDamageSeverity ?? "unknown";
+  const _ebsSeverityFromKj = (kj: number): string | null => {
+    if (kj <= 0) return null;
+    if (kj < 2) return 'Cosmetic';
+    if (kj < 8) return 'Minor';
+    if (kj < 20) return 'Moderate';
+    if (kj < 50) return 'Severe';
+    return 'Catastrophic';
+  };
+  const _ebsDerived = energyKj > 0 ? _ebsSeverityFromKj(energyKj) : null;
+  // Use EBS-derived label when the stored label disagrees with the kJ value;
+  // if no kJ available, fall back to the stored label.
+  const severity = _ebsDerived ?? _rawSeverity;
   const damageZones: string[] = (e as any)?.damageZones ?? e?.directionFlag?.damageZones ?? [];
   const directionMismatch = e?.directionFlag?.mismatch ?? false;
   const directionExplanation = e?.directionFlag?.explanation ?? "";
@@ -2715,8 +2751,8 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                       )}
                       {divergenceFlag ? (
                         <p className="text-xs mt-1" style={{ color: 'var(--fp-locked-text)' }}>⚠ Independent analyses diverged (spread: {spread.toFixed(0)} km/h) — reduced reliability</p>
-                      ) : availableCount >= 2 ? (
-                        <p className="text-xs mt-1" style={{ color: 'var(--fp-success-text)' }}>✓ {availableCount} independent analyses converged within {spread > 0 ? `${spread.toFixed(0)} km/h` : 'acceptable tolerance'}</p>
+                      ) : (availableCount >= 2 && spread <= 15) ? (
+                        <p className="text-xs mt-1" style={{ color: 'var(--fp-success-text)' }}>✓ {availableCount} independent analyses converged (spread: {spread > 0 ? `${spread.toFixed(0)} km/h` : '<1 km/h'})</p>
                       ) : (
                         <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)' }}>{availableCount} analysis completed — additional evidence would strengthen confidence</p>
                       )}
@@ -4576,7 +4612,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
             <div>
               <p className="sub-heading">3.1 Cost Summary</p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>
-                {co?.quotesEvaluated ? `${co.quotesEvaluated} quote${co.quotesEvaluated !== 1 ? 's' : ''} evaluated` : pbQuotes.length > 0 ? `${pbQuotes.length} quote${pbQuotes.length !== 1 ? 's' : ''} received` : 'No quotes submitted'}
+                {pbQuotes.length > 0 ? `${pbQuotes.length} quote${pbQuotes.length !== 1 ? 's' : ''} received` : co?.quotesEvaluated ? `${co.quotesEvaluated} quote${co.quotesEvaluated !== 1 ? 's' : ''} evaluated` : 'No quotes submitted'}
                 {l2 > 0 ? ' · KINGA four-tier benchmark hierarchy' : ''}
               </p>
             </div>
@@ -4590,8 +4626,13 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                 </span>
               )}
               {nfsScore != null && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: nfsBg, color: nfsColor }}>
-                  NFS {nfsScore} — {(co?.negotiationFeasibilityLabel ?? '').toUpperCase()}
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: nfsBg, color: nfsColor }}>
+                  {/* Bug #12 fix: use a single vocabulary — MODERATE for 40–69, PARTIAL is not a valid NFS label */}
+                  NFS {nfsScore} — {(() => {
+                    const raw = (co?.negotiationFeasibilityLabel ?? '').toUpperCase();
+                    if (raw === 'PARTIAL') return nfsScore >= 40 && nfsScore < 70 ? 'MODERATE' : raw;
+                    return raw;
+                  })()}
                 </span>
               )}
             </div>
@@ -4606,7 +4647,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                   <div style={{ padding: '10px 12px', border: '1px solid var(--kr-rule)', background: 'var(--kr-white)' }}>
                     <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kr-muted)', margin: '0 0 3px' }}>Lowest Submitted (L1)</p>
                     <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--kr-text)', margin: 0, lineHeight: 1.1, fontFamily: 'var(--kr-mono)' }}>{fmtMoney(l1)}</p>
-                    <p style={{ fontSize: 10, color: 'var(--kr-muted)', margin: '2px 0 0' }}>{co?.quotesEvaluated ?? pbQuotes.length} quote{(co?.quotesEvaluated ?? pbQuotes.length) !== 1 ? 's' : ''} received</p>
+                    <p style={{ fontSize: 10, color: 'var(--kr-muted)', margin: '2px 0 0' }}>{pbQuotes.length > 0 ? pbQuotes.length : (co?.quotesEvaluated ?? 0)} quote{(pbQuotes.length > 0 ? pbQuotes.length : (co?.quotesEvaluated ?? 0)) !== 1 ? 's' : ''} received</p>
                   </div>
                 )}
                 {/* L2 — KINGA Optimised (the ONE authoritative cost figure) */}
@@ -4871,8 +4912,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--kr-text)' }}>
                       {quoteSimilarity.overall_verdict === 'confirmed'
-                        ? `Structural fingerprint analysis indicates these quotes were likely authored by the same source. Highest pair similarity: ${Math.round((quoteSimilarity.highest_pair_similarity ?? 0) * 100)}%.`
-                        : `Quote comparison reveals unusually high structural similarity. Highest pair similarity: ${Math.round((quoteSimilarity.highest_pair_similarity ?? 0) * 100)}%. Independent verification recommended.`}
+                        ? `Structural fingerprint analysis indicates these quotes were likely authored by the same source. Highest pair similarity: ${quoteSimilarity.highest_pair_similarity != null && quoteSimilarity.highest_pair_similarity > 0 ? `${Math.round(quoteSimilarity.highest_pair_similarity * 100)}%` : '—'}.`
+                        : `Quote comparison reveals unusually high structural similarity. Highest pair similarity: ${quoteSimilarity.highest_pair_similarity != null && quoteSimilarity.highest_pair_similarity > 0 ? `${Math.round(quoteSimilarity.highest_pair_similarity * 100)}%` : '—'}. Independent verification recommended.`}
                     </p>
                     {(quoteSimilarity.copy_pairs ?? []).length > 0 && (
                       <p className="text-xs mt-1" style={{ color: 'var(--kr-muted)' }}>
@@ -5958,6 +5999,8 @@ function Section5Fraud({ aiAssessment, enforcement, speedForensics }: { aiAssess
                 <ArcGauge value={fraudScore} size={100} label="Fraud risk" />
                 <p className="text-xs font-bold text-center" style={{ color: fraudColor }}>{fraudBand}</p>
                 <p className="text-[10px] text-center" style={{ color: 'var(--kr-muted)' }}>{fraudLabel}</p>
+                {/* Bug #10 fix: disclose normalisation so raw contributions vs headline score is not confusing */}
+                <p className="text-[9px] text-center mt-1" style={{ color: 'var(--kr-muted)', fontStyle: 'italic' }}>Score normalised from raw factor contributions (max 75 pts) to 0–100 scale.</p>
                 <div className="mt-1 space-y-1 w-full">
                   {[
                     { label: "0–39: LOW", color: "var(--fp-success-text)" },
@@ -6682,16 +6725,20 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   const phase2 = (e as any)?._phase2 as any;
   const wf = e?.weightedFraud;
   const wfScore = wf?.score ?? 0;
-  // Use weighted fraud engine as primary decision source (same as top-level badge)
+  // ── Claim Truth Layer override (unified source of truth — same as Section 0 cover) ──
+  const ctl6 = (e as any)?._claimTruth;
   const wfDecision = wfScore >= 70 ? "DECLINE" : wfScore >= 40 ? "REVIEW_REQUIRED" : null;
-  const rawDecision: string = wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
+  const rawDecision: string = ctl6?.decision?.recommendation ?? wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
   const decisionColor = decisionColour(rawDecision);
   const decisionText = decisionLabel(rawDecision);
 
   const keyDrivers: string[] = phase2?.keyDrivers ?? e?.finalDecision?.recommendedActions ?? [];
   const primaryReason: string = e?.finalDecision?.primaryReason ?? phase2?.keyDrivers?.[0] ?? "";
   const blocked: string[] = e?.finalDecision?.blockedActions ?? [];
-  const nextSteps: string[] = phase2?.nextSteps ?? e?.finalDecision?.recommendedActions ?? [];
+  // ── Next Steps: prefer Claim Truth Layer actions (canonical), then phase2, then legacy ──
+  const nextSteps: string[] = ctl6?.decision?.reviewTriggers?.length > 0
+    ? ctl6.decision.reviewTriggers
+    : (phase2?.nextSteps ?? e?.finalDecision?.recommendedActions ?? []);
   const ruleTrace: any[] = e?.ruleTrace ?? e?.finalDecision?.ruleTrace ?? [];
   const corrections: string[] = (aiAssessment as any)?._phase1?.allCorrections ?? [];
   const engineVersion = aiAssessment?.engineVersion ?? "4.2";
@@ -6712,11 +6759,13 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   const physicsScore = phase2?.physicsConsistency ?? e?.consistencyFlag?.score ?? 0;
   const dataCompleteness = phase2?.dataCompleteness ?? 0;
 
+  // ── Canonical report hash — single deterministic formula shared with cover and footer ──
+  // Seed: assessmentId + claimId + processingTime (same fields as cover doc-identity block)
   const reportHash = (() => {
-    const seed = [rawDecision, String(physicsScore), String(fraudScore), String(aiAssessment?.estimatedCost ?? 0), aiAssessment?.id ?? ""].join("|");
-    let h = 0;
-    for (let i = 0; i < seed.length; i++) { h = ((h << 5) - h) + seed.charCodeAt(i); h |= 0; }
-    return `#${Math.abs(h).toString(16).padStart(8, "0").toUpperCase()}`;
+    const parts = [aiAssessment?.id, aiAssessment?.claimId, aiAssessment?.processingTime].filter(Boolean);
+    return parts.length > 0
+      ? `#${parts.map((n: any) => Number(n).toString(16)).join('').toUpperCase().slice(0, 8)}`
+      : '#N/A';
   })();
 
   // Gates: pass/fail only — no threshold values exposed to adjusters
@@ -7520,8 +7569,8 @@ const REPORT_CSS = `
   --kr-black:#0a0a0a;--kr-white:#ffffff;--kr-off-white:#f7f6f3;--kr-rule:#e0ddd8;
   --kr-text:#111827;--kr-dark:#1f2937;--kr-muted:#374151;
   --kr-navy:#1A2B4A;--kr-navy-light:#f0f4fa;
-  --kr-red:#c0392b;--kr-amber:#d97706;--kr-green:#166534;--kr-blue:#1d4ed8;
-  --kr-red-light:#fef2f2;--kr-amber-light:#fffbeb;--kr-green-light:#f0fdf4;--kr-blue-light:#eff6ff;
+  --kr-red:#c0392b;--kr-amber:#d97706;--kr-green:#166534;--kr-blue:#3C7844;
+  --kr-red-light:#fef2f2;--kr-amber-light:#fffbeb;--kr-green-light:#f0fdf4;--kr-blue-light:#F0F7F2;
   /* ── KINGA Font Tokens ── */
   --kr-mono:'DM Sans',Inter,sans-serif;--kr-serif:'Instrument Serif',serif;--kr-sans:'DM Sans',sans-serif;
   /* ── KINGA Size Tokens ── */
@@ -7854,7 +7903,7 @@ const REPORT_CSS = `
   --fp-info:var(--kr-blue);
   --fp-info-bg:var(--kr-blue-light);
   --fp-info-border:var(--kr-blue);
-  --fp-info-text:#1e40af;
+  --fp-info-text:#1a4d22;
   --fp-danger:var(--kr-red);
   --fp-warn:var(--kr-amber);
   --status-approve-bg:var(--kr-green-light);
@@ -8217,9 +8266,12 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
         </div>
         <div className="cover-meta">
           <div className="claim-id">
-            {(enforcement as any)?.kingaRef && <>{(enforcement as any).kingaRef}-FR<br/></>}
+            {(enforcement as any)?.kingaRef && <>{(() => {
+              const raw: string = (enforcement as any).kingaRef ?? '';
+              return raw.replace(/TENANT\d+/gi, 'KINGA') + '-FR';
+            })()}<br/></>}
             CLAIM: {claim?.claimNumber ?? claim?.claimReference ?? '—'}<br/>
-            HASH: #{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8,'0').toUpperCase().slice(0,8)}
+            HASH: {(() => { const parts = [aiAssessment?.id, aiAssessment?.claimId, aiAssessment?.processingTime].filter(Boolean); return parts.length > 0 ? `#${parts.map((n: any) => Number(n).toString(16)).join('').toUpperCase().slice(0, 8)}` : '#N/A'; })()}
           </div>
           <div className="meta-line" style={{ marginTop: 12 }}>
             {claim?.vehicleYear ? `${claim.vehicleYear} ` : ''}{claim?.vehicleMake ?? ''} {claim?.vehicleModel ?? ''}
@@ -8494,6 +8546,20 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
 
         return (
           <div style={{ marginBottom: 16 }}>
+            {/* Bug #15 fix: show authoritative stage counts from workflowStages prop */}
+            {stages.length > 0 && (() => {
+              const totalStages = stages.length;
+              const requiredCount = stages.filter(s => s.required !== false).length;
+              const completedCount = stages.filter(s => completedByOrder.has(s.order)).length;
+              return (
+                <div style={{ display: 'flex', gap: 16, marginBottom: 10, padding: '6px 10px', background: 'var(--kr-off-white)', border: '1px solid var(--kr-rule)', fontSize: 10 }}>
+                  <span style={{ color: 'var(--kr-muted)' }}>Total stages: <strong style={{ color: 'var(--kr-text)' }}>{totalStages}</strong></span>
+                  <span style={{ color: 'var(--kr-muted)' }}>Required: <strong style={{ color: 'var(--kr-text)' }}>{requiredCount}</strong></span>
+                  <span style={{ color: 'var(--kr-muted)' }}>Completed: <strong style={{ color: completedCount >= requiredCount ? 'var(--fp-success-text)' : 'var(--fp-warning-text)' }}>{completedCount}</strong></span>
+                  <span style={{ color: 'var(--kr-muted)' }}>Pending: <strong style={{ color: 'var(--kr-text)' }}>{totalStages - completedCount}</strong></span>
+                </div>
+              );
+            })()}
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr>
@@ -8628,15 +8694,18 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
 
       {/* ── KINGA Persistent Footer — always at the bottom of the report body ── */}
       {(() => {
-        const footerDecision = (() => {
+        // ── Footer decision: use Claim Truth Layer (same source as cover) ──
+        const _footerCtl = (enforcement as any)?._claimTruth;
+        const _footerWfScore = (() => {
           const _fb = aiAssessment?.fraudScoreBreakdownJson
             ? (typeof aiAssessment.fraudScoreBreakdownJson === 'string'
                 ? (() => { try { return JSON.parse(aiAssessment.fraudScoreBreakdownJson); } catch { return null; } })()
                 : aiAssessment.fraudScoreBreakdownJson)
             : null;
-          const _fs = _fb?.overallScore ?? (aiAssessment as any)?.fraudScore ?? (enforcement as any)?.weightedFraud?.score ?? 0;
-          return Number(_fs) >= 70 ? 'DECLINE' : Number(_fs) >= 40 ? 'REVIEW REQUIRED' : 'APPROVED';
+          return Number(_fb?.overallScore ?? (aiAssessment as any)?.fraudScore ?? (enforcement as any)?.weightedFraud?.score ?? 0);
         })();
+        const _footerWfDecision = _footerWfScore >= 70 ? 'DECLINE' : _footerWfScore >= 40 ? 'REVIEW REQUIRED' : null;
+        const footerDecision = decisionLabel(_footerCtl?.decision?.recommendation ?? _footerWfDecision ?? 'REVIEW');
         const footerColor = footerDecision === 'DECLINE' ? '#c00' : footerDecision === 'REVIEW REQUIRED' ? '#c8a000' : '#2e7d32';
         return (
           <div style={{ background: 'var(--kr-white)', borderTop: '2px solid #1A2B4A', marginTop: 28, marginBottom: 0 }}>
@@ -8649,7 +8718,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <span style={{ fontSize: 10, color: 'var(--kr-muted)' }}>Claim: {claim?.claimNumber ?? claim?.claimReference ?? '—'}</span>
-                <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, color: 'var(--kr-muted)' }}>#{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8, '0').toUpperCase().slice(0, 8)}</span>
+                <span style={{ fontFamily: 'var(--kr-mono)', fontSize: 10, color: 'var(--kr-muted)' }}>{(() => { const parts = [aiAssessment?.id, aiAssessment?.claimId, aiAssessment?.processingTime].filter(Boolean); return parts.length > 0 ? `#${parts.map((n: any) => Number(n).toString(16)).join('').toUpperCase().slice(0, 8)}` : '#N/A'; })()}</span>
                 <span style={{ fontSize: 10, color: 'var(--kr-muted)' }}>{new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                 <span style={{ fontSize: 10, fontWeight: 700, color: footerColor, border: `1px solid ${footerColor}`, padding: '1px 8px', letterSpacing: '0.06em' }}>{footerDecision}</span>
               </div>
