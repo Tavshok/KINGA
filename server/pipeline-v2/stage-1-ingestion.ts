@@ -4,12 +4,32 @@
  * STAGE 1 — DOCUMENT INGESTION (Self-Healing)
  *
  * Identifies and classifies each document in the claim file.
- * WI-2: Now renders PDF pages to images using pdftoppm and uploads
- * them to S3 so stage-3 vision extraction can see all embedded photos.
  *
- * NEVER halts — if no documents are present, produces a degraded
- * output with empty document list so downstream stages can still
- * attempt recovery from claim database fields.
+ * ── EXTRACTION ARCHITECTURE ──────────────────────────────────────────────────
+ *
+ * PRIMARY PATH — pdf-image-extractor.ts (pdfjs-dist + @napi-rs/canvas)
+ *   Pure Node.js. No system binaries. Handles both page rendering AND embedded
+ *   image extraction in a single streaming pass. Has blur detection, rotation
+ *   correction, and S3 upload with retry built in. Works identically in the
+ *   sandbox and in Cloud Run (no poppler dependency).
+ *
+ * FALLBACK PATH — pdfToImages.ts + pdfEmbeddedImages.ts (poppler-utils)
+ *   Used only when the primary path fails or returns 0 images. Requires
+ *   pdftoppm and pdfimages system binaries. Available in the sandbox but may
+ *   not be present in all Cloud Run container builds — this is exactly why it
+ *   is the fallback and not the primary.
+ *
+ * WHY THIS MATTERS
+ *   The previous implementation used poppler as the primary path. When
+ *   pdftoppm/pdfimages were unavailable (cold Cloud Run container, missing apt
+ *   package), extraction silently returned empty arrays and the pipeline
+ *   continued with no photos. This caused intermittent failures that were hard
+ *   to reproduce locally. The new primary path removes the system binary
+ *   dependency entirely.
+ *
+ * NEVER halts — if no documents are present, produces a degraded output with
+ * empty document list so downstream stages can still attempt recovery from
+ * claim database fields.
  */
 
 import type {
@@ -21,8 +41,11 @@ import type {
   Assumption,
   RecoveryAction,
 } from "./types";
+import { extractImagesWithSummary } from "../pdf-image-extractor";
 import { renderPdfToImages, extractImageUrls } from "./pdfToImages";
 import { extractEmbeddedImagesFromUrl } from "./pdfEmbeddedImages";
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function classifyDocument(
   fileName: string,
@@ -47,6 +70,8 @@ function classifyDocument(
   return "unknown";
 }
 
+// ─── Main export ─────────────────────────────────────────────────────────────
+
 export async function runIngestionStage(
   ctx: PipelineContext
 ): Promise<StageResult<Stage1Output>> {
@@ -60,80 +85,210 @@ export async function runIngestionStage(
     const documents: IngestedDocument[] = [];
     let docIndex = 0;
 
-    // Process the primary PDF document if present
+    // ── PRIMARY PDF PROCESSING ────────────────────────────────────────────────
     if (ctx.pdfUrl) {
-      // ── PDF PAGE RENDERING ─────────────────────────────────────────────────────────────
-      // poppler-utils (pdftoppm) is declared in apt.txt and is available in both development
-      // and production. The previous isProduction guard is removed — it prevented page images
-      // from being generated in production, causing multi-quote extraction and damage image
-      // display to fail. renderPdfToImages uses pdftoppm which is available in the container.
-      // ─────────────────────────────────────────────────────────────────────────────────────
+      const pdfRenderUrl = ctx.pdfDownloadUrl || ctx.pdfUrl;
       let pdfPageImageUrls: string[] = [];
+      let primarySucceeded = false;
+
+      // ── PRIMARY PATH: pdfjs-dist (pure Node.js, no system binaries) ─────────
+      // Handles both page rendering and embedded image extraction in one pass.
+      // Streaming: processes one page at a time — peak memory ≈ 2 page buffers.
       try {
-        ctx.log("Stage 1", "Rendering PDF pages to images for vision analysis...");
-        // Use pdfDownloadUrl (presigned) for server-side fetch — raw S3 URLs return HTTP 403.
-        // pdfUrl (raw S3) is only for LLM file_url proxy calls.
-        const pdfRenderUrl = (ctx as any).pdfDownloadUrl || ctx.pdfUrl!;
-        const renderResult = await renderPdfToImages(pdfRenderUrl, {
-          dpi: 100,  // 100 DPI is sufficient for LLM vision. 150 DPI with 25 pages ≈ 400MB RAM — unsafe for Cloud Run (512MB limit).
-          maxPages: 25,
-          keyPrefix: `claims/${ctx.claimId}/pdf-pages`,
-          log: (msg) => ctx.log("Stage 1 [PDF Render]", msg),
-        });
-        pdfPageImageUrls = extractImageUrls(renderResult);
+        ctx.log("Stage 1", "PRIMARY: Extracting images via pdfjs-dist (no system binaries)...");
 
-        if (renderResult.errors.length > 0) {
-          ctx.log(
-            "Stage 1",
-            `PDF rendering had ${renderResult.errors.length} error(s): ${renderResult.errors.join("; ")}`
-          );
+        // Download PDF buffer (60s timeout)
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 60_000);
+        let pdfBuffer: Buffer;
+        try {
+          const res = await fetch(pdfRenderUrl, { signal: controller.signal });
+          if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+          pdfBuffer = Buffer.from(await res.arrayBuffer());
+        } finally {
+          clearTimeout(timer);
         }
+
+        const fileName = (ctx.claim as any)?.sourceDocumentName || "claim-document.pdf";
+        const summary = await extractImagesWithSummary(pdfBuffer, fileName);
+
+        if (summary.errors.length > 0) {
+          ctx.log("Stage 1", `pdfjs extraction warnings: ${summary.errors.join("; ")}`);
+        }
+
         ctx.log(
           "Stage 1",
-          `PDF rendered: ${pdfPageImageUrls.length} page image(s) uploaded to S3`
+          `pdfjs extraction complete: ${summary.images.length} image(s) from ${summary.pageCount} pages ` +
+          `(${summary.pagesRendered} rendered, ${summary.embeddedCandidates} embedded candidates, ` +
+          `${summary.rejectedByDimension} rejected, ${summary.blurryCount} blurry, ` +
+          `${summary.textHeavyCount} text-heavy, scanned=${summary.isScannedPdf}, dpi=${summary.renderDpi})`
         );
 
-        if (renderResult.truncated) {
+        if (summary.images.length > 0) {
+          primarySucceeded = true;
+
+          // Split into page renders (for LLM vision) and embedded images (for damage forensics)
+          const pageRenders = summary.images.filter(img => img.source === "page_render");
+          const embeddedImages = summary.images.filter(img => img.source === "embedded_image");
+
+          // Page render URLs → pdfPageImageUrls (used by Stage 3 LLM vision)
+          pdfPageImageUrls = pageRenders.map(img => img.url);
+
+          // All images → extractedImagesWithMetadata for Stage 2.6 classifier
+          ctx.extractedImagesWithMetadata = [
+            ...(ctx.extractedImagesWithMetadata ?? []),
+            ...summary.images.map(img => ({
+              url: img.url,
+              width: img.width,
+              height: img.height,
+              pageNumber: img.pageNumber,
+              source: img.source,
+              quality: img.quality,
+              fromScannedPdf: img.fromScannedPdf,
+              renderDpi: img.renderDpi,
+            })),
+          ];
+
+          // Embedded images → damagePhotoUrls (Stage 2.6 will refine this)
+          const embeddedUrls = embeddedImages.map(img => img.url);
+          if (embeddedUrls.length > 0) {
+            ctx.damagePhotoUrls = [...(ctx.damagePhotoUrls ?? []), ...embeddedUrls];
+            ctx.log("Stage 1", `pdfjs: ${embeddedUrls.length} embedded image(s) added to damagePhotoUrls`);
+          }
+
           ctx.log(
             "Stage 1",
-            `WARNING: PDF has ${renderResult.totalPagesInDocument} pages but only ${renderResult.totalPagesRendered} were rendered (limit: 25)`
+            `PRIMARY succeeded: ${pdfPageImageUrls.length} page renders, ${embeddedUrls.length} embedded images`
           );
-          recoveryActions.push({
-            target: "pdf_page_rendering",
-            strategy: "partial_data",
-            success: true,
-            description: `PDF truncated at 25 pages. ${renderResult.totalPagesInDocument - renderResult.totalPagesRendered} pages not rendered.`,
-          });
+        } else {
+          ctx.log("Stage 1", "pdfjs extraction returned 0 images — will try poppler fallback");
         }
-      } catch (renderErr) {
-        ctx.log(
-          "Stage 1",
-          `PDF page rendering failed: ${String(renderErr)} — continuing without page images`
-        );
+      } catch (primaryErr: unknown) {
+        const msg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+        ctx.log("Stage 1", `PRIMARY (pdfjs) failed: ${msg} — trying poppler fallback`);
         recoveryActions.push({
-          target: "pdf_page_rendering",
+          target: "pdf_extraction_primary",
           strategy: "partial_data",
           success: false,
-          description: `PDF page rendering threw an error: ${String(renderErr)}. Vision analysis will be limited to text extraction.`,
+          description: `pdfjs extraction threw: ${msg}. Falling back to poppler.`,
         });
       }
-      // ─────────────────────────────────────────────────────────────────────
 
-      // ── Store PDF page images in context for downstream stages (Stage 6 vision fallback) ──
-      if (pdfPageImageUrls.length > 0) {
-        (ctx as any).pdfPageImageUrls = pdfPageImageUrls;
-        ctx.log("Stage 1", `Stored ${pdfPageImageUrls.length} PDF page image URLs in context for Stage 6 vision fallback`);
+      // ── FALLBACK PATH: poppler-utils (pdftoppm + pdfimages) ─────────────────
+      // Used only when the primary pdfjs path fails or returns 0 images.
+      if (!primarySucceeded) {
+        ctx.log("Stage 1", "FALLBACK: Attempting poppler-based extraction (pdftoppm + pdfimages)...");
+
+        // Page rendering via pdftoppm
+        try {
+          const renderResult = await renderPdfToImages(pdfRenderUrl, {
+            dpi: 100,
+            maxPages: 25,
+            keyPrefix: `claims/${ctx.claimId}/pdf-pages`,
+            log: (msg: string) => ctx.log("Stage 1 [PDF Render Fallback]", msg),
+          });
+          pdfPageImageUrls = extractImageUrls(renderResult);
+
+          if (renderResult.errors.length > 0) {
+            ctx.log("Stage 1", `Poppler page render warnings: ${renderResult.errors.join("; ")}`);
+          }
+          if (renderResult.truncated) {
+            ctx.log(
+              "Stage 1",
+              `WARNING: PDF truncated at 25 pages (${renderResult.totalPagesInDocument} total)`
+            );
+            recoveryActions.push({
+              target: "pdf_page_rendering_fallback",
+              strategy: "partial_data",
+              success: true,
+              description: `PDF truncated at 25 pages. ${renderResult.totalPagesInDocument - renderResult.totalPagesRendered} pages not rendered.`,
+            });
+          }
+          ctx.log("Stage 1", `Poppler page render: ${pdfPageImageUrls.length} page image(s) uploaded`);
+        } catch (renderErr: unknown) {
+          const msg = renderErr instanceof Error ? renderErr.message : String(renderErr);
+          ctx.log("Stage 1", `Poppler page render failed: ${msg} — continuing without page images`);
+          recoveryActions.push({
+            target: "pdf_page_rendering_fallback",
+            strategy: "partial_data",
+            success: false,
+            description: `pdftoppm threw: ${msg}. Vision analysis limited to text extraction.`,
+          });
+        }
+
+        // Embedded image extraction via pdfimages
+        try {
+          ctx.log("Stage 1", "FALLBACK: Extracting embedded images via pdfimages...");
+          const embeddedResult = await extractEmbeddedImagesFromUrl(
+            pdfRenderUrl,
+            ctx.claimId,
+            (msg: string) => ctx.log("Stage 1 [Embedded Fallback]", msg)
+          );
+          if (embeddedResult.images.length > 0) {
+            ctx.extractedImagesWithMetadata = [
+              ...(ctx.extractedImagesWithMetadata ?? []),
+              ...embeddedResult.images.map(img => img.classifierInput),
+            ];
+            ctx.damagePhotoUrls = [
+              ...(ctx.damagePhotoUrls ?? []),
+              ...embeddedResult.images.map(img => img.url),
+            ];
+            ctx.log("Stage 1", `Poppler embedded: ${embeddedResult.images.length} image(s) extracted`);
+          } else {
+            ctx.log(
+              "Stage 1",
+              `Poppler embedded: none qualifying (${embeddedResult.totalFound} found, all below threshold)`
+            );
+          }
+          if (embeddedResult.errors.length > 0) {
+            ctx.log("Stage 1", `Poppler embedded warnings: ${embeddedResult.errors.join("; ")}`);
+          }
+        } catch (embeddedErr: unknown) {
+          const msg = embeddedErr instanceof Error ? embeddedErr.message : String(embeddedErr);
+          ctx.log("Stage 1", `Poppler embedded extraction failed (non-fatal): ${msg}`);
+          recoveryActions.push({
+            target: "embedded_image_extraction_fallback",
+            strategy: "partial_data",
+            success: false,
+            description: `pdfimages threw: ${msg}. Continuing without embedded images.`,
+          });
+        }
+
+        if (
+          pdfPageImageUrls.length === 0 &&
+          !(ctx.extractedImagesWithMetadata?.length)
+        ) {
+          ctx.log(
+            "Stage 1",
+            "WARNING: Both primary and fallback extraction returned 0 images. Vision analysis will be text-only."
+          );
+          recoveryActions.push({
+            target: "pdf_extraction_all_paths",
+            strategy: "partial_data",
+            success: false,
+            description:
+              "Both pdfjs and poppler extraction paths returned 0 images. Vision analysis will be limited to text extraction.",
+          });
+        }
       }
 
+      // Store page images in context for downstream stages
+      if (pdfPageImageUrls.length > 0) {
+        ctx.pdfPageImageUrls = pdfPageImageUrls;
+        ctx.log(
+          "Stage 1",
+          `Stored ${pdfPageImageUrls.length} PDF page image URL(s) in context for Stage 6 vision`
+        );
+      }
+
+      const pdfFileName =
+        (ctx.claim as any)?.sourceDocumentName || "claim-document.pdf";
       const pdfDoc: IngestedDocument = {
         documentIndex: docIndex,
-        documentType: classifyDocument(
-          ctx.claim.sourceDocumentName || "claim-document.pdf",
-          "application/pdf"
-        ),
+        documentType: classifyDocument(pdfFileName, "application/pdf"),
         sourceUrl: ctx.pdfUrl,
         mimeType: "application/pdf",
-        fileName: ctx.claim.sourceDocumentName || "claim-document.pdf",
+        fileName: pdfFileName,
         containsImages: pdfPageImageUrls.length > 0,
         imageUrls: pdfPageImageUrls,
       };
@@ -144,7 +299,6 @@ export async function runIngestionStage(
         `Ingested PDF document: ${pdfDoc.documentType} — ${pdfDoc.fileName} (${pdfPageImageUrls.length} page images)`
       );
     } else {
-      // Self-healing: no PDF provided — log recovery action
       recoveryActions.push({
         target: "primary_pdf_document",
         strategy: "partial_data",
@@ -158,70 +312,17 @@ export async function runIngestionStage(
       );
     }
 
-    // ── EMBEDDED IMAGE EXTRACTION ──────────────────────────────────────────
-    // Extract raster images physically embedded inside the PDF (damage photos,
-    // scanned quote pages). These are the original full-resolution images that
-    // the document author embedded — much higher quality than page screenshots.
-    // Runs in both production and sandbox (pdfimages is a lightweight CLI tool).
-    if (ctx.pdfUrl) {
-      try {
-        ctx.log("Stage 1", "Extracting embedded images from PDF...");
-        // Use pdfDownloadUrl (presigned) for direct fetch — raw S3 URLs return HTTP 403.
-        const embeddedPdfUrl = (ctx as any).pdfDownloadUrl || ctx.pdfUrl;
-        const embeddedResult = await extractEmbeddedImagesFromUrl(
-          embeddedPdfUrl,
-          ctx.claimId,
-          (msg) => ctx.log("Stage 1 [Embedded Images]", msg)
-        );
-        if (embeddedResult.images.length > 0) {
-          // Populate ctx.extractedImagesWithMetadata so Stage 2.6 (imageClassifier)
-          // can classify them properly:
-          //   - Damage photos (square-ish, high colour variance) → ctx.damagePhotoUrls
-          //   - Quotation scans (tall narrow, text-heavy) → classified as quotation_scan
-          //   - Document pages → classified as document_page
-          // This is the architecturally correct path — Stage 2.6 handles the routing.
-          // Also add all URLs to ctx.damagePhotoUrls as a fallback in case Stage 2.6
-          // is skipped (e.g. no extractedImagesWithMetadata path taken).
-          const embeddedClassifierInputs = embeddedResult.images.map((img) => img.classifierInput);
-          if (!(ctx as any).extractedImagesWithMetadata) {
-            (ctx as any).extractedImagesWithMetadata = [];
-          }
-          (ctx as any).extractedImagesWithMetadata = [
-            ...((ctx as any).extractedImagesWithMetadata ?? []),
-            ...embeddedClassifierInputs,
-          ];
-          // Also populate damagePhotoUrls with all embedded images as a safety net.
-          // Stage 2.6 will replace this with the classifier-selected subset.
-          if (!ctx.damagePhotoUrls) (ctx as any).damagePhotoUrls = [];
-          (ctx as any).damagePhotoUrls = [...(ctx.damagePhotoUrls ?? []), ...embeddedResult.images.map(img => img.url)];
-          ctx.log(
-            "Stage 1",
-            `Embedded images: ${embeddedResult.images.length} extracted — added to extractedImagesWithMetadata for Stage 2.6 classification (${embeddedResult.totalFound} total found, ${embeddedResult.skipped} skipped)`
-          );
-        } else {
-          ctx.log(
-            "Stage 1",
-            `Embedded images: none qualifying found (${embeddedResult.totalFound} total, all below size/dimension threshold)`
-          );
-        }
-        if (embeddedResult.errors.length > 0) {
-          ctx.log("Stage 1", `Embedded image extraction warnings: ${embeddedResult.errors.join("; ")}`);
-        }
-      } catch (embeddedErr: any) {
-        ctx.log("Stage 1", `Embedded image extraction failed (non-fatal): ${String(embeddedErr)}`);
-        recoveryActions.push({
-          target: "embedded_image_extraction",
-          strategy: "partial_data",
-          success: false,
-          description: `PDF embedded image extraction threw an error: ${String(embeddedErr)}. Continuing without embedded images.`,
-        });
-      }
-    }
-    // ─────────────────────────────────────────────────────────────────────
+    // ── INDIVIDUAL DAMAGE PHOTOS ──────────────────────────────────────────────
+    // These are photos uploaded directly (not embedded in a PDF).
+    // They are already in ctx.damagePhotoUrls from the pipeline launcher.
+    // We register them as IngestedDocument entries so Stage 2 can reference them.
+    const directPhotoUrls = ctx.damagePhotoUrls?.filter(
+      // Avoid double-registering URLs we just added from PDF embedded images
+      url => !documents.some(d => d.imageUrls.includes(url))
+    ) ?? [];
 
-    // Process individual damage photos
-    if (ctx.damagePhotoUrls && ctx.damagePhotoUrls.length > 0) {
-      for (const photoUrl of ctx.damagePhotoUrls) {
+    if (directPhotoUrls.length > 0) {
+      for (const photoUrl of directPhotoUrls) {
         const photoDoc: IngestedDocument = {
           documentIndex: docIndex,
           documentType: "vehicle_photos",
@@ -234,9 +335,8 @@ export async function runIngestionStage(
         documents.push(photoDoc);
         docIndex++;
       }
-      ctx.log("Stage 1", `Ingested ${ctx.damagePhotoUrls.length} damage photo(s)`);
-    } else {
-      // Self-healing: no photos — note it but continue
+      ctx.log("Stage 1", `Ingested ${directPhotoUrls.length} direct damage photo(s)`);
+    } else if (!ctx.pdfUrl) {
       recoveryActions.push({
         target: "damage_photos",
         strategy: "partial_data",
@@ -250,8 +350,7 @@ export async function runIngestionStage(
       );
     }
 
-    const primaryDocumentIndex =
-      ctx.pdfUrl ? 0 : documents.length > 0 ? 0 : -1;
+    const primaryDocumentIndex = documents.length > 0 ? 0 : -1;
     const isDegraded = documents.length === 0;
 
     if (isDegraded) {
@@ -264,10 +363,7 @@ export async function runIngestionStage(
         confidence: 30,
         stage: "Stage 1",
       });
-      ctx.log(
-        "Stage 1",
-        "DEGRADED: No documents at all — pipeline will use claim DB fields only"
-      );
+      ctx.log("Stage 1", "DEGRADED: No documents at all — pipeline will use claim DB fields only");
     }
 
     const output: Stage1Output = {
@@ -287,10 +383,10 @@ export async function runIngestionStage(
       recoveryActions,
       degraded: isDegraded,
     };
-  } catch (err) {
-    ctx.log("Stage 1", `Ingestion failed: ${String(err)} — producing empty document set`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    ctx.log("Stage 1", `Ingestion failed: ${msg} — producing empty document set`);
 
-    // Self-healing: even on exception, produce an empty output
     return {
       status: "degraded",
       data: {
@@ -298,14 +394,14 @@ export async function runIngestionStage(
         primaryDocumentIndex: -1,
         totalDocuments: 0,
       },
-      error: String(err),
+      error: msg,
       durationMs: Date.now() - start,
       savedToDb: false,
       assumptions: [
         {
           field: "documents",
           assumedValue: "empty",
-          reason: `Ingestion threw an error: ${String(err)}. Continuing with empty document set.`,
+          reason: `Ingestion threw an error: ${msg}. Continuing with empty document set.`,
           strategy: "default_value",
           confidence: 10,
           stage: "Stage 1",
@@ -323,4 +419,3 @@ export async function runIngestionStage(
     };
   }
 }
-
