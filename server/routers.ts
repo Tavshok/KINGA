@@ -7732,8 +7732,9 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         let damagedComponents: string[] = [];
         if (aiAssessment) {
           try {
-            if (aiAssessment.physicsAnalysisParsed?.impactZones) {
-              damageZones = aiAssessment.physicsAnalysisParsed.impactZones.map(
+            const _rawZones = (aiAssessment.physicsAnalysisParsed as any)?.impactZones ?? aiAssessment.physicsAnalysisParsed?.damageZones;
+            if (_rawZones) {
+              damageZones = (_rawZones as any[]).map(
                 (z: any) => (typeof z === 'string' ? z : z?.zone ?? z?.name ?? '')
               ).filter(Boolean);
             }
@@ -8307,16 +8308,14 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
         const [result] = await db.insert(fleetDrivers).values({
           fleetId: input.fleetId,
+          tenantId: (ctx.user as any).tenantId ?? '',
           userId: input.userId,
           driverLicenseNumber: input.driverLicenseNumber,
-          licenseExpiry: input.licenseExpiry || null,
+          licenseExpiry: input.licenseExpiry || new Date().toISOString().split('T')[0],
           licenseClass: input.licenseClass || null,
-          hireDate: input.hireDate || null,
+          hireDate: input.hireDate || new Date().toISOString().split('T')[0],
           emergencyContactName: input.emergencyContactName || null,
           emergencyContactPhone: input.emergencyContactPhone || null,
-          status: "active",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date(),
         }).$returningId();
         return { success: true, driverId: (result as any).id };
       }),
