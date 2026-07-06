@@ -1391,7 +1391,7 @@ export async function runPipelineV2(
     );
     const confResult = aggregateConfidence(confInput);
     // Attach to stage8Data so it flows through to db.ts persistence
-    (stage8Data as any).confidenceAggregation = confResult;
+    if (stage8Data) stage8Data.confidenceAggregation = confResult;
     ctx.log?.("7d_confidence", `overall=${confResult.overall_confidence} (${confResult.confidence_level}), weakest=${confResult.weakest_component}`);
   } catch (err) {
     ctx.log?.("7d_confidence", `failed: ${err}`);
@@ -1575,9 +1575,9 @@ export async function runPipelineV2(
           scenario_fraud_flagged: stage8Data.fraudRiskScore > 70,
         } : null,
         physics_result: stage7Data ? {
-          is_plausible: (stage7Data as any).isPhysicallyPlausible ?? (stage7Data.physicsStatus === 'EXECUTED'),
-          confidence: (stage7Data as any).physicsConfidence ?? null,
-          has_critical_inconsistency: (stage7Data as any).hasCriticalInconsistency ?? false,
+          is_plausible: stage7Data.isPhysicallyPlausible ?? (stage7Data.physicsStatus === 'EXECUTED'),
+          confidence: stage7Data.physicsConfidence ?? null,
+          has_critical_inconsistency: stage7Data.hasCriticalInconsistency ?? false,
         } : null,
         consistency_status: localConsistencyCheckResult ? {
           overall_status: (localConsistencyCheckResult.critical_conflicts.length === 0 ? 'CONSISTENT' : 'CONFLICTED') as any,

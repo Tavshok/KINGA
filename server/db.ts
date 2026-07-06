@@ -1173,12 +1173,12 @@ export async function triggerAiAssessment(claimId: number) {
         // Scenario-aware fraud detection result (null if engine was skipped)
         scenarioFraudResult: fraudAnalysis.scenarioFraudResult ?? null,
         crossEngineConsistency: fraudAnalysis.crossEngineConsistency ?? null,
-        confidenceAggregation: (fraudAnalysis as any).confidenceAggregation ?? null,
+        confidenceAggregation: fraudAnalysis.confidenceAggregation ?? null,
         photoForensics: fraudAnalysis.photoForensics ?? null,
         // Phase 1: Quote similarity engine results
-        quoteSimilarity: (fraudAnalysis as any).quoteSimilarity ?? null,
+        quoteSimilarity: fraudAnalysis.quoteSimilarity ?? null,
         // Accident date cross-check (claim form vs police report vs image EXIF)
-        accidentDateCrossCheck: (fraudAnalysis as any).accidentDateCrossCheck ?? null,
+        accidentDateCrossCheck: fraudAnalysis.accidentDateCrossCheck ?? null,
       })
     : null;
 
@@ -1348,8 +1348,8 @@ export async function triggerAiAssessment(claimId: number) {
   // (happens on cache_rehydration runs where classifiedImages is null but Stage 6 still
   // set enrichedPhotosJson on ctx). Without this, imageAnalysisTotalCount = 0 even
   // though photos were processed, causing the report to say "no images extracted".
-  if (!(result as any).enrichedPhotosJson && (pipelineCtx as any).enrichedPhotosJson) {
-    (result as any).enrichedPhotosJson = (pipelineCtx as any).enrichedPhotosJson;
+  if (!(result as any).enrichedPhotosJson && pipelineCtx.enrichedPhotosJson) {
+    (result as any).enrichedPhotosJson = pipelineCtx.enrichedPhotosJson;
   }
   let forensicAuditValidationResult: import('./pipeline-v2/forensicAuditValidator').ForensicAuditValidationReport | null = null;
   try {

@@ -30,6 +30,12 @@ export interface LegacyPhysicsFields {
   physicsConsistency?: string;
   speedEstimate?: string;
   impactDirection?: string;
+  /**
+   * Array of damage zone identifiers (e.g. ['front-left', 'hood']).
+   * Populated by the physics engine when zone-level damage mapping is available.
+   * Accessed in routers.ts incidentType.override procedure for re-validation context.
+   */
+  damageZones?: string[];
 }
 
 /**

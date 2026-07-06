@@ -7576,6 +7576,10 @@ If any value is not found, use null or 0. Line items category must be one of: pa
     runConsistencyCheck: protectedProcedure
       .input(z.object({ claimId: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        // R-GH-13: declare db and aiAssessments locally (were missing, causing pre-existing TS errors)
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const { aiAssessments } = await import('../drizzle/schema');
         // R-GH-16: scope to caller's tenant so cross-tenant reads are blocked
         const tenantId = ctx.user?.role === 'admin' ? undefined : (ctx.user?.tenantId || undefined);
         const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);

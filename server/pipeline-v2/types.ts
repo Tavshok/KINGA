@@ -865,6 +865,23 @@ export interface Stage7Output {
   speedForensics?: import('../accidentPhysics').SpeedForensics | null;
   /** Occupant injury risk assessment */
   occupantInjuryRisk?: 'low' | 'medium' | 'high' | 'critical' | null;
+  /**
+   * Whether the physics result is physically plausible.
+   * Optional — populated by downstream plausibility validators when run.
+   * Falls back to `physicsStatus === 'EXECUTED'` when absent.
+   */
+  isPhysicallyPlausible?: boolean;
+  /**
+   * Physics confidence score (0–100) derived from damageConsistencyScore.
+   * Optional — populated by the confidence aggregation pass.
+   */
+  physicsConfidence?: number | null;
+  /**
+   * Whether a critical physical inconsistency was detected between physics
+   * engine output and damage analysis.
+   * Optional — defaults to false when absent.
+   */
+  hasCriticalInconsistency?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1006,6 +1023,12 @@ export interface Stage8Output {
    * Null when no date sources were available.
    */
   accidentDateCrossCheck?: import("./accidentDateCrossCheckEngine").DateCrossCheckResult | null;
+  /**
+   * Overall pipeline confidence aggregation result.
+   * Attached by the orchestrator after Stage 8 completes (Stage 7d pass).
+   * Null when confidence aggregation was skipped or failed.
+   */
+  confidenceAggregation?: import('./confidenceAggregationEngine').ConfidenceAggregationOutput | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1409,6 +1432,47 @@ export interface ReportSection {
   content: Record<string, any>;
 }
 
+/**
+ * Named sections of the fullReport JSON object produced by Stage 10.
+ * All section fields are optional because they are conditionally populated
+ * based on which engines ran and whether blocking conditions were met.
+ */
+export interface FullReportSections {
+  claimSummary?: Record<string, any>;
+  damageAnalysis?: Record<string, any>;
+  physicsReconstruction?: Record<string, any>;
+  costOptimisation?: Record<string, any>;
+  fraudRiskIndicators?: Record<string, any>;
+  turnaroundTimeEstimate?: Record<string, any>;
+  supportingImages?: Record<string, any>;
+  decisionReport?: Record<string, any>;
+  dataResponsibilityMatrix?: Record<string, any>;
+  decisionTransparencyLayer?: Record<string, any>;
+  consistencyFlags?: {
+    blockAutoApproval: boolean;
+    overallStatus: string;
+    flagCount: number;
+    criticalCount: number;
+    flags: Array<{ id: string; severity: string; description: string; recommendation: string }>;
+  };
+  claimQuality?: {
+    overallScore: number;
+    grade: string;
+    adjusterGuidance: string;
+    requiresManualReview: boolean;
+    mandatoryActions: string[];
+    dimensions: Record<string, any>;
+  };
+  prePublicationValidation?: {
+    valid: boolean;
+    blocked: boolean;
+    blockerCount: number;
+    blockers: Array<{ checkId: string; severity: string; description: string }>;
+    validatedAt: string;
+  };
+  [key: string]: unknown;
+}
+
 export interface Stage10Output {
   claimSummary: ReportSection;
   damageAnalysis: ReportSection;
@@ -1417,8 +1481,17 @@ export interface Stage10Output {
   fraudRiskIndicators: ReportSection;
   turnaroundTimeEstimate: ReportSection;
   supportingImages: ReportSection;
-  /** Full structured report as a single JSON object */
-  fullReport: Record<string, any>;
+  /** Full structured report as a single JSON object with typed sections */
+  fullReport: {
+    reportVersion: string;
+    generatedAt: string;
+    claimId: string | null;
+    overallConfidence: number;
+    assumptionCount: number;
+    missingDocumentCount: number;
+    sections: FullReportSections;
+    [key: string]: unknown;
+  };
   /** Generated at timestamp */
   generatedAt: string;
   /** Overall confidence score (0-100) */
@@ -1533,7 +1606,10 @@ export interface PipelineContext {
   claimId: number;
   tenantId: number | null;
   assessmentId: number;
-  claim: Record<string, any>;
+  /**
+   * The claim record from the database (Drizzle inferred select type).
+   */
+  claim: import('drizzle-orm').InferSelectModel<typeof import('../../drizzle/schema').claims>;
   pdfUrl: string | null;
   /**
    * Presigned URL for server-side PDF download (Node.js fetch / pdftoppm).
@@ -1544,7 +1620,10 @@ export interface PipelineContext {
    */
   pdfDownloadUrl?: string | null;
   damagePhotoUrls: string[];
-  db: any;
+  /**
+   * Drizzle MySQL2 database instance (typed for type-safe queries in stage engines).
+   */
+  db: import('drizzle-orm/mysql2').MySql2Database<typeof import('../../drizzle/schema')>;
   log: (stage: string, msg: string) => void;
   /** Set by Stage 1 — PDF pages rendered to images for vision analysis (fallback when no damagePhotoUrls) */
   pdfPageImageUrls?: string[];
@@ -1565,6 +1644,11 @@ export interface PipelineContext {
   photoIngestionLog?: any;
   /** Set by image classifier — classified images with confidence scores and quality rankings */
   classifiedImages?: import('./imageClassifier').ClassificationResult | null;
+  /**
+   * Enriched photo metadata JSON — set by Stage 6 (damage analysis).
+   * Injected into the pipeline result by db.ts for the forensic validator.
+   */
+  enrichedPhotosJson?: unknown;
   /**
    * Source of image normalisation.
    * 'fresh_extraction'   — photos were extracted from PDF in this run

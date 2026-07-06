@@ -25,10 +25,11 @@ const ctxStub: PipelineContext = {
   claimId: 1,
   tenantId: null,
   assessmentId: 1,
-  claim: {},
+  // TODO (Theme 1 follow-up): replace with a proper test fixture once PipelineContext.claim/db typing is stable
+  claim: {} as unknown as PipelineContext['claim'],
   pdfUrl: null,
   damagePhotoUrls: [],
-  db: null,
+  db: null as unknown as PipelineContext['db'],
   log: (_stage: string, _msg: string) => { /* no-op for test */ },
 };
 
