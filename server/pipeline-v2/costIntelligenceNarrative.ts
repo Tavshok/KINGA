@@ -1,3 +1,4 @@
+import { ECONOMIC_WRITE_OFF_THRESHOLD, RTV_ELEVATED_THRESHOLD } from "./pipelineCostConstants"; // R-E-01: shared write-off thresholds
 /**
  * costIntelligenceNarrative.ts
  *
@@ -107,10 +108,11 @@ function repairToValueComment(
 ): string {
   if (!agreedCost || !marketValue || marketValue === 0) return "";
   const ratio = (agreedCost / marketValue) * 100;
-  if (ratio >= 70) {
-    return `The repair-to-value ratio of ${ratio.toFixed(1)}% approaches the total-loss threshold; a write-off assessment is recommended before authorising repairs.`;
+  // R-E-01: thresholds aligned with ECONOMIC_WRITE_OFF_THRESHOLD (shared constant)
+  if (ratio >= ECONOMIC_WRITE_OFF_THRESHOLD * 100) {
+    return `The repair-to-value ratio of ${ratio.toFixed(1)}% meets or exceeds the write-off threshold (${(ECONOMIC_WRITE_OFF_THRESHOLD * 100).toFixed(0)}%); a write-off assessment is recommended before authorising repairs.`;
   }
-  if (ratio >= 50) {
+  if (ratio >= RTV_ELEVATED_THRESHOLD * 100) {
     return `The repair-to-value ratio of ${ratio.toFixed(1)}% is elevated; the insurer should confirm the vehicle's current market value before proceeding.`;
   }
   return `The repair-to-value ratio of ${ratio.toFixed(1)}% is well within the economic repair range, confirming that repair is the appropriate course of action.`;
@@ -172,8 +174,9 @@ function determineRecommendation(input: CostNarrativeInput): {
   if (flags.includes("inflated_quote") && input.quotes.length === 1) {
     return { recommendation: "REVIEW", reason: "Single quote with inflation flag — additional quotes required" };
   }
-  if (agreed_cost_usd && market_value_usd && (agreed_cost_usd / market_value_usd) >= 0.7) {
-    return { recommendation: "REVIEW", reason: "Repair-to-value ratio approaches total-loss threshold" };
+  // R-E-01: aligned with ECONOMIC_WRITE_OFF_THRESHOLD
+  if (agreed_cost_usd && market_value_usd && (agreed_cost_usd / market_value_usd) >= ECONOMIC_WRITE_OFF_THRESHOLD) {
+    return { recommendation: "REVIEW", reason: `Repair-to-value ratio meets or exceeds the write-off threshold (${(ECONOMIC_WRITE_OFF_THRESHOLD * 100).toFixed(0)}%)` };
   }
   if (alignment_status === "PARTIALLY_ALIGNED" && input.critical_missing.length > 0) {
     return { recommendation: "REVIEW", reason: "Structural components missing from quote require clarification" };

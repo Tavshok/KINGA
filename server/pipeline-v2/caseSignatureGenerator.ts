@@ -1,3 +1,4 @@
+import { COST_TIER_TOTAL_LOSS_THRESHOLD } from "./pipelineCostConstants"; // R-E-01: learning DB cost tier threshold (distinct from adjuster-facing write-off threshold)
 /**
  * Case Signature Generator
  * ========================
@@ -364,7 +365,9 @@ function normaliseComponentCount(raw: number | null | undefined): number {
 export function inferCostTier(repairCostUsd: number, marketValueUsd?: number): CostTier {
   if (marketValueUsd != null && marketValueUsd > 0) {
     const ratio = repairCostUsd / marketValueUsd;
-    if (ratio >= 0.75) return "total_loss";
+    // R-E-01: COST_TIER_TOTAL_LOSS_THRESHOLD (0.75) is intentionally higher than
+    // ECONOMIC_WRITE_OFF_THRESHOLD (0.65) — see pipelineCostConstants.ts for rationale.
+    if (ratio >= COST_TIER_TOTAL_LOSS_THRESHOLD) return "total_loss";
     if (ratio >= 0.40) return "high";
     if (ratio >= 0.15) return "medium";
     return "low";
