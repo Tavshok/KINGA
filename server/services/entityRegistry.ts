@@ -129,9 +129,12 @@ function nowIso(): string {
 }
 
 // Use mysql2 directly for parameterised queries
+// R-D-03: connectTimeout: 5_000 prevents a hung DB connection from consuming
+// the Stage 8 fraud budget. Without this, a slow TiDB connection could block
+// all three entity checks indefinitely, exhausting the 180s stage budget.
 async function execSql(query: string, params: unknown[] = []): Promise<{ insertId?: number; affectedRows?: number }> {
   const { default: mysql } = await import("mysql2/promise");
-  const conn = await mysql.createConnection(process.env.DATABASE_URL!);
+  const conn = await mysql.createConnection({ uri: process.env.DATABASE_URL!, connectTimeout: 5_000 });
   try {
     const [result] = await conn.execute(query, params) as any;
     return { insertId: result.insertId, affectedRows: result.affectedRows };
@@ -142,7 +145,7 @@ async function execSql(query: string, params: unknown[] = []): Promise<{ insertI
 
 async function querySql(query: string, params: unknown[] = []): Promise<Record<string, unknown>[]> {
   const { default: mysql } = await import("mysql2/promise");
-  const conn = await mysql.createConnection(process.env.DATABASE_URL!);
+  const conn = await mysql.createConnection({ uri: process.env.DATABASE_URL!, connectTimeout: 5_000 });
   try {
     const [rows] = await conn.execute(query, params) as any;
     return rows as Record<string, unknown>[];

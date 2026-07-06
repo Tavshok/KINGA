@@ -205,12 +205,17 @@ export const STAGE_CONTRACTS: Record<string, StageContract> = {
     id: "8_fraud",
     label: "Stage 8 — Fraud Analysis",
     type: "llm",
-    timeoutMs: TIMEOUT_LLM_MS,
+    // R-D-01: Stage 8 runs photoForensics (up to 4 batches × 45s = 180s worst case)
+    // plus 3 sequential entity DB checks. TIMEOUT_LLM_MS (60s) was structurally
+    // incompatible — any multi-photo claim would exceed budget and fall back to
+    // buildFraudFallback(), silently discarding all photo manipulation results.
+    // TIMEOUT_MULTI_LLM_MS (180s) matches the actual worst-case execution budget.
+    timeoutMs: TIMEOUT_MULTI_LLM_MS,
     required: ["claimRecord", "stage6Data"],
     optional: ["stage7Data", "evidenceRegistryData"],
     outputGuarantees: ["stage8Data"],
     degradedAllowed: true,
-    fallbackBehaviour: "Use engineFallback.buildFraudFallback(). Score defaults to 30 (low risk). All indicators marked estimated.",
+    fallbackBehaviour: "Use engineFallback.buildFraudFallback(). Score defaults to 30 (medium risk). All indicators marked estimated.",
   },
 
   "9_cost": {
