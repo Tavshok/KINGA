@@ -36,6 +36,23 @@
  */
 
 import { invokeLLM } from "../_core/llm";
+// ── Utility: wrap async fn with a hard timeout ────────────────────────────────
+// R-B-02 fix: both LLM calls (llmClassify + detectMultiEventSequence) must be
+// bounded so a hung LLM response cannot freeze the pipeline. On timeout the
+// catch block returns null, triggering the keyword fallback path.
+async function withTimeout<T>(fn: () => Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms
+    );
+    fn().then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
 import type { CanonicalIncidentType, MultiEventSequence, IncidentEvent } from "./types";
 
 export type { MultiEventSequence, IncidentEvent };
@@ -439,7 +456,8 @@ async function llmClassify(
       combinedText,
     ].join("\n");
 
-    const response = await invokeLLM({
+    // R-B-02 fix: bounded at 30 s — on timeout catch returns null → keyword fallback
+    const response = await withTimeout(() => invokeLLM({
       messages: [
         { role: "system", content: CLASSIFICATION_SYSTEM_PROMPT },
         { role: "user", content: userMessage },
@@ -464,7 +482,7 @@ async function llmClassify(
           },
         },
       },
-    });
+    }), 30_000, "Stage 5 incident classification LLM");
 
     const raw = response.choices?.[0]?.message?.content;
     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -548,7 +566,8 @@ export async function detectMultiEventSequence(
   if (text.length < 80) return null;
 
   try {
-    const response = await invokeLLM({
+    // R-B-02 fix: bounded at 30 s — on timeout catch returns null (no multi-event)
+    const response = await withTimeout(() => invokeLLM({
       messages: [
         { role: "system", content: MULTI_EVENT_SYSTEM_PROMPT },
         { role: "user", content: `Analyse this incident narrative for multi-event sequences:\n\n${text}` },
@@ -589,7 +608,7 @@ export async function detectMultiEventSequence(
           },
         },
       },
-    });
+    }), 30_000, "Stage 5 multi-event detection LLM");
 
     const raw = response.choices?.[0]?.message?.content;
     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
