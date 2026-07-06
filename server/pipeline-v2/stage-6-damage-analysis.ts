@@ -46,10 +46,19 @@ import type {
   Assumption,
   RecoveryAction,
 } from "./types";
-
-// PER_RUN_VISION_BUDGET (defined in readDamageFromPhotos) controls how many photos are selected per run.
-// Stage 6 timeout (TIMEOUT_VISION_MS) must be >= PER_RUN_VISION_BUDGET * VISION_TIMEOUT_MS.
-const VISION_TIMEOUT_MS = 45_000; // 45s per image call
+import { TIMEOUT_VISION_MS } from "./pipelineContractRegistry";
+// R-B-06 fix: import TIMEOUT_VISION_MS from pipelineContractRegistry so the
+// stage-level budget is a single source of truth (currently 200_000 ms / 200 s).
+// The orchestrator enforces this via runWithTimeout("6_damage_analysis", ...).
+//
+// Timing model:
+//   VISION_TIMEOUT_MS (below) = 45 s per-image LLM call timeout.
+//   VISION_RETRIES = 2 means each image can take up to 3 × 45 s = 135 s worst case.
+//   TIMEOUT_VISION_MS (stage budget) = 200 s is the binding constraint.
+//   At typical LLM speed (~5–10 s/image): 20 photos ≈ 160 s ✓ within budget.
+//   At worst-case (all retries hit timeout): budget exhausted after ~4 photos.
+//   PER_RUN_VISION_BUDGET should satisfy: budget × VISION_TIMEOUT_MS << TIMEOUT_VISION_MS.
+const VISION_TIMEOUT_MS = 45_000; // 45 s per-image LLM call timeout (3 attempts × 45 s = 135 s worst case)
 const VISION_RETRIES = 2;      // Retry each image up to 2 times
 const MIN_SUCCESS_THRESHOLD = 0.5; // ≥50% images must succeed for non-degraded status
 
@@ -445,7 +454,10 @@ If the image is unclear or shows no vehicle damage, return an empty components a
 // Per-run budget: maximum photos to send to the vision LLM in a single pipeline run.
 // This is a BUDGET constraint, not a design cap. When exceeded, photos are deferred
 // (SKIPPED_BUDGET) and recorded in the audit trail. Increase as LLM capacity allows.
-const PER_RUN_VISION_BUDGET = 20; // 20 photos × ~8s each = ~160s, safely within TIMEOUT_VISION_MS (200s)
+// R-B-06 fix: corrected timing comment (per-image timeout = 45s, not ~8s).
+// Stage budget (TIMEOUT_VISION_MS = 200s) is the binding constraint.
+// Typical: 20 photos × ~8s = ~160s ✓ within budget. Worst case: ~4 photos × 45s = 180s.
+const PER_RUN_VISION_BUDGET = 20; // max photos per run; stage budget = TIMEOUT_VISION_MS (200s)
 
 async function readDamageFromPhotos(
   photoUrls: string[],
