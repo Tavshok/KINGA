@@ -39,6 +39,22 @@ import { classifyIncident, detectMultiEventSequence } from "./incidentClassifica
 import { selectScenarioEngine } from "./scenarioEngineSelector";
 import { markFallback } from "./engineFallback";
 import { invokeLLM } from "../_core/llm";
+// ── Utility: wrap async fn with a hard timeout (mirrors Stage 6 pattern) ─────
+// R-B-01 / R-B-02 fix: LLM calls in Stage 5 must be bounded so a slow or hung
+// LLM response cannot freeze the pipeline indefinitely.
+async function withTimeout<T>(fn: () => Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms
+    );
+    fn().then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
 
 export async function runAssemblyStage(
   ctx: PipelineContext,
@@ -433,7 +449,9 @@ export async function runAssemblyStage(
             `VIN: ${vehicle.vin || 'unknown'}`,
           ].join('\n');
 
-          const llmResponse = await invokeLLM({
+          // R-B-01 fix: bounded at 30 s — on timeout the catch block falls back to
+          // assessorStatedValue, identical to the existing error-fallback path.
+          const llmResponse = await withTimeout(() => invokeLLM({
             messages: [
               {
                 role: "system",
@@ -475,7 +493,7 @@ Return ONLY valid JSON with no markdown.`,
                 },
               },
             },
-          });
+          }), 30_000, "Stage 5c valuation LLM");
           const raw = llmResponse?.choices?.[0]?.message?.content;
           if (raw) {
             const parsed = JSON.parse(typeof raw === "string" ? raw : JSON.stringify(raw));
