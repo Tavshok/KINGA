@@ -1485,7 +1485,12 @@ export async function runCostOptimisationStage(
           // Exclude parts_supplier quotes (e.g. Sarjazz) from the composite matrix —
           // they are parts-only dealers, not panel beaters, and should not appear as
           // repairer columns.
-          const repairQuotes = allQuotes.filter((q: any) => q.quote_type !== 'parts_supplier');
+          // R-A-22: Also exclude assessor_report and other non-repair documents when
+          // document_category is available. Fall back to quote_type for legacy data.
+          const repairQuotes = allQuotes.filter((q: any) => {
+            if (q.document_category) return q.document_category === 'repair_quote';
+            return q.quote_type !== 'parts_supplier';
+          });
           const compositeInputQuotes: InputQuoteWithLineItems[] = repairQuotes.map((q: any) => {
             // CRITICAL: exclude is_non_part_cost rows (labour, paint, VAT) from lineItems.
             // buildCompositeQuote sums lineItems into compositePartsUsd, then adds bestLabourUsd
@@ -1524,9 +1529,15 @@ export async function runCostOptimisationStage(
           // L1 = lowest submitted quote total across panel beater quotes only.
           // Parts supplier quotes (e.g. Sarjazz) are excluded — they are not repairers
           // and their totals should not set the L1 baseline for the composite optimisation.
+          // R-A-22: Use document_category when available (primary signal); fall back to quote_type
+          // for legacy data without document_category. This prevents assessor fee invoices and
+          // parts-supplier quotes from being included in the L1 baseline.
           // Use total_cost exactly as extracted (including VAT where applicable).
           const allSubmittedTotalsForL1 = allQuotes
-            .filter((q: any) => (q.quote_type ?? 'repair') !== 'parts_supplier')
+            .filter((q: any) => {
+              if (q.document_category) return q.document_category === 'repair_quote';
+              return (q.quote_type ?? 'repair') !== 'parts_supplier';
+            })
             .map((q: any) => q.total_cost ?? 0)
             .filter((t: number) => t > 0);
           const l1TotalUsd = allSubmittedTotalsForL1.length > 0

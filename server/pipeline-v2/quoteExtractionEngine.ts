@@ -205,8 +205,10 @@ export interface ExtractedQuote {
    * 'agreed_cost'      = insurer-agreed settlement amount document
    * 'other'            = any other document type
    *
-   * Populated by the extraction engine at Stage 3. Defaults to 'repair_quote' when absent
-   * (backward-compatible with pre-classification data).
+   * Populated by the extraction engine at Stage 3.
+   * R-A-22: validateAndNormalise() returns 'other' (not undefined) when the LLM returns an
+   * unrecognised value. This ensures unclassified documents are excluded from the L1 baseline
+   * rather than silently included as repair quotes.
    */
   document_category?: 'repair_quote' | 'parts_quote' | 'assessor_report' | 'agreed_cost' | 'other';
   /**
@@ -1004,12 +1006,16 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
     );
   }
 
-  // Validate and preserve document_category from LLM output
+  // Validate and preserve document_category from LLM output.
+  // R-A-22: Return 'other' (not undefined) when the LLM returns an unrecognised value.
+  // Stage 9 L1 filter treats undefined as a legacy fallback (includes as repair_quote via quote_type heuristic).
+  // 'other' is truthy → Stage 9 primary branch → not 'repair_quote' → excluded from L1 baseline.
+  // This prevents assessor fee invoices and unknown documents from inflating the L1 cost baseline.
   const VALID_DOC_CATEGORIES = new Set(['repair_quote', 'parts_quote', 'assessor_report', 'agreed_cost', 'other']);
   const rawDocCategory = raw.document_category;
-  const document_category = (typeof rawDocCategory === 'string' && VALID_DOC_CATEGORIES.has(rawDocCategory))
+  const document_category: ExtractedQuote['document_category'] = (typeof rawDocCategory === 'string' && VALID_DOC_CATEGORIES.has(rawDocCategory))
     ? rawDocCategory as ExtractedQuote['document_category']
-    : undefined; // undefined = not yet classified; Stage 3 post-processor will apply fallback
+    : 'other'; // R-A-22: unrecognised or missing → 'other', not undefined
 
   return {
     panel_beater: typeof raw.panel_beater === "string" ? raw.panel_beater : null,
@@ -1194,13 +1200,27 @@ export async function extractQuoteFromPdfVision(
       },
     });
 
-    const raw = response?.choices?.[0]?.message?.content;
+        const raw = response?.choices?.[0]?.message?.content;
     if (!raw) return buildFallback("Vision extraction: LLM returned empty response.");
-
     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
     const result = validateAndNormalise(parsed);
     if (!result.currency && tenantCountry) {
       result.currency = getDefaultCurrencyForCountry(tenantCountry);
+    }
+    // R-A-22: Apply name-based document_category heuristic when validateAndNormalise returned 'other'
+    // (i.e. the LLM schema for this path does not include document_category, so raw.document_category
+    // is always undefined → validateAndNormalise returns 'other'). Use panel_beater name as signal.
+    if (result.document_category === 'other' && panelBeater) {
+      const nameLower = panelBeater.toLowerCase();
+      const isAssessor = /adjuster|assessor|loss adjust|surveyor|inspection|valuation|apprais/.test(nameLower);
+      const isPartsOnly = /sarjazz|parts|spares|accessories|auto parts|motor parts|spare parts|parts dealer|parts supply|parts world|parts centre|parts center|parts hub/.test(nameLower);
+      if (isAssessor) {
+        result.document_category = 'assessor_report';
+      } else if (isPartsOnly) {
+        result.document_category = 'parts_quote';
+      } else {
+        result.document_category = 'repair_quote';
+      }
     }
     // Tag this result as vision-extracted
     result.extraction_warnings.push("vision_extraction_used");
@@ -1366,6 +1386,20 @@ export async function extractQuoteFromImageUrl(
     const result = validateAndNormalise(parsed);
     if (!result.currency && tenantCountry) {
       result.currency = getDefaultCurrencyForCountry(tenantCountry);
+    }
+    // R-A-22: Apply name-based document_category heuristic when validateAndNormalise returned 'other'
+    // (image extraction schema does not include document_category field).
+    if (result.document_category === 'other' && panelBeater) {
+      const nameLower = panelBeater.toLowerCase();
+      const isAssessor = /adjuster|assessor|loss adjust|surveyor|inspection|valuation|apprais/.test(nameLower);
+      const isPartsOnly = /sarjazz|parts|spares|accessories|auto parts|motor parts|spare parts|parts dealer|parts supply|parts world|parts centre|parts center|parts hub/.test(nameLower);
+      if (isAssessor) {
+        result.document_category = 'assessor_report';
+      } else if (isPartsOnly) {
+        result.document_category = 'parts_quote';
+      } else {
+        result.document_category = 'repair_quote';
+      }
     }
     // Tag this result as image-extracted
     result.extraction_warnings.push("image_extraction_used");
@@ -1798,6 +1832,20 @@ export async function extractQuoteFromMultipleImageUrls(
     const result = validateAndNormalise(parsed);
     if (!result.currency && tenantCountry) {
       result.currency = getDefaultCurrencyForCountry(tenantCountry);
+    }
+    // R-A-22: Apply name-based document_category heuristic when validateAndNormalise returned 'other'
+    // (multi-page image extraction schema does not include document_category field).
+    if (result.document_category === 'other' && panelBeater) {
+      const nameLower = panelBeater.toLowerCase();
+      const isAssessor = /adjuster|assessor|loss adjust|surveyor|inspection|valuation|apprais/.test(nameLower);
+      const isPartsOnly = /sarjazz|parts|spares|accessories|auto parts|motor parts|spare parts|parts dealer|parts supply|parts world|parts centre|parts center|parts hub/.test(nameLower);
+      if (isAssessor) {
+        result.document_category = 'assessor_report';
+      } else if (isPartsOnly) {
+        result.document_category = 'parts_quote';
+      } else {
+        result.document_category = 'repair_quote';
+      }
     }
     result.extraction_warnings.push("multi_page_image_extraction_used");
     console.log(

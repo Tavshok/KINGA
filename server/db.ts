@@ -1161,6 +1161,12 @@ export async function triggerAiAssessment(claimId: number) {
     animalStrikePhysics: (physicsAnalysis as any).animalStrikePhysics ?? null,
     // Causal plausibility score (0–100) — used by Stage 10 to flag invalid physics runs
     causalPlausibility: (physicsAnalysis as any).causalPlausibility ?? null,
+    // R-GH-20: Fields added to Stage7Output in Batch 1 (R-GH-07) but missing from physicsJson.
+    // These are required for the physics plausibility gate in Stage 10.
+    isPhysicallyPlausible: (physicsAnalysis as any).isPhysicallyPlausible ?? null,
+    physicsConfidence: (physicsAnalysis as any).physicsConfidence ?? null,
+    hasCriticalInconsistency: (physicsAnalysis as any).hasCriticalInconsistency ?? null,
+    damageZones: (physicsAnalysis as any).damageZones ?? null,
   }) : null;
 
   // Build fraud indicators JSON
