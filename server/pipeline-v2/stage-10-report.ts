@@ -755,6 +755,8 @@ export async function runReportGenerationStage(
         generatedAt: new Date().toISOString(),
         claimId: claimRecord.claimId != null ? String(claimRecord.claimId) : null,
         overallConfidence: 5,
+        assumptionCount: 0,
+        missingDocumentCount: 0,
         error: String(err),
         sections: {},
       },

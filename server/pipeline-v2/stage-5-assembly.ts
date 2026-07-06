@@ -163,13 +163,15 @@ export async function runAssemblyStage(
       powertrain: powertrain as any,
       massKg: massResult.massKg,
       massTier: massResult.tier as "explicit" | "inferred_model" | "inferred_class" | "not_available",
-      valueUsd: ctx.claim.vehicleValue ? ctx.claim.vehicleValue / 100 : null,
+      // vehicleMarketValue is stored in cents on the claims table (vehicleValue does not exist)
+      valueUsd: ctx.claim.vehicleMarketValue ? ctx.claim.vehicleMarketValue / 100 : null,
       marketValueUsd,
     };
 
     const driver: DriverRecord = {
-      name: v.driverName || ctx.claim.driverName || null,
-      claimantName: v.claimantName || ctx.claim.claimantName || null,
+      // driverName/claimantName are not columns on the claims table — use extracted values only
+      name: v.driverName || null,
+      claimantName: v.claimantName || null,
       licenseNumber: v.driverLicenseNumber || null,
     };
 
@@ -272,8 +274,8 @@ export async function runAssemblyStage(
     ctx.log("Stage 5", `Collision scenario: ${scenarioFlags.collisionScenario} | struckParty=${scenarioFlags.isStruckParty} | hitAndRun=${scenarioFlags.isHitAndRun} | parkingLot=${scenarioFlags.isParkingLotDamage} | 3rdPartyRequired=${scenarioFlags.thirdPartyClaimRequired}`);
 
     const accidentDetails: AccidentDetails = {
-      date: v.accidentDate || ctx.claim.accidentDate || null,
-      location: v.accidentLocation || ctx.claim.accidentLocation || null,
+      date: v.accidentDate || ctx.claim.incidentDate || null,
+      location: v.accidentLocation || ctx.claim.incidentLocation || null,
       description: v.accidentDescription || ctx.claim.incidentDescription || null,
       incidentType,
       incidentSubType,
@@ -617,9 +619,10 @@ Return ONLY valid JSON with no markdown.`,
         mileageKm: null, bodyType: "sedan" as any, powertrain: "ice" as any,
         massKg: 1400, massTier: "not_available" as const, valueUsd: null, marketValueUsd: null,
       },
-      driver: { name: ctx.claim.driverName || null, claimantName: ctx.claim.claimantName || null, licenseNumber: null },
+      // driverName/claimantName not on claims table; accidentDate → incidentDate
+      driver: { name: null, claimantName: null, licenseNumber: null },
       accidentDetails: {
-        date: ctx.claim.accidentDate || null, time: null, location: null, description: null,
+        date: ctx.claim.incidentDate || null, time: null, location: null, description: null,
         incidentType: "collision", incidentSubType: null, incidentClassification: null,
         collisionDirection: "unknown",
         impactPoint: null, estimatedSpeedKmh: null,
