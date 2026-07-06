@@ -6010,6 +6010,59 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
             } catch { /* non-fatal */ }
             return null;
           })(),
+          // R-GH-17 (Batch 2e): add fields present in byClaim but missing from getEnforcement
+          // Stage 36: Forensic Audit Validator — 10-dimension post-pipeline validation report
+          _forensicAuditValidation: (() => {
+            try {
+              if ((assessment as any).forensicAuditValidationJson) {
+                return JSON.parse((assessment as any).forensicAuditValidationJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
+          // Stage 12.5: Report Readiness Gate — whether the claim can be exported as a report
+          _reportReadiness: (() => {
+            try {
+              if ((assessment as any).reportReadinessJson) {
+                return JSON.parse((assessment as any).reportReadinessJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
+          // Batch 2c: decisionReadiness and degradationReasons from Stage 10
+          decisionReadiness: (() => {
+            try {
+              if ((assessment as any).decisionReadinessJson) {
+                return JSON.parse((assessment as any).decisionReadinessJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
+          degradationReasons: (() => {
+            try {
+              if ((assessment as any).degradationReasonsJson) {
+                return JSON.parse((assessment as any).degradationReasonsJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
+          // Batch 2d: Stage 4 fieldValidation and gateDecision
+          fieldValidation: (() => {
+            try {
+              if ((assessment as any).fieldValidationJson) {
+                return JSON.parse((assessment as any).fieldValidationJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
+          gateDecision: (() => {
+            try {
+              if ((assessment as any).gateDecisionJson) {
+                return JSON.parse((assessment as any).gateDecisionJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
         };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
         // Wrapped in try-catch: validation warnings are logged server-side but never block the UI.
