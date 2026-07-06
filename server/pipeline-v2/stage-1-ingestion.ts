@@ -45,7 +45,40 @@ import { extractImagesWithSummary } from "../pdf-image-extractor";
 import { renderPdfToImages, extractImageUrls } from "./pdfToImages";
 import { extractEmbeddedImagesFromUrl } from "./pdfEmbeddedImages";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+/**
+ * R-A-01 FIX: Per-call timeout wrapper for pdf-image-extractor.
+ * Previously, extractImagesWithSummary had no external timeout guard in Stage 1.
+ * A malformed PDF page that causes pdf.js to hang (e.g., corrupt operator stream,
+ * infinite loop in font rendering) would block the entire ingestion stage for the
+ * full GLOBAL_TIMEOUT_MS (3 min) budget inside the extractor, then consume the
+ * remaining Stage 1 budget waiting for the promise to resolve.
+ *
+ * This wrapper enforces a hard 150s deadline on the entire extraction call.
+ * If exceeded, Stage 1 logs the timeout, skips primary extraction, and falls
+ * through to the existing fallback path (pdfToImages + pdfEmbeddedImages).
+ * The pipeline continues rather than hanging indefinitely.
+ *
+ * 150s is chosen to:
+ *   - Allow up to 40 pages at ~3s/page (worst-case scanned at 200 DPI)
+ *   - Leave headroom for the fallback path within the Stage 1 budget
+ *   - Match the GLOBAL_TIMEOUT_MS (3 min) inside the extractor minus 30s margin
+ */
+const EXTRACTION_TIMEOUT_MS = 150_000; // 150s hard deadline for pdf-image-extractor call
+
+async function withExtractionTimeout<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`R-A-01: ${label} timed out after ${EXTRACTION_TIMEOUT_MS}ms — malformed PDF suspected`)),
+      EXTRACTION_TIMEOUT_MS
+    );
+    fn().then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
 
 function classifyDocument(
   fileName: string,
@@ -110,7 +143,10 @@ export async function runIngestionStage(
         }
 
         const fileName = (ctx.claim as any)?.sourceDocumentName || "claim-document.pdf";
-        const summary = await extractImagesWithSummary(pdfBuffer, fileName);
+        const summary = await withExtractionTimeout(
+          () => extractImagesWithSummary(pdfBuffer, fileName),
+          `extractImagesWithSummary(${fileName})`
+        );
 
         if (summary.errors.length > 0) {
           ctx.log("Stage 1", `pdfjs extraction warnings: ${summary.errors.join("; ")}`);

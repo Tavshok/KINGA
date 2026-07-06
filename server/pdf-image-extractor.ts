@@ -31,6 +31,22 @@ async function getCanvas() {
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 // BATCH_SIZE removed — streaming approach processes one page at a time (no batching needed)
+/**
+ * R-A-05 FIX: Hard cap on pages rendered to prevent OOM under the 512 MiB Cloud Run limit.
+ * Previously unbounded — a 100-page PDF would attempt to render all 100 pages.
+ * At 200 DPI, each A4 page PNG is ~2-4 MB in memory; 100 pages = 200-400 MB peak,
+ * which reliably causes OOM kills on the 512 MiB Cloud Run instance.
+ *
+ * Cap is set to 40 pages:
+ *   - Covers the vast majority of real-world assessor reports (typically 8-25 pages)
+ *   - Keeps peak memory well within the 512 MiB limit (~80-160 MB for 40 pages)
+ *   - Pages beyond the cap are NOT silently dropped — a truncation warning is logged
+ *     and written to ExtractionSummary.errors[] so Stage 1 can surface it.
+ *
+ * If a genuine claim document exceeds 40 pages, the LLM still receives the full
+ * PDF via file_url in Stage 3 — only the rendered page images are capped.
+ */
+const MAX_PAGES_TO_RENDER = 40;
 const GLOBAL_TIMEOUT_MS = 3 * 60 * 1000; // Reduced from 12min to 3min — long PDFs fall back to LLM-only extraction
 const DOWNLOAD_TIMEOUT_MS = 45_000;
 const DOWNLOAD_RETRIES = 3;
@@ -281,7 +297,15 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
 
     const renderDpi = forceDpi ?? (isScanned ? DPI_SCANNED : DPI_NATIVE);
     const SCALE = renderDpi / 72;
-    console.log(`[PDF Extractor] PDF type: ${isScanned ? 'SCANNED' : 'NATIVE'}, pages: ${pageCount}, DPI: ${renderDpi}`);
+
+    // R-A-05 FIX: Enforce page cap to prevent OOM on large PDFs
+    const pagesToRender = Math.min(pageCount, MAX_PAGES_TO_RENDER);
+    if (pageCount > MAX_PAGES_TO_RENDER) {
+      const truncationMsg = `[PDF Extractor] R-A-05: PDF has ${pageCount} pages — rendering capped at ${MAX_PAGES_TO_RENDER} to prevent OOM. Pages ${MAX_PAGES_TO_RENDER + 1}-${pageCount} will not be rendered as images (LLM still receives full PDF via file_url in Stage 3).`;
+      console.warn(truncationMsg);
+      errors.push(truncationMsg);
+    }
+    console.log(`[PDF Extractor] PDF type: ${isScanned ? 'SCANNED' : 'NATIVE'}, pages: ${pageCount} (rendering: ${pagesToRender}), DPI: ${renderDpi}`);
 
     // ── STREAMING EXTRACTION: render + process + release each page immediately ──
     // This prevents accumulating all page PNG buffers in memory simultaneously.
@@ -290,7 +314,7 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
     let pagesRendered = 0;
     let embeddedCandidates = 0;
 
-    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+    for (let pageNum = 1; pageNum <= pagesToRender; pageNum++) {
       try {
         const page = await pdfDoc.getPage(pageNum);
 

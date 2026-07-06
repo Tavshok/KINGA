@@ -157,17 +157,22 @@ const EXTRACTION_SCHEMA = {
   },
 };
 
-async function extractFieldsFromPdf(
-  pdfUrl: string,
-  rawText: string,
-  ctx: PipelineContext,
-  pageImageUrls: string[] = []
-): Promise<ExtractedClaimFields> {
-  const response = await llmCall({
-    messages: [
-      {
-        role: "system",
-        content: `You are a structured insurance document extraction engine.
+/**
+ * R-A-13 FIX: Replace 10-page-image cap with batched extraction.
+ * Previously capped at 10 page images — damage photos on pages 12-18 of a
+ * 20-page assessor report were silently dropped.
+ *
+ * Strategy:
+ *   - Call 1 (primary): PDF file_url + first PAGE_IMAGES_PER_BATCH page images.
+ *   - Calls 2..N (supplementary): page image batches only (no PDF re-send).
+ *   - All results merged via mergeExtractions() — components union-deduplicated.
+ *
+ * Gemini 2.5 Flash supports up to 3,000 images per request; 20 per batch
+ * is conservative and keeps per-call latency predictable.
+ */
+const PAGE_IMAGES_PER_BATCH = 20;
+
+const PDF_SYSTEM_PROMPT = `You are a structured insurance document extraction engine.
 
 Your task is to extract ONLY factual information from a claim document.
 
@@ -183,7 +188,34 @@ Rules:
 - Severity must be one of: minor, moderate, severe, catastrophic
 - Repair action must be one of: repair, replace, refinish
 
-Return data in strict JSON format.`,
+Return data in strict JSON format.`;
+
+export async function extractFieldsFromPdf(  pdfUrl: string,
+  rawText: string,
+  ctx: PipelineContext,
+  pageImageUrls: string[] = []
+): Promise<ExtractedClaimFields> {
+  // Split page images into batches
+  const imageBatches: string[][] = [];
+  for (let i = 0; i < pageImageUrls.length; i += PAGE_IMAGES_PER_BATCH) {
+    imageBatches.push(pageImageUrls.slice(i, i + PAGE_IMAGES_PER_BATCH));
+  }
+  const totalBatches = Math.max(1, imageBatches.length);
+  ctx.log("Stage 3", `PDF extraction: ${pageImageUrls.length} page image(s) split into ${totalBatches} batch(es) of up to ${PAGE_IMAGES_PER_BATCH}`);
+
+  const allResults: ExtractedClaimFields[] = [];
+
+  // ── Batch 0 (primary): PDF file_url + first image batch ──────────────────
+  const primaryImageContent = (imageBatches[0] ?? []).map(imgUrl => ({
+    type: "image_url" as const,
+    image_url: { url: imgUrl, detail: "high" as const },
+  }));
+
+  const primaryResponse = await llmCall({
+    messages: [
+      {
+        role: "system",
+        content: PDF_SYSTEM_PROMPT,
       },
       {
         role: "user",
@@ -314,7 +346,7 @@ CRITICAL DESCRIPTION RULES:
 Additional OCR text for reference (may be partial):
 ${rawText.substring(0, 8000)}
 
-Return JSON only.`,
+Return JSON only.`
           },
           {
             type: "file_url" as const,
@@ -323,38 +355,86 @@ Return JSON only.`,
               mime_type: "application/pdf" as const,
             },
           },
-          // WI-2: Include rendered page images for vision analysis
-          // Pass up to 10 page images so the LLM can see embedded photographs
-          // (damage photos, assessor signatures, handwritten annotations)
-          ...pageImageUrls.slice(0, 10).map(imgUrl => ({
-            type: "image_url" as const,
-            image_url: { url: imgUrl, detail: "high" as const },
-          })),
+          // R-A-13 FIX: Include first batch of page images (up to PAGE_IMAGES_PER_BATCH)
+          // Supplementary batches are handled in the loop below.
+          ...primaryImageContent,
         ],
       },
     ],
     response_format: EXTRACTION_SCHEMA,
-    timeoutMs: 90_000, // 90s per attempt — large PDF + up to 10 page images; stage budget is 180s
+    timeoutMs: 90_000, // 90s per primary call — PDF + first image batch
   });
-  const content = response.choices?.[0]?.message?.content || "{}";
-  const parsed = JSON.parse(content);
-  return mapToExtractedFields(parsed, 0);
+  const primaryContent = primaryResponse.choices?.[0]?.message?.content || "{}";
+  allResults.push(mapToExtractedFields(JSON.parse(primaryContent), 0));
+
+  // ── Batches 1..N (supplementary): page images only ───────────────────────
+  for (let batchIdx = 1; batchIdx < imageBatches.length; batchIdx++) {
+    const batch = imageBatches[batchIdx];
+    ctx.log("Stage 3", `PDF supplementary image batch ${batchIdx + 1}/${totalBatches}: ${batch.length} page image(s) (pages ${batchIdx * PAGE_IMAGES_PER_BATCH + 1}-${batchIdx * PAGE_IMAGES_PER_BATCH + batch.length})`);
+    try {
+      const suppImageContent = batch.map(imgUrl => ({
+        type: "image_url" as const,
+        image_url: { url: imgUrl, detail: "high" as const },
+      }));
+      const suppResponse = await llmCall({
+        messages: [
+          { role: "system", content: PDF_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text" as const,
+                text: `TASK: These are additional pages (batch ${batchIdx + 1} of ${totalBatches}) from the same insurance claim document. Extract any NEW damaged components, cost figures, or structured fields visible in these pages that may not have appeared in earlier pages. Apply the same extraction rules as before. Return JSON only.\n\nAdditional OCR text context:\n${rawText.substring(0, 2000)}`,
+              },
+              ...suppImageContent,
+            ],
+          },
+        ],
+        response_format: EXTRACTION_SCHEMA,
+        timeoutMs: 90_000,
+      });
+      const suppContent = suppResponse.choices?.[0]?.message?.content || "{}";
+      allResults.push(mapToExtractedFields(JSON.parse(suppContent), 0));
+    } catch (suppErr) {
+      ctx.log("Stage 3", `PDF supplementary batch ${batchIdx + 1} failed: ${String(suppErr)} — skipping batch`);
+    }
+  }
+
+  const merged = mergeExtractions(allResults);
+  ctx.log("Stage 3", `PDF extraction complete: ${allResults.length}/${totalBatches} batch(es) succeeded, ${merged.damagedComponents.length} component(s) extracted`);
+  return merged;
 }
 
-async function extractFieldsFromPhotos(
+/**
+ * R-A-14 FIX: Batch photo extraction so ALL submitted photos are analysed.
+ * Previously capped at 5 photos — photos 6-20 were silently dropped.
+ *
+ * Strategy:
+ *   - Batch photos into groups of PHOTOS_PER_BATCH (20 per call).
+ *   - Run each batch as a separate LLM call.
+ *   - Merge all batch results using mergeExtractions() so components from
+ *     every batch are union-deduplicated into a single ExtractedClaimFields.
+ *
+ * Gemini 2.5 Flash supports up to 3,000 images per request; 20 per batch
+ * is conservative and keeps per-call latency predictable.
+ */
+const PHOTOS_PER_BATCH = 20;
+
+export async function extractFieldsFromPhotos(
   photoUrls: string[],
   ctx: PipelineContext
 ): Promise<ExtractedClaimFields> {
-  const imageContent: any[] = photoUrls.slice(0, 5).map(url => ({
-    type: "image_url",
-    image_url: { url, detail: "high" },
-  }));
+  if (photoUrls.length === 0) return emptyExtraction();
 
-  const response = await llmCall({
-    messages: [
-      {
-        role: "system",
-        content: `You are a vehicle damage analysis system.
+  // Split into batches of PHOTOS_PER_BATCH
+  const batches: string[][] = [];
+  for (let i = 0; i < photoUrls.length; i += PHOTOS_PER_BATCH) {
+    batches.push(photoUrls.slice(i, i + PHOTOS_PER_BATCH));
+  }
+
+  ctx.log("Stage 3", `Photo extraction: ${photoUrls.length} photo(s) split into ${batches.length} batch(es) of up to ${PHOTOS_PER_BATCH}`);
+
+  const PHOTO_SYSTEM_PROMPT = `You are a vehicle damage analysis system.
 
 RULES:
 - Analyse the vehicle damage photos and extract structured data.
@@ -363,23 +443,52 @@ RULES:
 - If a field cannot be determined from the photos, return null.
 - NEVER guess information that is not visible in the photos.
 - Severity must be one of: minor, moderate, severe, catastrophic.
-- Repair action must be one of: repair, replace, refinish.`,
-      },
-      {
-        role: "user",
-        content: [
-          { type: "text", text: "Analyse these vehicle damage photos and extract structured data." },
-          ...imageContent,
-        ],
-      },
-    ],
-    response_format: EXTRACTION_SCHEMA,
-    timeoutMs: 90_000, // 90s per attempt — photos-only extraction path
-  });
+- Repair action must be one of: repair, replace, refinish.`;
 
-  const content = response.choices?.[0]?.message?.content || "{}";
-  const parsed = JSON.parse(content);
-  return mapToExtractedFields(parsed, -1);
+  const batchResults: ExtractedClaimFields[] = [];
+
+  for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+    const batch = batches[batchIdx];
+    ctx.log("Stage 3", `Photo batch ${batchIdx + 1}/${batches.length}: ${batch.length} photo(s)`);
+    try {
+      const imageContent: any[] = batch.map(url => ({
+        type: "image_url",
+        image_url: { url, detail: "high" },
+      }));
+
+      const response = await llmCall({
+        messages: [
+          { role: "system", content: PHOTO_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: batches.length > 1
+                  ? `Analyse these vehicle damage photos (batch ${batchIdx + 1} of ${batches.length}) and extract structured data.`
+                  : "Analyse these vehicle damage photos and extract structured data.",
+              },
+              ...imageContent,
+            ],
+          },
+        ],
+        response_format: EXTRACTION_SCHEMA,
+        timeoutMs: 90_000, // 90s per batch
+      });
+
+      const content = response.choices?.[0]?.message?.content || "{}";
+      const parsed = JSON.parse(content);
+      batchResults.push(mapToExtractedFields(parsed, -1));
+    } catch (batchErr) {
+      ctx.log("Stage 3", `Photo batch ${batchIdx + 1} failed: ${String(batchErr)} — skipping batch`);
+    }
+  }
+
+  if (batchResults.length === 0) return emptyExtraction();
+
+  const merged = mergeExtractions(batchResults);
+  ctx.log("Stage 3", `Photo extraction complete: ${batchResults.length}/${batches.length} batch(es) succeeded, ${merged.damagedComponents.length} component(s) extracted from ${photoUrls.length} photo(s)`);
+  return merged;
 }
 
 // ============================================================================
