@@ -1765,6 +1765,36 @@ export async function triggerAiAssessment(claimId: number) {
         return Array.isArray(s) && s.length > 0 ? JSON.stringify(s) : null;
       } catch { return null; }
     })(),
+    // Batch 2c: Stage 10 decisionReadiness and degradationReasons — previously computed but never persisted
+    // decisionReadinessJson: structured readiness assessment (decision_ready, confidence, blocking_issues, checks)
+    decisionReadinessJson: (() => {
+      try {
+        const dr = report?.decisionReadiness;
+        return dr ? JSON.stringify(dr) : null;
+      } catch { return null; }
+    })(),
+    // degradationReasonsJson: string[] of reasons the pipeline ran in degraded mode
+    degradationReasonsJson: (() => {
+      try {
+        const reasons = report?.degradationReasons;
+        return Array.isArray(reasons) && reasons.length > 0 ? JSON.stringify(reasons) : null;
+      } catch { return null; }
+    })(),
+    // Batch 2d: Stage 4 fieldValidation and gateDecision — previously not in PipelineResult, always dropped
+    // fieldValidationJson: per-field validation results from fieldValidationEngine
+    fieldValidationJson: (() => {
+      try {
+        const fv = result.stage4Output?.fieldValidation;
+        return fv ? JSON.stringify(fv) : null;
+      } catch { return null; }
+    })(),
+    // gateDecisionJson: pipeline gate controller decision (proceed/hold/abort + reason)
+    gateDecisionJson: (() => {
+      try {
+        const gd = result.stage4Output?.gateDecision;
+        return gd ? JSON.stringify(gd) : null;
+      } catch { return null; }
+    })(),
   };
   // Apply the global NaN sanitizer before passing to Drizzle.
   // This catches any numeric field that slipped through safeInt/safeFloat guards.

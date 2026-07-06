@@ -619,8 +619,15 @@ Return ONLY valid JSON with no markdown.`,
         mileageKm: null, bodyType: "sedan" as any, powertrain: "ice" as any,
         massKg: 1400, massTier: "not_available" as const, valueUsd: null, marketValueUsd: null,
       },
-      // driverName/claimantName not on claims table; accidentDate → incidentDate
-      driver: { name: null, claimantName: null, licenseNumber: null },
+      // driverName/claimantName not on claims table — use lodgerName/vehicleOwnerName as last-resort
+      // fallback when the full extraction pipeline fails catastrophically. These fields exist on the
+      // claims table and are the closest available proxy. In normal pipeline runs, v.driverName /
+      // v.claimantName from stage-3 extraction are the primary source (Batch 2f).
+      driver: {
+        name: ctx.claim.lodgerName ?? null,
+        claimantName: ctx.claim.vehicleOwnerName ?? ctx.claim.lodgerName ?? null,
+        licenseNumber: null,
+      },
       accidentDetails: {
         date: ctx.claim.incidentDate || null, time: null, location: null, description: null,
         incidentType: "collision", incidentSubType: null, incidentClassification: null,

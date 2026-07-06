@@ -219,6 +219,20 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   systemInterventionCount: int("system_intervention_count"),
   // interventionSummaryJson: JSON array of human-readable descriptions of each correction
   interventionSummaryJson: text("intervention_summary_json"),
+  // Batch 2c: Stage 10 Decision Readiness Engine result (JSON object)
+  // Schema: { decision_ready, confidence, blocking_issues[], checks[], summary }
+  // Null when the engine did not run (e.g. pipeline aborted before Stage 10).
+  decisionReadinessJson: longtext("decision_readiness_json"),
+  // Batch 2c: Actionable degradation reasons from Stage 10 (JSON string[])
+  // Empty array when report is not degraded. Surfaced to adjusters in the UI.
+  degradationReasonsJson: text("degradation_reasons_json"),
+  // Batch 2d: Stage 4 field-level validation result (JSON FieldValidationResult)
+  // Per-field confidence scores, missing fields, and validation issues from the
+  // LLM-based field validator that runs after structured extraction.
+  fieldValidationJson: longtext("field_validation_json"),
+  // Batch 2d: Stage 4 pipeline gate decision (JSON GateControllerResult)
+  // Whether the pipeline was allowed to proceed past Stage 4, and the gate reasoning.
+  gateDecisionJson: longtext("gate_decision_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

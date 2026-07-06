@@ -1778,6 +1778,14 @@ export interface PipelineResult {
   costRealismResult: import('./costRealismValidator').CostRealismResult | null;
   physicsDeviationScoreValue: number | null;
 
+  // ── Stage 4 output (field validation + gate decision) ──────────────────
+  /**
+   * Stage 4 output — field validation result and pipeline gate decision.
+   * Previously not included in PipelineResult, causing fieldValidation and
+   * gateDecision to be silently dropped at persistence time (Batch 2d).
+   */
+  stage4Output: Stage4Output | null;
+
   // ── Claim truth layer ────────────────────────────────────────────────────
   claimTruth: import('./claimTruthLayer').ClaimTruth | null;
 
