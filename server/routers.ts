@@ -3940,7 +3940,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         if (!allowedRoles.includes(ctx.user.role)) {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Only assessors, insurers, and admins may accept constraints' });
         }
-        const assessment = await getAiAssessmentByClaimId(input.claimId);
+        // R-GH-16: scope to caller's tenant so cross-tenant reads are blocked
+        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || undefined);
+        const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
         if (!assessment) throw new TRPCError({ code: 'NOT_FOUND', message: 'No KINGA assessment found for this claim' });
 
         const existing: Record<string, any> = assessment.constraintOverridesJson
@@ -3970,7 +3972,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
-        const assessment = await getAiAssessmentByClaimId(input.claimId);
+        // R-GH-16: scope to caller's tenant so cross-tenant reads are blocked
+        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || undefined);
+        const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
         if (!assessment) return {};
         return assessment.constraintOverridesJson
           ? JSON.parse(assessment.constraintOverridesJson)
@@ -5129,8 +5133,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Load line items and KINGA assessment
         const lineItems = await getQuoteLineItemsByQuoteId(input.quoteId);
         if (lineItems.length === 0) return { success: false, reason: "No line items found" };
-
-        const assessment = await getAiAssessmentByClaimId(input.claimId);
+        // R-GH-16: scope to caller's tenant so cross-tenant reads are blocked
+        const _tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || undefined);
+        const assessment = await getAiAssessmentByClaimId(input.claimId, _tenantId);
         const damageZones: string[] = [];
         const detectedComponents: string[] = [];
         if (assessment) {
@@ -7571,7 +7576,9 @@ If any value is not found, use null or 0. Line items category must be one of: pa
     runConsistencyCheck: protectedProcedure
       .input(z.object({ claimId: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        const assessment = await getAiAssessmentByClaimId(input.claimId);
+        // R-GH-16: scope to caller's tenant so cross-tenant reads are blocked
+        const tenantId = ctx.user?.role === 'admin' ? undefined : (ctx.user?.tenantId || undefined);
+        const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
         if (!assessment) throw new TRPCError({ code: 'NOT_FOUND', message: 'No KINGA assessment found for this claim' });
 
         const { runDamageConsistencyCheck } = await import('./services/damageConsistency');
