@@ -1614,3 +1614,97 @@ export interface PipelineContext {
    */
   stageInputReports?: Record<string, import('./stageInputGuards').StageInputReport>;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PipelineResult — complete declared return type for runPipelineV2()
+//
+// Previously the function declared only 12 of the 40+ fields it actually
+// returns, making the remainder invisible to the TypeScript compiler and
+// causing the silent-drop pattern identified in audit findings R-GH-01,
+// R-GH-04, R-GH-05, R-GH-19, and R-GH-20.
+//
+// All field types are imported lazily (via import()) to avoid circular-module
+// issues, since the sub-module files each import from types.ts themselves.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PipelineResult {
+  // ── Core pipeline summary ────────────────────────────────────────────────
+  summary: PipelineRunSummary;
+
+  // ── Extracted and assembled claim data ──────────────────────────────────
+  claimRecord: ClaimRecord | null;
+
+  // ── Stage outputs ────────────────────────────────────────────────────────
+  /** Stage 10 — report generation output */
+  report: Stage10Output | null;
+  /** Stage 6 — damage analysis */
+  damageAnalysis: Stage6Output | null;
+  /** Stage 7 — physics analysis */
+  physicsAnalysis: Stage7Output | null;
+  /** Stage 8 — fraud analysis */
+  fraudAnalysis: Stage8Output | null;
+  /** Stage 9 — cost optimisation */
+  costAnalysis: Stage9Output | null;
+  /** Stage 9b — turnaround time analysis */
+  turnaroundAnalysis: TurnaroundTimeOutput | null;
+
+  // ── Causal reasoning chain (Stage 7b) ───────────────────────────────────
+  causalChain: import('./causalChainBuilder').CausalChainOutput | null;
+  causalVerdict: import('./stage-7b-causal-reasoning').CausalVerdict | null;
+
+  // ── Evidence and realism bundles ─────────────────────────────────────────
+  evidenceBundle: import('./evidenceStrengthScorer').EvidenceBundle | null;
+  realismBundle: import('./outputRealismValidator').RealismBundle | null;
+  benchmarkBundle: import('./benchmarkDeviationEngine').BenchmarkBundle | null;
+  consensusResult: import('./crossEngineConsensus').ConsensusResult | null;
+
+  // ── Registry and validation ──────────────────────────────────────────────
+  evidenceRegistry: import('./evidenceRegistryEngine').EvidenceRegistry | null;
+  validatedOutcome: import('./validatedOutcomeRecorder').ValidatedOutcomeResult | null;
+  caseSignature: import('./caseSignatureGenerator').CaseSignatureOutput | null;
+
+  // ── Decision and readiness ───────────────────────────────────────────────
+  decisionAuthority: import('./claimsDecisionAuthority').ClaimsDecisionOutput | null;
+  reportReadiness: import('./reportReadinessGate').ReportReadinessResult | null;
+
+  // ── Forensic and OCR data ────────────────────────────────────────────────
+  forensicAnalysis: Record<string, unknown> | null;
+  stage2RawOcrText: string | null;
+
+  // Note: DocumentReadVerificationResult is embedded in summary.documentVerification
+  // (a summarised subset), not as a top-level field. The raw result is not currently
+  // returned as a top-level field — see R-GH-19 for persistence implications.
+
+  // ── Photo and image data ─────────────────────────────────────────────────
+  /** Serialised JSON of enriched photo metadata from Stage 6 vision analysis */
+  enrichedPhotosJson: string | null;
+  /** Image classification results from Stage 2.6 */
+  classifiedImages: import('./imageClassifier').ClassificationResult | null;
+
+  // ── Cross-stage consistency and contradiction analysis ───────────────────
+  /** Cross-stage consistency check — blockAutoApproval flag lives here */
+  consistencyCheckResult: import('./claimConsistencyChecker').ConsistencyCheckResult | null;
+  /** Contradiction detection gate result */
+  contradictionGateResult: import('./contradictionDetectionEngine').ContradictionResult | null;
+
+  // ── Physics and cost realism ─────────────────────────────────────────────
+  coherenceResult: import('./damagePhysicsCoherence').DamagePhysicsCoherenceResult | null;
+  costRealismResult: import('./costRealismValidator').CostRealismResult | null;
+  physicsDeviationScoreValue: number | null;
+
+  // ── Claim truth layer ────────────────────────────────────────────────────
+  claimTruth: import('./claimTruthLayer').ClaimTruth | null;
+
+  // ── System intervention tracking (audit trail) ───────────────────────────
+  /**
+   * Count of deterministic corrections applied by the pipeline during this run.
+   * Allows auditors to distinguish clean extraction from system-corrected output.
+   * Previously computed in buildResult() but never persisted — R-GH-04.
+   */
+  systemInterventionCount: number;
+  /**
+   * Human-readable descriptions of each correction applied.
+   * Previously computed in buildResult() but never persisted — R-GH-04.
+   */
+  interventionSummary: string[];
+}

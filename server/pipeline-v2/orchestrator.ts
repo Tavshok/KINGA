@@ -11,6 +11,7 @@
 import type {
   PipelineContext,
   PipelineRunSummary,
+  PipelineResult,
   PipelineStageSummary,
   ClaimRecord,
   Stage1Output,
@@ -283,18 +284,7 @@ async function runAutoValuation(
  */
 export async function runPipelineV2(
   ctx: PipelineContext
-): Promise<{
-  summary: PipelineRunSummary;
-  claimRecord: ClaimRecord | null;
-  report: Stage10Output | null;
-  damageAnalysis: Stage6Output | null;
-  physicsAnalysis: Stage7Output | null;
-  fraudAnalysis: Stage8Output | null;
-  costAnalysis: Stage9Output | null;
-  turnaroundAnalysis: TurnaroundTimeOutput | null;
-  causalVerdict: CausalVerdict | null;
-  enrichedPhotosJson: string | null;
-}> {
+): Promise<PipelineResult> {
   const pipelineStart = Date.now();
   const stages: Record<string, PipelineStageSummary> = {};
   const allAssumptions: Assumption[] = [];
