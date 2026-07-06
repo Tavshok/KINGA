@@ -1751,6 +1751,20 @@ export async function triggerAiAssessment(claimId: number) {
         return entries.length > 0 ? JSON.stringify(entries) : null;
       } catch { return null; }
     })(),
+    // R-GH-19: Previously-dropped PipelineResult fields — evidenceRegistry, systemInterventionCount, interventionSummary
+    // evidenceRegistryJson: full EvidenceRegistry from evidenceRegistryEngine — audit trail of all evidence items
+    evidenceRegistryJson: (() => {
+      try { return result.evidenceRegistry ? JSON.stringify(result.evidenceRegistry) : null; } catch { return null; }
+    })(),
+    // systemInterventionCount: count of deterministic corrections applied during this pipeline run (R-GH-04)
+    systemInterventionCount: typeof result.systemInterventionCount === 'number' ? result.systemInterventionCount : null,
+    // interventionSummaryJson: JSON array of human-readable descriptions of each correction (R-GH-04)
+    interventionSummaryJson: (() => {
+      try {
+        const s = result.interventionSummary;
+        return Array.isArray(s) && s.length > 0 ? JSON.stringify(s) : null;
+      } catch { return null; }
+    })(),
   };
   // Apply the global NaN sanitizer before passing to Drizzle.
   // This catches any numeric field that slipped through safeInt/safeFloat guards.

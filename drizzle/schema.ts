@@ -212,6 +212,13 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   //                          recommendation_reason, confidence, flags_addressed };
   // }
   reportSignalsJson: longtext("report_signals_json"),
+  // R-GH-19: Previously-dropped PipelineResult fields — evidenceRegistry, systemInterventionCount, interventionSummary
+  // evidenceRegistryJson: full EvidenceRegistry object from evidenceRegistryEngine (audit trail of all evidence items)
+  evidenceRegistryJson: longtext("evidence_registry_json"),
+  // systemInterventionCount: count of deterministic corrections applied during this pipeline run
+  systemInterventionCount: int("system_intervention_count"),
+  // interventionSummaryJson: JSON array of human-readable descriptions of each correction
+  interventionSummaryJson: text("intervention_summary_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
