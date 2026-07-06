@@ -1621,9 +1621,11 @@ export interface PipelineContext {
   pdfDownloadUrl?: string | null;
   damagePhotoUrls: string[];
   /**
-   * Drizzle MySQL2 database instance (typed for type-safe queries in stage engines).
+   * Drizzle MySQL2 database instance.
+   * Typed as ReturnType<typeof drizzle> to exactly match what getDb() returns
+   * (avoids the mysql2 Pool.promise() type conflict between import paths).
    */
-  db: import('drizzle-orm/mysql2').MySql2Database<typeof import('../../drizzle/schema')>;
+  db: NonNullable<Awaited<ReturnType<typeof import('../../server/db').getDb>>>;
   log: (stage: string, msg: string) => void;
   /** Set by Stage 1 — PDF pages rendered to images for vision analysis (fallback when no damagePhotoUrls) */
   pdfPageImageUrls?: string[];
