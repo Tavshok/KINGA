@@ -7564,7 +7564,13 @@ If any value is not found, use null or 0. Line items category must be one of: pa
                   narrative_source: narratives[i]?.source ?? 'template',
                 }));
                 consistencyResult = { ...consistencyResult, mismatches: mismatchesWithNarratives };
-              } catch { /* narrative failure must not block the consistency result */ }
+              } catch (narrativeErr: unknown) {
+                // R-GH-16: Narrative generation failure is non-fatal but must be observable.
+                console.warn(
+                  `[runConsistencyCheck] Mismatch narrative generation failed for assessment ${freshAssessment.id}: ` +
+                  `${narrativeErr instanceof Error ? narrativeErr.message : String(narrativeErr)}`
+                );
+              }
             }
 
             // Persist the consistency result
@@ -7606,10 +7612,23 @@ If any value is not found, use null or 0. Line items category must be one of: pa
                       .where(eq(aiAssessments.id, freshAssessment.id));
                   }
                 }
-              } catch { /* fraud score update failure must not block the enrichment response */ }
+              } catch (fraudUpdateErr: unknown) {
+                // R-GH-16: Fraud score update failure is non-fatal but must be observable.
+                console.warn(
+                  `[runConsistencyCheck] Fraud score update failed for assessment ${freshAssessment.id}: ` +
+                  `${fraudUpdateErr instanceof Error ? fraudUpdateErr.message : String(fraudUpdateErr)}`
+                );
+              }
             }
           }
-        } catch { /* auto-trigger failure must never block the enrichment response */ }
+        } catch (autoTriggerErr: unknown) {
+          // R-GH-16: Auto-trigger consistency check failure is non-fatal but must be observable.
+          // Without this log, a broken import or DB error here is completely invisible.
+          console.warn(
+            `[enrichAssessment] Auto-trigger consistency check failed for assessment ${freshAssessment?.id ?? 'unknown'}: ` +
+            `${autoTriggerErr instanceof Error ? autoTriggerErr.message : String(autoTriggerErr)}`
+          );
+        }
 
         return {
           ...result,

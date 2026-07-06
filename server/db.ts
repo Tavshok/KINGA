@@ -842,7 +842,15 @@ export async function triggerAiAssessment(claimId: number) {
         totalDurationMs: Date.now() - _photoIngestionStart,
         qualitySummary: _qualitySummary,
       });
-    } catch { /* non-fatal */ }
+    } catch (photoLogErr: unknown) {
+      // R-GH-16: Photo ingestion log build failure is non-fatal but must be observable.
+      // A silent failure here means the forensic report will have no photo ingestion data,
+      // making it impossible to diagnose photo extraction issues in production.
+      console.warn(
+        `[triggerAiAssessment] Photo ingestion log build failed for claim ${claimId}: ` +
+        `${photoLogErr instanceof Error ? photoLogErr.message : String(photoLogErr)}`
+      );
+    }
   }
 
   // ── CLAIM_DOCUMENTS PHOTO MERGE ──────────────────────────────────────────────
@@ -1324,7 +1332,14 @@ export async function triggerAiAssessment(claimId: number) {
       .where(eq(vehicleMarketValuations.claimId, claimId))
       .limit(1);
     if (valRow?.v) vehicleMarketValueCents = Number(valRow.v);
-  } catch { /* non-fatal */ }
+  } catch (valErr: unknown) {
+    // R-GH-16: Vehicle market value lookup failure is non-fatal (falls back to claim.vehicleMarketValue)
+    // but must be observable — a DB error here silently skips the total-loss ratio calculation.
+    console.warn(
+      `[triggerAiAssessment] Vehicle market value lookup failed for claim ${claimId}: ` +
+      `${valErr instanceof Error ? valErr.message : String(valErr)}`
+    );
+  }
   // Also check the claim's own vehicle_market_value field (in cents)
   if (!vehicleMarketValueCents && (claim as any).vehicleMarketValue) {
     vehicleMarketValueCents = Number((claim as any).vehicleMarketValue);

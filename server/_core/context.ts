@@ -28,8 +28,14 @@ export async function createContext(
 
   try {
     user = await sdk.authenticateRequest(opts.req);
-  } catch {
-    // Authentication is optional for public procedures.
+  } catch (authErr: unknown) {
+    // Authentication is optional for public procedures — failures here are expected
+    // for unauthenticated requests. Log at debug level only to avoid log noise.
+    if (process.env.NODE_ENV !== "production") {
+      console.debug(
+        `[context] Auth check returned no user: ${authErr instanceof Error ? authErr.message : String(authErr)}`
+      );
+    }
     user = null;
   }
 
@@ -44,8 +50,14 @@ export async function createContext(
         db,
       };
       tenant = await extractTenantContext(partialCtx);
-    } catch {
-      // Tenant extraction failure should not block request
+    } catch (tenantErr: unknown) {
+      // R-GH-15: Tenant extraction failure must not block the request, but it must be
+      // observable. A silent null here causes all tenant-scoped queries to return no
+      // data without any indication of why, making it impossible to diagnose in production.
+      console.warn(
+        `[context] Tenant extraction failed for user ${user.id} (${(user as any).email ?? "no-email"}): ` +
+        `${tenantErr instanceof Error ? tenantErr.message : String(tenantErr)}`
+      );
       tenant = null;
     }
   }
