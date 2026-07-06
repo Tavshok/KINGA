@@ -7761,7 +7761,9 @@ If any value is not found, use null or 0. Line items category must be one of: pa
         let damagedComponents: string[] = [];
         if (aiAssessment) {
           try {
-            const _rawZones = (aiAssessment.physicsAnalysisParsed as any)?.impactZones ?? aiAssessment.physicsAnalysisParsed?.damageZones;
+            // R-GH-22: impactZones was a legacy field name; damageZones is the
+            // canonical typed field (added to LegacyPhysicsFields by R-GH-14).
+            const _rawZones = aiAssessment.physicsAnalysisParsed?.damageZones;
             if (_rawZones) {
               damageZones = (_rawZones as any[]).map(
                 (z: any) => (typeof z === 'string' ? z : z?.zone ?? z?.name ?? '')
