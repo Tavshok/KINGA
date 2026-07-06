@@ -5503,6 +5503,15 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           // imageAnalysisSuccessCount = photos successfully processed by the vision LLM
           photosDetected: Number((assessment as any).imageAnalysisTotalCount ?? 0),
           photosProcessedCount: Number((assessment as any).imageAnalysisSuccessCount ?? 0),
+          // R-F-01/04/05 fix: parsed report signals — blockAutoApproval, prePublicationBlockers, costRecommendation
+          _reportSignals: (() => {
+            try {
+              if ((assessment as any).reportSignalsJson) {
+                return JSON.parse((assessment as any).reportSignalsJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
         };
       }),
     historicalBenchmarks: protectedProcedure
@@ -5987,6 +5996,15 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           imageAnalysisSuccessCount: photosProcessedCount,
           // Expose degraded stages list for quick issue surfacing
           pipelineDegradedStagesJson: (assessment as any).pipelineDegradedStagesJson ?? null,
+          // R-F-01/04/05 fix: parsed report signals — blockAutoApproval, prePublicationBlockers, costRecommendation
+          _reportSignals: (() => {
+            try {
+              if ((assessment as any).reportSignalsJson) {
+                return JSON.parse((assessment as any).reportSignalsJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
         };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
         // Wrapped in try-catch: validation warnings are logged server-side but never block the UI.

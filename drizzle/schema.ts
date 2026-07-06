@@ -200,6 +200,18 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Single source of truth for evidence inventory, cost authority, timeline, and decision.
   // Both reports (Forensic Audit + Claims Assessment) read from this to prevent contradictions.
   claimTruthJson: longtext("claim_truth_json"),
+  // R-F-01/04/05 fix: Stage 10 report signals — persists three signals from fullReport.sections
+  // that were previously lost when the pipeline run completed (fullReport.sections was never saved).
+  // Schema: {
+  //   consistencyFlags?: { blockAutoApproval, overallStatus, flagCount, criticalCount,
+  //                        flags: Array<{ id, severity, description, recommendation }> };
+  //   prePublicationBlockers?: { valid, blocked, blockerCount,
+  //                              blockers: Array<{ checkId, description, remediation, severity }>,
+  //                              validatedAt };
+  //   costRecommendation?: { recommendation: "APPROVE"|"REVIEW"|"REJECT",
+  //                          recommendation_reason, confidence, flags_addressed };
+  // }
+  reportSignalsJson: longtext("report_signals_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

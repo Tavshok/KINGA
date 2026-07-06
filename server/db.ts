@@ -1632,6 +1632,55 @@ export async function triggerAiAssessment(claimId: number) {
         return cq ? JSON.stringify(cq) : null;
       } catch { return null; }
     })(),
+    // R-F-01/04/05 fix: Stage 10 report signals — three signals from fullReport.sections
+    // that were previously discarded when the pipeline run completed.
+    //   consistencyFlags  — blockAutoApproval + flags[] from crossStageConsistencyEngine (R-F-01)
+    //   prePublicationBlockers — structured blocker list from prePublicationValidator (R-F-04)
+    //   costRecommendation — APPROVE/REVIEW/REJECT enum from costIntelligenceNarrative (R-F-05 / C-E-01)
+    reportSignalsJson: (() => {
+      try {
+        const signals: Record<string, unknown> = {};
+        // R-F-01: cross-stage consistency flags (blockAutoApproval)
+        const cc = report?.consistencyCheck;
+        if (cc && (cc as any).blockAutoApproval) {
+          signals.consistencyFlags = {
+            blockAutoApproval: (cc as any).blockAutoApproval,
+            overallStatus: (cc as any).status,
+            flagCount: (cc as any).flags?.length ?? 0,
+            criticalCount: (cc as any).criticalCount ?? 0,
+            highCount: (cc as any).highCount ?? 0,
+            flags: ((cc as any).flags ?? []).map((f: any) => ({
+              id: f.ruleId,
+              severity: f.severity,
+              description: f.description,
+              recommendation: f.adjusterAction,
+            })),
+          };
+        }
+        // R-F-04: pre-publication validator blocker list
+        const ppv = (report?.fullReport as any)?.sections?.prePublicationValidation;
+        if (ppv && (ppv.blockerCount ?? 0) > 0) {
+          signals.prePublicationBlockers = {
+            valid: ppv.valid,
+            blocked: ppv.blocked,
+            blockerCount: ppv.blockerCount,
+            blockers: ppv.blockers,
+            validatedAt: ppv.validatedAt,
+          };
+        }
+        // R-F-05 / C-E-01: cost recommendation from Stage 9 costNarrative
+        const costRec = (costAnalysis as any)?.costNarrative;
+        if (costRec?.recommendation) {
+          signals.costRecommendation = {
+            recommendation: costRec.recommendation,
+            recommendation_reason: costRec.recommendation_reason ?? null,
+            confidence: costRec.confidence ?? null,
+            flags_addressed: costRec.flags_addressed ?? [],
+          };
+        }
+        return Object.keys(signals).length > 0 ? JSON.stringify(signals) : null;
+      } catch { return null; }
+    })(),
     // Stage 36 output: Forensic Audit Validator — 10-dimension post-pipeline validation
     forensicAuditValidationJson: forensicAuditValidationResult ? JSON.stringify(forensicAuditValidationResult) : null,
     // Stage 6 enriched photo metadata — persisted so the UI can show per-photo vision analysis results

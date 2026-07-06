@@ -4708,6 +4708,32 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
             {/* CDE narrative — max 2 sentences, trimmed */}
             {costNarrative && (
               <div style={{ borderTop: '1px solid var(--kr-rule)', paddingTop: 10 }}>
+                {/* R-F-05 / C-E-01 fix: surface costNarrative.recommendation enum (APPROVE/REVIEW/REJECT)
+                     Previously this field was dropped by Stage 10 and never reached the report. */}
+                {(() => {
+                  const rec = (costNarrative as any)?.recommendation;
+                  if (!rec) return null;
+                  const recStyle = rec === 'APPROVE'
+                    ? { bg: '#dcfce7', color: '#15803d', border: '#86efac' }
+                    : rec === 'REJECT'
+                    ? { bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' }
+                    : { bg: '#fef3c7', color: '#92400e', border: '#fde68a' };
+                  const recReason = (costNarrative as any)?.recommendation_reason;
+                  const recConf = (costNarrative as any)?.confidence;
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 2,
+                        background: recStyle.bg, color: recStyle.color, border: `1px solid ${recStyle.border}`,
+                        fontFamily: 'var(--kr-mono)', letterSpacing: '0.05em' }}>COST INTEL: {rec}</span>
+                      {recConf != null && (
+                        <span style={{ fontSize: 10, color: 'var(--kr-muted)' }}>Confidence: {typeof recConf === 'number' ? `${Math.round(recConf * 100)}%` : recConf}</span>
+                      )}
+                      {recReason && (
+                        <span style={{ fontSize: 10, color: 'var(--kr-muted)', fontStyle: 'italic' }}>{recReason}</span>
+                      )}
+                    </div>
+                  );
+                })()}
                 <p className="text-xs leading-relaxed" style={{ color: 'var(--kr-muted)' }}>
                   {(() => {
                     const raw = typeof costNarrative === 'string' ? costNarrative : (costNarrative as any)?.narrative ?? '';
@@ -8291,6 +8317,30 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
           ▲ DRAFT — {draftMissingFields.length > 0 ? `Missing: ${draftMissingFields.join(', ')}. ` : ''}Complete and re-export for final version.
         </div>
       )}
+      {/* R-F-02: Pre-generation consistency check contradiction banner.
+           hasContradictions and contradictions[] were already computed above but never rendered.
+           This banner is shown at the top of the report so adjusters see it immediately. */}
+      {hasContradictions && (
+        <div style={{ background: '#fef2f2', borderLeft: '4px solid #dc2626', padding: '8px 40px', fontFamily: 'var(--kr-mono)', fontSize: 11 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: contradictions.length > 1 ? 6 : 0 }}>
+            <span style={{ color: '#dc2626', fontWeight: 700, letterSpacing: '0.06em' }}>&#9888; REPORT INTEGRITY WARNING</span>
+            <span style={{ color: '#7f1d1d' }}>— {contradictions.length} pre-generation contradiction{contradictions.length !== 1 ? 's' : ''} detected between pipeline stages</span>
+          </div>
+          {contradictions.length > 0 && (
+            <ul style={{ margin: '4px 0 0 16px', padding: 0, color: '#7f1d1d', fontSize: 10, lineHeight: 1.6 }}>
+              {contradictions.slice(0, 5).map((c: any, i: number) => (
+                <li key={i} style={{ marginBottom: 1 }}>
+                  <strong>{c.field ?? c.type ?? `Contradiction ${i + 1}`}:</strong>{' '}
+                  {c.description ?? c.message ?? JSON.stringify(c)}
+                </li>
+              ))}
+              {contradictions.length > 5 && (
+                <li style={{ color: '#dc2626', fontStyle: 'italic' }}>+{contradictions.length - 5} more — see Section 8b for full list</li>
+              )}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Body content wrapper */}
       <div style={{ padding: '0 40px 24px' }}>
@@ -8495,6 +8545,107 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
         );
       })()}
 
+      {/* ══ R-F-01: Cross-Stage Consistency Conflict Warning ══
+           Rendered when blockAutoApproval=true from crossStageConsistencyEngine.
+           Previously this flag was computed but never surfaced to adjusters. */}
+      {(() => {
+        const rs = (aiAssessment as any)?._reportSignals;
+        const cf = rs?.consistencyFlags;
+        if (!cf?.blockAutoApproval) return null;
+        return (
+          <>
+            <div className="section-heading" style={{ background: '#7f1d1d', color: '#fff' }}>&#9888; Cross-Stage Consistency Conflict — Auto-Approval Blocked</div>
+            <div style={{ background: '#fef2f2', border: '2px solid #dc2626', borderRadius: 3, padding: '10px 16px', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', fontFamily: 'var(--kr-mono)', letterSpacing: '0.05em' }}>
+                  {cf.overallStatus} — {cf.criticalCount ?? 0} CRITICAL, {cf.highCount ?? 0} HIGH
+                </span>
+                <span style={{ fontSize: 11, padding: '2px 8px', background: '#dc2626', color: '#fff', borderRadius: 2, fontWeight: 700, fontFamily: 'var(--kr-mono)' }}>MANUAL REVIEW REQUIRED</span>
+              </div>
+              <p style={{ fontSize: 11, color: '#7f1d1d', marginBottom: 8, lineHeight: 1.5 }}>
+                The cross-stage consistency engine detected {cf.flagCount} named contradiction{cf.flagCount !== 1 ? 's' : ''} between pipeline stages.
+                This claim cannot proceed to auto-approval until an adjuster reviews and resolves each conflict below.
+              </p>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <thead>
+                  <tr style={{ background: '#7f1d1d', color: '#fff' }}>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '10%' }}>Rule</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '12%' }}>Severity</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '50%' }}>Description</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '28%' }}>Adjuster Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {((cf.flags ?? []) as any[]).map((flag: any, i: number) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #fca5a5', background: i % 2 === 0 ? '#fff5f5' : '#fff' }}>
+                      <td style={{ padding: '5px 8px', fontFamily: 'var(--kr-mono)', fontSize: 10, color: '#7f1d1d' }}>{flag.id ?? '—'}</td>
+                      <td style={{ padding: '5px 8px' }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 2,
+                          background: flag.severity === 'CRITICAL' ? '#dc2626' : flag.severity === 'HIGH' ? '#ea580c' : '#d97706',
+                          color: '#fff' }}>{flag.severity}</span>
+                      </td>
+                      <td style={{ padding: '5px 8px', color: '#1c1917', lineHeight: 1.4 }}>{flag.description}</td>
+                      <td style={{ padding: '5px 8px', color: '#1c1917', lineHeight: 1.4, fontStyle: 'italic' }}>{flag.recommendation ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        );
+      })()}
+      {/* ══ R-F-04: Pre-Publication Validator Blockers ══
+           Rendered when prePublicationBlockers exist in reportSignals.
+           Previously these were logged server-side but never surfaced to adjusters. */}
+      {(() => {
+        const rs = (aiAssessment as any)?._reportSignals;
+        const ppb = rs?.prePublicationBlockers;
+        if (!ppb || (ppb.blockerCount ?? 0) === 0) return null;
+        const severityStyle = (s: string) =>
+          s === 'CRITICAL' ? { bg: '#dc2626', text: '#fff' }
+          : s === 'HIGH' ? { bg: '#ea580c', text: '#fff' }
+          : { bg: '#d97706', text: '#fff' };
+        return (
+          <>
+            <div className="section-heading" style={{ background: '#7c2d12', color: '#fff' }}>&#9888; Pre-Publication Validation — {ppb.blocked ? 'BLOCKED' : 'WARNINGS'}</div>
+            <div style={{ background: '#fff7ed', border: `2px solid ${ppb.blocked ? '#ea580c' : '#d97706'}`, borderRadius: 3, padding: '10px 16px', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: ppb.blocked ? '#ea580c' : '#d97706', fontFamily: 'var(--kr-mono)' }}>
+                  {ppb.blockerCount} blocker{ppb.blockerCount !== 1 ? 's' : ''} detected
+                </span>
+                {ppb.blocked && (
+                  <span style={{ fontSize: 11, padding: '2px 8px', background: '#ea580c', color: '#fff', borderRadius: 2, fontWeight: 700, fontFamily: 'var(--kr-mono)' }}>DELIVERY BLOCKED</span>
+                )}
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <thead>
+                  <tr style={{ background: '#7c2d12', color: '#fff' }}>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '12%' }}>Check ID</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '12%' }}>Severity</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '44%' }}>Description</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '32%' }}>Remediation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {((ppb.blockers ?? []) as any[]).map((b: any, i: number) => {
+                    const st = severityStyle(b.severity);
+                    return (
+                      <tr key={i} style={{ borderBottom: '1px solid #fed7aa', background: i % 2 === 0 ? '#fffbf5' : '#fff' }}>
+                        <td style={{ padding: '5px 8px', fontFamily: 'var(--kr-mono)', fontSize: 10, color: '#7c2d12' }}>{b.checkId ?? b.check_id ?? '—'}</td>
+                        <td style={{ padding: '5px 8px' }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 2, background: st.bg, color: st.text }}>{b.severity}</span>
+                        </td>
+                        <td style={{ padding: '5px 8px', color: '#1c1917', lineHeight: 1.4 }}>{b.description}</td>
+                        <td style={{ padding: '5px 8px', color: '#1c1917', lineHeight: 1.4, fontStyle: 'italic' }}>{b.remediation ?? b.resolution ?? '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        );
+      })()}
       {/* ── SECTION 9 — Approval Chain & Audit Signatures ── */}
       <div className="section-heading" data-section="9">9 &nbsp; Approval Chain &amp; Audit Signatures</div>
       {(() => {
