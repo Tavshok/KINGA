@@ -363,6 +363,69 @@ Return ONLY a JSON array of constraints.`;
 // Constraint Checker — validates actual evidence against defined constraints
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Zone alias map — bridges LLM free-text expectedValue to Stage 6 canonical zones.
+// Stage 6 inferZone() produces exactly these 6 canonical zone names:
+//   front | rear | left_side | right_side | roof | undercarriage
+// The LLM in definePhysicsConstraints may describe the same zones using natural
+// language (e.g. "driver side", "left side impact zone", "side_driver").
+// This map is the single source of truth for that translation.
+// ─────────────────────────────────────────────────────────────────────────────
+const ZONE_ALIAS_MAP: Record<string, string[]> = {
+  front:         ["front", "frontal", "forward", "hood", "bonnet", "grille", "bumper front", "headlight", "headlamp", "radiator", "front bumper", "front zone", "front impact"],
+  rear:          ["rear", "back", "tail", "trunk", "boot", "rear bumper", "tailgate", "rear zone", "rear impact", "aft"],
+  left_side:     ["left", "left_side", "driver", "driver side", "driver's side", "lh", "l/h", "left side", "left door", "left panel", "side_driver", "driver door"],
+  right_side:    ["right", "right_side", "passenger", "passenger side", "rh", "r/h", "right side", "right door", "right panel", "side_passenger", "passenger door"],
+  roof:          ["roof", "top", "overhead", "canopy", "roof panel", "sunroof"],
+  undercarriage: ["under", "undercarriage", "underbody", "bottom", "chassis", "subframe", "floor", "floor pan", "suspension", "exhaust"],
+  general:       ["general", "overall", "multiple zones", "whole body"],
+};
+
+/**
+ * Returns true if the LLM-generated free-text `expected` string refers to any of
+ * the canonical zone names present in `canonicalZones`.
+ *
+ * Matching strategy (in order of precision):
+ * 1. Exact match: expected === canonical zone name
+ * 2. Alias match: expected contains a known alias for a canonical zone that is in canonicalZones
+ * 3. Reverse alias: any alias for a canonical zone in canonicalZones is contained in expected
+ *
+ * This replaces the previous string.includes(firstWord) approach which failed for
+ * cases like expectedValue="left_side" vs canonicalZone="side_driver" (R-C-02).
+ */
+function matchesZone(expected: string, canonicalZones: string[]): boolean {
+  const exp = expected.toLowerCase().trim();
+  for (const canonical of canonicalZones) {
+    const aliases = ZONE_ALIAS_MAP[canonical] ?? [canonical];
+    // 1. Exact match against canonical name
+    if (exp === canonical) return true;
+    // 2. Expected contains a known alias
+    if (aliases.some(alias => exp.includes(alias))) return true;
+    // 3. Any alias is contained in expected (catches "left side impact zone" → "left")
+    if (aliases.some(alias => exp.includes(alias.toLowerCase()))) return true;
+  }
+  return false;
+}
+
+/**
+ * Returns true if the LLM-generated free-text `expected` string refers to any of
+ * the free-text component names/locations present in `componentStrings`.
+ * Uses word-boundary matching to avoid false positives (e.g. "door" matching "floor").
+ */
+function matchesComponent(expected: string, componentStrings: string[]): boolean {
+  const exp = expected.toLowerCase().trim();
+  // Extract meaningful words (3+ chars) from expected to avoid matching noise words
+  const expWords = exp.split(/\s+/).filter(w => w.length >= 3);
+  for (const comp of componentStrings) {
+    const c = comp.toLowerCase();
+    // Direct containment
+    if (exp.includes(c) || c.includes(exp)) return true;
+    // Word-level match: any significant word from expected appears in component string
+    if (expWords.some(w => c.includes(w))) return true;
+  }
+  return false;
+}
+
 function checkConstraints(
   constraints: PhysicsConstraint[],
   physics: Stage7Output | null,
@@ -423,9 +486,12 @@ function checkConstraints(
         break;
       }
       case "damage_location": {
-        // Check if any damaged zone or component matches the expected location
-        const zoneMatch = damagedZonesArr.some(z => expected.includes(z) || z.includes(expected.split(" ")[0]));
-        const compMatch = damagedComponentsArr.some(c2 => expected.includes(c2.split(" ")[0]) || c2.includes(expected.split(" ")[0]));
+        // R-C-02 fix: use structured alias map instead of string.includes() first-word matching.
+        // matchesZone() maps LLM free-text (e.g. "driver side", "side_driver") to Stage 6
+        // canonical zone names (e.g. "left_side"), preventing false constraint failures on
+        // legitimate side-impact claims.
+        const zoneMatch = matchesZone(expected, damagedZonesArr);
+        const compMatch = matchesComponent(expected, damagedComponentsArr);
         satisfied = zoneMatch || compMatch;
         actualValue = damagedZones.size > 0 ? damagedZonesArr.join(", ") : "No damage zones recorded";
         actualValue = `Damaged zones: ${actualValue}`;
@@ -433,9 +499,10 @@ function checkConstraints(
         break;
       }
       case "damage_absence": {
-        // Constraint requires that a specific zone is NOT damaged
-        const zoneAbsent = !damagedZonesArr.some(z => expected.includes(z) || z.includes(expected.split(" ")[0]));
-        const compAbsent = !damagedComponentsArr.some(c2 => expected.includes(c2.split(" ")[0]) || c2.includes(expected.split(" ")[0]));
+        // Constraint requires that a specific zone is NOT damaged.
+        // R-C-02 fix: use structured alias map for consistent zone resolution.
+        const zoneAbsent = !matchesZone(expected, damagedZonesArr);
+        const compAbsent = !matchesComponent(expected, damagedComponentsArr);
         satisfied = zoneAbsent && compAbsent;
         actualValue = damagedZones.size > 0 ? `Damaged zones: ${damagedZonesArr.join(", ")}` : "No damage zones recorded";
         confidence = damage ? 70 : 25;
