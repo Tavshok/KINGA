@@ -1745,7 +1745,7 @@ export async function triggerAiAssessment(claimId: number) {
         };
         addGroup(ci.damagePhotos.map((img: any) => img.url), 'damage_photo', 0.9);
         addGroup(ci.vehicleOverviews.map((img: any) => img.url), 'vehicle_overview', 0.85);
-        addGroup(ci.quotationScans.map((img: any) => img.url), 'quotation_scan', 0.9);
+        addGroup(ci.quotationImages.map((img: any) => img.url), 'quotation_scan', 0.9);
         addGroup(ci.documentPages.map((img: any) => img.url), 'document_page', 0.9);
         addGroup(ci.fallbackPool.map((img: any) => img.url), 'other', 0.5);
         return entries.length > 0 ? JSON.stringify(entries) : null;
