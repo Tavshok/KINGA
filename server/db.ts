@@ -953,7 +953,7 @@ export async function triggerAiAssessment(claimId: number) {
     claimId,
     tenantId: (() => { const n = parseInt(String(claim.tenantId ?? ''), 10); return Number.isFinite(n) ? n : null; })(),
     assessmentId: 0, // Will be set after insert
-    claim: claim as Record<string, any>,
+    claim,
     pdfUrl,
     pdfDownloadUrl: pdfDownloadUrl ?? pdfUrl,
     damagePhotoUrls: damagePhotos,
@@ -1009,7 +1009,7 @@ export async function triggerAiAssessment(claimId: number) {
         }).catch(() => {});
       }).catch(() => {});
     },
-  };
+  } satisfies import('./pipeline-v2/types').PipelineContext;
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
   // Wrap the entire pipeline in a 15-minute timeout. With thinking disabled
   // and per-call timeouts at 90s, the worst-case pipeline (12 LLM calls +
@@ -1995,7 +1995,7 @@ export async function triggerAiAssessment(claimId: number) {
     if (v.year) claimUpdate.vehicleYear = Number(v.year) || null;
     if (v.registration) claimUpdate.vehicleRegistration = trunc(v.registration, 50);
     if (v.vin) claimUpdate.vehicleVin = trunc(v.vin, 50);
-    if (v.color) claimUpdate.vehicleColor = trunc(v.color, 50);
+    if (v.colour) claimUpdate.vehicleColor = trunc(v.colour, 50);
   }
   // Backfill incident info from pipeline extraction.
   // IMPORTANT: use accidentDetails.description (the event narrative: "hit a depression on the road")
@@ -2020,7 +2020,8 @@ export async function triggerAiAssessment(claimId: number) {
     if (ins.policyNumber && !/^(EXCESS|COMPREHENSIVE|THIRD.PARTY|FIRE|MOTOR|THEFT)$/i.test(ins.policyNumber.trim())) {
       claimUpdate.policyNumber = trunc(ins.policyNumber, 100);
     }
-    if (ins.excessAmountCents != null) claimUpdate.excessAmountCents = ins.excessAmountCents;
+    // insuranceContext.excessAmountUsd is in USD (float); claims.excessAmountCents is integer cents
+    if (ins.excessAmountUsd != null) claimUpdate.excessAmountCents = Math.round(ins.excessAmountUsd * 100);
     if (ins.claimReference) claimUpdate.claimReference = trunc(ins.claimReference, 100);
     if (ins.insurerName) claimUpdate.insurerName = trunc(ins.insurerName, 255);
     // productType — write the insurance product type (e.g. 'EXCESS', 'COMPREHENSIVE') separately from policyNumber
@@ -2169,12 +2170,14 @@ export async function triggerAiAssessment(claimId: number) {
       const acc = claimRecord?.accidentDetails;
       const ins = claimRecord?.insuranceContext;
       const drv = claimRecord?.driver;
-      const claimantInfo = claimRecord?.claimant;
+      // ClaimRecord has no .claimant field — claimant identity is on driver.claimantName
+      const claimantInfo = claimRecord?.driver;
       const officer = claimRecord?.policeReport;
       const assessorInfo = (claimRecord as any)?.assessorInfo;
       const repairerInfo = (claimRecord as any)?.repairerInfo;
       const dmg = claimRecord?.damage;
-      const photos = claimRecord?.photos;
+      // ClaimRecord has no .photos field — photo URLs are on damage.imageUrls
+      const photos = claimRecord?.damage?.imageUrls;
       const tenantRows = await db.select({ tenantId: claims.tenantId }).from(claims).where(eq(claims.id, claimId)).limit(1);
       const tenantId = tenantRows[0]?.tenantId ?? 'default';
 
@@ -2186,14 +2189,14 @@ export async function triggerAiAssessment(claimId: number) {
           incidentTime: (acc as any)?.time ?? undefined,
           incidentLocation: acc?.location ?? undefined,
           // Claimant
-          claimantName: claimantInfo?.name ?? ins?.policyholderName ?? undefined,
-          claimantIdNumber: (claimantInfo as any)?.idNumber ?? undefined,
-          claimantAddress: (claimantInfo as any)?.address ?? undefined,
-          claimantPhone: (claimantInfo as any)?.phone ?? undefined,
-          claimantEmail: (claimantInfo as any)?.email ?? undefined,
+          claimantName: claimantInfo?.claimantName ?? ins?.policyholderName ?? undefined,
+          claimantIdNumber: (claimantInfo as any)?.idNumber ?? undefined, // idNumber not on DriverRecord — kept for future extension
+          claimantAddress: (claimantInfo as any)?.address ?? undefined, // address not on DriverRecord — kept for future extension
+          claimantPhone: (claimantInfo as any)?.phone ?? undefined, // phone not on DriverRecord — kept for future extension
+          claimantEmail: (claimantInfo as any)?.email ?? undefined, // email not on DriverRecord — kept for future extension
           policyNumber: ins?.policyNumber ?? undefined,
           // Driver
-          driverName: (drv as any)?.name ?? claimantInfo?.name ?? undefined,
+          driverName: drv?.name ?? claimantInfo?.claimantName ?? undefined,
           driverIdNumber: (drv as any)?.idNumber ?? undefined,
           driverLicenceNumber: (drv as any)?.licenceNumber ?? undefined,
           driverLicenceClass: (drv as any)?.licenceClass ?? undefined,
@@ -2247,6 +2250,7 @@ export async function triggerAiAssessment(claimId: number) {
           } : undefined,
           photoData: photos ? {
             photoCount: Array.isArray(photos) ? photos.length : undefined,
+            // photos is now damage.imageUrls (string[])
             exifPresent: (result as any).exifPresent ?? undefined,
             gpsPresent: (result as any).gpsPresent ?? undefined,
           } : undefined,
