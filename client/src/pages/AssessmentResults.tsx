@@ -14,6 +14,7 @@ import {
   BarChart3, ArrowDown, ArrowUp, Minus, Eye
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
@@ -538,6 +539,7 @@ function ComponentRecommendations({ recommendations }: { recommendations: Compon
 // ─── Main Component ────────────────────────────────────────────────────
 export default function AssessmentResults() {
   const [, setLocation] = useLocation();
+  const { currencySymbol } = useTenantCurrency();
   const [isCreatingClaim, setIsCreatingClaim] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -1193,7 +1195,7 @@ export default function AssessmentResults() {
               ]}
             />
             
-            <CostBreakdownChart breakdown={costBreakdown} itemizedCosts={extractedData.itemizedCosts} isEstimated={isEstimatedBreakdown} />
+            <CostBreakdownChart breakdown={costBreakdown} itemizedCosts={extractedData.itemizedCosts} isEstimated={isEstimatedBreakdown} currency={currencySymbol} />
           </TabsContent>
 
           {/* ═══ QUOTES TAB ═══ */}
