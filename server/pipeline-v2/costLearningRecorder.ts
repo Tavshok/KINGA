@@ -107,6 +107,12 @@ export interface CostLearningInput {
   /** Market region */
   marketRegion?: string;
   /**
+   * ISO 4217 currency code for the claim's cost figures (e.g. 'USD', 'ZAR', 'ZMW', 'ZWG').
+   * Defaults to 'USD' if not provided. MUST be populated for non-USD claims to prevent
+   * cross-currency contamination of benchmark queries (CX-01-Q/R).
+   */
+  currencyCode?: string;
+  /**
    * @deprecated Use trueCostUsd instead. Kept for backward compatibility.
    * If trueCostUsd is null and finalCostCents is provided, finalCostCents / 100 is used.
    */
@@ -155,6 +161,12 @@ export interface CostLearningRecord {
   component_count: number;
   /** True cost in USD — validated outcome from costDecisionEngine */
   true_cost_usd: number | null;
+  /**
+   * ISO 4217 currency code for all cost figures in this record.
+   * Populated from CostLearningInput.currencyCode; defaults to 'USD'.
+   * CRITICAL: benchmark queries must always filter by this field (CX-01-Q/R).
+   */
+  currency_code: string;
   /** Cost basis that produced the true cost */
   cost_basis: CostBasisType | null;
   /** Decision confidence at time of recording */
@@ -550,6 +562,7 @@ export function extractCostLearningRecord(input: CostLearningInput): {
     selectedQuoteComponents,
     collisionDirection = "unknown",
     marketRegion = "DEFAULT",
+    currencyCode = "USD",
     finalCostCents, // legacy compat
   } = input;
 
@@ -690,6 +703,7 @@ export function extractCostLearningRecord(input: CostLearningInput): {
     cost_tier: costTier,
     component_count: normalisedComponents.length,
     true_cost_usd: trueCostUsd,
+    currency_code: (currencyCode || "USD").toUpperCase().trim(),
     cost_basis: costBasis,
     decision_confidence: decisionConfidence ?? null,
     accident_severity: accidentSeverity,

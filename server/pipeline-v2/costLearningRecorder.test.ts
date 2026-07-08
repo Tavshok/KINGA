@@ -622,6 +622,41 @@ describe("extractCostLearningRecord", () => {
     expect(record!.cost_tier).toBe("high");
     expect(record!.case_signature).toContain("total_loss");
   });
+
+  // ── CX-01-Q/R: currency_code propagation ──────────────────────────────────
+
+  it("CX-01-Q/R: defaults currency_code to USD when not provided", () => {
+    const { record } = extractCostLearningRecord(baseInput); // no currencyCode in baseInput
+    expect(record!.currency_code).toBe("USD");
+  });
+
+  it("CX-01-Q/R: propagates ZAR currency_code to the learning record", () => {
+    const { record } = extractCostLearningRecord({ ...baseInput, currencyCode: "ZAR" });
+    expect(record!.currency_code).toBe("ZAR");
+  });
+
+  it("CX-01-Q/R: propagates ZWG currency_code to the learning record", () => {
+    const { record } = extractCostLearningRecord({ ...baseInput, currencyCode: "ZWG" });
+    expect(record!.currency_code).toBe("ZWG");
+  });
+
+  it("CX-01-Q/R: propagates ZMW currency_code to the learning record", () => {
+    const { record } = extractCostLearningRecord({ ...baseInput, currencyCode: "ZMW" });
+    expect(record!.currency_code).toBe("ZMW");
+  });
+
+  it("CX-01-Q/R: normalises lowercase currency code to uppercase", () => {
+    const { record } = extractCostLearningRecord({ ...baseInput, currencyCode: "zar" });
+    expect(record!.currency_code).toBe("ZAR");
+  });
+
+  it("CX-01-Q/R: USD and ZAR records have different currency_codes (no cross-contamination)", () => {
+    const { record: usdRecord } = extractCostLearningRecord({ ...baseInput, currencyCode: "USD" });
+    const { record: zarRecord } = extractCostLearningRecord({ ...baseInput, currencyCode: "ZAR" });
+    expect(usdRecord!.currency_code).toBe("USD");
+    expect(zarRecord!.currency_code).toBe("ZAR");
+    expect(usdRecord!.currency_code).not.toBe(zarRecord!.currency_code);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -650,6 +685,7 @@ describe("aggregateCostPatterns", () => {
     cost_tier: costTier,
     component_count: 5,
     true_cost_usd: trueCostUsd,
+    currency_code: "USD",
     cost_basis: "assessor_validated",
     decision_confidence: 90,
     accident_severity: accidentSev as any,

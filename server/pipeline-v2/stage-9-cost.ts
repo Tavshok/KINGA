@@ -1744,6 +1744,8 @@ export async function runCostOptimisationStage(
         selectedQuoteComponents: quoteComponents,
         collisionDirection: claimRecord.accidentDetails.collisionDirection,
         marketRegion: region,
+        // CX-01-Q/R fix: pass the resolved policy currency so the learning DB record is correctly tagged
+        currencyCode: currency,
         // Legacy fallback: used only if costDecision is unavailable
         finalCostCents: quotedCents ?? null,
       });

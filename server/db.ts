@@ -3685,6 +3685,8 @@ export async function insertCostLearningRecord(
       caseSignature: record.case_signature.slice(0, 100),
       componentCount: record.component_count,
       structuralComponentCount: record.structural_component_count,
+      // CX-01-Q/R fix: write the claim's actual currency so benchmark queries can filter by currency
+      currency: record.currency_code ?? "USD",
       finalCostUsdCents: record.final_cost_usd !== null ? Math.round(record.final_cost_usd * 100) : null,
       costIsAgreed: record.cost_is_agreed ? 1 : 0,
       quoteCoverageRatioPct: Math.round(record.quote_coverage_ratio * 100),
