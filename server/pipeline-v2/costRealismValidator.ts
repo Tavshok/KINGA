@@ -67,7 +67,11 @@ export const SEVERITY_COST_RANGES_CENTS: Record<
   cosmetic: { minCents: 5_000, maxCents: 200_000 },
   minor: { minCents: 20_000, maxCents: 500_000 },
   moderate: { minCents: 100_000, maxCents: 1_500_000 },
-  severe: { minCents: 500_000, maxCents: 5_000_000 },
+  // R-E-02: Upper bound raised from 5_000_000 (USD 50k) to 50_000_000 (USD 500k).
+  // The previous cap was too narrow and caused unwarranted -15% confidence penalties
+  // on legitimate large claims (e.g. luxury vehicles, multi-component structural repairs).
+  // USD 500k aligns with industry benchmarks for severe-but-repairable damage in the ZA/ZW market.
+  severe: { minCents: 500_000, maxCents: 50_000_000 },
   catastrophic: { minCents: 2_000_000, maxCents: 50_000_000 },
 };
 

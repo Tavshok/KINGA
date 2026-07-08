@@ -35,6 +35,22 @@ import type {
   InputRecoveryOutput,
 } from "./types";
 
+/**
+ * R-D-05: Codes for signals that are PHYSICS FINDINGS, not fraud signals.
+ *
+ * Derivation rule: a signal code belongs here when it is produced exclusively by
+ * the physics/narrative engine (Stage 7 / Stage 7e) and represents a measurement
+ * inconsistency that can arise from innocent causes (e.g. claimant speed estimation
+ * error in rear-end events). It must NOT contribute to the fraud score unless
+ * corroborated by independent fraud indicators.
+ *
+ * To add a new physics-only code: append it here. The Stage 8 narrative-signal
+ * injection loop (search for PHYSICS_ONLY_SIGNAL_CODES) will automatically exclude it.
+ */
+export const PHYSICS_ONLY_SIGNAL_CODES: ReadonlySet<string> = new Set([
+  "NARRATIVE_PHYSICS_MISMATCH",
+]);
+
 function scoreToLevel(score: number): FraudRiskLevel {
   // Calibrated thresholds for the weighted composite framework (0-100 normalised scale).
   // These are deliberately higher than the old raw-sum thresholds because the new
@@ -582,7 +598,9 @@ export async function runFraudAnalysisStage(
 
       ctx.log(
         "Stage 8",
-        `Scenario fraud engine: ${scenarioFraudResult.risk_level} ` +
+        // R-D-02: scenarioFraudEngine returns 3-tier risk_level ("LOW"|"MEDIUM"|"HIGH").
+        // Stage 8 uses 5-tier FraudRiskLevel. Label the source tier to avoid confusion.
+        `Scenario fraud engine (3-tier): ${scenarioFraudResult.risk_level} ` +
         `(score: ${scenarioFraudResult.fraud_score}/100, ` +
         `flags: ${scenarioFraudResult.flags.length}, ` +
         `FPP: ${scenarioFraudResult.false_positive_protection.length})`
@@ -671,7 +689,8 @@ export async function runFraudAnalysisStage(
     //   pattern, witness contradiction, or photo manipulation). Escalating speed
     //   inconsistency directly to fraud produces false positives for legitimate claims
     //   where the claimant underestimates impact speed (very common in rear-end events).
-    const PHYSICS_ONLY_SIGNALS = new Set(["NARRATIVE_PHYSICS_MISMATCH"]);
+    // R-D-05: Use module-level constant instead of inline Set literal.
+    const PHYSICS_ONLY_SIGNALS = PHYSICS_ONLY_SIGNAL_CODES;
     const narrativeAnalysis = claimRecord.accidentDetails.narrativeAnalysis;
     if (narrativeAnalysis && narrativeAnalysis.fraud_signals.length > 0) {
       let injected = 0;
@@ -720,8 +739,8 @@ export async function runFraudAnalysisStage(
         // Attach vision crush depth to claimRecord so Stage 7 ensemble can use it.
         // Stage 8 runs before Stage 7 in the pipeline, making this the correct injection point.
         if (forensics.visionCrushDepthM != null) {
-          (claimRecord as any)._forensicAnalysis = (claimRecord as any)._forensicAnalysis ?? {};
-          (claimRecord as any)._forensicAnalysis.visionCrushDepthM = forensics.visionCrushDepthM;
+          claimRecord._forensicAnalysis = claimRecord._forensicAnalysis ?? {};
+          claimRecord._forensicAnalysis.visionCrushDepthM = forensics.visionCrushDepthM;
           ctx.log('Stage 8 (photo-forensics)', `Vision crush depth: ${(forensics.visionCrushDepthM * 100).toFixed(1)} cm (median across ${forensics.analysedCount} photos)`);
         }
         photoForensicsResult = {

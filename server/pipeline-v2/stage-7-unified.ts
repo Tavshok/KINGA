@@ -100,7 +100,7 @@ export async function runUnifiedStage7(
   // Deterministic engine — fuses physics, damage, and image severity signals.
   // Attaches result to physicsAnalysis.severityConsensus for downstream consumers.
   try {
-    const enrichedPhotosJson: string | null = (ctx as any).enrichedPhotosJson ?? null;
+    const enrichedPhotosJson: string | null = ctx.enrichedPhotosJson ?? null;
     const severityInput = buildSeverityConsensusInput(damageAnalysis, physicsAnalysis, enrichedPhotosJson);
     const severityConsensus: SeverityConsensusOutput = computeSeverityConsensus(severityInput);
     physicsAnalysis.severityConsensus = severityConsensus;
@@ -124,7 +124,7 @@ export async function runUnifiedStage7(
   // This saves approximately 8–12 seconds per claim (the time Stage 7e was
   // previously waiting for Stage 7b's definePhysicsConstraints + constraintNarrative
   // LLM calls to complete before it could start).
-  const enrichedPhotosJson: string | null = (ctx as any).enrichedPhotosJson ?? null;
+  const enrichedPhotosJson: string | null = ctx.enrichedPhotosJson ?? null;
   const rawDescription = claimRecord.accidentDetails?.description ?? "";
 
   // ── STRUCTURAL INTELLIGENCE CONTEXT ──────────────────────────────────────

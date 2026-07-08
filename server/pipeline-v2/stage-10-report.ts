@@ -450,7 +450,7 @@ export async function runReportGenerationStage(
     const costSection = buildCostSection(costAnalysis, claimRecord);
     const fraudSection = buildFraudSection(fraudAnalysis);
     const turnaroundSection = buildTurnaroundSection(turnaroundAnalysis);
-    const imageSection = buildImageSection(claimRecord, (ctx as any).pdfPageImageUrls);
+    const imageSection = buildImageSection(claimRecord, ctx.pdfPageImageUrls);
     // Stage 39 — evidence-anchored narratives (no hedging, OEC structure)
     const damageNarrative = damageAnalysis
       ? buildDamageNarrative(damageAnalysis, claimRecord.damage.imageUrls ?? [], claimRecord.damage.description)

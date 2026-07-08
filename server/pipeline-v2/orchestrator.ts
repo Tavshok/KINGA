@@ -1411,7 +1411,7 @@ export async function runPipelineV2(
   const stage7bRerunTask = async (): Promise<CausalVerdict | null> => {
     if (!(stage8Data && stage9Data && !complexityScore?.skipStage7bPass2)) return null;
     try {
-      const enrichedPhotosJsonRerun: string | null = (ctx as any).enrichedPhotosJson ?? null;
+      const enrichedPhotosJsonRerun: string | null = ctx.enrichedPhotosJson ?? null;
       const precomputedScores = {
         damageConsistencyScore: stage8Data.damageConsistencyScore ?? null,
         fraudRiskScore: stage8Data.fraudRiskScore ?? null,
@@ -1703,7 +1703,7 @@ export async function runPipelineV2(
     // Parse enrichedPhotosJson from ctx for CTL fallback (Stage 6 vision output)
     const ctlEnrichedPhotos: { url: string; confidenceScore?: number }[] = (() => {
       try {
-        const raw = (ctx as any).enrichedPhotosJson;
+        const raw = ctx.enrichedPhotosJson;
         const parsed = raw ? JSON.parse(raw) : [];
         return Array.isArray(parsed) ? parsed.filter((p: any) => p?.url) : [];
       } catch { return []; }
@@ -2335,7 +2335,7 @@ export async function runPipelineV2(
     causalVerdict, evidenceRegistryData, validatedOutcomeResult, caseSignatureResult,
     documentVerificationResult, stage2RawOcrText,
     decisionAuthorityResult, reportReadinessResult, forensicAnalysisResult,
-    (ctx as any).enrichedPhotosJson ?? null,
+    ctx.enrichedPhotosJson ?? null,
     ctx.classifiedImages ?? null,
     coherenceResult,
     costRealismResult,

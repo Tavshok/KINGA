@@ -719,7 +719,7 @@ async function readDamageFromPhotos(
   );
 
   // ── STEP H: Persist enriched photo metadata to ctx ───────────────────────────────────────────────────────────────────────────────────────
-  // Stage 7 and Stage 7b read (ctx as any).enrichedPhotosJson for severity consensus.
+  // Stage 7 and Stage 7b read ctx.enrichedPhotosJson for severity consensus. R-B-03: typed in PipelineContext.
   const enrichedPhotoSummary = processedResults.map((r, idx) => ({
     url: r.url,
     index: idx,
@@ -738,7 +738,7 @@ async function readDamageFromPhotos(
     usedFallback: r.usedFallback,
     enrichedAt: new Date().toISOString(),
   }));
-  (ctx as any).enrichedPhotosJson = JSON.stringify(enrichedPhotoSummary);
+  ctx.enrichedPhotosJson = JSON.stringify(enrichedPhotoSummary);
 
   return { components: allComponents, perPhotoResults, photosProcessed, photosDeferred, photosFailed };
 }
@@ -1361,7 +1361,7 @@ export async function runDamageAnalysisStage(
     // Primary: use dedicated damage photos if available
     // Fallback: use PDF page images (claim form pages rendered as images) for visual evidence
     const photoUrls = ctx.damagePhotoUrls ?? [];
-    const pdfPageUrls: string[] = (ctx as any).pdfPageImageUrls ?? [];
+    const pdfPageUrls: string[] = ctx.pdfPageImageUrls ?? [];
     // Image Intelligence Layer: when using PDF pages as fallback, run the full
     // scoring pipeline (feature extraction → classification → dedup → quality rank)
     // to identify which pages are actual damage photos regardless of page position.
@@ -1426,7 +1426,7 @@ export async function runDamageAnalysisStage(
       );
       // Always persist enrichedPhotosJson — even if 0 components, the photo URLs are
       // still valuable for the report UI and claimTruthLayer photo count.
-      (ctx as any).enrichedPhotosJson = pdfVisionResult.enrichedPhotosJson;
+      ctx.enrichedPhotosJson = pdfVisionResult.enrichedPhotosJson;
       visionPhotosFailed = pdfVisionResult.photosFailed;
       if (pdfVisionResult.components.length > 0) {
         visionParts = pdfVisionResult.components;
@@ -1581,7 +1581,7 @@ export async function runDamageAnalysisStage(
     let imageConfidenceScore = 0;
     if (visionPhotosProcessed > 0) {
       try {
-        const enriched: Array<{ confidenceScore: number }> = JSON.parse((ctx as any).enrichedPhotosJson ?? "[]");
+        const enriched: Array<{ confidenceScore: number }> = JSON.parse(ctx.enrichedPhotosJson ?? "[]");
         const scored = enriched.filter((e) => e.confidenceScore > 0);
         imageConfidenceScore = scored.length > 0
           ? Math.round(scored.reduce((s, e) => s + e.confidenceScore, 0) / scored.length)

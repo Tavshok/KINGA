@@ -315,10 +315,13 @@ export async function runCostOptimisationStage(
     }
 
     // ── Step A2: Cross-Quote Gap Analysis + Deviation Matrix ──────────────────
-    const gapAnalysisQuotes = (stage3 as any)?.inputRecovery?.extracted_quotes ?? [];
+    // R-E-03: stage3.inputRecovery and ctx.damagePhotoUrls/classifiedImages are typed
+    // in Stage3Output and PipelineContext respectively — as-any casts removed.
+    const gapAnalysisQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
     const damagePhotoUrlsForGap: string[] = [
-      ...((ctx as any).damagePhotoUrls ?? []),
-      ...((ctx as any).classifiedImages?.damagePhotos?.map((img: any) => img.url ?? img) ?? []),
+      ...(ctx.damagePhotoUrls ?? []),
+      // ClassifiedImage always has url: string (non-optional) — no cast needed.
+      ...(ctx.classifiedImages?.damagePhotos?.map(img => img.url) ?? []),
     ].filter(Boolean);
 
     let crossQuoteGapAnalysis: CrossQuoteGapAnalysisResult | null = null;
@@ -775,7 +778,12 @@ export async function runCostOptimisationStage(
     // Run AFTER economic context so we have the full extraction picture.
     let ifeResult: IFEReport | null = null;
     try {
-      const primaryDocType = (claimRecord as any).documents?.[0]?.documentType ?? null;
+      // R-E-05/10: ClaimRecord.insuranceContext holds policy fields; DriverRecord.licenseNumber
+      // is typed in DriverRecord. No as-any casts needed.
+      // Note: ClaimRecord has no top-level .policy or .documents fields; the correct paths
+      // are .insuranceContext (for policy data) and .driver.licenseNumber (for licence).
+      // insuredValue is not on ClaimRecord — set to null (not extracted at this stage).
+      const primaryDocType: string | null = null; // ClaimRecord has no .documents[] field
       ifeResult = computeIFE({
         extractedFields: {
           claimantName:         claimRecord.driver?.claimantName ?? null,
@@ -787,10 +795,12 @@ export async function runCostOptimisationStage(
           incidentDescription:  claimRecord.damage?.description ?? null,
           repairQuoteTotal:     claimRecord.repairQuote?.quoteTotalCents ?? null,
           agreedCost:           claimRecord.repairQuote?.agreedCostCents ?? null,
-          policyNumber:         (claimRecord as any).policy?.policyNumber ?? null,
-          insuredValue:         (claimRecord as any).policy?.insuredValueCents ?? null,
-          excess:               (claimRecord as any).policy?.excessAmountCents ?? null,
-          driverLicence:        (claimRecord as any).driver?.licenseNumber ?? null,
+          policyNumber:         claimRecord.insuranceContext?.policyNumber ?? null,
+          insuredValue:         null, // not available on ClaimRecord at this stage
+          excess:               claimRecord.insuranceContext?.excessAmountUsd != null
+                                  ? Math.round(claimRecord.insuranceContext.excessAmountUsd * 100)
+                                  : null,
+          driverLicence:        claimRecord.driver?.licenseNumber ?? null,
         },
         extractionConfidence: stage3?.perDocumentExtractions?.[0] ? 0.75 : 0.5,
         primaryDocumentType: primaryDocType,

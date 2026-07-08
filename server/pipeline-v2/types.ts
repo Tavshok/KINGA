@@ -607,6 +607,16 @@ export interface AccidentDetails {
    * Null for single-event incidents.
    */
   multiEventSequence: MultiEventSequence | null;
+  /**
+   * R-C-04: Whether seatbelt pretensioner fired — extracted by Stage 7 physics engine.
+   * True = pretensioner deployed (indicates significant deceleration event).
+   */
+  seatbeltPretensioner?: boolean | null;
+  /**
+   * R-C-04: Posted speed limit at accident location [km/h] — extracted from police report or narrative.
+   * Used by Stage 7 physics to bound speed estimates.
+   */
+  speedLimitKmh?: number | null;
 }
 
 export interface PoliceReportRecord {
@@ -687,6 +697,15 @@ export interface ClaimRecord {
   thirdParty?: ThirdPartyRecord | null;
   /** Vehicle market valuation — populated in Stage 5b */
   valuation?: VehicleValuation | null;
+  /**
+   * R-C-05: Forensic analysis metadata — set by Stage 8 after vision-based crush depth measurement.
+   * Used by Stage 7 physics as a cross-stage signal for speed estimation.
+   * Prefixed with underscore to indicate it is a pipeline-internal field, not a user-facing field.
+   */
+  _forensicAnalysis?: {
+    visionCrushDepthM?: number | null;
+    [key: string]: unknown;
+  } | null;
 }
 
 export interface Stage5Output {
@@ -819,20 +838,25 @@ export interface Stage7Input {
 }
 
 export interface Stage7Output {
-  impactForceKn: number;
+  /**
+   * Physics fields are nullable when physics was skipped (physicsStatus !== 'EXECUTED').
+   * Consumers must check physicsStatus or physicsExecuted before using these values.
+   * R-C-03: Changed from non-nullable number to number | null to eliminate null-as-unknown-as-number casts.
+   */
+  impactForceKn: number | null;
   impactVector: {
     direction: CollisionDirection;
-    magnitude: number;
+    magnitude: number | null;
     angle: number;
   };
   energyDistribution: {
-    kineticEnergyJ: number;
-    energyDissipatedJ: number;
-    energyDissipatedKj: number;
+    kineticEnergyJ: number | null;
+    energyDissipatedJ: number | null;
+    energyDissipatedKj: number | null;
   };
-  estimatedSpeedKmh: number;
-  deltaVKmh: number;
-  decelerationG: number;
+  estimatedSpeedKmh: number | null;
+  deltaVKmh: number | null;
+  decelerationG: number | null;
   accidentSeverity: AccidentSeverity;
   accidentReconstructionSummary: string;
   damageConsistencyScore: number;
@@ -1650,7 +1674,8 @@ export interface PipelineContext {
    * Enriched photo metadata JSON — set by Stage 6 (damage analysis).
    * Injected into the pipeline result by db.ts for the forensic validator.
    */
-  enrichedPhotosJson?: unknown;
+  /** R-B-03: Typed as string | null (JSON-serialised enriched photo array). */
+  enrichedPhotosJson?: string | null;
   /**
    * Source of image normalisation.
    * 'fresh_extraction'   — photos were extracted from PDF in this run

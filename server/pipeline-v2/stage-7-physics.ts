@@ -193,20 +193,20 @@ function estimatePhysicsFromDamage(
     // Speed not available — skip force/energy calculations entirely.
     // Report physics as unavailable; downstream stages must handle null force/energy.
     return {
-      impactForceKn: null as unknown as number,
+      impactForceKn: null,
       impactVector: {
         direction: claimRecord.accidentDetails.collisionDirection,
-        magnitude: null as unknown as number,
+        magnitude: null,
         angle: 0,
       },
       energyDistribution: {
-        kineticEnergyJ: null as unknown as number,
-        energyDissipatedJ: null as unknown as number,
-        energyDissipatedKj: null as unknown as number,
+        kineticEnergyJ: null,
+        energyDissipatedJ: null,
+        energyDissipatedKj: null,
       },
-      estimatedSpeedKmh: null as unknown as number,
-      deltaVKmh: null as unknown as number,
-      decelerationG: null as unknown as number,
+      estimatedSpeedKmh: null,
+      deltaVKmh: null,
+      decelerationG: null,
       accidentSeverity: severity as AccidentSeverity,
       accidentReconstructionSummary: `Physics analysis not executed due to missing speed input. Damage severity assessed as ${severity} from visual inspection only. Speed was not recorded in the claim documents.`,
       damageConsistencyScore: 50,
@@ -745,7 +745,7 @@ export async function runPhysicsStage(
       // ── Resolve airbagDeployment / seatbeltPretensioner ──────────────────
       // Treat undefined as false — a missing field means not recorded, not deployed.
       const airbagDeployed = claimRecord.accidentDetails.airbagDeployment === true;
-      const seatbeltFired = (claimRecord.accidentDetails as any).seatbeltPretensioner === true;
+      const seatbeltFired = claimRecord.accidentDetails.seatbeltPretensioner === true;
 
       // Vision crush depth: take maximum crushDepthM across all Stage 6 components.
       // This is a direct numeric measurement from the LLM, not a qualitative proxy.
@@ -755,7 +755,7 @@ export async function runPhysicsStage(
         .filter((d): d is number => typeof d === 'number' && d > 0);
       const visionCrushDepthM = visionDepthsFromParts.length > 0
         ? Math.max(...visionDepthsFromParts)
-        : ((claimRecord as any)._forensicAnalysis?.visionCrushDepthM ?? null);
+        : (claimRecord._forensicAnalysis?.visionCrushDepthM ?? null);
 
       // Aggregate per-component numeric physics measurements from Stage 6
       const totalDeformationEnergyJ = damageAnalysis.damagedParts
@@ -805,7 +805,7 @@ export async function runPhysicsStage(
       // Campbell's formula alone) and add the road speed limit if known.
       if (output.speedForensics) {
         const { computeSpeedForensics } = await import('../accidentPhysics');
-        const speedLimitKmh = (claimRecord.accidentDetails as any).speedLimitKmh ?? null;
+        const speedLimitKmh = claimRecord.accidentDetails.speedLimitKmh ?? null;
         const enriched = computeSpeedForensics({
           claimedSpeedKmh: output.speedForensics.claimedSpeedKmh,
           physicsSpeedKmh: output.speedForensics.physicsSpeedKmh,
@@ -870,7 +870,7 @@ export async function runPhysicsStage(
       strategy: "industry_average",
       success: true,
       description: `Physics engine failed: ${String(err)}. Estimated using simplified Newtonian mechanics.`,
-      recoveredValue: `force=${estimated.impactForceKn.toFixed(1)}kN`,
+      recoveredValue: `force=${estimated.impactForceKn != null ? estimated.impactForceKn.toFixed(1) : 'n/a'}kN`,
     });
 
     return {

@@ -237,12 +237,19 @@ export function applyPhysicsNumericalContract(
  * Merge a PhysicsNumericalOutput into an existing Stage7Output,
  * filling in zero/missing values without overwriting valid engine data.
  */
+// R-C-03: Stage7Output physics fields are now `number | null` (null when physics was skipped).
+// mergeNumericalContract accepts null inputs and treats null the same as 0 (falls through to
+// the contract/industry-average value). This preserves existing merge semantics.
 export function mergeNumericalContract(
   stage7: {
-    deltaVKmh: number;
-    estimatedSpeedKmh: number;
-    impactForceKn: number;
-    energyDistribution: { energyDissipatedKj: number; kineticEnergyJ: number; energyDissipatedJ: number };
+    deltaVKmh: number | null;
+    estimatedSpeedKmh: number | null;
+    impactForceKn: number | null;
+    energyDistribution: {
+      energyDissipatedKj: number | null;
+      kineticEnergyJ: number | null;
+      energyDissipatedJ: number | null;
+    };
   },
   contract: PhysicsNumericalOutput
 ): {
@@ -254,25 +261,25 @@ export function mergeNumericalContract(
   physicsNumerical: PhysicsNumericalOutput;
 } {
   return {
-    deltaVKmh: stage7.deltaVKmh > 0 ? stage7.deltaVKmh : contract.delta_v,
+    deltaVKmh: (stage7.deltaVKmh ?? 0) > 0 ? stage7.deltaVKmh! : contract.delta_v,
     estimatedSpeedKmh:
-      stage7.estimatedSpeedKmh > 0
-        ? stage7.estimatedSpeedKmh
+      (stage7.estimatedSpeedKmh ?? 0) > 0
+        ? stage7.estimatedSpeedKmh!
         : contract.velocity_range.mid_kmh,
     impactForceKn:
-      stage7.impactForceKn > 0 ? stage7.impactForceKn : contract.impact_force_kn,
+      (stage7.impactForceKn ?? 0) > 0 ? stage7.impactForceKn! : contract.impact_force_kn,
     energyDistribution: {
       kineticEnergyJ:
-        stage7.energyDistribution.kineticEnergyJ > 0
-          ? stage7.energyDistribution.kineticEnergyJ
+        (stage7.energyDistribution.kineticEnergyJ ?? 0) > 0
+          ? stage7.energyDistribution.kineticEnergyJ!
           : contract.energy_kj * 1000 / 0.6, // reverse the 60% dissipation factor
       energyDissipatedJ:
-        stage7.energyDistribution.energyDissipatedJ > 0
-          ? stage7.energyDistribution.energyDissipatedJ
+        (stage7.energyDistribution.energyDissipatedJ ?? 0) > 0
+          ? stage7.energyDistribution.energyDissipatedJ!
           : contract.energy_kj * 1000,
       energyDissipatedKj:
-        stage7.energyDistribution.energyDissipatedKj > 0
-          ? stage7.energyDistribution.energyDissipatedKj
+        (stage7.energyDistribution.energyDissipatedKj ?? 0) > 0
+          ? stage7.energyDistribution.energyDissipatedKj!
           : contract.energy_kj,
     },
     velocityRange: contract.velocity_range,
