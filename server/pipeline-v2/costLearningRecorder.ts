@@ -403,19 +403,25 @@ function computeComponentIndex(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Derive the cost tier from a validated true_cost_usd.
+ * Derive the cost tier from a validated cost value.
  *
- * Thresholds (USD):
- *   low:    < 1,500
- *   medium: 1,500 – 5,000
- *   high:   > 5,000
+ * Thresholds are USD-based (low < $1,500, medium $1,500–$5,000, high > $5,000).
+ * Pass `nci` (Normalised Cost Index from economicContextEngine) to scale thresholds
+ * for non-USD markets so tier boundaries remain market-calibrated.
  *
- * RULE: Only derived from validated true_cost_usd — never from raw quotes
- * or AI estimates.
+ * @param trueCostUsd  - Validated cost in the claim's native currency (or USD if nci=1.0)
+ * @param nci          - Normalised Cost Index (default 1.0 = USD baseline).
+ *                       NCI-derived default; override with local market data when available.
+ *                       The cost is divided by nci to produce a USD-equivalent for comparison.
+ *
+ * RULE: Only derived from validated true_cost_usd — never from raw quotes or AI estimates.
  */
-export function deriveCostTier(trueCostUsd: number): CostTier {
-  if (trueCostUsd < 1500) return "low";
-  if (trueCostUsd <= 5000) return "medium";
+export function deriveCostTier(trueCostUsd: number, nci: number = 1.0): CostTier {
+  // Convert to USD-equivalent for threshold comparison.
+  // nci=1.0 (default) leaves USD callers completely unaffected.
+  const usdEquivalent = nci > 0 ? trueCostUsd / nci : trueCostUsd;
+  if (usdEquivalent < 1500) return "low";
+  if (usdEquivalent <= 5000) return "medium";
   return "high";
 }
 

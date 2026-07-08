@@ -458,10 +458,18 @@ function buildNarrative(
  * D9 — Damage-vs-Cost consistency
  * Checks whether the cost estimate is plausible given the damage severity.
  * Severe damage with very low cost, or minor damage with very high cost, is a conflict.
+ *
+ * @param nci            - Normalised Cost Index from economicContextEngine (default 1.0 = USD).
+ *                         NCI-derived default; override with local market data when available.
+ *                         USD thresholds are multiplied by nci to produce locally-calibrated
+ *                         breakpoints. nci=1.0 leaves USD callers completely unaffected.
+ * @param currencySymbol - Display symbol for cost values in detail strings (default '$').
  */
 function d9_damageCostConsistency(
   stage6: Stage6Output | null,
-  stage9: Stage9Output | null
+  stage9: Stage9Output | null,
+  nci: number = 1.0,
+  currencySymbol: string = "$"
 ): ConsensusAgreementDimension {
   const severity = stage6?.overallSeverityScore ?? null;
   const totalCents = stage9?.breakdown?.totalCents ?? null;
@@ -472,20 +480,27 @@ function d9_damageCostConsistency(
     score = 50;
     details.push("insufficient data for damage-cost comparison");
   } else {
-    const totalUsd = totalCents / 100;
-    // Thresholds: minor (<40) should be <$3k, severe (>70) should be >$1k
-    if (severity < 40 && totalUsd > 5000) {
+    // Scale USD thresholds by NCI to produce locally-calibrated breakpoints.
+    // nci=1.0 (default) leaves all USD values unchanged.
+    const effectiveNci = nci > 0 ? nci : 1.0;
+    const highCostThreshold = 5000 * effectiveNci;   // USD $5,000 equivalent
+    const lowCostThreshold  = 500  * effectiveNci;   // USD $500 equivalent
+    const upperBandCeiling  = 15000 * effectiveNci;  // USD $15,000 equivalent
+    const totalLocal = totalCents / 100;
+    const sym = currencySymbol || "$";
+
+    if (severity < 40 && totalLocal > highCostThreshold) {
       score = 20;
-      details.push(`minor damage (severity=${severity}) but high cost ($${totalUsd.toFixed(0)}) — possible inflation`);
-    } else if (severity > 70 && totalUsd < 500) {
+      details.push(`minor damage (severity=${severity}) but high cost (${sym}${totalLocal.toFixed(0)}) — possible inflation`);
+    } else if (severity > 70 && totalLocal < lowCostThreshold) {
       score = 25;
-      details.push(`severe damage (severity=${severity}) but very low cost ($${totalUsd.toFixed(0)}) — possible underquote`);
-    } else if (severity >= 40 && severity <= 70 && totalUsd >= 500 && totalUsd <= 15000) {
+      details.push(`severe damage (severity=${severity}) but very low cost (${sym}${totalLocal.toFixed(0)}) — possible underquote`);
+    } else if (severity >= 40 && severity <= 70 && totalLocal >= lowCostThreshold && totalLocal <= upperBandCeiling) {
       score = 90;
-      details.push(`moderate damage (severity=${severity}) with proportionate cost ($${totalUsd.toFixed(0)})`);
+      details.push(`moderate damage (severity=${severity}) with proportionate cost (${sym}${totalLocal.toFixed(0)})`);
     } else {
       score = 70;
-      details.push(`damage severity=${severity}, cost=$${totalUsd.toFixed(0)} — within expected range`);
+      details.push(`damage severity=${severity}, cost=${sym}${totalLocal.toFixed(0)} — within expected range`);
     }
   }
 
@@ -563,7 +578,11 @@ export function computeConsensus(
   stage8: Stage8Output | null,
   coherenceResult: DamagePhysicsCoherenceResult | null,
   _truthResolution?: TruthResolutionResult | null,
-  stage9?: Stage9Output | null
+  stage9?: Stage9Output | null,
+  /** NCI from economicContextEngine — scales D9 USD thresholds for non-USD markets (default 1.0 = USD) */
+  nci: number = 1.0,
+  /** Currency symbol for D9 detail strings (default '$') */
+  currencySymbol: string = "$"
 ): ConsensusResult {
   const dimensions: ConsensusAgreementDimension[] = [
     d1_physicsVsDamageSeverity(stage6, stage7),
@@ -574,7 +593,7 @@ export function computeConsensus(
     d6_photoEvidencePresence(claimRecord),
     d7_documentCompleteness(claimRecord),
     d8_coherenceMismatch(coherenceResult),
-    d9_damageCostConsistency(stage6, stage9 ?? null),
+    d9_damageCostConsistency(stage6, stage9 ?? null, nci, currencySymbol),
     d10_costFraudConsistency(stage8, stage9 ?? null),
   ];
 

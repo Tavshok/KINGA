@@ -39,6 +39,17 @@ export interface CostNarrativeInput {
   coverage_ratio: number | null; // 0–1
   assessor_name: string | null;
   quote_count: number;
+  /**
+   * ISO 4217 currency code for the claim (e.g. 'USD', 'ZAR', 'ZMW').
+   * Used to prefix cost values in narrative sentences.
+   * Defaults to 'USD' when omitted (preserves backward compatibility).
+   */
+  currency?: string;
+  /**
+   * Currency symbol for display (e.g. '$', 'R', 'ZK').
+   * Derived from currency if not provided; falls back to 'USD ' prefix.
+   */
+  currencySymbol?: string;
 }
 
 // ─── Output type ─────────────────────────────────────────────────────────────
@@ -53,8 +64,20 @@ export interface CostNarrativeOutput {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Currency-aware cost formatter.
+ * - When a symbol is provided (e.g. 'R', 'ZK') it prefixes with the symbol: "R 1,500.00"
+ * - When a 3-letter ISO code is provided (e.g. 'ZAR') it prefixes with the code: "ZAR 1,500.00"
+ * - Falls back to "USD 1,500.00" for backward compatibility when neither is provided.
+ */
+function fmtCost(amount: number, currencyOrSymbol: string = "USD"): string {
+  const formatted = amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${currencyOrSymbol} ${formatted}`;
+}
+
+/** @deprecated Use fmtCost() with explicit currency. Kept for internal callers that have not yet been migrated. */
 function fmt(usd: number): string {
-  return `USD ${usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return fmtCost(usd, "USD");
 }
 
 function pct(a: number, b: number): string {
@@ -64,13 +87,13 @@ function pct(a: number, b: number): string {
   return `${sign}${diff.toFixed(1)}%`;
 }
 
-function spreadDescription(quotes: QuoteEntry[]): string {
+function spreadDescription(quotes: QuoteEntry[], currencyOrSymbol: string = "USD"): string {
   if (quotes.length < 2) return "";
   const costs = quotes.map(q => q.total_cost).sort((a, b) => a - b);
   const low = costs[0];
   const high = costs[costs.length - 1];
   const spreadPct = ((high - low) / low) * 100;
-  return `The ${quotes.length} submitted quotes ranged from ${fmt(low)} to ${fmt(high)}, a spread of ${spreadPct.toFixed(0)}%.`;
+  return `The ${quotes.length} submitted quotes ranged from ${fmtCost(low, currencyOrSymbol)} to ${fmtCost(high, currencyOrSymbol)}, a spread of ${spreadPct.toFixed(0)}%.`;
 }
 
 function inflationComment(quotes: QuoteEntry[], selectedId: string, medianCost: number | null): string {
@@ -86,7 +109,8 @@ function inflationComment(quotes: QuoteEntry[], selectedId: string, medianCost: 
 
 function selectionJustification(
   input: CostNarrativeInput,
-  selectedQuote: QuoteEntry | undefined
+  selectedQuote: QuoteEntry | undefined,
+  currencyOrSymbol: string = "USD"
 ): string {
   if (!selectedQuote) return "";
   const { agreed_cost_usd, assessor_name, quote_count } = input;
@@ -94,12 +118,12 @@ function selectionJustification(
   if (agreed_cost_usd !== null && assessor_name) {
     const saving = selectedQuote.total_cost - agreed_cost_usd;
     if (saving > 0) {
-      return `Following independent assessment by ${assessor_name} across ${quote_count} submitted quote${quote_count !== 1 ? "s" : ""}, the agreed repair cost was negotiated to ${fmt(agreed_cost_usd)}, representing a saving of ${fmt(saving)} against the lowest submitted quote.`;
+      return `Following independent assessment by ${assessor_name} across ${quote_count} submitted quote${quote_count !== 1 ? "s" : ""}, the agreed repair cost was negotiated to ${fmtCost(agreed_cost_usd, currencyOrSymbol)}, representing a saving of ${fmtCost(saving, currencyOrSymbol)} against the lowest submitted quote.`;
     }
-    return `The agreed repair cost of ${fmt(agreed_cost_usd)} was confirmed by ${assessor_name} following review of ${quote_count} submitted quote${quote_count !== 1 ? "s" : ""}.`;
+    return `The agreed repair cost of ${fmtCost(agreed_cost_usd, currencyOrSymbol)} was confirmed by ${assessor_name} following review of ${quote_count} submitted quote${quote_count !== 1 ? "s" : ""}.`;
   }
 
-  return `The selected quote from ${selectedQuote.panel_beater} at ${fmt(selectedQuote.total_cost)} was identified as the most economically defensible option from the ${quote_count} submission${quote_count !== 1 ? "s" : ""} received.`;
+  return `The selected quote from ${selectedQuote.panel_beater} at ${fmtCost(selectedQuote.total_cost, currencyOrSymbol)} was identified as the most economically defensible option from the ${quote_count} submission${quote_count !== 1 ? "s" : ""} received.`;
 }
 
 function repairToValueComment(
@@ -205,14 +229,18 @@ export function generateCostIntelligenceNarrative(
 ): CostNarrativeOutput {
   const selectedQuote = input.quotes.find(q => q.quote_id === input.selected_quote_id);
 
+  // Resolve currency display string: prefer explicit symbol, then ISO code, then 'USD' fallback.
+  // NCI-derived default; callers should pass the claim's actual currency from economicContextEngine.
+  const currencyOrSymbol = input.currencySymbol ?? input.currency ?? "USD";
+
   const sentences: string[] = [];
 
   // Sentence 1: Spread description
-  const spread = spreadDescription(input.quotes);
+  const spread = spreadDescription(input.quotes, currencyOrSymbol);
   if (spread) sentences.push(spread);
 
   // Sentence 2: Selection justification / agreed cost
-  const selection = selectionJustification(input, selectedQuote);
+  const selection = selectionJustification(input, selectedQuote, currencyOrSymbol);
   if (selection) sentences.push(selection);
 
   // Sentence 3: Inflation comment (if applicable)

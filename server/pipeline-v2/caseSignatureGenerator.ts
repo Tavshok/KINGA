@@ -359,11 +359,18 @@ function normaliseComponentCount(raw: number | null | undefined): number {
 // ─── Cost tier inference from numeric cost ────────────────────────────────────
 
 /**
- * Infer cost tier from a numeric repair cost (USD) when no explicit tier is given.
- * Thresholds are based on typical motor vehicle repair cost distributions.
+ * Infer cost tier from a numeric repair cost when no explicit tier is given.
+ *
+ * @param repairCostUsd  - Repair cost in the claim's native currency (or USD if nci=1.0)
+ * @param marketValueUsd - Vehicle market value in the same currency (for ratio path)
+ * @param nci            - Normalised Cost Index from economicContextEngine (default 1.0 = USD).
+ *                         NCI-derived default; override with local market data when available.
+ *                         Applied only to the absolute-fallback path; the ratio path is
+ *                         currency-agnostic and unaffected.
  */
-export function inferCostTier(repairCostUsd: number, marketValueUsd?: number): CostTier {
+export function inferCostTier(repairCostUsd: number, marketValueUsd?: number, nci: number = 1.0): CostTier {
   if (marketValueUsd != null && marketValueUsd > 0) {
+    // Ratio path: currency-agnostic — NCI not needed here.
     const ratio = repairCostUsd / marketValueUsd;
     // R-E-01: COST_TIER_TOTAL_LOSS_THRESHOLD (0.75) is intentionally higher than
     // ECONOMIC_WRITE_OFF_THRESHOLD (0.65) — see pipelineCostConstants.ts for rationale.
@@ -372,10 +379,12 @@ export function inferCostTier(repairCostUsd: number, marketValueUsd?: number): C
     if (ratio >= 0.15) return "medium";
     return "low";
   }
-  // Fallback: absolute thresholds (USD)
-  if (repairCostUsd >= 15000) return "total_loss";
-  if (repairCostUsd >= 5000) return "high";
-  if (repairCostUsd >= 1500) return "medium";
+  // Absolute-threshold fallback: scale USD breakpoints by NCI so the tier boundaries
+  // are market-calibrated. nci=1.0 (default) leaves USD callers completely unaffected.
+  const usdEquivalent = nci > 0 ? repairCostUsd / nci : repairCostUsd;
+  if (usdEquivalent >= 15000) return "total_loss";
+  if (usdEquivalent >= 5000) return "high";
+  if (usdEquivalent >= 1500) return "medium";
   return "low";
 }
 
