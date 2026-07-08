@@ -123,7 +123,7 @@ const EXTRACTION_SCHEMA = {
         driverLicenseNumber: { type: ["string", "null"], description: "Driver's license number. Look for 'Licence No.', 'License Number', 'DL No.', 'Driver Licence'." },
         // Cross-border fields
         repairCountry: { type: ["string", "null"], description: "Country where the vehicle is being repaired. Look for the panel beater or repairer address. If the address contains 'South Africa', 'SA', 'RSA', 'Johannesburg', 'Cape Town', 'Durban', 'Pretoria', 'Sandton', 'Randburg', 'Boksburg', 'Germiston', 'Roodepoort', 'Centurion', 'Midrand', 'Kempton Park', 'Springs', 'Benoni', 'Alberton', 'Edenvale', 'Bedfordview', 'Fourways', 'Soweto', 'Tembisa', 'Katlehong', 'Thokoza', 'Vosloorus', 'Daveyton', 'Brakpan', 'Nigel', 'Heidelberg', 'Vereeniging', 'Vanderbijlpark', 'Sasolburg', 'Klerksdorp', 'Potchefstroom', 'Rustenburg', 'Polokwane', 'Nelspruit', 'Witbank', 'Middelburg', 'Secunda', 'Ermelo', 'Standerton', 'Bethal', 'Kriel', 'Hendrina', 'Delmas', 'Bronkhorstspruit', 'Cullinan', 'Bela-Bela', 'Modimolle', 'Mokopane', 'Lephalale', 'Thabazimbi', 'Northam', 'Brits', 'Hartbeespoort', 'Atteridgeville', 'Soshanguve', 'Mabopane', 'Ga-Rankuwa', 'Temba', 'Hammanskraal', 'Bapsfontein', 'Tarlton', 'Krugersdorp', 'Randfontein', 'Westonaria', 'Carletonville', 'Fochville', 'Stilfontein', 'Orkney', 'Wolmaransstad', 'Schweizer-Reneke', 'Vryburg', 'Taung', 'Lichtenburg', 'Delareyville', 'Sannieshof', 'Groot Marico', 'Zeerust', 'Mafikeng', 'Mmabatho', 'Lomanyaneng', 'Mahikeng', 'Ratlou', 'Tswaing', 'Ditsobotla', 'Ramotshere Moiloa', 'Ngaka Modiri Molema', 'Dr Ruth Segomotsi Mompati', 'Bojanala', 'Dr Kenneth Kaunda', 'JHB', 'GP', 'WC', 'EC', 'KZN', 'LP', 'MP', 'NC', 'NW', 'FS' etc., set to 'ZA'. If in Zimbabwe, set to 'ZW'. Use ISO 3166-1 alpha-2 codes. Return null if not determinable." },
-        quoteCurrency: { type: ["string", "null"], description: "Currency used in the repair quotation. Look for currency symbols or codes in the repair quote: 'R ' prefix or 'ZAR' → 'ZAR'; 'USD', '$', 'US$', 'USD ' prefix → 'USD'; 'ZWL', 'ZWD', 'RTGS' → 'ZWL'; 'ZiG' or 'ZWG' → 'ZWG' (Zimbabwe Gold, introduced 2024 — do NOT map ZiG to ZWL). If the quote amounts are preceded by 'R' (e.g. 'R 591.33', 'R591.33') set to 'ZAR'. Return null if not determinable." },
+        quoteCurrency: { type: ["string", "null"], description: "Currency used in the repair quotation. Look for currency symbols or codes in the repair quote. Mapping rules: 'R ' prefix or 'ZAR' → 'ZAR' (South Africa); 'USD', '$', 'US$' → 'USD'; 'ZWL', 'ZWD', 'RTGS' → 'ZWL'; 'ZiG' or 'ZWG' → 'ZWG' (Zimbabwe Gold, introduced 2024 — do NOT map ZiG to ZWL); 'K ' prefix or 'ZMW' → 'ZMW' (Zambia); 'KSh' or 'Ksh' or 'KES' → 'KES' (Kenya); 'P ' prefix or 'BWP' → 'BWP' (Botswana); 'N$' or 'NAD' → 'NAD' (Namibia); 'MT' or 'MZN' → 'MZN' (Mozambique); 'TZS' or 'TSh' → 'TZS' (Tanzania); 'UGX' or 'USh' → 'UGX' (Uganda); 'MWK' or 'MK ' → 'MWK' (Malawi); '₦' or 'NGN' → 'NGN' (Nigeria); 'GH₵' or 'GHS' → 'GHS' (Ghana). If the quote amounts are preceded by 'R' (e.g. 'R 591.33', 'R591.33') set to 'ZAR'. Return null if not determinable." },
         policyExclusions: { type: ["string", "null"], description: "Any policy exclusions, limitations, or items explicitly NOT covered mentioned anywhere in the document. Look for: 'not covered', 'excluded', 'exclusion', 'specifically mentioned in the policy wording', 'policy does not cover', 'not included in cover', 'excluded from policy'. Extract the FULL text of the exclusion statement verbatim. Multiple exclusions should be separated by ' | '. Example: 'Suspension is not covered since it is specifically mentioned in the policy wording | Tyres excluded'. Return null if no exclusions mentioned." },
         assessorInspectionDate: { type: ["string", "null"], description: "Date the assessor inspected the vehicle, in YYYY-MM-DD format. Look for 'Date Inspected:', 'Inspection Date:', 'Date of Inspection:', 'Assessed on:', 'Date of Assessment:'. This is the date the loss adjuster or assessor physically viewed the vehicle — NOT the accident date and NOT the report date. For DD/MM/YYYY format, convert correctly (e.g. '03/06/2025' = 3 June 2025 = '2025-06-03')." },
       },
@@ -781,25 +781,36 @@ function recoverQuoteFromText(rawText: string): RecoveredQuote | null {
   if (!rawText || rawText.trim().length < 20) return null;
 
     // R-A-18/C-A-04 FIX: Added ZiG and ZWG to all currency prefix patterns.
-  // ZiG is the Zimbabwe Gold symbol (introduced April 2024, ISO code ZWG).
-  // Previously these patterns only matched USD/ZWL/ZWD, causing ZiG-denominated
-  // quotes to fall through to the generic number extractor with no currency context.
-  // Patterns for monetary values: USD 1,234.56 / ZiG 1,234.56 / $1234.56 / 1 234.56
-  const currencyPattern = /(?:USD|ZiG|ZWG|ZWL|ZWD|\$)?\s*([0-9]{1,3}(?:[,\s][0-9]{3})*(?:\.[0-9]{1,2})?)/gi;
+  // R-CX-01b FIX: Extended all patterns to cover multi-country SADC/African currencies:
+  //   ZAR (South Africa): 'R ' prefix or 'ZAR' code
+  //   ZMW (Zambia): 'K ' prefix or 'ZMW' code
+  //   KES (Kenya): 'KSh'/'Ksh' prefix or 'KES' code
+  //   BWP (Botswana): 'P ' prefix or 'BWP' code
+  //   NAD (Namibia): 'N$' prefix or 'NAD' code
+  //   NGN (Nigeria): '₦' symbol or 'NGN' code
+  //   GHS (Ghana): 'GH₵'/'GHS' prefix
+  //   TZS/UGX/MWK: code-only (no common symbol prefix in documents)
+  // The currency prefix in these patterns is used only to help the regex anchor to
+  // monetary values; the actual currency code is determined by the LLM in the main
+  // extraction path (line 126). This fallback path is only used when the LLM fails.
+  const CURRENCY_PREFIX = /(?:USD|ZiG|ZWG|ZWL|ZWD|ZAR|ZMW|KES|BWP|NAD|NGN|GHS|TZS|UGX|MWK|GH₵|KSh|Ksh|N\$|[R$₦])/;
+  const CP = CURRENCY_PREFIX.source; // reuse in patterns below
+  // Patterns for monetary values: USD 1,234.56 / R 1,234.56 / KSh 1,234.56 / $1234.56
+  const currencyPattern = new RegExp(`(?:${CP})?\\s*([0-9]{1,3}(?:[,\\s][0-9]{3})*(?:\\.[0-9]{1,2})?)`, "gi");
   // Priority 1: agreed / adjusted / net cost (assessor negotiated)
   const agreedPatterns = [
-    /(?:agreed|adjusted|net|accepted|approved|authorised|authorized)\s+(?:cost|amount|total|value)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi,
-    /(?:cost\s+agreed|amount\s+agreed|total\s+agreed)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi,
-    /(?:repair\s+cost|repair\s+total)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi,
+    new RegExp(`(?:agreed|adjusted|net|accepted|approved|authorised|authorized)\\s+(?:cost|amount|total|value)[:\\s]+(?:${CP})?\\s*([0-9][0-9,\\s.]+)`, "gi"),
+    new RegExp(`(?:cost\\s+agreed|amount\\s+agreed|total\\s+agreed)[:\\s]+(?:${CP})?\\s*([0-9][0-9,\\s.]+)`, "gi"),
+    new RegExp(`(?:repair\\s+cost|repair\\s+total)[:\\s]+(?:${CP})?\\s*([0-9][0-9,\\s.]+)`, "gi"),
   ];
   // Priority 2: original quote total
   const quotePatterns = [
-    /(?:total|grand\s+total|quote\s+total|total\s+cost)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi,
-    /(?:amount|sum)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi,
+    new RegExp(`(?:total|grand\\s+total|quote\\s+total|total\\s+cost)[:\\s]+(?:${CP})?\\s*([0-9][0-9,\\s.]+)`, "gi"),
+    new RegExp(`(?:amount|sum)[:\\s]+(?:${CP})?\\s*([0-9][0-9,\\s.]+)`, "gi"),
   ];
   // Labour and parts
-  const labourPattern = /(?:labour|labor)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi;
-  const partsPattern = /(?:parts|spares|materials)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi;
+  const labourPattern = new RegExp(`(?:labour|labor)[:\\s]+(?:${CP})?\\s*([0-9][0-9,\\s.]+)`, "gi");
+  const partsPattern = new RegExp(`(?:parts|spares|materials)[:\\s]+(?:${CP})?\\s*([0-9][0-9,\\s.]+)`, "gi");
 
   function extractFirst(patterns: RegExp[], text: string): number | null {
     for (const pat of patterns) {

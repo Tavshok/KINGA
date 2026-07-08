@@ -307,9 +307,19 @@ interface SeverityRuleResult {
   confidence_multiplier: number;
 }
 
+/**
+ * @param totalCents                - Total cost in the claim's native currency (cents)
+ * @param severity                  - Accident severity from Stage 6/7
+ * @param exchangeRateOrScaleFactor - Nominal exchange rate from claim currency to USD
+ *                                    (e.g. 18.5 for ZAR). Scales the USD-calibrated ranges.
+ *                                    Default 1.0 = USD (no scaling).
+ *                                    IMPORTANT — interim approximation: calibrate from real
+ *                                    local claim distributions once sufficient data exists.
+ */
 function validateSeverityCost(
   totalCents: number,
-  severity: AccidentSeverity | null
+  severity: AccidentSeverity | null,
+  exchangeRateOrScaleFactor: number = 1.0
 ): SeverityRuleResult {
   if (!severity || severity === "none" || severity === "unknown" as any) {
     return { consistent: true, issue: null, confidence_multiplier: 1.0 };
@@ -320,19 +330,25 @@ function validateSeverityCost(
     return { consistent: true, issue: null, confidence_multiplier: 1.0 };
   }
 
-  if (totalCents >= range.minCents && totalCents <= range.maxCents) {
+  // Scale USD-calibrated ranges by exchange rate to get local-currency equivalents.
+  // exchangeRateOrScaleFactor=1.0 (default) leaves USD ranges completely unaffected.
+  const rate = exchangeRateOrScaleFactor > 0 ? exchangeRateOrScaleFactor : 1.0;
+  const scaledMin = Math.round(range.minCents * rate);
+  const scaledMax = Math.round(range.maxCents * rate);
+
+  if (totalCents >= scaledMin && totalCents <= scaledMax) {
     return { consistent: true, issue: null, confidence_multiplier: 1.0 };
   }
 
-  const direction = totalCents < range.minCents ? "below" : "above";
+  const direction = totalCents < scaledMin ? "below" : "above";
   const issue: CostValidationIssue = {
     rule: "severity_cost_mismatch",
     description:
       `Total cost (${(totalCents / 100).toFixed(2)}) is ${direction} the expected range ` +
-      `for ${severity} damage (${(range.minCents / 100).toFixed(2)}–${(range.maxCents / 100).toFixed(2)}). ` +
+      `for ${severity} damage (${(scaledMin / 100).toFixed(2)}–${(scaledMax / 100).toFixed(2)}). ` +
       `Cost is preserved; confidence has been reduced.`,
     actual_value: totalCents,
-    expected_value: `${(range.minCents / 100).toFixed(2)}–${(range.maxCents / 100).toFixed(2)}`,
+    expected_value: `${(scaledMin / 100).toFixed(2)}–${(scaledMax / 100).toFixed(2)}`,
     severity: "medium",
   };
 
@@ -348,17 +364,24 @@ function validateSeverityCost(
 /**
  * Validates and, where necessary, adjusts the cost breakdown from Stage 9.
  *
- * @param costOutput       Stage 9 output (cost estimation)
- * @param componentCount   Number of damaged components from Stage 6
- * @param overallSeverity  Overall accident severity from Stage 6 or Stage 7
- * @param avgComponentCostCents  Optional override for average component cost
- * @returns                CostRealismResult with validated breakdown and contract fields
+ * @param costOutput                Stage 9 output (cost estimation)
+ * @param componentCount            Number of damaged components from Stage 6
+ * @param overallSeverity           Overall accident severity from Stage 6 or Stage 7
+ * @param avgComponentCostCents     Optional override for average component cost
+ * @param exchangeRateOrScaleFactor Nominal exchange rate from claim currency to USD
+ *                                  (e.g. 18.5 for ZAR). Scales SEVERITY_COST_RANGES_CENTS
+ *                                  for non-USD markets. Default 1.0 = USD (no scaling).
+ *                                  Pass `economicContext.exchangeRateToUsd` from Stage 9.
+ *                                  IMPORTANT — interim approximation: calibrate from real
+ *                                  local claim distributions once sufficient data exists.
+ * @returns                         CostRealismResult with validated breakdown and contract fields
  */
 export function validateCostRealism(
   costOutput: Stage9Output | null | undefined,
   componentCount: number = 0,
   overallSeverity: AccidentSeverity | null = null,
-  avgComponentCostCents: number = DEFAULT_AVG_COMPONENT_COST_CENTS
+  avgComponentCostCents: number = DEFAULT_AVG_COMPONENT_COST_CENTS,
+  exchangeRateOrScaleFactor: number = 1.0
 ): CostRealismResult {
   // ── Defensive fallback ───────────────────────────────────────────────────
   if (!costOutput) {
@@ -453,7 +476,7 @@ export function validateCostRealism(
   const finalLabourRatio = safeDiv(labourCents, finalTotal);
 
   // ── Rule 4: Severity ↔ cost cross-check ─────────────────────────────────
-  const severityResult = validateSeverityCost(finalTotal, overallSeverity);
+  const severityResult = validateSeverityCost(finalTotal, overallSeverity, exchangeRateOrScaleFactor);
   if (severityResult.issue) {
     issues.push(severityResult.issue);
     confidenceMultiplier *= severityResult.confidence_multiplier;
