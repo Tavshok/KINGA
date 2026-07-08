@@ -38,28 +38,29 @@ import type {
 } from "./types";
 
 // Labour rates in USD/hour by country code (ISO 3166-1 alpha-2).
-// R-CX-01b: Added SADC/African country codes for multi-country expansion.
-// IMPORTANT — interim approximation: these are NCI-derived defaults based on
-// typical regional labour market data. Override via tenant rates once real local
-// panel-beater labour rate data is available for each market.
+// ZW and ZA rates were validated against 892 real processed claims (R-E-02).
+// All other entries below are PROVISIONAL ESTIMATES with no real claims data to
+// verify against. They are informed by regional labour market context but should
+// be treated as placeholders and recalibrated once each country has sufficient
+// processing volume — the same way ZW/ZA were corrected from real data.
 const LABOUR_RATES: Record<string, number> = {
-  // Existing markets
-  ZW: 25,   // Zimbabwe — low-cost market, USD primary currency
-  ZA: 35,   // South Africa — moderate, mix of OEM/aftermarket
+  // Validated against real claims data
+  ZW: 25,   // Zimbabwe — validated (R-E-02, 892 USD quotes)
+  ZA: 35,   // South Africa — validated (R-E-02)
   US: 75,   // United States
   UK: 65,   // United Kingdom
   AU: 60,   // Australia
-  // R-CX-01b: New SADC/African markets
-  ZM: 20,   // Zambia — lower than ZW; ZMW market, limited OEM parts supply
-  BW: 30,   // Botswana — similar to ZA, BWP market
-  NA: 33,   // Namibia — pegged to ZAR, similar to ZA
-  MZ: 18,   // Mozambique — lower-cost market, MZN
-  KE: 22,   // Kenya — KES market, growing automotive sector
-  TZ: 18,   // Tanzania — TZS market
-  UG: 17,   // Uganda — UGX market
-  MW: 15,   // Malawi — MWK market, lower-cost
-  NG: 20,   // Nigeria — NGN market, large volume but parts inflation
-  GH: 22,   // Ghana — GHS market
+  // PROVISIONAL — no real claims data yet; recalibrate once volume exists per country
+  ZM: 20,   // Zambia — provisional estimate
+  BW: 30,   // Botswana — provisional estimate
+  NA: 33,   // Namibia — provisional estimate
+  MZ: 18,   // Mozambique — provisional estimate
+  KE: 22,   // Kenya — provisional estimate
+  TZ: 18,   // Tanzania — provisional estimate
+  UG: 17,   // Uganda — provisional estimate
+  MW: 15,   // Malawi — provisional estimate
+  NG: 20,   // Nigeria — provisional estimate
+  GH: 22,   // Ghana — provisional estimate
   DEFAULT: 40,
 };
 
