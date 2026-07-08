@@ -150,6 +150,9 @@ export interface ClaimTruth {
     generatedAt: string;
     sourceStages: string[];
     conflictsResolved: ConflictResolved[];
+    /** R-D-02: Stage 8 composite fraud score carried through for physics re-evaluation */
+    stage8FraudScore?: number | null;
+    stage8FraudLevel?: "minimal" | "low" | "medium" | "high" | "elevated" | null;
   };
 }
 
@@ -171,6 +174,12 @@ export interface ClaimTruthInput {
   kingaEstimateSource: string | null;
   systemCreatedAt: Date | null; // KINGA system ingestion date — used ONLY for metadata, never for timeline
   totalPages: number;
+  /** R-D-02: Stage 8 composite fraud score (0–100 normalised). Used as the ESCALATE threshold
+   * instead of the raw CTL indicator weight sum, which is on a different scale. Optional for
+   * backwards-compatibility — falls back to raw sum when not provided. */
+  stage8FraudScore?: number | null;
+  /** R-D-02: Stage 8 five-tier fraud risk level. Used for tier-aware ESCALATE/REVIEW decisions. */
+  stage8FraudLevel?: "minimal" | "low" | "medium" | "high" | "elevated" | null;
 }
 
 // ─── RESOLUTION ENGINE ──────────────────────────────────────────────────────
@@ -217,7 +226,7 @@ export function buildClaimTruth(input: ClaimTruthInput): ClaimTruth {
   sourceStages.push("police");
 
   // ─── UNIFIED DECISION ───────────────────────────────────────────────────
-  const decision = resolveDecision(evidence, timeline, costBasis, vehicle, fraudSignals, policyAndRecovery, policeReport);
+  const decision = resolveDecision(evidence, timeline, costBasis, vehicle, fraudSignals, policyAndRecovery, policeReport, input.stage8FraudScore, input.stage8FraudLevel);
   sourceStages.push("decision");
 
   return {
@@ -234,6 +243,8 @@ export function buildClaimTruth(input: ClaimTruthInput): ClaimTruth {
       generatedAt: new Date().toISOString(),
       sourceStages,
       conflictsResolved: conflicts,
+      stage8FraudScore: input.stage8FraudScore ?? null,
+      stage8FraudLevel: input.stage8FraudLevel ?? null,
     },
   };
 }
@@ -681,17 +692,28 @@ function resolveDecision(
   vehicle: ClaimTruthVehicle,
   fraudSignals: ClaimTruthFraudSignals,
   policyAndRecovery: ClaimTruthPolicyRecovery,
-  policeReport: ClaimTruthPoliceReport
+  policeReport: ClaimTruthPoliceReport,
+  // R-D-02: Stage 8 composite fraud score and level (optional, for backwards-compatibility)
+  stage8FraudScore?: number | null,
+  stage8FraudLevel?: "minimal" | "low" | "medium" | "high" | "elevated" | null
 ): ClaimTruthDecision {
   const reviewTriggers: string[] = [];
   const approvalConditions: string[] = [];
   let recommendation: ClaimTruthDecision["recommendation"] = "APPROVE";
 
-  // ─── ESCALATION TRIGGERS (highest priority) ───────────────────────────
-  const fraudScore = fraudSignals.indicators.reduce((sum, i) => sum + i.weight, 0);
-  if (fraudScore >= 60) {
+  // ─── ESCALATION TRIGGERS (highest priority) ─────────────────────
+  // R-D-02: Use Stage 8 composite score (0–100 normalised) when available.
+  // Fall back to raw CTL indicator weight sum for backwards-compatibility.
+  const fraudScore = stage8FraudScore ?? fraudSignals.indicators.reduce((sum, i) => sum + i.weight, 0);
+  // R-D-02: Tier-aware ESCALATE: composite score ≥65 (= 'elevated') or level is 'elevated'/'high'
+  const isEscalateTier = stage8FraudLevel === "elevated" || stage8FraudLevel === "high";
+  if (fraudScore >= 65 || isEscalateTier) {
     recommendation = "ESCALATE";
-    reviewTriggers.push(`High fraud risk score (${fraudScore}/100)`);
+    reviewTriggers.push(`High fraud risk: score ${fraudScore}/100 (${stage8FraudLevel ?? "computed"})`);
+  } else if (fraudScore >= 45) {
+    // 'medium' tier: REVIEW, not ESCALATE
+    if (recommendation !== "ESCALATE") recommendation = "REVIEW";
+    reviewTriggers.push(`Elevated fraud risk: score ${fraudScore}/100 (${stage8FraudLevel ?? "medium"}) — manual review required`);
   }
 
   // Active physics anomalies that need investigation
@@ -817,6 +839,7 @@ export function enrichClaimTruthWithPhysics(
   };
 
   // Re-evaluate decision with physics information
+  // R-D-02: preserve stage8FraudScore/Level through the re-evaluation so tier-aware thresholds are maintained
   enriched.decision = resolveDecision(
     enriched.evidence,
     enriched.timeline,
@@ -824,7 +847,9 @@ export function enrichClaimTruthWithPhysics(
     enriched.vehicle,
     enriched.fraudSignals,
     enriched.policyAndRecovery,
-    enriched.policeReport
+    enriched.policeReport,
+    truth.meta.stage8FraudScore,
+    truth.meta.stage8FraudLevel
   );
 
   return enriched;

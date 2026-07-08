@@ -1331,7 +1331,7 @@ export async function runPipelineV2(
           ctx.log("PartialResume", "Stage 9 — restoring from cache, skipping re-run");
           return { status: "success" as const, data: _s9Cached, durationMs: 0, savedToDb: true, degraded: false };
         })())
-      : runWithTimeout("9_cost", () => runCostOptimisationStage(ctx, claimRecord!, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
+      : runWithTimeout("9_cost", () => runCostOptimisationStage(ctx, claimRecord!, stage6Data!, stage7Data!, stage3Data ?? undefined, stage8Data?.fraudRiskLevel ?? null)).catch((err) => {
       const isTimeout = err instanceof StageTimeoutError;
       const reason = isTimeout
         ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
@@ -1719,6 +1719,9 @@ export async function runPipelineV2(
       kingaEstimateSource: ctlKingaEstimateSource,
       systemCreatedAt: ctx.claim?.createdAt ? new Date(ctx.claim.createdAt) : null,
       totalPages: (stage1Data as any)?.totalPages ?? (ctx as any).totalPages ?? 0,
+      // R-D-02: pass Stage 8 composite fraud score/level so CTL uses the correct scale for ESCALATE decisions
+      stage8FraudScore: stage8Data?.fraudRiskScore ?? null,
+      stage8FraudLevel: stage8Data?.fraudRiskLevel ?? null,
     });
     ctx.log("CTL", `Claim Truth Layer resolved: quotes=${claimTruth.costBasis.quotes.length}, ` +
       `optimisedCost=$${claimTruth.costBasis.optimisedCostUsd.toFixed(2)}, ` +

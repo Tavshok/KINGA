@@ -107,7 +107,10 @@ export async function runCostOptimisationStage(
   claimRecord: ClaimRecord,
   damageAnalysis: Stage6Output,
   physicsAnalysis: Stage7Output,
-  stage3?: Stage3Output
+  stage3?: Stage3Output,
+  /** R-D-04: Stage 8 fraud risk level passed explicitly to avoid parallel-execution race condition.
+   * Stage 8 and Stage 9 run in parallel; ctx.fraudRiskLevel is never set before Stage 9 starts. */
+  stage8FraudRiskLevel?: string | null
 ): Promise<StageResult<Stage9Output>> {
   const start = Date.now();
   ctx.log("Stage 9", "Cost optimisation starting");
@@ -833,7 +836,7 @@ export async function runCostOptimisationStage(
             confidence: 'low' as const,
           })),
           currency: policyCurrency,
-          overallFraudRisk: (ctx as any).fraudRiskLevel ?? 'low',
+          overallFraudRisk: stage8FraudRiskLevel ?? 'low',  // R-D-04: use explicit param, not ctx (S8/S9 run in parallel)
           fraudSignal: null,
           turnaroundDays: null,
         });

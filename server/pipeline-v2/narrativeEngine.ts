@@ -363,14 +363,22 @@ export function buildFraudNarrative(fraudAnalysis: Stage8Output): NarrativeResul
 
   const score = fraudAnalysis.fraudRiskScore ?? 0;
   const level = fraudAnalysis.fraudRiskLevel ?? "low";
+  // R-D-05: use level string (five-tier: minimal/low/medium/elevated/high) for action text
+  // to match the scoreToLevel boundaries in stage-8 (high≥80, elevated≥65, medium≥40, low≥20, minimal<20)
+  const fraudActionText =
+    level === "high"
+      ? "score is HIGH — claim requires immediate investigator assignment"
+      : level === "elevated"
+      ? "score is ELEVATED — claim requires escalation and senior adjuster review"
+      : level === "medium"
+      ? "score exceeds manual review threshold — adjuster verification required"
+      : level === "low"
+      ? "score is within normal parameters — standard processing applies"
+      : "score is minimal — no fraud indicators of concern";
   sentences.push(oec(
     `Fraud risk score: ${score}/100 (${level})`,
     `Stage 8 fraud engine — ${(fraudAnalysis.indicators ?? []).length} indicator(s) evaluated`,
-    score >= 70
-      ? "score exceeds escalation threshold — claim requires investigator assignment"
-      : score >= 40
-      ? "score exceeds manual review threshold — adjuster verification required"
-      : "score is within normal parameters — no escalation triggered"
+    fraudActionText
   ));
 
   // Active indicators
