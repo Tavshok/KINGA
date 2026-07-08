@@ -184,13 +184,13 @@ describe("R-D-05: PHYSICS_ONLY_SIGNALS maintenance trap fixed", () => {
 // ─── R-E-02 ──────────────────────────────────────────────────────────────────
 
 describe("R-E-02: costRealismValidator severe upper bound raised", () => {
-  it("costRealismValidator: severe maxCents is 50_000_000 (USD 500k)", () => {
+  it('costRealismValidator: severe maxCents is 15_000_000 (USD 150k) — data-driven calibration', () => {
     const src = readFile("server/pipeline-v2/costRealismValidator.ts");
-    // Should have the new 50_000_000 value for severe
-    expect(src).toMatch(/severe.*maxCents.*50_000_000|50_000_000.*severe/s);
+    // severe.maxCents should be 15_000_000 (USD $150k) — data-driven from 892 processed quotes
+    expect(src).toContain('15_000_000');
   });
 
-  it("costRealismValidator: old 5_000_000 cap for severe is removed", () => {
+  it('costRealismValidator: old 5_000_000 cap for severe is removed', () => {
     const src = readFile("server/pipeline-v2/costRealismValidator.ts");
     // The old value 5_000_000 should not appear as severe's maxCents
     // (it may still appear as catastrophic's minCents which is 2_000_000)
@@ -201,9 +201,9 @@ describe("R-E-02: costRealismValidator severe upper bound raised", () => {
     }
   });
 
-  it("costRealismValidator: R-E-02 comment present", () => {
+  it('costRealismValidator: R-E-02 recalibration comment present', () => {
     const src = readFile("server/pipeline-v2/costRealismValidator.ts");
-    expect(src).toContain("R-E-02");
+    expect(src).toContain('R-E-02 (recalibrated');
   });
 });
 

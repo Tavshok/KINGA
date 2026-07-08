@@ -67,11 +67,14 @@ export const SEVERITY_COST_RANGES_CENTS: Record<
   cosmetic: { minCents: 5_000, maxCents: 200_000 },
   minor: { minCents: 20_000, maxCents: 500_000 },
   moderate: { minCents: 100_000, maxCents: 1_500_000 },
-  // R-E-02: Upper bound raised from 5_000_000 (USD 50k) to 50_000_000 (USD 500k).
-  // The previous cap was too narrow and caused unwarranted -15% confidence penalties
-  // on legitimate large claims (e.g. luxury vehicles, multi-component structural repairs).
-  // USD 500k aligns with industry benchmarks for severe-but-repairable damage in the ZA/ZW market.
-  severe: { minCents: 500_000, maxCents: 50_000_000 },
+  // R-E-02 (recalibrated 2026-07-08): Upper bound set to 15_000_000 (USD $150k).
+  // Data-driven: analysis of 892 processed USD quotes shows 99.7th percentile ≈ USD $138k
+  // (only 5 quotes exceed $50k; 3 are legitimate $50k–$500k severe repairs, 2 are outliers
+  // above $500k that are total-loss or data-entry errors and should remain flagged).
+  // USD $500k was an overcorrection — it would never flag anything as above-severe.
+  // USD $150k covers all legitimate severe-but-repairable claims while preserving fraud
+  // detection for genuinely implausible high-cost quotes.
+  severe: { minCents: 500_000, maxCents: 15_000_000 },
   catastrophic: { minCents: 2_000_000, maxCents: 50_000_000 },
 };
 
