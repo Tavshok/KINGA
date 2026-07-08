@@ -1623,20 +1623,29 @@ export async function extractMultipleQuotesFromPageImages(
     return true;
   });
 
-  // Extract all quotes in PARALLEL — this is the key performance fix.
-  // Sequential extraction (for...await) was the main cause of Cloud Run 180s timeout.
+  // R-A-21 FIX: Cap parallel LLM calls at 3 concurrent requests.
+  // Unbounded Promise.all on large multi-repairer claims (5+ repairers) caused
+  // simultaneous LLM requests that exceeded rate limits and triggered Cloud Run
+  // 180s timeout failures. A concurrency cap of 3 balances throughput vs stability.
+  // Simple semaphore — avoids the p-limit dependency.
+  const MAX_CONCURRENT_EXTRACTIONS = 3;
+  let activeSlots = 0;
+  const waitQueue: Array<() => void> = [];
+  const acquireSlot = (): Promise<void> => new Promise<void>(resolve => {
+    if (activeSlots < MAX_CONCURRENT_EXTRACTIONS) { activeSlots++; resolve(); }
+    else { waitQueue.push(() => { activeSlots++; resolve(); }); }
+  });
+  const releaseSlot = () => { activeSlots--; const next = waitQueue.shift(); if (next) next(); };
   const extractionTasks = uniqueGroups.map(async (group) => {
     const groupPageUrls = group.pageIndexes
       .filter(idx => idx >= 0 && idx < pageImageUrls.length)
       .map(idx => pageImageUrls[idx]);
-
     if (groupPageUrls.length === 0) return null;
-
+    await acquireSlot();
     plog(
       `[QuoteExtractionEngine] Extracting quote for "${group.panelBeater}" from ${groupPageUrls.length} page(s) ` +
         `(pages ${group.pageIndexes.map(i => i + 1).join(",")})`
     );
-
     try {
       const quote = await extractQuoteFromMultipleImageUrls(groupPageUrls, group.panelBeater, null, tenantCountry);
       if (!quote.panel_beater && group.panelBeater) {
@@ -1650,9 +1659,10 @@ export async function extractMultipleQuotesFromPageImages(
     } catch (err) {
       plog(`[QuoteExtractionEngine] Failed to extract quote for "${group.panelBeater}": ${String(err)}`);
       return null;
+    } finally {
+      releaseSlot();
     }
   });
-
   const extractionResults = await Promise.all(extractionTasks);
   const visionResults: ExtractedQuote[] = extractionResults.filter((q): q is ExtractedQuote => q !== null);
 
@@ -1976,7 +1986,16 @@ Return JSON only.`,
   }
 
   // ── PASS 2: Extract each repairer's quote in PARALLEL ─────────────────────────
+    // R-A-21 FIX: Cap parallel LLM calls at 3 concurrent requests (same pattern as page-image path).
+  let pdfActiveSlots = 0;
+  const pdfWaitQueue: Array<() => void> = [];
+  const pdfAcquireSlot = (): Promise<void> => new Promise<void>(resolve => {
+    if (pdfActiveSlots < 3) { pdfActiveSlots++; resolve(); }
+    else { pdfWaitQueue.push(() => { pdfActiveSlots++; resolve(); }); }
+  });
+  const pdfReleaseSlot = () => { pdfActiveSlots--; const next = pdfWaitQueue.shift(); if (next) next(); };
   const extractionTasks = repairerNames.map(async (repairerName) => {
+    await pdfAcquireSlot();
     plog(`[QuoteExtractionEngine] Extracting quote for "${repairerName}" from PDF`);
     try {
       const result = await extractQuoteFromPdfVision(pdfUrl, repairerName, null, tenantCountry);
@@ -1992,9 +2011,10 @@ Return JSON only.`,
     } catch (err) {
       plog(`[QuoteExtractionEngine] PDF extraction failed for "${repairerName}": ${String(err)}`);
       return null;
+    } finally {
+      pdfReleaseSlot();
     }
   });
-
   const extractionResults = await Promise.all(extractionTasks);
   const validResults: ExtractedQuote[] = extractionResults.filter((q): q is ExtractedQuote => q !== null);
 

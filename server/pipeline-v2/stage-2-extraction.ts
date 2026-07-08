@@ -85,6 +85,34 @@ interface PrimaryExtractionResult {
 /** Minimum text length for a readable document — below this the primary pass failed */
 const MIN_TEXT_LENGTH_CHARS = 300;
 
+/**
+ * R-A-10 FIX: Detect garbled native text from PDFs with broken embedded font encoding.
+ * Some PDFs have a native text layer but the font-to-Unicode mapping is corrupt, producing
+ * sequences of replacement characters (U+FFFD), control characters, or private-use glyphs.
+ * These pass the MIN_TEXT_LENGTH_CHARS gate but propagate garbage to Stage 3.
+ *
+ * Heuristic: if more than 15% of characters are non-printable (codepoint < 32, excluding
+ * common whitespace) OR Unicode replacement characters (U+FFFD) OR private-use area
+ * characters (U+E000–U+F8FF, often used for unmapped glyphs), treat the text as garbled.
+ *
+ * Threshold 0.15 is conservative: real-world garbled PDFs typically show >40% garbage;
+ * valid non-ASCII text (e.g., Shona diacritics, ZAR symbols) stays well below 5%.
+ */
+function isGarbledText(text: string): boolean {
+  if (text.length === 0) return false;
+  let garbledCount = 0;
+  for (let i = 0; i < text.length; i++) {
+    const cp = text.charCodeAt(i);
+    // Non-printable ASCII (excluding tab=9, LF=10, CR=13)
+    if (cp < 32 && cp !== 9 && cp !== 10 && cp !== 13) { garbledCount++; continue; }
+    // Unicode replacement character
+    if (cp === 0xFFFD) { garbledCount++; continue; }
+    // Private use area (often used for unmapped glyphs in broken font maps)
+    if (cp >= 0xE000 && cp <= 0xF8FF) { garbledCount++; continue; }
+  }
+  return garbledCount / text.length > 0.15;
+}
+
 /** Field confidence below this is considered "missing" for trigger purposes */
 const FIELD_CONFIDENCE_MISSING = 40;
 
@@ -509,12 +537,17 @@ async function extractTextFromPdfChunked(
   try {
     const nativeText = await extractNativeTextFromPdf(pdfUrl, ctx);
     if (nativeText.length >= MIN_TEXT_LENGTH_CHARS) {
-      ctx.log('Stage 2', `[chunked->pdfjs-first] pdfjs extracted ${nativeText.length} chars — using as primary text, sending to LLM for structured extraction`);
-      // We have good native text. Now send it to the LLM as plain text (not file_url)
-      // for structured field extraction. This is faster and more reliable than file_url.
-      return await extractTextFromNativeString(nativeText, ctx);
+      // R-A-10 FIX: Reject garbled native text (broken font encoding) before trusting it
+      if (isGarbledText(nativeText)) {
+        ctx.log('Stage 2', `[chunked->pdfjs-first] R-A-10: Native text appears garbled (broken font encoding, ${nativeText.length} chars) — falling back to LLM file_url`);
+      } else {
+        ctx.log('Stage 2', `[chunked->pdfjs-first] pdfjs extracted ${nativeText.length} chars — using as primary text, sending to LLM for structured extraction`);
+        // We have good native text. Now send it to the LLM as plain text (not file_url)
+        // for structured field extraction. This is faster and more reliable than file_url.
+        return await extractTextFromNativeString(nativeText, ctx);
+      }
     }
-    ctx.log('Stage 2', `[chunked->pdfjs-first] pdfjs text too short (${nativeText.length} chars) — PDF may be scanned, falling back to LLM file_url`);
+    ctx.log('Stage 2', `[chunked->pdfjs-first] pdfjs text too short or garbled (${nativeText.length} chars) — PDF may be scanned, falling back to LLM file_url`);
   } catch (pdfjsErr) {
     ctx.log('Stage 2', `[chunked->pdfjs-first] pdfjs failed: ${(pdfjsErr as Error)?.message ?? pdfjsErr} — falling back to LLM file_url`);
   }
@@ -530,7 +563,7 @@ async function extractTextFromPdfChunked(
     ctx.log('Stage 2', `[chunked->file_url] LLM extraction failed (${(llmErr as Error)?.message ?? llmErr}) — attempting pdfjs native text extraction`);
     try {
       const nativeText = await extractNativeTextFromPdf(pdfUrl, ctx);
-      if (nativeText.length >= MIN_TEXT_LENGTH_CHARS) {
+      if (nativeText.length >= MIN_TEXT_LENGTH_CHARS && !isGarbledText(nativeText)) {
         ctx.log('Stage 2', `[chunked->pdfjs-native] Extracted ${nativeText.length} chars via pdfjs native text layer`);
         const agreedCostHintFound = hasAgreedCostHint(nativeText);
         const repairQuoteDetected = /total\s*\(incl/i.test(nativeText) || /grand\s*total/i.test(nativeText) || /repair|quote|quotation|estimate/i.test(nativeText);

@@ -279,18 +279,32 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
     console.log(`[PDF Extractor] PDF loaded: ${pageCount} pages`);
 
     // Detect scanned PDF using pdfjs text extraction
+    // R-A-06 FIX: Sample 30% of the document (capped at 10, min 3 pages) distributed
+    // evenly across the document instead of a fixed 3-page window. Use the MEDIAN
+    // chars/page (not the mean) so a sparse cover page (logo-only) or blank separator
+    // page does not drag the score below the threshold on a genuinely native PDF.
     let isScanned = false;
     try {
-      let totalChars = 0;
-      const samplePages = Math.min(3, pageCount);
-      for (let p = 1; p <= samplePages; p++) {
-        const page = await pdfDoc.getPage(p);
-        const textContent = await page.getTextContent();
-        totalChars += textContent.items.reduce((sum: number, item: any) => sum + (item.str?.length || 0), 0);
+      const sampleCount = Math.min(Math.max(Math.ceil(pageCount * 0.3), 3), 10);
+      // Distribute sample pages evenly across the document to catch hybrid layouts
+      const sampleIndices: number[] = [];
+      for (let i = 0; i < sampleCount; i++) {
+        const idx = Math.round(1 + (i / (sampleCount - 1 || 1)) * (pageCount - 1));
+        sampleIndices.push(Math.min(idx, pageCount));
       }
-      const avgCharsPerPage = totalChars / samplePages;
-      isScanned = avgCharsPerPage < 100;
-      console.log(`[PDF Extractor] Scanned detection: avgChars/page=${Math.round(avgCharsPerPage)}, isScanned=${isScanned}, pages=${pageCount}`);
+      const charsPerPage: number[] = [];
+      for (const p of sampleIndices) {
+        const pg = await pdfDoc.getPage(p);
+        const textContent = await pg.getTextContent();
+        const chars = textContent.items.reduce((sum: number, item: any) => sum + (item.str?.length || 0), 0);
+        charsPerPage.push(chars);
+      }
+      // Median is robust against outlier pages (blank separators, cover pages)
+      const sorted = [...charsPerPage].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      const medianChars = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+      isScanned = medianChars < 100;
+      console.log(`[PDF Extractor] R-A-06: Scanned detection: medianChars/page=${Math.round(medianChars)}, isScanned=${isScanned}, pages=${pageCount}, sampled=${sampleCount}`);
     } catch (e: any) {
       console.warn(`[PDF Extractor] Scanned detection failed: ${e.message}`);
     }
@@ -350,12 +364,18 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
             const rw = meta.width ?? 1;
             const rh = meta.height ?? 1;
             const ratio = rw / rh;
-            // Detect 90° or 270° mis-rotation: image is wider than it is tall
+            // R-A-07 FIX: Detect 90° or 270° mis-rotation: image is wider than it is tall
             // for a document that should be portrait (typical claim form / letter).
-            // Threshold 1.3 avoids false positives on slightly-wide pages.
-            if (ratio > 1.3) {
-              console.log(`[PDF Extractor] Page ${pageNum}: heuristic rotation applied (ratio=${ratio.toFixed(2)}, rotating 90° CCW to portrait)`);
+            // Threshold raised from 1.3 to 1.6 to avoid false positives on slightly-wide
+            // pages (e.g., A4 landscape damage schedules, wide tables).
+            // Also skip the LAST page of the document — damage schedules and cost summaries
+            // are commonly the last page and are legitimately landscape-oriented.
+            const isLastPage = pageNum === pagesToRender;
+            if (ratio > 1.6 && !isLastPage) {
+              console.log(`[PDF Extractor] R-A-07: Page ${pageNum}: heuristic rotation applied (ratio=${ratio.toFixed(2)}, rotating 90° CCW to portrait)`);
               pngBuffer = await sharpInst(pngBuffer).rotate(90).toBuffer();
+            } else if (ratio > 1.3 && ratio <= 1.6) {
+              console.log(`[PDF Extractor] R-A-07: Page ${pageNum}: landscape ratio=${ratio.toFixed(2)} below rotation threshold (1.6) — keeping original orientation`);
             }
           } catch (rotErr: any) {
             console.warn(`[PDF Extractor] Page ${pageNum}: heuristic rotation check failed: ${rotErr.message}`);

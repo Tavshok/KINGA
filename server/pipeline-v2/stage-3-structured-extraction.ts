@@ -123,7 +123,7 @@ const EXTRACTION_SCHEMA = {
         driverLicenseNumber: { type: ["string", "null"], description: "Driver's license number. Look for 'Licence No.', 'License Number', 'DL No.', 'Driver Licence'." },
         // Cross-border fields
         repairCountry: { type: ["string", "null"], description: "Country where the vehicle is being repaired. Look for the panel beater or repairer address. If the address contains 'South Africa', 'SA', 'RSA', 'Johannesburg', 'Cape Town', 'Durban', 'Pretoria', 'Sandton', 'Randburg', 'Boksburg', 'Germiston', 'Roodepoort', 'Centurion', 'Midrand', 'Kempton Park', 'Springs', 'Benoni', 'Alberton', 'Edenvale', 'Bedfordview', 'Fourways', 'Soweto', 'Tembisa', 'Katlehong', 'Thokoza', 'Vosloorus', 'Daveyton', 'Brakpan', 'Nigel', 'Heidelberg', 'Vereeniging', 'Vanderbijlpark', 'Sasolburg', 'Klerksdorp', 'Potchefstroom', 'Rustenburg', 'Polokwane', 'Nelspruit', 'Witbank', 'Middelburg', 'Secunda', 'Ermelo', 'Standerton', 'Bethal', 'Kriel', 'Hendrina', 'Delmas', 'Bronkhorstspruit', 'Cullinan', 'Bela-Bela', 'Modimolle', 'Mokopane', 'Lephalale', 'Thabazimbi', 'Northam', 'Brits', 'Hartbeespoort', 'Atteridgeville', 'Soshanguve', 'Mabopane', 'Ga-Rankuwa', 'Temba', 'Hammanskraal', 'Bapsfontein', 'Tarlton', 'Krugersdorp', 'Randfontein', 'Westonaria', 'Carletonville', 'Fochville', 'Stilfontein', 'Orkney', 'Wolmaransstad', 'Schweizer-Reneke', 'Vryburg', 'Taung', 'Lichtenburg', 'Delareyville', 'Sannieshof', 'Groot Marico', 'Zeerust', 'Mafikeng', 'Mmabatho', 'Lomanyaneng', 'Mahikeng', 'Ratlou', 'Tswaing', 'Ditsobotla', 'Ramotshere Moiloa', 'Ngaka Modiri Molema', 'Dr Ruth Segomotsi Mompati', 'Bojanala', 'Dr Kenneth Kaunda', 'JHB', 'GP', 'WC', 'EC', 'KZN', 'LP', 'MP', 'NC', 'NW', 'FS' etc., set to 'ZA'. If in Zimbabwe, set to 'ZW'. Use ISO 3166-1 alpha-2 codes. Return null if not determinable." },
-        quoteCurrency: { type: ["string", "null"], description: "Currency used in the repair quotation. Look for currency symbols or codes in the repair quote: 'R ' prefix or 'ZAR' → 'ZAR'; 'USD', '$', 'US$', 'USD ' prefix → 'USD'; 'ZWL', 'ZWD', 'RTGS', 'ZiG' → 'ZWL'. If the quote amounts are preceded by 'R' (e.g. 'R 591.33', 'R591.33') set to 'ZAR'. Return null if not determinable." },
+        quoteCurrency: { type: ["string", "null"], description: "Currency used in the repair quotation. Look for currency symbols or codes in the repair quote: 'R ' prefix or 'ZAR' → 'ZAR'; 'USD', '$', 'US$', 'USD ' prefix → 'USD'; 'ZWL', 'ZWD', 'RTGS' → 'ZWL'; 'ZiG' or 'ZWG' → 'ZWG' (Zimbabwe Gold, introduced 2024 — do NOT map ZiG to ZWL). If the quote amounts are preceded by 'R' (e.g. 'R 591.33', 'R591.33') set to 'ZAR'. Return null if not determinable." },
         policyExclusions: { type: ["string", "null"], description: "Any policy exclusions, limitations, or items explicitly NOT covered mentioned anywhere in the document. Look for: 'not covered', 'excluded', 'exclusion', 'specifically mentioned in the policy wording', 'policy does not cover', 'not included in cover', 'excluded from policy'. Extract the FULL text of the exclusion statement verbatim. Multiple exclusions should be separated by ' | '. Example: 'Suspension is not covered since it is specifically mentioned in the policy wording | Tyres excluded'. Return null if no exclusions mentioned." },
         assessorInspectionDate: { type: ["string", "null"], description: "Date the assessor inspected the vehicle, in YYYY-MM-DD format. Look for 'Date Inspected:', 'Inspection Date:', 'Date of Inspection:', 'Assessed on:', 'Date of Assessment:'. This is the date the loss adjuster or assessor physically viewed the vehicle — NOT the accident date and NOT the report date. For DD/MM/YYYY format, convert correctly (e.g. '03/06/2025' = 3 June 2025 = '2025-06-03')." },
       },
@@ -780,24 +780,25 @@ const DAMAGE_COMPONENT_KEYWORDS = [
 function recoverQuoteFromText(rawText: string): RecoveredQuote | null {
   if (!rawText || rawText.trim().length < 20) return null;
 
-  // Patterns for monetary values: USD 1,234.56 / $1234.56 / 1 234.56 / 1,234.56
-  const currencyPattern = /(?:USD|\$|ZWL|ZWD)?\s*([0-9]{1,3}(?:[,\s][0-9]{3})*(?:\.[0-9]{1,2})?)/gi;
-
+    // R-A-18/C-A-04 FIX: Added ZiG and ZWG to all currency prefix patterns.
+  // ZiG is the Zimbabwe Gold symbol (introduced April 2024, ISO code ZWG).
+  // Previously these patterns only matched USD/ZWL/ZWD, causing ZiG-denominated
+  // quotes to fall through to the generic number extractor with no currency context.
+  // Patterns for monetary values: USD 1,234.56 / ZiG 1,234.56 / $1234.56 / 1 234.56
+  const currencyPattern = /(?:USD|ZiG|ZWG|ZWL|ZWD|\$)?\s*([0-9]{1,3}(?:[,\s][0-9]{3})*(?:\.[0-9]{1,2})?)/gi;
   // Priority 1: agreed / adjusted / net cost (assessor negotiated)
   const agreedPatterns = [
-    /(?:agreed|adjusted|net|accepted|approved|authorised|authorized)\s+(?:cost|amount|total|value)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi,
-    /(?:cost\s+agreed|amount\s+agreed|total\s+agreed)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi,
-    /(?:repair\s+cost|repair\s+total)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi,
+    /(?:agreed|adjusted|net|accepted|approved|authorised|authorized)\s+(?:cost|amount|total|value)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi,
+    /(?:cost\s+agreed|amount\s+agreed|total\s+agreed)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi,
+    /(?:repair\s+cost|repair\s+total)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi,
   ];
-
   // Priority 2: original quote total
   const quotePatterns = [
-    /(?:total|grand\s+total|quote\s+total|total\s+cost)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi,
-    /(?:amount|sum)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi,
+    /(?:total|grand\s+total|quote\s+total|total\s+cost)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi,
+    /(?:amount|sum)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi,
   ];
-
   // Labour and parts
-  const labourPattern = /(?:labour|labor)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi;
+  const labourPattern = /(?:labour|labor)[:\s]+(?:USD|ZiG|ZWG|\$)?\s*([0-9][0-9,\s.]+)/gi;
   const partsPattern = /(?:parts|spares|materials)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi;
 
   function extractFirst(patterns: RegExp[], text: string): number | null {
@@ -858,7 +859,9 @@ async function runInputRecovery(
   stage1: Stage1Output,
   stage2: Stage2Output,
   perDocumentExtractions: ExtractedClaimFields[],
-  tenantCountry?: string | null
+  tenantCountry?: string | null,
+  /** R-A-15: DB-sourced claim quote total in cents — used as a hint in the OCR-failure vision-direct path */
+  claimQuoteTotalHintCents?: number | null
 ): Promise<InputRecoveryOutput> {
   const allText = stage2.extractedTexts.map(t => t.rawText).join("\n");
   const flags: InputRecoveryFailureFlag[] = [];
@@ -1025,12 +1028,15 @@ async function runInputRecovery(
       // the quote line items. This is the same vision fallback used above, but
       // triggered proactively when there is no text at all.
       console.log(`[Stage3] OCR-failure vision-direct: allText empty, trying ${allPdfDocs.length} PDF document(s) for quote extraction`);
-      // We need a total_cost hint from the claim record (already extracted by Stage 3's
-      // PDF extraction path above). Use the first non-null quoteTotalCents from
-      // perDocumentExtractions.
-      const hintTotalCents = perDocumentExtractions
-        .map(e => e.quoteTotalCents)
-        .find(v => v != null && v > 0) ?? null;
+      // R-A-15 FIX: Use the DB-sourced claimQuoteTotalHintCents as a fallback when
+      // perDocumentExtractions is empty (which it always is in this path, since we only
+      // reach here when allText is empty and OCR has failed — meaning PDF extraction also
+      // failed and perDocumentExtractions is []). The DB value was stored at claim submission
+      // time and is the most reliable total available.
+      const hintTotalCents =
+        perDocumentExtractions.map(e => e.quoteTotalCents).find(v => v != null && v > 0) ??
+        claimQuoteTotalHintCents ??
+        null;
       const hintTotal = hintTotalCents ? hintTotalCents / 100 : null;
       const hintPanelBeater = perDocumentExtractions
         .map(e => e.panelBeater)
@@ -1066,9 +1072,16 @@ async function runInputRecovery(
   //       (e.g. original $2,130 crossed out, agreed $1,950 written beside it)
   //   (b) Text-based extraction and vision extraction both find the same repairer
   //   (c) The sparse-text vision guard runs on a document already extracted by OCR
-  // Strategy: group by normalised repairer name, keep the entry with the LOWEST
-  // total_cost (the agreed/negotiated price, not the original inflated amount).
-  // If two entries have the same total, keep the one with more line items.
+  //
+  // R-A-16 FIX: The prior strategy of always keeping the LOWEST total was wrong.
+  // It conflated two distinct cases:
+  //   - Negotiated downward revision: insurer agrees a lower amount → keep LOWER
+  //   - Supplementary / revised upward quote: repairer finds hidden damage → keep HIGHER
+  //
+  // New strategy (priority order):
+  //   1. If one entry is document_category='assessor_report', it is authoritative (agreed amount)
+  //   2. Otherwise, prefer text-extracted over vision-extracted (text is more reliable for totals)
+  //   3. If same source, keep the entry with MORE line items (richer / more complete extraction)
   if (extracted_quotes && extracted_quotes.length > 1) {
     const dedupMap = new Map<string, typeof extracted_quotes[0]>();
     for (const q of extracted_quotes) {
@@ -1077,22 +1090,48 @@ async function runInputRecovery(
       if (!existing) {
         dedupMap.set(normName, q);
       } else {
-        // Both have a total — keep the lower (agreed/negotiated) amount
         const existingTotal = existing.total_cost ?? Infinity;
         const newTotal = q.total_cost ?? Infinity;
-        if (newTotal < existingTotal) {
-          console.log(`[Stage3] Dedup: "${q.panel_beater}" — keeping lower total ${newTotal} over ${existingTotal}`);
-          dedupMap.set(normName, q);
-        } else if (newTotal === existingTotal) {
+        if (newTotal === existingTotal) {
           // Same total — keep the one with more line items (richer data)
           const existingItems = existing.line_items?.length ?? 0;
           const newItems = q.line_items?.length ?? 0;
           if (newItems > existingItems) {
-            console.log(`[Stage3] Dedup: "${q.panel_beater}" — same total, keeping entry with ${newItems} line items over ${existingItems}`);
+            console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — same total, keeping entry with ${newItems} line items over ${existingItems}`);
             dedupMap.set(normName, q);
           }
         } else {
-          console.log(`[Stage3] Dedup: "${q.panel_beater}" — discarding higher total ${newTotal} (keeping ${existingTotal})`);
+          // Totals differ — use document_category as primary signal
+          const existingIsAssessor = existing.document_category === 'assessor_report';
+          const newIsAssessor = q.document_category === 'assessor_report';
+          if (existingIsAssessor && !newIsAssessor) {
+            // Existing is assessor_report (authoritative agreed amount) — keep it
+            console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — keeping assessor_report total ${existingTotal} over repair_quote ${newTotal}`);
+          } else if (!existingIsAssessor && newIsAssessor) {
+            // New entry is assessor_report (authoritative agreed amount) — prefer it
+            console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — replacing with assessor_report total ${newTotal} (was repair_quote ${existingTotal})`);
+            dedupMap.set(normName, q);
+          } else {
+            // Same document_category — prefer text-extracted over vision-extracted
+            const existingIsVision = (existing as any).extraction_source === 'vision';
+            const newIsVision = (q as any).extraction_source === 'vision';
+            if (existingIsVision && !newIsVision) {
+              console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — replacing vision total ${existingTotal} with text total ${newTotal}`);
+              dedupMap.set(normName, q);
+            } else if (!existingIsVision && newIsVision) {
+              console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — keeping text total ${existingTotal} over vision total ${newTotal}`);
+            } else {
+              // Both same source — keep the entry with more line items (more complete extraction)
+              const existingItems = existing.line_items?.length ?? 0;
+              const newItems = q.line_items?.length ?? 0;
+              if (newItems > existingItems) {
+                console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — same source, keeping richer entry (${newItems} items, total ${newTotal}) over (${existingItems} items, total ${existingTotal})`);
+                dedupMap.set(normName, q);
+              } else {
+                console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — same source, keeping existing entry (${existingItems} items, total ${existingTotal})`);
+              }
+            }
+          }
         }
       }
     }
@@ -1231,9 +1270,17 @@ export async function runStructuredExtractionStage(
     // runInputRecovery reads stage1/stage2 and any already-available extractions.
     // Since it only needs the raw text (not the LLM extraction results), it can
     // run concurrently with PDF and photo extraction.
+    //
+    // R-A-15 FIX: Pass the DB-sourced quoteTotalCents from ctx.claim as a hint.
+    // Previously, perDocumentExtractions was passed as [] (empty) because it runs
+    // concurrently with PDF extraction. The OCR-failure vision-direct path inside
+    // runInputRecovery uses this hint to validate extracted totals against the known
+    // claim amount. ctx.claim.quoteTotalCents is the value stored in the DB from
+    // the original submission — it is always available regardless of extraction status.
+    const claimQuoteTotalHintCents = (ctx.claim as any).quoteTotalCents ?? null;
     const inputRecoveryTask = async () => {
       try {
-        const result = await runInputRecovery(stage1, stage2, [], ctx.tenantCountry);
+        const result = await runInputRecovery(stage1, stage2, [], ctx.tenantCountry, claimQuoteTotalHintCents);
         return result;
       } catch (recErr) {
         ctx.log("Stage 3", `Input recovery failed: ${String(recErr)} — skipping`);
@@ -1294,9 +1341,14 @@ export async function runStructuredExtractionStage(
           (msg) => ctx.log("Stage 3", msg)
         );
 
-        // Replace the first extraction with the patched merged result
+        // R-A-19 FIX: Replace ALL per-document extractions with the single patched merged result.
+        // Previously, only perDocumentExtractions[0] was replaced, leaving stale per-document
+        // entries at indices [1..n] that downstream stages (Stage 4 assembly, Stage 9 cost)
+        // could still read. After mergeExtractions + runFieldRecovery, the merged+patched record
+        // IS the authoritative extraction — the individual per-document entries are no longer
+        // needed and should not be accessible to downstream stages.
         perDocumentExtractions[0] = patchedFields;
-
+        perDocumentExtractions.splice(1); // remove all entries beyond index 0
         if (report.fieldsRecovered > 0) {
           recoveryActions.push({
             target: "targeted_field_recovery",
@@ -1338,6 +1390,29 @@ export async function runStructuredExtractionStage(
           if (typeof v === 'string' && v.trim().length > 3) {
             fieldMap[f as string] = v;
           }
+        }
+        // R-A-17 FIX: Guard against oversized input to the spell-correction LLM call.
+        // The fieldMap can grow very large for claims with long accident descriptions or
+        // police officer findings (e.g. multi-page police reports). Large inputs cause
+        // the LLM to return truncated JSON, which then fails JSON.parse and silently
+        // skips all corrections. Cap the total serialised size at 8,000 chars.
+        const fieldMapJson = JSON.stringify(fieldMap, null, 2);
+        if (fieldMapJson.length > 8_000) {
+          ctx.log('Stage 3', `R-A-17: Spell-correction input too large (${fieldMapJson.length} chars) — truncating to longest fields only`);
+          // Keep only the fields that contribute most to OCR error risk (short fields)
+          // and drop the longest narrative fields that are unlikely to have OCR errors
+          const sortedByLength = Object.entries(fieldMap).sort(([, a], [, b]) => a.length - b.length);
+          const trimmedMap: Record<string, string> = {};
+          let totalLen = 0;
+          for (const [k, v] of sortedByLength) {
+            if (totalLen + v.length > 6_000) break;
+            trimmedMap[k] = v;
+            totalLen += v.length;
+          }
+          // Replace fieldMap with trimmed version for this pass
+          for (const k of Object.keys(fieldMap)) { if (!(k in trimmedMap)) delete fieldMap[k]; }
+          Object.assign(fieldMap, trimmedMap);
+          ctx.log('Stage 3', `R-A-17: Spell-correction trimmed to ${Object.keys(fieldMap).length} fields (${JSON.stringify(fieldMap).length} chars)`);
         }
         if (Object.keys(fieldMap).length > 0) {
           // Race the LLM call against a 30-second timeout.
