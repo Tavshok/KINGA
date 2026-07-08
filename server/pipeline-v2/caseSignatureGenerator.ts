@@ -361,17 +361,34 @@ function normaliseComponentCount(raw: number | null | undefined): number {
 /**
  * Infer cost tier from a numeric repair cost when no explicit tier is given.
  *
- * @param repairCostUsd  - Repair cost in the claim's native currency (or USD if nci=1.0)
- * @param marketValueUsd - Vehicle market value in the same currency (for ratio path)
- * @param nci            - Normalised Cost Index from economicContextEngine (default 1.0 = USD).
- *                         NCI-derived default; override with local market data when available.
- *                         Applied only to the absolute-fallback path; the ratio path is
- *                         currency-agnostic and unaffected.
+ * @param repairCost              - Repair cost in the claim's native currency (or USD if
+ *                                  exchangeRateOrScaleFactor=1.0).
+ * @param marketValue             - Vehicle market value in the same currency (for ratio path).
+ * @param exchangeRateOrScaleFactor - The **nominal exchange rate** from the claim currency to USD
+ *                                  (e.g. 18.5 for ZAR, 1.0 for USD). This is `exchangeRateToUsd`
+ *                                  from EconomicContext, NOT the full `normalisedCostIndex`.
+ *                                  Using the full NCI would double-count PPP and parts factors,
+ *                                  producing thresholds that are too low for high-NCI currencies.
+ *
+ *                                  IMPORTANT — interim approximation:
+ *                                  Nominal exchange rates can be volatile (especially ZWL/ZiG)
+ *                                  in ways that do not track actual local repair cost changes.
+ *                                  These thresholds are a reasonable default until each country
+ *                                  has enough processed claims to calibrate tier boundaries
+ *                                  directly from real local repair cost distributions — the same
+ *                                  approach used for R-E-02 (Zimbabwe USD distribution).
+ *
+ *                                  Applied only to the absolute-fallback path; the ratio path is
+ *                                  currency-agnostic and unaffected.
  */
-export function inferCostTier(repairCostUsd: number, marketValueUsd?: number, nci: number = 1.0): CostTier {
-  if (marketValueUsd != null && marketValueUsd > 0) {
-    // Ratio path: currency-agnostic — NCI not needed here.
-    const ratio = repairCostUsd / marketValueUsd;
+export function inferCostTier(
+  repairCost: number,
+  marketValue?: number,
+  exchangeRateOrScaleFactor: number = 1.0
+): CostTier {
+  if (marketValue != null && marketValue > 0) {
+    // Ratio path: currency-agnostic — exchange rate not needed here.
+    const ratio = repairCost / marketValue;
     // R-E-01: COST_TIER_TOTAL_LOSS_THRESHOLD (0.75) is intentionally higher than
     // ECONOMIC_WRITE_OFF_THRESHOLD (0.65) — see pipelineCostConstants.ts for rationale.
     if (ratio >= COST_TIER_TOTAL_LOSS_THRESHOLD) return "total_loss";
@@ -379,9 +396,12 @@ export function inferCostTier(repairCostUsd: number, marketValueUsd?: number, nc
     if (ratio >= 0.15) return "medium";
     return "low";
   }
-  // Absolute-threshold fallback: scale USD breakpoints by NCI so the tier boundaries
-  // are market-calibrated. nci=1.0 (default) leaves USD callers completely unaffected.
-  const usdEquivalent = nci > 0 ? repairCostUsd / nci : repairCostUsd;
+  // Absolute-threshold fallback: divide local-currency cost by exchange rate to get USD
+  // equivalent, then compare against USD-calibrated breakpoints.
+  // exchangeRateOrScaleFactor=1.0 (default) leaves USD callers completely unaffected.
+  const usdEquivalent = exchangeRateOrScaleFactor > 0
+    ? repairCost / exchangeRateOrScaleFactor
+    : repairCost;
   if (usdEquivalent >= 15000) return "total_loss";
   if (usdEquivalent >= 5000) return "high";
   if (usdEquivalent >= 1500) return "medium";

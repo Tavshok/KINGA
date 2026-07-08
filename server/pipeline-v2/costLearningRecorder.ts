@@ -406,20 +406,32 @@ function computeComponentIndex(
  * Derive the cost tier from a validated cost value.
  *
  * Thresholds are USD-based (low < $1,500, medium $1,500–$5,000, high > $5,000).
- * Pass `nci` (Normalised Cost Index from economicContextEngine) to scale thresholds
- * for non-USD markets so tier boundaries remain market-calibrated.
+ * Pass `exchangeRateOrScaleFactor` to scale thresholds for non-USD markets.
  *
- * @param trueCostUsd  - Validated cost in the claim's native currency (or USD if nci=1.0)
- * @param nci          - Normalised Cost Index (default 1.0 = USD baseline).
- *                       NCI-derived default; override with local market data when available.
- *                       The cost is divided by nci to produce a USD-equivalent for comparison.
+ * @param trueCost                  - Validated cost in the claim's native currency
+ *                                    (or USD if exchangeRateOrScaleFactor=1.0).
+ * @param exchangeRateOrScaleFactor - The **nominal exchange rate** from the claim currency to USD
+ *                                    (e.g. 18.5 for ZAR, 1.0 for USD). This is `exchangeRateToUsd`
+ *                                    from EconomicContext, NOT the full `normalisedCostIndex`.
+ *                                    Using the full NCI would double-count PPP and parts factors,
+ *                                    producing thresholds that are too low for high-NCI currencies.
  *
- * RULE: Only derived from validated true_cost_usd — never from raw quotes or AI estimates.
+ *                                    IMPORTANT — interim approximation:
+ *                                    Nominal exchange rates can be volatile (especially ZWL/ZiG)
+ *                                    in ways that do not track actual local repair cost changes.
+ *                                    These thresholds are a reasonable default until each country
+ *                                    has enough processed claims to calibrate tier boundaries
+ *                                    directly from real local repair cost distributions — the same
+ *                                    approach used for R-E-02 (Zimbabwe USD distribution).
+ *
+ * RULE: Only derived from validated true_cost — never from raw quotes or AI estimates.
  */
-export function deriveCostTier(trueCostUsd: number, nci: number = 1.0): CostTier {
-  // Convert to USD-equivalent for threshold comparison.
-  // nci=1.0 (default) leaves USD callers completely unaffected.
-  const usdEquivalent = nci > 0 ? trueCostUsd / nci : trueCostUsd;
+export function deriveCostTier(trueCost: number, exchangeRateOrScaleFactor: number = 1.0): CostTier {
+  // Divide local-currency cost by exchange rate to get USD equivalent for threshold comparison.
+  // exchangeRateOrScaleFactor=1.0 (default) leaves USD callers completely unaffected.
+  const usdEquivalent = exchangeRateOrScaleFactor > 0
+    ? trueCost / exchangeRateOrScaleFactor
+    : trueCost;
   if (usdEquivalent < 1500) return "low";
   if (usdEquivalent <= 5000) return "medium";
   return "high";

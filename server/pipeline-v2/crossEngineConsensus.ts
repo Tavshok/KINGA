@@ -459,16 +459,22 @@ function buildNarrative(
  * Checks whether the cost estimate is plausible given the damage severity.
  * Severe damage with very low cost, or minor damage with very high cost, is a conflict.
  *
- * @param nci            - Normalised Cost Index from economicContextEngine (default 1.0 = USD).
- *                         NCI-derived default; override with local market data when available.
- *                         USD thresholds are multiplied by nci to produce locally-calibrated
- *                         breakpoints. nci=1.0 leaves USD callers completely unaffected.
- * @param currencySymbol - Display symbol for cost values in detail strings (default '$').
+ * @param exchangeRateOrScaleFactor - The **nominal exchange rate** from the claim currency to USD
+ *                                    (e.g. 18.5 for ZAR, 1.0 for USD). This is `exchangeRateToUsd`
+ *                                    from EconomicContext, NOT the full `normalisedCostIndex`.
+ *                                    USD thresholds are multiplied by this value to produce
+ *                                    locally-calibrated breakpoints.
+ *                                    Default 1.0 leaves USD callers completely unaffected.
+ *
+ *                                    IMPORTANT — interim approximation: nominal exchange rates
+ *                                    can be volatile (especially ZWL/ZiG). Calibrate from real
+ *                                    local claim distributions once sufficient data exists.
+ * @param currencySymbol             - Display symbol for cost values in detail strings (default '$').
  */
 function d9_damageCostConsistency(
   stage6: Stage6Output | null,
   stage9: Stage9Output | null,
-  nci: number = 1.0,
+  exchangeRateOrScaleFactor: number = 1.0,
   currencySymbol: string = "$"
 ): ConsensusAgreementDimension {
   const severity = stage6?.overallSeverityScore ?? null;
@@ -480,12 +486,12 @@ function d9_damageCostConsistency(
     score = 50;
     details.push("insufficient data for damage-cost comparison");
   } else {
-    // Scale USD thresholds by NCI to produce locally-calibrated breakpoints.
-    // nci=1.0 (default) leaves all USD values unchanged.
-    const effectiveNci = nci > 0 ? nci : 1.0;
-    const highCostThreshold = 5000 * effectiveNci;   // USD $5,000 equivalent
-    const lowCostThreshold  = 500  * effectiveNci;   // USD $500 equivalent
-    const upperBandCeiling  = 15000 * effectiveNci;  // USD $15,000 equivalent
+    // Scale USD thresholds by exchange rate to produce locally-calibrated breakpoints.
+    // exchangeRateOrScaleFactor=1.0 (default) leaves all USD values unchanged.
+    const effectiveRate = exchangeRateOrScaleFactor > 0 ? exchangeRateOrScaleFactor : 1.0;
+    const highCostThreshold = 5000 * effectiveRate;   // USD $5,000 equivalent in local currency
+    const lowCostThreshold  = 500  * effectiveRate;   // USD $500 equivalent in local currency
+    const upperBandCeiling  = 15000 * effectiveRate;  // USD $15,000 equivalent in local currency
     const totalLocal = totalCents / 100;
     const sym = currencySymbol || "$";
 
@@ -579,8 +585,12 @@ export function computeConsensus(
   coherenceResult: DamagePhysicsCoherenceResult | null,
   _truthResolution?: TruthResolutionResult | null,
   stage9?: Stage9Output | null,
-  /** NCI from economicContextEngine — scales D9 USD thresholds for non-USD markets (default 1.0 = USD) */
-  nci: number = 1.0,
+  /**
+   * Nominal exchange rate from claim currency to USD (e.g. 18.5 for ZAR).
+   * This is `exchangeRateToUsd` from EconomicContext, NOT the full `normalisedCostIndex`.
+   * Scales D9 USD thresholds for non-USD markets. Default 1.0 = USD (no scaling).
+   */
+  exchangeRateOrScaleFactor: number = 1.0,
   /** Currency symbol for D9 detail strings (default '$') */
   currencySymbol: string = "$"
 ): ConsensusResult {
@@ -593,7 +603,7 @@ export function computeConsensus(
     d6_photoEvidencePresence(claimRecord),
     d7_documentCompleteness(claimRecord),
     d8_coherenceMismatch(coherenceResult),
-    d9_damageCostConsistency(stage6, stage9 ?? null, nci, currencySymbol),
+    d9_damageCostConsistency(stage6, stage9 ?? null, exchangeRateOrScaleFactor, currencySymbol),
     d10_costFraudConsistency(stage8, stage9 ?? null),
   ];
 
