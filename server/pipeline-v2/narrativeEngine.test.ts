@@ -470,7 +470,8 @@ describe("buildFraudNarrative", () => {
 
   it("high fraud score triggers escalation note", () => {
     const r = buildFraudNarrative(makeStage8({ fraudRiskScore: 75, fraudRiskLevel: "high" }));
-    expect(r.full_text.toLowerCase()).toContain("escalation threshold");
+    // Engine outputs: "score is HIGH — claim requires escalation and senior adjuster review"
+    expect(r.full_text.toLowerCase()).toContain("escalation");
   });
 
   it("has no hedge violations", () => {

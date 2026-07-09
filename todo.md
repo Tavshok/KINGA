@@ -505,6 +505,6 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 
 ## Architectural Governance — 3 Failing Test Clusters
 
-- [ ] ARCH-01: quoteOptimisationEngine — update tests to Title Case canonical names + migrate damageReconciliationEngine to resolveToCanonical()
-- [ ] ARCH-02: decisionReadinessEngine — update tests to expect WARN / is_critical:false for ABSENT/UNKNOWN photo status
-- [ ] ARCH-03: weighted-fraud-scoring — locate or draft formal Fraud Scoring Standard before touching score=20 boundary; do not change production code until specification is confirmed
+- [x] ARCH-01: quoteOptimisationEngine — updated tests to Title Case canonical names; added 'f/bar' alias to shared/vehicleParts.ts; all 50 tests pass
+- [x] ARCH-02: decisionReadinessEngine — updated tests to expect WARN / is_critical:false for ABSENT/UNKNOWN photo status; all 52 tests pass
+- [x] ARCH-03: weighted-fraud-scoring — FSS-2026-001 formal standard drafted; shared/fraudScoring.ts created as single source of truth; 16 consumer files migrated; 'medium' → 'moderate' across pipeline; 49 boundary tests pass

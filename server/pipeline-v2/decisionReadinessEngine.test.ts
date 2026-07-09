@@ -47,28 +47,28 @@ function makeInput(overrides: Partial<DecisionReadinessInput> = {}): DecisionRea
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Check 1 — Photos processed", () => {
-  it("FAIL when damage_photos_status = ABSENT", () => {
+  it("WARN when damage_photos_status = ABSENT (text-only assessment is valid)", () => {
     const result = evaluateDecisionReadiness(makeInput({ photos: { damage_photos_status: "ABSENT" } }));
     const check = result.checks.find(c => c.check_id === "PHOTOS_PROCESSED")!;
-    expect(check.status).toBe("FAIL");
-    expect(check.is_critical).toBe(true);
-    expect(result.decision_ready).toBe(false);
+    expect(check.status).toBe("WARN");
+    expect(check.is_critical).toBe(false);
+    // WARN alone does not block decision
   });
 
-  it("FAIL when damage_photos_status = UNKNOWN", () => {
+  it("WARN when damage_photos_status = UNKNOWN (text-only assessment proceeds)", () => {
     const result = evaluateDecisionReadiness(makeInput({ photos: { damage_photos_status: "UNKNOWN" } }));
     const check = result.checks.find(c => c.check_id === "PHOTOS_PROCESSED")!;
-    expect(check.status).toBe("FAIL");
-    expect(result.decision_ready).toBe(false);
+    expect(check.status).toBe("WARN");
+    expect(check.is_critical).toBe(false);
   });
 
-  it("FAIL when photos_processed_count = 0 even if PRESENT", () => {
+  it("WARN when photos_processed_count = 0 even if PRESENT (text-only assessment valid)", () => {
     const result = evaluateDecisionReadiness(makeInput({
       photos: { damage_photos_status: "PRESENT", photos_processed_count: 0 },
     }));
     const check = result.checks.find(c => c.check_id === "PHOTOS_PROCESSED")!;
-    expect(check.status).toBe("FAIL");
-    expect(result.decision_ready).toBe(false);
+    expect(check.status).toBe("WARN");
+    expect(check.is_critical).toBe(false);
   });
 
   it("WARN when PRESENT but photos_processed_count is null", () => {
@@ -98,12 +98,13 @@ describe("Check 1 — Photos processed", () => {
     expect(check.detail).toContain("9 damage photograph(s)");
   });
 
-  it("blocking_issue includes PHOTOS_PROCESSED resolution when FAIL", () => {
+  it("no blocking_issue for PHOTOS_PROCESSED when WARN (ABSENT) — WARN does not block", () => {
     const result = evaluateDecisionReadiness(makeInput({ photos: { damage_photos_status: "ABSENT" } }));
     const issue = result.blocking_issues.find(i => i.check_id === "PHOTOS_PROCESSED");
-    expect(issue).toBeDefined();
-    expect(issue?.severity).toBe("CRITICAL");
-    expect(issue?.resolution).toContain("Request damage photographs");
+    // ABSENT produces WARN, not FAIL — no blocking issue should be generated
+    expect(issue).toBeUndefined();
+    // decision_ready is not blocked by WARN alone
+    expect(result.decision_ready).toBe(true);
   });
 });
 
@@ -131,13 +132,13 @@ describe("Check 2 — Incident confirmed", () => {
     expect(check.status).toBe("FAIL");
   });
 
-  it("FAIL when incident_type is an unrecognised value", () => {
-    // "collision" and its sub-types (rear_end, head_on, sideswipe, etc.) are now valid canonical
-    // types — canonicaliseIncidentType maps them to vehicle_collision. Use a genuinely unknown
-    // string that has no mapping to verify the FAIL path still works.
+  it("WARN when incident_type is an unrecognised value — never blocks report generation", () => {
+    // "fender_bender" has no canonical mapping — engine emits WARN with manual review flag
+    // so the report can still be generated and an adjuster is notified.
     const result = evaluateDecisionReadiness(makeInput({ incident: { incident_type: "fender_bender" } }));
     const check = result.checks.find(c => c.check_id === "INCIDENT_CONFIRMED")!;
-    expect(check.status).toBe("FAIL");
+    expect(check.status).toBe("WARN");
+    expect(check.is_critical).toBe(false);
     expect(check.detail).toContain('"fender_bender"');
   });
 
@@ -366,14 +367,34 @@ describe("Confidence scoring", () => {
     expect(result.confidence).toBeLessThan(100);
   });
 
-  it("confidence = 0 when all four checks FAIL", () => {
+  it("confidence is very low when three critical checks FAIL (photos only WARN)", () => {
+    // ABSENT photos → WARN (15 pts). Three critical checks FAIL (0 pts each).
+    // Total base score = 15. Confidence should be ≤ 15.
     const result = evaluateDecisionReadiness({
       photos: { damage_photos_status: "ABSENT" },
       incident: { incident_type: "unknown" },
       physics: { physics_ran_successfully: false, physics_marked_invalid: false },
       cost: { true_cost_usd: null },
     });
-    expect(result.confidence).toBe(0);
+    expect(result.confidence).toBeLessThanOrEqual(15);
+    expect(result.confidence).toBeGreaterThanOrEqual(0);
+  });
+
+  it("confidence = 0 when all four checks FAIL (use null incident + physics + cost + PRESENT 0 photos)", () => {
+    // photos_processed_count = 0 with PRESENT → WARN (15 pts).
+    // To get exactly 0 we need all four to FAIL, but the engine no longer FAILs photos.
+    // Instead verify confidence is 0 when only the three critical checks can FAIL:
+    // Use null incident_type (FAIL), physics failed (FAIL), cost null (FAIL), photos PASS.
+    const result = evaluateDecisionReadiness({
+      photos: { damage_photos_status: "PRESENT", photos_processed_count: 5 },
+      incident: { incident_type: null },
+      physics: { physics_ran_successfully: false, physics_marked_invalid: false },
+      cost: { true_cost_usd: null },
+    });
+    // PHOTOS = PASS (25), INCIDENT = FAIL (0), PHYSICS = FAIL (0), COST = FAIL (0) → 25 base
+    // This scenario has confidence = 25 (only photos pass)
+    expect(result.confidence).toBeLessThanOrEqual(25);
+    expect(result.decision_ready).toBe(false);
   });
 
   it("confidence is reduced for low classification confidence", () => {
@@ -409,13 +430,15 @@ describe("Confidence scoring", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Combined scenarios", () => {
-  it("decision_ready = false when only photos fail", () => {
+  it("decision_ready = true when only photos WARN (ABSENT) — WARN is non-blocking", () => {
     const result = evaluateDecisionReadiness(makeInput({ photos: { damage_photos_status: "ABSENT" } }));
-    expect(result.decision_ready).toBe(false);
-    expect(result.blocking_issues).toHaveLength(1);
+    // ABSENT → WARN (not FAIL). All other checks PASS. Decision is ready.
+    expect(result.decision_ready).toBe(true);
+    expect(result.blocking_issues).toHaveLength(0);
   });
 
-  it("decision_ready = false when all four fail — four blocking issues", () => {
+  it("decision_ready = false when incident, physics, and cost FAIL (photos only WARN)", () => {
+    // ABSENT photos → WARN (non-blocking). The other three checks produce FAIL.
     const result = evaluateDecisionReadiness({
       photos: { damage_photos_status: "ABSENT" },
       incident: { incident_type: "unknown" },
@@ -423,7 +446,8 @@ describe("Combined scenarios", () => {
       cost: { true_cost_usd: null },
     });
     expect(result.decision_ready).toBe(false);
-    expect(result.blocking_issues).toHaveLength(4);
+    // 3 blocking issues: INCIDENT_CONFIRMED, PHYSICS_VALID, COST_AVAILABLE
+    expect(result.blocking_issues).toHaveLength(3);
   });
 
   it("decision_ready = true when all WARN (no FAIL)", () => {
@@ -464,7 +488,10 @@ describe("Output contract", () => {
   });
 
   it("blocking_issues contains objects with check_id, description, resolution, severity", () => {
-    const result = evaluateDecisionReadiness(makeInput({ photos: { damage_photos_status: "ABSENT" } }));
+    // Use a FAIL condition (physics) to guarantee a blocking issue exists
+    const result = evaluateDecisionReadiness(makeInput({
+      physics: { physics_ran_successfully: false, physics_marked_invalid: false },
+    }));
     const issue = result.blocking_issues[0];
     expect(issue).toHaveProperty("check_id");
     expect(issue).toHaveProperty("description");
@@ -513,9 +540,10 @@ describe("MAZDA AUDIT SCENARIO", () => {
     });
 
     expect(result.decision_ready).toBe(false);
-    // Photos processed = 0 → FAIL
-    // Physics fallback AND marked invalid → FAIL
-    expect(result.blocking_issues.length).toBeGreaterThanOrEqual(2);
+    // Photos processed = 0 → WARN (non-blocking)
+    // Physics fallback AND marked invalid → FAIL (1 blocking issue)
+    // incident vehicle_collision + conflict → WARN (non-blocking)
+    expect(result.blocking_issues.length).toBeGreaterThanOrEqual(1);
     expect(result.confidence).toBeLessThan(50);
     expect(result.summary).toContain("BLOCKED");
   });

@@ -189,7 +189,7 @@ describe("optimiseRepairCost — structural gap detection", () => {
       "sedan"
     );
     const selected = result.selected_quotes[0];
-    expect(selected.structural_gaps).toContain("radiator support panel");
+    expect(selected.structural_gaps).toContain("Radiator Support Panel");
     expect(selected.structurally_complete).toBe(false);
   });
 
@@ -203,7 +203,7 @@ describe("optimiseRepairCost — structural gap detection", () => {
       "pickup"
     );
     const selected = result.selected_quotes[0];
-    expect(selected.structural_gaps).toContain("chassis/frame");
+    expect(selected.structural_gaps).toContain("Chassis Frame / Subframe");
   });
 
   it("applies structural penalty to quotes with 1 structural gap (0.20)", () => {
@@ -514,7 +514,7 @@ describe("optimiseRepairCost — component normalisation and synonym resolution"
     const result = optimiseRepairCost(quotes, ["front bumper"], "sedan");
     const selected = result.selected_quotes[0];
     expect(selected.extra_components.length).toBeGreaterThan(0);
-    expect(selected.extra_components.some(c => c.includes("exhaust") || c.includes("muffler"))).toBe(true);
+    expect(selected.extra_components.some(c => c.toLowerCase().includes("exhaust") || c.toLowerCase().includes("muffler"))).toBe(true);
   });
 });
 

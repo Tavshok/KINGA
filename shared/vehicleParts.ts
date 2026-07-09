@@ -69,7 +69,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "front_bumper",
     name: "Front Bumper",
-    aliases: ["front bumper cover", "front valance", "bumper bar", "front spoiler", "F/B", "FB", "front bar", "front facia", "front fascia", "front bumper assy", "front bumper assembly", "B/bar", "bumper bar front", "bumper cover", "f/bumper", "b/bar front", "front b/bar", "f/b assy", "front bumper bar"],
+    aliases: ["front bumper cover", "front valance", "bumper bar", "front spoiler", "F/B", "FB", "front bar", "front facia", "front fascia", "front bumper assy", "front bumper assembly", "B/bar", "bumper bar front", "bumper cover", "f/bumper", "b/bar front", "front b/bar", "f/b assy", "front bumper bar", "f/bar", "f/b bar", "front b/bar assy"],
     zone: "front",
     structural: false,
     costTier: "medium",

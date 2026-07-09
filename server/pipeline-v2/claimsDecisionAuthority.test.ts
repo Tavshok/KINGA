@@ -275,23 +275,23 @@ describe("REJECT — Critical Consistency Conflicts", () => {
 // ─── REVIEW — Moderate Fraud ──────────────────────────────────────────────────
 
 describe("REVIEW — Moderate Fraud Risk", () => {
-  it("sends to REVIEW when fraud_risk_level is medium", () => {
+  it("sends to REVIEW when fraud_risk_level is moderate", () => {
     const result = evaluateClaimDecision(makeApproveInput({
-      fraud_result: { fraud_risk_level: "medium", fraud_risk_score: 50 },
+      fraud_result: { fraud_risk_level: "moderate", fraud_risk_score: 50 },
     }));
     expect(result.recommendation).toBe("REVIEW");
   });
 
-  it("includes medium fraud in key_drivers", () => {
+  it("includes moderate fraud in key_drivers", () => {
     const result = evaluateClaimDecision(makeApproveInput({
-      fraud_result: { fraud_risk_level: "medium" },
+      fraud_result: { fraud_risk_level: "moderate" },
     }));
-    expect(result.key_drivers.some((d) => d.toLowerCase().includes("medium"))).toBe(true);
+    expect(result.key_drivers.some((d) => d.toLowerCase().includes("moderate"))).toBe(true);
   });
 
   it("decision_trace includes RULE-4 REVIEW flag", () => {
     const result = evaluateClaimDecision(makeApproveInput({
-      fraud_result: { fraud_risk_level: "medium" },
+      fraud_result: { fraud_risk_level: "moderate" },
     }));
     expect(result.decision_trace.some((t) => t.includes("[RULE-4] REVIEW"))).toBe(true);
   });
