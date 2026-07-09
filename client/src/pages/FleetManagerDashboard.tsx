@@ -81,7 +81,7 @@ function statusBadge(status: string) {
   const map: Record<string, { label: string; className: string; style?: React.CSSProperties }> = {
     submitted: { label: "Submitted", className: "border", style: { background: "#EEF4FB", color: "#4878A8", borderColor: "#B8D0E8" } },
     in_review: { label: "In Review", className: "border", style: { background: "#FFF8E6", color: "#8A5C00", borderColor: "#E8C97A" } },
-    ai_complete: { label: "KINGA Complete", className: "bg-purple-100 text-purple-700 border-purple-200" },
+    ai_complete: { label: "KINGA Complete", className: "border", style: { background: "#E7F1EA", color: "#1C5C39", borderColor: "#A8CCB4" } },
     approved: { label: "Approved", className: "border", style: { background: "#F0F7F2", color: "#3C7844", borderColor: "#C8E0CE" } },
     rejected: { label: "Rejected", className: "border", style: { background: "#FDF0F0", color: "#A32D2D", borderColor: "#E8B8B8" } },
     completed: { label: "Completed", className: "bg-slate-100 text-slate-700 border-slate-200" },

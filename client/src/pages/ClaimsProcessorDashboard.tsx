@@ -667,7 +667,8 @@ export default function ClaimsProcessorDashboard() {
                       variant="outline"
                       onClick={() => handleResetStuckClaim(claim.id)}
                       disabled={resetStuckClaimMutation.isPending}
-                      className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
+                      className="w-full justify-start text-xs"
+                      style={{ borderColor: '#D4A843', color: '#8A5C00', background: 'transparent' }}
                       title="This claim appears stuck in KINGA processing. Click to reset it to Pending."
                     >
                       <RotateCcw className="h-3 w-3 mr-2" />
@@ -781,7 +782,8 @@ export default function ClaimsProcessorDashboard() {
                         variant="outline"
                         onClick={() => handleResetStuckClaim(claim.id)}
                         disabled={resetStuckClaimMutation.isPending}
-                        className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
+                        className="w-full justify-start text-xs"
+                      style={{ borderColor: '#D4A843', color: '#8A5C00', background: 'transparent' }}
                       >
                         <RotateCcw className="h-3 w-3 mr-2" />
                         Reset if Stuck
@@ -870,7 +872,8 @@ export default function ClaimsProcessorDashboard() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleEscalate(claim.id)}
-                        className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30"
+                        className="w-full justify-start"
+                        style={{ borderColor: '#D4A843', color: '#8A5C00', background: 'transparent' }}
                       >
                         <AlertTriangle className="h-4 w-4 mr-2" />
                         Escalate
