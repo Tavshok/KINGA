@@ -333,8 +333,27 @@ export async function selectDamagePhotoPages(
       classification = "damage_photo"; // tentative — will be refined by LLM
       ambiguousPool.push({ url, index });
     } else {
-      confidence = "LOW";
-      classification = "document";
+      // R-B-03b: Dark-image rescue path.
+      // Night-time / low-brightness damage photos have reduced colour variance and edge
+      // contrast, causing them to score below LOW_CONFIDENCE_THRESHOLD even when they are
+      // genuine vehicle damage photos. If the image is dark (meanBrightness < 80) but has
+      // some colour content (colourVariance > 0.05 — ruling out blank black pages), push it
+      // to the LLM ambiguous pool instead of silently classifying it as a document.
+      const isDark    = features.meanBrightness < 80;
+      const hasColour = features.colourVariance > 0.05;
+      if (isDark && hasColour) {
+        confidence = "MEDIUM";
+        classification = "damage_photo"; // tentative — will be refined by LLM
+        ambiguousPool.push({ url, index });
+        ctx.log(
+          "ImageIntelligence",
+          `R-B-03b rescue: page ${index + 1} dark (brightness=${features.meanBrightness.toFixed(0)}) ` +
+          `but colourful (variance=${features.colourVariance.toFixed(3)}) — sent to LLM pool`
+        );
+      } else {
+        confidence = "LOW";
+        classification = "document";
+      }
     }
 
     scored.push({

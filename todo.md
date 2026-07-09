@@ -492,3 +492,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] R-INF-07: LLM retry — assessment-processor.ts (6 bare invokeLLM calls) — wrapped in withRetry (13 audit tests passing)
 - [x] R-INF-09: Add documentation comments at users.role enum and agencyProcedure guard (agency role built but not yet activated)
 - [ ] R-INF-09-backlog: When agency portal is greenlit — add 'agency' to users.role enum + roleAssignmentAudit enums (migration required)
+
+## R-B-03b — Night-Photo Misclassification (Recovered from ID collision)
+
+- [x] R-B-03b: imageIntelligence.ts — night-time / low-brightness damage photos silently classified as "document" because meanBrightness is not used in scoreDamageLikelihood(). Dark images (meanBrightness < ~60) score below LOW_CONFIDENCE_THRESHOLD (0.40) and are dropped without LLM fallback. Fix: add dark-image rescue path — if meanBrightness < 80 AND colourVariance > 0.05, push to ambiguousPool regardless of heuristic score. (Original R-B-03 finding; ID collision with Batch 6 R-B-03 enrichedPhotosJson fix discovered 2026-07-09.)
