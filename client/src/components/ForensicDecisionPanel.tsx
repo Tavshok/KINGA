@@ -1243,7 +1243,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
                   {validatedOutcome.metadata.true_cost_usd != null && (
                     <div className="rounded-lg border border-border bg-muted/20 p-2.5 text-center">
                       <p className="text-xs text-muted-foreground">True Cost</p>
-                      <p className="text-sm font-bold text-foreground">${validatedOutcome.metadata.true_cost_usd.toLocaleString()}</p>
+                      <p className="text-sm font-bold text-foreground">{fmt(validatedOutcome.metadata.true_cost_usd)}</p>
                     </div>
                   )}
                   {validatedOutcome.metadata.decision_confidence != null && (

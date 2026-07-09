@@ -496,3 +496,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 ## R-B-03b — Night-Photo Misclassification (Recovered from ID collision)
 
 - [x] R-B-03b: imageIntelligence.ts — night-time / low-brightness damage photos silently classified as "document" because meanBrightness is not used in scoreDamageLikelihood(). Dark images (meanBrightness < ~60) score below LOW_CONFIDENCE_THRESHOLD (0.40) and are dropped without LLM fallback. Fix: add dark-image rescue path — if meanBrightness < 80 AND colourVariance > 0.05, push to ambiguousPool regardless of heuristic score. (Original R-B-03 finding; ID collision with Batch 6 R-B-03 enrichedPhotosJson fix discovered 2026-07-09.)
+
+## R-CX-01c — Currency Wiring Completion
+
+- [x] R-CX-01c (a): AssessmentResults.tsx — useTenantCurrency wired to CostBreakdownChart (checkpoint 370e5b96)
+- [x] R-CX-01c (b): ForensicDecisionPanel.tsx — hardcoded $ on true_cost_usd replaced with fmt() (17 audit tests passing)
+- [x] R-CX-01c (c): stage-5-assembly.ts — vehicle valuation LLM prompt generalised for multi-currency markets; tenantCurrencyCode/tenantCountryName derived from ctx.tenantCountry; isZimbabwe guard preserves Zimbabwe-specific market context (17 audit tests passing)

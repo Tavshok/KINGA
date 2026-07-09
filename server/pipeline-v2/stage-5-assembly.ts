@@ -39,6 +39,7 @@ import { classifyIncident, detectMultiEventSequence } from "./incidentClassifica
 import { selectScenarioEngine } from "./scenarioEngineSelector";
 import { markFallback } from "./engineFallback";
 import { invokeLLM, withRetry } from "../_core/llm";
+import { getDefaultCurrencyForCountry, getDefaultCurrencySymbolForCountry, COUNTRY_CURRENCY_MAP } from '../../shared/countryCurrency';
 // ── Utility: wrap async fn with a hard timeout (mirrors Stage 6 pattern) ─────
 // R-B-01 / R-B-02 fix: LLM calls in Stage 5 must be bounded so a slow or hung
 // LLM response cannot freeze the pipeline indefinitely.
@@ -436,6 +437,13 @@ export async function runAssemblyStage(
       let valuationMethod: VehicleValuation["valuationMethod"] = "not_available";
       let dataSource: string | null = null;
 
+      // R-CX-01c: Derive tenant currency for this valuation
+      const tenantCurrencyCode = getDefaultCurrencyForCountry(ctx.tenantCountry);
+      const tenantCurrencySymbol = getDefaultCurrencySymbolForCountry(ctx.tenantCountry);
+      const tenantCountryName = ctx.tenantCountry
+        ? (COUNTRY_CURRENCY_MAP[ctx.tenantCountry.toUpperCase()]?.name ?? ctx.tenantCountry)
+        : 'Southern Africa';
+      const isZimbabwe = (ctx.tenantCountry ?? 'ZW').toUpperCase() === 'ZW';
       // Always attempt LLM benchmark when vehicle details are available
       if (vehicle.make && vehicle.model && vehicle.year) {
         try {
@@ -460,24 +468,20 @@ export async function runAssemblyStage(
             messages: [
               {
                 role: "system",
-                content: `You are a certified vehicle valuation expert specialising in the Zimbabwean and Southern African used-car market.
+                content: `You are a certified vehicle valuation expert specialising in the ${tenantCountryName} used-car market.
 
-KEY MARKET CONTEXT FOR ZIMBABWE:
-- Zimbabwe uses USD cash transactions for vehicle sales. Prices are NOT discounted vs SA.
-- Import duties and scarcity mean popular SUVs and bakkies trade at PREMIUM to SA retail.
-- A 2020 ISUZU MU-X (7-seat SUV, 3.0L diesel) retails for USD 40,000–55,000 in Zimbabwe (2024–2025).
-- A 2020 ISUZU D-MAX (bakkie) retails for USD 35,000–50,000 depending on variant.
-- A 2020 Toyota Fortuner retails for USD 45,000–60,000 in Zimbabwe.
-- A 2020 Toyota Hilux retails for USD 38,000–52,000 in Zimbabwe.
-- Depreciation in Zimbabwe is slower than SA due to limited supply and high import costs.
-- Do NOT use South African Rand-based valuations converted at spot rate — this significantly underestimates Zimbabwe USD values.
-- Use AutoTrader Zimbabwe, Zimclassifieds, and regional dealer knowledge as reference points.
+KEY MARKET CONTEXT FOR ${tenantCountryName.toUpperCase()}:
+${isZimbabwe
+  ? `- Zimbabwe uses USD cash transactions for vehicle sales. Prices are NOT discounted vs SA.\n- Import duties and scarcity mean popular SUVs and bakkies trade at PREMIUM to SA retail.\n- A 2020 ISUZU MU-X (7-seat SUV, 3.0L diesel) retails for USD 40,000\u201355,000 in Zimbabwe (2024\u20132025).\n- A 2020 ISUZU D-MAX (bakkie) retails for USD 35,000\u201350,000 depending on variant.\n- A 2020 Toyota Fortuner retails for USD 45,000\u201360,000 in Zimbabwe.\n- A 2020 Toyota Hilux retails for USD 38,000\u201352,000 in Zimbabwe.\n- Depreciation in Zimbabwe is slower than SA due to limited supply and high import costs.\n- Do NOT use South African Rand-based valuations converted at spot rate \u2014 this significantly underestimates Zimbabwe USD values.\n- Use AutoTrader Zimbabwe, Zimclassifieds, and regional dealer knowledge as reference points.`
+  : `- Provide retail market values in ${tenantCurrencyCode} (${tenantCurrencySymbol}) for the local ${tenantCountryName} market.\n- Use local classified sites, dealer pricing, and regional market knowledge.\n- Account for local import duties, taxes, and supply/demand conditions.`
+}
 
 Return ONLY valid JSON with no markdown.`,
               },
               {
                 role: "user",
-                content: `Estimate the current retail market value in USD for the following vehicle in Zimbabwe/Southern Africa:\n\n${vehicleSpec}\n\nIMPORTANT: Base your estimate on actual Zimbabwe USD market prices, not SA Rand conversions. A 2020 ISUZU MU-X in Zimbabwe is worth significantly more than USD 28,000.\n\nReturn JSON: { "market_value_usd": number, "confidence": "high"|"medium"|"low", "reasoning": string, "data_source": string }`,
+                content: `Estimate the current retail market value in ${tenantCurrencyCode} for the following vehicle in ${tenantCountryName}:\n\n${vehicleSpec}\n\nReturn JSON: { "market_value_usd": number, "confidence": "high"|"medium"|"low", "reasoning": string, "data_source": string }`,
+                // Note: JSON field is named market_value_usd for schema compatibility; value is in tenantCurrencyCode
               },
             ],
             response_format: {
@@ -509,13 +513,13 @@ Return ONLY valid JSON with no markdown.`,
               valuationMethod = "llm_estimate";
               // C-05-ARCH: Note when the system benchmark differs significantly from the assessor's stated value
               const assessorNote = assessorStatedValue && Math.abs(parsed.market_value_usd - assessorStatedValue) / assessorStatedValue > 0.15
-                ? ` (assessor stated: USD ${assessorStatedValue.toLocaleString()} — ${((parsed.market_value_usd - assessorStatedValue) / assessorStatedValue * 100).toFixed(0)}% deviation)`
-                : assessorStatedValue ? ` (assessor stated: USD ${assessorStatedValue.toLocaleString()} — consistent)` : '';
+                ? ` (assessor stated: ${tenantCurrencyCode} ${assessorStatedValue.toLocaleString()} — ${((parsed.market_value_usd - assessorStatedValue) / assessorStatedValue * 100).toFixed(0)}% deviation)`
+                : assessorStatedValue ? ` (assessor stated: ${tenantCurrencyCode} ${assessorStatedValue.toLocaleString()} — consistent)` : '';
               dataSource = `KINGA system benchmark (${parsed.confidence} confidence): ${parsed.data_source}${assessorNote}`;
               assumptions.push({
                 field: "valuation.marketValueUsd",
                 assumedValue: marketValueUsdFinal,
-                reason: `Market value not stated in documents. LLM estimated USD ${(marketValueUsdFinal as number).toLocaleString()} for ${vehicle.year} ${vehicle.make} ${vehicle.model} in Southern Africa.`,
+                reason: `Market value not stated in documents. LLM estimated ${tenantCurrencyCode} ${(marketValueUsdFinal as number).toLocaleString()} for ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${tenantCountryName}.`,
                 strategy: "industry_average",
                 confidence: parsed.confidence === "high" ? 75 : parsed.confidence === "medium" ? 55 : 35,
                 stage: "Stage 5c",
@@ -544,13 +548,13 @@ Return ONLY valid JSON with no markdown.`,
         let verdictReason: string;
         if (ratio >= 0.75) {
           verdict = "write_off";
-          verdictReason = `Repair cost (USD ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (USD ${marketValueUsdFinal.toLocaleString()}). Exceeds 75% threshold — economic write-off.`;
+          verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Exceeds 75% threshold — economic write-off.`;
         } else if (ratio >= 0.60) {
           verdict = "borderline";
-          verdictReason = `Repair cost (USD ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (USD ${marketValueUsdFinal.toLocaleString()}). Borderline — recommend independent valuation.`;
+          verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Borderline — recommend independent valuation.`;
         } else {
           verdict = "repairable";
-          verdictReason = `Repair cost (USD ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (USD ${marketValueUsdFinal.toLocaleString()}). Within acceptable repair threshold.`;
+          verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Within acceptable repair threshold.`;
         }
         valuation = { marketValueUsd: marketValueUsdFinal, valuationMethod, repairCostUsd, repairToValueRatio: ratio, verdict, verdictReason, dataSource };
       } else if (marketValueUsdFinal) {
@@ -559,7 +563,7 @@ Return ONLY valid JSON with no markdown.`,
         valuation = { marketValueUsd: null, valuationMethod: "not_available", repairCostUsd, repairToValueRatio: null, verdict: "unknown", verdictReason: "Market value could not be determined from documents or LLM estimate.", dataSource: null };
       }
       claimRecord.valuation = valuation;
-      ctx.log("Stage 5c", `Valuation: market=${marketValueUsdFinal ? "USD " + (marketValueUsdFinal as number).toLocaleString() : "unknown"}, repair=${repairCostUsd ? "USD " + repairCostUsd.toLocaleString() : "unknown"}, verdict=${valuation.verdict}`);
+      ctx.log("Stage 5c", `Valuation: market=${marketValueUsdFinal ? tenantCurrencyCode + " " + (marketValueUsdFinal as number).toLocaleString() : "unknown"}, repair=${repairCostUsd ? tenantCurrencyCode + " " + repairCostUsd.toLocaleString() : "unknown"}, verdict=${valuation.verdict}`);
     } catch (valErr) {
       ctx.log("Stage 5c", `Valuation step failed: ${String(valErr)} — proceeding without valuation`);
     }
