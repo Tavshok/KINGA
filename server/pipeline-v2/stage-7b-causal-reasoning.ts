@@ -20,7 +20,7 @@
  * Output: CausalVerdict — stored in causal_verdict_json on ai_assessments.
  */
 
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, withRetry } from "../_core/llm";
 import { KINGA_FORENSIC_SYSTEM_PROMPT } from "./kingaReportSystemPrompt";
 import type {
   ClaimRecord,
@@ -333,14 +333,15 @@ Return ONLY a JSON array of constraints.`;
   const validSeverities = ["critical", "major", "moderate", "minor"];
 
   try {
-    const response = await invokeLLM({
+    // R-INF-04: wrap in withRetry for transient 5xx resilience
+    const response = await withRetry(() => invokeLLM({
       messages: [
         { role: "system", content: constraintSystemPrompt },
         { role: "user", content: constraintUserPrompt },
       ],
       response_format: constraintSchema,
       timeoutMs: 55_000,
-    });
+    }), 2, 'stage-7b constraint-extraction');
     const rawContent = response.choices?.[0]?.message?.content;
     const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "[]");
     const parsed = JSON.parse(content);
@@ -608,13 +609,14 @@ TASK:
 Write a clear forensic explanation of whether the cause is valid or invalid, and why.`;
 
   try {
-    const response = await invokeLLM({
+    // R-INF-04: wrap in withRetry for transient 5xx resilience
+    const response = await withRetry(() => invokeLLM({
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       timeoutMs: 45_000,
-    });
+    }), 2, 'stage-7b cause-narrative');
     const rawContent = response.choices?.[0]?.message?.content;
     const text = typeof rawContent === "string" ? rawContent.trim() : null;
     return text && text.length > 10 ? text : null;
@@ -863,14 +865,15 @@ RETURN:
       contentParts.push({ type: "image_url", image_url: { url, detail: "auto" } });
     }
 
-    const response = await invokeLLM({
+    // R-INF-04: wrap in withRetry for transient 5xx resilience
+    const response = await withRetry(() => invokeLLM({
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: contentParts },
       ],
       response_format: jsonSchema,
       timeoutMs: 55_000, // 55s per main causal-chain LLM call
-    });
+    }), 2, 'stage-7b causal-chain-vision');
 
     const rawContent = response.choices?.[0]?.message?.content;
     const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "{}");

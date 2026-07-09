@@ -23,12 +23,19 @@ import type {
   DamageHints,
 } from "./types";
 import { runFieldRecovery } from "./fieldRecoveryEngine";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, withRetry } from "../_core/llm";
 import { preprocessDocument } from "./documentPreprocessor";
 import { scoreExtraction } from "./extractionQualityScorer";
 
+// R-INF-02: Wrap every stage-3 LLM call in withRetry so transient 5xx / network
+// blips are retried up to 2 times before the call hard-fails. The timeoutMs
+// param is already set per-call (90 s) so each attempt is individually bounded.
 function llmCall(params: any): Promise<any> {
-  return invokeLLM(params);
+  return withRetry(
+    () => invokeLLM(params),
+    2,
+    'stage-3 extraction'
+  );
 }
 
 const EXTRACTION_SCHEMA = {

@@ -841,7 +841,10 @@ async function readDamageFromPdf(
   let pass1: Pass1Result | null = null;
 
   try {
-    const response = await withTimeout(
+    // R-INF-05: wrap PDF pass-1 in withRetry (2 attempts) — a transient 5xx on this
+    // scan call would otherwise silently drop all PDF-sourced damage components.
+    const response = await withRetry(
+      () => withTimeout(
       () => invokeLLM({
         messages: [
           {
@@ -889,6 +892,8 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
         response_format: PASS1_SCHEMA,
       }),
       PASS1_TIMEOUT_MS
+      ),
+      2, 'stage-6 PDF pass-1', log
     );
     const rawContent = response.choices?.[0]?.message?.content || "{}";
     const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
@@ -1102,7 +1107,9 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
     let parsed: PdfVisionResult | null = null;
     let succeeded = false;
     try {
-      const response = await withTimeout(
+      // R-INF-05: wrap PDF pass-2 (single-pass fallback) in withRetry (2 attempts)
+      const response = await withRetry(
+        () => withTimeout(
         () => invokeLLM({
           messages: [
             {
@@ -1120,6 +1127,8 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
           response_format: PDF_VISION_SCHEMA,
         }),
         PDF_VISION_TIMEOUT_MS
+        ),
+        2, 'stage-6 PDF pass-2', log
       );
       const rawContent = response.choices?.[0]?.message?.content || "{}";
       parsed = JSON.parse(typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent)) as PdfVisionResult;

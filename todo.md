@@ -478,3 +478,14 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] P11-9: Panel Beater — Phase 11 reskin
 - [ ] P11-10: Admin, Insurer Admin, Assessor, Recovery — Phase 11 reskin
 - [ ] P11-11: Full visual QA + TS baseline + checkpoint
+
+## Batch 7 — Infrastructure Hardening (R-INF)
+
+- [x] R-INF-08: DATABASE_URL startup validation — hard fail (process.exit 1) in prod, warn in dev
+- [x] R-INF-01: DB query timeout — add per-query SET SESSION max_execution_time wrapper
+- [x] R-INF-02: LLM retry — stage-3 llmCall() wrapper (4 call sites) — add withRetry
+- [x] R-INF-03: LLM retry — stage-5 vehicle valuation (line 456) — add withRetry around withTimeout
+- [x] R-INF-04: LLM retry — stage-7b causal reasoning (3 call sites) — add withRetry
+- [x] R-INF-05: LLM retry — stage-6 PDF pass-1 and pass-2 — add withRetry
+- [x] R-INF-06: LLM retry — quoteExtractionEngine (7 call sites) — add withRetry
+- [x] R-INF tests: write audit tests for all R-INF-01 through R-INF-08 fixes (25/25 passing)

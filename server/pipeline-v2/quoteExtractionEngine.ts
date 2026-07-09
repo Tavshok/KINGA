@@ -29,7 +29,7 @@
  *   }
  */
 
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, withRetry } from "../_core/llm";
 import { appendFileSync } from "fs";
 const plog = (msg: string) => { try { appendFileSync('/home/ubuntu/kinga-replit/pipeline-debug.log', `[${new Date().toISOString()}] ${msg}\n`); } catch(e) { console.log('[plog error]', e); } };
 import { resolveComponent, isPlausiblePartName, resolveToCanonicalId } from "../../shared/vehicleParts";
@@ -374,7 +374,8 @@ export async function extractQuoteFromText(
     : `Raw quote text:\n${rawText}`;
 
   try {
-    const response = await invokeLLM({
+    // R-INF-06: wrap in withRetry for transient 5xx resilience
+    const response = await withRetry(() => invokeLLM({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userContent },
@@ -454,7 +455,7 @@ export async function extractQuoteFromText(
           }
         }
       }
-    });
+    }), 2, 'quote-extraction text');
 
     const raw = response?.choices?.[0]?.message?.content;
     if (!raw) {
@@ -531,7 +532,8 @@ export async function extractMultipleQuotes(
   plog(`[QuoteExtraction] allText length=${rawText.length} chars. Building detection sample...`);
   let detectedRepairers: string[] = [];
   try {
-    const detectionResponse = await invokeLLM({
+    // R-INF-06: wrap in withRetry
+    const detectionResponse = await withRetry(() => invokeLLM({
       messages: [
         {
           role: "system",
@@ -586,7 +588,7 @@ Do NOT extract prices, line items, or any other data — only company names.`,
           },
         },
       },
-    });
+    }), 2, 'quote-detection');
     const raw = detectionResponse?.choices?.[0]?.message?.content;
     if (raw) {
       const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -1135,7 +1137,8 @@ export async function extractQuoteFromPdfVision(
       ? `This is a repair quotation from ${panelBeater}. The total cost is approximately ${totalCost ?? 'unknown'}. Extract ALL line items with their individual prices.`
       : `This is a vehicle repair quotation. The total cost is approximately ${totalCost ?? 'unknown'}. Extract ALL line items with their individual prices.`;
 
-    const response = await invokeLLM({
+    // R-INF-06: wrap in withRetry
+    const response = await withRetry(() => invokeLLM({
       messages: [
         {
           role: "system",
@@ -1198,7 +1201,7 @@ export async function extractQuoteFromPdfVision(
           },
         },
       },
-    });
+    }), 2, 'quote-vision-reextract');
 
         const raw = response?.choices?.[0]?.message?.content;
     if (!raw) return buildFallback("Vision extraction: LLM returned empty response.");
@@ -1290,7 +1293,8 @@ export async function extractQuoteFromImageUrl(
           totalCost ? ` The total cost is approximately ${totalCost}.` : ''
         } Extract ALL line items with their individual prices.`;
 
-    const response = await invokeLLM({
+    // R-INF-06: wrap in withRetry
+    const response = await withRetry(() => invokeLLM({
       messages: [
         {
           role: "system",
@@ -1378,7 +1382,7 @@ export async function extractQuoteFromImageUrl(
           },
         },
       },
-    });
+    }), 2, 'quote-image-extract');
 
     const raw = response?.choices?.[0]?.message?.content;
     if (!raw) return buildFallback("Image quote extraction: LLM returned empty response.");
@@ -1466,7 +1470,8 @@ async function detectQuotationPagesVision(
   const pageList = pagesToScan.map((_, i) => `Page ${i + 1}`).join(", ");
 
   try {
-    const response = await invokeLLM({
+    // R-INF-06: wrap in withRetry
+    const response = await withRetry(() => invokeLLM({
       messages: [
         {
           role: "system",
@@ -1532,7 +1537,7 @@ Return JSON only.`,
           },
         },
       },
-    });
+    }), 2, 'quote-page-classifier');
 
     const raw = response?.choices?.[0]?.message?.content;
     if (!raw) return [];
@@ -1751,7 +1756,8 @@ export async function extractQuoteFromMultipleImageUrls(
         image_url: { url, detail: "auto" as const },
       }));
 
-    const response = await invokeLLM({
+    // R-INF-06: wrap in withRetry
+    const response = await withRetry(() => invokeLLM({
       messages: [
         {
           role: "system",
@@ -1834,7 +1840,7 @@ export async function extractQuoteFromMultipleImageUrls(
           },
         },
       },
-    });
+    }), 2, 'quote-multipage-extract');
 
     const raw = response?.choices?.[0]?.message?.content;
     if (!raw) return buildFallback("Multi-page image quote extraction: LLM returned empty response.");
@@ -1904,7 +1910,8 @@ export async function extractMultipleQuotesFromPdfUrl(
   // ── PASS 1: Detect all repairers in the PDF ──────────────────────────────────
   let repairerNames: string[] = [];
   try {
-    const detectionResponse = await invokeLLM({
+    // R-INF-06: wrap in withRetry
+    const detectionResponse = await withRetry(() => invokeLLM({
       messages: [
         {
           role: "system",
@@ -1966,7 +1973,7 @@ Return JSON only.`,
           },
         },
       },
-    });
+    }), 2, 'quote-pdf-detection');
 
     const raw = detectionResponse?.choices?.[0]?.message?.content;
     if (raw) {

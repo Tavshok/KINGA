@@ -38,7 +38,7 @@ import {
 import { classifyIncident, detectMultiEventSequence } from "./incidentClassificationEngine";
 import { selectScenarioEngine } from "./scenarioEngineSelector";
 import { markFallback } from "./engineFallback";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, withRetry } from "../_core/llm";
 // ── Utility: wrap async fn with a hard timeout (mirrors Stage 6 pattern) ─────
 // R-B-01 / R-B-02 fix: LLM calls in Stage 5 must be bounded so a slow or hung
 // LLM response cannot freeze the pipeline indefinitely.
@@ -453,7 +453,10 @@ export async function runAssemblyStage(
 
           // R-B-01 fix: bounded at 30 s — on timeout the catch block falls back to
           // assessorStatedValue, identical to the existing error-fallback path.
-          const llmResponse = await withTimeout(() => invokeLLM({
+          // R-INF-03: withRetry wraps the withTimeout call so transient 5xx errors
+          // are retried (up to 2 times) before falling back to assessorStatedValue.
+          const llmResponse = await withRetry(
+            () => withTimeout(() => invokeLLM({
             messages: [
               {
                 role: "system",
@@ -495,7 +498,9 @@ Return ONLY valid JSON with no markdown.`,
                 },
               },
             },
-          }), 30_000, "Stage 5c valuation LLM");
+          }), 30_000, "Stage 5c valuation LLM"),
+            2, 'stage-5c valuation'
+          );
           const raw = llmResponse?.choices?.[0]?.message?.content;
           if (raw) {
             const parsed = JSON.parse(typeof raw === "string" ? raw : JSON.stringify(raw));
@@ -931,7 +936,8 @@ async function inferIncidentFromDescriptionLLM(description: string): Promise<{
     return { incidentType: "collision", collisionDirection: "unknown", isCollision: true, reasoning: "No description provided; defaulting to collision.", confidence: 30 };
   }
   try {
-    const response = await invokeLLM({
+    // R-INF-03: wrap incident-classifier call in withRetry for transient resilience
+    const response = await withRetry(() => invokeLLM({
       messages: [
         {
           role: "system",
@@ -983,7 +989,7 @@ Return ONLY valid JSON matching the schema. No markdown, no explanation outside 
           },
         },
       },
-    });
+    }), 2, 'stage-5 incident-classifier');
     const rawContent = response.choices?.[0]?.message?.content;
     const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "{}");
     const parsed = JSON.parse(content);

@@ -72,6 +72,23 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+// ── R-INF-08: DATABASE_URL startup validation ────────────────────────────────
+// Hard fail in production if DATABASE_URL is absent — the server cannot serve
+// any meaningful request without a database. In development/test, emit a warning
+// and allow boot to continue so local dev without a DB still works.
+function validateStartupEnv(): void {
+  if (!process.env.DATABASE_URL) {
+    const msg = '[STARTUP] FATAL: DATABASE_URL environment variable is not set. The server cannot start without a database connection.';
+    if (process.env.NODE_ENV === 'production') {
+      console.error(msg);
+      process.exit(1);
+    } else {
+      console.warn('[STARTUP] WARNING: DATABASE_URL is not set. DB-dependent features will be unavailable. Set DATABASE_URL to enable full functionality.');
+    }
+  }
+}
+validateStartupEnv();
+
 async function startServer() {
   const app = express();
   const server = createServer(app);

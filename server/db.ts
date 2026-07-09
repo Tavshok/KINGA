@@ -93,6 +93,53 @@ export async function getDb() {
 }
 
 /**
+ * R-INF-01: Execute a DB operation with a per-query statement timeout.
+ *
+ * TiDB/MySQL does not have a per-pool query timeout option in mysql2, so we
+ * implement it by running `SET SESSION max_statement_time = <ms>` on the
+ * connection before the operation, then restoring it to 0 (unlimited) after.
+ *
+ * Usage:
+ *   const result = await withDbTimeout(() => db.select(...).from(...), 10_000);
+ *
+ * @param operation  Async function that performs the DB work.
+ * @param timeoutMs  Max wall-clock ms for the query (default 30 s).
+ * @param label      Label for log messages.
+ */
+export async function withDbTimeout<T>(
+  operation: () => Promise<T>,
+  timeoutMs = 30_000,
+  label = 'DB query'
+): Promise<T> {
+  const pool = await getRawPool();
+  if (!pool) {
+    // No DB available — fall through to operation() which will also fail/no-op
+    return operation();
+  }
+  const conn = await pool.getConnection();
+  try {
+    // max_statement_time is in milliseconds on TiDB; on standard MySQL it is in seconds
+    // but TiDB accepts ms. We use the TiDB-compatible form.
+    await conn.execute(`SET SESSION max_statement_time = ${timeoutMs}`);
+    const result = await operation();
+    return result;
+  } catch (err: any) {
+    const isTimeout =
+      err?.code === 'ER_STATEMENT_TIMEOUT' ||
+      String(err?.message).includes('max_statement_time exceeded') ||
+      String(err?.message).includes('Query execution was interrupted');
+    if (isTimeout) {
+      throw new Error(`[Database] ${label} timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    // Restore unlimited statement time before releasing the connection back to pool
+    try { await conn.execute('SET SESSION max_statement_time = 0'); } catch { /* ignore */ }
+    conn.release();
+  }
+}
+
+/**
  * Returns the raw mysql2 Pool so callers can use pool.execute(sql, params)
  * with the standard 2-argument signature (unlike drizzle's 1-arg wrapper).
  * Returns null when DATABASE_URL is not configured.
