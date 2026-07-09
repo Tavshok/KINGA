@@ -27,6 +27,12 @@ import { randomUUID } from "crypto";
 
 // ─── Agency Guard Middleware ──────────────────────────────────────────────────
 
+// R-INF-09 (2026-07-09): This guard currently only allows 'admin' and 'platform_super_admin'
+// because 'agency' is not yet in the users.role mysqlEnum (intentional — pending product decision).
+// When the agency portal is activated, change the check to:
+//   if (role !== 'agency' && role !== 'admin' && role !== 'platform_super_admin')
+// AND add 'agency' to the users.role enum in drizzle/schema.ts (see R-INF-09 comment there).
+// See also: server/_core/domain-middleware.ts AGENCY_ROLES constant.
 const agencyProcedure = protectedProcedure.use(({ ctx, next }) => {
   const role = ctx.user?.role;
   if (role !== "admin" && role !== "platform_super_admin") {

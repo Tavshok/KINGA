@@ -26,7 +26,7 @@ import { writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { nanoid } from 'nanoid';
 import { storagePut } from './storage';
-import { invokeLLM } from './_core/llm';
+import { invokeLLM, withRetry } from './_core/llm';
 import { resolveComponent, normalizeComponentName, type VehiclePart } from '../shared/vehicleParts';
 import { crossValidateQuotesVsPhotos, type CrossValidationReport } from './cross-validation';
 import { extendPhysicsValidationOutput } from './physics-quantitative-output';
@@ -892,7 +892,7 @@ ${extractedText}
     });
   }
 
-  const extractionResponse = await invokeLLM({
+  const extractionResponse = await withRetry(() => invokeLLM({
     messages: [
       {
         role: "system",
@@ -998,7 +998,7 @@ Map damage descriptions to the closest matching canonical name (e.g., 'left hand
         }
       }
     }
-  });
+  }), 3, 'ap-extraction');
 
   const llmRawContent = (extractionResponse.choices[0].message.content as string) || "{}";
   const rawExtractedData = JSON.parse(llmRawContent);
@@ -1200,7 +1200,7 @@ ${qualityHint}`;
 
         for (let attempt = 1; attempt <= 2; attempt++) {
           try {
-            const resp = await invokeLLM({
+            const resp = await withRetry(() => invokeLLM({
               messages: [
                 { role: 'system', content: systemPrompt },
                 {
@@ -1218,7 +1218,7 @@ ${qualityHint}`;
                 },
               ],
               response_format: PER_IMAGE_CLASSIFY_SCHEMA,
-            });
+            }), 3, 'ap-image-classify');
             const raw = resp.choices?.[0]?.message?.content || '{}';
             const parsed = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
             return {
@@ -1350,7 +1350,7 @@ ${qualityHint}`;
   
   if (components.length > 0 && totalCost > 0) {
     try {
-      const recResponse = await invokeLLM({
+      const recResponse = await withRetry(() => invokeLLM({
         messages: [
           {
             role: "system",
@@ -1398,7 +1398,7 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
             }
           }
         }
-      });
+      }), 3, 'ap-rec');
       
       const recData = JSON.parse(recResponse.choices[0].message.content as string);
       componentRecommendations = (recData.recommendations || [])
@@ -1489,7 +1489,7 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
     console.log(`🔧 Using non-collision validation for ${incidentClassification.incidentType} incident...`);
     
     try {
-      const nonCollisionResponse = await invokeLLM({
+      const nonCollisionResponse = await withRetry(() => invokeLLM({
         messages: [
           {
             role: "system",
@@ -1545,7 +1545,7 @@ Vehicle was stationary: ${incidentClassification.vehicleWasStationary ? 'Yes' : 
             }
           }
         }
-      });
+      }), 3, 'ap-non-collision');
       
       const llmResult = JSON.parse(nonCollisionResponse.choices[0].message.content as string);
       
@@ -1636,7 +1636,7 @@ Vehicle was stationary: ${incidentClassification.vehicleWasStationary ? 'Yes' : 
     
     if (!physicsPlugin || !physicsAnalysis!) {
       try {
-        const physicsResponse = await invokeLLM({
+        const physicsResponse = await withRetry(() => invokeLLM({
           messages: [
             {
               role: "system",
@@ -1684,7 +1684,7 @@ Total repair cost: $${totalCost}`
               }
             }
           }
-        });
+        }), 3, 'ap-physics');
         
         const llmPhysics = JSON.parse(physicsResponse.choices[0].message.content as string);
         const inlinePhysics = validatePhysicsInline(vehicleType, extractedData.accidentType || 'other', estimatedSpeed, damageSeverity, damageLocations);
@@ -1865,7 +1865,7 @@ Total repair cost: $${totalCost}`
     
     try {
       // LLM fraud analysis for richer context
-      const fraudResponse = await invokeLLM({
+      const fraudResponse = await withRetry(() => invokeLLM({
         messages: [
           {
             role: "system",
@@ -1938,7 +1938,7 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
             }
           }
         }
-      });
+      }), 3, 'ap-fraud');
       
       const llmFraud = JSON.parse(fraudResponse.choices[0].message.content as string);
       

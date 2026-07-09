@@ -489,3 +489,6 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] R-INF-05: LLM retry — stage-6 PDF pass-1 and pass-2 — add withRetry
 - [x] R-INF-06: LLM retry — quoteExtractionEngine (7 call sites) — add withRetry
 - [x] R-INF tests: write audit tests for all R-INF-01 through R-INF-08 fixes (25/25 passing)
+- [x] R-INF-07: LLM retry — assessment-processor.ts (6 bare invokeLLM calls) — wrapped in withRetry (13 audit tests passing)
+- [x] R-INF-09: Add documentation comments at users.role enum and agencyProcedure guard (agency role built but not yet activated)
+- [ ] R-INF-09-backlog: When agency portal is greenlit — add 'agency' to users.role enum + roleAssignmentAudit enums (migration required)
