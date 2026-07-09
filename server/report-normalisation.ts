@@ -1,3 +1,5 @@
+import { scoreToFraudLevel } from "../shared/fraudScoring";
+
 /**
  * Report Normalisation Service
  * ─────────────────────────────────────────────────────────────────────────────
@@ -165,21 +167,10 @@ function clampScore(v: number | null | undefined): number {
   return Math.max(0, Math.min(100, Math.round(Number(v))));
 }
 
-// Thresholds aligned with intelligence-enforcement.ts enforceFraudLevel and
-// weighted-fraud-scoring.ts scoreToLevel so all three engines agree on band names.
-const FRAUD_THRESHOLDS: Array<[number, NormalisedFraud['level']]> = [
-  [81, 'elevated'],
-  [61, 'high'],
-  [41, 'moderate'],
-  [21, 'low'],
-  [0,  'minimal'],
-];
-
+// Delegates to shared/fraudScoring.ts::scoreToFraudLevel — KINGA-FSS-2026-001.
+// Do NOT add local threshold logic here. See docs/KINGA-FRAUD-SCORING-STANDARD.md.
 function scoreToLevel(score: number): NormalisedFraud['level'] {
-  for (const [threshold, level] of FRAUD_THRESHOLDS) {
-    if (score >= threshold) return level;
-  }
-  return 'low';
+  return scoreToFraudLevel(score);
 }
 
 const VALID_VERDICTS = new Set([

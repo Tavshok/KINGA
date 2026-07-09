@@ -152,11 +152,11 @@ function formatCents(cents: number): string {
 
 function fraudLevelLabel(level: FraudRiskLevel | null | undefined): string {
   const map: Record<FraudRiskLevel, string> = {
-    minimal: "Minimal",
-    low: "Low",
-    medium: "Medium",
+    minimal:  "Minimal",
+    low:      "Low",
+    moderate: "Moderate",
+    high:     "High",
     elevated: "Elevated",
-    high: "High",
   };
   return level ? (map[level] ?? level) : "Unknown";
 }
@@ -227,19 +227,19 @@ function impactLabel(
     if (level === "high" || level === "elevated") {
       return "High/Elevated fraud risk → deterministic REJECT trigger.";
     }
-    if (level === "medium") {
+    if (level === "moderate") {
       return recommendation === "REVIEW"
-        ? "Medium fraud risk confirmed REVIEW routing."
+        ? "Moderate fraud risk confirmed REVIEW routing."
         : recommendation === "REJECT"
-        ? "Medium fraud risk contributed to REJECT alongside other signals."
-        : "Medium fraud risk noted but insufficient alone to block APPROVE.";
+        ? "Moderate fraud risk contributed to REJECT alongside other signals."
+        : "Moderate fraud risk noted but insufficient alone to block APPROVE.";
     }
     if (level === "low" || level === "minimal") {
       return recommendation === "APPROVE"
         ? "Low fraud risk supported APPROVE."
         : "Low fraud risk noted; REVIEW/REJECT driven by other signals.";
     }
-    return "Fraud risk level unavailable; treated as medium for safety.";
+    return "Fraud risk level unavailable; treated as moderate for safety.";
   }
 
   if (stage === "cost") {

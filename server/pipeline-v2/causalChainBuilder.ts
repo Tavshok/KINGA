@@ -38,7 +38,7 @@ import type {
 export const ESCALATION_FRAUD_LEVELS = new Set<string>(["high", "elevated"]);
 
 /** Fraud levels that trigger manual review (below escalation) */
-export const MANUAL_REVIEW_FRAUD_LEVELS = new Set<string>(["medium"]);
+export const MANUAL_REVIEW_FRAUD_LEVELS = new Set<string>(["moderate"]);
 
 /** Minimum confidence score required to produce a decision (below → insufficient_data) */
 export const MIN_CONFIDENCE_FOR_DECISION = 20;

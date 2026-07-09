@@ -17,6 +17,7 @@ import {
   computeConsistencyFraudPenalty,
   type PenaltyAuditEntry,
 } from "./services/consistencyFraudPenalty";
+import { scoreToFraudLevel } from "../shared/fraudScoring";
 
 export interface FraudContribution {
   factor: string;
@@ -81,15 +82,11 @@ export interface FraudScoringInput {
   consistencyCheckJson?: import("./services/consistencyFraudPenalty").ConsistencyCheckJson | null;
 }
 
-// ─── Level mapping (strict 5-band) ───────────────────────────────────────────
-// Thresholds aligned with intelligence-enforcement.ts enforceFraudLevel:
-//   0–19: minimal | 20–39: low | 40–60: moderate | 61–80: high | 81+: elevated
+// ─── Level mapping ────────────────────────────────────────────────────────────
+// Delegates to shared/fraudScoring.ts::scoreToFraudLevel — KINGA-FSS-2026-001.
+// Do NOT add local threshold logic here. See docs/KINGA-FRAUD-SCORING-STANDARD.md.
 function scoreToLevel(score: number): WeightedFraudResult["level"] {
-  if (score < 20) return "minimal";
-  if (score < 40) return "low";
-  if (score < 61) return "moderate";
-  if (score < 81) return "high";
-  return "elevated";
+  return scoreToFraudLevel(score);
 }
 
 // ─── Direction vs damage zone alignment ──────────────────────────────────────

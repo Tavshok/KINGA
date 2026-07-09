@@ -502,3 +502,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] R-CX-01c (a): AssessmentResults.tsx — useTenantCurrency wired to CostBreakdownChart (checkpoint 370e5b96)
 - [x] R-CX-01c (b): ForensicDecisionPanel.tsx — hardcoded $ on true_cost_usd replaced with fmt() (17 audit tests passing)
 - [x] R-CX-01c (c): stage-5-assembly.ts — vehicle valuation LLM prompt generalised for multi-currency markets; tenantCurrencyCode/tenantCountryName derived from ctx.tenantCountry; isZimbabwe guard preserves Zimbabwe-specific market context (17 audit tests passing)
+
+## Architectural Governance — 3 Failing Test Clusters
+
+- [ ] ARCH-01: quoteOptimisationEngine — update tests to Title Case canonical names + migrate damageReconciliationEngine to resolveToCanonical()
+- [ ] ARCH-02: decisionReadinessEngine — update tests to expect WARN / is_critical:false for ABSENT/UNKNOWN photo status
+- [ ] ARCH-03: weighted-fraud-scoring — locate or draft formal Fraud Scoring Standard before touching score=20 boundary; do not change production code until specification is confirmed

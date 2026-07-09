@@ -1,3 +1,5 @@
+import { scoreToFraudLevel, type FraudRiskLevel } from "../shared/fraudScoring";
+
 /**
  * intelligence-enforcement.ts
  *
@@ -25,7 +27,12 @@
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type FraudLevelEnforced = "minimal" | "low" | "moderate" | "high" | "elevated";
+/**
+ * FraudLevelEnforced is an alias for FraudRiskLevel from KINGA-FSS-2026-001.
+ * Kept for backward compatibility with existing callers that use this type name.
+ * All new code should use FraudRiskLevel from shared/fraudScoring.ts directly.
+ */
+export type FraudLevelEnforced = FraudRiskLevel;
 
 export interface PhysicsEstimate {
   velocityRangeKmh: { min: number; max: number };
@@ -200,16 +207,20 @@ const SEVERITY_COST_RANGE: Record<string, { base: number; min: number; max: numb
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Enforces strict 5-band fraud score mapping.
- * The legacy system used "very_high" for 76+; enforcement replaces this
- * with "elevated" for 81+ and adjusts all band boundaries.
+ * Maps a fraud score to a FraudLevelEnforced with a human-readable label.
+ * Delegates band logic to shared/fraudScoring.ts::scoreToFraudLevel (KINGA-FSS-2026-001).
+ * Do NOT add local threshold logic here. See docs/KINGA-FRAUD-SCORING-STANDARD.md.
  */
 export function enforceFraudLevel(score: number): { level: FraudLevelEnforced; label: string } {
-  if (score >= 81) return { level: "elevated", label: "Elevated Risk" };
-  if (score >= 61) return { level: "high",      label: "High Risk"      };
-  if (score >= 40) return { level: "moderate",  label: "Moderate Risk"  };
-  if (score >= 20) return { level: "low",       label: "Low Risk"       };
-  return                  { level: "minimal",   label: "Minimal Risk"   };
+  const level = scoreToFraudLevel(score);
+  const labels: Record<FraudLevelEnforced, string> = {
+    minimal:  "Minimal Risk",
+    low:      "Low Risk",
+    moderate: "Moderate Risk",
+    high:     "High Risk",
+    elevated: "Elevated Risk",
+  };
+  return { level, label: labels[level] };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

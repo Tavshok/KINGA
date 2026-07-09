@@ -25,6 +25,7 @@
  */
 
 import type { FraudRiskLevel, AccidentSeverity } from "./types";
+import { scoreToFraudLevel } from "../../shared/fraudScoring";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -166,7 +167,7 @@ const CONFIDENCE_INSUFFICIENT_THRESHOLD = 40;
 const REJECT_FRAUD_LEVELS: FraudRiskLevel[] = ["high", "elevated"];
 
 /** Fraud risk levels that trigger REVIEW */
-const REVIEW_FRAUD_LEVELS: FraudRiskLevel[] = ["medium"];
+const REVIEW_FRAUD_LEVELS: FraudRiskLevel[] = ["moderate"];
 
 /** Severity levels considered high-risk for auto-approval */
 const HIGH_SEVERITY_LEVELS = ["severe", "catastrophic"];
@@ -176,13 +177,13 @@ const HIGH_SEVERITY_LEVELS = ["severe", "catastrophic"];
 function normaliseFraudLevel(level: string | null | undefined): FraudRiskLevel | null {
   if (!level) return null;
   const l = level.toLowerCase().trim();
-  if (l === "high" || l === "elevated" || l === "medium" || l === "low" || l === "minimal") {
+  // Canonical values (KINGA-FSS-2026-001)
+  if (l === "minimal" || l === "low" || l === "moderate" || l === "high" || l === "elevated") {
     return l as FraudRiskLevel;
   }
-  // Map common aliases
-  if (l === "HIGH") return "high";
-  if (l === "MEDIUM" || l === "MODERATE") return "medium";
-  if (l === "LOW") return "low";
+  // Map legacy aliases
+  if (l === "medium") return "moderate";  // legacy alias
+  if (l === "critical") return "elevated"; // legacy alias
   return null;
 }
 
@@ -239,13 +240,12 @@ export function evaluateClaimDecision(input: ClaimsDecisionInput): ClaimsDecisio
 
   // ── Normalise fraud level ──────────────────────────────────────────────────
 
+  // Derive fraud level from explicit label if available; otherwise fall back to
+  // scoreToFraudLevel (KINGA-FSS-2026-001) — no inline threshold logic permitted.
   const fraudLevel = normaliseFraudLevel(
     input.fraud_result?.fraud_risk_level ??
     (input.fraud_result?.fraud_risk_score != null
-      ? input.fraud_result.fraud_risk_score >= 70 ? "high"
-        : input.fraud_result.fraud_risk_score >= 45 ? "medium"
-        : input.fraud_result.fraud_risk_score >= 20 ? "low"
-        : "minimal"
+      ? scoreToFraudLevel(input.fraud_result.fraud_risk_score)
       : null)
   );
 

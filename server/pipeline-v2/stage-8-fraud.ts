@@ -29,11 +29,11 @@ import type {
   Stage7Output,
   Stage8Output,
   FraudIndicator,
-  FraudRiskLevel,
   Assumption,
   RecoveryAction,
   InputRecoveryOutput,
 } from "./types";
+import { scoreToFraudLevel, type FraudRiskLevel } from "../../shared/fraudScoring";
 
 /**
  * R-D-05: Codes for signals that are PHYSICS FINDINGS, not fraud signals.
@@ -51,16 +51,14 @@ export const PHYSICS_ONLY_SIGNAL_CODES: ReadonlySet<string> = new Set([
   "NARRATIVE_PHYSICS_MISMATCH",
 ]);
 
+/**
+ * Maps a fraud score to the canonical FraudRiskLevel per KINGA-FSS-2026-001.
+ * Delegates to shared/fraudScoring.ts — the single source of truth.
+ * Clamps to [0,100] before delegating to handle any out-of-range composite scores.
+ */
 function scoreToLevel(score: number): FraudRiskLevel {
-  // Calibrated thresholds for the weighted composite framework (0-100 normalised scale).
-  // These are deliberately higher than the old raw-sum thresholds because the new
-  // framework normalises each category against its realistic maximum, so a score of 65+
-  // genuinely requires corroborating evidence across multiple independent categories.
-  if (score >= 65) return "elevated";
-  if (score >= 45) return "high";
-  if (score >= 25) return "medium";
-  if (score >= 13) return "low";
-  return "minimal";
+  const clamped = Math.max(0, Math.min(100, score));
+  return scoreToFraudLevel(clamped);
 }
 
 /**

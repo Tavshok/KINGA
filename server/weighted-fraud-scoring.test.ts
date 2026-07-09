@@ -22,8 +22,8 @@ describe("computeWeightedFraudScore", () => {
   it("adds +20 for damage inconsistency when consistencyScore < 50", () => {
     const result = computeWeightedFraudScore({ ...baseInput, consistencyScore: 30 });
     expect(result.score).toBe(20);
-    // Score 20 is still in the 0-20 = minimal band
-    expect(result.level).toBe("minimal");
+    // Score 20 per FSS-2026-001: 20-39 = low (band 2 lower bound)
+    expect(result.level).toBe("low");
     expect(result.contributions).toContainEqual({ factor: "Damage Inconsistency", value: 20 });
   });
 
@@ -81,8 +81,8 @@ describe("computeWeightedFraudScore", () => {
   it("adds +20 for repeat claim", () => {
     const result = computeWeightedFraudScore({ ...baseInput, hasPreviousClaims: true });
     expect(result.score).toBe(20);
-    // Score 20 is in the 0-20 = minimal band
-    expect(result.level).toBe("minimal");
+    // Score 20 per FSS-2026-001: 20-39 = low (band 2 lower bound)
+    expect(result.level).toBe("low");
     expect(result.contributions).toContainEqual({ factor: "Repeat Claim", value: 20 });
   });
 
@@ -376,22 +376,23 @@ describe("computeWeightedFraudScore", () => {
     expect(result.contributions.every(c => c.value > 0)).toBe(true);
   });
 
-  it("strict 5-band level mapping — 0-20 inclusive = minimal", () => {
-    // Score 20 (damage inconsistency only) should be minimal per spec
+  it("strict 5-band level mapping — KINGA-FSS-2026-001 boundaries", () => {
+    // Score 20 per KINGA-FSS-2026-001: 20–39 = low (NOT minimal)
+    // Band 1 (minimal) is 0–19 inclusive; 20 is the first point of band 2 (low)
     const r1 = computeWeightedFraudScore({ ...baseInput, consistencyScore: 20 }); // score=20
     expect(r1.score).toBe(20);
-    expect(r1.level).toBe("minimal"); // 0-20 inclusive = minimal
+    expect(r1.level).toBe("low"); // FSS-2026-001: 20–39 = low
 
-    // Score 21 should be low
+    // Score 35 should be low (20–39 = low)
     // damage inconsistency (20) + cost deviation (15) = 35 → low
     const r2 = computeWeightedFraudScore({ ...baseInput, consistencyScore: 20, quotedAmount: 1200 }); // score=35
     expect(r2.score).toBe(35);
-    expect(r2.level).toBe("low"); // 21-40 = low
+    expect(r2.level).toBe("low"); // FSS-2026-001: 20–39 = low
 
-    // Score 41-60 = moderate
+    // Score 55 should be moderate (40–60 = moderate)
     const r3 = computeWeightedFraudScore({ ...baseInput, consistencyScore: 20, quotedAmount: 1200, hasPreviousClaims: true }); // 20+15+20=55
     expect(r3.score).toBe(55);
-    expect(r3.level).toBe("moderate"); // 41-60 = moderate
+    expect(r3.level).toBe("moderate"); // FSS-2026-001: 40–60 = moderate
   });
 });
 

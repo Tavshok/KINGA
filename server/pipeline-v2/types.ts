@@ -1,3 +1,5 @@
+import type { FraudRiskLevel as _SharedFraudRiskLevel } from "../../shared/fraudScoring";
+
 /**
  * pipeline-v2/types.ts
  *
@@ -162,7 +164,14 @@ export type VehicleBodyType =
   | "sports"
   | "compact";
 
-export type FraudRiskLevel = "minimal" | "low" | "medium" | "high" | "elevated";
+/**
+ * FraudRiskLevel — canonical fraud risk level from KINGA-FSS-2026-001.
+ * Re-exported from shared/fraudScoring.ts as the single source of truth.
+ * Values: "minimal" | "low" | "moderate" | "high" | "elevated"
+ * Note: "medium" is a legacy alias for "moderate" and is NOT part of this type.
+ * Any code using "medium" must be migrated to "moderate".
+ */
+export type FraudRiskLevel = _SharedFraudRiskLevel;
 
 export type VarianceFlag = "within_range" | "overpriced" | "underpriced" | "no_quote";
 

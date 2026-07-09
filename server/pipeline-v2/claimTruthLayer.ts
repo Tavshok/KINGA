@@ -152,7 +152,7 @@ export interface ClaimTruth {
     conflictsResolved: ConflictResolved[];
     /** R-D-02: Stage 8 composite fraud score carried through for physics re-evaluation */
     stage8FraudScore?: number | null;
-    stage8FraudLevel?: "minimal" | "low" | "medium" | "high" | "elevated" | null;
+    stage8FraudLevel?: "minimal" | "low" | "moderate" | "high" | "elevated" | null;
   };
 }
 
@@ -179,7 +179,7 @@ export interface ClaimTruthInput {
    * backwards-compatibility — falls back to raw sum when not provided. */
   stage8FraudScore?: number | null;
   /** R-D-02: Stage 8 five-tier fraud risk level. Used for tier-aware ESCALATE/REVIEW decisions. */
-  stage8FraudLevel?: "minimal" | "low" | "medium" | "high" | "elevated" | null;
+  stage8FraudLevel?: "minimal" | "low" | "moderate" | "high" | "elevated" | null;
 }
 
 // ─── RESOLUTION ENGINE ──────────────────────────────────────────────────────
@@ -695,7 +695,7 @@ function resolveDecision(
   policeReport: ClaimTruthPoliceReport,
   // R-D-02: Stage 8 composite fraud score and level (optional, for backwards-compatibility)
   stage8FraudScore?: number | null,
-  stage8FraudLevel?: "minimal" | "low" | "medium" | "high" | "elevated" | null
+  stage8FraudLevel?: "minimal" | "low" | "moderate" | "high" | "elevated" | null
 ): ClaimTruthDecision {
   const reviewTriggers: string[] = [];
   const approvalConditions: string[] = [];
@@ -713,7 +713,7 @@ function resolveDecision(
   } else if (fraudScore >= 45) {
     // 'medium' tier: REVIEW, not ESCALATE
     if (recommendation !== "ESCALATE") recommendation = "REVIEW";
-    reviewTriggers.push(`Elevated fraud risk: score ${fraudScore}/100 (${stage8FraudLevel ?? "medium"}) — manual review required`);
+    reviewTriggers.push(`Elevated fraud risk: score ${fraudScore}/100 (${stage8FraudLevel ?? "moderate"}) — manual review required`);
   }
 
   // Active physics anomalies that need investigation

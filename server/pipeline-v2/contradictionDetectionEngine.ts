@@ -131,7 +131,7 @@ interface ContradictionRule {
 }
 
 const HIGH_FRAUD_LEVELS: Set<string> = new Set(["high", "elevated", "critical"]);
-const MODERATE_FRAUD_LEVELS: Set<string> = new Set(["medium"]);
+const MODERATE_FRAUD_LEVELS: Set<string> = new Set(["moderate"]);
 const LOW_FRAUD_LEVELS: Set<string> = new Set(["low", "minimal"]);
 
 const CONTRADICTION_RULES: ContradictionRule[] = [

@@ -106,7 +106,7 @@ export interface EscalationSummary {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const HIGH_FRAUD_LEVELS = new Set(["high", "critical", "elevated"]);
-const MEDIUM_FRAUD_LEVELS = new Set(["medium"]);
+const MEDIUM_FRAUD_LEVELS = new Set(["moderate"]);
 
 function isFraudDetected(input: EscalationInput): boolean {
   if (input.fraud_flagged === true) return true;
@@ -216,7 +216,7 @@ export function routeClaim(input: EscalationInput): EscalationOutput {
 
   // ── Rule 3: REVIEW + fraud indicators → FRAUD_TEAM / HIGH ─────────────────
   if (rec === "REVIEW" && (fraudDetected || mediumFraud)) {
-    const level = fraudDetected ? "elevated" : "medium";
+    const level = fraudDetected ? "elevated" : "moderate";
     return buildOutput(
       "FRAUD_TEAM",
       "HIGH",

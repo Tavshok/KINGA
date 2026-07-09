@@ -363,14 +363,14 @@ export function buildFraudNarrative(fraudAnalysis: Stage8Output): NarrativeResul
 
   const score = fraudAnalysis.fraudRiskScore ?? 0;
   const level = fraudAnalysis.fraudRiskLevel ?? "low";
-  // R-D-05: use level string (five-tier: minimal/low/medium/elevated/high) for action text
-  // to match the scoreToLevel boundaries in stage-8 (high≥80, elevated≥65, medium≥40, low≥20, minimal<20)
+  // R-D-05: use level string per KINGA-FSS-2026-001 (minimal/low/moderate/high/elevated)
+  // Boundaries: 0-19 minimal | 20-39 low | 40-60 moderate | 61-80 high | 81-100 elevated
   const fraudActionText =
-    level === "high"
-      ? "score is HIGH — claim requires immediate investigator assignment"
-      : level === "elevated"
-      ? "score is ELEVATED — claim requires escalation and senior adjuster review"
-      : level === "medium"
+    level === "elevated"
+      ? "score is ELEVATED — claim requires immediate investigator assignment"
+      : level === "high"
+      ? "score is HIGH — claim requires escalation and senior adjuster review"
+      : level === "moderate"
       ? "score exceeds manual review threshold — adjuster verification required"
       : level === "low"
       ? "score is within normal parameters — standard processing applies"

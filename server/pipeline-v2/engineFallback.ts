@@ -280,7 +280,7 @@ export function buildFraudFallback(reason = "insufficient_input"): FraudFallback
   const fallbackMeta: FallbackMeta = { estimated: true, source: "fallback", reason };
   return {
     fraudRiskScore: 50,
-    fraudRiskLevel: "medium" as FraudRiskLevel,
+    fraudRiskLevel: "moderate" as FraudRiskLevel,
     // Minimum: 1 contributing factor
     indicators: [
       {

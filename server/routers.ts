@@ -4238,7 +4238,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
               fraudCasesDetected++;
               highRiskCases++;
               fraudPrevented += aiAssessment.estimatedCost || 0;
-            } else if (aiAssessment.fraudRiskLevel === "medium") {
+            } else if (aiAssessment.fraudRiskLevel === "moderate") {
               fraudCasesDetected++;
               mediumRiskCases++;
               fraudPrevented += (aiAssessment.estimatedCost || 0) / 2;
@@ -4562,7 +4562,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         estimatedDuration: z.number(),
         damageAssessment: z.string(),
         recommendations: z.string().optional(),
-        fraudRiskLevel: z.enum(["low", "medium", "high"]),
+        fraudRiskLevel: z.enum(["low", "moderate", "high"]),
         disagreesWithAi: z.boolean().optional(),
         aiDisagreementReason: z.string().optional(),
       }))

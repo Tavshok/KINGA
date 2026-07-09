@@ -64,7 +64,7 @@ export interface DOECandidate {
   /** Panel beater reliability score 0–1 (from learning DB, default 0.5) */
   reliabilityScore: number;
   /** Fraud risk level for this panel beater */
-  fraudRisk: "minimal" | "low" | "medium" | "high" | "elevated";
+  fraudRisk: "minimal" | "low" | "moderate" | "high" | "elevated";
   /** Fraud signal that triggered the risk level (for audit trail) */
   fraudSignal: string | null;
   /** Extraction confidence */
@@ -191,7 +191,7 @@ function scoreFraudRisk(fraudRisk: string): number {
   const scores: Record<string, number> = {
     minimal:  1.0,
     low:      0.85,
-    medium:   0.50,
+    moderate: 0.50,
     high:     0.10,
     elevated: 0.05,
   };

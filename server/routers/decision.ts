@@ -67,7 +67,7 @@ const DamageValidationSchema = z.object({
 });
 
 const FraudResultSchema = z.object({
-  fraud_risk_level: z.enum(["minimal", "low", "medium", "high", "elevated"]).nullable().optional(),
+  fraud_risk_level: z.enum(["minimal", "low", "moderate", "high", "elevated"]).nullable().optional(),
   fraud_risk_score: z.number().nullable().optional(),
   critical_flag_count: z.number().nullable().optional(),
   scenario_fraud_flagged: z.boolean().nullable().optional(),
@@ -189,7 +189,7 @@ export const decisionRouter = router({
 
       // Build decision inputs from DB rows
       const batchInputs = rows.map((row) => {
-        const fraudLevel = row.fraudRiskLevel as "minimal" | "low" | "medium" | "high" | "elevated" | null;
+        const fraudLevel = row.fraudRiskLevel as "minimal" | "low" | "moderate" | "high" | "elevated" | null;
         const decisionInput: ClaimsDecisionInput = {
           scenario_type: row.incidentType ?? null,
           severity: row.structuralDamageSeverity ?? null,
@@ -317,7 +317,7 @@ export const decisionRouter = router({
         .limit(input.limit);
 
       const batchInputs = rows.map((row) => {
-        const fraudLevel = row.fraudRiskLevel as "minimal" | "low" | "medium" | "high" | "elevated" | null;
+        const fraudLevel = row.fraudRiskLevel as "minimal" | "low" | "moderate" | "high" | "elevated" | null;
         const decisionInput: ClaimsDecisionInput = {
           scenario_type: row.incidentType ?? null,
           severity: row.structuralDamageSeverity ?? null,
@@ -420,7 +420,7 @@ export const decisionRouter = router({
           summary: z.string().nullable().optional(),
         }).nullable().optional(),
         fraud: z.object({
-          fraud_risk_level: z.enum(["minimal", "low", "medium", "high", "elevated"]).nullable().optional(),
+          fraud_risk_level: z.enum(["minimal", "low", "moderate", "high", "elevated"]).nullable().optional(),
           fraud_risk_score: z.number().nullable().optional(),
           critical_flag_count: z.number().nullable().optional(),
           top_indicators: z.array(z.string()).nullable().optional(),
@@ -490,7 +490,7 @@ export const decisionRouter = router({
       if (rows.length === 0) return null;
 
       const row = rows[0];
-      const fraudLevel = row.fraudRiskLevel as "minimal" | "low" | "medium" | "high" | "elevated" | null;
+      const fraudLevel = row.fraudRiskLevel as "minimal" | "low" | "moderate" | "high" | "elevated" | null;
       const decisionInput: ClaimsDecisionInput = {
         scenario_type: row.incidentType ?? null,
         severity: row.structuralDamageSeverity ?? null,
@@ -713,7 +713,7 @@ export const decisionRouter = router({
       const fraudLevel = (row.fraudRiskLevel ?? row.fraudRiskLevelClaim ?? "low").toLowerCase();
       const rec: "APPROVE" | "REVIEW" | "REJECT" =
         fraudLevel === "high" || fraudLevel === "critical" ? "REJECT"
-        : fraudLevel === "elevated" || fraudLevel === "medium" ? "REVIEW"
+        : fraudLevel === "elevated" || fraudLevel === "moderate" ? "REVIEW"
         : (row.workflowState === "closed" || row.workflowState === "payment_authorized" ? "APPROVE" : "REVIEW");
 
       // Parse fraud indicators as key drivers
@@ -810,7 +810,7 @@ export const decisionRouter = router({
       const fraudLevel = (row.fraudRiskLevel ?? row.fraudRiskLevelClaim ?? "").toLowerCase();
       const rec: "APPROVE" | "REVIEW" | "REJECT" =
         fraudLevel === "high" || fraudLevel === "elevated" ? "REJECT"
-        : fraudLevel === "medium" ? "REVIEW"
+        : fraudLevel === "moderate" ? "REVIEW"
         : row.confidenceScore != null && row.confidenceScore >= 60 ? "APPROVE"
         : "REVIEW";
       const estimatedCost = row.finalApprovedAmount != null
@@ -855,7 +855,7 @@ export const decisionRouter = router({
         const fraudLvl = (row.fraudRiskLevel ?? row.fraudRiskLevelClaim ?? "").toLowerCase();
         const rec: "APPROVE" | "REVIEW" | "REJECT" =
           fraudLvl === "high" || fraudLvl === "elevated" ? "REJECT"
-          : fraudLvl === "medium" ? "REVIEW"
+          : fraudLvl === "moderate" ? "REVIEW"
           : row.confidenceScore != null && row.confidenceScore >= 60 ? "APPROVE"
           : "REVIEW";
         const estimatedCost = row.finalApprovedAmount != null
