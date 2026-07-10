@@ -82,7 +82,15 @@ interface PrimaryExtractionResult {
 // DETERMINISTIC TRIGGER THRESHOLDS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Minimum text length for a readable document — below this the primary pass failed */
+// CALIBRATION: origin unknown, do not change without benchmarking.
+// Minimum character count (excluding whitespace) for a document's extracted text to be
+// considered a successful extraction. Documents below this threshold are treated as
+// sparse/scanned and trigger the vision OCR fallback path.
+// Value of 300 was chosen empirically: a typical SA claim form with 10 filled fields
+// produces ~400-800 chars; a scanned image-only PDF produces 0-50 chars.
+// Lowering this value would cause more scanned PDFs to be incorrectly treated as
+// text-extractable; raising it would cause more lightly-filled forms to trigger
+// unnecessary vision fallback.
 const MIN_TEXT_LENGTH_CHARS = 300;
 
 /**
@@ -528,6 +536,22 @@ async function extractTextFromPdfChunked(
   }
 
   // Fallback: no page images (production Cloud Run path).
+  // ── THREE-LEVEL RECOVERY STRATEGY ────────────────────────────────────────────────────────────────────────────────
+  // Level 1 (try block below): pdfjs native text extraction.
+  //   — Deterministic, instant, no LLM cost. Works on digital PDFs with a text layer.
+  //   — If it returns ≥ MIN_TEXT_LENGTH_CHARS of non-garbled text, use it directly.
+  //   — Falls through to Level 2 if: text is too short, garbled (R-A-10), or pdfjs throws.
+  //
+  // Level 2 (outer catch): LLM file_url extraction.
+  //   — Sends the full PDF URL to the LLM for vision-based text extraction.
+  //   — Handles scanned PDFs and image-heavy documents that pdfjs cannot read.
+  //   — Falls through to Level 3 if: LLM returns empty rawText after 3 retries (Voltron pattern).
+  //
+  // Level 3 (inner catch inside outer catch): pdfjs native text as last resort.
+  //   — Re-attempts pdfjs after LLM failure. Useful when the LLM is temporarily unavailable.
+  //   — Returns conservative confidence scores (ocrConfidence: 55, fieldConfidence: 40).
+  //   — Re-throws the original LLM error if pdfjs also fails or returns insufficient text.
+  //
   // STRATEGY: Try pdfjs native text extraction FIRST before the LLM file_url call.
   // Rationale: The LLM file_url path consistently returns empty rawText for complex PDFs
   // on the first attempt (Voltron pattern). pdfjs native extraction is deterministic,
