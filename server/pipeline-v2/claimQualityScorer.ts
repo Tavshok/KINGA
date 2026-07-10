@@ -78,6 +78,162 @@ export interface ClaimQualityResult {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Scoring constants
+// CALIBRATION: All thresholds, weights, deductions, and band boundaries below
+// were set by engineering judgment during initial build.
+// No historical claim dataset was used to derive them.
+// Do not change without benchmarking against a labelled claim sample.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─ Dimension weights (must sum to 1.0) ───────────────────────────────────────
+/** Weight of Data Completeness dimension in overall score */
+const DIM_W_DATA_COMPLETENESS  = 0.25;
+/** Weight of Image Confidence dimension in overall score */
+const DIM_W_IMAGE_CONFIDENCE   = 0.20;
+/** Weight of Cost Source Reliability dimension in overall score */
+const DIM_W_COST_SOURCE        = 0.20;
+/** Weight of Classification Confidence dimension in overall score */
+const DIM_W_CLASSIFICATION     = 0.10;
+/** Weight of Physics Analysis dimension in overall score */
+const DIM_W_PHYSICS            = 0.10;
+/** Weight of Cross-Stage Consistency dimension in overall score */
+const DIM_W_CONSISTENCY        = 0.15;
+
+// ─ Data Completeness label bands ───────────────────────────────────────────────
+/** Data Completeness: minimum score for 'Complete' label */
+const DC_LABEL_COMPLETE        = 85;
+/** Data Completeness: minimum score for 'Mostly Complete' label */
+const DC_LABEL_MOSTLY_COMPLETE = 65;
+/** Data Completeness: minimum score for 'Partial' label */
+const DC_LABEL_PARTIAL         = 45;
+/** Data Completeness: mandatory-review gate (score below this triggers manual review) */
+const DC_MANUAL_REVIEW_GATE    = 50;
+/** Data Completeness: mandatory-action gate (score below this triggers action) */
+const DC_ACTION_GATE           = 50;
+
+// ─ Image Confidence scoring ─────────────────────────────────────────────────────
+/** Image Confidence: score when no photos at all */
+const IC_SCORE_NO_PHOTOS       = 10;
+/** Image Confidence: score when images extracted but none classified as damage */
+const IC_SCORE_NO_DAMAGE_CLASS = 25;
+/** Image Confidence: score when damage photos found but vision processing failed */
+const IC_SCORE_VISION_FAILED   = 20;
+/** Image Confidence: points per processed photo (capped at IC_PHOTO_CAP) */
+const IC_POINTS_PER_PHOTO      = 15;
+/** Image Confidence: maximum points from photo count */
+const IC_PHOTO_CAP             = 60;
+/** Image Confidence: confidence bonus multiplier (imageConfidence * this) */
+const IC_CONFIDENCE_MULTIPLIER = 0.4;
+/** Image Confidence: minimum processed photos before issuing a warning */
+const IC_MIN_PHOTOS_WARNING    = 3;
+/** Image Confidence: minimum image confidence before issuing a quality warning */
+const IC_CONFIDENCE_WARNING    = 60;
+/** Image Confidence: label bands */
+const IC_LABEL_HIGH            = 80;
+const IC_LABEL_MEDIUM          = 55;
+const IC_LABEL_LOW             = 30;
+/** Image Confidence: mandatory-action gate */
+const IC_ACTION_GATE           = 30;
+
+// ─ Cost Source Reliability scoring ──────────────────────────────────────────────
+/** Cost Source: score for learning_db source (best) */
+const CS_SCORE_LEARNING_DB     = 95;
+/** Cost Source: score for quote_proportional source */
+const CS_SCORE_QUOTE_PROP      = 75;
+/** Cost Source: score for hardcoded_fallback source */
+const CS_SCORE_HARDCODED       = 35;
+/** Cost Source: score for insufficient_data source */
+const CS_SCORE_INSUFFICIENT    = 10;
+/** Cost Source: score for unknown source */
+const CS_SCORE_UNKNOWN         = 40;
+/** Cost Source: bonus for ≥3 quotes compared */
+const CS_BONUS_THREE_QUOTES    = 10;
+/** Cost Source: bonus for exactly 2 quotes compared */
+const CS_BONUS_TWO_QUOTES      = 5;
+/** Cost Source: minimum quotes for three-quote bonus */
+const CS_MIN_QUOTES_THREE      = 3;
+/** Cost Source: deviation above this (%) triggers major penalty */
+const CS_DEVIATION_MAJOR       = 200;
+/** Cost Source: deviation above this (%) triggers minor penalty */
+const CS_DEVIATION_MINOR       = 100;
+/** Cost Source: major deviation penalty */
+const CS_PENALTY_MAJOR         = 20;
+/** Cost Source: minor deviation penalty */
+const CS_PENALTY_MINOR         = 10;
+/** Cost Source: label bands */
+const CS_LABEL_HIGH            = 80;
+const CS_LABEL_MEDIUM          = 55;
+const CS_LABEL_LOW             = 30;
+/** Cost Source: mandatory-review gate */
+const CS_MANUAL_REVIEW_GATE    = 30;
+/** Cost Source: mandatory-action gate */
+const CS_ACTION_GATE           = 30;
+
+// ─ Classification Confidence scoring ─────────────────────────────────────────────
+/** Classification: penalty when a conflict is detected */
+const CL_CONFLICT_PENALTY      = 25;
+/** Classification: threshold below which a warning is issued */
+const CL_CONFIDENCE_WARNING    = 70;
+/** Classification: penalty for generic incident type */
+const CL_GENERIC_PENALTY       = 15;
+/** Classification: default score when unavailable */
+const CL_SCORE_UNAVAILABLE     = 20;
+/** Classification: label bands */
+const CL_LABEL_HIGH            = 85;
+const CL_LABEL_MEDIUM          = 65;
+const CL_LABEL_LOW             = 40;
+/** Classification: mandatory-action gate */
+const CL_ACTION_GATE           = 40;
+
+// ─ Physics Analysis scoring ───────────────────────────────────────────────────────
+/** Physics: base score when physics engine ran */
+const PH_BASE_SCORE            = 60;
+/** Physics: bonus when real speed input was available */
+const PH_BONUS_SPEED           = 20;
+/** Physics: fallback bonus when speed was estimated (not real) */
+const PH_BONUS_SPEED_FALLBACK  = 5;
+/** Physics: bonus when damage consistency score is high */
+const PH_BONUS_CONSISTENCY_HIGH = 20;
+/** Physics: bonus when damage consistency score is medium */
+const PH_BONUS_CONSISTENCY_MED  = 10;
+/** Physics: minimum consistency score for high bonus */
+const PH_CONSISTENCY_HIGH_GATE  = 70;
+/** Physics: minimum consistency score for medium bonus */
+const PH_CONSISTENCY_MED_GATE   = 50;
+/** Physics: score when not applicable (non-collision incident) */
+const PH_SCORE_NOT_APPLICABLE   = 80;
+/** Physics: label bands */
+const PH_LABEL_STRONG          = 80;
+const PH_LABEL_ADEQUATE        = 55;
+const PH_LABEL_WEAK            = 30;
+
+// ─ Cross-Stage Consistency scoring ──────────────────────────────────────────────
+/** Consistency: score when check was not run (neutral default) */
+const CON_SCORE_NOT_CHECKED    = 70;
+/** Consistency: penalty per CRITICAL flag */
+const CON_PENALTY_CRITICAL     = 30;
+/** Consistency: penalty per HIGH flag */
+const CON_PENALTY_HIGH         = 20;
+/** Consistency: penalty per MEDIUM flag */
+const CON_PENALTY_MEDIUM       = 10;
+/** Consistency: penalty per INFO flag */
+const CON_PENALTY_INFO         = 5;
+/** Consistency: label bands */
+const CON_LABEL_CONSISTENT     = 90;
+const CON_LABEL_MINOR          = 70;
+const CON_LABEL_INCONSISTENT   = 45;
+
+// ─ Overall grade bands ──────────────────────────────────────────────────────────────────
+/** Minimum overall score for grade A */
+const GRADE_A_MIN = 85;
+/** Minimum overall score for grade B */
+const GRADE_B_MIN = 70;
+/** Minimum overall score for grade C */
+const GRADE_C_MIN = 55;
+/** Minimum overall score for grade D */
+const GRADE_D_MIN = 40;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DIMENSION SCORERS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -112,8 +268,8 @@ function scoreDataCompleteness(claimRecord: ClaimRecord): QualityDimension {
   return {
     name: "Data Completeness",
     score,
-    weight: 0.25,
-    label: score >= 85 ? "Complete" : score >= 65 ? "Mostly Complete" : score >= 45 ? "Partial" : "Incomplete",
+    weight: DIM_W_DATA_COMPLETENESS,
+    label: score >= DC_LABEL_COMPLETE ? "Complete" : score >= DC_LABEL_MOSTLY_COMPLETE ? "Mostly Complete" : score >= DC_LABEL_PARTIAL ? "Partial" : "Incomplete",
     issues,
   };
 }
@@ -134,26 +290,26 @@ function scoreImageConfidence(
   const imageConfidence = damageAnalysis?.imageConfidenceScore ?? 0;
 
   if (uploadedPhotos === 0 && totalExtracted === 0) {
-    score = 10;
+    score = IC_SCORE_NO_PHOTOS;
     issues.push("No damage photos submitted — damage analysis based on text only");
   } else if (uploadedPhotos === 0 && totalExtracted > 0) {
     // Images were extracted from PDF but none classified as damage photos
-    score = 25;
+    score = IC_SCORE_NO_DAMAGE_CLASS;
     issues.push(`${totalExtracted} image(s) extracted from document but none identified as damage photos — analysis based on document pages`);
   } else if (processedPhotos === 0) {
-    score = 20;
+    score = IC_SCORE_VISION_FAILED;
     issues.push(`${uploadedPhotos} damage photo(s) identified but none were successfully processed by vision`);
   } else {
     // Base score from number of usable photos
-    const photoScore = Math.min(60, processedPhotos * 15);
+    const photoScore = Math.min(IC_PHOTO_CAP, processedPhotos * IC_POINTS_PER_PHOTO);
     // Confidence score from the vision engine
-    const confidenceBonus = Math.round(imageConfidence * 0.4);
+    const confidenceBonus = Math.round(imageConfidence * IC_CONFIDENCE_MULTIPLIER);
     score = photoScore + confidenceBonus;
 
-    if (processedPhotos < 3) {
+    if (processedPhotos < IC_MIN_PHOTOS_WARNING) {
       issues.push(`Only ${processedPhotos} of ${uploadedPhotos} damage photo(s) processed — more photos improve accuracy`);
     }
-    if (imageConfidence < 60) {
+    if (imageConfidence < IC_CONFIDENCE_WARNING) {
       issues.push(`Image quality is low (confidence: ${imageConfidence}%) — photos may be blurry or poorly lit`);
     }
     // Add classification context
@@ -170,8 +326,8 @@ function scoreImageConfidence(
   return {
     name: "Image Confidence",
     score,
-    weight: 0.20,
-    label: score >= 80 ? "High" : score >= 55 ? "Medium" : score >= 30 ? "Low" : "None",
+    weight: DIM_W_IMAGE_CONFIDENCE,
+    label: score >= IC_LABEL_HIGH ? "High" : score >= IC_LABEL_MEDIUM ? "Medium" : score >= IC_LABEL_LOW ? "Low" : "None",
     issues,
   };
 }
@@ -182,55 +338,55 @@ function scoreCostSource(costAnalysis: Stage9Output | null): QualityDimension {
 
   if (!costAnalysis) {
     issues.push("Cost analysis did not run");
-    return { name: "Cost Source Reliability", score: 0, weight: 0.20, label: "Unavailable", issues };
+    return { name: "Cost Source Reliability", score: 0, weight: DIM_W_COST_SOURCE, label: "Unavailable", issues };
   }
 
   const source = (costAnalysis as any).aiEstimateSource as string | undefined;
 
   switch (source) {
     case "learning_db":
-      score = 95;
+      score = CS_SCORE_LEARNING_DB;
       break;
     case "quote_proportional":
-      score = 75;
+      score = CS_SCORE_QUOTE_PROP;
       issues.push("AI benchmark derived from submitted quote — no independent learning DB data for this vehicle/region");
       break;
     case "hardcoded_fallback":
-      score = 35;
+      score = CS_SCORE_HARDCODED;
       issues.push("AI benchmark uses hardcoded industry averages — not calibrated to this vehicle or market");
       break;
     case "insufficient_data":
-      score = 10;
+      score = CS_SCORE_INSUFFICIENT;
       issues.push("Insufficient data for AI cost benchmark — manual cost assessment required");
       break;
     default:
-      score = 40;
+      score = CS_SCORE_UNKNOWN;
       issues.push("Cost benchmark source is unknown");
   }
 
   // Bonus if multiple quotes were compared
   const quoteCount = (costAnalysis as any).quoteCount ?? 1;
-  if (quoteCount >= 3) {
-    score = Math.min(100, score + 10);
+  if (quoteCount >= CS_MIN_QUOTES_THREE) {
+    score = Math.min(100, score + CS_BONUS_THREE_QUOTES);
   } else if (quoteCount === 2) {
-    score = Math.min(100, score + 5);
+    score = Math.min(100, score + CS_BONUS_TWO_QUOTES);
   }
 
   // Penalty for extreme deviation
   const deviationPct = Math.abs(costAnalysis.quoteDeviationPct ?? 0);
-  if (deviationPct > 200) {
-    score = Math.max(0, score - 20);
+  if (deviationPct > CS_DEVIATION_MAJOR) {
+    score = Math.max(0, score - CS_PENALTY_MAJOR);
     issues.push(`Quote deviates ${deviationPct.toFixed(0)}% from AI benchmark — significant outlier`);
-  } else if (deviationPct > 100) {
-    score = Math.max(0, score - 10);
+  } else if (deviationPct > CS_DEVIATION_MINOR) {
+    score = Math.max(0, score - CS_PENALTY_MINOR);
     issues.push(`Quote deviates ${deviationPct.toFixed(0)}% from AI benchmark — review recommended`);
   }
 
   return {
     name: "Cost Source Reliability",
     score,
-    weight: 0.20,
-    label: score >= 80 ? "High" : score >= 55 ? "Medium" : score >= 30 ? "Low" : "Unreliable",
+    weight: DIM_W_COST_SOURCE,
+    label: score >= CS_LABEL_HIGH ? "High" : score >= CS_LABEL_MEDIUM ? "Medium" : score >= CS_LABEL_LOW ? "Low" : "Unreliable",
     issues,
   };
 }
@@ -243,31 +399,31 @@ function scoreClassification(claimRecord: ClaimRecord): QualityDimension {
 
   if (!classification) {
     issues.push("Incident classification not available");
-    return { name: "Classification Confidence", score: 20, weight: 0.15, label: "Unavailable", issues };
+    return { name: "Classification Confidence", score: CL_SCORE_UNAVAILABLE, weight: DIM_W_CLASSIFICATION, label: "Unavailable", issues };
   }
 
   const confidence = classification.confidence ?? 0;
   score = confidence;
 
   if (classification.conflict_detected) {
-    score = Math.max(0, score - 25);
+    score = Math.max(0, score - CL_CONFLICT_PENALTY);
     issues.push("Classification conflict detected — multiple incident types are plausible");
   }
 
-  if (confidence < 70) {
-    issues.push(`Classification confidence is ${confidence}% — below the 70% threshold for reliable analysis`);
+  if (confidence < CL_CONFIDENCE_WARNING) {
+    issues.push(`Classification confidence is ${confidence}% — below the ${CL_CONFIDENCE_WARNING}% threshold for reliable analysis`);
   }
 
   if (classification.incident_type === "unknown" || classification.incident_type === "collision") {
-    score = Math.max(0, score - 15);
+    score = Math.max(0, score - CL_GENERIC_PENALTY);
     issues.push("Incident type is generic — specific type (rear_end, head_on, etc.) could not be determined");
   }
 
   return {
     name: "Classification Confidence",
     score: Math.min(100, Math.max(0, score)),
-    weight: 0.10,
-    label: score >= 85 ? "High" : score >= 65 ? "Medium" : score >= 40 ? "Low" : "Uncertain",
+    weight: DIM_W_CLASSIFICATION,
+    label: score >= CL_LABEL_HIGH ? "High" : score >= CL_LABEL_MEDIUM ? "Medium" : score >= CL_LABEL_LOW ? "Low" : "Uncertain",
     issues,
   };
 }
@@ -278,30 +434,30 @@ function scorePhysics(physicsAnalysis: Stage7Output | null, claimRecord: ClaimRe
 
   if (!physicsAnalysis) {
     issues.push("Physics analysis did not run");
-    return { name: "Physics Analysis", score: 0, weight: 0.10, label: "Unavailable", issues };
+    return { name: "Physics Analysis", score: 0, weight: DIM_W_PHYSICS, label: "Unavailable", issues };
   }
 
   if (!physicsAnalysis.physicsExecuted) {
     // Physics not applicable for this incident type (e.g. theft, flood) — not a failure
-    return { name: "Physics Analysis", score: 80, weight: 0.10, label: "Not Applicable", issues };
+    return { name: "Physics Analysis", score: PH_SCORE_NOT_APPLICABLE, weight: DIM_W_PHYSICS, label: "Not Applicable", issues };
   }
 
   // Physics ran — score based on input quality
-  score = 60; // Base for running at all
+  score = PH_BASE_SCORE;
 
   const speedKmh = physicsAnalysis.estimatedSpeedKmh ?? 0;
   if (speedKmh > 0) {
-    score += 20; // Real speed input
+    score += PH_BONUS_SPEED;
   } else {
     issues.push("Speed was not available — physics engine used damage-severity estimation");
-    score += 5; // Fallback estimation still ran
+    score += PH_BONUS_SPEED_FALLBACK;
   }
 
   const consistencyScore = physicsAnalysis.damageConsistencyScore ?? 0;
-  if (consistencyScore >= 70) {
-    score += 20;
-  } else if (consistencyScore >= 50) {
-    score += 10;
+  if (consistencyScore >= PH_CONSISTENCY_HIGH_GATE) {
+    score += PH_BONUS_CONSISTENCY_HIGH;
+  } else if (consistencyScore >= PH_CONSISTENCY_MED_GATE) {
+    score += PH_BONUS_CONSISTENCY_MED;
     issues.push(`Damage consistency score is ${consistencyScore}% — some inconsistency between physics and damage`);
   } else {
     issues.push(`Damage consistency score is ${consistencyScore}% — significant inconsistency detected`);
@@ -310,8 +466,8 @@ function scorePhysics(physicsAnalysis: Stage7Output | null, claimRecord: ClaimRe
   return {
     name: "Physics Analysis",
     score: Math.min(100, Math.max(0, score)),
-    weight: 0.10,
-    label: score >= 80 ? "Strong" : score >= 55 ? "Adequate" : score >= 30 ? "Weak" : "Failed",
+    weight: DIM_W_PHYSICS,
+    label: score >= PH_LABEL_STRONG ? "Strong" : score >= PH_LABEL_ADEQUATE ? "Adequate" : score >= PH_LABEL_WEAK ? "Weak" : "Failed",
     issues,
   };
 }
@@ -320,7 +476,7 @@ function scoreConsistency(consistencyCheck: ConsistencyCheckResult | null | unde
   const issues: string[] = [];
 
   if (!consistencyCheck) {
-    return { name: "Cross-Stage Consistency", score: 70, weight: 0.15, label: "Not Checked", issues };
+    return { name: "Cross-Stage Consistency", score: CON_SCORE_NOT_CHECKED, weight: DIM_W_CONSISTENCY, label: "Not Checked", issues };
   }
 
   let score = 100;
@@ -328,19 +484,19 @@ function scoreConsistency(consistencyCheck: ConsistencyCheckResult | null | unde
   for (const flag of consistencyCheck.flags) {
     switch (flag.severity) {
       case "CRITICAL":
-        score -= 30;
+        score -= CON_PENALTY_CRITICAL;
         issues.push(`[CRITICAL] ${flag.description}`);
         break;
       case "HIGH":
-        score -= 20;
+        score -= CON_PENALTY_HIGH;
         issues.push(`[HIGH] ${flag.description}`);
         break;
       case "MEDIUM":
-        score -= 10;
+        score -= CON_PENALTY_MEDIUM;
         issues.push(`[MEDIUM] ${flag.description}`);
         break;
       case "INFO":
-        score -= 5;
+        score -= CON_PENALTY_INFO;
         issues.push(`[INFO] ${flag.description}`);
         break;
     }
@@ -351,8 +507,8 @@ function scoreConsistency(consistencyCheck: ConsistencyCheckResult | null | unde
   return {
     name: "Cross-Stage Consistency",
     score,
-    weight: 0.15,
-    label: score >= 90 ? "Consistent" : score >= 70 ? "Minor Issues" : score >= 45 ? "Inconsistent" : "Contradictory",
+    weight: DIM_W_CONSISTENCY,
+    label: score >= CON_LABEL_CONSISTENT ? "Consistent" : score >= CON_LABEL_MINOR ? "Minor Issues" : score >= CON_LABEL_INCONSISTENT ? "Inconsistent" : "Contradictory",
     issues,
   };
 }
@@ -362,10 +518,10 @@ function scoreConsistency(consistencyCheck: ConsistencyCheckResult | null | unde
 // ─────────────────────────────────────────────────────────────────────────────
 
 function scoreToGrade(score: number): QualityGrade {
-  if (score >= 85) return "A";
-  if (score >= 70) return "B";
-  if (score >= 55) return "C";
-  if (score >= 40) return "D";
+  if (score >= GRADE_A_MIN) return "A";
+  if (score >= GRADE_B_MIN) return "B";
+  if (score >= GRADE_C_MIN) return "C";
+  if (score >= GRADE_D_MIN) return "D";
   return "F";
 }
 
@@ -427,16 +583,16 @@ export function scoreClaimQuality(input: ClaimQualityScorerInput): ClaimQualityR
     grade === "D" ||
     grade === "F" ||
     (consistencyCheck?.blockAutoApproval ?? false) ||
-    dimensions.costSource.score < 30 ||
-    dimensions.dataCompleteness.score < 50;
+    dimensions.costSource.score < CS_MANUAL_REVIEW_GATE ||
+    dimensions.dataCompleteness.score < DC_MANUAL_REVIEW_GATE;
 
-  if (dimensions.dataCompleteness.score < 50) {
+  if (dimensions.dataCompleteness.score < DC_ACTION_GATE) {
     mandatoryActions.push("Request missing claim information from claimant before proceeding");
   }
-  if (dimensions.imageConfidence.score < 30) {
+  if (dimensions.imageConfidence.score < IC_ACTION_GATE) {
     mandatoryActions.push("Request damage photographs from claimant or arrange physical inspection");
   }
-  if (dimensions.costSource.score < 30) {
+  if (dimensions.costSource.score < CS_ACTION_GATE) {
     mandatoryActions.push("Obtain independent repair quote — AI cost benchmark is not reliable for this claim");
   }
   if (consistencyCheck?.blockAutoApproval) {
@@ -446,7 +602,7 @@ export function scoreClaimQuality(input: ClaimQualityScorerInput): ClaimQualityR
         .map(f => f.adjusterAction)
     );
   }
-  if (dimensions.classification.score < 40) {
+  if (dimensions.classification.score < CL_ACTION_GATE) {
     mandatoryActions.push("Verify incident type with claimant — classification is uncertain");
   }
 
