@@ -285,43 +285,128 @@ async function runAutoValuation(
  * Every stage is wrapped in runWithTimeout(); failures degrade gracefully rather
  * than aborting the pipeline.
  *
- * ── STAGE SEQUENCE ──────────────────────────────────────────────────────────
+ * ── NAVIGATIONAL MAP (runPipelineV2, lines 344–2436) ────────────────────────
  *
- *  Stage 1   Document ingestion (PDF → images, embedded image extraction)
- *  Stage 2   OCR & text extraction
- *  Stage 0a  Document read verification
- *  Stage 0   Evidence registry initialisation
- *  Stage 4   Data validation (Zod schema, field coercion)
- *  Stage 5   Claim data assembly (quote normalisation, vehicle lookup)
- *  Stage 0.5 Scenario-conditional evidence notes
- *  Stage 2.5 Automotive domain corrector
- *  Stage 2.6 Image classification layer
- *  Stage 2.7 Embedded quote extraction from quotation scan images
- *  Stage 0b  Evidence registry update (post-classification)
- *  Complexity gate: classify claim tier (standard / complex / fast-track)
- *  Stage 6   Damage analysis (vision-based, memory-intensive)
- *  Source truth resolution (Stage 6 → Stage 7 handoff)
- *  Stage 7   Physics + severity consensus + causal reasoning + narrative
- *  Post-physics truth re-resolution
- *  Stage 35  Damage-physics coherence validation
- *  Stage 8 ‖ Stage 9  Fraud analysis and cost optimisation (PARALLEL)
- *  Stage 7d  Confidence aggregation
- *  Stage 7b  Causal reasoning re-run (post-S8/S9, uses fraud+cost scores)
- *  Cross-stage reconciliation pass
- *  Zod schema validation of final assembled output
- *  Claim truth layer (final adjudication)
- *  Pre-report integrity gate
- *  Stage 10  Report generation
- *  Stage 11  Validated outcome recorder (learning gate)
- *  Stage 11.5 Case signature generator
+ *  Lines  344– 391  Function signature, context setup, pipeline state machine init
+ *                   Claim status set to PROCESSING; partial-resume check.
+ *
+ *  Lines  392– 460  Partial resume (Phase 5)
+ *                   If a prior run left partial results, restore them and skip
+ *                   completed stages. Observability hook (Phase 1) registered here.
+ *
+ *  Lines  461– 529  Stage 1: Document Ingestion
+ *                   PDF → images via pdfimages CLI; embedded image URL persistence.
+ *
+ *  Lines  530– 627  Stage 2: OCR & Text Extraction
+ *                   Tesseract / vision OCR; sparse-text fallback.
+ *
+ *  Lines  628– 656  Stage 0a: Document Read Verification
+ *                   Confirms at least one document was successfully read.
+ *
+ *  Lines  657– 689  Stage 0: Evidence Registry Initialisation
+ *                   Builds the initial evidence registry from Stage 1/2 outputs.
+ *
+ *  Lines  690– 717  Stage 4: Data Validation
+ *                   Zod schema validation + field coercion of extracted data.
+ *
+ *  Lines  718– 765  Stage 5: Claim Data Assembly
+ *                   Quote normalisation, vehicle lookup, incident classification.
+ *                   Calls runAssemblyStage() — see its navigational map.
+ *
+ *  Lines  766– 797  Stage 0.5: Scenario-Conditional Evidence Notes
+ *                   Adds scenario-specific evidence hints to the evidence registry.
+ *
+ *  Lines  798– 867  Stage 2.5: Automotive Domain Corrector
+ *                   Corrects OCR/LLM errors in vehicle make/model/part names.
+ *
+ *  Lines  868–1023  Stage 2.6: Image Classification Layer
+ *                   Classifies all images by type (damage photo, quote scan, etc.).
+ *
+ *  Lines 1024–1048  Stage 2.7: Embedded Quote Extraction from Quotation Scan Images
+ *                   Runs quote extraction on images classified as quotation scans.
+ *
+ *  Lines 1049–1066  Stage 0b: Evidence Registry Update (post-classification)
+ *                   Updates evidence registry with classification results.
+ *
+ *  Lines 1049–1066  Complexity Gate
+ *                   Classifies claim tier: standard / complex / fast-track.
+ *
+ *  Lines 1067–1130  Stage 6: Damage Analysis (vision-based, memory-intensive)
+ *                   GC hint before this block — releases extraction stage memory.
+ *                   Calls runDamageAnalysisStage().
+ *
+ *  Lines 1131–1153  Source Truth Resolution (Stage 6 → Stage 7 handoff)
+ *                   Resolves conflicts between Stage 6 damage output and prior data.
+ *
+ *  Lines 1154–1292  Stage 7 (Unified): Physics + Severity Consensus + Causal Reasoning
+ *                   Runs runPhysicsStage(), runSeverityConsensus(), runCausalReasoningEngine()
+ *                   (Pass 1 — without fraud/cost scores).
+ *
+ *  Lines 1293–1316  Post-Physics Truth Re-Resolution
+ *                   Re-resolves source truth after physics output is available.
+ *
+ *  Lines 1317–1337  Stage 35: Damage-Physics Coherence Validation
+ *                   Validates that damage analysis and physics outputs are coherent.
+ *
+ *  Lines 1338–1456  Stage 8 ‖ Stage 9: Fraud Analysis and Cost Optimisation (PARALLEL)
+ *                   First parallel Promise.all. Stage 7d and Stage 7b re-run both
+ *                   depend on S8 output and run AFTER this block resolves.
+ *
+ *  Lines 1457–1476  GC Hint + Stage 7d: Confidence Aggregation
+ *                   Releases S8/S9 memory; aggregates confidence across all stages.
+ *
+ *  Lines 1477–1705  Post-S8/S9 Parallel Block
+ *                   Second parallel Promise.all containing:
+ *                   - Stage 7b re-run (causal reasoning with fraud+cost scores, ~15–30s)
+ *                   - Stage 36: Cost Realism Validation (line ~1527)
+ *                   - Stage 37: Causal Chain Builder (line ~1546)
+ *                   - Stage 38: Evidence Strength Scorer (line ~1556)
+ *                   - Stage 40: Output Realism Validator (line ~1567)
+ *                   - Stage 41: Benchmark Deviation Engine (line ~1579)
+ *                   - Stage 42: Cross-Engine Consensus Scorer (line ~1601)
+ *                   - Stage 43: Physics Deviation Score (line ~1614)
+ *                   - Stage 44: Claim Consistency Check (line ~1627)
+ *                   - Stage 45: Contradiction Detection Gate (line ~1645)
+ *                   - Stage 9b: Turnaround Time Analysis (line ~1674)
+ *
+ *  Lines 1706–1732  Cross-Stage Reconciliation Pass
+ *                   Reconciles outputs across all stages for consistency.
+ *
+ *  Lines 1733–1770  Zod Schema Validation
+ *                   Final schema validation of the fully assembled pipeline output.
+ *
+ *  Lines 1771–1837  Claim Truth Layer
+ *                   Final adjudication of the claim truth from all stage outputs.
+ *
+ *  Lines 1838–1921  Pre-Report Integrity Gate
+ *                   Validates pipeline completeness before report generation.
+ *
+ *  Lines 1922–2015  Stage 10: Report Generation
+ *                   Assembles the final human-readable report.
+ *
+ *  Lines 2016–2033  Stage 11: Validated Outcome Recorder (Learning Gate)
+ *                   Records validated outcomes for future model improvement.
+ *
+ *  Lines 2034–2060  Stage 11.5: Case Signature Generator
+ *                   Generates a unique signature for this claim's evidence pattern.
+ *
+ *  Lines 2061–2113  WI-5: Pre-Generation Consistency Check
+ *                   Final consistency check before result is returned.
+ *
+ *  Lines 2114–2118  Auto-Valuation
+ *                   Triggers vehicle valuation if not already available.
+ *
+ *  Lines 2119–2436  Stages 12 / 12.5 / 13: Decision Authority, Report Readiness,
+ *                   Forensic Analysis Summary (FCDI, FEL, IFE+DOE, Phase 4A/4B),
+ *                   Pipeline Completeness Guard, System Intervention Tracker.
  *
  * ── PARALLEL EXECUTION POINTS ───────────────────────────────────────────────
  *
- *  1. Stage 8 ‖ Stage 9 (lines ~1280–1397): Fraud analysis and cost optimisation
+ *  1. Stage 8 ‖ Stage 9 (lines ~1338–1456): Fraud analysis and cost optimisation
  *     run in parallel via Promise.all. Stage 7d and Stage 7b re-run both depend
  *     on S8 output and run AFTER this block resolves.
  *
- *  2. Post-S8/S9 block (lines ~1418–1646): Stage 7b re-run, cross-stage
+ *  2. Post-S8/S9 block (lines ~1477–1705): Stage 7b re-run, cross-stage
  *     reconciliation sub-tasks, and deterministic post-processing stages run
  *     in a second Promise.all. The Stage 7b re-run is the longest task (~15–30s)
  *     and gates the cross-stage reconciliation pass.
@@ -338,8 +423,8 @@ async function runAutoValuation(
  *  complexity without improving testability.
  *
  *  If a future change requires touching this function, treat each section-header
- *  block as a logical unit and re-verify against the full pipeline test suite
- *  before committing.
+ *  block (lines shown above) as a logical unit and re-verify against the full
+ *  pipeline test suite before committing.
  */
 export async function runPipelineV2(
   ctx: PipelineContext

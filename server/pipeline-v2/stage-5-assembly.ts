@@ -57,6 +57,54 @@ async function withTimeout<T>(fn: () => Promise<T>, ms: number, label: string): 
 }
 
 
+/**
+ * Combine validated extracted data into one structured ClaimRecord.
+ * This record is the single input passed to all analysis engines (Stages 6–9).
+ * NEVER halts — produces a minimal ClaimRecord even if most fields are missing.
+ *
+ * ── NAVIGATIONAL MAP (runAssemblyStage, lines 60–719) ───────────────────────
+ *
+ *  Lines  60–182  Vehicle property resolution
+ *                  make / model / year → resolveVehicleMass → bodyType → powertrain
+ *                  All failures produce an Assumption record and set isDegraded.
+ *
+ *  Lines 183–270  Incident Classification Engine (multi-source, conflict-aware)
+ *                  Calls classifyIncident() + detectMultiEventSequence().
+ *                  Prevents the "Mazda root cause" (claim form vs driver narrative conflict).
+ *
+ *  Lines 271–408  Collision scenario detection
+ *                  Calls detectCollisionScenario() to derive CollisionScenario + boolean flags.
+ *                  Builds damage record (components, description, photos).
+ *
+ *  Lines 409–428  Step 5b: Third-Party Record Assembly
+ *                  Extracts third-party vehicle, driver, and insurer from validated fields.
+ *
+ *  Lines 429–586  Step 5c: Vehicle Market Valuation
+ *                  LLM-based valuation with withTimeout() guard (R-B-01/R-B-02 fix).
+ *                  Falls back to DB marketValueCents if LLM fails or times out.
+ *
+ *  Lines 587–619  Step 5d: Scenario Engine Selection
+ *                  Calls selectScenarioEngine() to choose the appropriate fraud/physics engine.
+ *                  Assembles the final Stage5Output and returns success/degraded result.
+ *
+ *  Lines 630–718  Catch block: Self-healing minimal ClaimRecord
+ *                  If assembly fails entirely, builds a minimal ClaimRecord from DB fields only.
+ *                  Stage 26 defensive contract applied here (markFallback).
+ *
+ * ── WHY THIS FUNCTION IS NOT SPLIT ──────────────────────────────────────────
+ *
+ *  runAssemblyStage is intentionally a single function (~660 lines of logic).
+ *  The five steps share mutable state (assumptions[], recoveryActions[], isDegraded,
+ *  vehicle, driver, damage, incidentType) that flows through all steps sequentially.
+ *  The R-B-01/R-B-02 timeout fix and the R-B-03b night-photo rescue path both depend
+ *  on this shared state flowing correctly. Splitting into sub-functions would require
+ *  passing 10+ variables across function boundaries and risks reintroducing the bugs
+ *  those fixes resolved.
+ *
+ *  If a future change requires touching this function, treat each section-header
+ *  block (lines shown above) as a logical unit and re-verify against the Stage 5
+ *  test coverage before committing.
+ */
 export async function runAssemblyStage(
   ctx: PipelineContext,
   stage4: Stage4Output
