@@ -781,7 +781,23 @@ function evaluateAssessorDispute(input: ScenarioFraudInput): FraudFlag[] {
   return [];
 }
 
-/** Rule 6: Behavioural enrichment flags */
+// ─── Rule 6: Behavioural Enrichment Flags ────────────────────────────────────
+// Evaluates contextual fraud signals from the enrichment data (prior claims,
+// vehicle finance, location, African-market-specific patterns).
+//
+// STRUCTURE NOTE: This is intentionally a flat list of independent if-checks.
+// Each check is self-contained: it reads one enrichment field and emits zero or
+// one flag. There is no shared mutable state between checks and no complex
+// control flow. Splitting into sub-functions (e.g. evaluateFinancialEnrichment,
+// evaluateAfricanContextSignals) would add indirection without improving
+// readability or testability — the flat structure is the correct design here.
+//
+// CALIBRATION: All score values are engineering-judgment unless noted.
+// See docs/audit/unverified-constants.md for the full list.
+//
+// AFRICAN-MARKET SIGNALS: From 'ghost_third_party' onward, signals are
+// calibrated for Southern/Eastern African markets (Zimbabwe, South Africa,
+// Zambia). Review before deploying in a new geography.
 function evaluateBehaviouralEnrichment(input: ScenarioFraudInput): FraudFlag[] {
   const flags: FraudFlag[] = [];
   const { enrichment, scenario_type } = input;
