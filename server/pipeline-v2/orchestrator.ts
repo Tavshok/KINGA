@@ -279,8 +279,67 @@ async function runAutoValuation(
 }
 
 /**
- * Run the full self-healing pipeline.
- * NEVER throws — always returns a result with whatever data was produced.
+ * Run the full KINGA AutoVerify AI pipeline (v2).
+ *
+ * NEVER throws — always returns a PipelineResult with whatever data was produced.
+ * Every stage is wrapped in runWithTimeout(); failures degrade gracefully rather
+ * than aborting the pipeline.
+ *
+ * ── STAGE SEQUENCE ──────────────────────────────────────────────────────────
+ *
+ *  Stage 1   Document ingestion (PDF → images, embedded image extraction)
+ *  Stage 2   OCR & text extraction
+ *  Stage 0a  Document read verification
+ *  Stage 0   Evidence registry initialisation
+ *  Stage 4   Data validation (Zod schema, field coercion)
+ *  Stage 5   Claim data assembly (quote normalisation, vehicle lookup)
+ *  Stage 0.5 Scenario-conditional evidence notes
+ *  Stage 2.5 Automotive domain corrector
+ *  Stage 2.6 Image classification layer
+ *  Stage 2.7 Embedded quote extraction from quotation scan images
+ *  Stage 0b  Evidence registry update (post-classification)
+ *  Complexity gate: classify claim tier (standard / complex / fast-track)
+ *  Stage 6   Damage analysis (vision-based, memory-intensive)
+ *  Source truth resolution (Stage 6 → Stage 7 handoff)
+ *  Stage 7   Physics + severity consensus + causal reasoning + narrative
+ *  Post-physics truth re-resolution
+ *  Stage 35  Damage-physics coherence validation
+ *  Stage 8 ‖ Stage 9  Fraud analysis and cost optimisation (PARALLEL)
+ *  Stage 7d  Confidence aggregation
+ *  Stage 7b  Causal reasoning re-run (post-S8/S9, uses fraud+cost scores)
+ *  Cross-stage reconciliation pass
+ *  Zod schema validation of final assembled output
+ *  Claim truth layer (final adjudication)
+ *  Pre-report integrity gate
+ *  Stage 10  Report generation
+ *  Stage 11  Validated outcome recorder (learning gate)
+ *  Stage 11.5 Case signature generator
+ *
+ * ── PARALLEL EXECUTION POINTS ───────────────────────────────────────────────
+ *
+ *  1. Stage 8 ‖ Stage 9 (lines ~1280–1397): Fraud analysis and cost optimisation
+ *     run in parallel via Promise.all. Stage 7d and Stage 7b re-run both depend
+ *     on S8 output and run AFTER this block resolves.
+ *
+ *  2. Post-S8/S9 block (lines ~1418–1646): Stage 7b re-run, cross-stage
+ *     reconciliation sub-tasks, and deterministic post-processing stages run
+ *     in a second Promise.all. The Stage 7b re-run is the longest task (~15–30s)
+ *     and gates the cross-stage reconciliation pass.
+ *
+ * ── WHY THIS FUNCTION IS NOT SPLIT ──────────────────────────────────────────
+ *
+ *  runPipelineV2 is intentionally a single orchestrator function (~2090 lines).
+ *  The stage sequencing, the two parallel execution points, the Stage 7b re-run
+ *  timing, and the post-physics truth re-resolution are all load-bearing
+ *  structural decisions verified across Batches 1–8 of the remediation track
+ *  (R-C-01/02 physics fixes, R-D-01–R-D-12 decision engine, R-E-01–R-E-10 cost,
+ *  R-B-03b night-photo rescue path). Splitting into sub-functions would require
+ *  passing ~20 stage output variables across function boundaries, adding
+ *  complexity without improving testability.
+ *
+ *  If a future change requires touching this function, treat each section-header
+ *  block as a logical unit and re-verify against the full pipeline test suite
+ *  before committing.
  */
 export async function runPipelineV2(
   ctx: PipelineContext
