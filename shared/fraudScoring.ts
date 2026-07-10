@@ -112,6 +112,20 @@ export function fraudLevelDisplayLabel(raw: string | null | undefined): string {
   return level.charAt(0).toUpperCase() + level.slice(1);
 }
 
+/**
+ * FSS-2026-001 canonical band thresholds.
+ * These values are DATA-GROUNDED — they are defined by the formal KINGA Fraud
+ * Scoring Standard (docs/KINGA-FRAUD-SCORING-STANDARD.md) and must not be
+ * changed without a formal standard revision.
+ *
+ * Contrast with CALIBRATION-tagged constants elsewhere in the codebase, which
+ * are engineering-judgment estimates that lack a formal data grounding.
+ */
+export const FSS_ELEVATED_THRESHOLD = 81;
+export const FSS_HIGH_THRESHOLD     = 61;
+export const FSS_MODERATE_THRESHOLD = 40;
+export const FSS_LOW_THRESHOLD      = 20;
+
 export function scoreToFraudLevel(score: number): FraudRiskLevel {
   if (!Number.isFinite(score) || score < 0 || score > 100) {
     throw new RangeError(
@@ -119,9 +133,9 @@ export function scoreToFraudLevel(score: number): FraudRiskLevel {
     );
   }
 
-  if (score >= 81) return "elevated";
-  if (score >= 61) return "high";
-  if (score >= 40) return "moderate";
-  if (score >= 20) return "low";
+  if (score >= FSS_ELEVATED_THRESHOLD) return "elevated";
+  if (score >= FSS_HIGH_THRESHOLD)     return "high";
+  if (score >= FSS_MODERATE_THRESHOLD) return "moderate";
+  if (score >= FSS_LOW_THRESHOLD)      return "low";
   return "minimal";
 }
