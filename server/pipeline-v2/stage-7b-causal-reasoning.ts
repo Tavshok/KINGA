@@ -161,11 +161,22 @@ export interface PrecomputedScores {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+// CALIBRATION: Plausibility band thresholds (80/65/45/25) are engineering-judgment.
+// Do not change without benchmarking against a labelled claim dataset.
+/** Minimum score for 'very_high' plausibility band */
+const PLAUSIBILITY_VERY_HIGH_THRESHOLD = 80;
+/** Minimum score for 'high' plausibility band */
+const PLAUSIBILITY_HIGH_THRESHOLD      = 65;
+/** Minimum score for 'moderate' plausibility band */
+const PLAUSIBILITY_MODERATE_THRESHOLD  = 45;
+/** Minimum score for 'low' plausibility band */
+const PLAUSIBILITY_LOW_THRESHOLD       = 25;
+
 function plausibilityBand(score: number): CausalVerdict["plausibilityBand"] {
-  if (score >= 80) return "very_high";
-  if (score >= 65) return "high";
-  if (score >= 45) return "moderate";
-  if (score >= 25) return "low";
+  if (score >= PLAUSIBILITY_VERY_HIGH_THRESHOLD) return "very_high";
+  if (score >= PLAUSIBILITY_HIGH_THRESHOLD)      return "high";
+  if (score >= PLAUSIBILITY_MODERATE_THRESHOLD)  return "moderate";
+  if (score >= PLAUSIBILITY_LOW_THRESHOLD)       return "low";
   return "very_low";
 }
 
