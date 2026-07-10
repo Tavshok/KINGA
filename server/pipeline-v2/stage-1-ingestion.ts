@@ -80,27 +80,50 @@ async function withExtractionTimeout<T>(fn: () => Promise<T>, label: string): Pr
   });
 }
 
+/**
+ * Classify an ingested document into one of the pipeline's DocumentType categories.
+ *
+ * Classification taxonomy (downstream significance):
+ *   'vehicle_photos'      — image/* MIME type. Routed to Stage 6 (damage analysis) and
+ *                           photo forensics. containsImages is always true.
+ *   'police_report'       — PDF whose filename matches police/SAPS/ZRP keywords, or whose
+ *                           first-page text contains police report markers. Stage 3 uses
+ *                           this to skip quote extraction (police reports don't have quotes).
+ *   'repair_quote'        — PDF whose filename matches quote/estimate/invoice/repair keywords.
+ *                           Stage 3 prioritises quote extraction for this type.
+ *   'claim_form'          — PDF whose filename matches claim/form/notification/FNOL keywords.
+ *                           Stage 3 extracts accident description and claimant fields.
+ *   'assessor_report'     — Not assigned here (Stage 3 assigns this after LLM extraction
+ *                           when document_category='assessor_report' is returned).
+ *   'supporting_document' — PDF that matched no keyword heuristic. Stage 3 attempts
+ *                           generic extraction; Stage 9 L1 filter may exclude it.
+ *   'unknown'             — Non-PDF, non-image file. Pipeline logs a warning and skips it.
+ *
+ * Note: documentType values are repeated string literals across Stage 1, Stage 3, and
+ * the orchestrator. A shared DocumentType enum in shared/types.ts would be preferable
+ * but has not been implemented (backlog item).
+ */
 function classifyDocument(
   fileName: string,
   mimeType: string,
   textHint?: string
 ): DocumentType {
-  const fn = (fileName || "").toLowerCase();
-  const hint = (textHint || "").toLowerCase();
+  const fn = (fileName || '').toLowerCase();
+  const hint = (textHint || '').toLowerCase();
 
-  if (mimeType.startsWith("image/")) return "vehicle_photos";
-  if (/police|saps|zrp|report/i.test(fn)) return "police_report";
-  if (/quote|estimate|invoice|repair|panel/i.test(fn)) return "repair_quote";
-  if (/claim|form|notification|fnol/i.test(fn)) return "claim_form";
+  if (mimeType.startsWith('image/')) return 'vehicle_photos';
+  if (/police|saps|zrp|report/i.test(fn)) return 'police_report';
+  if (/quote|estimate|invoice|repair|panel/i.test(fn)) return 'repair_quote';
+  if (/claim|form|notification|fnol/i.test(fn)) return 'claim_form';
 
   if (hint) {
-    if (/police report|case number|station|officer|charge/i.test(hint)) return "police_report";
-    if (/quotation|estimate|labour|parts|panel beat|repair cost/i.test(hint)) return "repair_quote";
-    if (/claim form|claimant|insured|policy number/i.test(hint)) return "claim_form";
+    if (/police report|case number|station|officer|charge/i.test(hint)) return 'police_report';
+    if (/quotation|estimate|labour|parts|panel beat|repair cost/i.test(hint)) return 'repair_quote';
+    if (/claim form|claimant|insured|policy number/i.test(hint)) return 'claim_form';
   }
 
-  if (mimeType === "application/pdf") return "supporting_document";
-  return "unknown";
+  if (mimeType === 'application/pdf') return 'supporting_document';
+  return 'unknown';
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────
@@ -325,6 +348,11 @@ export async function runIngestionStage(
         sourceUrl: ctx.pdfUrl,
         mimeType: "application/pdf",
         fileName: pdfFileName,
+        // containsImages: true means the PDF structurally contains page images that were
+        // successfully rendered and stored in imageUrls. It does NOT mean the images were
+        // successfully analysed or that they are damage photos. Stage 3 uses this flag to
+        // determine whether to attempt vision-based extraction. A PDF with containsImages=false
+        // will only be processed via text extraction paths.
         containsImages: pdfPageImageUrls.length > 0,
         imageUrls: pdfPageImageUrls,
       };
