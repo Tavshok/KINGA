@@ -569,3 +569,16 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
   - stage-8-fraud.ts: four-engine fraud architecture, score aggregation overview (new)
   - All other files confirmed to already have adequate module-level comments
 - 235/249 tests pass; 14 pre-existing failures confirmed (quoteExtractionEngine x12, costDecisionEngine x2)
+---
+## Batch 9e — Mermaid Flowcharts for All Groups A–H Pipeline Modules
+- [x] Group A (5 flowcharts): pdf-image-extractor, stage-1-ingestion, stage-2-extraction, stage-3-structured-extraction, quote-extraction-engine
+- [x] Group B (3 flowcharts): image-intelligence, image-classifier, document-preprocessor
+- [x] Group C (3 flowcharts): evidence-strength-scorer, claim-quality-scorer, speed-inference-ensemble
+- [x] Group D (2 flowcharts): scenario-fraud-engine, photo-forensics-engine
+- [x] Group E (2 flowcharts): quote-optimisation-engine, stage-5-assembly
+- [x] Group F (2 flowcharts): stage-6-damage-analysis, stage-7-physics
+- [x] Group G (3 flowcharts): stage-7b-causal-reasoning, stage-8-fraud, stage-9-cost
+- [x] Group H (3 flowcharts): cost-decision-engine, decision-readiness-engine, orchestrator
+- [x] All 18 .mmd source files verified to render without parse errors; all 18 .png renders verified visually
+- [x] Regression gate: 483/485 tests pass in core pipeline suite; 2 costDecisionEngine failures confirmed pre-existing
+- [x] All 46 files committed to main: commit d28b503a
