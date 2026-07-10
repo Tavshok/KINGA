@@ -767,6 +767,7 @@ function evaluateAssessorConfirmation(
 /** Rule 5: Assessor dispute flag */
 function evaluateAssessorDispute(input: ScenarioFraudInput): FraudFlag[] {
   if (input.assessor_confirmation === "disputed") {
+    // CALIBRATION: 40-point score for assessor dispute is engineering-judgment.
     return [buildFlag(
       "assessor_disputed_damage",
       "behaviour",
@@ -791,6 +792,7 @@ function evaluateBehaviouralEnrichment(input: ScenarioFraudInput): FraudFlag[] {
       "high_prior_claim_frequency",
       "behaviour",
       enrichment.prior_claims_count >= 5 ? "HIGH" : "MEDIUM",
+      // CALIBRATION: 25/15-point scores and 5/3 claim-count thresholds are engineering-judgment.
       enrichment.prior_claims_count >= 5 ? 25 : 15,
       `Claimant has ${enrichment.prior_claims_count} prior claims in the last 24 months. ` +
       `High claim frequency is a recognised fraud indicator.`,
@@ -801,6 +803,7 @@ function evaluateBehaviouralEnrichment(input: ScenarioFraudInput): FraudFlag[] {
   if (enrichment.recently_purchased && ["theft", "fire", "vehicle_collision"].includes(scenario_type)) {
     flags.push(buildFlag(
       "recently_purchased_vehicle",
+      // CALIBRATION: 20-point score and 90-day recency threshold are engineering-judgment.
       "behaviour",
       "MEDIUM",
       20,
@@ -813,6 +816,7 @@ function evaluateBehaviouralEnrichment(input: ScenarioFraudInput): FraudFlag[] {
   if (enrichment.vehicle_financed && ["theft", "fire"].includes(scenario_type)) {
     flags.push(buildFlag(
       "financed_vehicle_total_loss_risk",
+      // CALIBRATION: 15-point score for financed vehicle total loss risk is engineering-judgment.
       "financial",
       "MEDIUM",
       15,
@@ -825,6 +829,7 @@ function evaluateBehaviouralEnrichment(input: ScenarioFraudInput): FraudFlag[] {
   if (enrichment.specific_repairer_requested && !enrichment.preferred_repairer) {
     flags.push(buildFlag(
       "non_panel_repairer_requested",
+      // CALIBRATION: 8-point score for non-panel repairer request is engineering-judgment.
       "financial",
       "LOW",
       8,
@@ -837,6 +842,7 @@ function evaluateBehaviouralEnrichment(input: ScenarioFraudInput): FraudFlag[] {
   if (enrichment.after_hours_lodgement && ["theft", "fire"].includes(scenario_type)) {
     flags.push(buildFlag(
       "after_hours_lodgement",
+      // CALIBRATION: 5-point score for after-hours lodgement is engineering-judgment.
       "behaviour",
       "LOW",
       5,
@@ -849,6 +855,7 @@ function evaluateBehaviouralEnrichment(input: ScenarioFraudInput): FraudFlag[] {
   if (enrichment.high_fraud_location) {
     flags.push(buildFlag(
       "high_fraud_location",
+      // CALIBRATION: 15-point score for high-fraud location is engineering-judgment.
       "behaviour",
       "MEDIUM",
       15,
