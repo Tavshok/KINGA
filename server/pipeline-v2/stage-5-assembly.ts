@@ -106,11 +106,15 @@ export async function runAssemblyStage(
     try {
       massResult = resolveVehicleMass(effectiveMake, effectiveModel, year);
     } catch {
-      massResult = { massKg: 1400, tier: "default" };
+      // CALIBRATION: 1400 kg is the sedan-class industry average used as a fallback.
+      // This is NOT data-derived from the Zimbabwe/Southern Africa fleet.
+      // Do not change without benchmarking against the actual insured vehicle fleet.
+      const DEFAULT_VEHICLE_MASS_KG = 1400;
+      massResult = { massKg: DEFAULT_VEHICLE_MASS_KG, tier: "default" };
       assumptions.push({
         field: "vehicle.massKg",
-        assumedValue: 1400,
-        reason: "Vehicle mass resolution failed. Using 1400kg (sedan class average).",
+        assumedValue: DEFAULT_VEHICLE_MASS_KG,
+        reason: `Vehicle mass resolution failed. Using ${DEFAULT_VEHICLE_MASS_KG}kg (sedan class average).`,
         strategy: "industry_average",
         confidence: 40,
         stage: "Stage 5",
@@ -215,7 +219,11 @@ export async function runAssemblyStage(
         confidence: 30,
         stage: "Stage 5",
       });
-    } else if (incidentClassification.confidence < 60) {
+    // CALIBRATION: 60% confidence threshold for low-confidence incident classification
+    // is engineering-judgment. Do not change without benchmarking.
+    /** Minimum confidence below which incident classification is flagged as low-confidence */
+    const INCIDENT_CONF_LOW_THRESHOLD = 60;
+    } else if (incidentClassification.confidence < INCIDENT_CONF_LOW_THRESHOLD) {
       assumptions.push({
         field: "accidentDetails.incidentType",
         assumedValue: incidentClassification.incident_type,
@@ -546,10 +554,18 @@ Return ONLY valid JSON with no markdown.`,
         const ratio = repairCostUsd / marketValueUsdFinal;
         let verdict: VehicleValuation["verdict"];
         let verdictReason: string;
-        if (ratio >= 0.75) {
+        // CALIBRATION: Write-off (0.75) and borderline (0.60) repair-to-value thresholds
+        // are engineering-judgment. The pipelineCostConstants.ts ECONOMIC_WRITE_OFF_THRESHOLD
+        // (0.65) is insurer-agreed; these stage-5 thresholds are separate and may diverge.
+        // Do not change without insurer agreement.
+        /** Repair-to-value ratio above which vehicle is an economic write-off */
+        const WRITE_OFF_RATIO_THRESHOLD  = 0.75;
+        /** Repair-to-value ratio above which vehicle is borderline */
+        const BORDERLINE_RATIO_THRESHOLD = 0.60;
+        if (ratio >= WRITE_OFF_RATIO_THRESHOLD) {
           verdict = "write_off";
-          verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Exceeds 75% threshold — economic write-off.`;
-        } else if (ratio >= 0.60) {
+          verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Exceeds ${Math.round(WRITE_OFF_RATIO_THRESHOLD * 100)}% threshold — economic write-off.`;
+        } else if (ratio >= BORDERLINE_RATIO_THRESHOLD) {
           verdict = "borderline";
           verdictReason = `Repair cost (${tenantCurrencyCode} ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (${tenantCurrencyCode} ${marketValueUsdFinal.toLocaleString()}). Borderline — recommend independent valuation.`;
         } else {
