@@ -257,7 +257,167 @@ async function processBuffer(
   }
 }
 
-// ─── Main Extraction Logic ────────────────────────────────────────────────────
+// ─── Main Extraction Logic (sub-functions) ───────────────────────────────────
+
+/**
+ * Detect whether a PDF is scanned (image-based) or native (text-based).
+ *
+ * R-A-06 FIX: Samples 30% of pages (capped at 10, min 3) distributed evenly
+ * across the document and uses the MEDIAN chars/page rather than the mean.
+ * This prevents a sparse cover page or blank separator from dragging the score
+ * below the threshold on a genuinely native PDF.
+ *
+ * Returns true if the PDF is scanned (median chars/page < 100).
+ */
+async function detectScannedPdf(pdfDoc: any, pageCount: number): Promise<boolean> {
+  try {
+    const sampleCount = Math.min(Math.max(Math.ceil(pageCount * 0.3), 3), 10);
+    // Distribute sample pages evenly across the document to catch hybrid layouts
+    const sampleIndices: number[] = [];
+    for (let i = 0; i < sampleCount; i++) {
+      const idx = Math.round(1 + (i / (sampleCount - 1 || 1)) * (pageCount - 1));
+      sampleIndices.push(Math.min(idx, pageCount));
+    }
+    const charsPerPage: number[] = [];
+    for (const p of sampleIndices) {
+      const pg = await pdfDoc.getPage(p);
+      const textContent = await pg.getTextContent();
+      const chars = textContent.items.reduce((sum: number, item: any) => sum + (item.str?.length || 0), 0);
+      charsPerPage.push(chars);
+    }
+    // Median is robust against outlier pages (blank separators, cover pages)
+    const sorted = [...charsPerPage].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const medianChars = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    const isScanned = medianChars < 100;
+    console.log(`[PDF Extractor] R-A-06: Scanned detection: medianChars/page=${Math.round(medianChars)}, isScanned=${isScanned}, pages=${pageCount}, sampled=${sampleCount}`);
+    return isScanned;
+  } catch (e: any) {
+    console.warn(`[PDF Extractor] Scanned detection failed: ${e.message}`);
+    return false;
+  }
+}
+
+/**
+ * Apply heuristic rotation correction to a rendered page PNG buffer.
+ *
+ * FIX 1 (declared rotation): pdf.js exposes the /Rotate entry on page.rotate.
+ * Passing it to getViewport corrects pages saved with a rotation tag in the PDF.
+ *
+ * FIX 2 (heuristic rotation, R-A-07): Some scanners produce portrait pages saved
+ * as landscape WITHOUT setting /Rotate. We detect this by comparing the rendered
+ * aspect ratio: if ratio > 1.6 and the page is not the last page (damage schedules
+ * are commonly legitimately landscape), we rotate 90° CCW to portrait.
+ * Threshold raised from 1.3 to 1.6 to avoid false positives on slightly-wide pages
+ * (e.g. A4 landscape damage schedules, wide tables).
+ * Only applied to scanned PDFs — native PDFs may have intentional landscape pages.
+ *
+ * Returns the (possibly rotated) PNG buffer.
+ */
+async function applyHeuristicRotation(
+  pngBuffer: Buffer,
+  pageNum: number,
+  pagesToRender: number,
+  isScanned: boolean,
+  declaredRotation: number
+): Promise<Buffer> {
+  if (!isScanned || declaredRotation !== 0) return pngBuffer;
+  try {
+    const sharpInst = await getSharp();
+    const meta = await sharpInst(pngBuffer).metadata();
+    const rw = meta.width ?? 1;
+    const rh = meta.height ?? 1;
+    const ratio = rw / rh;
+    const isLastPage = pageNum === pagesToRender;
+    if (ratio > 1.6 && !isLastPage) {
+      console.log(`[PDF Extractor] R-A-07: Page ${pageNum}: heuristic rotation applied (ratio=${ratio.toFixed(2)}, rotating 90° CCW to portrait)`);
+      return sharpInst(pngBuffer).rotate(90).toBuffer();
+    } else if (ratio > 1.3 && ratio <= 1.6) {
+      console.log(`[PDF Extractor] R-A-07: Page ${pageNum}: landscape ratio=${ratio.toFixed(2)} below rotation threshold (1.6) — keeping original orientation`);
+    }
+  } catch (rotErr: any) {
+    console.warn(`[PDF Extractor] Page ${pageNum}: heuristic rotation check failed: ${rotErr.message}`);
+  }
+  return pngBuffer;
+}
+
+/**
+ * Extract embedded images from a single PDF page using the pdf.js operator list.
+ *
+ * pdf.js operator codes used here:
+ *   85 = paintImageXObject   — references an external XObject image by name
+ *   86 = paintInlineImageXObject — references an inline image by name
+ * Both are resolved via page.objs (page-local) or page.commonObjs (shared across pages).
+ *
+ * Images below MIN_DIM_EMBEDDED pixels in either dimension are skipped — they are
+ * typically decorative icons or logos, not damage photographs.
+ *
+ * Returns extracted images and a count of candidates attempted (for summary stats).
+ */
+async function extractEmbeddedImagesFromPage(
+  page: any,
+  pageNum: number,
+  sessionId: string,
+  isScanned: boolean,
+  renderDpi: number
+): Promise<{ images: ExtractedImage[]; candidates: number; rejectedByDimension: number; blurryCount: number; textHeavyCount: number }> {
+  const images: ExtractedImage[] = [];
+  let candidates = 0, rejectedByDimension = 0, blurryCount = 0, textHeavyCount = 0;
+  try {
+    const ops = await page.getOperatorList();
+    const objs = page.objs;
+    const commonObjs = page.commonObjs;
+    for (let i = 0; i < ops.fnArray.length; i++) {
+      const fn = ops.fnArray[i];
+      if (fn === 85 || fn === 86) {
+        const imgName = ops.argsArray[i]?.[0];
+        if (!imgName) continue;
+        try {
+          let imgData: any = null;
+          if (objs.has(imgName)) imgData = objs.get(imgName);
+          else if (commonObjs.has(imgName)) imgData = commonObjs.get(imgName);
+          if (imgData && imgData.data && imgData.width >= MIN_DIM_EMBEDDED && imgData.height >= MIN_DIM_EMBEDDED) {
+            const w = imgData.width, h = imgData.height;
+            const rawData = Buffer.from(imgData.data);
+            const channels = rawData.length / (w * h);
+            if (channels >= 3) {
+              candidates++;
+              const ch = Math.min(4, Math.round(channels)) as 3 | 4;
+              const sharpInst = await getSharp();
+              const pngBuf = await sharpInst(rawData, { raw: { width: w, height: h, channels: ch } }).png().toBuffer();
+              const embResult = await processBuffer(pngBuf, 'embedded_image', MIN_DIM_EMBEDDED, pageNum, sessionId, isScanned, renderDpi);
+              if (embResult) {
+                images.push(embResult);
+                if (embResult.quality.isBlurry) blurryCount++;
+                if (embResult.quality.isTextHeavy) textHeavyCount++;
+              } else {
+                rejectedByDimension++;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (embErr: any) {
+    // Non-fatal: embedded extraction failure for this page is recorded in the caller's errors[]
+    throw embErr;
+  }
+  return { images, candidates, rejectedByDimension, blurryCount, textHeavyCount };
+}
+
+// ─── Main Extraction Orchestrator ────────────────────────────────────────────
+/**
+ * Core extraction orchestrator. Loads the PDF, detects scan type, renders each
+ * page (with rotation correction), extracts embedded images, and assembles the
+ * ExtractionSummary. Each page is processed and released immediately to keep
+ * peak memory at ~2 page buffers rather than N pages simultaneously.
+ *
+ * Sub-functions:
+ *   detectScannedPdf()          — R-A-06 median-chars scanned detection
+ *   applyHeuristicRotation()    — R-A-07 heuristic rotation correction
+ *   extractEmbeddedImagesFromPage() — pdf.js operator-list embedded extraction
+ *   processBuffer()             — dimension/quality check + S3 upload
+ */
 async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined, sessionId: string, forceDpi?: number): Promise<ExtractionSummary> {
   const errors: string[] = [];
   const extractedImages: ExtractedImage[] = [];
@@ -278,37 +438,7 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
     const pageCount = pdfDoc.numPages;
     console.log(`[PDF Extractor] PDF loaded: ${pageCount} pages`);
 
-    // Detect scanned PDF using pdfjs text extraction
-    // R-A-06 FIX: Sample 30% of the document (capped at 10, min 3 pages) distributed
-    // evenly across the document instead of a fixed 3-page window. Use the MEDIAN
-    // chars/page (not the mean) so a sparse cover page (logo-only) or blank separator
-    // page does not drag the score below the threshold on a genuinely native PDF.
-    let isScanned = false;
-    try {
-      const sampleCount = Math.min(Math.max(Math.ceil(pageCount * 0.3), 3), 10);
-      // Distribute sample pages evenly across the document to catch hybrid layouts
-      const sampleIndices: number[] = [];
-      for (let i = 0; i < sampleCount; i++) {
-        const idx = Math.round(1 + (i / (sampleCount - 1 || 1)) * (pageCount - 1));
-        sampleIndices.push(Math.min(idx, pageCount));
-      }
-      const charsPerPage: number[] = [];
-      for (const p of sampleIndices) {
-        const pg = await pdfDoc.getPage(p);
-        const textContent = await pg.getTextContent();
-        const chars = textContent.items.reduce((sum: number, item: any) => sum + (item.str?.length || 0), 0);
-        charsPerPage.push(chars);
-      }
-      // Median is robust against outlier pages (blank separators, cover pages)
-      const sorted = [...charsPerPage].sort((a, b) => a - b);
-      const mid = Math.floor(sorted.length / 2);
-      const medianChars = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-      isScanned = medianChars < 100;
-      console.log(`[PDF Extractor] R-A-06: Scanned detection: medianChars/page=${Math.round(medianChars)}, isScanned=${isScanned}, pages=${pageCount}, sampled=${sampleCount}`);
-    } catch (e: any) {
-      console.warn(`[PDF Extractor] Scanned detection failed: ${e.message}`);
-    }
-
+    const isScanned = await detectScannedPdf(pdfDoc, pageCount);
     const renderDpi = forceDpi ?? (isScanned ? DPI_SCANNED : DPI_NATIVE);
     const SCALE = renderDpi / 72;
 
@@ -332,10 +462,7 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
       try {
         const page = await pdfDoc.getPage(pageNum);
 
-        // ── FIX 1: Respect PDF metadata rotation (/Rotate entry) ──────────────
-        // pdf.js exposes the declared rotation on page.rotate (0 | 90 | 180 | 270).
-        // Passing it to getViewport makes the canvas match the intended orientation.
-        // This corrects pages that were scanned/saved with a rotation tag in the PDF.
+        // Respect PDF metadata rotation (/Rotate entry) — see applyHeuristicRotation() for full rationale
         const declaredRotation: number = page.rotate ?? 0;
         const viewport = page.getViewport({ scale: SCALE, rotation: declaredRotation });
 
@@ -343,44 +470,12 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
         const canvas = napiCanvas.createCanvas(Math.round(viewport.width), Math.round(viewport.height));
         const ctx = canvas.getContext('2d');
         await page.render({ canvasContext: ctx as any, viewport }).promise;
-        let pngBuffer = canvas.toBuffer('image/png');
         pagesRendered++;
 
-        // ── FIX 2: Heuristic rotation for un-tagged scanned pages ─────────────
-        // Some scanners produce portrait pages saved as landscape (or vice versa)
-        // WITHOUT setting the /Rotate metadata entry.  We detect this by comparing
-        // the rendered aspect ratio against the expected orientation for the page:
-        //   - A4 / Letter portrait → height > width  (ratio < 1)
-        //   - A4 / Letter landscape → width > height (ratio > 1)
-        // If the rendered image is sideways (ratio > 1.4 when portrait is expected,
-        // or ratio < 0.7 when landscape is expected) AND the PDF is scanned, we
-        // rotate the PNG 90° clockwise using sharp so the LLM receives an upright image.
-        // We only apply this to scanned PDFs to avoid mis-rotating intentional
-        // landscape pages in native PDFs (e.g. wide tables, panoramic photos).
-        if (isScanned && declaredRotation === 0) {
-          try {
-            const sharpInst = await getSharp();
-            const meta = await sharpInst(pngBuffer).metadata();
-            const rw = meta.width ?? 1;
-            const rh = meta.height ?? 1;
-            const ratio = rw / rh;
-            // R-A-07 FIX: Detect 90° or 270° mis-rotation: image is wider than it is tall
-            // for a document that should be portrait (typical claim form / letter).
-            // Threshold raised from 1.3 to 1.6 to avoid false positives on slightly-wide
-            // pages (e.g., A4 landscape damage schedules, wide tables).
-            // Also skip the LAST page of the document — damage schedules and cost summaries
-            // are commonly the last page and are legitimately landscape-oriented.
-            const isLastPage = pageNum === pagesToRender;
-            if (ratio > 1.6 && !isLastPage) {
-              console.log(`[PDF Extractor] R-A-07: Page ${pageNum}: heuristic rotation applied (ratio=${ratio.toFixed(2)}, rotating 90° CCW to portrait)`);
-              pngBuffer = await sharpInst(pngBuffer).rotate(90).toBuffer();
-            } else if (ratio > 1.3 && ratio <= 1.6) {
-              console.log(`[PDF Extractor] R-A-07: Page ${pageNum}: landscape ratio=${ratio.toFixed(2)} below rotation threshold (1.6) — keeping original orientation`);
-            }
-          } catch (rotErr: any) {
-            console.warn(`[PDF Extractor] Page ${pageNum}: heuristic rotation check failed: ${rotErr.message}`);
-          }
-        }
+        // Apply heuristic rotation for un-tagged scanned pages (R-A-07)
+        const pngBuffer = await applyHeuristicRotation(
+          canvas.toBuffer('image/png'), pageNum, pagesToRender, isScanned, declaredRotation
+        );
 
         // Process page render immediately (uploads to S3, releases buffer)
         const pageResult = await processBuffer(pngBuffer, 'page_render', MIN_DIM_PAGE_RENDER, pageNum, sessionId, isScanned, renderDpi);
@@ -394,40 +489,12 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
 
         // Extract embedded images from this page (same pass, no second getPage call)
         try {
-          const ops = await page.getOperatorList();
-          const objs = page.objs;
-          const commonObjs = page.commonObjs;
-          for (let i = 0; i < ops.fnArray.length; i++) {
-            const fn = ops.fnArray[i];
-            if (fn === 85 || fn === 86) {
-              const imgName = ops.argsArray[i]?.[0];
-              if (!imgName) continue;
-              try {
-                let imgData: any = null;
-                if (objs.has(imgName)) imgData = objs.get(imgName);
-                else if (commonObjs.has(imgName)) imgData = commonObjs.get(imgName);
-                if (imgData && imgData.data && imgData.width >= MIN_DIM_EMBEDDED && imgData.height >= MIN_DIM_EMBEDDED) {
-                  const w = imgData.width, h = imgData.height;
-                  const rawData = Buffer.from(imgData.data);
-                  const channels = rawData.length / (w * h);
-                  if (channels >= 3) {
-                    embeddedCandidates++;
-                    const ch = Math.min(4, Math.round(channels)) as 3 | 4;
-                    const sharpInst = await getSharp();
-                    const pngBuf = await sharpInst(rawData, { raw: { width: w, height: h, channels: ch } }).png().toBuffer();
-                    const embResult = await processBuffer(pngBuf, 'embedded_image', MIN_DIM_EMBEDDED, pageNum, sessionId, isScanned, renderDpi);
-                    if (embResult) {
-                      extractedImages.push(embResult);
-                      if (embResult.quality.isBlurry) blurryCount++;
-                      if (embResult.quality.isTextHeavy) textHeavyCount++;
-                    } else {
-                      rejectedByDimension++;
-                    }
-                  }
-                }
-              } catch (_) {}
-            }
-          }
+          const emb = await extractEmbeddedImagesFromPage(page, pageNum, sessionId, isScanned, renderDpi);
+          extractedImages.push(...emb.images);
+          embeddedCandidates += emb.candidates;
+          rejectedByDimension += emb.rejectedByDimension;
+          blurryCount += emb.blurryCount;
+          textHeavyCount += emb.textHeavyCount;
         } catch (embErr: any) {
           // Non-fatal: embedded extraction failure for this page
           errors.push(`embedded_p${pageNum}: ${embErr.message}`);
