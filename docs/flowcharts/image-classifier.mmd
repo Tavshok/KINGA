@@ -1,0 +1,16 @@
+flowchart TD
+    A([classifyExtractedImages\ncalled]) --> B[Tier 1: Heuristic Scoring\nfor each image:\ncomputeHeuristicScore\ncomputeQualityScore]
+
+    B --> C{Heuristic\nconfidence?}
+    C -- high confidence --> D[Tier 1 confirmed:\ndamage or non-damage]
+    C -- low confidence --> E[Tier 2: LLM Classification\nbatch ambiguous images\nGPT-4o vision]
+
+    D --> F[removeDuplicates\nperceptual hash filter\nHamming distance check]
+    E --> F
+
+    F --> G[selectBestImagesForVision\nrank by quality score\nreturn top N images\nfor downstream vision stage]
+
+    G --> H([return ClassifiedImages\nwith tier labels\nand quality scores])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style H fill:#e8f5e9,stroke:#2e7d32

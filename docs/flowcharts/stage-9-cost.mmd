@@ -1,0 +1,20 @@
+flowchart TD
+    A([runCostOptimisationStage\ncalled]) --> B[Resolve currency and rates\ntenant rate overrides\ncross-border repair detection\nZW policy, ZA repair in ZAR]
+
+    B --> C[Learning DB Benchmark Query\ntwo-pass outlier filtering\nmedian-based bounds\nsampleSize >= 3 for confidence]
+
+    C --> D[runQuoteOptimisation\nnormalise part names\ncompute NFS\nhidden damage estimate]
+
+    D --> E[estimateComponentCost\nper-component AI estimate\nlabour and parts breakdown\nregional rate application]
+
+    E --> F{Agreed cost\npresent?}
+    F -- Yes --> G[POST_ASSESSMENT mode\nagreed_cost overrides\nassessor_validated basis]
+    F -- No --> H[PRE_ASSESSMENT mode\noptimised_cost as benchmark\nsystem_optimised basis]
+
+    G --> I[runCostDecision\ncostDecisionEngine\nanomaly detection\nrecommendation output]
+    H --> I
+
+    I --> J([return Stage9Output\ncostDecision, currency\nlearningDbBenchmark\nassumptions])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style J fill:#e8f5e9,stroke:#2e7d32

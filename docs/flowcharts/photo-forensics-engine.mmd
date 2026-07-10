@@ -1,0 +1,25 @@
+flowchart TD
+    A([runPhotoForensics\ncalled]) --> B[Phase 1: Metadata Analysis\nextractExifMetadata\nGPS coordinates\ntimestamp consistency\ndevice fingerprint]
+
+    B --> C[Phase 1: Pixel Analysis\ndetectSpliceArtifacts\ndetectCompressionAnomalies\ndetectCloneRegions\ndetectBrightnessManipulation]
+
+    C --> D[Phase 1: Forensic Score\nweighted sum of\nall pixel signals\nmetadata anomalies]
+
+    D --> E{Phase 1 score\nabove PHASE2_TRIGGER?}
+
+    E -- Yes --> F[Phase 2: LLM Deep Analysis\nGPT-4o vision\nfocused forensic prompt\nmanipulation narrative]
+
+    E -- No --> G[skip Phase 2\nphase2_triggered = false]
+
+    F --> H[mergeForensicResults\nphase1 score + phase2 score\nweighted by PHASE2_WEIGHT\nnarratives combined]
+
+    G --> I[buildForensicResult\nphase1 score only\nphase2_triggered = false]
+
+    H --> J[buildForensicResult\ncombined score\nphase2_triggered = true\nmanipulation_indicators list]
+
+    I --> K([return PhotoForensicsResult])
+    J --> K
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style K fill:#e8f5e9,stroke:#2e7d32
+    style F fill:#fff3e0,stroke:#e65100

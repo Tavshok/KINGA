@@ -1,0 +1,35 @@
+flowchart TD
+    A([extractImages\ncalled]) --> B[processBuffer:\nvalidate dimensions\nquality-check\nupload to S3]
+    B --> C{Dimensions\nvalid?}
+    C -- No --> D([return null])
+    C -- Yes --> E[_doExtraction\norchestrator]
+
+    E --> F[detectScannedPdf\ncheck text density\nacross all pages]
+    F --> G{isScanned?}
+
+    G -- Yes --> H[renderAllPages\nat scanned DPI]
+    G -- No --> I[renderAllPages\nat standard DPI]
+
+    H --> J[extractEmbeddedImagesFromPage\nfor each page]
+    I --> J
+
+    J --> K{Embedded\nimages found?}
+    K -- Yes --> L[applyHeuristicRotation\ncheck EXIF + heuristic\napply if needed]
+    K -- No --> M[use rendered\npage PNG directly]
+
+    L --> N[processBuffer\nper image]
+    M --> N
+
+    N --> O{Upload\nsucceeded?}
+    O -- Yes --> P[accumulate\nExtractedImage results]
+    O -- No --> Q[log warning\nskip image]
+
+    P --> R([return\nExtractedImage array])
+    Q --> R
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style D fill:#ffebee,stroke:#c62828
+    style R fill:#e8f5e9,stroke:#2e7d32
+    style F fill:#e3f2fd,stroke:#1565c0
+    style J fill:#e3f2fd,stroke:#1565c0
+    style L fill:#e3f2fd,stroke:#1565c0

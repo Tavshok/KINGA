@@ -1,0 +1,26 @@
+flowchart TD
+    A([runCausalReasoningEngine\ncalled]) --> B[formatPhysicsContext\nformatDamageContext\nformatEnrichedPhotos\nbuildPoliceBlock]
+
+    B --> C[Pass 1: definePhysicsConstraints\nLLM call GPT-4o\ndefines expected physics\nconstraints for this incident type]
+
+    C --> D[Pass 2: checkConstraints\nevaluate each constraint\nagainst actual physics\nand damage outputs]
+
+    D --> E[generateConstraintNarrative\nLLM call GPT-4o\nforensic analysis prompt\ncontradiction identification]
+
+    E --> F[plausibilityBand\nmap score to band:\n85-100 fully consistent\n65-84 minor inconsistencies\n45-64 moderate contradictions\n0-44 major or critical]
+
+    F --> G{flagForFraud\nset?}
+    G -- Yes --> H[fraud flag raised\nplausibilityScore below 45\nor major contradiction]
+    G -- No --> I[clean verdict]
+
+    H --> J[buildCausalVerdict:\nplausibilityScore, band\ncontradictions, narrative\nalternative causes]
+    I --> J
+
+    J --> K{Engine\nfailed?}
+    K -- Yes --> L[buildFallbackVerdict\ndefault plausibility 50\nno contradictions]
+    K -- No --> M([return CausalVerdict])
+    L --> M
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style M fill:#e8f5e9,stroke:#2e7d32
+    style L fill:#ffebee,stroke:#c62828

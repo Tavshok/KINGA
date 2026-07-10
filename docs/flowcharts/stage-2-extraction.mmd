@@ -1,0 +1,41 @@
+flowchart TD
+    A([runExtractionStage\ncalled]) --> B{documentType?}
+
+    B -- PHOTOS_ONLY --> C[skip text extraction\nreturn empty TextResult]
+    B -- PDF types --> D[fetchPdfBuffer\nfrom S3 URL]
+
+    D --> E{Fetch\nsucceeded?}
+    E -- No --> ERR([throw\nExtractionError])
+    E -- Yes --> F[parsePdfText\nvia pdf.js operator stream]
+
+    F --> G{Text length\ngreater than MIN_TEXT_LENGTH_CHARS\n300 chars?}
+    G -- No: sparse --> H[set isSparseText = true\nlog WARN: sparse text]
+    G -- Yes --> I[set isSparseText = false]
+
+    H --> J[checkHandwritingHints\nagainst HANDWRITING_HINTS patterns]
+    I --> J
+
+    J --> K{isHandwritten?}
+    K -- Yes --> L[set extractionMode\n= HANDWRITTEN_OCR]
+    K -- No --> M[set extractionMode\n= STANDARD]
+
+    L --> N[outer try:\nextractStructuredFields\nfrom text]
+    M --> N
+
+    N --> O{Extraction\nsucceeded?}
+    O -- Yes --> P[return TextResult\nwith fields + mode]
+    O -- No: outer catch --> Q[inner try:\nrecovery extraction\nfrom raw text tokens]
+
+    Q --> R{Recovery\nsucceeded?}
+    R -- Yes --> S[return TextResult\nwith RECOVERY flag]
+    R -- No: inner catch --> T[log ERROR\nreturn empty TextResult\nwith FAILED flag]
+
+    C --> U([return TextResult])
+    P --> U
+    S --> U
+    T --> U
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style ERR fill:#ffebee,stroke:#c62828
+    style U fill:#e8f5e9,stroke:#2e7d32
+    style T fill:#fff3e0,stroke:#e65100

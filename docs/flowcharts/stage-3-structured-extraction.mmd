@@ -1,0 +1,39 @@
+flowchart TD
+    A([runStructuredExtractionStage\ncalled]) --> B{Has imageUrls\nfrom Stage 1?}
+
+    B -- No images --> C[extractFieldsFromPdf\ntext-only LLM extraction]
+    B -- Has images --> D[detectImagePresence\ncheck image count]
+
+    D --> E{Images\nconfirmed?}
+    E -- No --> C
+    E -- Yes --> F[runInputRecovery\nfive-path orchestrator]
+
+    C --> MERGE[merge results:\nfields + quotes]
+
+    subgraph FIVE_PATH ["runInputRecovery — Five Extraction Paths (intentionally not split — see no-split comment)"]
+        P1[PATH 1: Primary vision\nextractMultipleQuotesFromPageImages\nfor all page images]
+        P2[PATH 2: Vision fallback\nextractQuoteFromMultipleImageUrls\nif PATH 1 returns 0 quotes]
+        P3[PATH 3: Unconditional vision pass\nextractQuoteFromMultipleImageUrls\nalways runs in parallel]
+        P4[PATH 4: OCR-failure vision-direct\nif detectOcrFailure returns true\nbypass text, use images only]
+        P5[PATH 5: Text-based fallback\nextractFieldsFromPdf\nif all vision paths fail]
+
+        P1 --> DEDUP
+        P2 --> DEDUP
+        P3 --> DEDUP
+        P4 --> DEDUP
+        P5 --> DEDUP
+
+        DEDUP[deduplicateExtractedQuotes\nR-A-16: deduplicate by\npanel_beater + total_cost fingerprint]
+    end
+
+    F --> FIVE_PATH
+    DEDUP --> MERGE
+
+    MERGE --> G[extractDamageHints\nfrom raw text tokens]
+    G --> H[buildStructuredResult:\nquotes, fields, hints,\nconfidence, extractionMode]
+    H --> I([return StructuredExtractionResult])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style I fill:#e8f5e9,stroke:#2e7d32
+    style FIVE_PATH fill:#f3e5f5,stroke:#6a1b9a
+    style DEDUP fill:#e8eaf6,stroke:#283593

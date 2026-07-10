@@ -1,0 +1,32 @@
+flowchart TD
+    A([extractQuotes\ncalled]) --> B[extractFieldsFromPdf\nor extractMultipleQuotesFromPageImages\nbased on documentType]
+
+    B --> C{Raw LLM\nresponse valid?}
+    C -- No --> ERR([return empty\nQuoteExtractionResult])
+    C -- Yes --> D[validateAndNormalise\norchestrator]
+
+    subgraph VN ["validateAndNormalise — Post-split sub-functions"]
+        VN1[coerceTotalCost\nstring → number coercion\nhandle currency symbols]
+        VN2[validateLineItems\nhallucination guard\nisNonPartLineItem check\nisPlausiblePartName check\nR-A-22: is_unresolved flag\ncompleteness scoring]
+        VN3[deriveConfidence\nrecompute from data quality\noverride LLM self-reported confidence]
+        VN4[coerceLabourAndParts\nnormalise labour_cost, parts_cost\ncross-validate against total]
+        VN5[validateDocumentCategory\nR-A-22: ensure document_category\nis a valid enum value]
+
+        VN1 --> VN2 --> VN3 --> VN4 --> VN5
+    end
+
+    D --> VN
+    VN5 --> E[applyQuoteOptimisation\nvia quoteOptimisationEngine]
+
+    E --> F{Multiple\nquotes?}
+    F -- Single --> G[return single\nnormalised quote]
+    F -- Multiple --> H[rank by\nconfidence + completeness]
+
+    H --> I[return ranked\nQuoteExtractionResult]
+    G --> J([return QuoteExtractionResult])
+    I --> J
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style ERR fill:#ffebee,stroke:#c62828
+    style J fill:#e8f5e9,stroke:#2e7d32
+    style VN fill:#e3f2fd,stroke:#1565c0

@@ -1,0 +1,26 @@
+flowchart TD
+    A([runQuoteOptimisation\ncalled]) --> B[normalisePartNames\nTitle Case canonical names\nf/bar alias resolution]
+
+    B --> C[classifyComponents\nparts vs labour vs misc\nNON_PART passthrough]
+
+    C --> D[computeNFS\nNormalised Fairness Score:\nlabour credibility bands\nparts market alignment]
+
+    D --> E[computeProbableHiddenDamage\nco-occurrence matrix\ncross-zone correlation]
+
+    E --> F{Multiple\nquotes present?}
+
+    F -- Single quote --> G[applyCompleteness\nscoring to single quote]
+    F -- Multiple quotes --> H[rankQuotesByConfidence\nconfidence + completeness\nweighted rank]
+
+    G --> I[buildOptimisationResult:\nnfs, hiddenDamage,\ncompleteness, warnings]
+    H --> I
+
+    I --> J{NFS below\nFAIRNESS_FLOOR?}
+    J -- Yes --> K[add LABOUR_CREDIBILITY_WARNING\nto result.warnings]
+    J -- No --> L[result clean]
+
+    K --> M([return QuoteOptimisationResult])
+    L --> M
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style M fill:#e8f5e9,stroke:#2e7d32

@@ -1,0 +1,27 @@
+flowchart TD
+    A([runCostDecision\ncalled]) --> B{Cost mode?}
+
+    B -- PRE_ASSESSMENT --> C[derivePreRecommendation\nNEGOTIATE\nPROCEED_TO_ASSESSMENT\nESCALATE]
+
+    B -- POST_ASSESSMENT --> D[resolveHighestQuote\nagreed_cost overrides\nassessor_validated basis]
+
+    C --> E[buildNegotiationGuidance\nnegotiation_range:\nfloor, ceiling, target\noverpriced_quotes list]
+
+    D --> F[derivePostRecommendation\nAPPROVE\nREVIEW\nREJECT]
+
+    E --> G[collectStructuralGaps\nfindMissingComponents\ncomponents absent from\nall submitted quotes]
+
+    F --> H[buildNegotiationEfficiency\nhow close agreed_cost is\nto optimised baseline\noverpayment and under-repair risk]
+
+    G --> I[Anomaly Detection\noverpricing: highest quote\ngreater than 40 percent above TRUE_COST\nunder-quoting: missing structural parts\nmisalignment: MISALIGNED result\nlow reliability: confidence below 40\nspread warning: spread_pct above 60]
+
+    H --> I
+
+    I --> J[computeDecisionConfidence\nweighted signal confidence\nbased on available data]
+
+    J --> K[buildReasoning\nnarrative explanation\nfor recommendation]
+
+    K --> L([return CostDecisionOutput\nrecommendation, basis\nanomalies, confidence\nnegotiation guidance])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style L fill:#e8f5e9,stroke:#2e7d32

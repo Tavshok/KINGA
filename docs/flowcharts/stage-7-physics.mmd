@@ -1,0 +1,25 @@
+flowchart TD
+    A([runPhysicsStage\ncalled]) --> B{Incident type\ncheck}
+
+    B -- animal_strike --> C[Animal Strike Physics Engine\nrunAnimalStrikePhysics\nimpact force kN\nenergy absorbed kJ]
+
+    B -- physical damage types\ncollision, rear_end, rollover etc --> D[buildPhysicsInput\nfrom ClaimRecord and Stage6\nspeed, crush depth, mass]
+
+    B -- non-physical types\ntheft, fire, flood, vandalism --> E[skip physics\nreturn default output\nno physics applicable]
+
+    D --> F[inferCrushDepth\nfrom damage severity\nand component list]
+
+    F --> G[runSpeedInferenceEnsemble\nM1 Campbell\nM4 Deployment Threshold\nM5 Vision Deformation\nweighted consensus]
+
+    G --> H[estimatePhysicsFromDamage\nimpact force kN\ndelta-V, energy kJ\ndeformation index]
+
+    H --> I[runDamagePatternValidation\nzone vs impact direction\nphysics-damage consistency\ncontradiction flags]
+
+    I --> J[buildReconstructionSummary\nspeed, force, energy\nconfidence, method_count]
+
+    C --> K([return Stage7Output\nimpactForceKn, speedKmh\nenergyDistribution, assumptions])
+    J --> K
+    E --> K
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style K fill:#e8f5e9,stroke:#2e7d32

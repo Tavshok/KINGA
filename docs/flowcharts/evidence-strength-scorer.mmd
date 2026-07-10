@@ -1,0 +1,29 @@
+flowchart TD
+    A([computeEvidenceBundle\ncalled]) --> B[scoreDamage\nimage presence and count\ndescription and components\nmulti-zone bonus]
+
+    A --> C[scorePhysics\nphysics executed flag\nspeed, crush, area\nairbag, police report]
+
+    A --> D[scoreFraud\nquote total and line items\nrepairer and assessor\nvehicle and claimant history]
+
+    A --> E[scoreCost\nquote total, labour, parts\nrepair intelligence items\nreconciliation and deviation]
+
+    A --> F[scoreReconstruction\nphysics executed flag\nspeed, crush, multi-zone\npolice report, airbag]
+
+    B --> G[classifyAssumptions\nfor each domain:\nESTIMATION strategies\nPARTIAL strategies\nOTHER strategies]
+    C --> G
+    D --> G
+    E --> G
+    F --> G
+
+    G --> H[assumptionPenalty\nPENALTY_PER_ESTIMATION\nPENALTY_PER_PARTIAL\nPENALTY_PER_OTHER\ncapped at max per type]
+
+    H --> I[clamp each domain score\nto SCORE_FLOOR..SCORE_CEILING]
+
+    I --> J[scoreToLabel\nHIGH: score >= HIGH_THRESHOLD\nMEDIUM: score >= MEDIUM_THRESHOLD\nLOW: below MEDIUM_THRESHOLD]
+
+    J --> K[tag each domain value\nwith evidence_strength label\nestimated flag]
+
+    K --> L([return EvidenceBundle\nwith 5 tagged domains])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style L fill:#e8f5e9,stroke:#2e7d32

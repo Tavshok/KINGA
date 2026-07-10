@@ -1,0 +1,27 @@
+flowchart TD
+    A([evaluateDecisionReadiness\ncalled]) --> B[Check 1: checkPhotosProcessed\nphoto count and quality\nABSENT or UNKNOWN status\nWARN not FAIL per ARCH-02]
+
+    A --> C[Check 2: checkIncidentConfirmed\nincident type classification\nconfidence threshold\ncanonicaliseIncidentType]
+
+    A --> D[Check 3: checkPhysicsValid\nphysics engine ran\nspeed plausibility\nforce and energy bounds]
+
+    A --> E[Check 4: checkCostAvailable\nquote or AI estimate\npresent and non-zero\ncurrency resolved]
+
+    B --> F[buildBlockingIssues\ncollect FAIL status checks\ninto BlockingIssue list]
+    C --> F
+    D --> F
+    E --> F
+
+    F --> G[computeConfidence\nweighted check scores\npenalty for WARN\nzero for FAIL]
+
+    G --> H[buildSummary\nhuman-readable\nreadiness summary]
+
+    H --> I{Any FAIL\nchecks?}
+    I -- Yes --> J[ready = false\nblocking issues present]
+    I -- No --> K[ready = true\nall checks PASS or WARN]
+
+    J --> L([return DecisionReadinessResult\nready, confidence\nblockingIssues, checks\nsummary])
+    K --> L
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style L fill:#e8f5e9,stroke:#2e7d32

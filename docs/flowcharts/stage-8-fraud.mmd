@@ -1,0 +1,25 @@
+flowchart TD
+    A([runFraudAnalysisStage\ncalled]) --> B[Engine 1: analyseDamageConsistency\nphysics-damage coherence\nzone vs impact direction\nconsistency score 0-100]
+
+    A --> C[Engine 2: analyseQuoteDeviation\nquote vs AI estimate\ndeviation percentage\noverpricing indicators]
+
+    A --> D[Engine 3: analyseDocumentation\ndocument completeness\ninconsistency flags\nfrom Stage 3 inputRecovery]
+
+    A --> E[Engine 4: evaluateScenarioFraud\nbuildScenarioFraudInput\nscenario-aware 3-tier engine\nR-D-02: 3-tier risk_level]
+
+    B --> F[merge allIndicators\ndedup scenario flags\napply trust reduction\nfrom scenario engine]
+    C --> F
+    D --> F
+    E --> F
+
+    F --> G[computeWeightedFraudScore\nweighted sum of\nall FraudIndicators\nby category weight]
+
+    G --> H[scoreToLevel\nFSS-2026-001 bands:\nminimal, low, moderate\nhigh, critical]
+
+    H --> I[photoForensics\nrunPhotoForensics\nphase 1 and 2 analysis\nmanipulation indicators]
+
+    I --> J([return Stage8Output\nfraudRiskLevel, score\nindicators, scenarioResult\nphotoForensicsResult])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style J fill:#e8f5e9,stroke:#2e7d32
+    style E fill:#fff3e0,stroke:#e65100

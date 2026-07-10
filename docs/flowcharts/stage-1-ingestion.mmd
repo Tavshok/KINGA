@@ -1,0 +1,32 @@
+flowchart TD
+    A([runIngestionStage\ncalled]) --> B[Validate input:\nclaimId, documentUrl,\nfileType present?]
+    B -- Invalid --> ERR1([throw\nValidationError])
+    B -- Valid --> C[classifyDocument\nby MIME + filename heuristics]
+
+    C --> D{DocumentType}
+    D -- REPAIR_QUOTE --> E[extractImages:\npdf-image-extractor]
+    D -- POLICE_REPORT --> E
+    D -- ASSESSOR_REPORT --> E
+    D -- INVOICE --> E
+    D -- PHOTOS_ONLY --> F[download images\ndirectly — no PDF step]
+    D -- UNKNOWN --> G[log WARN:\nunknown type,\nattempt PDF extraction]
+    G --> E
+
+    E --> H{containsImages?\ncheck extracted count}
+    F --> H
+
+    H -- No images --> I[set imageExtractionStatus\n= NO_IMAGES_FOUND]
+    H -- Images found --> J[upload each image\nto S3 via processBuffer]
+
+    J --> K{All uploads\nsucceeded?}
+    K -- Partial failure --> L[log per-image warning\ncontinue with successes]
+    K -- All succeeded --> M[build IngestionResult:\nimageUrls, documentType,\npageCount, containsImages]
+    L --> M
+
+    I --> N([return IngestionResult\nwith empty imageUrls])
+    M --> O([return IngestionResult])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style ERR1 fill:#ffebee,stroke:#c62828
+    style N fill:#fff3e0,stroke:#e65100
+    style O fill:#e8f5e9,stroke:#2e7d32

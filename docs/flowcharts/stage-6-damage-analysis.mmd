@@ -1,0 +1,23 @@
+flowchart TD
+    A([runDamageAnalysisStage\ncalled]) --> B[Step 1: Structured Components\nfrom ClaimRecord.damage\ncomponents list]
+
+    B --> C{Vision source\navailable?}
+    C -- Dedicated damage photos --> D[Path A: Photo Vision\nreadDamageFromPhotos\nGPT-4o per image\nanalyseOneImage]
+    C -- PDF page images --> E[Image Intelligence Layer\nselectDamagePhotoPages\nscoring and classification\nR-B-03b night-photo rescue]
+    C -- PDF file only --> F[Path C: PDF Direct Vision\nLLM file_url path\nall pages scanned\nrobust to storagePut failures]
+    C -- No source --> G[Path D: Description Inference\ninferDamageFromDescription\nfallback only]
+
+    E --> H[Path B: Scored PDF Pages\nreadDamageFromPhotos\nwith selected pages]
+
+    D --> I[mergeComponents\nstructured + vision results\ndeduplication]
+    H --> I
+    F --> I
+    G --> I
+
+    I --> J[calculateOverallSeverity\nweighted component scores\nnormaliseSeverity per part]
+
+    J --> K([return Stage6Output\ndamagedParts, severity\nvisionSource, assumptions])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style K fill:#e8f5e9,stroke:#2e7d32
+    style E fill:#fff3e0,stroke:#e65100

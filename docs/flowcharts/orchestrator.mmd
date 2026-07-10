@@ -1,0 +1,31 @@
+flowchart TD
+    A([runPipelineV2\ncalled]) --> B[Pipeline State Machine Init\ncontext setup\npartial resume check Phase 5]
+
+    B --> C[Stage 1: Document Ingestion\nrunIngestionStage\nPDF extraction, image detection\ndocument read verification]
+
+    C --> D[Stage 2: OCR and Text Extraction\nrunExtractionStage\nOCR, embedded images\nimage classification layer]
+
+    D --> E[Stage 3: Structured Extraction\nrunStructuredExtractionStage\nLLM quote extraction\nper-document extractions]
+
+    E --> F[Stage 4: Data Validation\nrunValidationStage\nfield validation\nschema compliance]
+
+    F --> G[Stage 5: Claim Data Assembly\nrunAssemblyStage\nautomotive domain corrections\nClaimRecord construction]
+
+    G --> H[Stage 6: Damage Analysis\nrunDamageAnalysisStage\nvision-based damage detection\nimage intelligence layer]
+
+    H --> I[Stage 7 Unified: Physics and Severity\nrunUnifiedStage7\nphysics reconstruction\nseverity consensus]
+
+    I --> J[Stages 8 and 9 in PARALLEL\nrunFraudAnalysisStage\nrunCostOptimisationStage\nfirst Promise.all]
+
+    J --> K[Post-S8/S9 Parallel Block\nStage 7b causal reasoning re-run\ncost realism, causal chain\nevidence bundle, benchmark\ncross-engine consensus]
+
+    K --> L[Cross-Stage Reconciliation\nreconciliation pass\ncontradiction detection gate\nreport readiness gate]
+
+    L --> M[Stage 10: Report Generation\nrunReportGenerationStage\nclaimsDecisionAuthority\nvalidatedOutcomeRecorder]
+
+    M --> N([return PipelineResult\nreport, summary\nassumptions, recoveryActions])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style N fill:#e8f5e9,stroke:#2e7d32
+    style J fill:#e3f2fd,stroke:#1565c0
+    style K fill:#e3f2fd,stroke:#1565c0

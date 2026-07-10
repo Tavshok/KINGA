@@ -1,0 +1,25 @@
+flowchart TD
+    A([evaluateScenarioFraud\ncalled]) --> B[evaluateDamagePattern\nphysics-damage consistency\nzone vs impact direction]
+
+    B --> C[evaluateAssessorConfirmation\nassessor trust scoring\ndisputed damage flags]
+
+    C --> D[evaluateBehaviouralEnrichment\nflat-list of independent checks:\nfinancial signals\nAfrican-context signals\ntimeline anomalies\nvehicle history flags]
+
+    D --> E[computeScenarioScore\nweighted sum of all\nrule evaluator outputs]
+
+    E --> F{Score\nthreshold?}
+    F -- score >= HIGH_THRESHOLD --> G[risk_level = HIGH]
+    F -- score >= MEDIUM_THRESHOLD --> H[risk_level = MEDIUM]
+    F -- score >= LOW_THRESHOLD --> I[risk_level = LOW]
+    F -- below LOW_THRESHOLD --> J[risk_level = MINIMAL]
+
+    G --> K[buildFraudResult:\nrisk_level, score,\ntriggered_rules, evidence]
+    H --> K
+    I --> K
+    J --> K
+
+    K --> L([return ScenarioFraudResult])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style L fill:#e8f5e9,stroke:#2e7d32
+    style D fill:#fff3e0,stroke:#e65100

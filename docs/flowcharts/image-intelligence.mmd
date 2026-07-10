@@ -1,0 +1,30 @@
+flowchart TD
+    A([selectDamagePhotoPages\ncalled]) --> B[extractImageFeatures\nfor each image:\nmeanBrightness, colourVariance\nblurScore, edgeDensity\naspectRatio]
+
+    B --> C[scoreDamageLikelihood\nweighted heuristic score\nper image features]
+
+    C --> D{Classification\ndecision}
+    D -- score >= DAMAGE_THRESHOLD --> E[classified as damage]
+    D -- score >= AMBIGUOUS_THRESHOLD --> F{Night-photo\nrescue check?\nmeanBrightness less than 80\nAND colourVariance greater than 0.05}
+    D -- score below AMBIGUOUS_THRESHOLD --> G[classified as document\nor non-damage]
+
+    F -- Yes --> H[push to LLM\nambiguous pool\nnight-photo rescue path\nR-B-03b]
+    F -- No --> I[push to LLM\nambiguous pool\nnormal ambiguous]
+
+    E --> J[confirmed damage pool]
+    H --> K[LLM batch classifier\nambiguous pool only\nGPT-4o vision\nbatch up to LLM_BATCH_SIZE]
+    I --> K
+
+    K --> L[merge LLM results\nwith heuristic confirmed pool]
+
+    L --> M[perceptualDedup\nhash-based deduplication\nHamming distance less than DEDUP_THRESHOLD]
+
+    M --> N[rank by damage score\nreturn top N pages]
+
+    G --> O[excluded from result]
+
+    N --> P([return selected\ndamage photo pages])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style P fill:#e8f5e9,stroke:#2e7d32
+    style H fill:#fff3e0,stroke:#e65100

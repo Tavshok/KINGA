@@ -1,0 +1,19 @@
+flowchart TD
+    A([scoreClaimQuality\ncalled]) --> B[scorePhotos\ncount, quality, coverage\nzone completeness]
+
+    B --> C[scoreDocuments\nrepair quote present\nassessor report present\npolice report present]
+
+    C --> D[scoreIncidentDetails\ndate, location, description\nnarrative completeness]
+
+    D --> E[scoreVehicleInfo\nmake, model, year\nregistration present]
+
+    E --> F[computeWeightedTotal\nphoto_weight + doc_weight\n+ incident_weight + vehicle_weight]
+
+    F --> G[scoreToGrade\nA: score >= GRADE_A_MIN\nB: score >= GRADE_B_MIN\nC: score >= GRADE_C_MIN\nD: below GRADE_C_MIN]
+
+    G --> H[buildQualityResult:\ngrade, score, breakdown,\nmissing_items, recommendations]
+
+    H --> I([return ClaimQualityResult])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style I fill:#e8f5e9,stroke:#2e7d32

@@ -1,0 +1,22 @@
+flowchart TD
+    A([preprocessDocument\ncalled]) --> B[splitIntoPages\npage boundary detection\nnewline and form-feed\nseparators]
+
+    B --> C[for each page chunk:\nclassifyChunk\npattern matching against\nsection detection patterns]
+
+    C --> D{Chunk\nclassification}
+    D -- REPAIR_QUOTE --> E[repair quote section]
+    D -- ASSESSOR_REPORT --> F[assessor report section]
+    D -- POLICE_REPORT --> G[police report section]
+    D -- VEHICLE_INFO --> H[vehicle info section]
+    D -- UNKNOWN --> I[unclassified section]
+
+    E --> J[buildPreprocessorOutput\nassemble classified sections\ninto PreprocessorOutput]
+    F --> J
+    G --> J
+    H --> J
+    I --> J
+
+    J --> K([return PreprocessorOutput\nwith typed sections\nand raw text])
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style K fill:#e8f5e9,stroke:#2e7d32

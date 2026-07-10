@@ -1,0 +1,31 @@
+flowchart TD
+    A([runSpeedInferenceEnsemble\ncalled]) --> B[getStiffnessKnm\nvehicle body type lookup\nstiffness table kN/m]
+
+    B --> C[getAccidentMultiplier\nimpact direction lookup\naccident type multipliers]
+
+    C --> D[M1: runCampbell\nCampbell Stiffness Formula\ncrush depth and stiffness\nspeed estimate kph]
+
+    C --> E[M2: runEnergyMomentum\nDISABLED — insufficient\nfield data for calibration]
+
+    C --> F[M3: runImpulse\nDISABLED — insufficient\nfield data for calibration]
+
+    C --> G[M4: runDeploymentThreshold\nairbag deployment flag\nhard lower bound on speed\nAIRBAG_DEPLOY_MIN_SPEED]
+
+    C --> H[M5: runVisionDeformation\ncomputer vision\ndeformation estimate\nfrom image analysis]
+
+    D --> I[weightedConsensus\ncollect enabled method results\napply per-method weights\nSPREAD_CLOSE_THRESHOLD check]
+
+    G --> I
+    H --> I
+
+    I --> J{Spread\nclose enough?}
+    J -- Yes --> K[consensus estimate\nhigh confidence]
+    J -- No --> L[consensus estimate\nlow confidence\nspread warning added]
+
+    K --> M([return SpeedInferenceResult\nkph, confidence, method_count\nindividual estimates])
+    L --> M
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style M fill:#e8f5e9,stroke:#2e7d32
+    style E fill:#f5f5f5,stroke:#9e9e9e
+    style F fill:#f5f5f5,stroke:#9e9e9e

@@ -1,0 +1,26 @@
+flowchart TD
+    A([runAssemblyStage\ncalled]) --> B[Step 5a: Vehicle Property Resolution\nmake, model, year\nresolveVehicleMass\nbodyType, powertrain]
+
+    B --> C[Incident Classification Engine\nclassifyIncident\ndetectMultiEventSequence\nconflict-aware multi-source]
+
+    C --> D[Collision Scenario Detection\ndetectCollisionScenario\ndamage record assembly\ncomponents, description, photos]
+
+    D --> E[Step 5b: Third-Party Record Assembly\nthird-party vehicle\nthird-party driver\nthird-party insurer]
+
+    E --> F[Step 5c: Vehicle Market Valuation\nLLM-based valuation\nwithTimeout guard\nR-B-01 and R-B-02 fix]
+
+    F --> G{LLM valuation\nsucceeded?}
+    G -- Yes --> H[use LLM market value]
+    G -- No / timeout --> I[fallback to DB\nmarketValueCents]
+
+    H --> J[Step 5d: Scenario Engine Selection\nselectScenarioEngine\nassemble Stage5Output]
+    I --> J
+
+    J --> K{Assembly\nsucceeded?}
+    K -- Yes --> L([return Stage5Output\nClaimRecord assembled])
+    K -- No --> M[Catch: Self-Healing\nminimal ClaimRecord\nfrom DB fields only\nmarkFallback applied]
+    M --> L
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style L fill:#e8f5e9,stroke:#2e7d32
+    style M fill:#ffebee,stroke:#c62828
