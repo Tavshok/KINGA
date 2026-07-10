@@ -201,9 +201,12 @@ async function runNodeForensics(buffer: Buffer): Promise<RawAnalysisResult> {
           "picsart", "pixelmator", "affinity", "canva", "vsco",
           "adobe", "capture one", "darktable", "rawtherapee",
         ];
+        // CALIBRATION: Editing software manipulation score increment (0.6) is engineering-judgment.
+        /** Manipulation score increment when editing software is detected in EXIF */
+        const EDITING_SOFTWARE_SCORE = 0.6;
         if (EDITING_TOOLS.some(t => sw.includes(t))) {
           flags.push(`MANIPULATION: Image edited with ${software}`);
-          manipulationScore += 0.6;
+          manipulationScore += EDITING_SOFTWARE_SCORE;
           recommendations.push(
             `Photo metadata indicates editing software (${software}). Manual review of image authenticity recommended.`
           );
@@ -213,8 +216,11 @@ async function runNodeForensics(buffer: Buffer): Promise<RawAnalysisResult> {
       // Stripped EXIF detection
       const fieldCount = Object.keys(exifData).length;
       if (fieldCount < 3) {
+        // CALIBRATION: Stripped-EXIF manipulation score increment (0.3) is engineering-judgment.
+        /** Manipulation score increment when EXIF is stripped (< 3 fields) */
+        const STRIPPED_EXIF_SCORE = 0.3;
         flags.push("SUSPICIOUS: No EXIF metadata — image may have been stripped or is a screenshot");
-        manipulationScore += 0.3;
+        manipulationScore += STRIPPED_EXIF_SCORE;
         recommendations.push("Photo has minimal/no EXIF metadata. This is common after editing or screenshot capture.");
       }
 
@@ -224,7 +230,10 @@ async function runNodeForensics(buffer: Buffer): Promise<RawAnalysisResult> {
         const now = new Date();
         if (captureDate > now) {
           flags.push("SUSPICIOUS: Photo capture date is in the future — metadata may be manipulated");
-          manipulationScore += 0.5;
+          // CALIBRATION: Future-date manipulation score increment (0.5) is engineering-judgment.
+          /** Manipulation score increment when capture date is in the future */
+          const FUTURE_DATE_SCORE = 0.5;
+          manipulationScore += FUTURE_DATE_SCORE;
         }
       }
 
@@ -234,7 +243,10 @@ async function runNodeForensics(buffer: Buffer): Promise<RawAnalysisResult> {
         if (thumbRatio > 0.8) {
           // Thumbnail is suspiciously large relative to main image — possible splice
           flags.push("SUSPICIOUS: Thumbnail-to-image size ratio is abnormal — possible image splice");
-          manipulationScore += 0.25;
+          // CALIBRATION: Thumbnail anomaly manipulation score increment (0.25) is engineering-judgment.
+          /** Manipulation score increment when thumbnail-to-image ratio is abnormal */
+          const THUMBNAIL_ANOMALY_SCORE = 0.25;
+          manipulationScore += THUMBNAIL_ANOMALY_SCORE;
         }
       }
 
@@ -242,16 +254,23 @@ async function runNodeForensics(buffer: Buffer): Promise<RawAnalysisResult> {
       // No EXIF at all
       flags.push("SUSPICIOUS: No EXIF metadata — image may have been stripped or is a screenshot");
       flags.push("WARNING: No GPS data in photo EXIF — location cannot be verified");
-      manipulationScore += 0.3;
+      manipulationScore += STRIPPED_EXIF_SCORE;
       recommendations.push("Photo has no EXIF metadata. This is common after editing or screenshot capture.");
     }
   } catch (exifErr) {
     flags.push("SUSPICIOUS: No EXIF metadata — EXIF extraction failed");
     flags.push("WARNING: No GPS data in photo EXIF — location cannot be verified");
-    manipulationScore += 0.2;
+    // CALIBRATION: EXIF extraction failure score increment (0.2) is engineering-judgment.
+    /** Manipulation score increment when EXIF extraction fails entirely */
+    const EXIF_ERROR_SCORE = 0.2;
+    manipulationScore += EXIF_ERROR_SCORE;
   }
 
-  const isSuspicious = manipulationScore > 0.4;
+  // CALIBRATION: Suspicious threshold (0.4) and confidence formula (0.5 + score*0.5)
+  // are engineering-judgment.
+  /** Manipulation score above which a photo is flagged as suspicious */
+  const SUSPICIOUS_THRESHOLD = 0.4;
+  const isSuspicious = manipulationScore > SUSPICIOUS_THRESHOLD;
   const confidence = Math.min(1.0, 0.5 + manipulationScore * 0.5);
 
   return {
@@ -485,7 +504,11 @@ export async function runPhotoForensics(
     if (r.is_suspicious) anySuspicious = true;
 
     const manScore = r.manipulation_indicators?.manipulation_score ?? 0;
-    if (manScore > 0.5) manipulationCount++;
+    // CALIBRATION: 0.5 manipulation score threshold for counting a photo as manipulated
+    // is engineering-judgment.
+    /** Manipulation score above which a photo counts toward manipulationCount */
+    const MANIPULATION_COUNT_THRESHOLD = 0.5;
+    if (manScore > MANIPULATION_COUNT_THRESHOLD) manipulationCount++;
 
     if (r.flags.some(f => f.startsWith("SUSPICIOUS: No EXIF"))) noExifCount++;
     if (r.flags.some(f => f.startsWith("WARNING: No GPS"))) noGpsCount++;
@@ -503,6 +526,8 @@ export async function runPhotoForensics(
       indicators.push({
         indicator: "photo_manipulation_detected",
         category: "photo_forensics",
+        // CALIBRATION: Fraud indicator score cap (25) and per-photo multiplier (12)
+        // for photo manipulation are engineering-judgment.
         score: Math.min(25, manipulationCount * 12),
         description: `${manipulationCount} of ${analysedCount} analysed photo(s) show signs of digital manipulation.`,
       });
@@ -513,6 +538,7 @@ export async function runPhotoForensics(
       indicators.push({
         indicator: "photo_editing_software_detected",
         category: "photo_forensics",
+        // CALIBRATION: Editing software indicator score (15) is engineering-judgment.
         score: 15,
         description: `Photo EXIF metadata reveals editing software: ${unique.slice(0, 3).join("; ")}.`,
       });
@@ -522,6 +548,7 @@ export async function runPhotoForensics(
       indicators.push({
         indicator: "photo_future_capture_date",
         category: "photo_forensics",
+        // CALIBRATION: Future capture date indicator score (20) is engineering-judgment.
         score: 20,
         description: `${futureDateCount} photo(s) have capture dates in the future — metadata may be manipulated.`,
       });
@@ -531,6 +558,7 @@ export async function runPhotoForensics(
       indicators.push({
         indicator: "photo_thumbnail_anomaly",
         category: "photo_forensics",
+        // CALIBRATION: Thumbnail anomaly indicator score (10) is engineering-judgment.
         score: 10,
         description: `${thumbnailAnomalyCount} photo(s) have abnormal thumbnail-to-image size ratios — possible image splice.`,
       });
