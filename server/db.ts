@@ -2080,6 +2080,22 @@ export async function triggerAiAssessment(claimId: number) {
       } catch (e: any) {
         console.warn(`[KINGA Assessment] Claim ${claimId}: Quote persistence failed (non-fatal):`, e?.message);
       }
+    } else {
+      // Fix 2 (Batch 10a): Guard — quotesToPersist is empty but a quote cost was extracted.
+      // This means documentedLineItems was absent (old pipeline version) AND the single-quote
+      // fallback path did not fire (documentedOriginalQuoteUsd was 0 or null).
+      // Log a warning so this is visible in server logs rather than silently skipping.
+      // This is a historical-data-only gap; new claims always populate documentedLineItems.
+      if (documentedOriginalQuoteUsd && documentedOriginalQuoteUsd > 0) {
+        console.warn(
+          `[KINGA Assessment] Claim ${claimId}: WARN — documentedOriginalQuoteUsd=${documentedOriginalQuoteUsd} ` +
+          `but quotesToPersist is empty. documentedLineItems=${_stage9LineItems.length} items, ` +
+          `gapAdvisory=${_gapAdvisory.length} entries. ` +
+          `This claim was likely processed by an older pipeline version that did not populate documentedLineItems. ` +
+          `Line items exist in costIntelligenceJson.lineItems but were not written to quote_line_items. ` +
+          `Backfill required — run the quote-line-items-backfill script.`
+        );
+      }
     }
   }
 

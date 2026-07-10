@@ -7445,14 +7445,17 @@ function CongruencyPanel({ aiAssessment }: { aiAssessment: any }) {
 // ─── Pipeline Confidence Panel (FCDI) ────────────────────────────────────────
 // Surfaces the Forensic Confidence Degradation Index, pipeline stage health,
 // and anomaly sentinel violations. Shown above Section 1 in the report.
-function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
+function PipelineConfidencePanel({ aiAssessment, enforcement }: { aiAssessment: any; enforcement?: any }) {
   const fa = (aiAssessment as any)?._forensicAnalysis ?? null;
-  if (!fa) return null;
-  const fcdi = fa.fcdi ?? null;
-  const psm = fa.pipelineStateMachine ?? null;
-  const sentinels: any[] = fa.anomalySentinelViolations ?? [];
-  const dataQuality = fa.dataQuality ?? null;
-  if (!fcdi && !psm && sentinels.length === 0 && !dataQuality) return null;
+  // enforcement.degradationReasons is returned by getEnforcement from degradation_reasons_json.
+  // It is the authoritative adjuster-facing source since forensic_analysis does not include this field.
+  const enforcementDegradationReasons: string[] = (enforcement as any)?.degradationReasons ?? [];
+  if (!fa && enforcementDegradationReasons.length === 0) return null;
+  const fcdi = fa?.fcdi ?? null;
+  const psm = fa?.pipelineStateMachine ?? null;
+  const sentinels: any[] = fa?.anomalySentinelViolations ?? [];
+  const dataQuality = fa?.dataQuality ?? null;
+  if (!fcdi && !psm && sentinels.length === 0 && !dataQuality && enforcementDegradationReasons.length === 0) return null;
 
   // fcdi.score is 0.0 (fully degraded) → 1.0 (fully reliable); scorePercent is 0–100
   const fcdiScore: number = fcdi?.scorePercent ?? Math.round((fcdi?.score ?? 0) * 100);
@@ -7466,11 +7469,11 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
   const degradedStages = stageHealth.filter((s: any) => s.status === "degraded" || s.status === "partial");
   const completenessScore: number = dataQuality?.completenessScore ?? dataQuality?.completeness ?? 0;
   const missingFields: string[] = dataQuality?.missingFields ?? dataQuality?.missing ?? [];
-  const assumptions: any[] = fa.assumptions ?? [];
+  const assumptions: any[] = fa?.assumptions ?? [];
   // Domain penalties from the FCDI breakdown (populated by Domain Penalty Engine in orchestrator)
   const domainPenalties: Array<{ code: string; reason: string; weight: number }> = fcdi?.breakdown?.domainPenalties ?? [];
 
-  const hasPipelineIssues = failedStages.length > 0 || degradedStages.length > 0 || sentinels.length > 0 || domainPenalties.length > 0;
+  const hasPipelineIssues = failedStages.length > 0 || degradedStages.length > 0 || sentinels.length > 0 || domainPenalties.length > 0 || enforcementDegradationReasons.length > 0;
   if (!hasPipelineIssues && fcdiScore >= 80 && completenessScore >= 80) return null;
 
   return (
@@ -7560,6 +7563,20 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
                   <span className="flex-1" style={{ color: 'var(--kr-muted)' }}>{dp.reason}</span>
                   <span className="flex-shrink-0 font-semibold" style={{ color: "var(--fp-danger)" }}>−{Math.round((dp.weight ?? 0) * 100)}pts</span>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {enforcementDegradationReasons.length > 0 && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--fp-warn)" }}>
+              Why this report is partial ({enforcementDegradationReasons.length} reason{enforcementDegradationReasons.length !== 1 ? 's' : ''}):
+            </p>
+            <div className="space-y-1">
+              {enforcementDegradationReasons.map((reason: string, i: number) => (
+                <p key={i} style={{ color: 'var(--kr-text)', lineHeight: 1.5 }}>
+                  &bull; {reason}
+                </p>
               ))}
             </div>
           </div>
@@ -8347,6 +8364,11 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
 
       <CongruencyPanel aiAssessment={aiAssessment} />
       <DataQualityPanel aiAssessment={aiAssessment} />
+      {/* Fix 1 (Batch 10a): PipelineConfidencePanel was defined but never wired into the render.
+           It surfaces FCDI score, degraded/failed stages, domain penalties, and degradationReasons
+           so adjusters can see WHY a report is partial. enforcement prop provides degradationReasons
+           since forensic_analysis does not include that field. */}
+      <PipelineConfidencePanel aiAssessment={aiAssessment} enforcement={enforcement} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
       <div className="section-heading" data-section="1">1 &nbsp; Incident &amp; Data Integrity</div>
