@@ -179,6 +179,26 @@ const EXTRACTION_SCHEMA = {
  */
 const PAGE_IMAGES_PER_BATCH = 20;
 
+// ─── Primary LLM Extraction Prompt ─────────────────────────────────────────
+// This is the single most important document in the extraction system.
+// It controls what the LLM extracts from claim PDFs and how it reasons about
+// ambiguous fields. Changes here affect every claim processed by the pipeline.
+//
+// VERSION: 3.2 (last updated: 2025-12)
+// SCHEMA REFERENCE: EXTRACTION_SCHEMA (defined at line 41 of this file)
+//
+// Sections:
+//   1. Role and rules (lines below)
+//   2. Police report extraction rules (policeReportNumber, policeChargedParty, etc.)
+//   3. Repair quote extraction rules (components, labour, parts, totals)
+//   4. Fraud indicator extraction rules (timeline, assessor, behavioural flags)
+//   5. Output format (strict JSON, EXTRACTION_SCHEMA)
+//
+// When modifying this prompt:
+//   - Run the full test suite (pnpm vitest run) before committing
+//   - Update the VERSION comment above
+//   - If adding new fields, also update EXTRACTION_SCHEMA and the shared types
+//   - If changing existing field semantics, update docs/audit/unverified-constants.md
 const PDF_SYSTEM_PROMPT = `You are a structured insurance document extraction engine.
 
 Your task is to extract ONLY factual information from a claim document.
@@ -819,12 +839,22 @@ function recoverQuoteFromText(rawText: string): RecoveredQuote | null {
   const labourPattern = new RegExp(`(?:labour|labor)[:\\s]+(?:${CP})?\\s*([0-9][0-9,\\s.]+)`, "gi");
   const partsPattern = new RegExp(`(?:parts|spares|materials)[:\\s]+(?:${CP})?\\s*([0-9][0-9,\\s.]+)`, "gi");
 
+  // FRAGILITY NOTE: All patterns above use the 'gi' flag (global + case-insensitive).
+  // Global regexes maintain a lastIndex cursor between exec() calls. If the same
+  // RegExp object is reused across multiple exec() calls without resetting lastIndex,
+  // subsequent calls will start searching from where the previous call left off,
+  // potentially missing matches at the start of the string.
+  //
+  // extractFirst() resets pat.lastIndex = 0 before each exec() call to prevent this.
+  // If this function is ever refactored to use test() instead of exec(), or if the
+  // patterns are reused outside this function, the lastIndex reset MUST be preserved.
+  // See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/exec#using_exec_with_a_global_regex
   function extractFirst(patterns: RegExp[], text: string): number | null {
     for (const pat of patterns) {
-      pat.lastIndex = 0;
+      pat.lastIndex = 0; // REQUIRED: reset global regex cursor before each exec()
       const m = pat.exec(text);
       if (m) {
-        const val = parseFloat(m[1].replace(/[,\s]/g, ""));
+        const val = parseFloat(m[1].replace(/[,\s]/g, ''));
         if (!isNaN(val) && val > 0) return val;
       }
     }
