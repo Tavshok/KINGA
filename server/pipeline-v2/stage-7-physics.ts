@@ -149,14 +149,38 @@ function inferCrushDepth(damageAnalysis: Stage6Output, claimRecord: ClaimRecord)
   //    Structural damage adds 0.04 m (chassis/frame deformation = higher energy).
   //    Airbag floor: 0.15 m minimum (airbags deploy at ≥ 20 km/h equivalent).
   //    Result is flagged as LOW confidence — excluded from consensus by M1.
+  // CALIBRATION: Deformation ratio bands (0.28/0.19/0.12/0.05) and severity score
+  // thresholds (85/65/35) are derived from NHTSA barrier test data for typical
+  // passenger vehicles. They are NOT calibrated for the Southern African fleet.
+  // Structural bonus (0.04 m) and airbag floor (0.15 m) are engineering-judgment.
+  // Do not change without benchmarking against a labelled crash dataset.
+  /** Severity score threshold for catastrophic deformation band */
+  const SEV_CATASTROPHIC_THRESHOLD = 85;
+  /** Severity score threshold for severe deformation band */
+  const SEV_SEVERE_THRESHOLD = 65;
+  /** Severity score threshold for moderate deformation band */
+  const SEV_MODERATE_THRESHOLD = 35;
+  /** Deformation baseline for catastrophic severity (metres) */
+  const DEFORM_CATASTROPHIC_M = 0.28;
+  /** Deformation baseline for severe severity (metres) */
+  const DEFORM_SEVERE_M = 0.19;
+  /** Deformation baseline for moderate severity (metres) */
+  const DEFORM_MODERATE_M = 0.12;
+  /** Deformation baseline for minor/cosmetic severity (metres) */
+  const DEFORM_MINOR_M = 0.05;
+  /** Structural damage bonus added to deformation estimate (metres) */
+  const DEFORM_STRUCTURAL_BONUS_M = 0.04;
+  /** Airbag deployment floor for deformation estimate (metres) — airbags deploy at ≥20 km/h equivalent */
+  const DEFORM_AIRBAG_FLOOR_M = 0.15;
+
   const severityScore = damageAnalysis.overallSeverityScore ?? 50;
   const severityBaseline =
-    severityScore >= 85 ? 0.28 :  // catastrophic
-    severityScore >= 65 ? 0.19 :  // severe
-    severityScore >= 35 ? 0.12 :  // moderate
-    0.05;                          // minor / cosmetic
-  const structuralBonus = damageAnalysis.structuralDamageDetected ? 0.04 : 0;
-  const airbagFloor = claimRecord.accidentDetails.airbagDeployment ? 0.15 : 0;
+    severityScore >= SEV_CATASTROPHIC_THRESHOLD ? DEFORM_CATASTROPHIC_M :
+    severityScore >= SEV_SEVERE_THRESHOLD       ? DEFORM_SEVERE_M :
+    severityScore >= SEV_MODERATE_THRESHOLD     ? DEFORM_MODERATE_M :
+    DEFORM_MINOR_M;
+  const structuralBonus = damageAnalysis.structuralDamageDetected ? DEFORM_STRUCTURAL_BONUS_M : 0;
+  const airbagFloor = claimRecord.accidentDetails.airbagDeployment ? DEFORM_AIRBAG_FLOOR_M : 0;
   const estimated = severityBaseline + structuralBonus;
   return Math.min(0.55, Math.max(0.04, Math.max(estimated, airbagFloor)));
 }
@@ -186,8 +210,14 @@ function estimatePhysicsFromDamage(
   const extractedSpeed = claimRecord.accidentDetails.estimatedSpeedKmh;
   const speedKmh = extractedSpeed && extractedSpeed > 0 ? extractedSpeed : null;
 
-  const severity = damageAnalysis.overallSeverityScore > 70 ? "severe" :
-    damageAnalysis.overallSeverityScore > 40 ? "moderate" : "minor";
+  // CALIBRATION: Severity classification thresholds (70/40) for the physics fallback
+  // are engineering-judgment. These differ from the main SEV_* thresholds above.
+  /** Severity score above which fallback classifies as 'severe' */
+  const FALLBACK_SEV_SEVERE_THRESHOLD   = 70;
+  /** Severity score above which fallback classifies as 'moderate' */
+  const FALLBACK_SEV_MODERATE_THRESHOLD = 40;
+  const severity = damageAnalysis.overallSeverityScore > FALLBACK_SEV_SEVERE_THRESHOLD ? "severe" :
+    damageAnalysis.overallSeverityScore > FALLBACK_SEV_MODERATE_THRESHOLD ? "moderate" : "minor";
 
   if (!speedKmh) {
     // Speed not available — skip force/energy calculations entirely.
@@ -673,8 +703,11 @@ export async function runPhysicsStage(
         const hasStructural = damageAnalysis.damagedParts.some(p =>
           /chassis|frame|subframe|sill|pillar|rail/i.test(p.name)
         );
+        // CALIBRATION: 6-component threshold for minor→moderate upgrade is engineering-judgment.
+        /** Minimum damaged component count triggering minor→moderate severity upgrade */
+        const MINOR_TO_MODERATE_COMPONENT_THRESHOLD = 6;
         // Upgrade minor → moderate if 6+ components or electrical systems damaged
-        if (baseSeverity === "minor" && (componentCount >= 6 || hasElectrical)) return "moderate";
+        if (baseSeverity === "minor" && (componentCount >= MINOR_TO_MODERATE_COMPONENT_THRESHOLD || hasElectrical)) return "moderate";
         // Upgrade moderate → severe if structural damage present
         if (baseSeverity === "moderate" && hasStructural) return "severe";
         return baseSeverity;
