@@ -105,7 +105,9 @@ async function withRetry<T>(
 async function checkUrlAccessibility(url: string): Promise<{ accessible: boolean; httpStatus?: number }> {
   try {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 5000);
+    // URL accessibility check timeout — 5 s is a pragmatic limit for a non-blocking probe.
+    const URL_CHECK_TIMEOUT_MS = 5000;
+    const t = setTimeout(() => ctrl.abort(), URL_CHECK_TIMEOUT_MS);
     const r = await fetch(url, { method: "GET", signal: ctrl.signal }).catch(() => null);
     clearTimeout(t);
     if (!r) return { accessible: true }; // network error — assume accessible
@@ -1544,6 +1546,8 @@ export async function runDamageAnalysisStage(
             reason: `Collision direction is '${collisionDirForFilter}'; components in zones [${badZones.join(", ")}] ` +
                     `are physically implausible for this incident type and are likely LLM vision errors.`,
             strategy: "contextual_inference" as const,
+            // CALIBRATION: 0.85 confidence for direction-filter exclusion is engineering-judgment.
+            // This represents "high confidence" that the excluded components are LLM vision errors.
             confidence: 0.85,
             stage: "Stage 6 direction filter",
           });
