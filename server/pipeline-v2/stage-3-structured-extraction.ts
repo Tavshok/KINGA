@@ -3,10 +3,44 @@
  *
  * STAGE 3 — STRUCTURED DATA EXTRACTION (Self-Healing)
  *
- * From each document's extracted text, extract structured fields.
- * Missing fields are marked as NULL at this stage.
+ * From each document's extracted text (Stage 2) and images (Stage 1), extract
+ * structured claim fields. Missing fields are marked as NULL at this stage.
  * If a document extraction fails, continues with remaining documents.
  * NEVER halts — produces empty extraction if all documents fail.
+ *
+ * ── EXTRACTION ARCHITECTURE ──────────────────────────────────────────────────
+ *
+ * PRIMARY PATH — extractFieldsFromPdf()
+ *   LLM-based extraction from OCR text using PDF_SYSTEM_PROMPT (line ~178).
+ *   Runs once per document. Returns structured JSON with field-level confidence.
+ *   See PDF_SYSTEM_PROMPT for prompt version annotation and section headers.
+ *
+ * RECOVERY PATH — runInputRecovery()
+ *   Runs when primary extraction returns insufficient data (missing critical fields).
+ *   Implements FIVE independent extraction strategies in sequence:
+ *     1. Primary vision pass — LLM with damage photos
+ *     2. Vision fallback — LLM with all page images if photos insufficient
+ *     3. Unconditional vision pass — forces vision even if text was adequate
+ *     4. OCR-failure vision-direct — bypasses text entirely for scanned docs
+ *     5. Text-based fallback — recoverQuoteFromText() regex extraction
+ *   All five paths share mutable state (extracted_quotes, allPdfDocs, pdfPageImages,
+ *   extractedNamesNorm). See the no-split rationale comment inside runInputRecovery
+ *   for why this block is intentionally not split into sub-functions.
+ *
+ * FALLBACK PATH — recoverQuoteFromText()
+ *   Pure regex extraction from raw OCR text. Used as last resort when all LLM
+ *   paths fail. Fragility note: regex patterns are brittle against OCR noise —
+ *   see the FRAGILITY comment inside the function before modifying patterns.
+ *
+ * ── KEY FUNCTIONS ────────────────────────────────────────────────────────────
+ *
+ *   extractFieldsFromPdf()       Primary LLM extraction per document
+ *   runInputRecovery()            Five-path recovery orchestrator
+ *   detectImagePresence()         Helper: does the claim have usable images?
+ *   detectOcrFailure()            Helper: did Stage 2 OCR fail or return sparse text?
+ *   deduplicateExtractedQuotes()  Helper: merge duplicate quotes from multi-path extraction
+ *   recoverQuoteFromText()        Regex-based last-resort quote extraction
+ *   extractDamageHints()          Extract damage keywords from narrative text
  */
 import type {
   PipelineContext,

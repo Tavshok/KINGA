@@ -557,3 +557,15 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] 9b Groups E–H: No splits warranted. No-split rationale comments added to runPipelineV2, runCostOptimisationStage, runPhysicsStage, runCausalReasoningEngine
 - [x] 9c Groups E–H: Architecture JSDoc added to runDamageAnalysisStage, runCostOptimisationStage, runPhysicsStage, runCausalReasoningEngine, runCostDecision, evaluateDecisionReadiness, runPipelineV2
 - [x] Regression gate: 370/372 tests pass; 2 costDecisionEngine + 7 group-a + 12 quoteExtractionEngine failures confirmed pre-existing
+
+---
+
+## Batch 9b/9c addendum + Batch 9d — Navigational Maps & Module-Level Comments
+
+- [x] Navigational map with line ranges added to runPipelineV2 JSDoc (orchestrator.ts) — 11-stage outline, two parallel execution points, no-split rationale
+- [x] Navigational map with line ranges added to runAssemblyStage JSDoc (stage-5-assembly.ts) — step-by-step section outline with line ranges
+- [x] Batch 9d: module-level orientation comments added/expanded for all Groups A–H files:
+  - stage-3-structured-extraction.ts: three-path extraction architecture, key functions table (from 9b/9c work)
+  - stage-8-fraud.ts: four-engine fraud architecture, score aggregation overview (new)
+  - All other files confirmed to already have adequate module-level comments
+- 235/249 tests pass; 14 pre-existing failures confirmed (quoteExtractionEngine x12, costDecisionEngine x2)
