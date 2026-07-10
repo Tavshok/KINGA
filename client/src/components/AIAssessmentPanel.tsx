@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertTriangle, DollarSign, Shield, Activity } from "lucide-react";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { fraudLevelDisplayLabel, normaliseFraudLevel } from '../../../shared/fraudScoring';
 
 interface AIAssessmentPanelProps {
   claimId: number;
@@ -18,7 +19,7 @@ interface AIAssessmentPanelProps {
     damageDescription: string | null;
     detectedDamageTypes: string | null;
     confidenceScore: number | null;
-    fraudRiskLevel: "low" | "medium" | "high" | null;
+    fraudRiskLevel: string | null;
     fraudIndicators: string | null;
     physicsAnalysis: string | null;
     totalLossIndicated: number | null;
@@ -123,22 +124,22 @@ export default function AIAssessmentPanel({
         </div>
 
         {/* Fraud Detection */}
-        {aiAssessment.fraudRiskLevel && aiAssessment.fraudRiskLevel !== "low" && (
+        {aiAssessment.fraudRiskLevel && normaliseFraudLevel(aiAssessment.fraudRiskLevel) !== "low" && normaliseFraudLevel(aiAssessment.fraudRiskLevel) !== "minimal" && (
           <div className={`rounded-lg p-4 ${
-            aiAssessment.fraudRiskLevel === "high" 
+            normaliseFraudLevel(aiAssessment.fraudRiskLevel) === "high" || normaliseFraudLevel(aiAssessment.fraudRiskLevel) === "elevated"
               ? "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800" 
               : "bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800"
           }`}>
             <h3 className="font-semibold text-sm flex items-center gap-2 mb-2">
               <Shield className="h-4 w-4" />
-              <span className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700 dark:text-red-300" : "text-orange-700 dark:text-orange-300"}>
-                {aiAssessment.fraudRiskLevel === "high" ? "High" : "Medium"} Fraud Risk Detected
+              <span className={normaliseFraudLevel(aiAssessment.fraudRiskLevel) === "high" || normaliseFraudLevel(aiAssessment.fraudRiskLevel) === "elevated" ? "text-red-700 dark:text-red-300" : "text-orange-700 dark:text-orange-300"}>
+                {fraudLevelDisplayLabel(aiAssessment.fraudRiskLevel)} Fraud Risk Detected
               </span>
             </h3>
             {aiAssessment.fraudIndicators && (
               <ul className="text-sm space-y-1 ml-6">
                 {JSON.parse(aiAssessment.fraudIndicators).map((indicator: string, idx: number) => (
-                  <li key={idx} className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700 dark:text-red-300" : "text-orange-700 dark:text-orange-300"}>
+                  <li key={idx} className={normaliseFraudLevel(aiAssessment.fraudRiskLevel) === "high" || normaliseFraudLevel(aiAssessment.fraudRiskLevel) === "elevated" ? "text-red-700 dark:text-red-300" : "text-orange-700 dark:text-orange-300"}>
                     • {indicator}
                   </li>
                 ))}

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useTenantCurrency } from '@/hooks/useTenantCurrency';
+import { fraudLevelDisplayLabel, normaliseFraudLevel } from '../../../shared/fraudScoring';
 
 interface AiReanalysisPanelProps {
   claimId: number;
@@ -203,8 +204,8 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Fraud Risk</p>
-                    <Badge variant={originalVersion.fraudRiskLevel === "high" ? "destructive" : "secondary"}>
-                      {originalVersion.fraudRiskLevel}
+                    <Badge variant={normaliseFraudLevel(originalVersion.fraudRiskLevel) === "high" || normaliseFraudLevel(originalVersion.fraudRiskLevel) === "elevated" ? "destructive" : "secondary"}>
+                      {fraudLevelDisplayLabel(originalVersion.fraudRiskLevel)}
                     </Badge>
                   </div>
                 </div>
@@ -252,8 +253,8 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                       </div>
                       <div>
                         <p className="text-muted-foreground">Fraud Risk</p>
-                        <Badge variant={version.fraudRiskLevel === "high" ? "destructive" : "secondary"}>
-                          {version.fraudRiskLevel}
+                        <Badge variant={normaliseFraudLevel(version.fraudRiskLevel) === "high" || normaliseFraudLevel(version.fraudRiskLevel) === "elevated" ? "destructive" : "secondary"}>
+                          {fraudLevelDisplayLabel(version.fraudRiskLevel)}
                         </Badge>
                       </div>
                     </div>
@@ -385,8 +386,8 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Fraud Risk Level</p>
-                      <Badge variant={comparison.assessment1.fraudRiskLevel === "high" ? "destructive" : "secondary"}>
-                        {comparison.assessment1.fraudRiskLevel}
+                      <Badge variant={normaliseFraudLevel(comparison.assessment1.fraudRiskLevel) === "high" || normaliseFraudLevel(comparison.assessment1.fraudRiskLevel) === "elevated" ? "destructive" : "secondary"}>
+                        {fraudLevelDisplayLabel(comparison.assessment1.fraudRiskLevel)}
                       </Badge>
                     </div>
                     <div>
@@ -419,8 +420,8 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Fraud Risk Level</p>
-                      <Badge variant={comparison.assessment2.fraudRiskLevel === "high" ? "destructive" : "secondary"}>
-                        {comparison.assessment2.fraudRiskLevel}
+                      <Badge variant={normaliseFraudLevel(comparison.assessment2.fraudRiskLevel) === "high" || normaliseFraudLevel(comparison.assessment2.fraudRiskLevel) === "elevated" ? "destructive" : "secondary"}>
+                        {fraudLevelDisplayLabel(comparison.assessment2.fraudRiskLevel)}
                       </Badge>
                       {comparison.differences.fraudRiskLevelChanged && (
                         <Badge variant="outline" className="ml-2">Changed</Badge>

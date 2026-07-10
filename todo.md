@@ -508,3 +508,34 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] ARCH-01: quoteOptimisationEngine — updated tests to Title Case canonical names; added 'f/bar' alias to shared/vehicleParts.ts; all 50 tests pass
 - [x] ARCH-02: decisionReadinessEngine — updated tests to expect WARN / is_critical:false for ABSENT/UNKNOWN photo status; all 52 tests pass
 - [x] ARCH-03: weighted-fraud-scoring — FSS-2026-001 formal standard drafted; shared/fraudScoring.ts created as single source of truth; 16 consumer files migrated; 'medium' → 'moderate' across pipeline; 49 boundary tests pass
+
+---
+
+## Batch 8 — Observability & Structured Logging (R-OBS)
+
+**Design decisions confirmed by user (2026-07-09):**
+- R-OBS-03: Use module-level logger singleton — NOT an optional per-call callback parameter. Callback approach reintroduces the 'silently missing' failure pattern found throughout the audit. Must be consistent with how withRetry/withTimeout were applied globally.
+- R-OBS-05: User requires the list of 8 highest-risk engines before ranking. Present the list first, get ranking, then implement.
+
+### R-OBS-03 — Structured Logger Singleton
+- [ ] R-OBS-03: Create server/logger.ts — module-level structured logger singleton (pino or equivalent); replace all console.log/warn/error calls in pipeline-critical paths with logger.info/warn/error with structured fields (claimId, stage, durationMs, errorCode)
+
+### R-OBS-05 — Engine-Level Timing & Observability
+- [ ] R-OBS-05-SCOPE: Present list of 8 highest-risk engines to user for ranking before implementation
+- [ ] R-OBS-05: Add per-engine timing instrumentation to the 8 ranked highest-risk engines (wrap in logger.time or equivalent; emit structured log on entry/exit with durationMs and outcome)
+
+### Other R-OBS items (pending scope confirmation)
+- [ ] R-OBS-01: Add request-scoped correlation ID (claimId / requestId) threading through all pipeline stages
+- [ ] R-OBS-02: Add structured error logging to all withRetry exhaustion paths (log attempt count, last error, engine name)
+- [ ] R-OBS-04: Add pipeline stage completion events to audit trail (stage name, durationMs, success/failure, claimId)
+
+---
+
+## ARCH-03b — DB Write Path Data Corruption Fix (moderate→low silent downgrade)
+
+**Root cause confirmed (2026-07-10):** fraudLevelMap in server/db.ts is missing 'moderate' key. Pipeline now produces 'moderate' (scores 40–60) but the map falls through to 'low'. DB schema enum also does not include 'moderate'. 22 historical rows stored as 'medium' (pre-ARCH-03). 0 rows stored as 'moderate' (all silently written as 'low' since ARCH-03).
+
+- [x] ARCH-03b-AUDIT: 0 claims affected (no claims processed in 40–60 band since ARCH-03 deploy); 22 historical 'medium' rows confirmed (pre-ARCH-03, correct at time of writing); no manual re-flagging required
+- [x] ARCH-03b-FIX1: Schema migration applied via direct SQL (arch03b-add-moderate-fraud-level.sql); 'moderate' added to all 5 tables (aiAssessments, fraudIndicators, historicalReplayResults, claims, assessorEvaluations); 6/6 verification tests pass
+- [x] ARCH-03b-FIX2: fraudLevelMap in server/db.ts updated — moderate:'moderate' added; 13/13 verification tests pass
+- [x] ARCH-03b-FIX3: normaliseFraudLevel() and fraudLevelDisplayLabel() added to shared/fraudScoring.ts; applied to AiReanalysisPanel (4 sites), AIAssessmentPanel (3 sites), ClaimReviewDialog (2 sites), notifications.ts email body; 26/26 verification tests pass

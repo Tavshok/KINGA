@@ -11,6 +11,7 @@
  * environment guard, rate limiting, and audit logging via notification_events.
  */
 import { sendEmailSafe } from "./safe-email";
+import { fraudLevelDisplayLabel } from "../shared/fraudScoring";
 
 export interface NotificationData {
   recipientEmail: string;
@@ -71,7 +72,7 @@ export async function notifyAiAssessmentComplete(data: NotificationData & { clai
     recipientUserId: data.recipientUserId ?? 0,
     recipientEmail: data.recipientEmail,
     subject: `KINGA Assessment Completed: ${data.claimNumber}`,
-    body: `Hello,\n\nThe AI damage assessment has been completed for claim ${data.claimNumber}.\n\nEstimated Repair Cost: R${data.estimatedCost}\nFraud Risk Level: ${data.fraudRiskLevel}\nConfidence Score: ${data.confidenceScore}%\n\nYou can now proceed with assigning an assessor or reviewing the KINGA analysis.\n\nKINGA AI Team`,
+    body: `Hello,\n\nThe AI damage assessment has been completed for claim ${data.claimNumber}.\n\nEstimated Repair Cost: R${data.estimatedCost}\nFraud Risk Level: ${fraudLevelDisplayLabel(data.fraudRiskLevel as string)}\nConfidence Score: ${data.confidenceScore}%\n\nYou can now proceed with assigning an assessor or reviewing the KINGA analysis.\n\nKINGA AI Team`,
   });
 }
 

@@ -1155,9 +1155,10 @@ export async function triggerAiAssessment(claimId: number) {
   // Extract narrativeAnalysis from claimRecord for dedicated column storage
   const narrativeAnalysis = claimRecord?.accidentDetails?.narrativeAnalysis ?? null;
 
-  // Map fraud risk level to DB enum
-  const fraudLevelMap: Record<string, 'low' | 'medium' | 'high' | 'critical' | 'elevated'> = {
-    minimal: 'low', low: 'low', medium: 'medium', high: 'high', critical: 'elevated', elevated: 'elevated',
+  // Map fraud risk level to DB enum (FSS-2026-001)
+  // ARCH-03b fix: 'moderate' was missing — caused scores 40-60 to silently downgrade to 'low'
+  const fraudLevelMap: Record<string, 'low' | 'medium' | 'moderate' | 'high' | 'critical' | 'elevated'> = {
+    minimal: 'low', low: 'low', medium: 'medium', moderate: 'moderate', high: 'high', critical: 'elevated', elevated: 'elevated',
   };
   const dbFraudLevel = fraudAnalysis ? (fraudLevelMap[fraudAnalysis.fraudRiskLevel] || 'low') : 'low';
 

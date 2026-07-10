@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { exportClaimReportToPDF, type ClaimReportData } from "@/lib/export-pdf";
 import { toast } from "sonner";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { fraudLevelDisplayLabel, normaliseFraudLevel } from '../../../shared/fraudScoring';
 
 interface ClaimReviewDialogProps {
   claimId: number | null;
@@ -263,14 +264,14 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                           <span className="text-muted-foreground">Fraud Risk:</span>
                           <Badge
                             variant={
-                              assessorEval.fraudRiskLevel === "high"
+                              normaliseFraudLevel(assessorEval.fraudRiskLevel) === "high" || normaliseFraudLevel(assessorEval.fraudRiskLevel) === "elevated"
                                 ? "destructive"
-                                : assessorEval.fraudRiskLevel === "medium"
+                                : normaliseFraudLevel(assessorEval.fraudRiskLevel) === "moderate"
                                 ? "default"
                                 : "secondary"
                             }
                           >
-                            {assessorEval.fraudRiskLevel?.toUpperCase()}
+                            {fraudLevelDisplayLabel(assessorEval.fraudRiskLevel)}
                           </Badge>
                         </div>
                         <div>
@@ -400,14 +401,14 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                           <span>Fraud Risk: </span>
                           <Badge
                             variant={
-                              assessorEval.fraudRiskLevel === "high"
+                              normaliseFraudLevel(assessorEval.fraudRiskLevel) === "high" || normaliseFraudLevel(assessorEval.fraudRiskLevel) === "elevated"
                                 ? "destructive"
-                                : assessorEval.fraudRiskLevel === "medium"
+                                : normaliseFraudLevel(assessorEval.fraudRiskLevel) === "moderate"
                                 ? "default"
                                 : "secondary"
                             }
                           >
-                            {assessorEval.fraudRiskLevel?.toUpperCase()}
+                            {fraudLevelDisplayLabel(assessorEval.fraudRiskLevel)}
                           </Badge>
                         </div>
                         {assessorEval.disagreesWithAi && (

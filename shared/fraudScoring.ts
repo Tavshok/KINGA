@@ -60,6 +60,58 @@ export type FraudRiskLevel =
  * scoreToFraudLevel(81)  // "elevated"
  * scoreToFraudLevel(100) // "elevated"
  */
+/**
+ * Normalises a raw fraud risk level string from the database to the canonical
+ * FSS-2026-001 FraudRiskLevel.
+ *
+ * Use this at the display layer to handle historical rows that were written
+ * with the pre-ARCH-03 terminology (e.g. "medium" instead of "moderate").
+ *
+ * Mapping:
+ *   "medium"   → "moderate"  (ARCH-03b: legacy DB rows written before rename)
+ *   "critical" → "elevated"  (legacy alias)
+ *   "minimal"  → "minimal"   (pass-through)
+ *   "low"      → "low"       (pass-through)
+ *   "moderate" → "moderate"  (pass-through)
+ *   "high"     → "high"      (pass-through)
+ *   "elevated" → "elevated"  (pass-through)
+ *   anything else → "low"    (safe fallback)
+ *
+ * @param raw - The raw string value from the database.
+ * @returns The canonical FraudRiskLevel.
+ *
+ * @example
+ * normaliseFraudLevel("medium")   // "moderate"  ← legacy row
+ * normaliseFraudLevel("moderate") // "moderate"  ← current
+ * normaliseFraudLevel("critical") // "elevated"  ← legacy alias
+ * normaliseFraudLevel(null)       // "low"       ← safe fallback
+ */
+export function normaliseFraudLevel(raw: string | null | undefined): FraudRiskLevel {
+  if (!raw) return "low";
+  const legacyMap: Record<string, FraudRiskLevel> = {
+    medium: "moderate",   // ARCH-03b: pre-rename legacy value
+    critical: "elevated", // legacy alias
+  };
+  if (legacyMap[raw]) return legacyMap[raw];
+  const canonical: FraudRiskLevel[] = ["minimal", "low", "moderate", "high", "elevated"];
+  if ((canonical as string[]).includes(raw)) return raw as FraudRiskLevel;
+  return "low"; // safe fallback for unknown values
+}
+
+/**
+ * Returns a human-readable display label for a fraud risk level.
+ * Applies normaliseFraudLevel() first so legacy "medium" rows display correctly.
+ *
+ * @example
+ * fraudLevelDisplayLabel("moderate") // "Moderate"
+ * fraudLevelDisplayLabel("medium")   // "Moderate"  ← legacy row
+ * fraudLevelDisplayLabel("elevated") // "Elevated"
+ */
+export function fraudLevelDisplayLabel(raw: string | null | undefined): string {
+  const level = normaliseFraudLevel(raw);
+  return level.charAt(0).toUpperCase() + level.slice(1);
+}
+
 export function scoreToFraudLevel(score: number): FraudRiskLevel {
   if (!Number.isFinite(score) || score < 0 || score > 100) {
     throw new RangeError(
