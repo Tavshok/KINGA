@@ -82,14 +82,22 @@ function mapAccidentSeverity(s: AccidentSeverity | null): FinalSeverity | null {
   return "severe";                       // severe, catastrophic
 }
 
+// CALIBRATION: Damage severity score bands (25/55) are engineering-judgment,
+// calibrated to match the crossEngineConsensus.ts band map.
+// Do not change without updating crossEngineConsensus.ts in sync.
+/** Damage score below which severity maps to 'minor' */
+const DAMAGE_SCORE_MINOR_THRESHOLD    = 25;
+/** Damage score below which severity maps to 'moderate' (else 'severe') */
+const DAMAGE_SCORE_MODERATE_THRESHOLD = 55;
+
 /**
  * Map Stage 6 overallSeverityScore (0–100) to FinalSeverity.
  * Thresholds are calibrated to the existing crossEngineConsensus.ts band map.
  */
 function mapDamageSeverityScore(score: number | null): FinalSeverity | null {
   if (score === null || score === undefined) return null;
-  if (score < 25) return "minor";
-  if (score < 55) return "moderate";
+  if (score < DAMAGE_SCORE_MINOR_THRESHOLD)    return "minor";
+  if (score < DAMAGE_SCORE_MODERATE_THRESHOLD) return "moderate";
   return "severe";
 }
 
@@ -207,28 +215,51 @@ function computeConfidence(
 ): number {
   let base: number;
 
+  // CALIBRATION: All base confidence values and adjustment deltas below are
+  // engineering-judgment. Do not change without benchmarking against labelled claims.
+  /** Base confidence for FULL source alignment */
+  const CONF_BASE_FULL    = 92;
+  /** Base confidence for PARTIAL source alignment */
+  const CONF_BASE_PARTIAL = 72;
+  /** Base confidence for CONFLICT source alignment */
+  const CONF_BASE_CONFLICT = 45;
+  /** Default base confidence for unknown alignment */
+  const CONF_BASE_DEFAULT  = 50;
+  /** Bonus for having all 3 sources available */
+  const CONF_ALL_SOURCES_BONUS    = 5;
+  /** Penalty for having only 1 source */
+  const CONF_SINGLE_SOURCE_PENALTY = 15;
+  /** Confidence penalty per missing source */
+  const CONF_MISSING_SOURCE_PENALTY = 8;
+  /** Bonus when verdict is SEVERE and physics confirms it */
+  const CONF_PHYSICS_CONFIRM_BONUS = 3;
+  /** Penalty when verdict is SEVERE but physics says minor */
+  const CONF_PHYSICS_CONTRADICT_PENALTY = 10;
+  /** Minimum confidence floor */
+  const CONF_FLOOR = 10;
+
   // Base confidence by alignment
   switch (alignment) {
-    case "FULL":    base = 92; break;
-    case "PARTIAL": base = 72; break;
-    case "CONFLICT": base = 45; break;
-    default: base = 50;
+    case "FULL":     base = CONF_BASE_FULL;     break;
+    case "PARTIAL":  base = CONF_BASE_PARTIAL;  break;
+    case "CONFLICT": base = CONF_BASE_CONFLICT; break;
+    default:         base = CONF_BASE_DEFAULT;
   }
 
   // Bonus for having all 3 sources
-  if (sourcesAvailable === 3) base += 5;
+  if (sourcesAvailable === 3) base += CONF_ALL_SOURCES_BONUS;
   else if (sourcesAvailable === 2) base += 0;
-  else base -= 15;  // Only 1 source
+  else base -= CONF_SINGLE_SOURCE_PENALTY;  // Only 1 source
 
   // Penalty for missing sources
   const missing = 3 - sourcesAvailable;
-  base -= missing * 8;
+  base -= missing * CONF_MISSING_SOURCE_PENALTY;
 
   // Bonus: if verdict is SEVERE and physics confirms it
-  if (verdict === "severe" && signals.physics === "severe") base += 3;
+  if (verdict === "severe" && signals.physics === "severe") base += CONF_PHYSICS_CONFIRM_BONUS;
 
   // Penalty: if verdict is SEVERE but physics says minor (strong contradiction)
-  if (verdict === "severe" && signals.physics === "minor") base -= 10;
+  if (verdict === "severe" && signals.physics === "minor") base -= CONF_PHYSICS_CONTRADICT_PENALTY;
 
   return Math.max(10, Math.min(100, Math.round(base)));
 }
