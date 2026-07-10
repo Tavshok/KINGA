@@ -481,6 +481,22 @@ export const ENGINE_WEIGHTS = {
   reconstruction: 0.10,
 } as const;
 
+/**
+ * Compute the weighted composite evidence strength score (0–1).
+ *
+ * Formula: composite = Σ(engineScore * ENGINE_WEIGHTS[engine])
+ *
+ * Weight ordering rationale (from ENGINE_WEIGHTS above):
+ *   - damage (0.25) and physics (0.25) are the primary physical evidence signals
+ *     and carry equal weight as the most directly observable indicators.
+ *   - fraud (0.20) and cost (0.20) are secondary signals — important but derived
+ *     from the primary evidence rather than directly observed.
+ *   - reconstruction (0.10) is the weakest signal because it depends on the
+ *     quality of the physics output and is often estimated rather than measured.
+ *
+ * CALIBRATION: The specific weight values are engineering-judgment (origin unknown).
+ * See ENGINE_WEIGHTS above and docs/audit/unverified-constants.md.
+ */
 function computeComposite(
   damageScore: number,
   physicsScore: number,

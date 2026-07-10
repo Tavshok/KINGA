@@ -224,13 +224,20 @@ const CON_LABEL_MINOR          = 70;
 const CON_LABEL_INCONSISTENT   = 45;
 
 // ─ Overall grade bands ──────────────────────────────────────────────────────────────────
-/** Minimum overall score for grade A */
+// CALIBRATION: origin unknown, do not change without benchmarking.
+// These bands map the 0–100 overall score to a letter grade shown in the
+// portal and used in the decision recommendation engine. The thresholds
+// were set during initial development and have not been validated against
+// a labelled dataset. If the grade distribution in production is skewed
+// (e.g. most claims grade C or below), recalibrate against a sample of
+// manually-reviewed claims before adjusting.
+/** Minimum overall score for grade A (CALIBRATION: engineering-judgment) */
 const GRADE_A_MIN = 85;
-/** Minimum overall score for grade B */
+/** Minimum overall score for grade B (CALIBRATION: engineering-judgment) */
 const GRADE_B_MIN = 70;
-/** Minimum overall score for grade C */
+/** Minimum overall score for grade C (CALIBRATION: engineering-judgment) */
 const GRADE_C_MIN = 55;
-/** Minimum overall score for grade D */
+/** Minimum overall score for grade D (CALIBRATION: engineering-judgment) */
 const GRADE_D_MIN = 40;
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1643,9 +1643,22 @@ Return JSON only.`,
  *   4. Takes whichever path (vision or text) found more distinct repairers.
  *   5. Falls back to text-based path if vision finds nothing.
  *
+ * PARALLEL STRATEGY RATIONALE: Vision and text extraction run concurrently (Promise.all)
+ * because they are independent paths. Vision is more accurate for scanned/image-based
+ * PDFs; text is more reliable for native-text PDFs. Running both in parallel and taking
+ * the better result costs one extra LLM call per claim but significantly reduces the
+ * miss rate on mixed-format documents.
+ *
+ * R-B-03b (night-photo rescue path): If vision detection returns groups but the
+ * per-group extraction produces quotes with confidence < 0.3, the function falls back
+ * to the text-based results. This handles the case where low-light or blurry page
+ * images cause vision extraction to fail silently. The confidence threshold is
+ * CALIBRATION: origin unknown — see docs/audit/unverified-constants.md.
+ *
  * @param pageImageUrls  S3 URLs of rendered PDF page images (from Stage 1)
  * @param fallbackText   OCR text to use if vision detection finds no quotations
  * @param tenantCountry  ISO 3166-1 alpha-2 country code for default currency
+ * @param pdfUrl         Optional PDF URL for Cloud Run fallback path (no page images)
  */
 export async function extractMultipleQuotesFromPageImages(
   pageImageUrls: string[],

@@ -448,6 +448,19 @@ async function analysePhoto(
  * Run photo forensics on up to MAX_PHOTOS_TO_ANALYSE damage photo URLs.
  * Photos are processed sequentially to avoid S3 rate limits and memory spikes.
  *
+ * TWO-PHASE STRUCTURE:
+ *   Phase 1 (lines ~459–521): Batched per-photo analysis. Each photo is analysed
+ *     for EXIF metadata, manipulation signals, and (if runVision=true) AI vision
+ *     crush depth estimation. Results accumulate into the `photos` array and
+ *     counter variables (manipulationCount, noExifCount, etc.).
+ *
+ *   Phase 2 (lines ~522–600): Indicator aggregation. The counters from Phase 1
+ *     are mapped to FraudIndicator entries with score contributions. This phase
+ *     is intentionally NOT split into a separate function because it reads 8+
+ *     counter variables from Phase 1 and producing a clean function boundary
+ *     would require passing all of them as parameters, adding complexity without
+ *     improving testability.
+ *
  * @param photoUrls   List of photo URLs to analyse.
  * @param runVision   Whether to run AI vision analysis per photo (default: true).
  *                    Set to false in tests or when LLM budget is constrained.
