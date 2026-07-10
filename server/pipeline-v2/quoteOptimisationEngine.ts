@@ -259,6 +259,9 @@ function similarity(a: string, b: string): number {
   return intersection / Math.max(ta.size, tb.size);
 }
 
+// CALIBRATION: 0.4 similarity threshold is engineering-judgment.
+// Do not change without benchmarking against a labelled component-matching sample.
+/** Minimum token-overlap similarity score for a component to be considered matched */
 const MATCH_THRESHOLD = 0.4;
 
 function isComponentMatched(damageComp: string, quoteComponents: string[]): boolean {
@@ -275,6 +278,9 @@ function isComponentMatched(damageComp: string, quoteComponents: string[]): bool
 // CONFIDENCE SCORE MAPPING
 // ─────────────────────────────────────────────────────────────────────────────
 
+// CALIBRATION: confidence score mappings are engineering-judgment.
+// Do not change without benchmarking.
+/** Numeric weight assigned to each extraction confidence level */
 const CONFIDENCE_SCORE: Record<"high" | "medium" | "low", number> = {
   high: 1.0,
   medium: 0.7,
@@ -321,7 +327,10 @@ function median(values: number[]): number {
 // OUTLIER DETECTION
 // ─────────────────────────────────────────────────────────────────────────────
 
-const OUTLIER_THRESHOLD_PCT = 30; // quotes >30% above median are outliers
+// CALIBRATION: 30% outlier threshold is engineering-judgment.
+// Do not change without benchmarking against a labelled quote dataset.
+/** Quotes more than this percentage above the median are flagged as outliers */
+const OUTLIER_THRESHOLD_PCT = 30;
 
 function detectOutlier(
   cost: number,
@@ -425,7 +434,11 @@ function validateQuote(
   //   outlier_modifier: outliers get weight halved (not excluded — they still inform the range)
   const confidenceScore = CONFIDENCE_SCORE[quote.confidence];
   let weight = coverageRatio * confidenceScore * (1 - structuralPenalty);
-  if (is_outlier) weight *= 0.5; // outliers contribute at half weight
+  // CALIBRATION: 0.5 outlier weight factor is engineering-judgment.
+  // Do not change without benchmarking.
+  /** Factor by which outlier quote weights are reduced */
+  const OUTLIER_QUOTE_WEIGHT_FACTOR = 0.5;
+  if (is_outlier) weight *= OUTLIER_QUOTE_WEIGHT_FACTOR;
   weight = Math.round(weight * 1000) / 1000;
 
   return {
@@ -559,32 +572,62 @@ function computeOverallConfidence(
 
   let score = 0;
 
-  // Quote count (max 30 points)
-  if (selectedQuotes.length >= 3) score += 30;
-  else if (selectedQuotes.length === 2) score += 20;
-  else score += 10;
+  // CALIBRATION: All point allocations, spread thresholds, and bonus/penalty values
+  // below are engineering-judgment. Do not change without benchmarking.
 
-  // Average coverage ratio (max 25 points)
+  /** Points for ≥3 valid quotes */
+  const OC_POINTS_THREE_QUOTES   = 30;
+  /** Points for exactly 2 valid quotes */
+  const OC_POINTS_TWO_QUOTES     = 20;
+  /** Points for exactly 1 valid quote */
+  const OC_POINTS_ONE_QUOTE      = 10;
+  /** Maximum points from average coverage ratio */
+  const OC_MAX_COVERAGE_POINTS   = 25;
+  /** Maximum points from structural completeness */
+  const OC_MAX_STRUCTURAL_POINTS = 25;
+  /** Spread threshold for high penalty (%) */
+  const OC_SPREAD_HIGH           = 60;
+  /** Spread threshold for medium penalty (%) */
+  const OC_SPREAD_MED            = 40;
+  /** Spread threshold for low penalty (%) */
+  const OC_SPREAD_LOW            = 20;
+  /** Penalty for high spread */
+  const OC_PENALTY_SPREAD_HIGH   = 15;
+  /** Penalty for medium spread */
+  const OC_PENALTY_SPREAD_MED    = 10;
+  /** Penalty for low spread */
+  const OC_PENALTY_SPREAD_LOW    = 5;
+  /** Penalty per outlier quote */
+  const OC_PENALTY_PER_OUTLIER   = 5;
+  /** Maximum bonus from high-confidence extractions */
+  const OC_MAX_HIGH_CONF_BONUS   = 10;
+
+  // Quote count (max OC_POINTS_THREE_QUOTES points)
+  if (selectedQuotes.length >= 3) score += OC_POINTS_THREE_QUOTES;
+  else if (selectedQuotes.length === 2) score += OC_POINTS_TWO_QUOTES;
+  else score += OC_POINTS_ONE_QUOTE;
+
+  // Average coverage ratio (max OC_MAX_COVERAGE_POINTS points)
   const avgCoverage = selectedQuotes.reduce((s, q) => s + q.coverage_ratio, 0) / selectedQuotes.length;
-  score += Math.round(avgCoverage * 25);
+  score += Math.round(avgCoverage * OC_MAX_COVERAGE_POINTS);
 
-  // Structural completeness (max 25 points)
+  // Structural completeness (max OC_MAX_STRUCTURAL_POINTS points)
   const completeCount = selectedQuotes.filter(q => q.structurally_complete).length;
-  const structuralScore = (completeCount / selectedQuotes.length) * 25;
+  const structuralScore = (completeCount / selectedQuotes.length) * OC_MAX_STRUCTURAL_POINTS;
   score += Math.round(structuralScore);
 
-  // Cost spread penalty (max -15 points for high spread)
-  if (costSpreadPct > 60) score -= 15;
-  else if (costSpreadPct > 40) score -= 10;
-  else if (costSpreadPct > 20) score -= 5;
+  // Cost spread penalty
+  if (costSpreadPct > OC_SPREAD_HIGH) score -= OC_PENALTY_SPREAD_HIGH;
+  else if (costSpreadPct > OC_SPREAD_MED) score -= OC_PENALTY_SPREAD_MED;
+  else if (costSpreadPct > OC_SPREAD_LOW) score -= OC_PENALTY_SPREAD_LOW;
 
-  // Outlier penalty (max -10 points)
+  // Outlier penalty
   const outlierCount = selectedQuotes.filter(q => q.is_outlier).length;
-  score -= outlierCount * 5;
+  score -= outlierCount * OC_PENALTY_PER_OUTLIER;
 
-  // High confidence extraction bonus (max 10 points)
+  // High confidence extraction bonus
   const highConfCount = selectedQuotes.filter(q => q.confidence === "high").length;
-  score += Math.round((highConfCount / selectedQuotes.length) * 10);
+  score += Math.round((highConfCount / selectedQuotes.length) * OC_MAX_HIGH_CONF_BONUS);
 
   return Math.max(0, Math.min(100, score));
 }
@@ -811,20 +854,31 @@ function buildVarianceSignal(
 // CREDIBILITY GATE
 // ─────────────────────────────────────────────────────────────────────────────
 
+// CALIBRATION: Credibility gate thresholds (0.40 coverage floor, 0.70×P25 floor,
+// 2.00×P75 ceiling) are engineering-judgment.
+// Do not change without benchmarking against a labelled quote dataset.
+
+/** Minimum quote coverage ratio to pass the credibility gate */
+const CG_MIN_COVERAGE_RATIO  = 0.40;
+/** Credibility floor: reject prices below this fraction of P25 */
+const CG_P25_FLOOR_FACTOR    = 0.70;
+/** Credibility ceiling: reject prices above this multiple of P75 */
+const CG_P75_CEILING_FACTOR  = 2.00;
+
 function applyCredibilityGate(
   costUsd: number,
   p25Usd: number | null,
   p75Usd: number | null,
   quoteCoverageRatio: number
 ): { passed: boolean; reason?: string } {
-  if (quoteCoverageRatio < 0.40) {
-    return { passed: false, reason: `Quote covers only ${Math.round(quoteCoverageRatio * 100)}% of damaged components (minimum 40% required)` };
+  if (quoteCoverageRatio < CG_MIN_COVERAGE_RATIO) {
+    return { passed: false, reason: `Quote covers only ${Math.round(quoteCoverageRatio * 100)}% of damaged components (minimum ${Math.round(CG_MIN_COVERAGE_RATIO * 100)}% required)` };
   }
-  if (p25Usd !== null && costUsd < p25Usd * 0.70) {
-    return { passed: false, reason: `Price $${costUsd.toFixed(0)} is below the credibility floor ($${(p25Usd * 0.70).toFixed(0)} = P25 × 0.70) — may exclude fitment or use unfit parts` };
+  if (p25Usd !== null && costUsd < p25Usd * CG_P25_FLOOR_FACTOR) {
+    return { passed: false, reason: `Price $${costUsd.toFixed(0)} is below the credibility floor ($${(p25Usd * CG_P25_FLOOR_FACTOR).toFixed(0)} = P25 × ${CG_P25_FLOOR_FACTOR}) — may exclude fitment or use unfit parts` };
   }
-  if (p75Usd !== null && costUsd > p75Usd * 2.00) {
-    return { passed: false, reason: `Price $${costUsd.toFixed(0)} exceeds the credibility ceiling ($${(p75Usd * 2.00).toFixed(0)} = P75 × 2.00) — likely a data entry error or scope mismatch` };
+  if (p75Usd !== null && costUsd > p75Usd * CG_P75_CEILING_FACTOR) {
+    return { passed: false, reason: `Price $${costUsd.toFixed(0)} exceeds the credibility ceiling ($${(p75Usd * CG_P75_CEILING_FACTOR).toFixed(0)} = P75 × ${CG_P75_CEILING_FACTOR}) — likely a data entry error or scope mismatch` };
   }
   return { passed: true };
 }
@@ -1077,8 +1131,14 @@ export function buildCompositeQuote(
   let bestLabourUsd = 0;
   if (labourTotals.length > 0) {
     const medianLabour = median(labourTotals.map(x => x.labour));
+    // CALIBRATION: Labour credibility band (0.60–1.50 of median) is engineering-judgment.
+    // Do not change without benchmarking against a labelled labour cost dataset.
+    /** Labour credibility lower bound: reject labour below this fraction of median */
+    const LABOUR_CRED_LOWER = 0.60;
+    /** Labour credibility upper bound: reject labour above this multiple of median */
+    const LABOUR_CRED_UPPER = 1.50;
     const credibleLabour = labourTotals.filter(
-      x => x.labour >= medianLabour * 0.60 && x.labour <= medianLabour * 1.50
+      x => x.labour >= medianLabour * LABOUR_CRED_LOWER && x.labour <= medianLabour * LABOUR_CRED_UPPER
     );
     const source = credibleLabour.length > 0
       ? credibleLabour.reduce((a, b) => a.labour <= b.labour ? a : b)
@@ -1136,7 +1196,35 @@ export function computeNFS(
     return { score: 20, label: 'complex' };
   }
 
-  // Factor 1: Concentration ratio (40%) — % of composite items from a single repairer
+  // CALIBRATION: All NFS factor weights, proximity tier scores, and label thresholds
+  // are engineering-judgment. Do not change without benchmarking.
+
+  /** NFS Factor 1 weight: concentration ratio */
+  const NFS_W_CONCENTRATION  = 0.40;
+  /** NFS Factor 2 weight: supplier overlap */
+  const NFS_W_OVERLAP        = 0.25;
+  /** NFS Factor 3 weight: ecosystem consistency */
+  const NFS_W_ECOSYSTEM      = 0.15;
+  /** NFS Factor 4 weight: geographic proximity */
+  const NFS_W_PROXIMITY      = 0.20;
+  /** NFS Factor 2: score when labour and parts source match */
+  const NFS_OVERLAP_MATCH    = 100;
+  /** NFS Factor 2: score when labour and parts source do not match */
+  const NFS_OVERLAP_NO_MATCH = 30;
+  /** NFS Factor 4: score for 1 distinct repairer */
+  const NFS_PROXIMITY_1      = 100;
+  /** NFS Factor 4: score for 2 distinct repairers */
+  const NFS_PROXIMITY_2      = 70;
+  /** NFS Factor 4: score for 3 distinct repairers */
+  const NFS_PROXIMITY_3      = 45;
+  /** NFS Factor 4: score for 4+ distinct repairers */
+  const NFS_PROXIMITY_4PLUS  = 20;
+  /** NFS label threshold for 'achievable' */
+  const NFS_ACHIEVABLE_MIN   = 70;
+  /** NFS label threshold for 'partial' */
+  const NFS_PARTIAL_MIN      = 40;
+
+  // Factor 1: Concentration ratio (NFS_W_CONCENTRATION) — % of composite items from a single repairer
   const repairerCounts: Record<string, number> = {};
   for (const item of compositeLineItems) {
     if (!item.isBenchmarkFill) {
@@ -1147,32 +1235,32 @@ export function computeNFS(
   const concentrationRatio = maxConcentration / realItems;
   const concentrationScore = Math.round(concentrationRatio * 100); // 0–100
 
-  // Factor 2: Supplier overlap (25%) — does the labour source match the dominant parts source?
+  // Factor 2: Supplier overlap (NFS_W_OVERLAP) — does the labour source match the dominant parts source?
   const dominantPartsRepairer = Object.entries(repairerCounts)
     .sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   const overlapScore = (labourSourceRepairer && dominantPartsRepairer &&
-    labourSourceRepairer === dominantPartsRepairer) ? 100 : 30;
+    labourSourceRepairer === dominantPartsRepairer) ? NFS_OVERLAP_MATCH : NFS_OVERLAP_NO_MATCH;
 
-  // Factor 3: Parts ecosystem consistency (15%) — are benchmark fills minimal?
+  // Factor 3: Parts ecosystem consistency (NFS_W_ECOSYSTEM) — are benchmark fills minimal?
   const fillRatio = fills / totalItems;
   const ecosystemScore = Math.round((1 - fillRatio) * 100);
 
-  // Factor 4: Geographic proximity (20%) — proxy: number of distinct repairers used
+  // Factor 4: Geographic proximity (NFS_W_PROXIMITY) — proxy: number of distinct repairers used
   const distinctRepairers = Object.keys(repairerCounts).length;
-  const proximityScore = distinctRepairers <= 1 ? 100
-    : distinctRepairers === 2 ? 70
-    : distinctRepairers === 3 ? 45
-    : 20;
+  const proximityScore = distinctRepairers <= 1 ? NFS_PROXIMITY_1
+    : distinctRepairers === 2 ? NFS_PROXIMITY_2
+    : distinctRepairers === 3 ? NFS_PROXIMITY_3
+    : NFS_PROXIMITY_4PLUS;
 
   const nfs = Math.round(
-    concentrationScore * 0.40 +
-    overlapScore * 0.25 +
-    ecosystemScore * 0.15 +
-    proximityScore * 0.20
+    concentrationScore * NFS_W_CONCENTRATION +
+    overlapScore * NFS_W_OVERLAP +
+    ecosystemScore * NFS_W_ECOSYSTEM +
+    proximityScore * NFS_W_PROXIMITY
   );
 
   const label: 'achievable' | 'partial' | 'complex' =
-    nfs >= 70 ? 'achievable' : nfs >= 40 ? 'partial' : 'complex';
+    nfs >= NFS_ACHIEVABLE_MIN ? 'achievable' : nfs >= NFS_PARTIAL_MIN ? 'partial' : 'complex';
 
   return { score: nfs, label };
 }
@@ -1297,6 +1385,10 @@ export function classifyComponents(
  * Format: { triggerComponent: { hiddenComponent: probabilityPct } }
  * These are conservative estimates — only components with ≥40% co-occurrence
  * in the training data are included.
+ * CALIBRATION: All probability values in this table are estimates derived from
+ * engineering judgment and a limited training corpus. They are NOT statistically
+ * validated. Do not change without a proper co-occurrence analysis on a large
+ * labelled claim dataset.
  */
 const CO_OCCURRENCE_TABLE: Record<string, Record<string, number>> = {
   'bonnet': { 'radiator': 73, 'condenser': 61, 'intercooler': 48, 'radiator support': 55 },
@@ -1341,8 +1433,12 @@ export function computeProbableHiddenDamage(
       } else {
         // Combine probabilities: P(A or B) = 1 - (1-P(A))(1-P(B))
         const combined = Math.round(100 * (1 - (1 - existing.prob / 100) * (1 - prob / 100)));
+        // CALIBRATION: 95% combined-probability cap is engineering-judgment.
+        // Do not change without benchmarking.
+        /** Maximum combined hidden-damage probability (never claim certainty) */
+        const HIDDEN_DAMAGE_MAX_PROB = 95;
         advisories.set(normHidden, {
-          prob: Math.min(combined, 95), // cap at 95% — never claim certainty
+          prob: Math.min(combined, HIDDEN_DAMAGE_MAX_PROB),
           basis: [...existing.basis, trigger],
         });
       }
@@ -1350,11 +1446,18 @@ export function computeProbableHiddenDamage(
   }
 
   const result: ProbableHiddenDamageAdvisory[] = [];
-  for (const [component, { prob, basis }] of advisories.entries()) {
-    if (prob < 40) continue; // only surface meaningful probabilities
+  // CALIBRATION: 40% minimum probability threshold and ±12% confidence band
+  // are engineering-judgment. Do not change without benchmarking.
+  /** Minimum probability to surface a hidden-damage advisory */
+  const HIDDEN_DAMAGE_MIN_PROB = 40;
+  /** Half-width of the confidence band around the probability estimate */
+  const HIDDEN_DAMAGE_BAND_HALF_WIDTH = 12;
 
-    const bandLow = Math.max(0, prob - 12);
-    const bandHigh = Math.min(95, prob + 12);
+  for (const [component, { prob, basis }] of advisories.entries()) {
+    if (prob < HIDDEN_DAMAGE_MIN_PROB) continue;
+
+    const bandLow = Math.max(0, prob - HIDDEN_DAMAGE_BAND_HALF_WIDTH);
+    const bandHigh = Math.min(HIDDEN_DAMAGE_MAX_PROB, prob + HIDDEN_DAMAGE_BAND_HALF_WIDTH);
 
     result.push({
       componentName: component,
