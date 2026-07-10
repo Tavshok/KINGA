@@ -5,6 +5,50 @@
  *
  * Combines damage + physics + claim data to compute fraud risk.
  * NEVER halts — produces baseline fraud assessment even with missing data.
+ *
+ * ── FRAUD ANALYSIS ARCHITECTURE ────────────────────────────────────────────────
+ *
+ * Stage 8 is a COMPOSITE of four independent fraud sub-engines, each
+ * contributing a signal to the final weighted fraud score:
+ *
+ *   1. scenarioFraudEngine.ts — evaluateScenarioFraud()
+ *      Scenario-aware rule evaluation. Applies different norms per incident
+ *      type (collision, animal_strike, theft, etc.). Strongest signal (C2).
+ *      Includes false-positive protection for African-market claim patterns.
+ *
+ *   2. photoForensicsEngine.ts — runPhotoForensics()
+ *      EXIF metadata extraction + manipulation heuristics on each damage photo.
+ *      Flags GPS anomalies, timestamp inconsistencies, and editing artefacts.
+ *      Runs in parallel with scenarioFraud (both are awaited together).
+ *
+ *   3. quoteSimilarityEngine.ts — analyseQuoteSimilarity()
+ *      Detects when multiple quotes are suspiciously similar (template fraud).
+ *      Only runs when 2+ quotes are present.
+ *
+ *   4. accidentDateCrossCheckEngine.ts — runAccidentDateCrossCheck()
+ *      Cross-checks the accident date against EXIF photo timestamps,
+ *      police report date, and assessor report date.
+ *
+ * ── SCORE AGGREGATION ──────────────────────────────────────────────────────────
+ *
+ * The final fraud_score is a WEIGHTED COMPOSITE across 6 categories:
+ *   C1 Physical Consistency  28 pts
+ *   C2 Scenario Intelligence 22 pts
+ *   C3 Financial Anomaly     20 pts
+ *   C4 Documentation         15 pts
+ *   C5 Entity Intelligence   10 pts
+ *   C6 Photo Forensics        5 pts
+ *
+ * Score-to-level mapping is defined in shared/fraudScoring.ts (FSS-2026-001).
+ * Do NOT define local score bands here — always import from shared/fraudScoring.ts.
+ *
+ * crossEngineConsistencyValidator.ts runs AFTER all four engines to detect
+ * contradictions between Stage 6 (damage), Stage 7 (physics), and Stage 8
+ * (fraud). Contradictions are surfaced as adjuster flags, not score penalties.
+ *
+ * PHYSICS_ONLY_SIGNAL_CODES: signals produced by Stage 7 that must NOT
+ * contribute to the fraud score unless corroborated by independent indicators.
+ * See the PHYSICS_ONLY_SIGNAL_CODES constant below.
  */
 
 import { ensureFraudContract } from "./engineFallback";
