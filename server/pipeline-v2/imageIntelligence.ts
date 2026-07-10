@@ -32,6 +32,8 @@ import type { PipelineContext } from "./types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const MAX_DAMAGE_PHOTOS = 8;          // max images forwarded to Stage 6 vision
+// CALIBRATION: HIGH/LOW confidence thresholds (0.75/0.40) are engineering-judgment.
+// Do not change without benchmarking against a labelled image dataset.
 const HIGH_CONFIDENCE_THRESHOLD = 0.75;
 const LOW_CONFIDENCE_THRESHOLD  = 0.40;
 const LLM_CLASSIFY_TIMEOUT_MS   = 20_000;
@@ -77,9 +79,13 @@ async function extractFeatures(url: string): Promise<ImageFeatures | null> {
     // sharp.stats() returns per-channel mean/std. High std = colourful photo.
     const stats = await image.stats();
     const channelStds = stats.channels.map((c: { stdev: number; mean: number }) => c.stdev);
+    // CALIBRATION: Channel std normalisation divisor (127) is the theoretical max
+    // std for an 8-bit channel. This is a fixed physical constant, not a tunable.
+    /** Theoretical maximum standard deviation for an 8-bit colour channel */
+    const CHANNEL_STD_MAX = 127;
     // Average std across channels, normalised to 0–1 (max theoretical ~127)
     const colourVariance = Math.min(
-      channelStds.reduce((s: number, v: number) => s + v, 0) / (channelStds.length * 127),
+      channelStds.reduce((s: number, v: number) => s + v, 0) / (channelStds.length * CHANNEL_STD_MAX),
       1
     );
 
@@ -89,9 +95,13 @@ async function extractFeatures(url: string): Promise<ImageFeatures | null> {
     // ── Edge density (Sobel-like: convert to greyscale, apply edge detection) ─
     // We use a Laplacian approximation via sharp's convolve kernel.
     // High edge density → complex scene (real photo) vs flat document.
+    // CALIBRATION: 256×256 resize for edge density computation is engineering-judgment.
+    // Larger sizes increase accuracy but slow processing.
+    /** Resize target for edge density computation (pixels) */
+    const EDGE_RESIZE_PX = 256;
     const edgeBuffer = await image
       .greyscale()
-      .resize(256, 256, { fit: "fill" })
+      .resize(EDGE_RESIZE_PX, EDGE_RESIZE_PX, { fit: "fill" })
       .convolve({
         width: 3, height: 3,
         kernel: [-1, -1, -1, -1, 8, -1, -1, -1, -1],  // Laplacian
@@ -99,20 +109,30 @@ async function extractFeatures(url: string): Promise<ImageFeatures | null> {
       .raw()
       .toBuffer();
     const edgeSum = edgeBuffer.reduce((s: number, v: number) => s + v, 0);
-    const edgeDensity = Math.min(edgeSum / (256 * 256 * 255), 1);
+    const edgeDensity = Math.min(edgeSum / (EDGE_RESIZE_PX * EDGE_RESIZE_PX * 255), 1);
 
     // ── Blur score (variance of Laplacian — high variance = sharp image) ──────
     const edgeMean = edgeSum / edgeBuffer.length;
     const edgeVariance = edgeBuffer.reduce((s: number, v: number) => s + Math.pow(v - edgeMean, 2), 0) / edgeBuffer.length;
-    // Normalise: typical sharp images have variance > 500; blurry < 100
-    const blurScore = Math.min(edgeVariance / 1000, 1);
+    // CALIBRATION: Blur score normalisation divisor (1000) is engineering-judgment.
+    // Typical sharp images have Laplacian variance > 500; blurry images < 100.
+    // Do not change without benchmarking against a labelled sharpness dataset.
+    /** Laplacian variance normalisation divisor for blur score (0–1) */
+    const BLUR_SCORE_NORMALISER = 1000;
+    const blurScore = Math.min(edgeVariance / BLUR_SCORE_NORMALISER, 1);
 
     // ── Text density (heuristic: high brightness + low colour variance + high edge density
     //    on a white background = text-heavy document page) ──────────────────────
     // A white page with black text has: high brightness, low colour variance, moderate edges.
     // We approximate text density as the inverse of "photo-ness".
-    const isLikelyWhiteBackground = meanBrightness > 180;
-    const isLowColour = colourVariance < 0.25;
+    // CALIBRATION: White-background detection thresholds (brightness > 180, colour < 0.25)
+    // are engineering-judgment for typical insurance document scans.
+    /** Mean brightness above which a page is considered likely white-background */
+    const WHITE_BG_BRIGHTNESS_THRESHOLD = 180;
+    /** Colour variance below which a page is considered low-colour (likely text document) */
+    const WHITE_BG_COLOUR_THRESHOLD = 0.25;
+    const isLikelyWhiteBackground = meanBrightness > WHITE_BG_BRIGHTNESS_THRESHOLD;
+    const isLowColour = colourVariance < WHITE_BG_COLOUR_THRESHOLD;
     const textDensity = isLikelyWhiteBackground && isLowColour
       ? Math.min(0.3 + edgeDensity * 0.7, 1)  // text pages have structured edges
       : Math.max(0, 0.3 - colourVariance);     // colourful pages are unlikely to be text-only
@@ -146,6 +166,9 @@ function scoreDamageLikelihood(f: ImageFeatures): number {
   //   - have MODERATE edge density (text lines)
   //   - have HIGH text density
   //   - have PORTRAIT aspect ratio (A4)
+  // CALIBRATION: Scoring weights (0.35/0.25/0.20/0.15/0.05) are engineering-judgment.
+  // Tuned for vehicle damage photos vs. insurance documents in the KINGA dataset.
+  // Do not change without benchmarking against a labelled image classification dataset.
   const colourWeight  = 0.35;
   const edgeWeight    = 0.25;
   const textPenalty   = 0.20;
@@ -164,8 +187,14 @@ function scoreDamageLikelihood(f: ImageFeatures): number {
     f.blurScore       * blurWeight +
     aspectScore       * aspectWeight;
 
+  // CALIBRATION: Document hard-override thresholds (brightness > 220, colour < 0.15)
+  // are engineering-judgment.
+  /** Brightness above which a very-white, very-low-colour image is hard-overridden to document */
+  const DOCUMENT_OVERRIDE_BRIGHTNESS = 220;
+  /** Colour variance below which a very-white image is hard-overridden to document */
+  const DOCUMENT_OVERRIDE_COLOUR     = 0.15;
   // Hard override: very white, very low colour → almost certainly a document
-  if (f.meanBrightness > 220 && f.colourVariance < 0.15) {
+  if (f.meanBrightness > DOCUMENT_OVERRIDE_BRIGHTNESS && f.colourVariance < DOCUMENT_OVERRIDE_COLOUR) {
     return Math.min(score, 0.35);
   }
 
@@ -339,8 +368,14 @@ export async function selectDamagePhotoPages(
       // genuine vehicle damage photos. If the image is dark (meanBrightness < 80) but has
       // some colour content (colourVariance > 0.05 — ruling out blank black pages), push it
       // to the LLM ambiguous pool instead of silently classifying it as a document.
-      const isDark    = features.meanBrightness < 80;
-      const hasColour = features.colourVariance > 0.05;
+      // CALIBRATION: Dark-image rescue thresholds (brightness < 80, colour > 0.05) are
+      // engineering-judgment for night-time damage photo detection (R-B-03b).
+      /** Brightness below which an image is considered 'dark' for rescue path */
+      const DARK_RESCUE_BRIGHTNESS_THRESHOLD = 80;
+      /** Colour variance above which a dark image is considered colourful enough to rescue */
+      const DARK_RESCUE_COLOUR_THRESHOLD     = 0.05;
+      const isDark    = features.meanBrightness < DARK_RESCUE_BRIGHTNESS_THRESHOLD;
+      const hasColour = features.colourVariance > DARK_RESCUE_COLOUR_THRESHOLD;
       if (isDark && hasColour) {
         confidence = "MEDIUM";
         classification = "damage_photo"; // tentative — will be refined by LLM
@@ -406,8 +441,12 @@ export async function selectDamagePhotoPages(
       deduplicated.push(damagePhotos[i]);
       continue;
     }
+    // CALIBRATION: Hamming distance threshold (8/64 bits) for perceptual deduplication
+    // is engineering-judgment. Lower = stricter deduplication.
+    /** Maximum Hamming distance (bits) for two images to be considered near-duplicates */
+    const DEDUP_HAMMING_THRESHOLD = 8;
     // Check if this image is too similar to any already-kept image (Hamming distance ≤ 8/64)
-    const isDuplicate = seenHashes.some(h => hammingDistance(h, hash) <= 8);
+    const isDuplicate = seenHashes.some(h => hammingDistance(h, hash) <= DEDUP_HAMMING_THRESHOLD);
     if (!isDuplicate) {
       deduplicated.push(damagePhotos[i]);
       seenHashes.push(hash);
