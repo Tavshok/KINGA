@@ -582,3 +582,14 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] All 18 .mmd source files verified to render without parse errors; all 18 .png renders verified visually
 - [x] Regression gate: 483/485 tests pass in core pipeline suite; 2 costDecisionEngine failures confirmed pre-existing
 - [x] All 46 files committed to main: commit d28b503a
+
+---
+## Batch 10a — Silent Bug Investigation + 3 Fixes (2026-07-10)
+
+- [x] Investigate: line-item persistence bug (documentedLineItems gap) — confirmed historical-only, 2 claims affected
+- [x] Investigate: image-failure report degradation — confirmed PipelineConfidencePanel was never rendered
+- [x] Investigate: BMW 318i consistencyScore feasibility — blocked (no real claim doc; test fixtures were stale)
+- [x] Fix 1: Wire PipelineConfidencePanel into ForensicAuditReport main render + pass enforcement.degradationReasons
+- [x] Fix 2: Add db.ts guard warning when quotesToPersist is empty despite non-zero documentedOriginalQuoteUsd
+- [x] Fix 3: Update 10 stale imageClassifier.test.ts fixtures/assertions to match current classifier design (blur scale + fallbackPool routing)
+- [ ] Backfill 2 historical quote_line_items records (claims 7260001, 6570001) — low priority, data hygiene
