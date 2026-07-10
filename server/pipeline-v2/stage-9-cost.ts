@@ -214,8 +214,16 @@ export async function runCostOptimisationStage(
           let cleanCount = 0;
           if (allCosts.length > 0) {
             const median = allCosts[Math.floor(allCosts.length / 2)];
-            const lowerBound = median / 10;  // exclude values < 10% of median
-            const upperBound = median * 10;  // exclude values > 10x median
+            // CALIBRATION: Outlier bounds (10% of median lower, 10× median upper) are
+            // engineering-judgment. They are intentionally wide to avoid excluding
+            // legitimate outliers in the small Zimbabwe fleet dataset.
+            // Do not tighten without benchmarking against the actual learning DB distribution.
+            /** Lower outlier bound: exclude values below this fraction of the median */
+            const LEARNING_DB_OUTLIER_LOWER_FACTOR = 10;  // median / 10
+            /** Upper outlier bound: exclude values above this multiple of the median */
+            const LEARNING_DB_OUTLIER_UPPER_FACTOR = 10;  // median * 10
+            const lowerBound = median / LEARNING_DB_OUTLIER_LOWER_FACTOR;
+            const upperBound = median * LEARNING_DB_OUTLIER_UPPER_FACTOR;
             const cleanCosts = allCosts.filter((v: number) => v >= lowerBound && v <= upperBound);
             cleanCount = cleanCosts.length;
             cleanAvgCents = cleanCount > 0
@@ -496,10 +504,12 @@ export async function runCostOptimisationStage(
       sampleSize: learningDbSampleSize,
     };
     if (learningDbBenchmarkCents && learningDbBenchmarkCents > 0 && quotedCents && quotedCents > 0) {
-      // Flag if the submitted quote is less than 25% of the historical average for this vehicle.
-      // This is a fraud signal, not a cost estimate.
+      // CALIBRATION: 25% threshold for 'suspiciously cheap' fraud signal is engineering-judgment.
+      // Do not change without benchmarking against a labelled fraud dataset.
+      /** Fraction of learning DB average below which a quote is flagged as suspiciously cheap */
+      const SUSPICIOUSLY_CHEAP_RATIO = 0.25;
       const ratio = quotedCents / learningDbBenchmarkCents;
-      if (ratio < 0.25) {
+      if (ratio < SUSPICIOUSLY_CHEAP_RATIO) {
         fraudCostSignal.suspiciouslyCheap = true;
         ctx.log("Stage 9", `Fraud signal: submitted quote (${quotedCents} cents) is ${(ratio * 100).toFixed(1)}% of learning DB avg (${learningDbBenchmarkCents} cents) — suspiciously cheap`);
       }
@@ -592,7 +602,10 @@ export async function runCostOptimisationStage(
           const liTokens = liKey.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(t => t.length > 2);
           const overlap = compTokens.filter(t => liTokens.includes(t)).length;
           const maxLen = Math.max(compTokens.length, liTokens.length);
-          if (maxLen > 0 && overlap / maxLen >= 0.5) {
+          // CALIBRATION: 0.5 token-overlap ratio for fuzzy component matching is engineering-judgment.
+          /** Minimum token overlap ratio for fuzzy component-to-line-item matching */
+          const FUZZY_MATCH_OVERLAP_THRESHOLD = 0.5;
+          if (maxLen > 0 && overlap / maxLen >= FUZZY_MATCH_OVERLAP_THRESHOLD) {
             quotedEntry = liVal;
             break;
           }
