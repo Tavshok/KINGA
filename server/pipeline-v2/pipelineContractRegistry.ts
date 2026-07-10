@@ -365,26 +365,43 @@ export class StageTimeoutError extends Error {
  * @param fn        The async stage function to execute
  * @returns         The result of fn, or throws StageTimeoutError if timeout exceeded
  */
+// R-OBS-05: lazy logger import to avoid circular dependency at module load time
+let _obsLogger: typeof import('../logger').logger | null = null;
+function getObsLogger(): typeof import('../logger').logger {
+  if (!_obsLogger) {
+    // synchronous require — safe because logger.ts has no circular deps
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    _obsLogger = require('../logger').logger as typeof import('../logger').logger;
+  }
+  return _obsLogger;
+}
+
 export async function runWithTimeout<T>(
   stageId: string,
   fn: () => Promise<T>
 ): Promise<T> {
   const budgetMs = getStageTimeout(stageId);
   const startMs = Date.now();
-
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       const elapsedMs = Date.now() - startMs;
+      // R-OBS-05: emit timing for timeout case
+      try { getObsLogger().timing(stageId, elapsedMs, { errorCode: 'STAGE_TIMEOUT' }); } catch { /* non-fatal */ }
       reject(new StageTimeoutError(stageId, budgetMs, elapsedMs));
     }, budgetMs);
-
     fn()
       .then((result) => {
         clearTimeout(timer);
+        const durationMs = Date.now() - startMs;
+        // R-OBS-05: emit structured timing event for this stage
+        try { getObsLogger().timing(stageId, durationMs); } catch { /* non-fatal */ }
         resolve(result);
       })
       .catch((err) => {
         clearTimeout(timer);
+        const durationMs = Date.now() - startMs;
+        // R-OBS-05: emit timing even on failure so latency of failing stages is visible
+        try { getObsLogger().timing(stageId, durationMs, { errorCode: 'STAGE_FAILED' }); } catch { /* non-fatal */ }
         reject(err);
       });
   });

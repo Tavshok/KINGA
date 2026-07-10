@@ -132,6 +132,7 @@ import { exceptionIntelligenceRouter } from './routers/exception-intelligence';
 import { intelligenceRouter } from './routers/intelligence';
 import { reportingRouter } from './routers/reporting';
 import { validateAiAssessmentResponse, validateClaimDetailResponse } from './apiResponseValidator';
+import { logger } from './logger';
 import { validateClaimAnalysisResponse } from './services/apiResponseValidator';
 import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
@@ -3151,7 +3152,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           pdfUrl,
           damagePhotoUrls: damagePhotos,
           db,
-          log: (stage: string, msg: string) => console.log(`[Debug][${stage}] Claim ${input.claimId}: ${msg}`),
+          log: logger.makePipelineLog(String(input.claimId)),
           tenantRates: debugTenantRates,
         };
 
@@ -6861,7 +6862,7 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
               {
                 dpi: 100,
                 keyPrefix: `claims/${input.claimId}/report-photos`,
-                log: (msg: string) => console.log(`[resolvePdfPhotoUrls] Claim ${input.claimId}: ${msg}`),
+                log: (msg: string) => logger.info('resolvePdfPhotoUrls', msg, { claimId: String(input.claimId) }),
               } as any
             );
 

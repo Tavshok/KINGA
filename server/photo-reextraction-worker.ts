@@ -14,6 +14,7 @@
  */
 
 import { getRawPool } from "./db";
+import { logger } from './logger';
 // LAZY IMPORTS: pdf-image-extractor and stage-6-damage-analysis both import native
 // modules (sharp, @napi-rs/canvas) at top level. Loading them statically here would
 // crash the server on startup in Cloud Run if any native binary fails to load.
@@ -123,7 +124,7 @@ export async function runPhotoReextraction(jobId: number): Promise<ReextractionR
           log: (stage: string, msg: string) => {
             const entry = `[${stage}] ${msg}`;
             logs.push(entry);
-            console.log(`  ${entry}`);
+            logger.info(stage, msg, { claimId: String(claimId) });
           },
         };
 

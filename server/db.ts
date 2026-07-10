@@ -52,6 +52,7 @@ import {
   tenants
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { logger } from './logger';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: mysql.Pool | null = null;
@@ -796,7 +797,7 @@ export async function triggerAiAssessment(claimId: number) {
         dpi: 100,
         maxPages: 25,
         keyPrefix: `claims/${claimId}/damage-pages`,
-        log: (msg: string) => console.log(`[KINGA Assessment] Claim ${claimId}: [PDF Render] ${msg}`),
+        log: (msg: string) => logger.info('PDF Render', msg, { claimId }),
       });
       // Build ExtractedImage-compatible objects from rendered pages.
       // IMPORTANT: width/height come from PdfPageImage (read at render time from the buffer)
@@ -1013,7 +1014,7 @@ export async function triggerAiAssessment(claimId: number) {
     pdfDownloadUrl: pdfDownloadUrl ?? pdfUrl,
     damagePhotoUrls: damagePhotos,
     db,
-    log: (stage: string, msg: string) => console.log(`[${stage}] Claim ${claimId}: ${msg}`),
+    log: logger.makePipelineLog(claimId),
     tenantRates,
     // ISO 3166-1 alpha-2 country code for the tenant's primary operating country
     // Priority: tenants.country column → null (no hardcoded fallback — currency resolution handles the default)
@@ -1053,6 +1054,19 @@ export async function triggerAiAssessment(claimId: number) {
       assumptionCount?: number;
       recoveryActionCount?: number;
     }) => {
+      // R-OBS-04: emit structured stage completion event to log stream
+      const stageStatus = stageResult.status === 'completed' ? 'COMPLETE'
+        : stageResult.status === 'failed' ? 'FAILED'
+        : stageResult.status === 'degraded' ? 'DEGRADED'
+        : 'SKIPPED';
+      logger.stage(stageId, stageStatus, {
+        claimId: String(claimId),
+        runId: _pipelineRunId,
+        durationMs: stageResult.durationMs,
+        ...(stageResult.isDegraded ? { isDegraded: true } : {}),
+        ...(stageResult.isTimeout ? { isTimeout: true } : {}),
+        ...(stageResult.errorMessage ? { errorMessage: stageResult.errorMessage } : {}),
+      });
       import('./db-pipeline').then(({ recordStageComplete }) => {
         recordStageComplete({
           claimId,

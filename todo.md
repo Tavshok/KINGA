@@ -518,16 +518,16 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - R-OBS-05: User requires the list of 8 highest-risk engines before ranking. Present the list first, get ranking, then implement.
 
 ### R-OBS-03 — Structured Logger Singleton
-- [ ] R-OBS-03: Create server/logger.ts — module-level structured logger singleton (pino or equivalent); replace all console.log/warn/error calls in pipeline-critical paths with logger.info/warn/error with structured fields (claimId, stage, durationMs, errorCode)
+- [x] R-OBS-03: Create server/logger.ts — module-level structured logger singleton; 22/22 tests pass (server/logger.test.ts). Wired into all 4 ctx.log construction sites in db.ts and routers.ts.
 
 ### R-OBS-05 — Engine-Level Timing & Observability
-- [ ] R-OBS-05-SCOPE: Present list of 8 highest-risk engines to user for ranking before implementation
-- [ ] R-OBS-05: Add per-engine timing instrumentation to the 8 ranked highest-risk engines (wrap in logger.time or equivalent; emit structured log on entry/exit with durationMs and outcome)
+- [x] R-OBS-05-SCOPE: Present list of 8 highest-risk engines to user for ranking before implementation
+- [x] R-OBS-05: Add per-engine timing instrumentation to the 8 ranked highest-risk engines. runWithTimeout covers stages 1,2,6,7,8,9,10; orchestrator.ts direct calls cover stage-3, stage-5, 7b-causal-reasoning. 29/29 tests pass (server/batch8-observability.test.ts).
 
 ### Other R-OBS items (pending scope confirmation)
-- [ ] R-OBS-01: Add request-scoped correlation ID (claimId / requestId) threading through all pipeline stages
-- [ ] R-OBS-02: Add structured error logging to all withRetry exhaustion paths (log attempt count, last error, engine name)
-- [ ] R-OBS-04: Add pipeline stage completion events to audit trail (stage name, durationMs, success/failure, claimId)
+- [x] R-OBS-01: claimId threaded through all pipeline stages via logger.makePipelineLog(claimId) at all 4 ctx.log construction sites. Every pipeline log line carries a structured claimId field.
+- [x] R-OBS-02: logger.retry() wired into withRetry in server/_core/llm.ts — WARN for non-final attempts, ERROR for exhaustion. Carries engineLabel, attempt, maxAttempts, error message, and optional meta fields.
+- [x] R-OBS-04: logger.stage() wired into onStageComplete callback in server/db.ts — emits structured stage completion events with stageId, durationMs, status (completed/degraded/failed/skipped), and claimId.
 
 ---
 

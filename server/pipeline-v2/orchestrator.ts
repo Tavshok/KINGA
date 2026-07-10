@@ -595,7 +595,9 @@ export async function runPipelineV2(
     // ── STAGE 3: Structured Data Extraction ──────────────────────────
   ctx.onStageStart?.("Stage 3 — Extraction");
   if (stage1Data && stage2Data) {
+    const _s3t0 = Date.now();
     const s3 = await runStructuredExtractionStage(ctx, stage1Data, stage2Data);
+    try { (await import('../logger')).logger.timing('3_structured_extraction', Date.now() - _s3t0); } catch { /* non-fatal */ }
     recordStage("3_structured_extraction", s3);
     stage3Data = s3.data;
   } else {
@@ -626,7 +628,9 @@ export async function runPipelineV2(
   // ── STAGE 5: Claim Data Assembly ─────────────────────────────────────
   ctx.onStageStart?.("Stage 5 — Assembly");
   if (stage4Data) {
+    const _s5t0 = Date.now();
     const s5 = await runAssemblyStage(ctx, stage4Data);
+    try { (await import('../logger')).logger.timing('5_assembly', Date.now() - _s5t0); } catch { /* non-fatal */ }
     recordStage("5_assembly", s5);
     stage5Data = s5.data;
     if (stage5Data) {
@@ -1421,6 +1425,7 @@ export async function runPipelineV2(
         estimatedCostCents: stage9Data.expectedRepairCostCents ?? null,
         currency: stage9Data.currency ?? null,
       };
+      const _causalT0 = Date.now();
       const updatedVerdict = await runCausalReasoningEngine(
         claimRecord!,
         stage6Data,
@@ -1428,6 +1433,7 @@ export async function runPipelineV2(
         enrichedPhotosJsonRerun,
         precomputedScores
       );
+      try { (await import('../logger')).logger.timing('7b_causal_reasoning', Date.now() - _causalT0); } catch { /* non-fatal */ }
       ctx.log(
         "Stage 7b (re-run)",
         `Updated causal verdict with downstream scores: ` +

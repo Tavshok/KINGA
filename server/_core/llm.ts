@@ -1,4 +1,5 @@
 import { ENV } from "./env";
+import { logger } from '../logger';
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -407,12 +408,16 @@ function isTransientError(err: unknown): boolean {
  *                    Length must be maxAttempts - 1.
  *                    Default: [2000, 4000, 8000] (2s → 4s → 8s).
  * @param onRetry     Optional callback called before each retry with the attempt number and error.
+ * @param engineLabel Optional label for structured retry logging (R-OBS-02). Defaults to 'withRetry'.
+ * @param meta        Optional extra fields to include in retry log events (e.g. { claimId }).
  */
 export async function withRetry<T>(
   fn: () => Promise<T>,
   maxAttempts = 3,
   backoffMs: number[] = [2000, 4000, 8000],
   onRetry?: (attempt: number, err: unknown) => void,
+  engineLabel = 'withRetry',
+  meta?: Record<string, unknown>,
 ): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -422,9 +427,13 @@ export async function withRetry<T>(
       lastErr = err;
       const isLast = attempt === maxAttempts;
       if (isLast || !isTransientError(err)) {
+        // R-OBS-02: log exhaustion before re-throwing (non-transient or final attempt)
+        logger.retry(engineLabel, attempt, maxAttempts, err, meta);
         throw err;
       }
       const delay = backoffMs[attempt - 1] ?? backoffMs[backoffMs.length - 1];
+      // R-OBS-02: log non-final transient retry attempt
+      logger.retry(engineLabel, attempt, maxAttempts, err, meta);
       if (onRetry) onRetry(attempt, err);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
