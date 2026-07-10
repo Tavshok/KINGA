@@ -202,14 +202,49 @@ export interface CostDecisionOutput {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+// CALIBRATION: All threshold and factor constants below are engineering-judgment.
+// Do not change without benchmarking against a labelled claim dataset.
 
-const OVERPRICING_THRESHOLD = 0.40;        // 40% above TRUE_COST
-const SPREAD_WARNING_THRESHOLD = 60;       // 60% spread
-const LOW_RELIABILITY_THRESHOLD = 40;      // confidence_score < 40
-const OVERPAYMENT_THRESHOLD = 0.20;        // agreed >20% above optimised
-const UNDER_REPAIR_THRESHOLD = 0.30;       // agreed >30% below optimised
-const NEGOTIATION_FLOOR_FACTOR = 0.85;     // floor = optimised * 0.85
-const NEGOTIATION_CEILING_FACTOR = 1.10;   // ceiling = optimised * 1.10
+/** Fraction above TRUE_COST at which a quote is flagged as overpriced */
+const OVERPRICING_THRESHOLD = 0.40;
+/** Quote spread percentage above which a spread warning is raised */
+const SPREAD_WARNING_THRESHOLD = 60;
+/** Confidence score below which reliability is considered low */
+const LOW_RELIABILITY_THRESHOLD = 40;
+/** Fraction above optimised cost at which agreed cost is flagged as overpayment */
+const OVERPAYMENT_THRESHOLD = 0.20;
+/** Fraction below optimised cost at which agreed cost is flagged as under-repair */
+const UNDER_REPAIR_THRESHOLD = 0.30;
+/** Negotiation floor as a fraction of the optimised cost */
+const NEGOTIATION_FLOOR_FACTOR = 0.85;
+/** Negotiation ceiling as a fraction of the optimised cost */
+const NEGOTIATION_CEILING_FACTOR = 1.10;
+
+/** Near-parity band (±%) within which agreed cost is labelled 'optimal' */
+const NEAR_PARITY_BAND_PCT = 5;
+/** Confidence threshold below which POST recommendation escalates to REVIEW */
+const POST_CONFIDENCE_REVIEW_THRESHOLD = 30;
+/** Confidence threshold at or above which system_optimised basis can APPROVE */
+const POST_CONFIDENCE_APPROVE_THRESHOLD = 60;
+
+// Confidence adjustment constants
+// CALIBRATION: All bonus/penalty values below are engineering-judgment.
+/** Confidence bonus for assessor-validated cost basis */
+const CONF_BONUS_ASSESSOR_VALIDATED = 10;
+/** Confidence bonus for fully-aligned cost */
+const CONF_BONUS_FULLY_ALIGNED = 5;
+/** Confidence penalty for misaligned cost */
+const CONF_PENALTY_MISALIGNED = 20;
+/** Confidence penalty for partially-aligned cost */
+const CONF_PENALTY_PARTIALLY_ALIGNED = 10;
+/** Confidence penalty per critical anomaly */
+const CONF_PENALTY_CRITICAL = 25;
+/** Confidence penalty per high anomaly */
+const CONF_PENALTY_HIGH = 15;
+/** Confidence penalty per medium anomaly */
+const CONF_PENALTY_MEDIUM = 8;
+/** Confidence penalty per low anomaly */
+const CONF_PENALTY_LOW = 3;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -424,7 +459,7 @@ function buildNegotiationEfficiency(
     efficiencyLabel = "overpaid";
   } else if (underRepairRisk) {
     efficiencyLabel = "under_repaired";
-  } else if (Math.abs(agreedVsOptimisedPct) <= 5) {
+  } else if (Math.abs(agreedVsOptimisedPct) <= NEAR_PARITY_BAND_PCT) {
     efficiencyLabel = "optimal";
   } else {
     efficiencyLabel = "acceptable";
@@ -477,7 +512,7 @@ function derivePostRecommendation(
   if (hasCritical) return "REJECT";
   if (hasHigh) return "REVIEW";
   if (alignmentStatus === "MISALIGNED") return "REVIEW";
-  if (confidence < 30) return "REVIEW";
+  if (confidence < POST_CONFIDENCE_REVIEW_THRESHOLD) return "REVIEW";
 
   // Overpayment risk in POST mode escalates to REVIEW
   if (negotiationEfficiency?.overpayment_risk) return "REVIEW";
@@ -485,7 +520,7 @@ function derivePostRecommendation(
   if (negotiationEfficiency?.under_repair_risk) return "REVIEW";
 
   if (costBasis === "assessor_validated" && anomalies.length === 0) return "APPROVE";
-  if (costBasis === "system_optimised" && confidence >= 60 && anomalies.length === 0) return "APPROVE";
+  if (costBasis === "system_optimised" && confidence >= POST_CONFIDENCE_APPROVE_THRESHOLD && anomalies.length === 0) return "APPROVE";
   if (anomalies.some(a => a.severity === "medium")) return "REVIEW";
   return "APPROVE";
 }
@@ -519,17 +554,17 @@ function computeDecisionConfidence(
 ): number {
   let base = costReliability?.confidence_score ?? optimisationConfidence ?? 50;
 
-  if (costBasis === "assessor_validated") base = Math.min(100, base + 10);
+  if (costBasis === "assessor_validated") base = Math.min(100, base + CONF_BONUS_ASSESSOR_VALIDATED);
 
-  if (alignmentStatus === "FULLY_ALIGNED") base = Math.min(100, base + 5);
-  else if (alignmentStatus === "MISALIGNED") base = Math.max(0, base - 20);
-  else if (alignmentStatus === "PARTIALLY_ALIGNED") base = Math.max(0, base - 10);
+  if (alignmentStatus === "FULLY_ALIGNED") base = Math.min(100, base + CONF_BONUS_FULLY_ALIGNED);
+  else if (alignmentStatus === "MISALIGNED") base = Math.max(0, base - CONF_PENALTY_MISALIGNED);
+  else if (alignmentStatus === "PARTIALLY_ALIGNED") base = Math.max(0, base - CONF_PENALTY_PARTIALLY_ALIGNED);
 
   for (const a of anomalies) {
-    if (a.severity === "critical") base = Math.max(0, base - 25);
-    else if (a.severity === "high") base = Math.max(0, base - 15);
-    else if (a.severity === "medium") base = Math.max(0, base - 8);
-    else base = Math.max(0, base - 3);
+    if (a.severity === "critical") base = Math.max(0, base - CONF_PENALTY_CRITICAL);
+    else if (a.severity === "high") base = Math.max(0, base - CONF_PENALTY_HIGH);
+    else if (a.severity === "medium") base = Math.max(0, base - CONF_PENALTY_MEDIUM);
+    else base = Math.max(0, base - CONF_PENALTY_LOW);
   }
 
   return Math.min(100, Math.max(0, Math.round(base)));
