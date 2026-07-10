@@ -870,8 +870,126 @@ function extractDamageHints(rawText: string): DamageHints {
 }
 
 /**
+ * Detect whether images are structurally present in any uploaded document.
+ *
+ * Deliberately does NOT use text-keyword matching ("photo", "image", "photograph", etc.).
+ * Claim forms routinely contain instructions like "Attach photographs of damage" which
+ * would trigger false positives, incorrectly marking the claim as having photos that
+ * failed to ingest (SYSTEM_FAILURE) when no photos were actually submitted.
+ * Only structural signals from the PDF parser are trusted.
+ *
+ * Returns: { imagesPresent, imagesNotProcessed }
+ */
+function detectImagePresence(
+  stage1: Stage1Output,
+  perDocumentExtractions: ExtractedClaimFields[]
+): { imagesPresent: boolean; imagesNotProcessed: boolean } {
+  const imagesPresent =
+    stage1.documents.some(d => d.containsImages || d.imageUrls.length > 0) ||
+    perDocumentExtractions.some(e => e.uploadedImageUrls.length > 0);
+  const imagesNotProcessed =
+    imagesPresent && stage1.documents.every(d => d.imageUrls.length === 0);
+  return { imagesPresent, imagesNotProcessed };
+}
+
+/**
+ * Detect whether OCR has failed for all documents on this claim.
+ *
+ * Failure is defined as: all extracted text (after stripping whitespace) is fewer than
+ * 100 characters AND at least one document was uploaded. This threshold is intentionally
+ * low — a genuine claim document with successful OCR will always produce more than 100
+ * non-whitespace characters. Values below this indicate either a scanned PDF with no
+ * text layer, a corrupted upload, or a Stage 2 timeout.
+ *
+ * // CALIBRATION: origin unknown, do not change without benchmarking
+ * The 100-character threshold was set by engineering judgment. Validate against a
+ * labelled dataset before adjusting.
+ */
+function detectOcrFailure(allText: string, documentCount: number): boolean {
+  const totalTextLength = allText.replace(/\s/g, '').length;
+  return totalTextLength < 100 && documentCount > 0;
+}
+
+/**
+ * Deduplicate extracted quotes by repairer name using the R-A-16 priority strategy.
+ *
+ * A single repairer quotation may be extracted multiple times when:
+ *   (a) The document has both a printed total and a handwritten revised amount
+ *   (b) Text-based extraction and vision extraction both find the same repairer
+ *   (c) The sparse-text vision guard runs on a document already extracted by OCR
+ *
+ * R-A-16 FIX (2026-06): The prior strategy of always keeping the LOWEST total was wrong.
+ * It conflated negotiated downward revisions (keep lower) with supplementary upward quotes
+ * (keep higher). New priority order:
+ *   1. If one entry is document_category='assessor_report', it is authoritative (agreed amount)
+ *   2. Otherwise, prefer text-extracted over vision-extracted (text is more reliable for totals)
+ *   3. If same source, keep the entry with MORE line items (richer / more complete extraction)
+ */
+function deduplicateExtractedQuotes<T extends { panel_beater?: string | null; total_cost?: number | null; line_items: any[]; document_category?: string | null }>(quotes: T[]): T[] {
+  if (quotes.length <= 1) return quotes;
+  const dedupMap = new Map<string, T>();
+  for (const q of quotes) {
+    const normName = (q.panel_beater ?? 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+    const existing = dedupMap.get(normName);
+    if (!existing) {
+      dedupMap.set(normName, q);
+    } else {
+      const existingTotal = existing.total_cost ?? Infinity;
+      const newTotal = q.total_cost ?? Infinity;
+      if (newTotal === existingTotal) {
+        const existingItems = existing.line_items?.length ?? 0;
+        const newItems = q.line_items?.length ?? 0;
+        if (newItems > existingItems) {
+          console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — same total, keeping entry with ${newItems} line items over ${existingItems}`);
+          dedupMap.set(normName, q);
+        }
+      } else {
+        const existingIsAssessor = existing.document_category === 'assessor_report';
+        const newIsAssessor = q.document_category === 'assessor_report';
+        if (existingIsAssessor && !newIsAssessor) {
+          console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — keeping assessor_report total ${existingTotal} over repair_quote ${newTotal}`);
+        } else if (!existingIsAssessor && newIsAssessor) {
+          console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — replacing with assessor_report total ${newTotal} (was repair_quote ${existingTotal})`);
+          dedupMap.set(normName, q);
+        } else {
+          const existingIsVision = (existing as any).extraction_source === 'vision';
+          const newIsVision = (q as any).extraction_source === 'vision';
+          if (existingIsVision && !newIsVision) {
+            console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — replacing vision total ${existingTotal} with text total ${newTotal}`);
+            dedupMap.set(normName, q);
+          } else if (!existingIsVision && newIsVision) {
+            console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — keeping text total ${existingTotal} over vision total ${newTotal}`);
+          } else {
+            const existingItems = existing.line_items?.length ?? 0;
+            const newItems = q.line_items?.length ?? 0;
+            if (newItems > existingItems) {
+              console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — same source, keeping richer entry (${newItems} items, total ${newTotal}) over (${existingItems} items, total ${existingTotal})`);
+              dedupMap.set(normName, q);
+            } else {
+              console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — same source, keeping existing entry (${existingItems} items, total ${existingTotal})`);
+            }
+          }
+        }
+      }
+    }
+  }
+  const result = Array.from(dedupMap.values());
+  if (result.length < quotes.length) {
+    console.log(`[Stage3] Dedup: collapsed ${quotes.length} → ${result.length} quote(s) after same-repairer deduplication`);
+  }
+  return result;
+}
+
+/**
  * Run the full 5-step input recovery pass against all extracted texts and document metadata.
  * Returns a structured InputRecoveryOutput without modifying original extraction data.
+ *
+ * Sub-functions used:
+ *   detectImagePresence()        — STEP 3: structural image presence detection
+ *   detectOcrFailure()           — STEP 5: OCR failure detection
+ *   deduplicateExtractedQuotes() — R-A-16 deduplication after all extraction paths complete
+ *   extractDamageHints()         — STEP 4: damage zone/component keyword extraction
+ *   recoverQuoteFromText()       — STEP 2: regex-based quote recovery fallback
  */
 async function runInputRecovery(
   stage1: Stage1Output,
@@ -908,6 +1026,25 @@ async function runInputRecovery(
   // STEP 2 — Quote recovery (regex fallback)
   const hasQuote = perDocumentExtractions.some(e => e.quoteTotalCents && e.quoteTotalCents > 0);
   const recovered_quote = recoverQuoteFromText(allText);
+
+  // ── FIVE-PATH QUOTE EXTRACTION BLOCK ───────────────────────────────────────────────────────────────────
+  //
+  // This block is intentionally NOT split into sub-functions.
+  //
+  // The five extraction paths (primary vision, vision fallback, unconditional vision pass,
+  // OCR-failure vision-direct, text-based fallback) share mutable state:
+  //   extracted_quotes, extractedNamesNorm, allPdfDocs, pdfPageImages, hintTotalCents
+  //
+  // The R-A-15 fix (2026-06) depends on claimQuoteTotalHintCents flowing correctly into
+  // the OCR-failure path, and the R-A-16 fix (2026-06) depends on deduplication running
+  // AFTER all five paths have contributed to extracted_quotes. Splitting this block into
+  // sub-functions would require passing 6+ variables as parameters and risks reintroducing
+  // the bugs those fixes resolved.
+  //
+  // If a future change requires touching this block, treat it as a single unit and
+  // re-verify against the R-A-15/R-A-16 test coverage before committing.
+  //
+  // ────────────────────────────────────────────────────────────────────────────────────
 
   // STEP 2b — LLM-based structured quote extraction
   // Runs when the regex fallback found a quote OR when there is sufficient text to attempt extraction.
@@ -1084,108 +1221,20 @@ async function runInputRecovery(
     if (!hasQuote && !recovered_quote) flags.push('quote_not_mapped');
   }
 
-  // ── FINAL DEDUPLICATION: collapse same-repairer quotes ─────────────────────
-  // A single repairer quotation may be extracted multiple times when:
-  //   (a) The document has both a printed total and a handwritten revised amount
-  //       (e.g. original $2,130 crossed out, agreed $1,950 written beside it)
-  //   (b) Text-based extraction and vision extraction both find the same repairer
-  //   (c) The sparse-text vision guard runs on a document already extracted by OCR
-  //
-  // R-A-16 FIX: The prior strategy of always keeping the LOWEST total was wrong.
-  // It conflated two distinct cases:
-  //   - Negotiated downward revision: insurer agrees a lower amount → keep LOWER
-  //   - Supplementary / revised upward quote: repairer finds hidden damage → keep HIGHER
-  //
-  // New strategy (priority order):
-  //   1. If one entry is document_category='assessor_report', it is authoritative (agreed amount)
-  //   2. Otherwise, prefer text-extracted over vision-extracted (text is more reliable for totals)
-  //   3. If same source, keep the entry with MORE line items (richer / more complete extraction)
+  // ── FINAL DEDUPLICATION: collapse same-repairer quotes (via deduplicateExtractedQuotes) ──
   if (extracted_quotes && extracted_quotes.length > 1) {
-    const dedupMap = new Map<string, typeof extracted_quotes[0]>();
-    for (const q of extracted_quotes) {
-      const normName = (q.panel_beater ?? 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
-      const existing = dedupMap.get(normName);
-      if (!existing) {
-        dedupMap.set(normName, q);
-      } else {
-        const existingTotal = existing.total_cost ?? Infinity;
-        const newTotal = q.total_cost ?? Infinity;
-        if (newTotal === existingTotal) {
-          // Same total — keep the one with more line items (richer data)
-          const existingItems = existing.line_items?.length ?? 0;
-          const newItems = q.line_items?.length ?? 0;
-          if (newItems > existingItems) {
-            console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — same total, keeping entry with ${newItems} line items over ${existingItems}`);
-            dedupMap.set(normName, q);
-          }
-        } else {
-          // Totals differ — use document_category as primary signal
-          const existingIsAssessor = existing.document_category === 'assessor_report';
-          const newIsAssessor = q.document_category === 'assessor_report';
-          if (existingIsAssessor && !newIsAssessor) {
-            // Existing is assessor_report (authoritative agreed amount) — keep it
-            console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — keeping assessor_report total ${existingTotal} over repair_quote ${newTotal}`);
-          } else if (!existingIsAssessor && newIsAssessor) {
-            // New entry is assessor_report (authoritative agreed amount) — prefer it
-            console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — replacing with assessor_report total ${newTotal} (was repair_quote ${existingTotal})`);
-            dedupMap.set(normName, q);
-          } else {
-            // Same document_category — prefer text-extracted over vision-extracted
-            const existingIsVision = (existing as any).extraction_source === 'vision';
-            const newIsVision = (q as any).extraction_source === 'vision';
-            if (existingIsVision && !newIsVision) {
-              console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — replacing vision total ${existingTotal} with text total ${newTotal}`);
-              dedupMap.set(normName, q);
-            } else if (!existingIsVision && newIsVision) {
-              console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — keeping text total ${existingTotal} over vision total ${newTotal}`);
-            } else {
-              // Both same source — keep the entry with more line items (more complete extraction)
-              const existingItems = existing.line_items?.length ?? 0;
-              const newItems = q.line_items?.length ?? 0;
-              if (newItems > existingItems) {
-                console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — same source, keeping richer entry (${newItems} items, total ${newTotal}) over (${existingItems} items, total ${existingTotal})`);
-                dedupMap.set(normName, q);
-              } else {
-                console.log(`[Stage3] R-A-16 Dedup: "${q.panel_beater}" — same source, keeping existing entry (${existingItems} items, total ${existingTotal})`);
-              }
-            }
-          }
-        }
-      }
-    }
-    const before = extracted_quotes.length;
-    extracted_quotes = Array.from(dedupMap.values());
-    if (extracted_quotes.length < before) {
-      console.log(`[Stage3] Dedup: collapsed ${before} → ${extracted_quotes.length} quote(s) after same-repairer deduplication`);
-    }
+    extracted_quotes = deduplicateExtractedQuotes(extracted_quotes);
   }
 
-  // STEP 3 — Image presence detection
-  // IMPORTANT: We deliberately do NOT use text-keyword matching ("photo", "image",
-  // "photograph", etc.) to infer image presence. Claim forms routinely contain
-  // instructions like "Attach photographs of damage" or "Please provide photos"
-  // which would trigger false positives, incorrectly marking the claim as having
-  // photos that failed to ingest (SYSTEM_FAILURE) when no photos were submitted.
-  // We only trust structural signals from the PDF parser itself.
-  const images_present =
-    stage1.documents.some(d => d.containsImages || d.imageUrls.length > 0) ||
-    perDocumentExtractions.some(e => e.uploadedImageUrls.length > 0);
-
-  if (!images_present) {
-    // images truly absent — no flag needed, absence is valid
-  } else if (stage1.documents.every(d => d.imageUrls.length === 0)) {
-    // images present in document but not extracted into imageUrls pipeline
-    flags.push("images_not_processed");
-  }
+  // STEP 3 — Image presence detection (via detectImagePresence)
+  const { imagesPresent: images_present, imagesNotProcessed } = detectImagePresence(stage1, perDocumentExtractions);
+  if (imagesNotProcessed) flags.push('images_not_processed');
 
   // STEP 4 — Damage hint extraction
   const damage_hints = extractDamageHints(allText);
 
-  // STEP 5 — OCR failure detection
-  const totalTextLength = allText.replace(/\s/g, "").length;
-  if (totalTextLength < 100 && stage1.documents.length > 0) {
-    flags.push("ocr_failure");
-  }
+  // STEP 5 — OCR failure detection (via detectOcrFailure)
+  if (detectOcrFailure(allText, stage1.documents.length)) flags.push('ocr_failure');
 
   return {
     accident_description,
