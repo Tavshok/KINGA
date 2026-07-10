@@ -142,6 +142,9 @@ export interface SpeedInferenceResult {
 // Based on NHTSA crash test data and Campbell (1974) stiffness coefficients.
 // Values represent the structural stiffness of the primary impact zone.
 // Source: NHTSA Technical Report DOT HS 811 144 (2009), Table 3.
+// NOTE: These are published-data values grounded in NHTSA crash tests.
+// They are NOT engineering-judgment estimates and should not be tagged CALIBRATION.
+// To update, cite the new source explicitly.
 
 const STIFFNESS_KNM: Record<string, number> = {
   compact:  800,
@@ -165,6 +168,7 @@ function getStiffnessKnm(bodyType: string | null | undefined): number {
 // Accounts for the fraction of kinetic energy absorbed by the primary structure.
 // Rear impacts have less crumple zone; side impacts have less protection.
 // Source: SAE 2002-01-0547 (Varat & Husher, 2002) — directional energy absorption.
+// NOTE: Published-data values from SAE 2002-01-0547. Not engineering-judgment estimates.
 
 const ACCIDENT_TYPE_MULTIPLIER: Record<string, number> = {
   frontal:          1.00,
@@ -348,8 +352,18 @@ function runDeploymentThreshold(
 
   // FMVSS 208: frontal airbags deploy at 20–30 km/h equivalent barrier speed.
   // Side airbags: 15–25 km/h. Use conservative lower bound.
-  const lowerBoundKmh = airbagDeployment ? 20 : 15;
-  const typicalKmh = airbagDeployment ? 28 : 18;
+  // Source: FMVSS 208, Euro NCAP frontal test protocols (published standards).
+  /** Frontal airbag FMVSS 208 lower bound (km/h) — published standard */
+  const AIRBAG_LOWER_BOUND_KMH      = 20;
+  /** Seatbelt pretensioner lower bound (km/h) — published standard */
+  const PRETENSIONER_LOWER_BOUND_KMH = 15;
+  /** Frontal airbag typical deployment speed (km/h) — published standard */
+  const AIRBAG_TYPICAL_KMH          = 28;
+  /** Seatbelt pretensioner typical speed (km/h) — published standard */
+  const PRETENSIONER_TYPICAL_KMH    = 18;
+
+  const lowerBoundKmh = airbagDeployment ? AIRBAG_LOWER_BOUND_KMH : PRETENSIONER_LOWER_BOUND_KMH;
+  const typicalKmh    = airbagDeployment ? AIRBAG_TYPICAL_KMH     : PRETENSIONER_TYPICAL_KMH;
 
   // Check if this is a non-barrier event where FMVSS 208 may not apply directly
   const dir = (collisionDirection ?? '').toLowerCase();
@@ -363,7 +377,10 @@ function runDeploymentThreshold(
     label: 'Deployment threshold (FMVSS 208 / Euro NCAP)',
     speedKmh: typicalKmh,
     isLowerBoundOnly: true,
-    confidenceWeight: 0.70, // High confidence as a floor for barrier events
+    // CALIBRATION: 0.70 confidence weight for deployment threshold as a floor.
+  // This is engineering judgment, not derived from a published standard.
+  // Do not change without benchmarking.
+  confidenceWeight: 0.70, // High confidence as a floor for barrier events
     confidence: 'HIGH',
     basis: airbagDeployment
       ? `Airbag deployment confirmed — FMVSS 208 threshold: ≥ ${lowerBoundKmh} km/h (frontal barrier equivalent). Typical deployment: 25–35 km/h.${caveat}`
@@ -438,26 +455,50 @@ function runVisionDeformation(
   }
 
   // ── Cross-validation: do both paths agree within 20%? ─────────────────────
+  // CALIBRATION: 20% agreement threshold, 60/40 path weighting, and confidence
+  // weight range (0.30–0.90) are engineering-judgment values.
+  // Do not change without benchmarking against a labelled claim sample.
+
+  /** M5 Path A/B agreement threshold: paths agree if spread/avg ≤ this value */
+  const M5_PATH_AGREEMENT_THRESHOLD = 0.20;
+  /** M5 Path A weight in the A+B consensus (Path B gets 1 − this) */
+  const M5_PATH_A_WEIGHT = 0.60;
+  /** M5 minimum confidence weight when visionConfidenceScore is 0 */
+  const M5_WEIGHT_MIN    = 0.30;
+  /** M5 maximum confidence weight when visionConfidenceScore is 100 */
+  const M5_WEIGHT_MAX    = 0.90;
+  /** M5 weight range (MAX − MIN) for linear interpolation */
+  const M5_WEIGHT_RANGE  = M5_WEIGHT_MAX - M5_WEIGHT_MIN;
+  /** M5 default weight when visionConfidenceScore is unavailable */
+  const M5_WEIGHT_DEFAULT = 0.70;
+  /** M5 confidence upgrade when both paths agree */
+  const M5_WEIGHT_UPGRADE = 0.10;
+  /** M5 confidence threshold for HIGH label */
+  const M5_HIGH_THRESHOLD  = 0.75;
+  /** M5 confidence threshold for MEDIUM label */
+  const M5_MEDIUM_THRESHOLD = 0.55;
+
   let consensusSpeedKmh: number;
   let crossValidation: { agreement: boolean; spreadKmh: number; confidenceUpgraded: boolean } | null = null;
   if (pathA && pathB) {
     const spread = Math.abs(pathA.speedKmh - pathB.speedKmh);
     const avg = (pathA.speedKmh + pathB.speedKmh) / 2;
-    const agreement = spread / Math.max(1, avg) <= 0.20;
+    const agreement = spread / Math.max(1, avg) <= M5_PATH_AGREEMENT_THRESHOLD;
     crossValidation = { agreement, spreadKmh: spread, confidenceUpgraded: agreement };
-    // Weighted average: Path A gets 60%, Path B gets 40%
-    consensusSpeedKmh = Math.round(pathA.speedKmh * 0.6 + pathB.speedKmh * 0.4);
+    // Weighted average: Path A gets M5_PATH_A_WEIGHT, Path B gets the remainder
+    consensusSpeedKmh = Math.round(pathA.speedKmh * M5_PATH_A_WEIGHT + pathB.speedKmh * (1 - M5_PATH_A_WEIGHT));
   } else {
     consensusSpeedKmh = pathA?.speedKmh ?? pathB!.speedKmh;
   }
 
   // ── Dynamic confidence weight from visionConfidenceScore ─────────────────
-  // Score 0–100 maps to weight 0.30–0.90. Paths agreeing upgrades by +0.10.
+  // Score 0–100 maps linearly from M5_WEIGHT_MIN to M5_WEIGHT_MAX.
+  // Paths agreeing upgrades weight by M5_WEIGHT_UPGRADE.
   const baseWeight = visionConfidenceScore != null
-    ? 0.30 + (Math.min(100, Math.max(0, visionConfidenceScore)) / 100) * 0.60
-    : 0.70;
-  const finalWeight = crossValidation?.confidenceUpgraded ? Math.min(0.90, baseWeight + 0.10) : baseWeight;
-  const confidence = finalWeight >= 0.75 ? 'HIGH' : finalWeight >= 0.55 ? 'MEDIUM' : 'LOW';
+    ? M5_WEIGHT_MIN + (Math.min(100, Math.max(0, visionConfidenceScore)) / 100) * M5_WEIGHT_RANGE
+    : M5_WEIGHT_DEFAULT;
+  const finalWeight = crossValidation?.confidenceUpgraded ? Math.min(M5_WEIGHT_MAX, baseWeight + M5_WEIGHT_UPGRADE) : baseWeight;
+  const confidence = finalWeight >= M5_HIGH_THRESHOLD ? 'HIGH' : finalWeight >= M5_MEDIUM_THRESHOLD ? 'MEDIUM' : 'LOW';
 
   const basisParts: string[] = [];
   if (pathA) basisParts.push(`Path A (Campbell from vision): C=${(pathA.crushDepthM * 100).toFixed(1)} cm → ${pathA.speedKmh} km/h`);
@@ -598,9 +639,18 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
   const initial = weightedConsensus(pointEstimates.map(m => ({ speedKmh: m.speedKmh, weight: m.confidenceWeight })));
 
   // Outlier rejection: down-weight methods > 2σ from initial mean
+  // CALIBRATION: 2σ outlier threshold and 0.5 down-weight factor are engineering-judgment values.
+  // Do not change without benchmarking.
+  /** Outlier rejection sigma multiplier: methods beyond this many stdDevs are down-weighted */
+  const OUTLIER_SIGMA_THRESHOLD = 2;
+  /** Factor by which outlier method weights are reduced */
+  const OUTLIER_WEIGHT_FACTOR   = 0.5;
+
   const adjustedEstimates = pointEstimates.map(m => {
     const deviation = Math.abs(m.speedKmh - initial.mean);
-    const weight = deviation > 2 * initial.stdDev ? m.confidenceWeight * 0.5 : m.confidenceWeight;
+    const weight = deviation > OUTLIER_SIGMA_THRESHOLD * initial.stdDev
+      ? m.confidenceWeight * OUTLIER_WEIGHT_FACTOR
+      : m.confidenceWeight;
     return { speedKmh: m.speedKmh, weight };
   });
 
@@ -613,7 +663,10 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
   }
 
   // 90% confidence interval (z = 1.645 for 90% CI)
-  const ciHalfWidth = consensus.stdDev * 1.645;
+  // Source: standard normal distribution z-score for 90% CI (published statistics).
+  /** Z-score for 90% confidence interval (standard normal distribution) */
+  const Z_90_CI = 1.645;
+  const ciHalfWidth = consensus.stdDev * Z_90_CI;
   const confidenceInterval: [number, number] = [
     Math.max(0, Math.round(consensusSpeedKmh - ciHalfWidth)),
     Math.round(consensusSpeedKmh + ciHalfWidth),
@@ -629,7 +682,11 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
       const b = pointEstimates[j].speedKmh;
       const maxVal = Math.max(a, b);
       const gap = Math.abs(a - b);
-      if (maxVal > 0 && gap / maxVal > 0.40) {
+      // CALIBRATION: 40% divergence threshold is engineering-judgment.
+      // Do not change without benchmarking.
+      /** Divergence threshold: methods diverging by more than this fraction trigger HIGH_DIVERGENCE */
+      const HIGH_DIVERGENCE_THRESHOLD = 0.40;
+      if (maxVal > 0 && gap / maxVal > HIGH_DIVERGENCE_THRESHOLD) {
         highDivergence = true;
       }
       if (gap > maxGapKmh) {
@@ -702,9 +759,13 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
   const crossValidation: SpeedInferenceResult['crossValidation'] = pointEstimates.length >= 2 ? {
     spread,
     outlierMethods,
+    // CALIBRATION: spread <= 10 km/h for 'agree closely' is engineering-judgment.
+    // Do not change without benchmarking.
+    /** Spread threshold (km/h) below which methods are considered to agree closely */
+    const SPREAD_CLOSE_THRESHOLD = 10;
     recommendation: highDivergence
       ? 'Methods diverge significantly — do not use consensus as sole basis for settlement.'
-      : spread <= 10
+      : spread <= SPREAD_CLOSE_THRESHOLD
       ? 'Methods agree closely — consensus estimate is reliable.'
       : 'Methods show moderate spread — treat consensus as indicative, verify with physical inspection.',
   } : undefined;
