@@ -56,12 +56,22 @@ const DPI_SCANNED = 200; // Reduced from 250 to 200 — still readable, but uses
 const MIN_DIM_PAGE_RENDER = 300;
 const MIN_DIM_EMBEDDED = 400;
 const MIN_PIXEL_AREA = 90_000;
+// CALIBRATION: origin unknown, do not change without benchmarking.
+// Laplacian variance below this value indicates a blurry image. Value of 20 was
+// chosen empirically on a sample of SA motor claim photos. A lower value would
+// accept more blurry images into the pipeline; a higher value would reject
+// borderline-sharp photos that may still be usable for forensics.
 const BLUR_VARIANCE_THRESHOLD = 20;
 // Raised from 0.82 to 0.92: pages with photos on white backgrounds were being
 // incorrectly flagged as text-heavy, causing them to be classified as document_page
 // and excluded from photo forensics. Only truly text-dominated pages (>92% white)
 // should be marked as text-heavy.
 const TEXT_PAGE_WHITE_RATIO = 0.92;
+// CALIBRATION: origin unknown, do not change without benchmarking.
+// Colour standard deviation below this value indicates a near-uniform (blank or
+// near-blank) image. Value of 8 was chosen empirically. A lower value would
+// allow more uniform images through; a higher value would reject more images
+// that have subtle colour variation but no useful photographic content.
 const UNIFORM_STDDEV_THRESHOLD = 8;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
