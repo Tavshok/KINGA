@@ -68,6 +68,98 @@ export const PARTIAL_STRATEGIES = new Set<RecoveryStrategy>([
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Scorer signal weights
+// CALIBRATION: These weights were set by engineering judgment during initial build.
+// No A/B test or historical claim dataset was used to derive them.
+// Do not change without benchmarking against a labelled claim sample.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Damage scorer: bonus for at least one image being present */
+export const DAMAGE_W_IMAGE_PRESENT    = 0.40;
+/** Damage scorer: additional bonus when ≥3 images are present */
+export const DAMAGE_W_IMAGE_MULTI      = 0.20;
+/** Damage scorer: bonus for a non-empty damage description */
+export const DAMAGE_W_DESCRIPTION      = 0.20;
+/** Damage scorer: bonus for a non-empty damaged-components list */
+export const DAMAGE_W_COMPONENTS       = 0.15;
+/** Damage scorer: bonus for ≥2 distinct damage zones */
+export const DAMAGE_W_MULTI_ZONE       = 0.10;
+
+/** Physics scorer: bonus when the physics engine actually ran */
+export const PHYSICS_W_EXECUTED        = 0.30;
+/** Physics scorer: bonus when estimated speed is available */
+export const PHYSICS_W_SPEED           = 0.20;
+/** Physics scorer: bonus when crush depth is available */
+export const PHYSICS_W_CRUSH           = 0.15;
+/** Physics scorer: bonus when damage area is available */
+export const PHYSICS_W_AREA            = 0.15;
+/** Physics scorer: bonus when airbag deployment data is present */
+export const PHYSICS_W_AIRBAG          = 0.10;
+/** Physics scorer: bonus when a police report number is present */
+export const PHYSICS_W_POLICE          = 0.10;
+
+/** Fraud scorer: bonus when a quote total is present */
+export const FRAUD_W_QUOTE_TOTAL       = 0.30;
+/** Fraud scorer: bonus when the quote has itemised line items */
+export const FRAUD_W_LINE_ITEMS        = 0.20;
+/** Fraud scorer: bonus when both repairer name and company are present */
+export const FRAUD_W_REPAIRER          = 0.20;
+/** Fraud scorer: bonus when an assessor name is present */
+export const FRAUD_W_ASSESSOR          = 0.15;
+/** Fraud scorer: bonus when vehicle claim history check ran */
+export const FRAUD_W_VEHICLE_HISTORY   = 0.10;
+/** Fraud scorer: bonus when claimant claim frequency check ran */
+export const FRAUD_W_CLAIMANT_HISTORY  = 0.10;
+
+/** Cost scorer: bonus when a quote total is present */
+export const COST_W_QUOTE_TOTAL        = 0.30;
+/** Cost scorer: bonus when labour cost is broken out */
+export const COST_W_LABOUR             = 0.20;
+/** Cost scorer: bonus when parts cost is broken out */
+export const COST_W_PARTS              = 0.20;
+/** Cost scorer: bonus when ≥3 repair intelligence items are present */
+export const COST_W_REPAIR_INTEL       = 0.15;
+/** Minimum repair intelligence items for the COST_W_REPAIR_INTEL bonus */
+export const COST_MIN_REPAIR_INTEL     = 3;
+/** Cost scorer: bonus when parts reconciliation is present */
+export const COST_W_RECONCILIATION     = 0.10;
+/** Cost scorer: bonus when quote deviation percentage was computed */
+export const COST_W_DEVIATION          = 0.05;
+
+/** Reconstruction scorer: bonus when physics engine ran */
+export const RECON_W_EXECUTED          = 0.30;
+/** Reconstruction scorer: bonus when speed is available */
+export const RECON_W_SPEED             = 0.20;
+/** Reconstruction scorer: bonus when crush depth is available */
+export const RECON_W_CRUSH             = 0.20;
+/** Reconstruction scorer: bonus for ≥2 damage zones */
+export const RECON_W_MULTI_ZONE        = 0.15;
+/** Minimum damage zones for the RECON_W_MULTI_ZONE bonus */
+export const RECON_MIN_ZONES           = 2;
+/** Reconstruction scorer: bonus when police report is present */
+export const RECON_W_POLICE            = 0.10;
+/** Reconstruction scorer: bonus when airbag deployment data is present */
+export const RECON_W_AIRBAG            = 0.05;
+
+/** Assumption penalty per estimation/fallback assumption (capped at 3× = 0.36) */
+export const PENALTY_PER_ESTIMATION    = 0.12;
+/** Maximum total penalty from estimation assumptions */
+export const PENALTY_MAX_ESTIMATION    = 0.36;
+/** Assumption penalty per partial-data assumption (capped at 3× = 0.18) */
+export const PENALTY_PER_PARTIAL       = 0.06;
+/** Maximum total penalty from partial-data assumptions */
+export const PENALTY_MAX_PARTIAL       = 0.18;
+/** Assumption penalty per other assumption (capped at 3× = 0.09) */
+export const PENALTY_PER_OTHER         = 0.03;
+/** Maximum total penalty from other assumptions */
+export const PENALTY_MAX_OTHER         = 0.09;
+
+/** Minimum description length (chars) to qualify for the description bonus */
+export const MIN_DESCRIPTION_LENGTH    = 10;
+/** Minimum image count for the multi-image bonus */
+export const MIN_IMAGE_COUNT_MULTI     = 3;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Core types
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -144,9 +236,9 @@ function assumptionPenalty(assumptions: Assumption[]): number {
   const { estimationCount, partialCount, totalCount } = classifyAssumptions(assumptions);
   const otherCount = totalCount - estimationCount - partialCount;
   const penalty =
-    Math.min(estimationCount * 0.12, 0.36) +
-    Math.min(partialCount * 0.06, 0.18) +
-    Math.min(otherCount * 0.03, 0.09);
+    Math.min(estimationCount * PENALTY_PER_ESTIMATION, PENALTY_MAX_ESTIMATION) +
+    Math.min(partialCount   * PENALTY_PER_PARTIAL,     PENALTY_MAX_PARTIAL)    +
+    Math.min(otherCount     * PENALTY_PER_OTHER,       PENALTY_MAX_OTHER);
   return penalty;
 }
 
@@ -192,20 +284,20 @@ export function scoreDamage(
   const zones = damageAnalysis.damageZones ?? [];
   const assumptions = claimRecord.assumptions ?? [];
 
-  let score = 0.10; // base
+  let score = SCORE_FLOOR; // base
 
   // Direct visual evidence
-  if (images.length >= 1) score += 0.40;
-  if (images.length >= 3) score += 0.20;
+  if (images.length >= 1)                          score += DAMAGE_W_IMAGE_PRESENT;
+  if (images.length >= MIN_IMAGE_COUNT_MULTI)      score += DAMAGE_W_IMAGE_MULTI;
 
   // Textual description
-  if (description && description.trim().length > 10) score += 0.20;
+  if (description && description.trim().length > MIN_DESCRIPTION_LENGTH) score += DAMAGE_W_DESCRIPTION;
 
   // Component list
-  if (components.length >= 1) score += 0.15;
+  if (components.length >= 1)                      score += DAMAGE_W_COMPONENTS;
 
   // Multiple zones (independent corroboration)
-  if (zones.length >= 2) score += 0.10;
+  if (zones.length >= 2)                           score += DAMAGE_W_MULTI_ZONE;
 
   // Assumption penalty
   score -= assumptionPenalty(assumptions);
@@ -236,14 +328,14 @@ export function scorePhysics(
   const pr = claimRecord.policeReport;
   const assumptions = claimRecord.assumptions ?? [];
 
-  let score = 0.10; // base
+  let score = SCORE_FLOOR; // base
 
-  if (physicsAnalysis.physicsExecuted) score += 0.30;
-  if (ad.estimatedSpeedKmh !== null) score += 0.20;
-  if (ad.maxCrushDepthM !== null) score += 0.15;
-  if (ad.totalDamageAreaM2 !== null) score += 0.15;
-  if (ad.airbagDeployment) score += 0.10; // binary but meaningful
-  if (pr.reportNumber !== null && pr.reportNumber.trim().length > 0) score += 0.10;
+  if (physicsAnalysis.physicsExecuted)                                   score += PHYSICS_W_EXECUTED;
+  if (ad.estimatedSpeedKmh !== null)                                     score += PHYSICS_W_SPEED;
+  if (ad.maxCrushDepthM !== null)                                        score += PHYSICS_W_CRUSH;
+  if (ad.totalDamageAreaM2 !== null)                                     score += PHYSICS_W_AREA;
+  if (ad.airbagDeployment)                                               score += PHYSICS_W_AIRBAG;
+  if (pr.reportNumber !== null && pr.reportNumber.trim().length > 0)    score += PHYSICS_W_POLICE;
 
   score -= assumptionPenalty(assumptions);
 
@@ -273,14 +365,14 @@ export function scoreFraud(
   const q = claimRecord.repairQuote;
   const assumptions = claimRecord.assumptions ?? [];
 
-  let score = 0.10; // base
+  let score = SCORE_FLOOR; // base
 
-  if (q.quoteTotalCents !== null) score += 0.30;
-  if ((q.lineItems ?? []).length >= 1) score += 0.20;
-  if (q.repairerName !== null && q.repairerCompany !== null) score += 0.20;
-  if (q.assessorName !== null) score += 0.15;
-  if (fraudAnalysis.vehicleClaimHistory?.notes?.trim().length > 0) score += 0.10;
-  if (fraudAnalysis.claimantClaimFrequency?.notes?.trim().length > 0) score += 0.10;
+  if (q.quoteTotalCents !== null)                                                    score += FRAUD_W_QUOTE_TOTAL;
+  if ((q.lineItems ?? []).length >= 1)                                               score += FRAUD_W_LINE_ITEMS;
+  if (q.repairerName !== null && q.repairerCompany !== null)                         score += FRAUD_W_REPAIRER;
+  if (q.assessorName !== null)                                                       score += FRAUD_W_ASSESSOR;
+  if (fraudAnalysis.vehicleClaimHistory?.notes?.trim().length > 0)                  score += FRAUD_W_VEHICLE_HISTORY;
+  if (fraudAnalysis.claimantClaimFrequency?.notes?.trim().length > 0)               score += FRAUD_W_CLAIMANT_HISTORY;
 
   score -= assumptionPenalty(assumptions);
 
@@ -312,14 +404,14 @@ export function scoreCost(
   const ri = costAnalysis.repairIntelligence ?? [];
   const pr = costAnalysis.partsReconciliation ?? [];
 
-  let score = 0.10; // base
+  let score = SCORE_FLOOR; // base
 
-  if (q.quoteTotalCents !== null) score += 0.30;
-  if (q.labourCostCents !== null) score += 0.20;
-  if (q.partsCostCents !== null) score += 0.20;
-  if (ri.length >= 3) score += 0.15;
-  if (pr.length >= 1) score += 0.10;
-  if (costAnalysis.quoteDeviationPct !== null) score += 0.05;
+  if (q.quoteTotalCents !== null)                  score += COST_W_QUOTE_TOTAL;
+  if (q.labourCostCents !== null)                  score += COST_W_LABOUR;
+  if (q.partsCostCents !== null)                   score += COST_W_PARTS;
+  if (ri.length >= COST_MIN_REPAIR_INTEL)          score += COST_W_REPAIR_INTEL;
+  if (pr.length >= 1)                              score += COST_W_RECONCILIATION;
+  if (costAnalysis.quoteDeviationPct !== null)     score += COST_W_DEVIATION;
 
   score -= assumptionPenalty(assumptions);
 
@@ -353,14 +445,14 @@ export function scoreReconstruction(
   const assumptions = claimRecord.assumptions ?? [];
   const zones = (claimRecord.damage?.components ?? []).length;
 
-  let score = 0.10;
+  let score = SCORE_FLOOR;
 
-  if (physicsAnalysis.physicsExecuted) score += 0.30;
-  if (ad.estimatedSpeedKmh !== null) score += 0.20;
-  if (ad.maxCrushDepthM !== null) score += 0.20;
-  if (zones >= 2) score += 0.15;
-  if (pr.reportNumber !== null && pr.reportNumber.trim().length > 0) score += 0.10;
-  if (ad.airbagDeployment) score += 0.05;
+  if (physicsAnalysis.physicsExecuted)                                   score += RECON_W_EXECUTED;
+  if (ad.estimatedSpeedKmh !== null)                                     score += RECON_W_SPEED;
+  if (ad.maxCrushDepthM !== null)                                        score += RECON_W_CRUSH;
+  if (zones >= RECON_MIN_ZONES)                                          score += RECON_W_MULTI_ZONE;
+  if (pr.reportNumber !== null && pr.reportNumber.trim().length > 0)    score += RECON_W_POLICE;
+  if (ad.airbagDeployment)                                               score += RECON_W_AIRBAG;
 
   score -= assumptionPenalty(assumptions);
 
@@ -375,7 +467,12 @@ export function scoreReconstruction(
 // Composite scorer
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Engine weights for composite score (must sum to 1.0) */
+/**
+ * Engine weights for composite score (must sum to 1.0).
+ * CALIBRATION: origin unknown — set by engineering judgment during initial build.
+ * No historical claim dataset was used to derive these weights.
+ * Do not change without benchmarking against a labelled claim sample.
+ */
 export const ENGINE_WEIGHTS = {
   damage: 0.25,
   physics: 0.25,
