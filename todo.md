@@ -601,3 +601,14 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Trigger the live pipeline on the real claim via the API with actual LLM calls
 - [ ] Collect and verify: consistencyScore, criticalFailures, report rendering, PipelineConfidencePanel visibility
 - [ ] Deliver the full live run report to the user
+
+---
+## Batch 10b — Live End-to-End Pipeline Run (VOLTRON-MINECOR-6002812)
+
+- [x] Run live pipeline on real Zimbabwe motor claim (Voltron Mining, Isuzu MUX, Mvuma-Kwekwe Road)
+- [x] Fix Stage 5 INCIDENT_CONF_LOW_THRESHOLD scoping error (const declared inside wrong if-block scope)
+- [x] Confirm criticalFailures = 0 on live run
+- [x] Confirm all 11 stages complete successfully on clean re-run
+- [x] Confirm image analysis 20/20 success (100% success rate)
+- [ ] Investigate quoteDeviationPct = 234.7% — appears to be a unit mismatch (cents vs USD) in the deviation calculation
+- [ ] Investigate consistency_check_json using different field names (critical_conflicts) vs the consistencyScore metric referenced in todo
