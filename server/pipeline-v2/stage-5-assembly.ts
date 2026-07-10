@@ -253,6 +253,10 @@ export async function runAssemblyStage(
         ? incidentClassification.incident_type
         : null;
 
+    // CALIBRATION: 60% confidence threshold for low-confidence incident classification
+    // is engineering-judgment. Do not change without benchmarking.
+    /** Minimum confidence below which incident classification is flagged as low-confidence */
+    const INCIDENT_CONF_LOW_THRESHOLD = 60;
     if (incidentClassification.incident_type === "unknown") {
       // Final fallback — only if the engine found no evidence at all
       incidentType = "collision";
@@ -267,10 +271,6 @@ export async function runAssemblyStage(
         confidence: 30,
         stage: "Stage 5",
       });
-    // CALIBRATION: 60% confidence threshold for low-confidence incident classification
-    // is engineering-judgment. Do not change without benchmarking.
-    /** Minimum confidence below which incident classification is flagged as low-confidence */
-    const INCIDENT_CONF_LOW_THRESHOLD = 60;
     } else if (incidentClassification.confidence < INCIDENT_CONF_LOW_THRESHOLD) {
       assumptions.push({
         field: "accidentDetails.incidentType",

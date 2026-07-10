@@ -593,3 +593,11 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Fix 2: Add db.ts guard warning when quotesToPersist is empty despite non-zero documentedOriginalQuoteUsd
 - [x] Fix 3: Update 10 stale imageClassifier.test.ts fixtures/assertions to match current classifier design (blur scale + fallbackPool routing)
 - [ ] Backfill 2 historical quote_line_items records (claims 7260001, 6570001) — low priority, data hygiene
+
+---
+## Batch 10b — Live End-to-End Pipeline Run (2026-07-10)
+
+- [ ] Upload VOLTRONMINECOR6002812(1).pdf to S3 and create a real claim record in the database
+- [ ] Trigger the live pipeline on the real claim via the API with actual LLM calls
+- [ ] Collect and verify: consistencyScore, criticalFailures, report rendering, PipelineConfidencePanel visibility
+- [ ] Deliver the full live run report to the user
