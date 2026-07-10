@@ -756,13 +756,13 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
   const outlierMethods = pointEstimates
     .filter(m => Math.abs(m.speedKmh - consensus.mean) > 2 * consensus.stdDev)
     .map(m => m.method);
+  // CALIBRATION: spread <= 10 km/h for 'agree closely' is engineering-judgment.
+  // Do not change without benchmarking.
+  /** Spread threshold (km/h) below which methods are considered to agree closely */
+  const SPREAD_CLOSE_THRESHOLD = 10;
   const crossValidation: SpeedInferenceResult['crossValidation'] = pointEstimates.length >= 2 ? {
     spread,
     outlierMethods,
-    // CALIBRATION: spread <= 10 km/h for 'agree closely' is engineering-judgment.
-    // Do not change without benchmarking.
-    /** Spread threshold (km/h) below which methods are considered to agree closely */
-    const SPREAD_CLOSE_THRESHOLD = 10;
     recommendation: highDivergence
       ? 'Methods diverge significantly — do not use consensus as sole basis for settlement.'
       : spread <= SPREAD_CLOSE_THRESHOLD
