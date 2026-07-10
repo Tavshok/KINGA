@@ -264,14 +264,22 @@ function analyseDamageConsistency(
     const physSeverity = physicsAnalysis.accidentSeverity;
     const dmgSeverity = damageAnalysis.overallSeverityScore;
 
-    if (dmgSeverity > 70 && (physSeverity === "minor" || physSeverity === "cosmetic")) {
+    // CALIBRATION: 70-point damage severity threshold for physics mismatch and
+    // the 30-point indicator score and 25-point consistency penalty are engineering-judgment.
+    /** Damage severity score above which a physics mismatch is flagged */
+    const DMG_PHYSICS_MISMATCH_THRESHOLD = 70;
+    /** Fraud indicator score for severity/physics mismatch */
+    const DMG_PHYSICS_MISMATCH_SCORE     = 30;
+    /** Consistency score penalty for severity/physics mismatch */
+    const DMG_PHYSICS_MISMATCH_PENALTY   = 25;
+    if (dmgSeverity > DMG_PHYSICS_MISMATCH_THRESHOLD && (physSeverity === "minor" || physSeverity === "cosmetic")) {
       indicators.push({
         indicator: "severity_physics_mismatch",
         category: "consistency",
-        score: 30,
+        score: DMG_PHYSICS_MISMATCH_SCORE,
         description: `High damage severity (${dmgSeverity}/100) but physics indicates ${physSeverity} impact.`,
       });
-      consistencyScore = Math.max(0, consistencyScore - 25);
+      consistencyScore = Math.max(0, consistencyScore - DMG_PHYSICS_MISMATCH_PENALTY);
       notes.push("Damage severity exceeds what physics analysis supports.");
     }
   }
@@ -386,11 +394,17 @@ function analyseDocumentation(
     }
   }
 
-  if (claimRecord.dataQuality.completenessScore < 50) {
+  // CALIBRATION: 50% completeness threshold and 10-point score for low data completeness
+  // are engineering-judgment.
+  /** Completeness score below which a low-data-completeness indicator is raised */
+  const LOW_COMPLETENESS_THRESHOLD = 50;
+  /** Fraud indicator score for low data completeness */
+  const LOW_COMPLETENESS_SCORE     = 10;
+  if (claimRecord.dataQuality.completenessScore < LOW_COMPLETENESS_THRESHOLD) {
     indicators.push({
       indicator: "low_data_completeness",
       category: "documentation",
-      score: 10,
+      score: LOW_COMPLETENESS_SCORE,
       description: `Data completeness score is low (${claimRecord.dataQuality.completenessScore}%).`,
     });
   }
@@ -466,9 +480,17 @@ function buildScenarioFraudInput(
   // (a more precise value would come from a dedicated timeline analysis stage)
   const completeness = claimRecord.dataQuality.completenessScore;
   let timelineConsistency: TimelineConsistency = "unknown";
-  if (completeness >= 70) timelineConsistency = "consistent";
-  else if (completeness >= 50) timelineConsistency = "minor_gap";
-  else if (completeness >= 30) timelineConsistency = "significant_gap";
+  // CALIBRATION: Timeline consistency bands (70/50/30) derived from completeness score
+  // are engineering-judgment proxies. A dedicated timeline analysis stage would be more accurate.
+  /** Completeness score at or above which timeline is 'consistent' */
+  const TIMELINE_CONSISTENT_THRESHOLD    = 70;
+  /** Completeness score at or above which timeline has 'minor_gap' */
+  const TIMELINE_MINOR_GAP_THRESHOLD     = 50;
+  /** Completeness score at or above which timeline has 'significant_gap' */
+  const TIMELINE_SIGNIFICANT_GAP_THRESHOLD = 30;
+  if (completeness >= TIMELINE_CONSISTENT_THRESHOLD) timelineConsistency = "consistent";
+  else if (completeness >= TIMELINE_MINOR_GAP_THRESHOLD) timelineConsistency = "minor_gap";
+  else if (completeness >= TIMELINE_SIGNIFICANT_GAP_THRESHOLD) timelineConsistency = "significant_gap";
   else timelineConsistency = "unknown";
 
   // ── Damage pattern result ──────────────────────────────────────────────────
@@ -864,6 +886,8 @@ export async function runFraudAnalysisStage(
           category: 'documentation',
           score: accidentDateCrossCheckResult.fraudScore,
           description: accidentDateCrossCheckResult.summary,
+          // CALIBRATION: 15-point threshold for 'high' vs 'medium' date-crosscheck severity
+          // is engineering-judgment.
           severity: accidentDateCrossCheckResult.fraudScore >= 15 ? 'high' : 'medium',
         });
       }
@@ -885,7 +909,10 @@ export async function runFraudAnalysisStage(
     }
 
     // 4. Missing data penalty
-    if (claimRecord.dataQuality.completenessScore < 30) {
+    // CALIBRATION: 30% completeness threshold for degraded fraud analysis is engineering-judgment.
+    /** Completeness score below which fraud analysis is flagged as degraded */
+    const FRAUD_DEGRADED_COMPLETENESS_THRESHOLD = 30;
+    if (claimRecord.dataQuality.completenessScore < FRAUD_DEGRADED_COMPLETENESS_THRESHOLD) {
       isDegraded = true;
       assumptions.push({
         field: "fraudRiskScore",
