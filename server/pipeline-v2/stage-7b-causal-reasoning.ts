@@ -663,6 +663,34 @@ function formatScoringBlock(physics: Stage7Output | null, scores: PrecomputedSco
   return lines.length > 0 ? lines.join("\n") : "No precomputed scores available.";
 }
 
+/**
+ * Stage 7b: Causal Reasoning Engine
+ *
+ * Verifies whether the claimed incident cause is physically plausible given
+ * the damage analysis, physics reconstruction, and photo evidence. Produces
+ * a CausalVerdict with a plausibility score, band, and narrative explanation.
+ *
+ * ── TWO-PASS APPROACH ────────────────────────────────────────────────────────────────
+ *
+ *   Pass 1 — `definePhysicsConstraints`: LLM call that defines the physical
+ *     conditions that MUST be true for the claimed cause to be valid. Returns
+ *     a list of structured constraints (expected zones, components, severity).
+ *
+ *   Pass 2 — `checkConstraints` + `generateConstraintNarrative`: Evaluates each
+ *     constraint against the actual damage/physics evidence. Produces a
+ *     per-constraint verdict and a human-readable narrative.
+ *
+ * ── FALLBACK BEHAVIOUR ────────────────────────────────────────────────────────────────
+ *
+ *   If either LLM call fails, `buildFallbackVerdict` returns a neutral verdict
+ *   (plausibilityScore=0.5, band='uncertain') rather than halting the pipeline.
+ *   This engine is always called from the orchestrator in a try/catch.
+ *
+ * ── PLAUSIBILITY BANDS ────────────────────────────────────────────────────────────────
+ *
+ *   See `plausibilityBand()` for the score-to-band mapping. Band thresholds
+ *   are tagged // CALIBRATION in that function.
+ */
 export async function runCausalReasoningEngine(
   claimRecord: ClaimRecord,
   damage: Stage6Output | null,

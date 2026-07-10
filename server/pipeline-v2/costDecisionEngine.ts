@@ -691,7 +691,32 @@ function buildReasoning(
 // ─── Main function ────────────────────────────────────────────────────────────
 
 /**
- * Runs the Claims Cost Decision Engine (mode-aware).
+ * Claims Cost Decision Engine (mode-aware).
+ *
+ * Adjudicates the final cost decision for a claim based on available cost
+ * signals, quote deviations, and fraud risk level. Produces a structured
+ * decision with recommendation, confidence score, and human-readable reasoning.
+ *
+ * ── THREE COST MODES ────────────────────────────────────────────────────────────────
+ *
+ *   QUOTE_COMPARISON: Claim has submitted quotes. Engine compares quotes to
+ *     KINGA benchmark and produces APPROVE / NEGOTIATE / REJECT recommendation.
+ *
+ *   DOCUMENT_ONLY: No submitted quotes. Engine uses document-extracted cost
+ *     as the true cost and produces a guidance narrative for the adjuster.
+ *
+ *   FAST_TRACK: Streamlined path for low-complexity claims. Produces a
+ *     simplified decision with reduced evidence requirements.
+ *
+ * ── KEY SUB-FUNCTIONS ────────────────────────────────────────────────────────────────
+ *
+ *   `resolveHighestQuote`      — select the highest-cost quote for comparison
+ *   `collectStructuralGaps`    — identify missing components across quotes
+ *   `buildNegotiationGuidance` — generate line-item negotiation instructions
+ *   `buildNegotiationEfficiency` — compute savings opportunity score
+ *   `derivePostRecommendation` — APPROVE / NEGOTIATE / REJECT from deviation
+ *   `computeDecisionConfidence`— 0–100 confidence score from evidence quality
+ *   `buildReasoning`           — human-readable narrative for the adjuster
  *
  * @param input - All available cost signals for the claim, including cost_mode
  * @returns A structured cost decision with true cost, deviations, anomalies,

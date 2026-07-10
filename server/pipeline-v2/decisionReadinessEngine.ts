@@ -615,8 +615,27 @@ function buildSummary(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Evaluate whether the pipeline has sufficient validated evidence to issue
- * a final recommendation.
+ * Decision Readiness Engine
+ *
+ * Evaluates whether the pipeline has sufficient validated evidence to issue
+ * a final recommendation. Runs four independent checks and aggregates them
+ * into a readiness score, blocking issues list, and human-readable summary.
+ *
+ * ── FOUR CHECKS ────────────────────────────────────────────────────────────────
+ *
+ *   `checkPhotosProcessed`  — at least one photo was successfully processed
+ *   `checkIncidentConfirmed`— incident type is known and not 'unknown'
+ *   `checkPhysicsValid`     — physics reconstruction produced a plausible result
+ *   `checkCostAvailable`    — at least one cost signal is present
+ *
+ *   Each check returns PASS / WARN / FAIL. FAIL blocks the decision.
+ *   WARN reduces confidence but does not block.
+ *
+ * ── CONFIDENCE MODEL ────────────────────────────────────────────────────────────────
+ *
+ *   Base score: CONF_POINTS_PER_PASS per PASS, CONF_POINTS_PER_WARN per WARN.
+ *   Quality deductions: CONF_QUALITY_DEDUCTION per low-confidence or conflict signal.
+ *   All threshold constants are tagged // CALIBRATION in the constants block above.
  *
  * @param input - The four critical data inputs to check
  * @returns A DecisionReadinessResult with decision_ready, confidence, and blocking_issues

@@ -379,6 +379,38 @@ function runDamagePatternValidation(
   }
 }
 
+/**
+ * Stage 7: Physics Reconstruction
+ *
+ * Reconstructs the accident physics from damage analysis, vehicle data, and
+ * claim description. Produces speed estimates, energy calculations, and a
+ * collision reconstruction summary used by Stage 7b (causal reasoning) and
+ * Stage 8 (fraud detection).
+ *
+ * ── ROUTING LOGIC ────────────────────────────────────────────────────────────────
+ *
+ *   Collision / unknown: Full physics reconstruction via `estimatePhysicsFromDamage`
+ *     and `speedInferenceEnsemble`. Includes scenario-aware routing for animal
+ *     strikes, parking lot impacts, and rear-end collisions.
+ *
+ *   Non-physical (theft, fire, flood, vandalism): Physics stage is skipped.
+ *     Returns a default output with isDegraded=false and a skip reason.
+ *
+ * ── KEY SUB-FUNCTIONS ────────────────────────────────────────────────────────────────
+ *
+ *   `inferCrushDepth`          — derive crush depth from damage analysis
+ *   `buildPhysicsInput`        — assemble all physics inputs from claim record
+ *   `estimatePhysicsFromDamage`— Campbell stiffness model + energy calculations
+ *   `runDamagePatternValidation`— cross-validate damage zones vs collision direction
+ *   `speedInferenceEnsemble`   — multi-method speed consensus (M1–M5)
+ *
+ * Calibration basis: NHTSA crash test data and Campbell (1974) stiffness model.
+ * See `inferCrushDepth` JSDoc for the full correlation basis.
+ *
+ * The R-C-01/R-C-02 physics fixes (Batch 3) restructured the scenario-aware
+ * routing. If touching this function, re-verify against the R-C-01/R-C-02
+ * test coverage before committing.
+ */
 export async function runPhysicsStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord,
