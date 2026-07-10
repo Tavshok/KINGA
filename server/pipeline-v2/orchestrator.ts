@@ -386,7 +386,10 @@ export async function runPipelineV2(
       // Phase 2C: Assumption Registry — FLAGGED_EXCEPTION routing
       // HIGH-impact assumptions (confidence < 30) trigger a flag so the report
       // and dashboard surface them for manual review. The pipeline still completes.
-      const highImpact = result.assumptions.filter((a: Assumption) => (a.confidence ?? 50) < 30);
+      // CALIBRATION: 30% confidence threshold for HIGH-impact assumption flagging is engineering-judgment.
+      /** Assumption confidence below which the assumption is flagged as HIGH-impact for manual review */
+      const HIGH_IMPACT_ASSUMPTION_CONFIDENCE_THRESHOLD = 30;
+      const highImpact = result.assumptions.filter((a: Assumption) => (a.confidence ?? 50) < HIGH_IMPACT_ASSUMPTION_CONFIDENCE_THRESHOLD);
       for (const ha of highImpact) {
         psm.flagException(
           `HIGH-impact assumption in ${key}: field="${ha.field ?? 'unknown'}" assumed="${ha.assumedValue ?? 'unknown'}" confidence=${ha.confidence ?? 0}% — ${ha.reason ?? 'no reason'}`
@@ -893,7 +896,10 @@ export async function runPipelineV2(
           const tb = nb.split(' ').filter(t => t.length > 1);
           const overlap = ta.filter(t => tb.includes(t)).length;
           const minLen = Math.min(ta.length, tb.length);
-          if (minLen > 0 && overlap / minLen >= 0.6) return true;
+          // CALIBRATION: 0.6 token-overlap ratio for panel-builder name matching is engineering-judgment.
+          /** Minimum token overlap ratio for fuzzy panel-builder name matching */
+          const PB_NAME_OVERLAP_THRESHOLD = 0.6;
+          if (minLen > 0 && overlap / minLen >= PB_NAME_OVERLAP_THRESHOLD) return true;
           // T/A suffix prefix check — handles LLM truncation of the trading name.
           const suffixA = getPbTaSuffix(a);
           const suffixB = getPbTaSuffix(b);
@@ -1170,7 +1176,15 @@ export async function runPipelineV2(
     const narrativeSpeed: number | null =
       (narrativeAnalysis as any)?.extracted_facts?.implied_speed_kmh ?? null;
     const currentSpeed = claimRecord.accidentDetails?.estimatedSpeedKmh ?? null;
-    const isHeuristicSpeed = currentSpeed === 30 || currentSpeed === 45 || currentSpeed === 60;
+    // These are the three heuristic speed values that Stage 3 assigns when no
+    // explicit speed is found in the document (minor=30, moderate=45, severe=60 km/h).
+    // If the narrative analysis provides a more specific value, it overrides these.
+    const HEURISTIC_SPEED_MINOR_KMPH    = 30;
+    const HEURISTIC_SPEED_MODERATE_KMPH = 45;
+    const HEURISTIC_SPEED_SEVERE_KMPH   = 60;
+    const isHeuristicSpeed = currentSpeed === HEURISTIC_SPEED_MINOR_KMPH ||
+      currentSpeed === HEURISTIC_SPEED_MODERATE_KMPH ||
+      currentSpeed === HEURISTIC_SPEED_SEVERE_KMPH;
     const shouldOverrideSpeed =
       narrativeSpeed !== null && (currentSpeed === null || isHeuristicSpeed);
     if (shouldOverrideSpeed) {
@@ -1578,6 +1592,8 @@ export async function runPipelineV2(
           fraud_risk_level: stage8Data.fraudRiskLevel,
           fraud_risk_score: stage8Data.fraudRiskScore,
           critical_flag_count: stage8Data.indicators?.filter((i: any) => i.severity === 'critical').length ?? 0,
+          // CALIBRATION: 70-point threshold for scenario_fraud_flagged in fast-track context
+          // is engineering-judgment. The FSS-2026-001 'elevated' band starts at 81.
           scenario_fraud_flagged: stage8Data.fraudRiskScore > 70,
         } : null,
         physics_result: stage7Data ? {
@@ -1785,7 +1801,10 @@ export async function runPipelineV2(
     // to produce a reliable report. The report is blocked.
     // (FCDI is computed in Stage 13 after Stage 10, so we use the consensus score
     //  as a proxy here — if consensus is CONFLICTING, treat as low-confidence.)
-    if (consensusResult?.consensus_label === "CONFLICTING" && (consensusResult?.consensus_score ?? 100) < 40) {
+    // CALIBRATION: 40-point consensus score threshold for CG-1 blocking is engineering-judgment.
+    /** Consensus score below which a CONFLICTING label triggers a CG-1 decision block */
+    const CG1_CONSENSUS_BLOCK_THRESHOLD = 40;
+    if (consensusResult?.consensus_label === "CONFLICTING" && (consensusResult?.consensus_score ?? 100) < CG1_CONSENSUS_BLOCK_THRESHOLD) {
       blockingReasons.push(
         `CG-1: Cross-engine consensus CONFLICTING with score ${consensusResult.consensus_score}/100 — ` +
         `multiple engines fundamentally disagree. Manual review required before decision.`
@@ -1819,7 +1838,10 @@ export async function runPipelineV2(
 
     // CG-4: Reconciliation congruency — if congruency < 50%, too many fields
     // were overridden between stages, indicating data quality issues.
-    if (reconciliationLog && reconciliationLog.congruencyScore < 50) {
+    // CALIBRATION: 50% congruency threshold for CG-4 warning is engineering-judgment.
+    /** Congruency score below which a CG-4 warning is raised */
+    const CG4_CONGRUENCY_WARN_THRESHOLD = 50;
+    if (reconciliationLog && reconciliationLog.congruencyScore < CG4_CONGRUENCY_WARN_THRESHOLD) {
       warnings.push(
         `CG-4: Cross-stage congruency score is ${reconciliationLog.congruencyScore}% — ` +
         `multiple fields were revised between pipeline stages. Review reconciliation log.`
