@@ -40,6 +40,15 @@ import { getDefaultCurrencyForCountry } from "../../shared/countryCurrency";
 /**
  * Categories of line items that are valid in a repair quote but are NOT
  * vehicle parts (they pass through the hallucination guard unconditionally).
+ *
+ * VERSION: 2.1 (last updated: 2025-11)
+ *
+ * MAINTENANCE NOTE: When a new SA workshop line-item category appears in claims
+ * that is being incorrectly rejected by the hallucination guard, add it here.
+ * There is no automated detection mechanism for miscategorisation — new entries
+ * must be identified from rejected_line_items in claim audit logs.
+ * After adding entries, run pnpm vitest run and verify against the quote extraction
+ * test fixtures in server/group-a-critical-fixes.test.ts.
  */
 const NON_PART_LINE_ITEM_CATEGORIES = new Set([
   // Cost categories
@@ -845,6 +854,17 @@ function validateLineItems(
       } else {
         const _resolvedComponent = resolveComponent(_normalisedComponent);
         if (!_resolvedComponent) {
+          // isPlausiblePartName (shared/vehicleParts.ts) classifies unknown component names
+          // into three categories to prevent hallucinated part names from inflating costs:
+          //   'implausible' — pure numbers, random character sequences, or symbol-heavy strings
+          //                  that cannot be vehicle parts. Hard-rejected: added to rejected_line_items.
+          //   'uncertain'   — short tokens or low-confidence names that might be valid parts
+          //                  but are not in the catalogue. Kept with is_unresolved=true for
+          //                  adjuster review. NOT rejected silently.
+          //   'plausible'   — names that match domain vocabulary (body panels, mechanical terms,
+          //                  SA workshop terminology). Kept with is_unresolved=true.
+          // The 'uncertain' and 'plausible' paths were introduced by R-A-22 to prevent cost
+          // gaps from silent drops. Do not change to hard-reject without re-verifying R-A-22.
           const plausibility = isPlausiblePartName(rawComponentName);
           if (plausibility === 'implausible') {
             console.warn(`\u26a0\ufe0f  Hallucination guard (quote line_items): hard-rejected "${_normalisedComponent}" (raw: "${rawComponentName}") \u2014 implausible`);
