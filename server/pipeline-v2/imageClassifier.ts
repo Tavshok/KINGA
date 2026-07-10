@@ -99,19 +99,48 @@ export interface ClassificationResult {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-/** Heuristic confidence thresholds */
-const HIGH_CONFIDENCE_THRESHOLD = 0.80;  // Above this → trust heuristic (raised from 0.7 to widen LLM band)
-const LOW_CONFIDENCE_THRESHOLD = 0.25;   // Below this → trust heuristic (other direction)
-// Between 0.25 and 0.80 → send to LLM for Tier 2 classification
-// Widened band ensures mid-size quote scans (0.4–0.8MP) reach the LLM for visual inspection
+// ─────────────────────────────────────────────────────────────────────────────
+// Classification thresholds
+// CALIBRATION: These thresholds were set by engineering judgment during initial
+// build and tuned empirically on a small set of test claims.
+// No systematic dataset was used to derive them.
+// Do not change without benchmarking against a labelled image sample.
+// ─────────────────────────────────────────────────────────────────────────────
 
-/** Max images to send to LLM for classification */
+/**
+ * Heuristic score above which the classifier trusts the heuristic result directly
+ * (image is almost certainly a damage photo). Raised from 0.70 to 0.80 to widen
+ * the LLM band and ensure mid-size quote scans (0.4–0.8 MP) reach Tier 2.
+ * CALIBRATION: origin unknown — do not change without benchmarking.
+ */
+const HIGH_CONFIDENCE_THRESHOLD = 0.80;
+
+/**
+ * Heuristic score below which the classifier trusts the heuristic result directly
+ * (image is almost certainly NOT a damage photo).
+ * Between LOW_CONFIDENCE_THRESHOLD and HIGH_CONFIDENCE_THRESHOLD → send to LLM.
+ * CALIBRATION: origin unknown — do not change without benchmarking.
+ */
+const LOW_CONFIDENCE_THRESHOLD = 0.25;
+
+/**
+ * Maximum number of images to send to the LLM in a single Tier 2 classification call.
+ * CALIBRATION: origin unknown — do not change without benchmarking token cost.
+ */
 const MAX_LLM_CLASSIFICATION_BATCH = 15;
 
-/** Diversity filter: images from the same page within this size ratio are considered duplicates */
+/**
+ * Two images from the same page are considered duplicates when their pixel areas
+ * are within this ratio of each other (e.g. 0.85 = within 15% size difference).
+ * CALIBRATION: origin unknown — do not change without benchmarking.
+ */
 const DUPLICATE_SIZE_RATIO_THRESHOLD = 0.85;
 
-/** Minimum quality score for an image to be considered for vision analysis */
+/**
+ * Minimum composite quality score (0–100) for an image to be included in
+ * vision analysis. Images below this threshold are silently excluded.
+ * CALIBRATION: origin unknown — do not change without benchmarking.
+ */
 const MIN_QUALITY_SCORE_FOR_VISION = 20;
 
 // ─── Tier 1: Heuristic Scoring ──────────────────────────────────────────────
@@ -155,39 +184,62 @@ function computeHeuristicScore(img: ExtractedImageInput): {
   }
   // embedded_image: no bonus — let LLM decide for mid-size images
 
+  // ── Heuristic scoring factors
+  // CALIBRATION: All factor weights and band boundaries below were set by
+  // engineering judgment. No labelled dataset was used to derive them.
+  // Do not change without benchmarking against a labelled image sample.
+
+  /** Colour variance above this → high-variance bonus (likely photo) */
+  const COLOUR_VAR_HIGH = 60;
+  /** Colour variance above this → medium-variance bonus */
+  const COLOUR_VAR_MED  = 40;
+  /** Colour variance below this → low-variance penalty (likely document) */
+  const COLOUR_VAR_LOW  = 15;
+  /** Blur score above this → sharp-image bonus */
+  const BLUR_SCORE_SHARP = 200;
+  /** Blur score below this → blurry-image penalty */
+  const BLUR_SCORE_BLURRY = 50;
+  /** Megapixel area above this → large-image bonus */
+  const MP_LARGE = 2;
+  /** Megapixel area below this → tiny-image penalty */
+  const MP_TINY  = 0.1;
+  /** Aspect ratio above this or below 1/this → extreme-ratio penalty */
+  const ASPECT_EXTREME_MAX = 3.0;
+  const ASPECT_EXTREME_MIN = 0.33;
+
   // ── Factor 3: Colour variance — photos have higher variance ──────────
-  if (q.colourVariance > 60) {
+  if (q.colourVariance > COLOUR_VAR_HIGH) {
     score += 0.15;
     reasons.push(`high_colour_var=${q.colourVariance.toFixed(0)} (+0.15)`);
-  } else if (q.colourVariance > 40) {
+  } else if (q.colourVariance > COLOUR_VAR_MED) {
     score += 0.05;
     reasons.push(`med_colour_var=${q.colourVariance.toFixed(0)} (+0.05)`);
-  } else if (q.colourVariance < 15) {
+  } else if (q.colourVariance < COLOUR_VAR_LOW) {
     score -= 0.15;
     reasons.push(`low_colour_var=${q.colourVariance.toFixed(0)} (-0.15)`);
   }
 
   // ── Factor 4: Blur score — sharp images are more likely real photos ───
-  if (q.blurScore > 200) {
+  if (q.blurScore > BLUR_SCORE_SHARP) {
     score += 0.10;
     reasons.push(`sharp=${q.blurScore.toFixed(0)} (+0.10)`);
-  } else if (q.blurScore < 50) {
+  } else if (q.blurScore < BLUR_SCORE_BLURRY) {
     score -= 0.10;
     reasons.push(`blurry=${q.blurScore.toFixed(0)} (-0.10)`);
   }
 
   // ── Factor 5: Size — damage photos tend to be larger ──────────────────
   const megapixels = q.pixelArea / 1_000_000;
-  if (megapixels > 2) {
+  if (megapixels > MP_LARGE) {
     score += 0.10;
     reasons.push(`large=${megapixels.toFixed(1)}MP (+0.10)`);
-  } else if (megapixels < 0.1) {
+  } else if (megapixels < MP_TINY) {
     score -= 0.15;
     reasons.push(`tiny=${megapixels.toFixed(2)}MP (-0.15)`);
   }
 
   // ── Factor 6: Aspect ratio — extreme ratios suggest banners/headers ───
-  if (q.aspectRatio > 3.0 || q.aspectRatio < 0.33) {
+  if (q.aspectRatio > ASPECT_EXTREME_MAX || q.aspectRatio < ASPECT_EXTREME_MIN) {
     score -= 0.15;
     reasons.push(`extreme_aspect=${q.aspectRatio.toFixed(2)} (-0.15)`);
   }
@@ -236,23 +288,45 @@ function computeQualityScore(img: ExtractedImageInput): number {
   const q = img.quality;
   let score = 0;
 
+  // Quality score factors
+  // CALIBRATION: All normalisation denominators and point allocations below were
+  // set by engineering judgment. No labelled dataset was used to derive them.
+  // Do not change without benchmarking against a labelled image sample.
+
+  /** Blur score normalisation ceiling (maps blurScore to 0–1 for sharpness) */
+  const QUALITY_BLUR_NORM    = 500;
+  /** Sharpness contribution to quality score (0–30 points) */
+  const QUALITY_W_SHARPNESS  = 30;
+  /** Colour variance normalisation ceiling */
+  const QUALITY_COLOUR_NORM  = 80;
+  /** Colour richness contribution (0–25 points) */
+  const QUALITY_W_COLOUR     = 25;
+  /** Pixel area normalisation ceiling (3 MP) */
+  const QUALITY_SIZE_NORM    = 3_000_000;
+  /** Size contribution (0–20 points) */
+  const QUALITY_W_SIZE       = 20;
+  /** Non-text bonus (0–15 points) */
+  const QUALITY_W_NON_TEXT   = 15;
+  /** Non-uniform bonus (0–10 points) */
+  const QUALITY_W_NON_UNIFORM = 10;
+
   // Sharpness (0–30 points)
-  const sharpness = Math.min(q.blurScore / 500, 1); // Normalize to 0–1
-  score += sharpness * 30;
+  const sharpness = Math.min(q.blurScore / QUALITY_BLUR_NORM, 1);
+  score += sharpness * QUALITY_W_SHARPNESS;
 
   // Colour richness (0–25 points)
-  const colourRichness = Math.min(q.colourVariance / 80, 1);
-  score += colourRichness * 25;
+  const colourRichness = Math.min(q.colourVariance / QUALITY_COLOUR_NORM, 1);
+  score += colourRichness * QUALITY_W_COLOUR;
 
   // Size (0–20 points)
-  const sizeFactor = Math.min(q.pixelArea / 3_000_000, 1);
-  score += sizeFactor * 20;
+  const sizeFactor = Math.min(q.pixelArea / QUALITY_SIZE_NORM, 1);
+  score += sizeFactor * QUALITY_W_SIZE;
 
   // Non-text bonus (0–15 points)
-  if (!q.isTextHeavy) score += 15;
+  if (!q.isTextHeavy) score += QUALITY_W_NON_TEXT;
 
   // Non-uniform bonus (0–10 points)
-  if (!q.isUniform) score += 10;
+  if (!q.isUniform) score += QUALITY_W_NON_UNIFORM;
 
   return Math.round(Math.max(0, Math.min(100, score)));
 }
@@ -587,7 +661,8 @@ export async function classifyExtractedImages(
         pageNumber: img.pageNumber,
         source: img.source,
         category: img.heuristicCategory,
-        confidence: Math.max(0.2, img.heuristicScore * 0.7), // Reduced confidence
+        // CALIBRATION: 0.2 floor and 0.7 reduction factor — origin unknown, do not change without benchmarking.
+      confidence: Math.max(0.2, img.heuristicScore * 0.7), // Reduced confidence
         qualityScore: img.qualityScore,
         heuristicScore: img.heuristicScore,
         llmClassified: false,
@@ -620,6 +695,7 @@ export async function classifyExtractedImages(
 
   for (const img of allClassified) {
     // Low-confidence classifications go to fallback pool for low-priority analysis
+    // CALIBRATION: 0.4 confidence floor — origin unknown, do not change without benchmarking.
     if (img.confidence < 0.4 && img.category !== 'document_page') {
       result.fallbackPool.push(img);
       continue;
@@ -710,6 +786,7 @@ export function selectBestImagesForVision(
   // Secondary: fallback pool images (lower weight)
   const fallbackCandidates: typeof candidates = [];
   for (const img of classified.fallbackPool) {
+    // CALIBRATION: +10 higher threshold for fallback, 0.7 penalty factor — origin unknown.
     if (img.qualityScore >= MIN_QUALITY_SCORE_FOR_VISION + 10) { // Higher threshold for fallback
       const compositeScore = (img.qualityScore * 0.6 + img.confidence * 100 * 0.4) * 0.7; // 30% penalty
       fallbackCandidates.push({ url: img.url, compositeScore, source: 'fallback' });
@@ -723,6 +800,7 @@ export function selectBestImagesForVision(
   // Tertiary: vehicle overviews (useful for context, lowest priority)
   if (candidates.length < maxImages) {
     for (const img of classified.vehicleOverviews) {
+      // CALIBRATION: +15 higher threshold for vehicle overviews, 0.5 penalty factor — origin unknown.
       if (img.qualityScore >= MIN_QUALITY_SCORE_FOR_VISION + 15) {
         const compositeScore = (img.qualityScore * 0.6 + img.confidence * 100 * 0.4) * 0.5; // 50% penalty
         candidates.push({ url: img.url, compositeScore, source: 'vehicle_overview' });
