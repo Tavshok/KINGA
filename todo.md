@@ -539,3 +539,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] ARCH-03b-FIX1: Schema migration applied via direct SQL (arch03b-add-moderate-fraud-level.sql); 'moderate' added to all 5 tables (aiAssessments, fraudIndicators, historicalReplayResults, claims, assessorEvaluations); 6/6 verification tests pass
 - [x] ARCH-03b-FIX2: fraudLevelMap in server/db.ts updated — moderate:'moderate' added; 13/13 verification tests pass
 - [x] ARCH-03b-FIX3: normaliseFraudLevel() and fraudLevelDisplayLabel() added to shared/fraudScoring.ts; applied to AiReanalysisPanel (4 sites), AIAssessmentPanel (3 sites), ClaimReviewDialog (2 sites), notifications.ts email body; 26/26 verification tests pass
+
+---
+
+## Batch 9a — Magic Number Extraction (Readability & Documentation)
+
+- [x] Batch 9a: Extract all magic numbers to named constants across 12 Groups A–H pipeline files (12 commits, one per file). Tag unknowns with `// CALIBRATION: origin unknown, do not change without benchmarking`. Produce `docs/audit/unverified-constants.md` with 60+ entries covering file location, current value, role, and calibration status. 276/283 tests pass (7 pre-existing group-a failures confirmed pre-existing by stash comparison). Checkpoint: pending (see next entry).
