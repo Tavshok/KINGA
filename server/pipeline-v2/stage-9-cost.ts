@@ -125,6 +125,41 @@ function estimateComponentCost(
   return { partsCents, labourCents, paintCents };
 }
 
+/**
+ * Stage 9: Cost Optimisation
+ *
+ * Computes expected repair cost, compares to quoted cost, and identifies
+ * savings opportunities. NEVER halts — produces estimated costs with minimal data.
+ *
+ * ── TWO OPERATING MODES ────────────────────────────────────────────────────────────
+ *
+ *   QUOTE mode (Step A): Quote optimisation engine runs on all submitted quotes.
+ *     Includes cross-quote gap analysis, deviation matrix, and KINGA savings log.
+ *     Used when the claim has at least one submitted repair quote.
+ *
+ *   DOCUMENT mode (Step B): Document-sourced cost breakdown only.
+ *     Used when no quotes are submitted (total-loss or fast-track claims).
+ *     R-E-02 severe cost cap (R 1,200,000) applies in this mode to prevent
+ *     hallucinated totals. See docs/remediation/R-E-02-cost-distribution-analysis.md.
+ *
+ * ── KEY SUB-ENGINES ────────────────────────────────────────────────────────────────
+ *
+ *   quoteOptimisationEngine    — normalise, score, and rank submitted quotes
+ *   crossQuoteGapAnalysis      — identify missing components across quotes
+ *   costDecisionEngine         — final adjudication (approve / negotiate / reject)
+ *   mlBenchmarkEngine          — P25/P50/P75 benchmarks from learning DB
+ *   inputFidelityEngine        — data quality scoring for cost inputs
+ *   decisionOptimisationEngine — DOE candidate generation and scoring
+ *   economicContextEngine      — regional labour/parts rate resolution
+ *
+ * ── WHY THIS FUNCTION IS NOT SPLIT ──────────────────────────────────────────
+ *
+ *   The two operating modes share mutable state (quotes, benchmarks, costResult,
+ *   learningRecord) and the Vision Re-Extraction Guard (lines ~921–1095) runs
+ *   conditionally after mode selection. Splitting would require passing ~15
+ *   variables across function boundaries. The R-E-01 through R-E-10 fixes
+ *   (Batch 4) were verified against this structure; treat as a single unit.
+ */
 export async function runCostOptimisationStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord,
