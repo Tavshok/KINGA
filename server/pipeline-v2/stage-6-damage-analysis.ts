@@ -1342,6 +1342,31 @@ function mergeComponents(
 
 // Image Intelligence Layer is imported at the top of this file
 
+/**
+ * Stage 6: Damage Analysis
+ *
+ * Extracts damaged vehicle components from available evidence using one of three
+ * paths, selected at runtime based on what evidence is available:
+ *
+ *   Path A — Photo vision (preferred): `readDamageFromPhotos` processes up to
+ *     PER_RUN_VISION_BUDGET photos in parallel batches via the LLM vision API.
+ *     Photos are ranked by damage likelihood score before selection.
+ *
+ *   Path B — PDF direct vision (fallback): `readDamageFromPdf` passes the raw
+ *     PDF to the LLM as a file_url when no pre-rendered page images are available.
+ *     Used when Stage 1 page rendering failed or produced 0 pages.
+ *
+ *   Path C — Description inference (last resort): `inferDamageFromDescription`
+ *     extracts components from the claim description text when no images or PDF
+ *     are available.
+ *
+ * All three paths produce the same output shape (DamageAnalysisComponent[]) so
+ * the rest of the pipeline does not need to know which path was taken.
+ *
+ * The function is intentionally not split into sub-functions because the path
+ * selection logic, the mergeComponents deduplication, and the final isDegraded
+ * flag all depend on the same local state variables.
+ */
 export async function runDamageAnalysisStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord
