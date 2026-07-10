@@ -95,6 +95,16 @@ const REPAIR_QUOTE_PATTERNS = [
   /invoice\s*(no\.?|number)/i,
 ];
 
+// Heuristic: if any of these patterns appear in a text chunk, the chunk is
+// likely to contain handwritten content (agreed cost stamps, signatures, annotations).
+// When a chunk is flagged as likelyHandwritten, Stage 2 will run a targeted
+// handwriting OCR pass (handwritingOcrPass) in addition to the primary text extraction.
+//
+// CALIBRATION: These patterns were chosen based on common SA insurance document
+// conventions. 'agreed cost' and 'authorised by' are the most reliable triggers;
+// '[handwritten]' and '(signed)' are explicit markers sometimes added by document
+// scanning software. If new document types introduce different handwriting markers,
+// add them here.
 const HANDWRITING_HINTS = [
   /agreed\s*(cost|amount|usd|zwd)/i,
   /signed\s*by/i,
