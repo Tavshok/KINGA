@@ -309,6 +309,8 @@ function checkIncidentConfirmed(input: IncidentConfirmedInput): ReadinessCheck {
   if (
     classification_confidence !== null &&
     classification_confidence !== undefined &&
+    // CALIBRATION: 60% low-confidence threshold for incident classification WARN
+    // is engineering-judgment.
     classification_confidence < 60
   ) {
     return {
@@ -374,6 +376,7 @@ function checkPhysicsValid(input: PhysicsValidInput): ReadinessCheck {
   if (
     physics_confidence !== null &&
     physics_confidence !== undefined &&
+    // CALIBRATION: 40% very-low-confidence threshold for physics WARN is engineering-judgment.
     physics_confidence < 40
   ) {
     return {
@@ -429,6 +432,8 @@ function checkCostAvailable(input: CostAvailableInput): ReadinessCheck {
     cost_basis === "system_optimised" &&
     cost_confidence !== null &&
     cost_confidence !== undefined &&
+    // CALIBRATION: 50% low-confidence threshold for system_optimised cost WARN
+    // is engineering-judgment.
     cost_confidence < 50
   ) {
     return {
@@ -470,7 +475,22 @@ function checkCostAvailable(input: CostAvailableInput): ReadinessCheck {
  *   - Low physics confidence (< 60): −5 points
  *   - Low cost confidence (< 60): −5 points
  *   - Conflict detected: −5 points
+ *
+ * CALIBRATION: All point values and thresholds below are engineering-judgment.
  */
+// Points awarded per check status
+const CONF_POINTS_PER_PASS = 25;
+const CONF_POINTS_PER_WARN = 15;
+// Quality deduction thresholds
+/** Classification confidence below which a −5 quality deduction is applied */
+const CONF_DEDUCT_CLASS_CONF_THRESHOLD = 70;
+/** Physics confidence below which a −5 quality deduction is applied */
+const CONF_DEDUCT_PHYS_CONF_THRESHOLD  = 60;
+/** Cost confidence below which a −5 quality deduction is applied */
+const CONF_DEDUCT_COST_CONF_THRESHOLD  = 60;
+/** Quality deduction applied for each low-confidence or conflict signal */
+const CONF_QUALITY_DEDUCTION = 5;
+
 function computeConfidence(
   checks: ReadinessCheck[],
   input: DecisionReadinessInput
@@ -478,29 +498,29 @@ function computeConfidence(
   let score = 0;
 
   for (const check of checks) {
-    if (check.status === "PASS") score += 25;
-    else if (check.status === "WARN") score += 15;
+    if (check.status === "PASS") score += CONF_POINTS_PER_PASS;
+    else if (check.status === "WARN") score += CONF_POINTS_PER_WARN;
     // FAIL = 0 contribution
   }
 
   // Quality deductions
   const classConf = input.incident.classification_confidence;
-  if (classConf !== null && classConf !== undefined && classConf < 70) {
-    score -= 5;
+  if (classConf !== null && classConf !== undefined && classConf < CONF_DEDUCT_CLASS_CONF_THRESHOLD) {
+    score -= CONF_QUALITY_DEDUCTION;
   }
 
   const physConf = input.physics.physics_confidence;
-  if (physConf !== null && physConf !== undefined && physConf < 60) {
-    score -= 5;
+  if (physConf !== null && physConf !== undefined && physConf < CONF_DEDUCT_PHYS_CONF_THRESHOLD) {
+    score -= CONF_QUALITY_DEDUCTION;
   }
 
   const costConf = input.cost.cost_confidence;
-  if (costConf !== null && costConf !== undefined && costConf < 60) {
-    score -= 5;
+  if (costConf !== null && costConf !== undefined && costConf < CONF_DEDUCT_COST_CONF_THRESHOLD) {
+    score -= CONF_QUALITY_DEDUCTION;
   }
 
   if (input.incident.conflict_detected) {
-    score -= 5;
+    score -= CONF_QUALITY_DEDUCTION;
   }
 
   return Math.max(0, Math.min(100, score));
