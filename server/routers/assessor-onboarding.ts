@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
@@ -101,7 +101,7 @@ export const assessorOnboardingRouter = router({
       const assessorResult = await createAssessor({
         userId: userId,
         professionalLicenseNumber: input.professionalLicenseNumber,
-        licenseExpiryDate: new Date(input.licenseExpiryDate),
+        licenseExpiryDate: new Date(input.licenseExpiryDate).toISOString(),
         assessorType: "insurer_owned",
         primaryTenantId: tenantId,
         marketplaceEnabled: 0,
@@ -124,7 +124,7 @@ export const assessorOnboardingRouter = router({
         tenantId: tenantId,
         relationshipType: "insurer_owned",
         relationshipStatus: "active",
-        contractStartDate: new Date(),
+        contractStartDate: new Date().toISOString(),
       });
 
       return {
@@ -184,11 +184,11 @@ export const assessorOnboardingRouter = router({
       const assessorResult = await createAssessor({
         userId: ctx.user.id,
         professionalLicenseNumber: input.professionalLicenseNumber,
-        licenseExpiryDate: new Date(input.licenseExpiryDate),
+        licenseExpiryDate: new Date(input.licenseExpiryDate).toISOString(),
         assessorType: "marketplace",
         marketplaceEnabled: 1,
         marketplaceStatus: "pending_approval",
-        marketplaceOnboardedAt: new Date(),
+        marketplaceOnboardedAt: new Date().toISOString(),
         marketplaceBio: input.marketplaceBio,
         marketplaceHourlyRate: input.marketplaceHourlyRate.toString(),
         marketplaceAvailability: input.marketplaceAvailability,
@@ -198,7 +198,7 @@ export const assessorOnboardingRouter = router({
         certifications: input.certifications ? JSON.stringify(input.certifications) : null,
         serviceRegions: JSON.stringify(input.serviceRegions),
         maxTravelDistanceKm: input.maxTravelDistanceKm,
-        insuranceExpiryDate: new Date(input.insuranceExpiryDate),
+        insuranceExpiryDate: new Date(input.insuranceExpiryDate).toISOString(),
         activeStatus: 1,
         performanceScore: "70.00",
         backgroundCheckStatus: "pending",
@@ -330,7 +330,7 @@ export const assessorOnboardingRouter = router({
         assessorType: "hybrid",
         marketplaceEnabled: 1,
         marketplaceStatus: "pending_approval",
-        marketplaceOnboardedAt: new Date(),
+        marketplaceOnboardedAt: new Date().toISOString(),
         marketplaceBio: input.marketplaceBio,
         marketplaceHourlyRate: input.marketplaceHourlyRate.toString(),
         marketplaceAvailability: input.marketplaceAvailability,

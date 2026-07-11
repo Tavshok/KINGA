@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Claim Comments Router — Cross-Role Communication System
  *

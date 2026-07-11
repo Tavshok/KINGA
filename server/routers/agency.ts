@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * KINGA Agency Router
  * 
@@ -72,7 +72,7 @@ export const agencyRouter = router({
         status: "pending",
       }).$returningId();
 
-      return { success: true, requestNumber, id: result.id };
+      return { success: true, requestNumber, id: (result as Array<{id: number}>)[0]?.id };
     }),
 
   /**
@@ -279,7 +279,7 @@ export const agencyRouter = router({
         uploadedBy: ctx.user!.id,
       }).$returningId();
 
-      return { success: true, documentId: result.id, fileUrl };
+      return { success: true, documentId: (result as Array<{id: number}>)[0]?.id, fileUrl };
     }),
 
   /**
