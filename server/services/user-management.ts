@@ -108,10 +108,10 @@ export async function assignUserRole(request: RoleAssignmentRequest) {
   await logRoleAssignment({
     tenantId,
     userId: request.userId,
-    previousRole,
-    newRole: request.newRole,
-    previousInsurerRole,
-    newInsurerRole: request.newInsurerRole ?? null,
+    previousRole: previousRole as any,
+    newRole: request.newRole as any,
+    previousInsurerRole: previousInsurerRole as any,
+    newInsurerRole: (request.newInsurerRole ?? null) as any,
     changedByUserId: request.changedByUserId,
     justification: request.justification,
   });

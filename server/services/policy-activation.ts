@@ -22,6 +22,7 @@ export async function createPolicyFromProfile(
   customizations?: Partial<PolicyProfileTemplate>
 ): Promise<number> {
   const db = await getDb();
+  if (!db) throw new Error('Database unavailable');
 
   // Merge profile with customizations
   const finalProfile = customizations ? { ...profile, ...customizations } : profile;
@@ -30,7 +31,7 @@ export async function createPolicyFromProfile(
   const policyData = profileToAutomationPolicy(finalProfile, tenantId, createdByUserId);
 
   // Insert new policy (inactive by default)
-  const newPolicy = await db.insert(automationPolicies).values(policyData);
+  const [newPolicyRow] = await db.insert(automationPolicies).values(policyData).$returningId();
 
   // Log policy creation
   await db.insert(auditTrail).values({
@@ -38,7 +39,7 @@ export async function createPolicyFromProfile(
     userId: createdByUserId,
     action: "POLICY_CREATED",
     entityType: "automation_policy",
-    entityId: newPolicy.insertId,
+    entityId: (newPolicyRow as {id:number}).id,
     previousValue: null,
     newValue: JSON.stringify(policyData),
     changeDescription: `Created new automation policy from ${finalProfile.profileType} profile`,
@@ -46,7 +47,7 @@ export async function createPolicyFromProfile(
     userAgent: null,
   });
 
-  return newPolicy.insertId;
+  return (newPolicyRow as {id:number}).id;
 }
 
 /**
@@ -59,6 +60,7 @@ export async function activatePolicy(
   activatedByUserId: number
 ): Promise<void> {
   const db = await getDb();
+  if (!db) throw new Error('Database unavailable');
 
   // Get policy to activate
   const [policyToActivate] = await db
@@ -83,7 +85,7 @@ export async function activatePolicy(
     .where(
       and(
         eq(automationPolicies.tenantId, tenantId),
-        eq(automationPolicies.isActive, true)
+        eq(automationPolicies.isActive, 1)
       )
     )
     .limit(1);
@@ -96,7 +98,7 @@ export async function activatePolicy(
       .update(automationPolicies)
       .set({
         isActive: 0,
-        effectiveUntil: now,
+        effectiveUntil: now.toISOString(),
       })
       .where(eq(automationPolicies.id, currentActivePolicy.id));
 
@@ -120,7 +122,7 @@ export async function activatePolicy(
     .update(automationPolicies)
     .set({
       isActive: 1,
-      effectiveFrom: now,
+      effectiveFrom: now.toISOString(),
       effectiveUntil: null,
     })
     .where(eq(automationPolicies.id, policyId));
@@ -145,6 +147,7 @@ export async function activatePolicy(
  */
 export async function getActivePolicy(tenantId: string) {
   const db = await getDb();
+  if (!db) throw new Error('Database unavailable');
 
   const [activePolicy] = await db
     .select()
@@ -152,7 +155,7 @@ export async function getActivePolicy(tenantId: string) {
     .where(
       and(
         eq(automationPolicies.tenantId, tenantId),
-        eq(automationPolicies.isActive, true)
+        eq(automationPolicies.isActive, 1)
       )
     )
     .limit(1);
@@ -165,6 +168,7 @@ export async function getActivePolicy(tenantId: string) {
  */
 export async function getAllPolicies(tenantId: string) {
   const db = await getDb();
+  if (!db) throw new Error('Database unavailable');
 
   const policies = await db
     .select()
@@ -205,6 +209,7 @@ export async function deletePolicy(
   deletedByUserId: number
 ): Promise<void> {
   const db = await getDb();
+  if (!db) throw new Error('Database unavailable');
 
   // Get policy to delete
   const [policyToDelete] = await db

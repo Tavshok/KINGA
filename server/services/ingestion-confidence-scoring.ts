@@ -12,8 +12,6 @@ import {
 } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 
-const db = await getDb();
-
 export type ConfidenceCategory = "HIGH" | "MEDIUM" | "LOW";
 
 export interface ConfidenceScoreResult {
@@ -176,28 +174,25 @@ export async function classifyAndRouteHistoricalClaim(params: {
   routedTo: "reference" | "training" | "review";
   errorMessage?: string;
 }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
   try {
     // Always create historical claim in reference dataset
     const [historicalClaim] = await db.insert(historicalClaims).values({
       tenantId: params.tenantId,
       batchId: params.batchId,
-      sourceDocumentId: params.documentId,
-      claimNumber: params.extractedData.claimNumber,
-      claimDate: params.extractedData.claimDate ? new Date(params.extractedData.claimDate) : null,
-      incidentDate: params.extractedData.incidentDate ? new Date(params.extractedData.incidentDate) : null,
-      claimantName: params.extractedData.claimantName,
-      vehicleMake: params.extractedData.vehicleMake,
-      vehicleModel: params.extractedData.vehicleModel,
-      vehicleYear: params.extractedData.vehicleYear,
-      damageDescription: params.extractedData.damageDescription,
-      estimatedRepairCost: params.extractedData.estimatedRepairCost,
-      confidenceScore: params.confidenceScore.overallScore,
-      confidenceCategory: params.confidenceScore.category,
-      dataQualityIssues: params.confidenceScore.issues,
-      rawExtractedData: params.extractedData,
+      claimReference: params.extractedData.claimNumber ?? null,
+      incidentDate: params.extractedData.incidentDate ?? null,
+      claimantName: params.extractedData.claimantName ?? null,
+      vehicleMake: params.extractedData.vehicleMake ?? null,
+      vehicleModel: params.extractedData.vehicleModel ?? null,
+      vehicleYear: params.extractedData.vehicleYear ?? null,
+      dataQualityScore: params.confidenceScore.overallScore,
+      pipelineStatus: 'extraction_complete',
+      extractionLog: params.confidenceScore.issues,
     }).$returningId();
     
-    const historicalClaimId = historicalClaim.id;
+    const historicalClaimId = (historicalClaim as { id: number }).id;
     
     // Route based on confidence category
     if (params.confidenceScore.category === "HIGH") {
@@ -205,9 +200,9 @@ export async function classifyAndRouteHistoricalClaim(params: {
       await db.insert(trainingDataset).values({
         tenantId: params.tenantId,
         historicalClaimId,
-        approvalStatus: "auto_approved",
-        approvedAt: new Date().toISOString(),
-        approvalNotes: "Auto-approved: HIGH confidence score",
+        datasetVersion: "1.0",
+        includedBy: 0,
+        inclusionReason: "Auto-approved: HIGH confidence score",
       });
       
       return {
@@ -221,10 +216,10 @@ export async function classifyAndRouteHistoricalClaim(params: {
       await db.insert(humanReviewQueue).values({
         tenantId: params.tenantId,
         historicalClaimId,
-        reviewPriority: "medium",
-        reviewStatus: "pending",
-        flaggedIssues: params.confidenceScore.issues,
-        reviewerNotes: params.confidenceScore.recommendations.join("; "),
+        reviewType: "confidence_review",
+        priority: "medium",
+        status: "pending",
+        reviewNotes: params.confidenceScore.recommendations.join("; "),
       });
       
       return {
@@ -268,17 +263,19 @@ export async function getBatchConfidenceStats(params: {
   routedToReview: number;
   routedToReferenceOnly: number;
 }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
   const claims = await db.select()
     .from(historicalClaims)
     .where(eq(historicalClaims.batchId, params.batchId));
   
   const totalClaims = claims.length;
-  const highConfidence = claims.filter(c => c.confidenceCategory === "HIGH").length;
-  const mediumConfidence = claims.filter(c => c.confidenceCategory === "MEDIUM").length;
-  const lowConfidence = claims.filter(c => c.confidenceCategory === "LOW").length;
+  const highConfidence = claims.filter(c => c.pipelineStatus === "complete").length;
+  const mediumConfidence = claims.filter(c => c.pipelineStatus === "extraction_complete").length;
+  const lowConfidence = claims.filter(c => c.pipelineStatus === "pending").length;
   
   const averageScore = totalClaims > 0
-    ? Math.round(claims.reduce((sum, c) => sum + (c.confidenceScore || 0), 0) / totalClaims)
+    ? Math.round(claims.reduce((sum, c) => sum + (c.dataQualityScore || 0), 0) / totalClaims)
     : 0;
   
   // Count routing destinations

@@ -210,7 +210,7 @@ export async function createRoutingEvent(
     decidedByUserId: params.decidedByUserId || null,
     justification: params.justification || null,
     explainabilityMetadata: JSON.stringify(explainabilityMetadata),
-    timestamp,
+    timestamp: timestamp.toISOString(),
     routingVersion: (params as any).routingVersion ?? 1,
     thresholdSnapshot: (params as any).thresholdSnapshot ?? JSON.stringify({ version: params.thresholdConfigVersion ?? 'v1.0' }),
   });
@@ -259,7 +259,7 @@ export async function getRoutingHistory(params: {
   return events.map(event => ({
     id: event.id,
     confidenceScore: event.confidenceScore,
-    confidenceComponents: JSON.parse(event.confidenceComponents) as ConfidenceComponents,
+    confidenceComponents: JSON.parse(event.confidenceComponents ?? '{}') as ConfidenceComponents,
     routingCategory: event.routingCategory,
     routingDecision: event.routingDecision,
     thresholdConfigVersion: event.thresholdConfigVersion,

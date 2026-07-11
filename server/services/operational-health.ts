@@ -94,7 +94,7 @@ export interface AIStabilityHealth {
  * Overall Operational Health
  */
 export interface OperationalHealth {
-  timestamp: Date;
+  timestamp: string;
   overallScore: number;  // 0-100 weighted average
   overallStatus: HealthStatus;
   
@@ -197,7 +197,7 @@ async function calculateDataIntegrityHealth(): Promise<DataIntegrityHealth> {
     .select({ count: count() })
     .from(claims)
     .where(
-      sql`${claims.damagePhotos} IS NULL OR ${claims.damagePhotos} = '[]' OR ${claims.damagePhotos} = ''`
+      sql`${(claims as any).damagePhotos} IS NULL OR ${(claims as any).damagePhotos} = '[]' OR ${(claims as any).damagePhotos} = ''`
     );
   
   const claimsMissingDocuments = claimsMissingDocs[0].count;
@@ -306,7 +306,7 @@ async function calculatePerformanceHealth(): Promise<PerformanceHealth> {
   for (const record of processingTimes) {
     if (record.closedAt) {
       const processingHours =
-        (new Date(record.closedAt).getTime() - record ? new Date(claim.createdAt).getTime() : 0) /
+        (new Date(record.closedAt as string).getTime() - new Date(record.createdAt).getTime()) /
         (1000 * 60 * 60);
       totalProcessingTime += processingHours;
       validCount++;

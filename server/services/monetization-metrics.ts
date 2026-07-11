@@ -165,8 +165,8 @@ export async function getTenantMetrics(
     .where(
       and(
         eq(claims.tenantId, tenantId),
-        gte(claims.createdAt, startDate),
-        lte(claims.createdAt, endDate)
+        gte(claims.createdAt, startDate.toISOString()),
+        lte(claims.createdAt, endDate.toISOString())
       )
     );
   

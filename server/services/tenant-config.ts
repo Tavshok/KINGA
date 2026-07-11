@@ -7,7 +7,7 @@
 
 import { getDb } from "../db";
 import { insurerTenants, tenantRoleConfigs, tenantWorkflowConfigs, documentNamingTemplates } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 // ============================================================================
 // DEFAULT CONFIGURATIONS
@@ -147,7 +147,7 @@ export async function getDocumentTemplate(tenantId: string, docType: "claim" | "
   if (!db) throw new Error("Database not available");
   
   const results = await db.select().from(documentNamingTemplates)
-    .where((t: any) => eq(t.tenantId, tenantId) && eq(t.docType, docType))
+    .where(and(eq(documentNamingTemplates.tenantId, tenantId), eq(documentNamingTemplates.docType, docType)))
     .limit(1);
   const template = results[0];
 
@@ -440,7 +440,7 @@ export async function updateTenantWorkflowThresholds(
         requireExecutiveApprovalAbove: (thresholds.executiveApprovalLimit ?? DEFAULT_WORKFLOW_CONFIG.requireExecutiveApprovalAbove).toString(),
         fraudFlagThreshold: DEFAULT_WORKFLOW_CONFIG.fraudFlagThreshold.toString(),
         requireInternalAssessment: DEFAULT_WORKFLOW_CONFIG.requireInternalAssessment,
-        createdAt: new Date().toISOString().toISOString(),
+        createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
 

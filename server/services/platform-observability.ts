@@ -38,7 +38,7 @@ export async function getAllClaimsCrossTenant(options: {
   if (!db) throw new Error('Database unavailable');
   const { limit = 100, offset = 0, status } = options;
   
-  let query = db
+  const results = await db
     .select({
       claim: claims,
       tenant: {
@@ -54,15 +54,10 @@ export async function getAllClaimsCrossTenant(options: {
     .from(claims)
     .leftJoin(tenants, eq(claims.tenantId, tenants.id))
     .leftJoin(users, eq(claims.claimantId, users.id))
+    .where(status ? eq(claims.status, status as any) : undefined)
     .orderBy(desc(claims.createdAt))
     .limit(limit)
     .offset(offset);
-  
-  if (status) {
-    query = query.where(eq(claims.status, status as any));
-  }
-  
-  const results = await query;
   
   return results;
 }
@@ -94,7 +89,7 @@ export async function getClaimTrace(claimId: string) {
     .from(claims)
     .leftJoin(tenants, eq(claims.tenantId, tenants.id))
     .leftJoin(users, eq(claims.claimantId, users.id))
-    .where(eq(claims.id, claimId));
+    .where(eq(claims.id, parseInt(claimId)));
   
   if (!claimData) {
     return null;
@@ -104,8 +99,9 @@ export async function getClaimTrace(claimId: string) {
   const aiAssessmentData = await db
     .select()
     .from(aiAssessments)
-    .where(eq(aiAssessments.claimId, claimId))
+    .where(eq(aiAssessments.claimId, parseInt(claimId)))
     .orderBy(desc(aiAssessments.createdAt));
+  
   
   // Get assessor evaluations
   const assessorData = await db
@@ -121,23 +117,22 @@ export async function getClaimTrace(claimId: string) {
     })
     .from(assessorEvaluations)
     .leftJoin(users, eq(assessorEvaluations.assessorId, users.id))
-    .where(eq(assessorEvaluations.claimId, claimId))
+    .where(eq(assessorEvaluations.claimId, parseInt(claimId)))
     .orderBy(desc(assessorEvaluations.createdAt));
   
   // Get panel beater quotes
   const quotesData = await db
     .select()
     .from(panelBeaterQuotes)
-    .where(eq(panelBeaterQuotes.claimId, claimId))
+    .where(eq(panelBeaterQuotes.claimId, parseInt(claimId)))
     .orderBy(desc(panelBeaterQuotes.createdAt));
   
   // Get routing decisions
   const routingData = await db
     .select()
     .from(routingHistory)
-    .where(eq(routingHistory.claimId, claimId))
+        .where(eq(routingHistory.claimId, parseInt(claimId)))
     .orderBy(desc(routingHistory.timestamp));
-  
   // Get workflow audit trail
   const workflowTimeline = await db
     .select({
@@ -152,7 +147,7 @@ export async function getClaimTrace(claimId: string) {
     })
     .from(auditTrail)
     .leftJoin(users, eq(auditTrail.userId, users.id))
-    .where(eq(auditTrail.entityId, claimId))
+    .where(eq(auditTrail.entityId, parseInt(claimId)))
     .orderBy(desc(auditTrail.createdAt));
   
   // Get segregation involvement tracking
@@ -194,7 +189,7 @@ export async function getAIConfidenceBreakdown(claimId: string) {
   const [assessment] = await db
     .select()
     .from(aiAssessments)
-    .where(eq(aiAssessments.claimId, claimId))
+    .where(eq(aiAssessments.claimId, parseInt(claimId)))
     .orderBy(desc(aiAssessments.createdAt))
     .limit(1);
   
@@ -203,7 +198,7 @@ export async function getAIConfidenceBreakdown(claimId: string) {
   }
   
   // Parse confidence components from metadata
-  const metadata = assessment.metadata ? JSON.parse(assessment.metadata as string) : {};
+  const metadata = assessment.costIntelligenceJson ? JSON.parse(assessment.costIntelligenceJson as string) : {};
   
   return {
     overallConfidence: assessment.confidenceScore || 0,
@@ -217,7 +212,7 @@ export async function getAIConfidenceBreakdown(claimId: string) {
       estimatedCost: assessment.estimatedCost,
       damageDescription: assessment.damageDescription,
       fraudRiskScore: assessment.fraudScore,
-      recommendedAction: assessment.recommendedAction,
+      recommendedAction: assessment.recommendation,
     },
     metadata,
   };
@@ -234,16 +229,16 @@ export async function getRoutingDecisionMetadata(claimId: string) {
   const routingDecisions = await db
     .select()
     .from(routingHistory)
-    .where(eq(routingHistory.claimId, claimId))
+    .where(eq(routingHistory.claimId, parseInt(claimId)))
     .orderBy(desc(routingHistory.timestamp));
   
   return routingDecisions.map((decision) => ({
     id: decision.id,
-    decision: decision.decision,
-    reason: decision.reason,
+    decision: decision.routingDecision,
+    reason: decision.justification,
     confidence: decision.confidenceScore,
     timestamp: decision.timestamp,
-    metadata: decision.metadata ? JSON.parse(decision.metadata as string) : {},
+    metadata: decision.explainabilityMetadata ? JSON.parse(decision.explainabilityMetadata as string) : {},
   }));
 }
 

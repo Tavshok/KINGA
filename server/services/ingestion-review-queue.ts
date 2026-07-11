@@ -11,8 +11,7 @@ import {
   isoAuditLogs
 } from "../../drizzle/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
-
-const db = await getDb();
+import crypto from "crypto";
 
 export type ReviewDecision = "approve" | "reject" | "needs_correction";
 
@@ -24,8 +23,8 @@ export interface ReviewQueueItem {
   confidenceScore: number;
   confidenceCategory: string;
   flaggedIssues: string[];
-  submittedAt: Date;
-  reviewedAt: Date | null;
+  submittedAt: string;
+  reviewedAt: string | null;
   reviewedBy: string | null;
   decision: ReviewDecision | null;
   reviewerNotes: string | null;
@@ -43,14 +42,17 @@ export async function addToReviewQueue(params: {
   confidenceCategory: string;
   flaggedIssues: string[];
 }): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
   const [inserted] = await db.insert(claimReviewQueue).values({
     tenantId: params.tenantId,
     historicalClaimId: params.historicalClaimId,
     routedReason: params.flaggedIssues.join(", "),
     reviewStatus: "pending_review",
-  }).returning({ id: claimReviewQueue.id });
+  }).$returningId();
   
-  return inserted.id;
+  return (inserted as {id:number}).id;
 }
 
 /**
@@ -61,6 +63,9 @@ export async function getPendingReviews(params: {
   limit?: number;
   offset?: number;
 }): Promise<ReviewQueueItem[]> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
   const limit = params.limit || 50;
   const offset = params.offset || 0;
   
@@ -75,7 +80,7 @@ export async function getPendingReviews(params: {
     reviewDecision: claimReviewQueue.reviewDecision,
     reviewNotes: claimReviewQueue.reviewNotes,
     claimNumber: historicalClaims.claimReference,
-    claimData: historicalClaims.rawExtractedData,
+    claimData: historicalClaims.extractionLog,
   })
     .from(claimReviewQueue)
     .innerJoin(
@@ -96,15 +101,15 @@ export async function getPendingReviews(params: {
     id: item.id,
     historicalClaimId: item.historicalClaimId,
     batchId: 0, // Not stored in schema
-    claimNumber: item.claimNumber,
+    claimNumber: item.claimNumber ?? "",
     confidenceScore: 0, // Not stored in schema
     confidenceCategory: "", // Not stored in schema
     flaggedIssues: item.routedReason ? item.routedReason.split(", ") : [],
     submittedAt: item.createdAt,
-    reviewedAt: item.reviewedAt,
-    reviewedBy: item.reviewedBy?.toString() || null,
+    reviewedAt: item.reviewedAt ?? null,
+    reviewedBy: item.reviewedBy?.toString() ?? null,
     decision: item.reviewDecision as ReviewDecision | null,
-    reviewerNotes: item.reviewNotes,
+    reviewerNotes: item.reviewNotes ?? null,
     claimData: item.claimData,
   }));
 }
@@ -121,10 +126,13 @@ export async function getReviewQueueStats(params: {
   needsCorrectionCount: number;
   avgReviewTime: number | null;
 }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
   const stats = await db.select({
     reviewDecision: claimReviewQueue.reviewDecision,
-    count: sql<number>`count(*)::int`,
-    avgReviewTime: sql<number>`avg(extract(epoch from (reviewed_at - created_at)))::int`,
+    count: sql<number>`count(*)`,
+    avgReviewTime: sql<number>`avg(timestampdiff(second, created_at, reviewed_at))`,
   })
     .from(claimReviewQueue)
     .where(eq(claimReviewQueue.tenantId, params.tenantId))
@@ -140,14 +148,14 @@ export async function getReviewQueueStats(params: {
   
   stats.forEach(stat => {
     if (stat.reviewDecision === null) {
-      result.pendingCount = stat.count;
+      result.pendingCount = Number(stat.count);
     } else if (stat.reviewDecision === "approve") {
-      result.approvedCount = stat.count;
+      result.approvedCount = Number(stat.count);
       result.avgReviewTime = stat.avgReviewTime;
     } else if (stat.reviewDecision === "reject") {
-      result.rejectedCount = stat.count;
+      result.rejectedCount = Number(stat.count);
     } else if (stat.reviewDecision === "request_more_info") {
-      result.needsCorrectionCount = stat.count;
+      result.needsCorrectionCount = Number(stat.count);
     }
   });
   
@@ -165,8 +173,10 @@ export async function submitReviewDecision(params: {
   decision: ReviewDecision;
   reviewerNotes?: string;
 }): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
   // Get the review queue item
-  if (!db) throw new Error("Database not available");
   const [queueItem] = await db.select()
     .from(claimReviewQueue)
     .where(
@@ -185,11 +195,10 @@ export async function submitReviewDecision(params: {
     throw new Error("This claim has already been reviewed");
   }
   
-  if (!db) throw new Error("Database not available");
   // Update review queue with decision
   await db.update(claimReviewQueue)
     .set({
-      reviewDecision: params.decision,
+      reviewDecision: params.decision as "approve" | "reject" | "request_more_info",
       reviewedBy: parseInt(params.reviewerId),
       reviewedAt: new Date().toISOString(),
       reviewNotes: params.reviewerNotes || null,
@@ -199,20 +208,12 @@ export async function submitReviewDecision(params: {
   
   // If approved, move to training dataset
   if (params.decision === "approve") {
-    if (!db) {
-      throw new Error("Database connection not available");
-    }
-
     const [claim] = await db.select()
       .from(historicalClaims)
       .where(eq(historicalClaims.id, queueItem.historicalClaimId))
       .limit(1);
     
     if (claim) {
-      if (!db) {
-        throw new Error("Database connection not available");
-      }
-
       await db.insert(trainingDataset).values({
         tenantId: params.tenantId,
         historicalClaimId: claim.id,
@@ -230,14 +231,10 @@ export async function submitReviewDecision(params: {
     historicalClaimId: queueItem.historicalClaimId,
     reviewerNotes: params.reviewerNotes,
   };
-  const integrityHash = require('crypto')
+  const integrityHash = crypto
     .createHash('sha256')
     .update(JSON.stringify(auditData))
     .digest('hex');
-
-  if (!db) {
-    throw new Error("Database connection not available");
-  }
 
   await db.insert(isoAuditLogs).values({
     id: auditId,
@@ -267,13 +264,12 @@ export async function getClaimReviewHistory(params: {
   reviewHistory: Array<{
     decision: ReviewDecision;
     reviewedBy: string;
-    reviewedAt: Date;
+    reviewedAt: string;
     reviewerNotes: string | null;
   }>;
 }> {
-  if (!db) {
-    throw new Error("Database connection not available");
-  }
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
 
   const reviews = await db.select()
     .from(claimReviewQueue)
@@ -292,9 +288,9 @@ export async function getClaimReviewHistory(params: {
     latestDecision: reviewedItems.length > 0 ? reviewedItems[0].reviewDecision as ReviewDecision : null,
     reviewHistory: reviewedItems.map(r => ({
       decision: r.reviewDecision as ReviewDecision,
-      reviewedBy: r.reviewedBy?.toString() || "Unknown",
+      reviewedBy: r.reviewedBy?.toString() ?? "Unknown",
       reviewedAt: r.reviewedAt!,
-      reviewerNotes: r.reviewNotes,
+      reviewerNotes: r.reviewNotes ?? null,
     })),
   };
 }
@@ -315,10 +311,6 @@ export async function bulkApproveReviews(params: {
   let approvedCount = 0;
   const failedIds: number[] = [];
   
-  if (!db) {
-    throw new Error("Database connection not available");
-  }
-
   for (const queueId of params.reviewQueueIds) {
     try {
       await submitReviewDecision({

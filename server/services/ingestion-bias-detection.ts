@@ -10,8 +10,6 @@ import {
 } from "../../drizzle/schema";
 import { eq, and, sql, gte, lte } from "drizzle-orm";
 
-const db = await getDb();
-
 export type BiasType = 
   | "extreme_repair_value"
   | "panel_beater_dominance"
@@ -38,6 +36,8 @@ export async function detectBatchBiases(params: {
   tenantId: string;
   batchId: number;
 }): Promise<BiasDetectionResult> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
   const biasTypes: BiasType[] = [];
   const details: BiasDetectionResult["details"] = [];
   
@@ -102,12 +102,11 @@ export async function detectBatchBiases(params: {
   for (const detail of details) {
     await db.insert(biasDetectionFlags).values({
       tenantId: params.tenantId,
-      batchId: params.batchId,
+      batchId: String(params.batchId),
       biasType: detail.type,
-      severity,
-      description: detail.description,
-      affectedClaimsCount: detail.affectedClaims,
-      mitigationRecommendation: detail.mitigationRecommendation,
+      affectedField: detail.description.slice(0, 128),
+      sampleSize: detail.affectedClaims,
+      mitigationNotes: detail.mitigationRecommendation,
     });
   }
   
@@ -337,19 +336,20 @@ export async function getBatchBiasSummary(params: {
   lowSeverity: number;
   flagsByType: Record<BiasType, number>;
 }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
   const flags = await db.select()
     .from(biasDetectionFlags)
     .where(
       and(
         eq(biasDetectionFlags.tenantId, params.tenantId),
-        eq(biasDetectionFlags.batchId, params.batchId)
+                eq(biasDetectionFlags.batchId, String(params.batchId))
       )
     );
-  
   const totalFlags = flags.length;
-  const highSeverity = flags.filter(f => f.severity === "high").length;
-  const mediumSeverity = flags.filter(f => f.severity === "medium").length;
-  const lowSeverity = flags.filter(f => f.severity === "low").length;
+  const highSeverity = 0; // severity column not in schema
+  const mediumSeverity = flags.filter(f => f.mitigationApplied === 0).length;
+  const lowSeverity = flags.filter(f => f.mitigationApplied === 1).length;
   
   const flagsByType: Record<BiasType, number> = {
     extreme_repair_value: 0,

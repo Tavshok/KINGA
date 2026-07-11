@@ -51,7 +51,7 @@ export async function simulateRoutingDistribution(
   daysToAnalyze: number = 30
 ): Promise<SimulationResult> {
   const db = await getDb();
-
+  if (!db) throw new Error('Database unavailable');
   // Get recent claims for simulation
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysToAnalyze);
@@ -69,7 +69,7 @@ export async function simulateRoutingDistribution(
     .where(
       and(
         eq(claims.tenantId, tenantId),
-        gte(claims.createdAt, cutoffDate)
+        gte(claims.createdAt, cutoffDate.toISOString())
       )
     )
     .limit(1000); // Limit to 1000 claims for performance
@@ -109,7 +109,7 @@ export async function simulateRoutingDistribution(
     totalClaimAmount += claimAmount;
 
     // Track claim type breakdown
-    const claimType = claim.incidentType || "unknown";
+    const claimType = (claim as any).incidentType || "unknown";
     claimTypeBreakdown[claimType] = (claimTypeBreakdown[claimType] || 0) + 1;
 
     // Apply policy rules to determine routing decision
@@ -227,7 +227,7 @@ export async function simulateSingleClaimRouting(
   reasoning: string[];
 }> {
   const db = await getDb();
-
+  if (!db) throw new Error('Database unavailable');
   // Get claim details
   const [claim] = await db
     .select()
@@ -248,10 +248,10 @@ export async function simulateSingleClaimRouting(
 
   const confidenceScore = confidenceScoreRecord ? Number(confidenceScoreRecord.compositeConfidenceScore) : 0;
   const fraudScore = claim.fraudRiskScore || 0;
-  const claimAmount = Number(claim.estimatedClaimValue) || 0;
+  const claimAmount = Number((claim as any).estimatedClaimValue || 0) || 0;
   const vehicleYear = claim.vehicleYear || 0;
   const vehicleAge = new Date().getFullYear() - vehicleYear;
-  const claimType = claim.incidentType || "unknown";
+  const claimType = (claim as any).incidentType || "unknown";
 
   const reasoning: string[] = [];
   let routingDecision = "escalate";

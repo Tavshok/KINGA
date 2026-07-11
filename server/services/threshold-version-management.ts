@@ -94,7 +94,7 @@ export async function getActiveThresholdConfig(tenantId: string): Promise<{
     .where(
       and(
         eq(routingThresholdConfig.tenantId, tenantId),
-        eq(routingThresholdConfig.isActive, true)
+        eq(routingThresholdConfig.isActive, 1)
       )
     )
     .limit(1);
@@ -157,7 +157,7 @@ export async function createThresholdVersion(
     .where(
       and(
         eq(routingThresholdConfig.tenantId, params.tenantId),
-        eq(routingThresholdConfig.isActive, true)
+        eq(routingThresholdConfig.isActive, 1)
       )
     );
   
@@ -171,7 +171,7 @@ export async function createThresholdVersion(
     version: params.version,
     highThreshold: params.highThreshold.toFixed(2),
     mediumThreshold: params.mediumThreshold.toFixed(2),
-    aiFastTrackEnabled: params.aiFastTrackEnabled,
+    aiFastTrackEnabled: params.aiFastTrackEnabled ? 1 : 0,
     createdByUserId: params.createdByUserId,
     isActive: 1,
   });
@@ -209,7 +209,7 @@ export async function deactivateThresholdVersion(params: {
       and(
         eq(routingThresholdConfig.tenantId, params.tenantId),
         eq(routingThresholdConfig.version, params.version),
-        eq(routingThresholdConfig.isActive, false)
+        eq(routingThresholdConfig.isActive, 0)
       )
     )
     .limit(1);
@@ -252,7 +252,7 @@ export async function getThresholdVersionHistory(tenantId: string): Promise<Arra
     aiFastTrackEnabled: Boolean(v.aiFastTrackEnabled),
     createdByUserId: v.createdByUserId,
     createdAt: v.createdAt,
-    isActive: Boolean(v.isActive),
+    isActive: v.isActive,
   }));
 }
 
@@ -264,7 +264,7 @@ export function getDefaultThresholdConfig(): ThresholdConfig {
   return {
     highThreshold: 80,
     mediumThreshold: 50,
-    aiFastTrackEnabled: 1,
+    aiFastTrackEnabled: 1 as unknown as boolean,
   };
 }
 

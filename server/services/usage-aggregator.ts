@@ -50,8 +50,8 @@ export async function generateMonthlySummary(
     .where(
       and(
         eq(usageEvents.tenantId, tenantId ?? ''),
-        gte(usageEvents.timestamp, periodStart),
-        lte(usageEvents.timestamp, periodEnd)
+        gte(usageEvents.timestamp, periodStart.toISOString()),
+        lte(usageEvents.timestamp, periodEnd.toISOString())
       )
     )
     .groupBy(usageEvents.eventType);

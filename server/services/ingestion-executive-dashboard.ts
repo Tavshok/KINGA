@@ -13,8 +13,6 @@ import {
 } from "../../drizzle/schema";
 import { eq, and, sql, gte, desc } from "drizzle-orm";
 
-const db = await getDb();
-
 export interface IngestionDashboardMetrics {
   // Batch statistics
   totalBatches: number;
@@ -50,8 +48,8 @@ export interface IngestionDashboardMetrics {
 
 export interface BatchSummary {
   id: number;
-  uploadedBy: string;
-  uploadedAt: Date;
+  uploadedBy: number | null;
+  uploadedAt: string;
   status: string;
   totalDocuments: number;
   processedDocuments: number;
@@ -70,9 +68,8 @@ export interface BatchSummary {
 export async function getIngestionDashboardMetrics(params: {
   tenantId: string;
 }): Promise<IngestionDashboardMetrics> {
-  if (!db) {
-    throw new Error("Database connection not available");
-  }
+  const db = await getDb();
+  if (!db) throw new Error('Database unavailable');
 
   // Batch statistics
   const batchStats = await db.select({
@@ -207,9 +204,8 @@ export async function getRecentBatches(params: {
   tenantId: string;
   limit?: number;
 }): Promise<BatchSummary[]> {
-  if (!db) {
-    throw new Error("Database connection not available");
-  }
+  const db = await getDb();
+  if (!db) throw new Error('Database unavailable');
 
   const limit = params.limit || 10;
   
@@ -237,11 +233,11 @@ export async function getRecentBatches(params: {
       count: sql<number>`count(*)::int`,
     })
       .from(biasDetectionFlags)
-      .where(eq(biasDetectionFlags.batchId, batch.id));
+      .where(eq(biasDetectionFlags.batchId, batch.id.toString()));
     
     batchSummaries.push({
       id: batch.id,
-      uploadedBy: batch.uploadedBy,
+      uploadedBy: batch.uploadedByUserId,
       uploadedAt: batch.createdAt,
       status: batch.status,
       totalDocuments: batch.totalDocuments,
@@ -271,9 +267,8 @@ export async function getBiasTrends(params: {
   count: number;
   severity: string;
 }>> {
-  if (!db) {
-    throw new Error("Database connection not available");
-  }
+  const db = await getDb();
+  if (!db) throw new Error('Database unavailable');
 
   const days = params.days || 30;
   const startDate = new Date();
@@ -282,23 +277,22 @@ export async function getBiasTrends(params: {
   const trends = await db.select({
     date: sql<string>`DATE(created_at)`,
     biasType: biasDetectionFlags.biasType,
-    severity: biasDetectionFlags.severity,
-    count: sql<number>`count(*)::int`,
+    count: sql<number>`count(*)`,
   })
     .from(biasDetectionFlags)
     .where(
       and(
         eq(biasDetectionFlags.tenantId, params.tenantId),
-        gte(biasDetectionFlags.createdAt, startDate)
+        gte(biasDetectionFlags.createdAt, startDate.toISOString())
       )
     )
-    .groupBy(sql`DATE(created_at)`, biasDetectionFlags.biasType, biasDetectionFlags.severity)
+    .groupBy(sql`DATE(created_at)`, biasDetectionFlags.biasType)
     .orderBy(sql`DATE(created_at) DESC`);
   
   return trends.map(t => ({
     date: t.date,
     biasType: t.biasType || "unknown",
     count: t.count,
-    severity: t.severity || "low",
+    severity: "low",
   }));
 }

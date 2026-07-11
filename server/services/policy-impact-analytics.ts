@@ -73,7 +73,7 @@ export async function getPolicyImpactMetrics(
   tenantId: string
 ): Promise<PolicyImpactMetrics> {
   const db = await getDb();
-
+  if (!db) throw new Error('Database unavailable');
   // Get policy details
   const [policy] = await db
     .select()
@@ -92,21 +92,21 @@ export async function getPolicyImpactMetrics(
 
   // Get claims routed using this policy
   const policyEffectiveFrom = policy.effectiveFrom;
-  const policyEffectiveUntil = policy.effectiveUntil || new Date();
+  const policyEffectiveUntil = policy.effectiveUntil || new Date().toISOString();
 
   const routedClaims = await db
     .select({
       claimId: claimRoutingDecisions.claimId,
-      routingDecision: claimRoutingDecisions.routingDecision,
+      routingDecision: claimRoutingDecisions.routedWorkflow,
       policyVersion: claimRoutingDecisions.policyVersion,
-      routedAt: claimRoutingDecisions.routedAt,
+      routedAt: claimRoutingDecisions.decisionTimestamp,
     })
     .from(claimRoutingDecisions)
     .where(
       and(
         eq(claimRoutingDecisions.policyVersion, policy.version),
-        gte(claimRoutingDecisions.routedAt, policyEffectiveFrom),
-        lte(claimRoutingDecisions.routedAt, policyEffectiveUntil)
+        gte(claimRoutingDecisions.decisionTimestamp, policyEffectiveFrom),
+        lte(claimRoutingDecisions.decisionTimestamp, policyEffectiveUntil)
       )
     );
 
@@ -177,8 +177,8 @@ export async function getPolicyImpactMetrics(
   let hybridReviewCount = 0;
 
   for (const claim of claimDetails) {
-    const aiEstimate = Number(claim.aiEstimatedCost) || 0;
-    const finalApproved = Number(claim.insurerApprovedCost) || 0;
+    const aiEstimate = Number((claim as any).aiEstimatedCost || 0) || 0;
+    const finalApproved = Number((claim as any).insurerApprovedCost || 0) || 0;
 
     totalClaimAmount += aiEstimate;
     totalApprovedAmount += finalApproved;
@@ -187,7 +187,7 @@ export async function getPolicyImpactMetrics(
 
     // Check for overrides (AI decision vs final decision)
     const routingDecision = routedClaims.find(rc => rc.claimId === claim.id)?.routingDecision;
-    const finalDecision = claim.finalDecision;
+    const finalDecision = (claim as any).finalDecision;
 
     if (routingDecision === "ai_only" && finalDecision === "rejected") {
       totalOverrides++;
@@ -198,7 +198,7 @@ export async function getPolicyImpactMetrics(
     }
 
     // Check for confirmed fraud
-    if (claim.finalFraudOutcome === "high") {
+    if ((claim as any).finalFraudOutcome === "high") {
       confirmedFraudCases++;
     }
 
@@ -354,7 +354,7 @@ export async function getAllPolicyImpactMetrics(
   tenantId: string
 ): Promise<PolicyImpactMetrics[]> {
   const db = await getDb();
-
+  if (!db) throw new Error('Database unavailable');
   const policies = await db
     .select()
     .from(automationPolicies)
