@@ -419,7 +419,7 @@ export default function DecisionAuthorityPanel({
     is_high_value: claim?.isHighValue ?? null,
     fraud_result: aiAssessment
       ? {
-          fraud_risk_level: aiAssessment.fraudRiskLevel as "minimal" | "low" | "medium" | "high" | "elevated" | null,
+          fraud_risk_level: (aiAssessment.fraudRiskLevel === "medium" ? "moderate" : aiAssessment.fraudRiskLevel) as "minimal" | "low" | "moderate" | "high" | "elevated" | null,
           fraud_risk_score: aiAssessment.fraudRiskScore ?? null,
         }
       : null,

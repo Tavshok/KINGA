@@ -78,7 +78,7 @@ export default function AdminDashboard() {
   const { data: assessmentClaimsData } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "under_assessment", limit: 100, offset: 0 });
   const assessmentClaims = assessmentClaimsData?.claims || [];
   
-  const { data: completedClaimsDataResponse } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "completed", limit: 100, offset: 0 });
+  const { data: completedClaimsDataResponse } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "closed", limit: 100, offset: 0 });
   const completedClaimsData = completedClaimsDataResponse?.claims || [];
 
   // Historical claims analytics (admin only)

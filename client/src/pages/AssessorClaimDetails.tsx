@@ -38,7 +38,7 @@ export default function AssessorClaimDetails() {
     estimatedDuration: "",
     damageAssessment: "",
     recommendations: "",
-    fraudRiskLevel: "low" as "low" | "medium" | "high",
+    fraudRiskLevel: "low" as "low" | "moderate" | "high",
     disagreesWithAi: false,
     aiDisagreementReason: "",
   });

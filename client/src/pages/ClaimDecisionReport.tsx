@@ -1856,7 +1856,7 @@ export default function ClaimDecisionReport() {
               (enforcement as any)?.finalDecision?.decision ??
               "REVIEW"
             }
-            existingSignOff={existingSignOff ?? null}
+            existingSignOff={existingSignOff ? { adjusterName: existingSignOff.adjusterName, decision: existingSignOff.decision, notes: existingSignOff.notes ?? "", signedAt: existingSignOff.signedAt } : null}
             onSaved={() => refetchSignOff()}
           />
         )}

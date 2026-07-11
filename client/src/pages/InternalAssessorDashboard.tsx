@@ -359,7 +359,7 @@ function AssessmentDialog({
     estimatedDuration: "",
     damageAssessment: "",
     recommendations: "",
-    fraudRiskLevel: "low" as "low" | "medium" | "high",
+    fraudRiskLevel: "low" as "low" | "moderate" | "high",
     disagreesWithAi: false,
     aiDisagreementReason: "",
   });
@@ -486,7 +486,7 @@ function AssessmentDialog({
             <Label>Fraud Risk Level <span className="text-destructive">*</span></Label>
             <Select
               value={form.fraudRiskLevel}
-              onValueChange={(v: "low" | "medium" | "high") => setForm(f => ({ ...f, fraudRiskLevel: v }))}
+              onValueChange={(v: "low" | "moderate" | "high") => setForm(f => ({ ...f, fraudRiskLevel: v }))}
             >
               <SelectTrigger>
                 <SelectValue />

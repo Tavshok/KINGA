@@ -241,8 +241,8 @@ export default function PlatformClaimTrace() {
                 <div key={decision.id} className="p-4 bg-muted rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <Badge variant={
-                      decision.decision === "fast_track" ? "default" :
-                      decision.decision === "manual_review" ? "secondary" :
+                      decision.decision === "AI_FAST_TRACK" ? "default" :
+                      decision.decision === "MANUAL_OVERRIDE" ? "secondary" :
                       "destructive"
                     }>
                       {decision.decision?.replace(/_/g, " ")}
