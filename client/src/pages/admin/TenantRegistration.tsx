@@ -24,7 +24,7 @@ export default function TenantRegistration() {
     displayName: "",
     contactEmail: "",
     billingEmail: "",
-    plan: "standard" as "free" | "standard" | "premium" | "enterprise",
+    tier: "tier-basic" as "tier-basic" | "tier-professional" | "tier-enterprise",
     intakeEscalationHours: 6,
     aiRerunLimitPerHour: 10,
     intakeEscalationEnabled: false,
@@ -78,7 +78,7 @@ export default function TenantRegistration() {
         displayName: formData.displayName,
         contactEmail: formData.contactEmail,
         billingEmail: formData.billingEmail || formData.contactEmail,
-        plan: formData.plan,
+        tier: formData.tier,
         workflowConfig: {
           intakeEscalationHours: formData.intakeEscalationHours,
           intakeEscalationEnabled: formData.intakeEscalationEnabled,
@@ -180,21 +180,20 @@ export default function TenantRegistration() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="plan">Subscription Plan *</Label>
+                <Label htmlFor="tier">Subscription Tier *</Label>
                 <Select
-                  value={formData.plan}
+                  value={formData.tier}
                   onValueChange={(value: any) =>
-                    setFormData({ ...formData, plan: value })
+                    setFormData({ ...formData, tier: value })
                   }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="free">Free - Trial (30 days)</SelectItem>
-                    <SelectItem value="standard">Standard - $99/month</SelectItem>
-                    <SelectItem value="premium">Premium - $299/month</SelectItem>
-                    <SelectItem value="enterprise">Enterprise - Custom pricing</SelectItem>
+                    <SelectItem value="tier-basic">Basic</SelectItem>
+                    <SelectItem value="tier-professional">Professional</SelectItem>
+                    <SelectItem value="tier-enterprise">Enterprise</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

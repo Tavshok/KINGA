@@ -25,6 +25,7 @@ export type InsurerRole =
 export type WorkflowState =
   | "intake_queue"
   | "created"
+  | "intake_verified"
   | "assigned"
   | "under_assessment"
   | "internal_review"
@@ -32,7 +33,10 @@ export type WorkflowState =
   | "financial_decision"
   | "payment_authorized"
   | "closed"
-  | "disputed";
+  | "disputed"
+  | "ai_assessment_pending"
+  | "ai_assessment_completed"
+  | "manual_review";
 
 /**
  * Permission matrix for each role
@@ -187,6 +191,11 @@ export const WORKFLOW_TRANSITIONS: Record<WorkflowState, WorkflowState[]> = {
   payment_authorized: ["closed", "disputed"],
   closed: ["disputed"], // Can reopen if disputed
   disputed: ["internal_review"], // Restart from internal review
+  // Additional states from DB schema
+  intake_verified: ["assigned", "under_assessment"],
+  ai_assessment_pending: ["ai_assessment_completed", "manual_review"],
+  ai_assessment_completed: ["internal_review", "technical_approval"],
+  manual_review: ["internal_review", "technical_approval"],
 };
 
 /**
@@ -294,6 +303,10 @@ export function getWorkflowStateDisplayName(state: WorkflowState): string {
     payment_authorized: "Payment Authorized",
     closed: "Closed",
     disputed: "Disputed",
+    intake_verified: "Intake Verified",
+    ai_assessment_pending: "AI Assessment Pending",
+    ai_assessment_completed: "AI Assessment Completed",
+    manual_review: "Manual Review",
   };
   return names[state];
 }

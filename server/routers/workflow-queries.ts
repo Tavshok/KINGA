@@ -76,7 +76,7 @@ export const workflowQueriesRouter = router({
   getClaimsByState: insurerDomainProcedure
     .input(
       z.object({
-        state: z.string(),
+        state: z.enum(['intake_queue','created','intake_verified','assigned','under_assessment','internal_review','technical_approval','financial_decision','payment_authorized','closed','disputed','ai_assessment_pending','ai_assessment_completed','manual_review']),
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
       })
@@ -109,7 +109,7 @@ export const workflowQueriesRouter = router({
       }
 
       const whereConditions = and(
-        eq(claims.workflowState, input.state as any),
+        eq(claims.workflowState, input.state),
         eq(claims.tenantId, insurerTenantId)   // ← strict tenant isolation
       );
 
@@ -145,7 +145,7 @@ export const workflowQueriesRouter = router({
   getClaimsByStatus: insurerDomainProcedure
     .input(
       z.object({
-        statuses: z.array(z.string()).min(1).max(20),
+        statuses: z.array(z.enum(['submitted','triage','assessment_pending','assessment_in_progress','quotes_pending','comparison','repair_assigned','repair_in_progress','completed','rejected','intake_pending','assessment_complete','closed'])).min(1).max(20),
         limit: z.number().min(1).max(200).default(100),
         offset: z.number().min(0).default(0),
       })
@@ -157,7 +157,7 @@ export const workflowQueriesRouter = router({
       const { insurerTenantId } = ctx;
 
       const whereConditions = and(
-        inArray(claims.status, input.statuses as any[]),
+        inArray(claims.status, input.statuses),
         eq(claims.tenantId, insurerTenantId)   // ← strict tenant isolation
       );
 
