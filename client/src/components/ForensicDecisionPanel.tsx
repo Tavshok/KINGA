@@ -293,11 +293,20 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
   const l2OptimisedUsd    = Number(costIntel?.compositeOptimisation?.l2CompositeOptimisedCostUsd ?? 0);
   // Use normalised total as fallback only when L2 is unavailable
   const trueCostUsd       = Number(normCosts?.totalUsd ?? costDecision?.true_cost_usd ?? 0);
+  // When l2=0 and source is ai_estimate, check whether the AI cost is simply echoing
+  // the original quote (quote-first path with no independent estimate). In that case
+  // the label should be 'Submitted Quote Total' rather than 'KINGA Estimate'.
+  const originalQuoteUsd  = Number(normCosts?.originalQuoteUsd ?? 0);
+  const isQuoteEcho       = l2OptimisedUsd === 0 &&
+                            normCosts?.source === 'ai_estimate' &&
+                            originalQuoteUsd > 0 &&
+                            Math.abs(aiCost - originalQuoteUsd) / originalQuoteUsd < 0.01;
   // Derive a human-readable cost basis label from the normalised source
   const costBasisLabel    = l2OptimisedUsd > 0 ? 'KINGA Estimate' :
                             normCosts?.source === 'agreed_cost' ? 'Agreed Cost' :
                             normCosts?.source === 'original_quote' ? 'Lowest Submitted Quote' :
                             normCosts?.source === 'parts_labour_sum' ? 'Parts + Labour' :
+                            isQuoteEcho ? 'Submitted Quote Total' :
                             normCosts?.source === 'ai_estimate' ? 'KINGA Estimate' :
                             costDecision?.cost_basis ?? 'KINGA Estimate';
   // costBasis: prefer L2 optimised, then KINGA estimate, then normalised total
