@@ -1,22 +1,20 @@
-// @ts-nocheck
 /**
  * Audit Router
- * 
+ *
  * Handles audit logging for security and compliance purposes.
  * Includes access denial logging for RBAC enforcement.
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
 import { z } from "zod";
 import { accessDenialLog } from "../../drizzle/schema";
 
-const db = getDb();
-
 export const auditRouter = router({
   /**
    * Log Access Denial
-   * 
+   *
    * Records when a user attempts to access a route or resource
    * without proper permissions. Used by RoleGuard component.
    */
@@ -29,7 +27,8 @@ export const auditRouter = router({
       denialReason: z.string(),
     }))
     .mutation(async ({ input, ctx }) => {
-      
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       // Log the access denial attempt
       await db.insert(accessDenialLog).values({
         userId: ctx.user.id,
@@ -39,7 +38,6 @@ export const auditRouter = router({
         tenantId: input.tenantId,
         denialReason: input.denialReason,
         // Note: IP address and user agent would need to be extracted from request headers
-        // This would require passing them through the context
         ipAddress: null,
         userAgent: null,
       });
