@@ -9,7 +9,8 @@
 import crypto from "crypto";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "./db";
-import { tenantInvitations, users, auditTrail, tenants } from "../drizzle/schema";
+import { tenantInvitations, users, tenants } from "../drizzle/schema";
+import { insertIsoAuditLog, SYSTEM_USER_ID } from "./utils/audit-helpers";
 import { eq, and, gt } from "drizzle-orm";
 import { sendEmailSafe } from "./safe-email";
 
@@ -211,18 +212,23 @@ export async function acceptInvitation(params: {
     .set({ acceptedAt: new Date() })
     .where(eq(tenantInvitations.token, token));
 
-  // Audit log
-  await db.insert(auditTrail).values({
+  // AUDIT-01: isoAuditLogs — user onboarding via invitation (system-triggered, tenant-scoped)
+  await insertIsoAuditLog(db as any, {
     tenantId: invitation.tenantId,
-    userId: newUser.insertId as number,
-    actionType: "TENANT_USER_ONBOARDED",
-    actionDescription: `User ${name} (${invitation.email}) onboarded to tenant ${invitation.tenantId} with role ${invitation.role}`,
-    actor: "SYSTEM",
-    metadata: JSON.stringify({
-      invitationToken: token,
+    userId: SYSTEM_USER_ID,
+    userRole: "system",
+    actionType: "create",
+    resourceType: "user",
+    resourceId: String(newUser.insertId),
+    beforeState: null,
+    afterState: JSON.stringify({
+      actionType: "TENANT_USER_ONBOARDED",
+      email: invitation.email,
+      name,
       role: invitation.role,
       insurerRole: invitation.insurerRole,
       invitedBy: invitation.createdBy,
+      tenantId: invitation.tenantId,
     }),
   });
 

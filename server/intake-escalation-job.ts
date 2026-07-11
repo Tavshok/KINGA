@@ -11,10 +11,14 @@
  * - intakeEscalationEnabled: Enable/disable escalation
  * - intakeEscalationHours: Threshold in hours (default 6)
  * - intakeEscalationMode: "auto_assign" or "escalate_only" (default "escalate_only")
+ *
+ * AUDIT-01 (2026-07-11): Redirected from auditTrail (wrong table/field vocabulary) to
+ * isoAuditLogs. This is a system-triggered job (no human actor), so SYSTEM_USER_ID is
+ * used for userId. integrityHash is generated per the ingestion-review-queue.ts pattern.
  */
 
 import { getDb } from "./db";
-import { claims, tenants, auditTrail, users } from "../drizzle/schema";
+import { claims, tenants, users } from "../drizzle/schema";
 import { eq, and, lt, sql, inArray } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { findLowestWorkloadProcessor, type ProcessorWorkload } from "./workload-balancing";
@@ -23,6 +27,7 @@ import {
   formatNotificationTitle,
   formatNotificationMessage,
 } from "./notification-service";
+import { insertIsoAuditLog, SYSTEM_USER_ID } from "./utils/audit-helpers";
 
 // Processor selection logic moved to workload-balancing.ts service module
 
@@ -38,7 +43,6 @@ async function autoAssignClaim(
     (Date.now() - new Date(claim.createdAt).getTime()) / (1000 * 60 * 60)
   );
 
-  // Update claim: assign processor and transition to "assigned" state
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
@@ -51,30 +55,30 @@ async function autoAssignClaim(
     })
     .where(eq(claims.id, claim.id));
 
-  // Insert audit trail entry
-  await db.insert(auditTrail).values({
-    claimId: claim.id,
+  // AUDIT-01: isoAuditLogs — system-triggered compliance event (no human actor)
+  await insertIsoAuditLog(db as any, {
     tenantId: claim.tenantId,
-    actionType: "INTAKE_AUTO_ASSIGN",
-    actorId: "SYSTEM",
-    actorRole: "system",
-    previousState: "intake_queue",
-    newState: "assigned",
-    reason: `Manager inactivity - auto-assigned after ${hoursInQueue} hours (threshold: ${thresholdHours} hours)`,
-    metadata: JSON.stringify({
+    userId: SYSTEM_USER_ID,
+    userRole: "system",
+    actionType: "update",
+    resourceType: "claim",
+    resourceId: claim.id.toString(),
+    beforeState: JSON.stringify({ workflowState: "intake_queue" }),
+    afterState: JSON.stringify({
+      actionType: "INTAKE_AUTO_ASSIGN",
+      workflowState: "assigned",
       assignedProcessorId: processor.processorId,
       assignedProcessorName: processor.processorName,
       hoursInQueue,
       escalationThreshold: thresholdHours,
-      // Weighted workload breakdown
       processorActiveClaims: processor.activeClaims,
       processorComplexClaims: processor.complexClaims,
       processorHighRiskClaims: processor.highRiskClaims,
       processorWeightedScore: processor.weightedScore,
       claimNumber: claim.claimNumber,
       estimatedValue: claim.estimatedClaimValue,
+      reason: `Manager inactivity - auto-assigned after ${hoursInQueue} hours (threshold: ${thresholdHours} hours)`,
     }),
-    timestamp: new Date(),
   });
 
   console.log(
@@ -95,27 +99,28 @@ async function escalateClaim(
     (Date.now() - new Date(claim.createdAt).getTime()) / (1000 * 60 * 60)
   );
 
-  // Insert audit trail entry (no state change)
+  // AUDIT-01: isoAuditLogs — system-triggered compliance event (no state change)
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  await db.insert(auditTrail).values({
-    claimId: claim.id,
+
+  await insertIsoAuditLog(db as any, {
     tenantId: claim.tenantId,
-    actionType: "INTAKE_ESCALATION",
-    actorId: "SYSTEM",
-    actorRole: "system",
-    previousState: "intake_queue",
-    newState: "intake_queue", // State remains unchanged
-    reason: `Manager inactivity - escalated after ${hoursInQueue} hours (threshold: ${thresholdHours} hours)`,
-    metadata: JSON.stringify({
+    userId: SYSTEM_USER_ID,
+    userRole: "system",
+    actionType: "view",
+    resourceType: "claim",
+    resourceId: claim.id.toString(),
+    beforeState: null,
+    afterState: JSON.stringify({
+      actionType: "INTAKE_ESCALATION",
+      workflowState: "intake_queue",
       hoursInQueue,
       escalationThreshold: thresholdHours,
       claimNumber: claim.claimNumber,
       estimatedValue: claim.estimatedClaimValue,
       escalationMode: "escalate_only",
+      reason: `Manager inactivity - escalated after ${hoursInQueue} hours (threshold: ${thresholdHours} hours)`,
     }),
-    timestamp: new Date(),
   });
 
   console.log(
@@ -135,31 +140,24 @@ async function processTenantEscalation(tenant: any) {
     intakeEscalationMode,
   } = tenant;
 
-  // Skip if escalation is disabled
   if (!intakeEscalationEnabled) {
     console.log(`[Intake Escalation] Skipping tenant ${tenantName} (escalation disabled)`);
     return;
   }
 
-  const thresholdHours = intakeEscalationHours || 6; // Default to 6 hours
-  const mode = intakeEscalationMode || "escalate_only"; // Default to escalate_only
+  const thresholdHours = intakeEscalationHours || 6;
+  const mode = intakeEscalationMode || "escalate_only";
 
   console.log(
     `[Intake Escalation] Processing tenant ${tenantName} (threshold: ${thresholdHours}h, mode: ${mode})`
   );
 
-  // Find stale claims in intake_queue
   const db = await getDb();
   if (!db) {
     console.error(`[Intake Escalation] Database not available for tenant ${tenantName}`);
     return;
   }
   
-  // Use DB-side time comparison to avoid UTC offset mismatch between Node.js and DB server.
-  // The DB server may be in a different timezone than the Node.js process, so computing
-  // thresholdDate with new Date() produces an ISO string in UTC that may be hours off
-  // from the stored timestamp values. Using DATE_SUB(NOW(), INTERVAL N HOUR) ensures
-  // both sides of the comparison use the same clock reference.
   const staleClaims = await db
     .select()
     .from(claims)
@@ -181,26 +179,21 @@ async function processTenantEscalation(tenant: any) {
   );
 
   if (mode === "auto_assign") {
-    // AUTO-ASSIGN MODE: Assign to lowest workload processor
     const processor = await findLowestWorkloadProcessor(tenantId);
 
     if (!processor) {
       console.error(
         `[Intake Escalation] No available processors for tenant ${tenantName} - cannot auto-assign`
       );
-      // Fall back to escalate_only behavior
       for (const claim of staleClaims) {
         await escalateClaim(claim, thresholdHours);
       }
     } else {
-      // Auto-assign all stale claims to the selected processor
       for (const claim of staleClaims) {
         await autoAssignClaim(claim, processor, thresholdHours);
       }
 
-      // Send governance notifications about auto-assignments
       try {
-        // Get claims_manager and executive users for this tenant
         const managerUsers = await db
           .select()
           .from(users)
@@ -228,12 +221,11 @@ async function processTenantEscalation(tenant: any) {
             formatNotificationTitle("auto_assignment", context),
             formatNotificationMessage("auto_assignment", context),
             recipientIds,
-            undefined, // No single claim ID for batch operation
+            undefined,
             context
           );
         }
 
-        // Also send owner notification (existing behavior)
         await notifyOwner({
           title: `⚠️ Intake Queue Auto-Assignment Alert - ${tenantName}`,
           content: `${staleClaims.length} claim(s) were automatically assigned to processor "${processor.processorName}" due to manager inactivity.\n\nTenant: ${tenantName}\nEscalation Threshold: ${thresholdHours} hours\nProcessor Workload: ${processor.weightedScore.toFixed(1)} (active: ${processor.activeClaims}, complex: ${processor.complexClaims}, high-risk: ${processor.highRiskClaims})\nAuto-Assigned Claims: ${staleClaims.map((c) => c.claimNumber).join(", ")}\n\nPlease review the Claims Manager Dashboard for details.`,
@@ -243,14 +235,11 @@ async function processTenantEscalation(tenant: any) {
       }
     }
   } else {
-    // ESCALATE-ONLY MODE: Notify without auto-assignment
     for (const claim of staleClaims) {
       await escalateClaim(claim, thresholdHours);
     }
 
-    // Send governance notifications about escalated claims
     try {
-      // Get claims_manager and executive users for this tenant
       const managerUsers = await db
         .select()
         .from(users)
@@ -276,12 +265,11 @@ async function processTenantEscalation(tenant: any) {
           formatNotificationTitle("intake_escalation", context),
           formatNotificationMessage("intake_escalation", context),
           recipientIds,
-          undefined, // No single claim ID for batch operation
+          undefined,
           context
         );
       }
 
-      // Also send owner notification (existing behavior)
       await notifyOwner({
         title: `⚠️ Intake Queue Escalation Alert - ${tenantName}`,
         content: `${staleClaims.length} claim(s) in the intake queue require immediate attention.\n\nTenant: ${tenantName}\nEscalation Threshold: ${thresholdHours} hours\nEscalated Claims: ${staleClaims.map((c) => c.claimNumber).join(", ")}\n\nThese claims have not been assigned to a processor. Please review the Claims Manager Dashboard and take action.`,
@@ -299,7 +287,6 @@ export async function runIntakeEscalationJob() {
   console.log("[Intake Escalation] Starting escalation job...");
 
   try {
-    // Fetch all active tenants with escalation configuration
     const db = await getDb();
     if (!db) {
       console.error("[Intake Escalation] Database not available");
@@ -319,7 +306,6 @@ export async function runIntakeEscalationJob() {
 
     console.log(`[Intake Escalation] Found ${activeTenants.length} active tenant(s)`);
 
-    // Process each tenant independently
     for (const tenant of activeTenants) {
       try {
         await processTenantEscalation(tenant);
@@ -328,7 +314,6 @@ export async function runIntakeEscalationJob() {
           `[Intake Escalation] Error processing tenant ${tenant.name}:`,
           error
         );
-        // Continue with next tenant
       }
     }
 
@@ -344,10 +329,6 @@ export async function runIntakeEscalationJob() {
 export function startIntakeEscalationJob() {
   console.log("[Intake Escalation] Initializing cron job (every 30 minutes)...");
 
-  // Run immediately on startup (for testing)
-  // runIntakeEscalationJob();
-
-  // Schedule to run every 30 minutes
   const THIRTY_MINUTES = 30 * 60 * 1000;
   setInterval(() => {
     runIntakeEscalationJob();

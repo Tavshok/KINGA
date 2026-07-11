@@ -14,7 +14,8 @@
  */
 
 import { getDb } from "./db";
-import { automationPolicies, claimRoutingDecisions, auditTrail } from "../drizzle/schema";
+import { automationPolicies, claimRoutingDecisions } from "../drizzle/schema";
+import { insertIsoAuditLog } from "./utils/audit-helpers";
 import { eq, and, lte, gte, isNull, desc } from "drizzle-orm";
 
 export interface PolicyVersion {
@@ -100,40 +101,41 @@ export async function createPolicyVersion(
     })
     .where(eq(automationPolicies.id, currentPolicy.id));
 
-  // Log policy version creation
-  await db.insert(auditTrail).values({
+  // AUDIT-01: isoAuditLogs — policy version creation (admin-triggered, tenant-scoped)
+  await insertIsoAuditLog(db as any, {
     tenantId,
-    claimId: null,
-    actionType: "POLICY_VERSION_CREATED",
-    performedBy: updatedByUserId,
-    performedAt: now,
-    changes: JSON.stringify({
+    userId: updatedByUserId,
+    userRole: "insurer_admin",
+    actionType: "create",
+    resourceType: "automation_policy",
+    resourceId: String(newPolicy.insertId),
+    beforeState: JSON.stringify({ policyId: currentPolicy.id, version: currentPolicy.version }),
+    afterState: JSON.stringify({
+      actionType: "POLICY_VERSION_CREATED",
+      policyId: newPolicy.insertId,
+      version: newVersion,
       previousVersion: currentPolicy.version,
-      newVersion,
       previousPolicyId: currentPolicy.id,
-      newPolicyId: newPolicy.insertId,
-    }),
-    reason: "Policy configuration updated",
-    metadata: JSON.stringify({
+      reason: "Policy configuration updated",
       policyChanges: updatedPolicyData,
     }),
   });
 
-  // Log policy supersession
-  await db.insert(auditTrail).values({
+  // AUDIT-01: isoAuditLogs — policy supersession
+  await insertIsoAuditLog(db as any, {
     tenantId,
-    claimId: null,
-    actionType: "POLICY_VERSION_SUPERSEDED",
-    performedBy: updatedByUserId,
-    performedAt: now,
-    changes: JSON.stringify({
-      supersededPolicyId: currentPolicy.id,
+    userId: updatedByUserId,
+    userRole: "insurer_admin",
+    actionType: "update",
+    resourceType: "automation_policy",
+    resourceId: String(currentPolicy.id),
+    beforeState: JSON.stringify({ isActive: true, version: currentPolicy.version }),
+    afterState: JSON.stringify({
+      actionType: "POLICY_VERSION_SUPERSEDED",
+      isActive: false,
       supersededByPolicyId: newPolicy.insertId,
       effectiveUntil: now.toISOString(),
-    }),
-    reason: "Policy superseded by new version",
-    metadata: JSON.stringify({
-      version: currentPolicy.version,
+      reason: "Policy superseded by new version",
     }),
   });
 

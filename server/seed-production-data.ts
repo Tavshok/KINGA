@@ -9,7 +9,8 @@
  */
 
 import { getDb } from "./db";
-import { claims, users, aiAssessments, auditTrail, tenants } from "../drizzle/schema";
+import { claims, users, aiAssessments, tenants } from "../drizzle/schema";
+import { insertIsoAuditLog, SYSTEM_USER_ID } from "./utils/audit-helpers";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -387,70 +388,74 @@ async function generateAuditTrail(db: any, claimId: number, tenantId: string, us
 
   if (!claim) return;
 
-  // Generate audit trail entries based on workflow state
-  const entries = [];
-
+  // AUDIT-01: isoAuditLogs — seed data audit trail entries
   // Entry 1: Claim submitted
-  entries.push({
+  await insertIsoAuditLog(db, {
     tenantId,
-    claimId,
-    userId: claim.claimantId,
-    actionType: "CLAIM_SUBMITTED",
-    actionDescription: `Claim ${claim.claimNumber} submitted by claimant`,
-    actor: "CLAIMANT",
-    metadata: JSON.stringify({ claim_number: claim.claimNumber }),
-    createdAt: claim.createdAt,
+    userId: claim.claimantId ?? SYSTEM_USER_ID,
+    userRole: "user",
+    actionType: "create",
+    resourceType: "claim",
+    resourceId: String(claimId),
+    beforeState: null,
+    afterState: JSON.stringify({
+      actionType: "CLAIM_SUBMITTED",
+      claimNumber: claim.claimNumber,
+      actor: "CLAIMANT",
+    }),
   });
 
   // Entry 2: KINGA assessment completed
-  entries.push({
+  await insertIsoAuditLog(db, {
     tenantId,
-    claimId,
-    userId: null,
-    actionType: "AI_ASSESSMENT_COMPLETED",
-    actionDescription: `KINGA assessment completed with confidence score ${claim.confidenceScore?.toFixed(2)}`,
-    actor: "SYSTEM",
-    metadata: JSON.stringify({
-      confidence_score: claim.confidenceScore,
-      routing_recommendation: claim.workflowState,
+    userId: SYSTEM_USER_ID,
+    userRole: "system",
+    actionType: "update",
+    resourceType: "claim",
+    resourceId: String(claimId),
+    beforeState: null,
+    afterState: JSON.stringify({
+      actionType: "AI_ASSESSMENT_COMPLETED",
+      confidenceScore: claim.confidenceScore,
+      routingRecommendation: claim.workflowState,
+      actor: "SYSTEM",
     }),
-    createdAt: new Date(claim.createdAt.getTime() + 60000), // 1 minute later
   });
 
   // Entry 3: Claim assigned to processor
   if (claim.assignedProcessorId) {
-    entries.push({
+    await insertIsoAuditLog(db, {
       tenantId,
-      claimId,
       userId: users.manager,
-      actionType: "CLAIM_ASSIGNED",
-      actionDescription: `Claim assigned to processor ${claim.assignedProcessorId}`,
-      actor: "CLAIMS_MANAGER",
-      metadata: JSON.stringify({ processor_id: claim.assignedProcessorId }),
-      createdAt: new Date(claim.createdAt.getTime() + 120000), // 2 minutes later
+      userRole: "claims_manager",
+      actionType: "update",
+      resourceType: "claim",
+      resourceId: String(claimId),
+      beforeState: null,
+      afterState: JSON.stringify({
+        actionType: "CLAIM_ASSIGNED",
+        processorId: claim.assignedProcessorId,
+        actor: "CLAIMS_MANAGER",
+      }),
     });
   }
 
   // Entry 4: Workflow state transition
   if (claim.workflowState !== "intake_queue") {
-    entries.push({
+    await insertIsoAuditLog(db, {
       tenantId,
-      claimId,
-      userId: claim.assignedProcessorId || users.manager,
-      actionType: "WORKFLOW_STATE_CHANGED",
-      actionDescription: `Workflow state changed to ${claim.workflowState}`,
-      actor: "CLAIMS_PROCESSOR",
-      metadata: JSON.stringify({
-        previous_state: "intake_queue",
-        new_state: claim.workflowState,
+      userId: claim.assignedProcessorId ?? users.manager,
+      userRole: "claims_processor",
+      actionType: "update",
+      resourceType: "claim",
+      resourceId: String(claimId),
+      beforeState: JSON.stringify({ workflowState: "intake_queue" }),
+      afterState: JSON.stringify({
+        actionType: "WORKFLOW_STATE_CHANGED",
+        workflowState: claim.workflowState,
+        actor: "CLAIMS_PROCESSOR",
       }),
-      createdAt: new Date(claim.createdAt.getTime() + 180000), // 3 minutes later
     });
-  }
-
-  // Insert all audit trail entries
-  for (const entry of entries) {
-    await db.insert(auditTrail).values(entry);
   }
 }
 
@@ -465,20 +470,21 @@ async function generateExecutiveOverride(db: any, claimId: number, tenantId: str
   const previousState = claim.workflowState;
   const newState = previousState === "rejected" ? "approved" : "escalated";
 
-  await db.insert(auditTrail).values({
+  // AUDIT-01: isoAuditLogs — executive override
+  await insertIsoAuditLog(db, {
     tenantId,
-    claimId,
     userId: executiveId,
-    actionType: "EXECUTIVE_OVERRIDE",
-    actionDescription: `Executive override: Changed workflow state from ${previousState} to ${newState}`,
-    actor: "EXECUTIVE",
-    metadata: JSON.stringify({
-      previous_state: previousState,
-      new_state: newState,
-      override_reason: "Business decision based on customer relationship",
-      override_justification: "Long-standing premium customer with excellent claim history",
+    userRole: "executive",
+    actionType: "update",
+    resourceType: "claim",
+    resourceId: String(claimId),
+    beforeState: JSON.stringify({ workflowState: previousState }),
+    afterState: JSON.stringify({
+      actionType: "EXECUTIVE_OVERRIDE",
+      workflowState: newState,
+      overrideReason: "Business decision based on customer relationship",
+      overrideJustification: "Long-standing premium customer with excellent claim history",
     }),
-    createdAt: new Date(claim.createdAt.getTime() + 3600000), // 1 hour later
   });
 
   // Update claim workflow state
@@ -494,22 +500,22 @@ async function generateSegregationViolation(db: any, claimId: number, tenantId: 
 
   if (!claim) return;
 
-  // Generate segregation violation audit entry
-  // Scenario: Same user submitted claim and approved it (conflict of interest)
-  await db.insert(auditTrail).values({
+  // AUDIT-01: isoAuditLogs — segregation of duties violation (system-detected)
+  await insertIsoAuditLog(db, {
     tenantId,
-    claimId,
-    userId: claim.assignedProcessorId,
-    actionType: "SEGREGATION_VIOLATION",
-    actionDescription: `Segregation of duties violation detected: User performed conflicting actions`,
-    actor: "SYSTEM",
-    metadata: JSON.stringify({
-      violation_type: "SAME_USER_SUBMIT_AND_APPROVE",
-      user_id: claim.assignedProcessorId,
-      conflicting_actions: ["CLAIM_SUBMITTED", "CLAIM_APPROVED"],
+    userId: SYSTEM_USER_ID,
+    userRole: "system",
+    actionType: "update",
+    resourceType: "claim",
+    resourceId: String(claimId),
+    beforeState: null,
+    afterState: JSON.stringify({
+      actionType: "SEGREGATION_VIOLATION",
+      violationType: "SAME_USER_SUBMIT_AND_APPROVE",
+      userId: claim.assignedProcessorId,
+      conflictingActions: ["CLAIM_SUBMITTED", "CLAIM_APPROVED"],
       severity: "HIGH",
     }),
-    createdAt: new Date(claim.createdAt.getTime() + 7200000), // 2 hours later
   });
 }
 

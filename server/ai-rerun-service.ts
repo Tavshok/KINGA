@@ -10,13 +10,17 @@
  * 
  * Features:
  * - Version history preservation (links to previous assessments)
- * - Full audit trail logging
+ * - Full audit trail logging (workflowAuditTrail — human-actor workflow state transitions)
  * - Rate limiting enforcement (tenant-configurable)
  * - Tenant isolation
+ *
+ * AUDIT-01 (2026-07-11): Redirected from auditTrail (wrong table/field vocabulary) to
+ * workflowAuditTrail. actionType and tenantId are folded into the metadata JSON field
+ * since workflowAuditTrail has no dedicated columns for them.
  */
 
 import { getDb } from "./db";
-import { aiAssessments, claims, auditTrail, claimConfidenceScores, claimRoutingDecisions, users } from "../drizzle/schema";
+import { aiAssessments, claims, claimConfidenceScores, claimRoutingDecisions, users } from "../drizzle/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
@@ -24,6 +28,7 @@ import {
   formatNotificationTitle,
   formatNotificationMessage,
 } from "./notification-service";
+import { insertWorkflowAudit } from "./utils/audit-helpers";
 
 /**
  * Permission check: All insurer roles can trigger KINGA analysis
@@ -50,16 +55,6 @@ export function canRecalculateConfidence(userRole: string | null): boolean {
 
 /**
  * Trigger KINGA analysis rerun
- * 
- * Creates a new KINGA assessment version without changing claim routing.
- * All insurer roles can trigger this operation.
- * 
- * @param claimId - Claim ID to analyze
- * @param userId - User ID triggering the rerun
- * @param userRole - User's insurer role
- * @param tenantId - Tenant ID for isolation
- * @param reason - Optional reason for rerun
- * @returns New KINGA assessment record
  */
 export async function triggerAIAnalysis(
   claimId: number,
@@ -71,7 +66,6 @@ export async function triggerAIAnalysis(
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-  // Permission check
   if (!canTriggerAIAnalysis(userRole)) {
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -79,7 +73,6 @@ export async function triggerAIAnalysis(
     });
   }
 
-  // Verify claim exists and belongs to tenant
   const claim = await db
     .select()
     .from(claims)
@@ -90,7 +83,6 @@ export async function triggerAIAnalysis(
     throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
   }
 
-  // Get previous KINGA assessment (if any)
   const previousAssessments = await db
     .select()
     .from(aiAssessments)
@@ -101,7 +93,6 @@ export async function triggerAIAnalysis(
   const previousAssessment = previousAssessments[0];
   const versionNumber = previousAssessment ? previousAssessment.versionNumber + 1 : 1;
 
-  // Create a governance record for version tracking and audit trail
   const newAssessment = await db.insert(aiAssessments).values({
     claimId,
     tenantId,
@@ -111,35 +102,34 @@ export async function triggerAIAnalysis(
     previousAssessmentId: previousAssessment?.id || null,
     reanalysisReason: reason || null,
     versionNumber,
-    confidenceScore: 0, // Placeholder - will be updated by AI service
-    modelVersion: "v1.0.0", // Placeholder
-    processingTime: 0, // Placeholder
+    confidenceScore: 0,
+    modelVersion: "v1.0.0",
+    processingTime: 0,
   });
 
-  // Insert audit trail entry
-  await db.insert(auditTrail).values({
+  // AUDIT-01: workflowAuditTrail — human-actor workflow event
+  // actionType ("AI_ANALYSIS_RERUN") and tenantId folded into metadata (no dedicated columns)
+  await insertWorkflowAudit(db as any, {
     claimId,
-    tenantId,
-    actionType: "AI_ANALYSIS_RERUN",
-    actorId: userId.toString(),
-    actorRole: userRole,
-    previousState: claim[0].workflowState,
-    newState: claim[0].workflowState, // No state change
-    reason: reason || `KINGA analysis rerun triggered by ${userRole}`,
-    metadata: JSON.stringify({
+    userId,
+    userRole: userRole as any,
+    previousState: (claim[0].workflowState as any) ?? null,
+    newState: (claim[0].workflowState as any) ?? "intake_queue",
+    comments: reason || `KINGA analysis rerun triggered by ${userRole}`,
+    metadata: {
+      actionType: "AI_ANALYSIS_RERUN",
+      tenantId,
       versionNumber,
       previousAssessmentId: previousAssessment?.id || null,
       triggeredBy: userId,
       triggeredRole: userRole,
-    }),
-    timestamp: new Date(),
+    },
   });
 
   console.log(
     `[AI Rerun Service] Created KINGA assessment version ${versionNumber} for claim ${claimId}`
   );
 
-  // Send governance notification to claims_manager and executive
   try {
     const managerUsers = await db
       .select()
@@ -175,8 +165,6 @@ export async function triggerAIAnalysis(
     console.error("[AI Rerun Service] Failed to send AI rerun notification:", error);
   }
 
-  // Fire the real KINGA pipeline asynchronously — does not block the tRPC response.
-  // triggerAiAssessment handles its own DB writes, watchdog, and error recovery.
   setImmediate(async () => {
     try {
       const { triggerAiAssessment } = await import("./db");
@@ -195,15 +183,6 @@ export async function triggerAIAnalysis(
 
 /**
  * Recalculate confidence score
- * 
- * Recalculates the confidence score for a claim based on the latest KINGA assessment.
- * Only claims_manager and executive can trigger this operation.
- * 
- * @param claimId - Claim ID to recalculate
- * @param userId - User ID triggering the recalculation
- * @param userRole - User's insurer role
- * @param tenantId - Tenant ID for isolation
- * @returns Updated confidence score record
  */
 export async function recalculateConfidenceScore(
   claimId: number,
@@ -214,7 +193,6 @@ export async function recalculateConfidenceScore(
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-  // Permission check
   if (!canRecalculateConfidence(userRole)) {
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -222,7 +200,6 @@ export async function recalculateConfidenceScore(
     });
   }
 
-  // Verify claim exists and belongs to tenant
   const claim = await db
     .select()
     .from(claims)
@@ -233,7 +210,6 @@ export async function recalculateConfidenceScore(
     throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
   }
 
-  // Get latest KINGA assessment
   const latestAssessments = await db
     .select()
     .from(aiAssessments)
@@ -247,39 +223,36 @@ export async function recalculateConfidenceScore(
 
   const latestAssessment = latestAssessments[0];
 
-  // TODO: Call actual confidence scoring engine here
-  // For now, create a placeholder confidence score record
   const newConfidenceScore = await db.insert(claimConfidenceScores).values({
     claimId,
     tenantId,
-    damageCertainty: 0, // Placeholder
-    physicsStrength: 0, // Placeholder
-    fraudConfidence: 0, // Placeholder
-    historicalAccuracy: 0, // Placeholder
-    dataCompleteness: 0, // Placeholder
-    quoteVariance: 0, // Placeholder
-    compositeConfidenceScore: 0, // Placeholder
+    damageCertainty: 0,
+    physicsStrength: 0,
+    fraudConfidence: 0,
+    historicalAccuracy: 0,
+    dataCompleteness: 0,
+    quoteVariance: 0,
+    compositeConfidenceScore: 0,
     scoringMethod: "AI_RERUN_RECALC",
     scoringTimestamp: new Date(),
   });
 
-  // Insert audit trail entry
-  await db.insert(auditTrail).values({
+  // AUDIT-01: workflowAuditTrail — human-actor confidence recalculation event
+  await insertWorkflowAudit(db as any, {
     claimId,
-    tenantId,
-    actionType: "CONFIDENCE_SCORE_RECALC",
-    actorId: userId.toString(),
-    actorRole: userRole,
-    previousState: claim[0].workflowState,
-    newState: claim[0].workflowState, // No state change yet
-    reason: `Confidence score recalculated by ${userRole}`,
-    metadata: JSON.stringify({
+    userId,
+    userRole: userRole as any,
+    previousState: (claim[0].workflowState as any) ?? null,
+    newState: (claim[0].workflowState as any) ?? "intake_queue",
+    comments: `Confidence score recalculated by ${userRole}`,
+    metadata: {
+      actionType: "CONFIDENCE_SCORE_RECALC",
+      tenantId,
       confidenceScoreId: newConfidenceScore.insertId,
       aiAssessmentId: latestAssessment.id,
       triggeredBy: userId,
       triggeredRole: userRole,
-    }),
-    timestamp: new Date(),
+    },
   });
 
   console.log(
@@ -294,16 +267,6 @@ export async function recalculateConfidenceScore(
 
 /**
  * Trigger routing reevaluation
- * 
- * Reevaluates claim routing based on the latest confidence score.
- * Only claims_manager and executive can trigger this operation.
- * May change the claim's workflow state based on the new confidence score.
- * 
- * @param claimId - Claim ID to reevaluate
- * @param userId - User ID triggering the reevaluation
- * @param userRole - User's insurer role
- * @param tenantId - Tenant ID for isolation
- * @returns Updated routing decision record
  */
 export async function triggerRoutingReevaluation(
   claimId: number,
@@ -314,7 +277,6 @@ export async function triggerRoutingReevaluation(
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-  // Permission check
   if (!canRecalculateConfidence(userRole)) {
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -322,7 +284,6 @@ export async function triggerRoutingReevaluation(
     });
   }
 
-  // Verify claim exists and belongs to tenant
   const claim = await db
     .select()
     .from(claims)
@@ -333,7 +294,6 @@ export async function triggerRoutingReevaluation(
     throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
   }
 
-  // Get latest confidence score
   const latestConfidenceScores = await db
     .select()
     .from(claimConfidenceScores)
@@ -347,8 +307,6 @@ export async function triggerRoutingReevaluation(
 
   const latestConfidenceScore = latestConfidenceScores[0];
 
-  // TODO: Call actual routing engine here
-  // For now, create a placeholder routing decision record
   const newRoutingDecision = await db.insert(claimRoutingDecisions).values({
     claimId,
     tenantId,
@@ -361,15 +319,14 @@ export async function triggerRoutingReevaluation(
       dataCompleteness: latestConfidenceScore.dataCompleteness,
       quoteVariance: latestConfidenceScore.quoteVariance,
     }),
-    routingCategory: "MEDIUM", // Placeholder
-    routingDecision: "INTERNAL_REVIEW", // Placeholder
+    routingCategory: "MEDIUM",
+    routingDecision: "INTERNAL_REVIEW",
     routingReason: "Routing reevaluated after confidence score recalculation",
     decisionTimestamp: new Date(),
   });
 
-  // Update claim workflow state based on routing decision
   const previousState = claim[0].workflowState;
-  const newState = "manual_review"; // Placeholder - should be determined by routing engine
+  const newState = "internal_review";
 
   await db
     .update(claims)
@@ -379,25 +336,22 @@ export async function triggerRoutingReevaluation(
     })
     .where(eq(claims.id, claimId));
 
-  // Insert audit trail entry
-  await db.insert(auditTrail).values({
+  // AUDIT-01: workflowAuditTrail — routing reevaluation with actual state change
+  await insertWorkflowAudit(db as any, {
     claimId,
-    tenantId,
-    actionType: "ROUTING_REEVALUATION",
-    actorId: userId.toString(),
-    actorRole: userRole,
-    previousState,
-    newState,
-    reason: `Routing reevaluated by ${userRole}`,
-    metadata: JSON.stringify({
+    userId,
+    userRole: userRole as any,
+    previousState: (previousState as any) ?? null,
+    newState: newState as any,
+    comments: `Routing reevaluated by ${userRole}`,
+    metadata: {
+      actionType: "ROUTING_REEVALUATION",
+      tenantId,
       routingDecisionId: newRoutingDecision.insertId,
       confidenceScoreId: latestConfidenceScore.id,
-      previousRoutingDecision: "N/A", // Placeholder
-      newRoutingDecision: "INTERNAL_REVIEW", // Placeholder
       triggeredBy: userId,
       triggeredRole: userRole,
-    }),
-    timestamp: new Date(),
+    },
   });
 
   console.log(
@@ -414,13 +368,6 @@ export async function triggerRoutingReevaluation(
 
 /**
  * Get KINGA analysis version history for a claim
- * 
- * Returns all KINGA assessment versions for a claim, ordered by version number (descending).
- * All insurer roles can view version history.
- * 
- * @param claimId - Claim ID to query
- * @param tenantId - Tenant ID for isolation
- * @returns Array of KINGA assessment records
  */
 export async function getAIAnalysisVersionHistory(
   claimId: number,

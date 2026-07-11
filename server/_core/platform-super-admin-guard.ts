@@ -127,17 +127,24 @@ export async function logPlatformSuperAdminAccess(
   metadata?: Record<string, any>
 ): Promise<void> {
   const { getDb } = await import("../db");
-  const { auditTrail } = await import("../../drizzle/schema");
-  
+  const { insertIsoAuditLog } = await import("../utils/audit-helpers");
+
   const db = await getDb();
   if (!db) return; // DB unavailable — skip audit log silently
 
-  await db.insert(auditTrail).values({
+  // AUDIT-01: isoAuditLogs — platform super admin cross-tenant access log
+  // tenantId is empty string for cross-tenant actions (no tenant context)
+  await insertIsoAuditLog(db as any, {
+    tenantId: "",
     userId,
-    action: `platform_super_admin_${action}`,
+    userRole: "platform_super_admin",
+    actionType: "view",
     resourceType,
-    resourceId: resourceId?.toString() ?? null,
-    metadata: metadata ? JSON.stringify(metadata) : null,
-    timestamp: new Date(),
-  } as Parameters<typeof db.insert>[0] extends never ? never : any);
+    resourceId: resourceId?.toString() ?? "unknown",
+    beforeState: null,
+    afterState: JSON.stringify({
+      action: `platform_super_admin_${action}`,
+      ...metadata,
+    }),
+  });
 }
