@@ -254,7 +254,7 @@ async function runNodeForensics(buffer: Buffer): Promise<RawAnalysisResult> {
       // No EXIF at all
       flags.push("SUSPICIOUS: No EXIF metadata — image may have been stripped or is a screenshot");
       flags.push("WARNING: No GPS data in photo EXIF — location cannot be verified");
-      manipulationScore += STRIPPED_EXIF_SCORE;
+      manipulationScore += 0.3; // same value as inner-scope STRIPPED_EXIF_SCORE
       recommendations.push("Photo has no EXIF metadata. This is common after editing or screenshot capture.");
     }
   } catch (exifErr) {

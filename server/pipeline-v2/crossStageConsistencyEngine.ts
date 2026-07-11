@@ -260,7 +260,7 @@ function checkC5(
         return severityOrdinal(p.severity) > severityOrdinal(max) ? p.severity : max;
       }, "none" as string)
     : null;
-  if (speed > 80 && severity && severityOrdinal(severity) <= 1) {
+  if (speed != null && speed > 80 && severity && severityOrdinal(severity) <= 1) {
     return {
       ruleId: "C5",
       severity: "HIGH",
@@ -292,7 +292,7 @@ function checkC6(
         return severityOrdinal(p.severity) > severityOrdinal(max) ? p.severity : max;
       }, "none" as string)
     : null;
-  if (speed < 20 && severity && severityOrdinal(severity) >= 4) {
+  if (speed != null && speed < 20 && severity && severityOrdinal(severity) >= 4) {
     return {
       ruleId: "C6",
       severity: "HIGH",

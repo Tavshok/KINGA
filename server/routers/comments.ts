@@ -177,8 +177,8 @@ export const commentsRouter = router({
                     : input.severity === "compliance"
                     ? `📋 Compliance annotation on claim #${input.claimId}`
                     : `🔴 Critical annotation on claim #${input.claimId}`,
-                content: `${ctx.user.name || ctx.user.insurerRole} flagged a ${input.severity} finding in the ${input.sectionKey.replace(/_/g, " ")} section.`,
-                type: "annotation",
+                message: `${ctx.user.name || ctx.user.insurerRole} flagged a ${input.severity} finding in the ${input.sectionKey.replace(/_/g, " ")} section.`,
+                type: "system_alert",
                 priority: input.severity === "fraud_risk" ? "high" : "medium",
                 claimId: input.claimId,
                 actionUrl: `/insurer-portal/comparison/${input.claimId}#section-${input.sectionKey}`,

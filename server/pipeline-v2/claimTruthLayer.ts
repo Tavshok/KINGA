@@ -712,7 +712,7 @@ function resolveDecision(
     reviewTriggers.push(`High fraud risk: score ${fraudScore}/100 (${stage8FraudLevel ?? "computed"})`);
   } else if (fraudScore >= 45) {
     // 'medium' tier: REVIEW, not ESCALATE
-    if (recommendation !== "ESCALATE") recommendation = "REVIEW";
+    if ((recommendation as string) !== "ESCALATE") recommendation = "REVIEW";
     reviewTriggers.push(`Elevated fraud risk: score ${fraudScore}/100 (${stage8FraudLevel ?? "moderate"}) — manual review required`);
   }
 

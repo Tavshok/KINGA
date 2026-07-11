@@ -68,6 +68,8 @@ function llmCall(params: any): Promise<any> {
   return withRetry(
     () => invokeLLM(params),
     2,
+    undefined,
+    undefined,
     'stage-3 extraction'
   );
 }

@@ -352,7 +352,7 @@ Return ONLY a JSON array of constraints.`;
       ],
       response_format: constraintSchema,
       timeoutMs: 55_000,
-    }), 2, 'stage-7b constraint-extraction');
+    }), 2, undefined, undefined, 'stage-7b constraint-extraction');
     const rawContent = response.choices?.[0]?.message?.content;
     const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "[]");
     const parsed = JSON.parse(content);
@@ -627,7 +627,7 @@ Write a clear forensic explanation of whether the cause is valid or invalid, and
         { role: "user", content: userPrompt },
       ],
       timeoutMs: 45_000,
-    }), 2, 'stage-7b cause-narrative');
+    }), 2, undefined, undefined, 'stage-7b cause-narrative');
     const rawContent = response.choices?.[0]?.message?.content;
     const text = typeof rawContent === "string" ? rawContent.trim() : null;
     return text && text.length > 10 ? text : null;
@@ -912,7 +912,7 @@ RETURN:
       ],
       response_format: jsonSchema,
       timeoutMs: 55_000, // 55s per main causal-chain LLM call
-    }), 2, 'stage-7b causal-chain-vision');
+    }), 2, undefined, undefined, 'stage-7b causal-chain-vision');
 
     const rawContent = response.choices?.[0]?.message?.content;
     const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "{}");

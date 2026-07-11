@@ -101,7 +101,7 @@ export const policyManagementRouter = router({
         minVehicleYear: z.number().optional(),
         maxVehicleAge: z.number().optional(),
         requireManagerApprovalAbove: z.number().positive().optional(),
-        allowPolicyOverride: z.boolean().optional(),
+        allowPolicyOverride: z.number().int().min(0).max(1).optional(),
       }).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -221,7 +221,7 @@ export const policyManagementRouter = router({
         minVehicleYear: z.number().optional(),
         maxVehicleAge: z.number().optional(),
         requireManagerApprovalAbove: z.number().positive().optional(),
-        allowPolicyOverride: z.boolean().optional(),
+        allowPolicyOverride: z.number().int().min(0).max(1).optional(),
       }),
     }))
     .mutation(async ({ ctx, input }) => {

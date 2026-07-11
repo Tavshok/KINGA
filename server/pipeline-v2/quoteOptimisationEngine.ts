@@ -1457,7 +1457,7 @@ export function computeProbableHiddenDamage(
     if (prob < HIDDEN_DAMAGE_MIN_PROB) continue;
 
     const bandLow = Math.max(0, prob - HIDDEN_DAMAGE_BAND_HALF_WIDTH);
-    const bandHigh = Math.min(HIDDEN_DAMAGE_MAX_PROB, prob + HIDDEN_DAMAGE_BAND_HALF_WIDTH);
+    const bandHigh = Math.min(95, prob + HIDDEN_DAMAGE_BAND_HALF_WIDTH); // 95 = HIDDEN_DAMAGE_MAX_PROB
 
     result.push({
       componentName: component,

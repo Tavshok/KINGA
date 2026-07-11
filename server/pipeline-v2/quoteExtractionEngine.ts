@@ -464,7 +464,7 @@ export async function extractQuoteFromText(
           }
         }
       }
-    }), 2, 'quote-extraction text');
+    }), 2, undefined, undefined, 'quote-extraction text');
 
     const raw = response?.choices?.[0]?.message?.content;
     if (!raw) {
@@ -597,7 +597,7 @@ Do NOT extract prices, line items, or any other data — only company names.`,
           },
         },
       },
-    }), 2, 'quote-detection');
+    }), 2, undefined, undefined, 'quote-detection');
     const raw = detectionResponse?.choices?.[0]?.message?.content;
     if (raw) {
       const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -1275,7 +1275,7 @@ export async function extractQuoteFromPdfVision(
           },
         },
       },
-    }), 2, 'quote-vision-reextract');
+    }), 2, undefined, undefined, 'quote-vision-reextract');
 
         const raw = response?.choices?.[0]?.message?.content;
     if (!raw) return buildFallback("Vision extraction: LLM returned empty response.");
@@ -1456,7 +1456,7 @@ export async function extractQuoteFromImageUrl(
           },
         },
       },
-    }), 2, 'quote-image-extract');
+    }), 2, undefined, undefined, 'quote-image-extract');
 
     const raw = response?.choices?.[0]?.message?.content;
     if (!raw) return buildFallback("Image quote extraction: LLM returned empty response.");
@@ -1611,7 +1611,7 @@ Return JSON only.`,
           },
         },
       },
-    }), 2, 'quote-page-classifier');
+    }), 2, undefined, undefined, 'quote-page-classifier');
 
     const raw = response?.choices?.[0]?.message?.content;
     if (!raw) return [];
@@ -1927,7 +1927,7 @@ export async function extractQuoteFromMultipleImageUrls(
           },
         },
       },
-    }), 2, 'quote-multipage-extract');
+    }), 2, undefined, undefined, 'quote-multipage-extract');
 
     const raw = response?.choices?.[0]?.message?.content;
     if (!raw) return buildFallback("Multi-page image quote extraction: LLM returned empty response.");
@@ -2060,7 +2060,7 @@ Return JSON only.`,
           },
         },
       },
-    }), 2, 'quote-pdf-detection');
+    }), 2, undefined, undefined, 'quote-pdf-detection');
 
     const raw = detectionResponse?.choices?.[0]?.message?.content;
     if (raw) {

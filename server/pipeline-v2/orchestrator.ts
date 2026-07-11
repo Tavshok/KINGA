@@ -262,8 +262,8 @@ async function runAutoValuation(
       isTotalLoss: valuation.isTotalLoss ? 1 : 0,
       totalLossThreshold: valuation.totalLossThreshold.toString(),
       repairCostToValueRatio: valuation.repairCostToValueRatio?.toString(),
-      valuationDate: valuation.valuationDate,
-      validUntil: valuation.validUntil,
+      valuationDate: valuation.valuationDate.toISOString(),
+      validUntil: valuation.validUntil.toISOString(),
       valuedBy: 0, // 0 = system/pipeline
       notes: valuation.notes.join("\n"),
     });
@@ -2039,7 +2039,7 @@ export async function runPipelineV2(
     // Stage 10 has no engineFallback equivalent — it is a report assembler, not an engine.
     // The minimal report is built from claimRecord (always available) and marks all
     // analysis sections as unavailable. This is the same output the stage's own catch block produces.
-    const minimalReport = {
+    const minimalReport: Stage10Output = {
       claimSummary: {
         title: "Claim Summary",
         content: {
@@ -2057,8 +2057,10 @@ export async function runPipelineV2(
       fullReport: {
         reportVersion: "3.0",
         generatedAt: new Date().toISOString(),
-        claimId: claimRecord?.claimId ?? ctx.claimId,
+        claimId: claimRecord?.claimId != null ? String(claimRecord.claimId) : String(ctx.claimId),
         overallConfidence: 5,
+        assumptionCount: 0,
+        missingDocumentCount: 0,
         error: reason,
         sections: {},
       },
@@ -2663,8 +2665,8 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
   return {
     validatedFields: {
       claimId: String(ctx.claimId),
-      claimantName: ctx.claim.claimantName || null,
-      driverName: ctx.claim.driverName || null,
+      claimantName: ctx.claim.lodgerName || null,
+      driverName: ctx.claim.vehicleOwnerName || null,
       vehicleMake: ctx.claim.vehicleMake || null,
       vehicleModel: ctx.claim.vehicleModel || null,
       vehicleYear: ctx.claim.vehicleYear || null,
@@ -2672,7 +2674,7 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
       vehicleVin: null,
       vehicleColour: null,
       vehicleEngineNumber: null,
-      vehicleMileage: ctx.claim.vehicleMileage || null,
+      vehicleMileage: ctx.claim.vehicleMileage ? parseInt(ctx.claim.vehicleMileage, 10) || null : null,
       accidentDate: ctx.claim.incidentDate || null,
       accidentLocation: ctx.claim.incidentLocation || null,
       accidentDescription: ctx.claim.incidentDescription || null,
@@ -2765,9 +2767,9 @@ function buildMinimalClaimRecord(ctx: PipelineContext): ClaimRecord {
       mileageKm: null, bodyType: "sedan" as any, powertrain: "ice" as any,
       massKg: 1400, massTier: "not_available" as const, valueUsd: null, marketValueUsd: null,
     },
-    driver: { name: ctx.claim.driverName || null, claimantName: ctx.claim.claimantName || null, licenseNumber: null },
+    driver: { name: ctx.claim.vehicleOwnerName || null, claimantName: ctx.claim.lodgerName || null, licenseNumber: null },
       accidentDetails: {
-      date: ctx.claim.accidentDate || null, location: null, description: null,
+      date: ctx.claim.incidentDate || null, location: null, description: null,
       incidentType: "collision", incidentSubType: null, incidentClassification: null,
       collisionDirection: "unknown",
       impactPoint: null, estimatedSpeedKmh: null,

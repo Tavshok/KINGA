@@ -592,7 +592,7 @@ export const approvalRouter = router({
                     userId: nextUser.id,
                     title: `Claim Ready for Your Review — ${claimRow?.claimNumber ?? `#${input.claim_id}`}`,
                     message: `Stage ${input.stage_order} (${input.stage_name}) has been approved by ${(ctx.user as { name?: string }).name ?? "a colleague"}. The claim is now awaiting your action at Stage ${nextStage.stage_order}: "${nextStage.stage_name}".`,
-                    type: "info",
+                    type: "system_alert",
                     claimId: input.claim_id,
                     entityType: "claim",
                     entityId: input.claim_id,

@@ -343,7 +343,7 @@ export function scorePhysics(
     assumptions.some((a) => ESTIMATION_STRATEGIES.has(a.strategy));
   const rationale = `physicsExecuted=${physicsAnalysis.physicsExecuted}, speed=${ad.estimatedSpeedKmh}, crush=${ad.maxCrushDepthM}, area=${ad.totalDamageAreaM2}, police=${pr.reportNumber !== null}`;
 
-  return tag(physicsAnalysis.impactForceKn, score, estimated, rationale);
+  return tag(physicsAnalysis.impactForceKn ?? 0, score, estimated, rationale);
 }
 
 /**

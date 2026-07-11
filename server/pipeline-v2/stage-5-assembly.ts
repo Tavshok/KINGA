@@ -211,7 +211,7 @@ export async function runAssemblyStage(
       vin: v.vehicleVin || null,
       colour: v.vehicleColour || null,
       engineNumber: v.vehicleEngineNumber || null,
-      mileageKm: v.vehicleMileage || ctx.claim.vehicleMileage || null,
+      mileageKm: v.vehicleMileage != null ? (typeof v.vehicleMileage === 'number' ? v.vehicleMileage : parseInt(String(v.vehicleMileage), 10) || null) : (ctx.claim.vehicleMileage ? parseInt(ctx.claim.vehicleMileage, 10) || null : null),
       bodyType: bodyType as any,
       powertrain: powertrain as any,
       massKg: massResult.massKg,
@@ -559,7 +559,7 @@ Return ONLY valid JSON with no markdown.`,
               },
             },
           }), 30_000, "Stage 5c valuation LLM"),
-            2, 'stage-5c valuation'
+            2, undefined, undefined, 'stage-5c valuation'
           );
           const raw = llmResponse?.choices?.[0]?.message?.content;
           if (raw) {
@@ -1057,7 +1057,7 @@ Return ONLY valid JSON matching the schema. No markdown, no explanation outside 
           },
         },
       },
-    }), 2, 'stage-5 incident-classifier');
+    }), 2, undefined, undefined, 'stage-5 incident-classifier');
     const rawContent = response.choices?.[0]?.message?.content;
     const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "{}");
     const parsed = JSON.parse(content);
