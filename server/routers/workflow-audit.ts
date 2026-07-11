@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import {
@@ -51,7 +50,7 @@ export const workflowAuditRouter = router({
         confidenceScore: z.number().optional(),
         executiveOverride: z.boolean().optional(),
         overrideReason: z.string().optional(),
-        metadata: z.record(z.any()).optional(),
+        metadata: z.record(z.string(), z.any()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -93,7 +92,7 @@ export const workflowAuditRouter = router({
         confidenceScore: z.number().optional(),
         executiveOverride: z.boolean().optional(),
         overrideReason: z.string().optional(),
-        metadata: z.record(z.any()).optional(),
+        metadata: z.record(z.string(), z.any()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -115,7 +114,7 @@ export const workflowAuditRouter = router({
       return {
         success: true,
         claim: result.claim,
-        auditRecord: result.auditRecord,
+        auditRecord: result.auditRecordId,
       };
     }),
 

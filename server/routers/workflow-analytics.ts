@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import { z } from "zod";
@@ -63,7 +62,7 @@ export const workflowAnalyticsRouter = router({
 
         return {
           success: true,
-          data: results.rows.map((row: any) => ({
+          data: ((results as any)[0] as any[]).map((row: any) => ({
             state: row.state,
             avgHours: parseFloat(row.avg_hours) || 0,
             claimCount: parseInt(row.claim_count) || 0,
@@ -141,7 +140,7 @@ export const workflowAnalyticsRouter = router({
 
         return {
           success: true,
-          data: results.rows.map((row: any) => ({
+          data: ((results as any)[0] as any[]).map((row: any) => ({
             state: row.state,
             avgHours: parseFloat(row.avg_hours) || 0,
             maxHours: parseFloat(row.max_hours) || 0,
@@ -175,7 +174,7 @@ export const workflowAnalyticsRouter = router({
   getSLACompliance: protectedProcedure
     .input(
       z.object({
-        slaTargets: z.record(z.number()).optional(), // State -> hours mapping
+        slaTargets: z.record(z.string(), z.number()).optional(), // State -> hours mapping
         startDate: z.string().optional(),
         endDate: z.string().optional(),
       })
@@ -228,7 +227,7 @@ export const workflowAnalyticsRouter = router({
           `;
 
           const result = await db.execute(query);
-          const row: any = result.rows[0];
+          const row: any = ((result as any)[0] as any[])[0];
 
           const totalTransitions = parseInt(row?.total_transitions) || 0;
           const compliantTransitions = parseInt(row?.compliant_transitions) || 0;
@@ -307,7 +306,7 @@ export const workflowAnalyticsRouter = router({
 
         return {
           success: true,
-          data: results.rows.map((row: any) => ({
+          data: ((results as any)[0] as any[]).map((row: any) => ({
             userId: parseInt(row.user_id),
             userRole: row.user_role,
             transitionCount: parseInt(row.transition_count),
@@ -372,7 +371,7 @@ export const workflowAnalyticsRouter = router({
 
         return {
           success: true,
-          data: results.rows.map((row: any) => ({
+          data: ((results as any)[0] as any[]).map((row: any) => ({
             period: row.period,
             transitionCount: parseInt(row.transition_count),
             uniqueClaims: parseInt(row.unique_claims),

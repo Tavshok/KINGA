@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Vehicle Structural Intelligence Router
  *
@@ -110,7 +109,8 @@ export const vehicleStructuralIntelligenceRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      const db = getDb();
+      const db = await getDb();
+      if (!db) throw new Error('Database not available');
       const [claim] = await db
         .select({
           vehicleMake: claims.vehicleMake,

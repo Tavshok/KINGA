@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Workflow Query Router
  *
@@ -58,6 +57,10 @@ const ROLE_STATE_ACCESS: Record<InsurerRole, readonly string[]> = {
     "approved", "rejected", "payment_authorized", "payment_processing",
     "completed", "cancelled"
   ],
+  recovery_officer: [
+    "closed", "disputed", "payment_authorized", "payment_processing",
+    "completed", "cancelled"
+  ],
 };
 
 function canAccessState(role: InsurerRole, state: WorkflowState): boolean {
@@ -106,7 +109,7 @@ export const workflowQueriesRouter = router({
       }
 
       const whereConditions = and(
-        eq(claims.workflowState, input.state),
+        eq(claims.workflowState, input.state as any),
         eq(claims.tenantId, insurerTenantId)   // ← strict tenant isolation
       );
 
@@ -154,7 +157,7 @@ export const workflowQueriesRouter = router({
       const { insurerTenantId } = ctx;
 
       const whereConditions = and(
-        inArray(claims.status, input.statuses),
+        inArray(claims.status, input.statuses as any[]),
         eq(claims.tenantId, insurerTenantId)   // ← strict tenant isolation
       );
 

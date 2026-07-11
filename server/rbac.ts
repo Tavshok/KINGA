@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * RBAC (Role-Based Access Control) System for KINGA
  * 
@@ -20,7 +19,8 @@ export type InsurerRole =
   | "risk_manager"
   | "claims_manager"
   | "executive"
-  | "insurer_admin";
+  | "insurer_admin"
+  | "recovery_officer";
 
 export type WorkflowState =
   | "intake_queue"
@@ -150,6 +150,22 @@ export const PERMISSIONS = {
     viewFraudAnalytics: true,
     viewAllClaims: true, // Full administrative access
   },
+  recovery_officer: {
+    createClaim: false,
+    assignAssessor: false,
+    viewAIAssessment: true,
+    viewCostOptimization: true,
+    editAIAssessment: false,
+    editCostOptimization: false,
+    addComment: true,
+    viewComments: true,
+    conductInternalAssessment: false,
+    approveTechnical: false,
+    approveFinancial: false,
+    closeClaim: false,
+    viewFraudAnalytics: true,
+    viewAllClaims: true,
+  },
 };
 
 /**
@@ -258,6 +274,7 @@ export function getRoleDisplayName(role: InsurerRole): string {
     claims_manager: "Claims Manager",
     executive: "GM/Executive",
     insurer_admin: "Administrator",
+    recovery_officer: "Recovery Officer",
   };
   return names[role];
 }
@@ -267,6 +284,7 @@ export function getRoleDisplayName(role: InsurerRole): string {
  */
 export function getWorkflowStateDisplayName(state: WorkflowState): string {
   const names: Record<WorkflowState, string> = {
+    intake_queue: "Intake Queue",
     created: "Created",
     assigned: "Assigned",
     under_assessment: "Under Assessment",
