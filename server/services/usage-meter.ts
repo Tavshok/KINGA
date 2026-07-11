@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Usage Metering Service
  * Event-based usage tracking for metering and analytics
@@ -6,7 +5,8 @@
 
 import { eq, and } from "drizzle-orm";
 import { getDb } from "../db";
-import { usageEvents, type InsertUsageEvent } from "../../drizzle/schema";
+import { usageEvents, type } from "../../drizzle/schema";
+type InsertUsageEvent = typeof usageEvents.$inferInsert;
 
 export type UsageEventType =
   | "CLAIM_PROCESSED"

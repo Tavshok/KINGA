@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Threshold Version Management Service
  * 
@@ -174,7 +173,7 @@ export async function createThresholdVersion(
     mediumThreshold: params.mediumThreshold.toFixed(2),
     aiFastTrackEnabled: params.aiFastTrackEnabled,
     createdByUserId: params.createdByUserId,
-    isActive: true,
+    isActive: 1,
   });
   
   return { id: thresholdId, version: params.version };
@@ -265,7 +264,7 @@ export function getDefaultThresholdConfig(): ThresholdConfig {
   return {
     highThreshold: 80,
     mediumThreshold: 50,
-    aiFastTrackEnabled: true,
+    aiFastTrackEnabled: 1,
   };
 }
 

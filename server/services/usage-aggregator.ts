@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Usage Aggregator Service
  * Monthly aggregation of usage events for billing and analytics

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Human Review Queue Service
  * Manages manual review and approval workflow for MEDIUM confidence historical claims
@@ -192,7 +191,7 @@ export async function submitReviewDecision(params: {
     .set({
       reviewDecision: params.decision,
       reviewedBy: parseInt(params.reviewerId),
-      reviewedAt: new Date(),
+      reviewedAt: new Date().toISOString(),
       reviewNotes: params.reviewerNotes || null,
       reviewStatus: params.decision === "approve" ? "approved" : "rejected",
     })

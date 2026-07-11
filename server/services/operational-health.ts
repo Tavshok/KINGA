@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Operational Readiness Health Monitoring Service
  * 
@@ -494,7 +493,7 @@ export async function getOperationalHealth(): Promise<OperationalHealth> {
     aiStability.score * COMPONENT_WEIGHTS.aiStability;
   
   return {
-    timestamp: new Date(),
+    timestamp: new Date().toISOString(),
     overallScore,
     overallStatus: getHealthStatus(overallScore),
     governance,

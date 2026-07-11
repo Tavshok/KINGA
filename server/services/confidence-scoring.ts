@@ -61,7 +61,7 @@ export interface RoutingThresholds {
 export const DEFAULT_ROUTING_THRESHOLDS: RoutingThresholds = {
   highConfidenceThreshold: 75,
   mediumConfidenceThreshold: 50,
-  aiFastTrackEnabled: false,
+  aiFastTrackEnabled: 0,
 };
 
 /**

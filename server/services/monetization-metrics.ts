@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * KINGA Monetisation Metrics Service
  * 

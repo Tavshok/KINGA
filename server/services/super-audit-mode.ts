@@ -1,4 +1,4 @@
-// @ts-nocheck — AUDIT-01 in progress: db initialisation fixed, audit_trail field mapping applied
+ — AUDIT-01 in progress: db initialisation fixed, audit_trail field mapping applied
 /**
  * Super Audit Mode Service
  *
@@ -79,7 +79,7 @@ export async function setAuditContext(
     .set({
       auditedTenantId,
       impersonatedRole,
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     })
     .where(
       and(
@@ -150,7 +150,7 @@ export async function trackAccessedClaim(
       .update(superAuditSessions)
       .set({
         accessedClaimIds: JSON.stringify(accessedClaimIds),
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(superAuditSessions.id, sessionId));
   }
@@ -203,7 +203,7 @@ export async function trackReplayedClaim(
       .update(superAuditSessions)
       .set({
         replayedClaimIds: JSON.stringify(replayedClaimIds),
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(superAuditSessions.id, sessionId));
   }
@@ -256,7 +256,7 @@ export async function trackAiScoringView(
       .update(superAuditSessions)
       .set({
         viewedAiScoringClaimIds: JSON.stringify(viewedAiScoringClaimIds),
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(superAuditSessions.id, sessionId));
   }
@@ -309,7 +309,7 @@ export async function trackRoutingLogicView(
       .update(superAuditSessions)
       .set({
         viewedRoutingLogicClaimIds: JSON.stringify(viewedRoutingLogicClaimIds),
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(superAuditSessions.id, sessionId));
   }
@@ -360,7 +360,7 @@ export async function endSuperAuditSession(
       sessionEndedAt,
       sessionDurationSeconds,
       isActive: 0,
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     })
     .where(
       and(

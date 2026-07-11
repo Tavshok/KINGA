@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * User Management Service
  * 
@@ -101,7 +100,7 @@ export async function assignUserRole(request: RoleAssignmentRequest) {
     .set({
       role: request.newRole,
       insurerRole: request.newInsurerRole ?? null,
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     })
     .where(eq(users.id, request.userId));
 

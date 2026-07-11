@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Bias Detection and Flagging Service
  * Detects potential biases in historical claims data to ensure fair ML training

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Policy Activation Service
  * 
@@ -96,7 +95,7 @@ export async function activatePolicy(
     await db
       .update(automationPolicies)
       .set({
-        isActive: false,
+        isActive: 0,
         effectiveUntil: now,
       })
       .where(eq(automationPolicies.id, currentActivePolicy.id));
@@ -109,7 +108,7 @@ export async function activatePolicy(
       entityType: "automation_policy",
       entityId: currentActivePolicy.id,
       previousValue: JSON.stringify({ isActive: true }),
-      newValue: JSON.stringify({ isActive: false, effectiveUntil: now }),
+      newValue: JSON.stringify({ isActive: 0, effectiveUntil: now }),
       changeDescription: `Deactivated policy ${currentActivePolicy.policyName} (version ${currentActivePolicy.version})`,
       ipAddress: null,
       userAgent: null,
@@ -120,7 +119,7 @@ export async function activatePolicy(
   await db
     .update(automationPolicies)
     .set({
-      isActive: true,
+      isActive: 1,
       effectiveFrom: now,
       effectiveUntil: null,
     })
@@ -134,7 +133,7 @@ export async function activatePolicy(
     entityType: "automation_policy",
     entityId: policyId,
     previousValue: JSON.stringify({ isActive: false }),
-    newValue: JSON.stringify({ isActive: true, effectiveFrom: now }),
+    newValue: JSON.stringify({ isActive: 1, effectiveFrom: now }),
     changeDescription: `Activated policy ${policyToActivate.policyName} (version ${policyToActivate.version})`,
     ipAddress: null,
     userAgent: null,
@@ -237,8 +236,8 @@ export async function deletePolicy(
   await db
     .update(automationPolicies)
     .set({
-      isActive: false,
-      effectiveUntil: new Date(),
+      isActive: 0,
+      effectiveUntil: new Date().toISOString(),
     })
     .where(eq(automationPolicies.id, policyId));
 
@@ -250,7 +249,7 @@ export async function deletePolicy(
     entityType: "automation_policy",
     entityId: policyId,
     previousValue: JSON.stringify(policyToDelete),
-    newValue: JSON.stringify({ isActive: false, effectiveUntil: new Date() }),
+    newValue: JSON.stringify({ isActive: 0, effectiveUntil: new Date().toISOString() }),
     changeDescription: `Deleted policy ${policyToDelete.policyName} (version ${policyToDelete.version})`,
     ipAddress: null,
     userAgent: null,

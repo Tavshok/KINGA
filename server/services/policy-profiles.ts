@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Policy Profile Templates Service
  * 
@@ -8,7 +7,7 @@
  * All profiles maintain automation_policies as single source of truth.
  */
 
-import { InsertAutomationPolicy } from "../../drizzle/schema";
+type InsertAutomationPolicy = typeof automationPolicies.$inferInsert;
 
 export type PolicyProfileType = "conservative" | "balanced" | "aggressive" | "fraud_sensitive" | "custom";
 
@@ -62,7 +61,7 @@ export const CONSERVATIVE_PROFILE: PolicyProfileTemplate = {
   minVehicleYear: 2015, // Recent vehicles only
   maxVehicleAge: 10, // Max 10 years old
   requireManagerApprovalAbove: 10000000, // $100,000
-  allowPolicyOverride: false, // No overrides allowed
+  allowPolicyOverride: 0, // No overrides allowed
 };
 
 /**
@@ -95,7 +94,7 @@ export const BALANCED_PROFILE: PolicyProfileTemplate = {
   minVehicleYear: 2010, // Last 15 years
   maxVehicleAge: 15, // Max 15 years old
   requireManagerApprovalAbove: 25000000, // $250,000
-  allowPolicyOverride: true, // Overrides allowed
+  allowPolicyOverride: 1, // Overrides allowed
 };
 
 /**
@@ -128,7 +127,7 @@ export const AGGRESSIVE_PROFILE: PolicyProfileTemplate = {
   minVehicleYear: 2005, // Last 20 years
   maxVehicleAge: 20, // Max 20 years old
   requireManagerApprovalAbove: 50000000, // $500,000
-  allowPolicyOverride: true, // Overrides allowed
+  allowPolicyOverride: 1, // Overrides allowed
 };
 
 /**
@@ -162,7 +161,7 @@ export const FRAUD_SENSITIVE_PROFILE: PolicyProfileTemplate = {
   minVehicleYear: 2018, // Very recent vehicles only
   maxVehicleAge: 7, // Max 7 years old
   requireManagerApprovalAbove: 5000000, // $50,000
-  allowPolicyOverride: false, // No overrides allowed
+  allowPolicyOverride: 0, // No overrides allowed
 };
 
 /**
@@ -192,7 +191,7 @@ export const CUSTOM_PROFILE: PolicyProfileTemplate = {
   minVehicleYear: 2010,
   maxVehicleAge: 15,
   requireManagerApprovalAbove: 25000000, // $250,000
-  allowPolicyOverride: true,
+  allowPolicyOverride: 1,
 };
 
 /**
@@ -254,9 +253,9 @@ export function profileToAutomationPolicy(
     requireManagerApprovalAbove: profile.requireManagerApprovalAbove,
     allowPolicyOverride: profile.allowPolicyOverride,
     createdByUserId,
-    isActive: false, // New policies start inactive, must be explicitly activated
+    isActive: 0, // New policies start inactive, must be explicitly activated
     version: 1, // First version
-    effectiveFrom: new Date(),
+    effectiveFrom: new Date().toISOString(),
     effectiveUntil: null,
     supersededByPolicyId: null,
   };

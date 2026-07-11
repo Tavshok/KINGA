@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Confidence Scoring and Dataset Classification Service
  * Assesses data quality and routes claims to appropriate datasets
@@ -207,7 +206,7 @@ export async function classifyAndRouteHistoricalClaim(params: {
         tenantId: params.tenantId,
         historicalClaimId,
         approvalStatus: "auto_approved",
-        approvedAt: new Date(),
+        approvedAt: new Date().toISOString(),
         approvalNotes: "Auto-approved: HIGH confidence score",
       });
       

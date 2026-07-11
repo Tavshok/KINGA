@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Role Assignment Audit Trail Service
  * 

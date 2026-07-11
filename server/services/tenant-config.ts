@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Tenant Configuration Service
  * 
@@ -441,7 +440,7 @@ export async function updateTenantWorkflowThresholds(
         requireExecutiveApprovalAbove: (thresholds.executiveApprovalLimit ?? DEFAULT_WORKFLOW_CONFIG.requireExecutiveApprovalAbove).toString(),
         fraudFlagThreshold: DEFAULT_WORKFLOW_CONFIG.fraudFlagThreshold.toString(),
         requireInternalAssessment: DEFAULT_WORKFLOW_CONFIG.requireInternalAssessment,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         updatedAt: new Date()
       });
 

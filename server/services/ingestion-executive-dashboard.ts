@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Executive Dashboard Service for Historical Claims Ingestion
  * Provides high-level metrics and insights for executive oversight
