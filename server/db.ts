@@ -54,7 +54,8 @@ import {
 import { ENV } from './_core/env';
 import { logger } from './logger';
 
-let _db: ReturnType<typeof drizzle> | null = null;
+import type { MySql2Database } from 'drizzle-orm/mysql2';
+let _db: MySql2Database<typeof schema> | null = null;
 let _pool: mysql.Pool | null = null;
 
 // Lazily create the drizzle instance with a proper connection pool.
@@ -233,14 +234,11 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     } else if (user.openId === ENV.ownerOpenId) {
       values.role = 'admin';
       updateSet.role = 'admin';
+    }    if (!values.lastSignedIn) {
+      values.lastSignedIn = new Date().toISOString();
     }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
     if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
+      updateSet.lastSignedIn = new Date().toISOString();;
     }
 
     await db.insert(users).values(values).onDuplicateKeyUpdate({
@@ -297,7 +295,7 @@ export async function getUsersByInsurerRoles(insurerRoles: string[]): Promise<(t
     .where(
       and(
         eq(users.role, "insurer"),
-        inArray(users.insurerRole, insurerRoles)
+        inArray(users.insurerRole, insurerRoles as any[])
       )
     );
 }
@@ -577,7 +575,7 @@ export async function assignClaimToAssessor(claimId: number, assessorId: number)
   await db.update(claims).set({ 
     assignedAssessorId: assessorId,
     status: "assessment_pending",
-    updatedAt: new Date() 
+    updatedAt: new Date().toISOString() 
   }).where(eq(claims.id, claimId));
 }
 
@@ -587,7 +585,7 @@ export async function updateClaimPolicyVerification(claimId: number, verified: b
 
   await db.update(claims).set({ 
     policyVerified: verified ? 1 : 0,
-    updatedAt: new Date() 
+    updatedAt: new Date().toISOString() 
   }).where(eq(claims.id, claimId));
 }
 
@@ -653,7 +651,7 @@ export async function triggerAiAssessment(claimId: number) {
     aiAssessmentTriggered: 1,
     aiAssessmentCompleted: 0,
     documentProcessingStatus: "parsing",
-    updatedAt: new Date(),
+    updatedAt: new Date().toISOString(),
   }).where(eq(claims.id, claimId));
   console.log(`[KINGA Assessment] Claim ${claimId} — Pipeline v2 starting (clean slate).`);
 
@@ -681,7 +679,7 @@ export async function triggerAiAssessment(claimId: number) {
             aiAssessmentTriggered: 0,
             documentProcessingStatus: 'failed',
             pipelineCurrentStage: null,
-            updatedAt: new Date(),
+            updatedAt: new Date().toISOString(),
           }).where(eq(claims.id, claimId));
         }
       } catch (wdErr: any) {
@@ -797,7 +795,7 @@ export async function triggerAiAssessment(claimId: number) {
         dpi: 100,
         maxPages: 25,
         keyPrefix: `claims/${claimId}/damage-pages`,
-        log: (msg: string) => logger.info('PDF Render', msg, { claimId }),
+        log: (msg: string) => logger.info('PDF Render', msg, { claimId: String(claimId) }),
       });
       // Build ExtractedImage-compatible objects from rendered pages.
       // IMPORTANT: width/height come from PdfPageImage (read at render time from the buffer)
@@ -846,7 +844,7 @@ export async function triggerAiAssessment(claimId: number) {
       if (damagePhotos.length > 0) {
         await db.update(claims).set({
           damagePhotos: JSON.stringify(damagePhotos),
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         }).where(eq(claims.id, claimId)).catch(() => {});
       }
     } catch (imgErr: any) {
@@ -885,7 +883,7 @@ export async function triggerAiAssessment(claimId: number) {
         damagePhotoCount: damagePhotos.length,
         documentPhotoCount: 0,
         llmClassificationFailed: false,
-        extractionError: _extractionError,
+        extractionError: _extractionError ?? undefined,
         startedAt: new Date(_photoIngestionStart),
         totalDurationMs: Date.now() - _photoIngestionStart,
         qualitySummary: _qualitySummary,
@@ -972,7 +970,7 @@ export async function triggerAiAssessment(claimId: number) {
       aiAssessmentCompleted: 1,
       status: "assessment_complete",
       documentProcessingStatus: "extracted",
-      updatedAt: new Date() 
+      updatedAt: new Date().toISOString() 
     }).where(eq(claims.id, claimId));
     return { success: true, message: "Placeholder assessment created. Please upload damage photos or documents for full analysis." };
   }
@@ -1014,7 +1012,7 @@ export async function triggerAiAssessment(claimId: number) {
     pdfDownloadUrl: pdfDownloadUrl ?? pdfUrl,
     damagePhotoUrls: damagePhotos,
     db,
-    log: logger.makePipelineLog(claimId),
+    log: logger.makePipelineLog(String(claimId)),
     tenantRates,
     // ISO 3166-1 alpha-2 country code for the tenant's primary operating country
     // Priority: tenants.country column → null (no hardcoded fallback — currency resolution handles the default)
@@ -1037,7 +1035,7 @@ export async function triggerAiAssessment(claimId: number) {
         if (dbInst) {
           await dbInst.update(claims).set({
             pipelineCurrentStage: stageLabel,
-            updatedAt: new Date(),
+            updatedAt: new Date().toISOString(),
           }).where(eq(claims.id, claimId));
         }
       } catch (stageErr: any) {
@@ -1069,11 +1067,8 @@ export async function triggerAiAssessment(claimId: number) {
       });
       import('./db-pipeline').then(({ recordStageComplete }) => {
         recordStageComplete({
-          claimId,
           runId: _pipelineRunId,
           stageId,
-          stageLabel: stageId,
-          tenantId: claim.tenantId ?? null,
           ...stageResult,
         }).catch(() => {});
       }).catch(() => {});
@@ -1108,14 +1103,14 @@ export async function triggerAiAssessment(claimId: number) {
       console.error(`[KINGA Assessment] Claim ${claimId}: Pipeline incomplete — ${pipelineErr.message}`);
       // Phase 1 Observability: record run as failed (fire-and-forget)
       import('./db-pipeline').then(({ recordRunComplete }) => {
-        recordRunComplete(_pipelineRunId, 'failed').catch(() => {});
+        recordRunComplete({ runId: _pipelineRunId, status: 'failed', totalDurationMs: 0, stagesCompleted: 0, stagesFailed: 1, stagesDegraded: 0 }).catch(() => {});
       }).catch(() => {});
       await db.update(claims).set({
         documentProcessingStatus: "failed",
         status: "intake_pending",
         workflowState: "intake_queue",
         aiAssessmentTriggered: 0,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, claimId));
       // Upsert a minimal ai_assessment record so the exception queue can surface it
       const existingAssessment = await db.select({ id: aiAssessments.id })
@@ -1123,21 +1118,21 @@ export async function triggerAiAssessment(claimId: number) {
       const pipelineIncompleteJson = JSON.stringify({
         status: "PIPELINE_INCOMPLETE",
         reason: pipelineErr.message,
-        missingComponents: pipelineErr.guardResult?.missingComponents ?? [],
+        missingComponents: pipelineErr.guardResult?.failures?.map((f: any) => f.detail) ?? [],
         timestamp: new Date().toISOString(),
       });
       if (existingAssessment.length > 0) {
         await db.update(aiAssessments).set({
           pipelineRunSummary: pipelineIncompleteJson,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         }).where(eq(aiAssessments.claimId, claimId));
       } else {
         await db.insert(aiAssessments).values({
           claimId,
-          tenantId: (() => { const n = parseInt(String(claim.tenantId ?? ''), 10); return Number.isFinite(n) ? n : null; })(),
+          tenantId: claim.tenantId ?? null,
           pipelineRunSummary: pipelineIncompleteJson,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
       }
       return;
@@ -1424,15 +1419,15 @@ export async function triggerAiAssessment(claimId: number) {
 
   // Stage 36: Run Forensic Audit Validator on the completed pipeline result
   // Inject classifiedImages into result so the validator can use accurate photo counts
-  if (pipelineCtx.classifiedImages) {
-    (result as any).classifiedImages = pipelineCtx.classifiedImages;
+  if ((pipelineCtx as any).classifiedImages) {
+    (result as any).classifiedImages = (pipelineCtx as any).classifiedImages;
   }
   // Also inject enrichedPhotosJson from ctx when the orchestrator return missed it
   // (happens on cache_rehydration runs where classifiedImages is null but Stage 6 still
   // set enrichedPhotosJson on ctx). Without this, imageAnalysisTotalCount = 0 even
   // though photos were processed, causing the report to say "no images extracted".
-  if (!(result as any).enrichedPhotosJson && pipelineCtx.enrichedPhotosJson) {
-    (result as any).enrichedPhotosJson = pipelineCtx.enrichedPhotosJson;
+  if (!(result as any).enrichedPhotosJson && (pipelineCtx as any).enrichedPhotosJson) {
+    (result as any).enrichedPhotosJson = (pipelineCtx as any).enrichedPhotosJson;
   }
   let forensicAuditValidationResult: import('./pipeline-v2/forensicAuditValidator').ForensicAuditValidationReport | null = null;
   try {
@@ -1504,7 +1499,7 @@ export async function triggerAiAssessment(claimId: number) {
     // crashed before Stage 13).
     confidenceScore: (() => {
       try {
-        const fcdiScore = forensicAnalysis?.fcdi?.scorePercent;
+        const fcdiScore = (forensicAnalysis?.fcdi as any)?.scorePercent;
         if (typeof fcdiScore === 'number' && fcdiScore >= 0 && fcdiScore <= 100) {
           return safeInt(Math.round(fcdiScore)) ?? 50;
         }
@@ -1641,7 +1636,7 @@ export async function triggerAiAssessment(claimId: number) {
     // Phase 2A: FCDI — Forensic Confidence Degradation Index (0–100)
     fcdiScore: (() => {
       try {
-        const fcdi = forensicAnalysis?.fcdi;
+        const fcdi = (forensicAnalysis?.fcdi as any);
         return safeInt(typeof fcdi?.scorePercent === 'number' ? fcdi.scorePercent : null);
       } catch { return null; }
     })(),
@@ -2109,7 +2104,7 @@ export async function triggerAiAssessment(claimId: number) {
     fraudFlags: fraudIndicatorsJson,
     estimatedCost: safeInt(estimatedCost) ?? 0,
     aiAssessmentCompletedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
-    updatedAt: new Date(),
+    updatedAt: new Date().toISOString(),
     pipelineCurrentStage: null, // Clear stage label once assessment is complete
   };
   // Helper: safely truncate a string to a max byte length to avoid MySQL varchar truncation errors
@@ -2219,7 +2214,7 @@ export async function triggerAiAssessment(claimId: number) {
   if (watchdogTimer) { clearTimeout(watchdogTimer); watchdogTimer = null; }
   // Phase 1 Observability: record run completion (fire-and-forget)
   import('./db-pipeline').then(({ recordRunComplete }) => {
-    recordRunComplete(_pipelineRunId, 'completed').catch(() => {});
+    recordRunComplete({ runId: _pipelineRunId, status: 'completed', totalDurationMs: 0, stagesCompleted: 0, stagesFailed: 0, stagesDegraded: 0 }).catch(() => {});
   }).catch(() => {});
 
   console.log(`[KINGA Assessment] Claim ${claimId}: claimUpdate keys = ${Object.keys(claimUpdate).join(', ')}`);
@@ -2234,7 +2229,7 @@ export async function triggerAiAssessment(claimId: number) {
         status: "assessment_complete",
         documentProcessingStatus: "extracted",
         pipelineCurrentStage: null,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, claimId));
       console.log(`[KINGA Assessment] Claim ${claimId}: Minimal fallback claim update succeeded.`);
     } catch (fallbackErr: any) {
@@ -2279,7 +2274,7 @@ export async function triggerAiAssessment(claimId: number) {
           fraudScore: ftFraud, claimType: ftClaimType, productId: null,
         });
         if (ftEval.eligible && ftEval.action) {
-          await executeFastTrackAction(claimId, ftEval, 0);
+          await executeFastTrackAction(claimId, ftEval as any, 0);
           console.log(`[FastTrack] Claim ${claimId}: action=${ftEval.action} reason=${ftEval.evaluationDetails.reason}`);
         } else {
           console.log(`[FastTrack] Claim ${claimId}: not eligible — ${ftEval.evaluationDetails.reason}`);
@@ -2318,7 +2313,7 @@ export async function triggerAiAssessment(claimId: number) {
           incidentTime: (acc as any)?.time ?? undefined,
           incidentLocation: acc?.location ?? undefined,
           // Claimant
-          claimantName: claimantInfo?.claimantName ?? ins?.policyholderName ?? undefined,
+          claimantName: claimantInfo?.claimantName ?? (ins as any)?.policyholderName ?? undefined,
           claimantIdNumber: (claimantInfo as any)?.idNumber ?? undefined, // idNumber not on DriverRecord — kept for future extension
           claimantAddress: (claimantInfo as any)?.address ?? undefined, // address not on DriverRecord — kept for future extension
           claimantPhone: (claimantInfo as any)?.phone ?? undefined, // phone not on DriverRecord — kept for future extension
@@ -2358,7 +2353,7 @@ export async function triggerAiAssessment(claimId: number) {
         },
         {
           fraudScore: finalFraudScore,
-          fraudIndicators: fraudAnalysis?.fraudIndicators ?? undefined,
+          fraudIndicators: fraudAnalysis?.indicators ?? undefined,
           physicsData: (result as any).stage5Data ? {
             deltaV: (result as any).stage5Data.deltaV ?? undefined,
             crushDepth: (result as any).stage5Data.crushDepth ?? undefined,
@@ -2480,7 +2475,7 @@ export async function triggerAiAssessment(claimId: number) {
             documentProcessingStatus: "failed",
             status: "intake_pending",
             workflowState: "intake_queue",  // Reset workflow state so re-run can transition cleanly
-            updatedAt: new Date(),
+            updatedAt: new Date().toISOString(),
           }).where(eq(claims.id, claimId));
           console.log(`[KINGA Assessment] Claim ${claimId} marked as failed after AI error. workflowState reset to intake_queue.`);
         }
@@ -2509,7 +2504,7 @@ export async function triggerAiAssessment(claimId: number) {
               status: "intake_pending",
               workflowState: "intake_queue",
               aiAssessmentTriggered: 0,
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString(),
             }).where(eq(claims.id, claimId));
           }
         }
@@ -2533,7 +2528,7 @@ export async function createAiAssessment(data: InsertAiAssessment) {
   // Mark claim as KINGA assessment completed
   await db.update(claims).set({ 
     aiAssessmentCompleted: 1,
-    updatedAt: new Date() 
+    updatedAt: new Date().toISOString() 
   }).where(eq(claims.id, data.claimId));
   
   return result;
@@ -2571,7 +2566,7 @@ export async function getAiAssessmentByClaimId(claimId: number, tenantId?: strin
     physicsAnalysisParsed: parsePhysicsAnalysis(rawAssessment.physicsAnalysis),
     // ── Claim fields (joined) — used by the report router so it doesn't need
     //    a separate query. These are the authoritative values from the claims table.
-    claimNumber: claimRow?.claimNumber ?? rawAssessment.claimNumber ?? null,
+    claimNumber: claimRow?.claimNumber ?? (rawAssessment as any).claimNumber ?? null,
     vehicleMake: claimRow?.vehicleMake ?? null,
     vehicleModel: claimRow?.vehicleModel ?? null,
     vehicleYear: claimRow?.vehicleYear ?? null,
@@ -2583,7 +2578,7 @@ export async function getAiAssessmentByClaimId(claimId: number, tenantId?: strin
     reportedCauseLabel: claimRow?.reportedCauseLabel ?? null,
     policyNumber: claimRow?.policyNumber ?? null,
     currencyCode: claimRow?.currencyCode ?? null,
-    countryCode: claimRow?.countryCode ?? null,
+    countryCode: (claimRow as any)?.countryCode ?? null,
     // Product type (e.g. COMPREHENSIVE, EXCESS) — stored on claims table
     productType: (claimRow as any)?.productType ?? null,
     // Claim reference from claims table (e.g. KNG-TENANT17-2026-000016-CL)
@@ -2591,7 +2586,7 @@ export async function getAiAssessmentByClaimId(claimId: number, tenantId?: strin
     // Insurer name from claims table
     insurerName: claimRow?.insurerName ?? null,
     // Claimant name from claims table
-    claimantName: claimRow?.claimantName ?? null,
+    claimantName: (claimRow as any)?.claimantName ?? null,
   };
 }
 
@@ -2622,7 +2617,7 @@ export async function updateAssessorEvaluation(id: number, data: Partial<InsertA
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(assessorEvaluations).set({ ...data, updatedAt: new Date() }).where(eq(assessorEvaluations.id, id));
+  await db.update(assessorEvaluations).set({ ...data, updatedAt: new Date().toISOString() }).where(eq(assessorEvaluations.id, id));
 }
 
 // ============================================================================
@@ -2671,7 +2666,7 @@ export async function updateQuote(id: number, data: Partial<InsertPanelBeaterQuo
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(panelBeaterQuotes).set({ ...data, updatedAt: new Date() }).where(eq(panelBeaterQuotes.id, id));
+  await db.update(panelBeaterQuotes).set({ ...data, updatedAt: new Date().toISOString() }).where(eq(panelBeaterQuotes.id, id));
 }
 
 export async function getQuotesByPanelBeater(panelBeaterId: number, tenantId?: string) {
@@ -2721,7 +2716,7 @@ export async function updateAppointmentStatus(id: number, status: typeof appoint
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(appointments).set({ status, updatedAt: new Date() }).where(eq(appointments.id, id));
+  await db.update(appointments).set({ status, updatedAt: new Date().toISOString() }).where(eq(appointments.id, id));
 }
 
 // ============================================================================
@@ -2817,7 +2812,7 @@ export async function markNotificationAsRead(id: number) {
     .update(notifications)
     .set({ 
       isRead: 1, 
-      readAt: new Date() 
+      readAt: new Date().toISOString() 
     })
     .where(eq(notifications.id, id));
 }
@@ -2834,7 +2829,7 @@ export async function markAllNotificationsAsRead(userId: number) {
     .update(notifications)
     .set({ 
       isRead: 1, 
-      readAt: new Date() 
+      readAt: new Date().toISOString() 
     })
     .where(and(
       eq(notifications.userId, userId),
@@ -3386,7 +3381,7 @@ export async function emitClaimEvent(params: {
       userRole: params.userRole,
       tenantId: params.tenantId,
       eventPayload: params.eventPayload || null,
-      emittedAt: new Date(),
+      emittedAt: new Date().toISOString(),
     });
     
     console.log(`[Events] Emitted ${params.eventType} for claim ${params.claimId}`);
@@ -3631,6 +3626,8 @@ export function buildSpecSnapshot(
  * Returns the new snapshot ID and version number.
  */
 export async function saveDecisionSnapshot(input: DecisionSnapshotInput): Promise<{ id: number; version: number }> {
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
   // Determine next version number for this claim
   const existing = await db
     .select({ version: decisionSnapshots.snapshotVersion })
@@ -3691,6 +3688,8 @@ export async function saveDecisionSnapshot(input: DecisionSnapshotInput): Promis
  * Retrieve all Decision Snapshots for a claim, ordered newest first.
  */
 export async function getDecisionSnapshots(claimId: string): Promise<DecisionSnapshot[]> {
+  const db = await getDb();
+  if (!db) return [];
   return db
     .select()
     .from(decisionSnapshots)
@@ -3702,6 +3701,8 @@ export async function getDecisionSnapshots(claimId: string): Promise<DecisionSna
  * Get the latest Decision Snapshot for a claim, or null if none exists.
  */
 export async function getLatestDecisionSnapshot(claimId: string): Promise<DecisionSnapshot | null> {
+  const db = await getDb();
+  if (!db) return null;
   const rows = await db
     .select()
     .from(decisionSnapshots)
@@ -3716,6 +3717,8 @@ export async function getLatestDecisionSnapshot(claimId: string): Promise<Decisi
  * Returns the parsed SpecSnapshot object, or null if no snapshot exists.
  */
 export async function getLatestSnapshotJson(claimId: string): Promise<SpecSnapshot | null> {
+  const db = await getDb();
+  if (!db) return null;
   const rows = await db
     .select({ snapshotJson: decisionSnapshots.snapshotJson, snapshotVersion: decisionSnapshots.snapshotVersion })
     .from(decisionSnapshots)
@@ -3934,6 +3937,8 @@ export async function updateTenantRates(
     currencySymbol?: string | null;
   }
 ): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
   const rows = await db
     .select({ configJson: schema.tenants.configJson })
     .from(schema.tenants)

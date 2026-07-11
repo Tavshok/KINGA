@@ -5166,3 +5166,23 @@ export const pipelineJobs = mysqlTable("pipeline_jobs", {
 ]);
 export type PipelineJobRow = typeof pipelineJobs.$inferSelect;
 export type InsertPipelineJob = typeof pipelineJobs.$inferInsert;
+
+// Additional Insert types required by server/db.ts helper functions
+export type InsertNotification = typeof notifications.$inferInsert;
+export type InsertQuoteLineItem = typeof quoteLineItems.$inferInsert;
+export type InsertThirdPartyVehicle = typeof thirdPartyVehicles.$inferInsert;
+export type InsertVehicleMarketValuation = typeof vehicleMarketValuations.$inferInsert;
+export type InsertPoliceReport = typeof policeReports.$inferInsert;
+export type InsertPreAccidentDamage = typeof preAccidentDamage.$inferInsert;
+export type InsertVehicleConditionAssessment = typeof vehicleConditionAssessment.$inferInsert;
+export type InsertApprovalWorkflow = typeof approvalWorkflow.$inferInsert;
+export type InsertClaimEvent = typeof claimEvents.$inferInsert;
+// Additional Insert types needed by server/db.ts (Batch D sweep additions)
+export type InsertUser = typeof users.$inferInsert;
+export type InsertClaim = typeof claims.$inferInsert;
+export type InsertPanelBeater = typeof panelBeaters.$inferInsert;
+export type InsertAiAssessment = typeof aiAssessments.$inferInsert;
+export type InsertAssessorEvaluation = typeof assessorEvaluations.$inferInsert;
+export type InsertPanelBeaterQuote = typeof panelBeaterQuotes.$inferInsert;
+export type InsertAppointment = typeof appointments.$inferInsert;
+export type InsertAuditTrailEntry = typeof auditTrail.$inferInsert;
