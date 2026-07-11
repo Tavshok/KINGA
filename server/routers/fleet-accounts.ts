@@ -16,6 +16,7 @@ import { fleetAccounts, claims, users, fleetManagerRequests } from "../../drizzl
 import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
 import { notifyOwner } from "../_core/notification";
 import { sendFleetManagerApprovedEmail, sendFleetManagerRejectedEmail, sendFleetManagerSubmittedEmail } from "../safe-email";
+import { logRoleAssignment } from "../services/role-assignment-audit";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -704,9 +705,30 @@ export const fleetAccountsRouter = router({
         .set({ status: "approved" as any, reviewedByUserId: ctx.user.id, reviewedAt: now, reviewNotes: input.notes ?? null, updatedAt: now } as any)
         .where(eq(fleetManagerRequests.id, input.requestId));
       // 2. Upgrade user role to fleet_manager
+      // Fetch previous role for audit trail before overwriting
+      const [userBeforeUpgrade] = await db
+        .select({ role: users.role, tenantId: users.tenantId })
+        .from(users)
+        .where(eq(users.id, request.userId))
+        .limit(1);
       await db.update(users)
         .set({ role: "fleet_manager" as any, updatedAt: now } as any)
         .where(eq(users.id, request.userId));
+      // 2a. Write immutable audit trail for the role upgrade (non-blocking — failure must not abort approval)
+      try {
+        if (userBeforeUpgrade) {
+          await logRoleAssignment({
+            tenantId: userBeforeUpgrade.tenantId ?? "platform",
+            userId: request.userId,
+            previousRole: (userBeforeUpgrade.role as any) ?? null,
+            newRole: "fleet_manager",
+            changedByUserId: ctx.user.id,
+            justification: `Fleet manager request #${input.requestId} approved for company: ${request.companyName}. Approved by user id=${ctx.user.id}.`,
+          });
+        }
+      } catch (auditErr) {
+        console.warn("[FleetAccounts] Role audit write failed (non-blocking):", auditErr);
+      }
       // 3. Mark fleet account as approved
       if (request.fleetAccountId) {
         await db.update(fleetAccounts)

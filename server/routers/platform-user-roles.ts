@@ -185,6 +185,7 @@ export const platformUserRolesRouter = router({
       // the fields that the schema accepts; extra info goes into justification.
       const safeRoles = [
         "user", "admin", "insurer", "assessor", "panel_beater", "claimant",
+        "fleet_admin", "fleet_manager", "fleet_driver", "platform_super_admin",
       ] as const;
       type SafeRole = (typeof safeRoles)[number];
       const isSafeRole = (r: string): r is SafeRole =>

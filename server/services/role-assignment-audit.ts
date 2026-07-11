@@ -18,8 +18,8 @@ import { eq, and, desc } from "drizzle-orm";
 export interface RoleAssignmentChange {
   tenantId: string;
   userId: number;
-  previousRole: "user" | "admin" | "insurer" | "assessor" | "panel_beater" | "claimant" | null;
-  newRole: "user" | "admin" | "insurer" | "assessor" | "panel_beater" | "claimant";
+  previousRole: "user" | "admin" | "insurer" | "assessor" | "panel_beater" | "claimant" | "fleet_admin" | "fleet_manager" | "fleet_driver" | "platform_super_admin" | null;
+  newRole: "user" | "admin" | "insurer" | "assessor" | "panel_beater" | "claimant" | "fleet_admin" | "fleet_manager" | "fleet_driver" | "platform_super_admin";
   previousInsurerRole?: "claims_processor" | "assessor_internal" | "assessor_external" | "risk_manager" | "claims_manager" | "executive" | "insurer_admin" | null;
   newInsurerRole?: "claims_processor" | "assessor_internal" | "assessor_external" | "risk_manager" | "claims_manager" | "executive" | "insurer_admin" | null;
   changedByUserId: number;

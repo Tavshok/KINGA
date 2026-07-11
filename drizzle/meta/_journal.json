@@ -393,6 +393,13 @@
       "when": 1771494069340,
       "tag": "0055_illegal_carlie_cooper",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "5",
+      "when": 1771494069999,
+      "tag": "0060_role_assignment_audit_fleet_platform_enum",
+      "breakpoints": true
     }
   ]
 }
