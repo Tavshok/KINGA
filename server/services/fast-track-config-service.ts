@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Fast-Track Configuration Service
  * 
@@ -8,16 +8,16 @@
  * Platform governance limits prevent insurers from configuring unsafe automation rules.
  */
 
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, lte } from "drizzle-orm";
 import { getDb } from "../db";
 import {
   fastTrackConfig,
   platformGovernanceLimits,
   governanceViolationLog,
-  type InsertFastTrackConfig,
-  type FastTrackConfig,
-  type PlatformGovernanceLimits,
 } from "../../drizzle/schema";
+type InsertFastTrackConfig = typeof fastTrackConfig.$inferInsert;
+type FastTrackConfig = typeof fastTrackConfig.$inferSelect;
+type PlatformGovernanceLimits = typeof platformGovernanceLimits.$inferSelect;
 
 /**
  * Governance validation error
@@ -65,7 +65,7 @@ export async function getActiveGovernanceLimits(): Promise<PlatformGovernanceLim
   const [limits] = await db
     .select()
     .from(platformGovernanceLimits)
-    .where(eq(platformGovernanceLimits.effectiveFrom, now))
+    .where(lte(platformGovernanceLimits.effectiveFrom, now.toISOString()))
     .orderBy(desc(platformGovernanceLimits.version))
     .limit(1);
 
@@ -77,9 +77,9 @@ export async function getActiveGovernanceLimits(): Promise<PlatformGovernanceLim
       minConfidenceAllowedGlobal: "85.00",
       maxFraudToleranceGlobal: "10.00",
       version: 0,
-      effectiveFrom: new Date(),
+      effectiveFrom: now.toISOString(),
       createdBy: 0,
-      createdAt: new Date(),
+      createdAt: now.toISOString(),
       notes: "Default platform limits",
     };
   }
@@ -257,7 +257,7 @@ export async function createFastTrackConfig(
     maxFraudScore: params.maxFraudScore,
     enabled: params.enabled,
     version: nextVersion,
-    effectiveFrom: params.effectiveFrom,
+    effectiveFrom: params.effectiveFrom instanceof Date ? params.effectiveFrom.toISOString() : params.effectiveFrom,
     createdBy: params.createdBy,
   };
 

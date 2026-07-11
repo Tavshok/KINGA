@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Confidence Score Calculation and Routing Service
  * 
@@ -19,8 +19,9 @@
  */
 
 import { getDb } from "../db";
-import { claims, aiAssessments, tenantRoleConfigs, routingThresholdConfig, workflowAuditTrail } from "../../drizzle/schema";
+import { claims, aiAssessments, routingThresholdConfig } from "../../drizzle/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
+import { insertWorkflowAudit } from "../utils/audit-helpers";
 
 /**
  * Component scores for confidence calculation
@@ -105,14 +106,14 @@ async function calculateFraudRiskScore(claimId: number): Promise<number> {
   let score = 100; // Start with perfect score
 
   // Factor 1: Claim amount suspiciously high (>80% of typical)
-  const claimAmount = claim.claimAmount || 0;
+  const claimAmount = Number(claim.estimatedClaimValue) || 0;
   if (claimAmount > 100000) score -= 20; // Large claims more scrutiny
   if (claimAmount > 500000) score -= 20; // Very large claims
 
   // Factor 2: Time since incident (immediate claims can be suspicious)
   if (claim.incidentDate) {
     const daysSinceIncident = Math.floor(
-      (Date.now() - claim.incidentDate.getTime()) / (1000 * 60 * 60 * 24)
+      (Date.now() - new Date(claim.incidentDate).getTime()) / (1000 * 60 * 60 * 24)
     );
     if (daysSinceIncident === 0) score -= 15; // Same-day claim
     if (daysSinceIncident > 90) score -= 10; // Very delayed reporting
@@ -124,7 +125,7 @@ async function calculateFraudRiskScore(claimId: number): Promise<number> {
     .from(claims)
     .where(
       and(
-        eq(claims.claimantName, claim.claimantName),
+        sql`${claims.lodgerName} = ${claim.lodgerName ?? ''}`,
         sql`${claims.id} != ${claimId}`
       )
     );
@@ -155,7 +156,7 @@ async function calculateAICertainty(claimId: number): Promise<number> {
   if (!assessment) return 0;
 
   // AI confidence is already 0-100
-  return Math.max(0, Math.min(100, assessment.confidence || 0));
+  return Math.max(0, Math.min(100, assessment.confidenceScore || 0));
 }
 
 /**
@@ -185,7 +186,7 @@ async function calculateQuoteVariance(claimId: number): Promise<number> {
   if (!assessment || !assessment.estimatedCost) return 50;
 
   const aiEstimate = assessment.estimatedCost;
-  const claimAmount = claim.claimAmount || 0;
+  const claimAmount = Number(claim.estimatedClaimValue) || 0;
 
   if (claimAmount === 0) return 50;
 
@@ -222,9 +223,9 @@ async function calculateClaimCompleteness(claimId: number): Promise<number> {
   const requiredFields = [
     claim.claimNumber,
     claim.policyNumber,
-    claim.claimantName,
+    claim.lodgerName,
     claim.incidentDate,
-    claim.claimAmount,
+    claim.estimatedClaimValue,
     claim.incidentDescription,
   ];
 
@@ -257,7 +258,7 @@ async function calculateHistoricalClaimantRisk(claimId: number): Promise<number>
     .from(claims)
     .where(
       and(
-        eq(claims.claimantName, claim.claimantName),
+        sql`${claims.lodgerName} = ${claim.lodgerName ?? ''}`,
         sql`${claims.id} < ${claimId}` // Only past claims
       )
     )
@@ -275,7 +276,7 @@ async function calculateHistoricalClaimantRisk(claimId: number): Promise<number>
   if (previousClaims.length > 0) {
     const oldestClaim = previousClaims[previousClaims.length - 1];
     const daysSinceFirst = Math.floor(
-      (Date.now() - oldestClaim.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      (Date.now() - new Date(oldestClaim.createdAt).getTime()) / (1000 * 60 * 60 * 24)
     );
     const yearsActive = Math.max(1, daysSinceFirst / 365);
     const claimsPerYear = previousClaims.length / yearsActive;
@@ -286,7 +287,7 @@ async function calculateHistoricalClaimantRisk(claimId: number): Promise<number>
 
   // Factor 3: Rejected or disputed claims
   const rejectedCount = previousClaims.filter(c => 
-    c.workflowState === "rejected" || c.workflowState === "disputed"
+    c.workflowState === "disputed"
   ).length;
 
   if (rejectedCount > 0) score -= 15;
@@ -506,22 +507,21 @@ export async function logRoutingDecision(
   const db = await getDb();
   if (!db) return;
 
-  await db.insert(workflowAuditTrail).values({
+  await insertWorkflowAudit(db as any, {
     claimId,
     userId,
-    userRole,
-    actionType: "routing_decision",
+    userRole: userRole as any,
     previousState: null,
-    newState: null,
-    metadata: JSON.stringify({
+    newState: "closed",
+    comments: executiveOverride?.overrideReason ?? null,
+    metadata: {
+      actionType: "routing_decision",
       confidenceScore: recommendation.confidenceScore,
       routingCategory: recommendation.category,
       recommendedPath: recommendation.recommendedPath,
       reasoning: recommendation.reasoning,
       components: recommendation.components,
       executiveOverride: executiveOverride || null,
-    }),
-    executiveOverride: executiveOverride?.overridden ? 1 : 0,
-    overrideReason: executiveOverride?.overrideReason,
+    },
   });
 }

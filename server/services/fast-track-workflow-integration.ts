@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Fast-Track Workflow Integration
  * 
@@ -13,7 +13,10 @@
 
 import { evaluateFastTrack, type FastTrackEvaluationParams, type FastTrackAction } from "./fast-track-engine";
 import { getDb } from "../db";
-import { workflowAuditTrail, type InsertWorkflowAuditTrail } from "../../drizzle/schema";
+import { workflowAuditTrail } from "../../drizzle/schema";
+import { eq, and } from "drizzle-orm";
+
+type InsertWorkflowAuditTrail = typeof workflowAuditTrail.$inferInsert;
 
 /**
  * Workflow transition result
@@ -60,10 +63,8 @@ export async function executeFastTrackWorkflow(params: {
   // Log workflow transition to audit trail
   const auditTrailId = await logWorkflowTransition({
     claimId: params.claimId,
-    tenantId: params.tenantId,
     fromState: "created", // Assuming fast-track is evaluated at claim creation
     toState: newState,
-    action: evaluation.action,
     reason: evaluation.evaluationDetails.reason,
     userId: params.userId,
     userRole: params.userRole,
@@ -75,6 +76,7 @@ export async function executeFastTrackWorkflow(params: {
       claimValue: evaluation.evaluationDetails.claimValue,
       fraudScore: evaluation.evaluationDetails.fraudScore,
       thresholdsMet: evaluation.evaluationDetails.thresholdsMet,
+      fastTrackAction: evaluation.action,
     },
   });
 
@@ -119,13 +121,13 @@ function mapFastTrackActionToWorkflowState(action: FastTrackAction): string {
 
 /**
  * Log workflow transition to audit trail
+ * Maps fast-track concepts to actual workflowAuditTrail schema columns:
+ *   fromState → previousState, toState → newState, reason → comments, metadata → metadata
  */
 async function logWorkflowTransition(params: {
   claimId: number;
-  tenantId: string;
   fromState: string;
   toState: string;
-  action: string;
   reason: string;
   userId: number;
   userRole: string;
@@ -138,15 +140,12 @@ async function logWorkflowTransition(params: {
 
   const auditEntry: InsertWorkflowAuditTrail = {
     claimId: params.claimId,
-    tenantId: params.tenantId,
-    fromState: params.fromState,
-    toState: params.toState,
-    action: params.action,
-    actionReason: params.reason,
     userId: params.userId,
-    userRole: params.userRole,
+    userRole: params.userRole as InsertWorkflowAuditTrail["userRole"],
+    previousState: params.fromState as InsertWorkflowAuditTrail["previousState"],
+    newState: params.toState as InsertWorkflowAuditTrail["newState"],
+    comments: params.reason,
     metadata: JSON.stringify(params.metadata),
-    timestamp: new Date(),
   };
 
   const result = await db.insert(workflowAuditTrail).values(auditEntry);
@@ -169,6 +168,8 @@ export function validateFastTrackActionSafety(action: FastTrackAction, configVer
 
 /**
  * Get workflow audit trail for claim
+ * Maps actual schema columns back to the expected interface shape:
+ *   previousState → fromState, newState → toState, comments → actionReason, createdAt → timestamp
  */
 export async function getFastTrackWorkflowHistory(params: {
   claimId: number;
@@ -182,30 +183,31 @@ export async function getFastTrackWorkflowHistory(params: {
   userId: number;
   userRole: string;
   metadata: Record<string, any>;
-  timestamp: Date;
+  timestamp: string;
 }>> {
   const db = await getDb();
   if (!db) {
     throw new Error("Database connection not available");
   }
 
+  // workflowAuditTrail has no tenantId column — filter by claimId only
   const history = await db.select()
     .from(workflowAuditTrail)
-    .where(
-      workflowAuditTrail.claimId === params.claimId &&
-      workflowAuditTrail.tenantId === params.tenantId
-    )
-    .orderBy(workflowAuditTrail.timestamp);
+    .where(eq(workflowAuditTrail.claimId, params.claimId))
+    .orderBy(workflowAuditTrail.createdAt);
 
-  return history.map(entry => ({
-    id: entry.id,
-    fromState: entry.fromState,
-    toState: entry.toState,
-    action: entry.action,
-    actionReason: entry.actionReason || "",
-    userId: entry.userId,
-    userRole: entry.userRole,
-    metadata: entry.metadata ? JSON.parse(entry.metadata as string) : {},
-    timestamp: entry.timestamp,
-  }));
+  return history.map(entry => {
+    const meta = entry.metadata ? JSON.parse(entry.metadata as string) : {};
+    return {
+      id: entry.id,
+      fromState: entry.previousState ?? "",
+      toState: entry.newState ?? "",
+      action: (meta.fastTrackAction as string) ?? "",
+      actionReason: entry.comments ?? "",
+      userId: entry.userId,
+      userRole: entry.userRole,
+      metadata: meta,
+      timestamp: entry.createdAt,
+    };
+  });
 }

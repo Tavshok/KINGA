@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Claim Replay AI Re-Assessment Service
  * 
@@ -67,6 +67,7 @@ export async function replayDamageDetection(
   damageComplexity: "simple" | "moderate" | "complex" | "severe";
 }> {
   const db = await getDb();
+  if (!db) throw new Error("Database not available");
   
   // Get historical claim
   const [claim] = await db
@@ -150,6 +151,7 @@ export async function replayCostEstimation(
   costConfidenceLevel: "very_high" | "high" | "medium" | "low" | "very_low";
 }> {
   const db = await getDb();
+  if (!db) throw new Error("Database not available");
   
   const [claim] = await db
     .select()
@@ -224,6 +226,7 @@ export async function replayFraudDetection(
   fraudRiskLevel: "none" | "low" | "medium" | "high" | "elevated";
 }> {
   const db = await getDb();
+  if (!db) throw new Error("Database not available");
   
   const [claim] = await db
     .select()
@@ -334,6 +337,7 @@ export async function replayConfidenceScore(
   };
 }> {
   const db = await getDb();
+  if (!db) throw new Error("Database not available");
   
   const [claim] = await db
     .select()

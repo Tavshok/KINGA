@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Claim Replay Comparison Analytics
  * 
@@ -290,6 +290,7 @@ export async function storeReplayResults(
   replayedByUserId: number
 ): Promise<number> {
   const db = await getDb();
+  if (!db) throw new Error("Database not available");
   
   // Get next replay version for this claim
   const existingReplays = await db
@@ -345,7 +346,7 @@ export async function storeReplayResults(
     .update(historicalClaims)
     .set({
       replayMode: 1,
-      lastReplayedAt: new Date(),
+      lastReplayedAt: new Date().toISOString(),
       replayCount: (claim.replayCount || 0) + 1,
     })
     .where(eq(historicalClaims.id, historicalClaimId));
@@ -366,6 +367,7 @@ export async function replayHistoricalClaim(
   routingResult: ReplayRoutingDecisionResult;
 }> {
   const db = await getDb();
+  if (!db) throw new Error("Database not available");
   
   // Get historical claim
   const [claim] = await db

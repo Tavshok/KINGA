@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Fast-Track Action Dispatcher
  * 
@@ -13,10 +13,9 @@ import { getDb } from "../db";
 import {
   claims,
   fastTrackRoutingLog,
-  workflowAuditTrail,
-  type Claim,
-  type InsertFastTrackRoutingLog,
 } from "../../drizzle/schema";
+type Claim = typeof claims.$inferSelect;
+type InsertFastTrackRoutingLog = typeof fastTrackRoutingLog.$inferInsert;
 import { WorkflowEngine } from "../workflow-engine";
 import {
   recordFastTrackTriggered,
@@ -97,7 +96,7 @@ export async function executeFastTrackAction(
   }
 
   // Record usage event: fast-track triggered
-  await recordFastTrackTriggered(claim.tenantId, claim.id, {
+  await recordFastTrackTriggered(claim.tenantId ?? '', claim.id, {
     action: evaluationResult.action,
     confidenceScore: evaluationResult.evaluationDetails.confidenceScore,
   });
@@ -144,13 +143,13 @@ async function executeAutoApprove(
 
   try {
     // Record usage event: auto-approval
-    await recordAutoApproval(claim.tenantId, claim.id, {
+    await recordAutoApproval(claim.tenantId ?? '', claim.id, {
       configVersion: evaluationResult.configVersion,
       confidenceScore: evaluationResult.evaluationDetails.confidenceScore,
     });
 
     // Transition to financial_decision state
-    const workflowEngine = new WorkflowEngine(claim.tenantId);
+    const workflowEngine = new WorkflowEngine(claim.tenantId ?? '');
     await workflowEngine.transition(
       claim.id,
       "financial_decision",
@@ -179,7 +178,7 @@ async function executeAutoApprove(
     // Log to fastTrackRoutingLog
     const routingLogId = await logFastTrackRouting(
       claim.id,
-      claim.tenantId,
+      claim.tenantId ?? '',
       evaluationResult,
       "AUTO_APPROVE",
       "financial_decision",
@@ -233,7 +232,7 @@ async function executePriorityQueue(
       .where(eq(claims.id, claim.id));
 
     // Transition to internal_review state with priority flag
-    const workflowEngine = new WorkflowEngine(claim.tenantId);
+    const workflowEngine = new WorkflowEngine(claim.tenantId ?? '');
     await workflowEngine.transition(
       claim.id,
       "internal_review",
@@ -248,7 +247,7 @@ async function executePriorityQueue(
     // Log to fastTrackRoutingLog
     const routingLogId = await logFastTrackRouting(
       claim.id,
-      claim.tenantId,
+      claim.tenantId ?? '',
       evaluationResult,
       "PRIORITY_QUEUE",
       "internal_review",
@@ -310,7 +309,7 @@ async function executeReducedDocumentation(
       })
       .where(eq(claims.id, claim.id));
     // Transition to internal_review state with priority flag
-    const workflowEngine = new WorkflowEngine(claim.tenantId);
+    const workflowEngine = new WorkflowEngine(claim.tenantId ?? '');
     await workflowEngine.transition(
       claim.id,
       "under_assessment",
@@ -325,7 +324,7 @@ async function executeReducedDocumentation(
     // Log to fastTrackRoutingLog
     const routingLogId = await logFastTrackRouting(
       claim.id,
-      claim.tenantId,
+      claim.tenantId ?? '',
       evaluationResult,
       "REDUCED_DOCUMENTATION",
       "documentation_review",
@@ -364,7 +363,7 @@ async function executeStraightToPayment(
   }
 
   try {    // Transition to under_assessment state with reduced documentation
-    const workflowEngine = new WorkflowEngine(claim.tenantId);
+    const workflowEngine = new WorkflowEngine(claim.tenantId ?? '');
     await workflowEngine.transition(
       claim.id,
       "under_assessment",
@@ -394,7 +393,7 @@ async function executeStraightToPayment(
     // Log to fastTrackRoutingLog with explicit auto-path entry
     const routingLogId = await logFastTrackRouting(
       claim.id,
-      claim.tenantId,
+      claim.tenantId ?? '',
       evaluationResult,
       "STRAIGHT_TO_PAYMENT",
       "payment_authorized",

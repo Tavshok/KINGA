@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Claim Replay Routing Engine
  * 
@@ -57,6 +57,7 @@ export interface ReplayRoutingDecisionResult {
  */
 async function getActivePolicy(tenantId: string) {
   const db = await getDb();
+  if (!db) throw new Error("Database not available");
   
   const [policy] = await db
     .select()
@@ -85,6 +86,7 @@ export async function replayRoutingDecision(
   aiAssessment: ReplayAiAssessmentResult
 ): Promise<ReplayRoutingDecisionResult> {
   const db = await getDb();
+  if (!db) throw new Error("Database not available");
   
   // Get historical claim
   const [claim] = await db

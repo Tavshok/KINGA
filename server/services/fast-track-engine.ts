@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Fast-Track Engine
  * 
@@ -22,9 +22,9 @@ import {
   fastTrackConfig,
   fastTrackRoutingLog,
   claims,
-  type FastTrackConfig,
-  type InsertFastTrackRoutingLog,
 } from "../../drizzle/schema";
+type FastTrackConfig = typeof fastTrackConfig.$inferSelect;
+type InsertFastTrackRoutingLog = typeof fastTrackRoutingLog.$inferInsert;
 import { eq, and, isNull, desc } from "drizzle-orm";
 
 /**
@@ -430,10 +430,10 @@ export async function getFastTrackHistory(params: {
   decision: FastTrackAction;
   reason: string;
   confidenceScore: number;
-  claimValue: number;
+  claimValue: number | null;
   fraudScore: number;
   override: boolean;
-  evaluatedAt: Date;
+  evaluatedAt: string;
 }>> {
   const db = await getDb();
   if (!db) {

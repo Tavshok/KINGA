@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Fast-Track Analytics Service
  * Executive dashboard analytics for fast-track performance metrics
@@ -111,7 +111,7 @@ export async function calculateFastTrackRate(
     .where(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
-        eq(fastTrackRoutingLog.eligible, true),
+        eq(fastTrackRoutingLog.eligible, 1),
         gte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.startDate)),
         lte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.endDate))
       )
@@ -148,7 +148,7 @@ export async function calculateAutoApprovalRate(
     .where(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
-        eq(fastTrackRoutingLog.eligible, true),
+        eq(fastTrackRoutingLog.eligible, 1),
         gte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.startDate)),
         lte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.endDate))
       )
@@ -208,7 +208,7 @@ export async function calculateProcessingTime(
     .where(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
-        eq(fastTrackRoutingLog.eligible, true),
+        eq(fastTrackRoutingLog.eligible, 1),
         gte(workflowAuditTrail.createdAt, toMySQLDateString(dateRange.startDate)),
         lte(workflowAuditTrail.createdAt, toMySQLDateString(dateRange.endDate))
       )
@@ -343,7 +343,7 @@ export async function calculateRiskDistribution(
     .where(
       and(
         eq(fastTrackRoutingLog.tenantId, tenantId),
-        eq(fastTrackRoutingLog.eligible, true),
+        eq(fastTrackRoutingLog.eligible, 1),
         gte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.startDate)),
         lte(fastTrackRoutingLog.evaluatedAt, toMySQLDateString(dateRange.endDate))
       )
