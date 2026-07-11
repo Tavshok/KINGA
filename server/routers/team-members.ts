@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Team Members Router
  *
@@ -90,7 +89,7 @@ export const teamMembersRouter = router({
       z.object({
         email: z.string().email("Please enter a valid email address"),
         insurerRole: z.enum(INSURER_ROLES, {
-          errorMap: () => ({ message: "Please select a valid role" }),
+          error: "Please select a valid role",
         }),
         expirationDays: z.number().min(1).max(30).default(7),
         origin: z.string().url().optional(), // frontend origin for building the invite URL
@@ -269,7 +268,7 @@ export const teamMembersRouter = router({
         and(
           eq(tenantInvitations.tenantId, ctx.insurerTenantId),
           isNull(tenantInvitations.acceptedAt),
-          gt(tenantInvitations.expiresAt, new Date())
+          gt(tenantInvitations.expiresAt, new Date().toISOString())
         )
       )
       .orderBy(sql`${tenantInvitations.createdAt} DESC`);

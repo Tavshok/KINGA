@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Truth Synthesis Router
  * 
@@ -14,13 +13,9 @@ import {
   multiReferenceTruth,
   assessorDeviationMetrics,
   trainingDataset,
-  type InsertMultiReferenceTruth,
-  type InsertAssessorDeviationMetrics,
 } from "../../drizzle/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { synthesizeGroundTruth, saveSynthesisResult } from "../ml/truth-synthesis";
-
-const db = getDb();
 
 /**
  * Synthesize ground truth for a historical claim

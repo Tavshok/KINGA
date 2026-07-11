@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Admin Router
  * 
@@ -10,11 +9,9 @@ import { TRPCError } from "@trpc/server";
 import { getDb, triggerAiAssessment } from "../db";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { tenants, users } from "../../drizzle/schema";
-import { eq, and, gte } from "drizzle-orm";
+import { eq, and, gte, desc } from "drizzle-orm";
 import { sendInvitation, getInvitationByToken, acceptInvitation } from "../invitation-service";
 import { sql } from "drizzle-orm";
-
-const db = getDb();
 
 // Super-admin middleware
 const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -38,7 +35,7 @@ export const adminRouter = router({
         displayName: z.string().min(1).max(255),
         contactEmail: z.string().email(),
         billingEmail: z.string().email(),
-        plan: z.enum(["free", "standard", "premium", "enterprise"]),
+        tier: z.enum(["tier-basic", "tier-professional", "tier-enterprise"]).default("tier-basic"),
         workflowConfig: z.object({
           intakeEscalationHours: z.number().min(1).max(168),
           intakeEscalationEnabled: z.boolean(),
@@ -49,11 +46,10 @@ export const adminRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
 
       // Check if tenant ID already exists
-      const existingTenant = await db.query.tenants.findFirst({
-        where: (tenants, { eq }) => eq(tenants.id, input.id),
-      });
+      const [existingTenant] = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.id, input.id)).limit(1);
 
       if (existingTenant) {
         throw new TRPCError({
@@ -65,10 +61,11 @@ export const adminRouter = router({
       // Create tenant
       const [newTenant] = await db.insert(tenants).values({
         id: input.id,
+        name: input.displayName,
         displayName: input.displayName,
         contactEmail: input.contactEmail,
         billingEmail: input.billingEmail,
-        plan: input.plan,
+        tier: input.tier,
         workflowConfig: JSON.stringify({
           intakeEscalationHours: input.workflowConfig.intakeEscalationHours,
           intakeEscalationEnabled: input.workflowConfig.intakeEscalationEnabled ? 1 : 0,
@@ -87,7 +84,7 @@ export const adminRouter = router({
         displayName: input.displayName,
         contactEmail: input.contactEmail,
         billingEmail: input.billingEmail,
-        plan: input.plan,
+        tier: input.tier,
       };
     }),
 
@@ -96,16 +93,15 @@ export const adminRouter = router({
    */
   getAllTenants: superAdminProcedure.query(async () => {
     const db = await getDb();
-    const allTenants = await db.query.tenants.findMany({
-      orderBy: (tenants, { desc }) => [desc(tenants.createdAt)],
-    });
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    const allTenants = await db.select().from(tenants).orderBy(desc(tenants.createdAt));
 
     return allTenants.map((tenant) => ({
       id: tenant.id,
       displayName: tenant.displayName,
       contactEmail: tenant.contactEmail,
       billingEmail: tenant.billingEmail,
-      plan: tenant.plan,
+      tier: tenant.tier,
       createdAt: tenant.createdAt,
     }));
   }),
@@ -294,7 +290,7 @@ export const adminRouter = router({
             const selectedUserId = validUserIds[randomUserIndex];
 
             // Insert claim
-            const [claim] = await db
+            const claimIds2 = await db
               .insert(claims)
               .values({
                 claimNumber,
@@ -304,18 +300,19 @@ export const adminRouter = router({
                 vehicleModel: template.model,
                 vehicleYear: 2020,
                 vehicleRegistration: `ABC${Math.floor(Math.random() * 9000) + 1000}`,
-                incidentDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
+                incidentDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
                 incidentDescription: `Test claim with ${template.severity} damage - ${imageCount} photo(s)`,
                 damagePhotos: JSON.stringify(selectedImages),
                 status: "assessment_pending",
-                createdAt: new Date(),
-                updatedAt: new Date(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
               })
               .$returningId();
+            const claimInsertId = (claimIds2 as Array<{id: number}>)[0]?.id ?? 0;
 
             report.createdClaims.push({
               claimNumber,
-              claimId: claim.id,
+              claimId: claimInsertId,
               imageCount: selectedImages.length,
             });
             report.claimsCreated++;
@@ -324,7 +321,7 @@ export const adminRouter = router({
 
             // Trigger KINGA assessment
             try {
-              await triggerAiAssessment(claim.id);
+              await triggerAiAssessment(claimInsertId);
               report.aiAssessmentsTriggered++;
               console.log(`[Bulk Seed] KINGA assessment triggered for claim ${claimNumber}`);
             } catch (aiError: any) {
@@ -365,13 +362,14 @@ export const adminRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
       const { batchSize, maxClaims } = input;
 
       console.log(`[Bulk KINGA Assessment] Starting batch generation (batch size: ${batchSize})...`);
 
       try {
         // Query claims with damage photos but no KINGA assessment
-        const missingAssessments = await db.execute(sql`
+        const missingAssessmentsResult = await db.execute(sql`
           SELECT id, claim_number 
           FROM claims 
           WHERE damage_photos IS NOT NULL 
@@ -383,7 +381,7 @@ export const adminRouter = router({
           ${maxClaims ? sql`LIMIT ${maxClaims}` : sql``}
         `);
 
-        const claims = missingAssessments.rows as Array<{ id: number; claim_number: string }>;
+        const claims = ((missingAssessmentsResult as any)[0] ?? []) as Array<{ id: number; claim_number: string }>;
         const totalClaims = claims.length;
 
         console.log(`[Bulk KINGA Assessment] Found ${totalClaims} claims missing AI assessments`);
@@ -441,7 +439,7 @@ export const adminRouter = router({
         }
 
         // Calculate coverage
-        const coverageQuery = await db.execute(sql`
+        const coverageQueryResult = await db.execute(sql`
           SELECT 
             COUNT(*) as total_claims_with_photos,
             (SELECT COUNT(*) FROM ai_assessments) as total_assessments,
@@ -450,7 +448,7 @@ export const adminRouter = router({
           WHERE damage_photos IS NOT NULL AND damage_photos != '[]'
         `);
 
-        const coverageRow = coverageQuery.rows[0] as any;
+        const coverageRow = ((coverageQueryResult as any)[0] ?? [{}])[0] as any;
         const coveragePercent = parseFloat(coverageRow.coverage_percent || '0');
 
         console.log(`[Bulk KINGA Assessment] Complete: ${results.successful}/${totalClaims} successful, ${results.failed} failed`);
@@ -485,6 +483,7 @@ export const adminRouter = router({
     .mutation(async ({ ctx }) => {
       try {
         const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
         const results = {
           assessorsCreated: 0,
           claimsAssigned: 0,
@@ -494,17 +493,17 @@ export const adminRouter = router({
         };
 
         // 1. Get 5 random claims
-        const claimsQuery = await db.execute(sql`SELECT id FROM claims ORDER BY RAND() LIMIT 5`);
-        const claims = claimsQuery.rows as Array<{ id: number }>;
+        const claimsQueryResult = await db.execute(sql`SELECT id FROM claims ORDER BY RAND() LIMIT 5`);
+        const claims = ((claimsQueryResult as any)[0] ?? []) as Array<{ id: number }>;
         const claimIds = claims.map(c => c.id);
 
         console.log(`[Ecosystem Seed] Found ${claimIds.length} claims for assignment`);
 
         // 2. Get the 3 assessor user IDs we created
-        const assessorsQuery = await db.execute(sql`
+        const assessorsQueryResult = await db.execute(sql`
           SELECT id FROM users WHERE role = 'assessor' ORDER BY id DESC LIMIT 3
         `);
-        const assessors = assessorsQuery.rows as Array<{ id: number }>;
+        const assessors = ((assessorsQueryResult as any)[0] ?? []) as Array<{ id: number }>;
         const assessorIds = assessors.map(a => a.id);
 
         console.log(`[Ecosystem Seed] Found ${assessorIds.length} assessors`);
@@ -608,7 +607,7 @@ export const adminRouter = router({
     .query(async ({ ctx }) => {
       try {
         const { getLatestObservabilityMetrics } = await import("../observability-metrics");
-        const metrics = await getLatestObservabilityMetrics(ctx.user.tenantId);
+        const metrics = await getLatestObservabilityMetrics(ctx.user.tenantId ?? undefined);
         
         return {
           success: true,
@@ -766,7 +765,7 @@ export const adminRouter = router({
     .mutation(async ({ ctx }) => {
       try {
         const { collectAndStoreObservabilityMetrics } = await import("../observability-metrics");
-        await collectAndStoreObservabilityMetrics(ctx.user.tenantId);
+        await collectAndStoreObservabilityMetrics(ctx.user.tenantId ?? undefined);
         return {
           success: true,
           message: 'Observability metrics collected successfully',
@@ -791,6 +790,7 @@ export const adminRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
       }
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
       const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
         .toISOString().slice(0, 19).replace("T", " ");
       const pending = await db
@@ -831,6 +831,7 @@ export const adminRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot deactivate your own account" });
       }
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
       const now = new Date().toISOString().slice(0, 19).replace("T", " ");
       await db.update(users)
         .set({
@@ -855,6 +856,7 @@ export const adminRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
       }
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
       const updateData: Record<string, any> = {};
       if (input.role !== undefined) updateData.role = input.role;
       if (input.insurerRole !== undefined) updateData.insurerRole = input.insurerRole;

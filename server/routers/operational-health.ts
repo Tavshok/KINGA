@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Operational Health Router
  * 
@@ -17,7 +16,7 @@ import { getOperationalHealth } from "../services/operational-health";
  */
 const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
   // Check if user has super-admin role
-  if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+  if (ctx.user.role !== "admin" && ctx.user.role !== "platform_super_admin") {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Access denied. Super-admin privileges required.",

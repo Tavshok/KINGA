@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Review Queue Router
  * tRPC procedures for human review queue management
@@ -25,7 +24,7 @@ export const reviewQueueRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       return getPendingReviews({
-        tenantId: ctx.user.tenantId,
+        tenantId: ctx.user.tenantId!,
         limit: input.limit,
         offset: input.offset,
       });
@@ -37,7 +36,7 @@ export const reviewQueueRouter = router({
   getStats: protectedProcedure
     .query(async ({ ctx }) => {
       return getReviewQueueStats({
-        tenantId: ctx.user.tenantId,
+        tenantId: ctx.user.tenantId!,
       });
     }),
 
@@ -52,10 +51,10 @@ export const reviewQueueRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       await submitReviewDecision({
-        tenantId: ctx.user.tenantId,
+        tenantId: ctx.user.tenantId!,
         reviewQueueId: input.reviewQueueId,
-        reviewerId: ctx.user.id,
-        reviewerName: ctx.user.name || ctx.user.email,
+        reviewerId: String(ctx.user.id),
+        reviewerName: ctx.user.name || ctx.user.email || '',
         decision: input.decision,
         reviewerNotes: input.reviewerNotes,
       });
@@ -72,7 +71,7 @@ export const reviewQueueRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       return getClaimReviewHistory({
-        tenantId: ctx.user.tenantId,
+        tenantId: ctx.user.tenantId!,
         historicalClaimId: input.historicalClaimId,
       });
     }),
@@ -87,10 +86,10 @@ export const reviewQueueRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       return bulkApproveReviews({
-        tenantId: ctx.user.tenantId,
+        tenantId: ctx.user.tenantId!,
         reviewQueueIds: input.reviewQueueIds,
-        reviewerId: ctx.user.id,
-        reviewerName: ctx.user.name || ctx.user.email,
+        reviewerId: String(ctx.user.id),
+        reviewerName: ctx.user.name || ctx.user.email || '',
         notes: input.notes,
       });
     }),

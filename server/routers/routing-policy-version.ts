@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Routing Policy Version Router
  * 
@@ -29,10 +28,10 @@ export const routingPolicyVersionRouter = router({
       tenantId: z.string().optional(), // Optional for super_admin
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
+      const tenantId = input.tenantId || ctx.user.tenantId!;
 
       // Role-based access control
-      if (ctx.user.role !== "super_admin" && ctx.user.tenantId !== tenantId) {
+      if (ctx.user.role !== "platform_super_admin" && ctx.user.tenantId !== tenantId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Access denied: Cannot view policy versions for other tenants",
@@ -57,10 +56,10 @@ export const routingPolicyVersionRouter = router({
       version: z.number().int().positive(),
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
+      const tenantId = input.tenantId || ctx.user.tenantId!;
 
       // Role-based access control
-      if (ctx.user.role !== "super_admin" && ctx.user.tenantId !== tenantId) {
+      if (ctx.user.role !== "platform_super_admin" && ctx.user.tenantId !== tenantId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Access denied: Cannot view policy versions for other tenants",
@@ -89,10 +88,10 @@ export const routingPolicyVersionRouter = router({
       timestamp: z.string().datetime(), // ISO 8601 datetime string
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
+      const tenantId = input.tenantId || ctx.user.tenantId!;
 
       // Role-based access control
-      if (ctx.user.role !== "super_admin" && ctx.user.tenantId !== tenantId) {
+      if (ctx.user.role !== "platform_super_admin" && ctx.user.tenantId !== tenantId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Access denied: Cannot view policy versions for other tenants",
@@ -123,10 +122,10 @@ export const routingPolicyVersionRouter = router({
       version2: z.number().int().positive(),
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
+      const tenantId = input.tenantId || ctx.user.tenantId!;
 
       // Role-based access control
-      if (ctx.user.role !== "super_admin" && ctx.user.tenantId !== tenantId) {
+      if (ctx.user.role !== "platform_super_admin" && ctx.user.tenantId !== tenantId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Access denied: Cannot compare policy versions for other tenants",
@@ -156,7 +155,7 @@ export const routingPolicyVersionRouter = router({
       claimValue: z.number().positive(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
+      const tenantId = input.tenantId || ctx.user.tenantId!;
 
       // Role-based access control
       const allowedRoles = ["claims_manager", "executive", "super_admin"];
@@ -167,7 +166,7 @@ export const routingPolicyVersionRouter = router({
         });
       }
 
-      if (ctx.user.role !== "super_admin" && ctx.user.tenantId !== tenantId) {
+      if (ctx.user.role !== "platform_super_admin" && ctx.user.tenantId !== tenantId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Access denied: Cannot replay routing decisions for other tenants",
@@ -205,7 +204,7 @@ export const routingPolicyVersionRouter = router({
       tenantId: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const tenantId = input.tenantId || ctx.user.tenantId;
+      const tenantId = input.tenantId || ctx.user.tenantId!;
 
       // Role-based access control
       const allowedRoles = ["claims_manager", "executive", "super_admin"];
@@ -216,7 +215,7 @@ export const routingPolicyVersionRouter = router({
         });
       }
 
-      if (ctx.user.role !== "super_admin" && ctx.user.tenantId !== tenantId) {
+      if (ctx.user.role !== "platform_super_admin" && ctx.user.tenantId !== tenantId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Access denied: Cannot validate replay accuracy for other tenants",

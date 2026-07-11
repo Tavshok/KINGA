@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * AI Re-Analysis Router
  *
@@ -13,8 +12,6 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { claims, aiAssessments, auditTrail } from "../../drizzle/schema";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import { getRolePermissions, getAccessibleQueues } from "../../shared/role-permissions";
-
-const db = getDb();
 
 /**
  * AI Re-Analysis Router
@@ -37,11 +34,12 @@ export const aiReanalysisRouter = router({
         reason: z.string().optional(),
       })
     )
-    .mutation(async ({ ctx, input }) => {
+        .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const userId = ctx.user.id;
       const userRole = ctx.user.insurerRole;
       const tenantId = ctx.user.tenantId;
-
       // 1. Validate user has insurer role
       if (!userRole) {
         throw new TRPCError({
@@ -69,15 +67,15 @@ export const aiReanalysisRouter = router({
         });
       }
 
-      // 3. Check if claim is cancelled
-      if (claim.workflowState === "cancelled") {
+      // 3. Check if claim is in a terminal state
+      if (claim.workflowState === "closed") {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Cannot re-analyze cancelled claims",
+          message: "Cannot re-analyze closed claims",
         });
       }
 
-      // 4. Re-analysis is allowed on any non-cancelled claim regardless of workflowState.
+      // 4. Re-analysis is allowed on any non-closed claim regardless of workflowState.
       // (The queue-access check is for routing, not for re-analysis permission.)
 
       // 5. Check rate limiting: 5 re-analyses per claim per day
@@ -143,18 +141,22 @@ export const aiReanalysisRouter = router({
       // 10. Log governance audit trail BEFORE firing the pipeline (fire-and-forget)
       // We return immediately so the frontend can start polling for completion.
       // The pipeline is async and takes 2-4 minutes — do NOT await it here.
-      await db.insert(auditTrail).values({
-        action: "AI_REANALYSIS",
-        userId: userId,
-        claimId: input.claimId,
-        metadata: JSON.stringify({
-          triggeredRole: userRole,
-          reason: input.reason,
-          versionNumber: nextVersion,
-          previousAssessmentId,
-        }),
-        tenantId: tenantId || null,
-      });
+      {
+        const dbAudit = await getDb();
+        if (dbAudit) {
+          await dbAudit.insert(auditTrail).values({
+            action: "AI_REANALYSIS",
+            userId: userId,
+            claimId: input.claimId,
+            changeDescription: JSON.stringify({
+              triggeredRole: userRole,
+              reason: input.reason,
+              versionNumber: nextVersion,
+              previousAssessmentId,
+            }),
+          });
+        }
+      }
 
       // 10b. Pre-flight: reset documentProcessingStatus to 'parsing' immediately so the
       // AiStatusBadge switches from 'complete' to 'analysing' before the async job runs.
@@ -221,9 +223,10 @@ export const aiReanalysisRouter = router({
         claimId: z.number().int().positive(),
       })
     )
-    .query(async ({ ctx, input }) => {
+        .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const tenantId = ctx.user.tenantId;
-
       const [claim] = await db
         .select()
         .from(claims)
@@ -275,9 +278,10 @@ export const aiReanalysisRouter = router({
         assessmentId2: z.number().int().positive(),
       })
     )
-    .query(async ({ ctx, input }) => {
+        .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const tenantId = ctx.user.tenantId;
-
       const [assessment1] = await db
         .select()
         .from(aiAssessments)
@@ -355,10 +359,11 @@ export const aiReanalysisRouter = router({
         days: z.number().int().positive().default(30),
       })
     )
-    .query(async ({ ctx, input }) => {
+        .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const tenantId = ctx.user.tenantId;
       const userRole = ctx.user.insurerRole;
-
       if (userRole !== "executive" && userRole !== "insurer_admin") {
         throw new TRPCError({
           code: "FORBIDDEN",

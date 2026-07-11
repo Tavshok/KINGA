@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * KINGA Monetisation Router
  * 
@@ -22,7 +21,7 @@ import {
  */
 const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
   // Check if user has super-admin role
-  if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+  if (ctx.user.role !== "admin" && ctx.user.role !== "platform_super_admin") {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Access denied. Super-admin privileges required.",
@@ -233,6 +232,7 @@ export const monetizationRouter = router({
     const { count: drizzleCount, eq: drizzleEq } = await import('drizzle-orm');
     const { getDb } = await import('../db');
     const dbConn = await getDb();
+    if (!dbConn) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);

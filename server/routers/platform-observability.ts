@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Platform Observability Router
  * 
@@ -29,7 +28,7 @@ export const platformObservabilityRouter = router({
   getOverview: platformSuperAdminProcedure.query(async ({ ctx }) => {
     // Log access
     await logPlatformSuperAdminAccess(
-      ctx.user.id,
+      ctx.user!.id,
       "view_platform_overview",
       "platform",
       undefined,
@@ -53,7 +52,7 @@ export const platformObservabilityRouter = router({
     .query(async ({ ctx, input }) => {
       // Log access
       await logPlatformSuperAdminAccess(
-        ctx.user.id,
+        ctx.user!.id,
         "view_all_claims",
         "claims",
         undefined,
@@ -77,7 +76,7 @@ export const platformObservabilityRouter = router({
     .query(async ({ ctx, input }) => {
       // Log access
       await logPlatformSuperAdminAccess(
-        ctx.user.id,
+        ctx.user!.id,
         "search_claims",
         "claims",
         undefined,
@@ -98,7 +97,7 @@ export const platformObservabilityRouter = router({
     .query(async ({ ctx, input }) => {
       // Log access
       await logPlatformSuperAdminAccess(
-        ctx.user.id,
+        ctx.user!.id,
         "view_claim_trace",
         "claim",
         input.claimId,
@@ -116,7 +115,7 @@ export const platformObservabilityRouter = router({
     .query(async ({ ctx, input }) => {
       // Log access
       await logPlatformSuperAdminAccess(
-        ctx.user.id,
+        ctx.user!.id,
         "view_ai_confidence_breakdown",
         "ai_assessment",
         input.claimId,
@@ -134,7 +133,7 @@ export const platformObservabilityRouter = router({
     .query(async ({ ctx, input }) => {
       // Log access
       await logPlatformSuperAdminAccess(
-        ctx.user.id,
+        ctx.user!.id,
         "view_routing_metadata",
         "routing_log",
         input.claimId,

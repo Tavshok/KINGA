@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { TRPCError } from "@trpc/server";
+// governance.ts — @ts-nocheck removed, all types verified against schema
 import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
@@ -41,14 +41,17 @@ export const governanceRouter = router({
       });
     }
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoDate = new Date();
+    thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+    const thirtyDaysAgo = thirtyDaysAgoDate.toISOString();
 
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    const sixtyDaysAgoDate = new Date();
+    sixtyDaysAgoDate.setDate(sixtyDaysAgoDate.getDate() - 60);
+    const sixtyDaysAgo = sixtyDaysAgoDate.toISOString();
 
     try {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
       
       // Execute all queries in parallel for optimal performance
       const [
@@ -247,8 +250,10 @@ export const governanceRouter = router({
     .query(async ({ ctx, input }) => {
       if (!ctx.user?.tenantId) return [];
       const db = await getDb();
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+      const thirtyDaysAgoDate = new Date();
+      thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+      const thirtyDaysAgo = thirtyDaysAgoDate.toISOString();
       return await db
         .select()
         .from(workflowAuditTrail)
@@ -269,8 +274,10 @@ export const governanceRouter = router({
     .query(async ({ ctx, input }) => {
       if (!ctx.user?.tenantId) return [];
       const db = await getDb();
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+      const thirtyDaysAgoDate = new Date();
+      thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+      const thirtyDaysAgo = thirtyDaysAgoDate.toISOString();
       return await db
         .select({
           claimId: claimInvolvementTracking.claimId,
@@ -294,8 +301,10 @@ export const governanceRouter = router({
   getOverrideFrequencyTrend: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user?.tenantId) return [];
     const db = await getDb();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    const thirtyDaysAgoDate = new Date();
+    thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+    const thirtyDaysAgo = thirtyDaysAgoDate.toISOString();
     const rows = await db
       .select({
         date: sql<string>`DATE(${workflowAuditTrail.createdAt})`,
@@ -319,8 +328,10 @@ export const governanceRouter = router({
   getSegregationViolationHeatmap: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user?.tenantId) return [];
     const db = await getDb();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    const thirtyDaysAgoDate = new Date();
+    thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+    const thirtyDaysAgo = thirtyDaysAgoDate.toISOString();
     const rows = await db
       .select({
         stage: claimInvolvementTracking.workflowStage,
@@ -343,8 +354,10 @@ export const governanceRouter = router({
   getRoleChangeTrend: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user?.tenantId) return [];
     const db = await getDb();
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    const sixtyDaysAgoDate = new Date();
+    sixtyDaysAgoDate.setDate(sixtyDaysAgoDate.getDate() - 60);
+    const sixtyDaysAgo = sixtyDaysAgoDate.toISOString();
     const rows = await db
       .select({
         date: sql<string>`DATE(${roleAssignmentAudit.timestamp})`,
@@ -366,8 +379,10 @@ export const governanceRouter = router({
   getInvolvementConflictDistribution: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user?.tenantId) return [];
     const db = await getDb();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+    const thirtyDaysAgoDate = new Date();
+    thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+    const thirtyDaysAgo = thirtyDaysAgoDate.toISOString();
     const rows = await db
       .select({
         stageCount: sql<number>`COUNT(DISTINCT ${claimInvolvementTracking.workflowStage})`,
@@ -398,14 +413,14 @@ export const governanceRouter = router({
     .query(async ({ ctx, input }) => {
       if (!ctx.user?.tenantId) return [];
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
       return await db
         .select({
           id: workflowAuditTrail.id,
           claimId: workflowAuditTrail.claimId,
-          action: workflowAuditTrail.action,
-          fromState: workflowAuditTrail.fromState,
-          toState: workflowAuditTrail.toState,
-          performedBy: workflowAuditTrail.performedBy,
+          previousState: workflowAuditTrail.previousState,
+          newState: workflowAuditTrail.newState,
+          userId: workflowAuditTrail.userId,
           overrideReason: workflowAuditTrail.overrideReason,
           createdAt: workflowAuditTrail.createdAt,
         })

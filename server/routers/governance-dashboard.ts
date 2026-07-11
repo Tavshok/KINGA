@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Governance Dashboard Router
  * 
@@ -129,7 +128,6 @@ export const governanceDashboardRouter = router({
   getOverrideRateByUser: governanceDashboardProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
-    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
     const { startDate } = getDateRange(30);
 
     try {
@@ -146,7 +144,7 @@ export const governanceDashboardRouter = router({
         .where(
           and(
             eq(workflowAuditTrail.executiveOverride, 1),
-            gte(workflowAuditTrail.createdAt, startDate),
+            gte(workflowAuditTrail.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         )
@@ -162,7 +160,7 @@ export const governanceDashboardRouter = router({
         .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
         .where(
           and(
-            gte(workflowAuditTrail.createdAt, startDate),
+            gte(workflowAuditTrail.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         )
@@ -219,7 +217,7 @@ export const governanceDashboardRouter = router({
         .where(
           and(
             eq(workflowAuditTrail.executiveOverride, 1),
-            gte(workflowAuditTrail.createdAt, startDate),
+            gte(workflowAuditTrail.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         );
@@ -233,7 +231,7 @@ export const governanceDashboardRouter = router({
         .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
         .where(
           and(
-            gte(workflowAuditTrail.createdAt, startDate),
+            gte(workflowAuditTrail.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         );
@@ -306,7 +304,7 @@ export const governanceDashboardRouter = router({
         .where(
           and(
             eq(workflowAuditTrail.executiveOverride, 1),
-            gte(workflowAuditTrail.createdAt, startDate),
+            gte(workflowAuditTrail.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         )
@@ -328,7 +326,7 @@ export const governanceDashboardRouter = router({
               and(
                 eq(workflowAuditTrail.userId, actor.userId),
                 eq(workflowAuditTrail.executiveOverride, 1),
-                gte(workflowAuditTrail.createdAt, startDate),
+                gte(workflowAuditTrail.createdAt, startDate.toISOString()),
                 eq(claims.tenantId, ctx.user.tenantId!)
               )
             )
@@ -382,7 +380,7 @@ export const governanceDashboardRouter = router({
         .where(
           and(
             eq(workflowAuditTrail.executiveOverride, 1),
-            gte(workflowAuditTrail.createdAt, startDate),
+            gte(workflowAuditTrail.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         );
@@ -398,7 +396,7 @@ export const governanceDashboardRouter = router({
         "Sunday",
       ].map((day, index) => ({
         day,
-        count: overrides.filter((o) => o.createdAt.getDay() === (index + 1) % 7).length,
+        count: overrides.filter((o) => new Date(o.createdAt).getDay() === (index + 1) % 7).length,
       }));
 
       // Analyze by time of day
@@ -412,7 +410,7 @@ export const governanceDashboardRouter = router({
       ].map((timeSlot) => ({
         hour: timeSlot.label,
         count: overrides.filter((o) => {
-          const hour = o.createdAt.getHours();
+          const hour = new Date(o.createdAt).getHours();
           return hour >= timeSlot.min && hour < timeSlot.max;
         }).length,
       }));
@@ -475,7 +473,7 @@ export const governanceDashboardRouter = router({
         .innerJoin(claims, eq(claimInvolvementTracking.claimId, claims.id))
         .where(
           and(
-            gte(claimInvolvementTracking.createdAt, startDate),
+            gte(claimInvolvementTracking.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         );
@@ -569,13 +567,13 @@ export const governanceDashboardRouter = router({
         .innerJoin(claims, eq(claimInvolvementTracking.claimId, claims.id))
         .where(
           and(
-            gte(claimInvolvementTracking.createdAt, startDate),
+            gte(claimInvolvementTracking.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         );
 
       // Group by claim and user
-      const monopolizationMap = new Map<string, { userId: number; stages: Set<string>; lastAttempt: Date }>();
+      const monopolizationMap = new Map<string, { userId: number; stages: Set<string>; lastAttempt: string }>();
       
       involvements.forEach((inv) => {
         const key = `${inv.claimId}-${inv.userId}`;
@@ -623,7 +621,7 @@ export const governanceDashboardRouter = router({
           userName: user?.name || "Unknown",
           attemptedRoles: Array.from(data.stages),
           claimId,
-          blockedAt: data.lastAttempt.toISOString(),
+          blockedAt: data.lastAttempt,
           severity: (data.stages.size >= 4 ? "high" : "medium") as "high" | "medium",
         };
       });
@@ -663,7 +661,7 @@ export const governanceDashboardRouter = router({
         .innerJoin(claims, eq(claimInvolvementTracking.claimId, claims.id))
         .where(
           and(
-            gte(claimInvolvementTracking.createdAt, startDate),
+            gte(claimInvolvementTracking.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         );
@@ -768,7 +766,7 @@ export const governanceDashboardRouter = router({
         .innerJoin(users, eq(roleAssignmentAudit.changedByUserId, users.id))
         .where(
           and(
-            gte(roleAssignmentAudit.timestamp, startDate),
+            gte(roleAssignmentAudit.timestamp, startDate.toISOString()),
             eq(roleAssignmentAudit.tenantId, ctx.user.tenantId!)
           )
         )
@@ -790,7 +788,7 @@ export const governanceDashboardRouter = router({
             .where(
               and(
                 eq(roleAssignmentAudit.changedByUserId, actor.changedByUserId),
-                gte(roleAssignmentAudit.timestamp, startDate),
+                gte(roleAssignmentAudit.timestamp, startDate.toISOString()),
                 eq(roleAssignmentAudit.tenantId, ctx.user.tenantId!)
               )
             )
@@ -856,7 +854,7 @@ export const governanceDashboardRouter = router({
         .from(roleAssignmentAudit)
         .where(
           and(
-            gte(roleAssignmentAudit.timestamp, startDate),
+            gte(roleAssignmentAudit.timestamp, startDate.toISOString()),
             eq(roleAssignmentAudit.tenantId, ctx.user.tenantId!)
           )
         );
@@ -939,7 +937,7 @@ export const governanceDashboardRouter = router({
         .from(roleAssignmentAudit)
         .where(
           and(
-            gte(roleAssignmentAudit.timestamp, startDate),
+            gte(roleAssignmentAudit.timestamp, startDate.toISOString()),
             eq(roleAssignmentAudit.tenantId, ctx.user.tenantId!)
           )
         )
@@ -968,11 +966,12 @@ export const governanceDashboardRouter = router({
         : [];
 
       // Recent elevations (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoDate = new Date();
+      thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgoDate.toISOString();
 
       const recentElevations = elevations
-        .filter((e) => e.timestamp >= thirtyDaysAgo)
+        .filter((e) => e.timestamp >= thirtyDaysAgoStr)
         .slice(0, 10)
         .map((elevation) => {
           const user = usersData.find((u) => u.id === elevation.userId);
@@ -984,7 +983,7 @@ export const governanceDashboardRouter = router({
             fromRole: elevation.previousInsurerRole || "unknown",
             toRole: elevation.newInsurerRole || "unknown",
             elevatedBy: changedBy?.name || "Unknown",
-            date: elevation.timestamp.toISOString(),
+            date: elevation.timestamp,
             justification: elevation.justification || "No justification provided",
           };
         });
@@ -992,7 +991,7 @@ export const governanceDashboardRouter = router({
       // Elevation trend by month
       const monthlyTrend = new Map<string, number>();
       elevations.forEach((elevation) => {
-        const monthKey = elevation.timestamp.toISOString().substring(0, 7); // YYYY-MM
+        const monthKey = elevation.timestamp.substring(0, 7); // YYYY-MM
         monthlyTrend.set(monthKey, (monthlyTrend.get(monthKey) || 0) + 1);
       });
 
@@ -1053,7 +1052,7 @@ export const governanceDashboardRouter = router({
         .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
         .where(
           and(
-            gte(workflowAuditTrail.createdAt, startDate),
+            gte(workflowAuditTrail.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         );
@@ -1074,7 +1073,7 @@ export const governanceDashboardRouter = router({
         .innerJoin(claims, eq(claimInvolvementTracking.claimId, claims.id))
         .where(
           and(
-            gte(claimInvolvementTracking.createdAt, startDate),
+            gte(claimInvolvementTracking.createdAt, startDate.toISOString()),
             eq(claims.tenantId, ctx.user.tenantId!)
           )
         );
@@ -1100,7 +1099,7 @@ export const governanceDashboardRouter = router({
         .from(roleAssignmentAudit)
         .where(
           and(
-            gte(roleAssignmentAudit.timestamp, startDate),
+            gte(roleAssignmentAudit.timestamp, startDate.toISOString()),
             eq(roleAssignmentAudit.tenantId, ctx.user.tenantId!)
           )
         );

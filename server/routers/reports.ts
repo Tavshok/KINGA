@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Reports Router
  * 
@@ -134,7 +133,7 @@ export const reportsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
 
-      const tenantId = input.tenantId || ctx.user.tenantId;
+      const tenantId = input.tenantId || ctx.user.tenantId!;
 
       console.log('[Reports] Generating Executive Report...');
 
@@ -235,7 +234,7 @@ export const reportsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
 
-      const tenantId = input.tenantId || ctx.user.tenantId;
+      const tenantId = input.tenantId || ctx.user.tenantId!;
 
       console.log('[Reports] Generating Financial Summary...');
 
@@ -343,7 +342,7 @@ export const reportsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
 
-      const tenantId = input.tenantId || ctx.user.tenantId;
+      const tenantId = input.tenantId || ctx.user.tenantId!;
 
       console.log('[Reports] Generating Audit Trail Report...');
 

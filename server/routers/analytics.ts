@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * OPTIMIZED ANALYTICS ROUTER - N+1 QUERY ELIMINATION
  * 
@@ -36,8 +35,6 @@ import {
   safeString,
   safeArray
 } from "../utils/analytics-utils";
-
-const db = getDb();
 
 /**
  * Role-based analytics procedure
@@ -134,7 +131,7 @@ export const analyticsRouter = router({
         return createAnalyticsResponse(
           { results: mappedResults },
           { 
-            tenantId,
+            tenantId: tenantId ?? undefined,
             role: ctx.user.insurerRole || ctx.user.role,
             dataScope: 'global_search'
           }
@@ -207,7 +204,7 @@ export const analyticsRouter = router({
         const highValueClaims = safeNumber(claimsMetrics?.high_value_claims, 0);
         
         // Physics anomaly metrics
-        const avgDeviationScore = safeNumber(claimsMetrics?.avg_deviation_score, null);
+        const avgDeviationScore = safeNumber(claimsMetrics?.avg_deviation_score, 0);
         const highRiskPhysicsClaims = safeNumber(claimsMetrics?.high_risk_physics_claims, 0);
         const totalPhysicsAssessments = safeNumber(claimsMetrics?.total_physics_assessments, 0);
         const physicsAnomalyRate = totalPhysicsAssessments > 0 
@@ -288,7 +285,7 @@ export const analyticsRouter = router({
           generatedAt: new Date(),
           role: ctx.user.insurerRole || ctx.user.role,
           dataScope: tenantId ? 'tenant' : 'global',
-          tenantId,
+          tenantId: tenantId ?? undefined,
           queryCount: 2, // Performance metric
         });
       } catch (error) {
@@ -427,7 +424,7 @@ export const analyticsRouter = router({
           generatedAt: new Date(),
           role: ctx.user.insurerRole || ctx.user.role,
           dataScope: tenantId ? 'tenant' : 'global',
-          tenantId,
+          tenantId: tenantId ?? undefined,
           queryCount: 1, // Performance metric
         });
       } catch (error) {
@@ -497,7 +494,7 @@ export const analyticsRouter = router({
           generatedAt: new Date(),
           role: ctx.user.insurerRole || ctx.user.role,
           dataScope: tenantId ? 'tenant' : 'global',
-          tenantId,
+          tenantId: tenantId ?? undefined,
           queryCount: 1,
         });
       } catch (error) {
@@ -561,7 +558,7 @@ export const analyticsRouter = router({
           generatedAt: new Date(),
           role: ctx.user.insurerRole || ctx.user.role,
           dataScope: tenantId ? 'tenant' : 'global',
-          tenantId,
+          tenantId: tenantId ?? undefined,
           queryCount: 1,
         });
       } catch (error) {
@@ -635,7 +632,7 @@ export const analyticsRouter = router({
       });
       return createAnalyticsResponse(
         { summaryMetrics: {}, trends: { monthlySavings: safeArray(mappedTrends) }, riskIndicators: {}, fraudSignals: {} },
-        { generatedAt: new Date(), role: ctx.user.insurerRole || ctx.user.role, dataScope: tenantId ? 'tenant' : 'global', tenantId }
+        { generatedAt: new Date(), role: ctx.user.insurerRole || ctx.user.role, dataScope: tenantId ? 'tenant' : 'global', tenantId: tenantId ?? undefined }
       );
     } catch (error) {
       console.error('[Analytics] getCostSavingsTrends error:', error);
@@ -653,7 +650,7 @@ export const analyticsRouter = router({
         ? sql`WITH latest_states AS (SELECT w.claim_id, w.new_state, TIMESTAMPDIFF(HOUR, w.created_at, NOW()) as hours_in_state FROM workflow_audit_trail w INNER JOIN claims c ON w.claim_id = c.id INNER JOIN (SELECT claim_id, MAX(created_at) as max_time FROM workflow_audit_trail GROUP BY claim_id) latest ON w.claim_id = latest.claim_id AND w.created_at = latest.max_time WHERE w.new_state NOT IN ('closed','rejected') AND c.tenant_id = ${tenantId}) SELECT new_state as state, COUNT(*) as count, AVG(hours_in_state) as avg_hours, MAX(hours_in_state) as max_hours FROM latest_states GROUP BY new_state ORDER BY AVG(hours_in_state) DESC`
         : sql`WITH latest_states AS (SELECT w.claim_id, w.new_state, TIMESTAMPDIFF(HOUR, w.created_at, NOW()) as hours_in_state FROM workflow_audit_trail w INNER JOIN (SELECT claim_id, MAX(created_at) as max_time FROM workflow_audit_trail GROUP BY claim_id) latest ON w.claim_id = latest.claim_id AND w.created_at = latest.max_time WHERE w.new_state NOT IN ('closed','rejected')) SELECT new_state as state, COUNT(*) as count, AVG(hours_in_state) as avg_hours, MAX(hours_in_state) as max_hours FROM latest_states GROUP BY new_state ORDER BY AVG(hours_in_state) DESC`;
       const bottlenecks = await db.execute(bottlenecksQuery);
-      const mapped = (bottlenecks.rows as any[]).map(b => ({
+      const mapped = (((bottlenecks as any)[0] ?? []) as any[]).map(b => ({
         state: safeString(b.state, 'unknown'),
         count: safeNumber(b.count, 0),
         avgDaysInState: safeNumber(Math.round(safeNumber(b.avg_hours, 0) / 24 * 10) / 10, 0),
@@ -661,7 +658,7 @@ export const analyticsRouter = router({
       }));
       return createAnalyticsResponse(
         { summaryMetrics: {}, trends: {}, riskIndicators: { bottlenecks: safeArray(mapped) }, fraudSignals: {} },
-        { generatedAt: new Date(), role: ctx.user.insurerRole || ctx.user.role, dataScope: tenantId ? 'tenant' : 'global', tenantId }
+        { generatedAt: new Date(), role: ctx.user.insurerRole || ctx.user.role, dataScope: tenantId ? 'tenant' : 'global', tenantId: tenantId ?? undefined }
       );
     } catch (error) {
       console.error('[Analytics] getWorkflowBottlenecks error:', error);
@@ -721,7 +718,7 @@ export const analyticsRouter = router({
       const leakage = Math.round(safeNumber(leakageResult?.total, 0) / 100);
       return createAnalyticsResponse(
         { summaryMetrics: { totalPayouts, totalReserves, fraudPrevented, netExposure, totalRecovered, leakage }, trends: {}, riskIndicators: {}, fraudSignals: { preventedAmount: fraudPrevented } },
-        { generatedAt: new Date(), role: ctx.user.insurerRole || ctx.user.role, dataScope: tenantId ? 'tenant' : 'global', tenantId }
+        { generatedAt: new Date(), role: ctx.user.insurerRole || ctx.user.role, dataScope: tenantId ? 'tenant' : 'global', tenantId: tenantId ?? undefined }
       );
     } catch (error) {
       console.error('[Analytics] getFinancialOverview error:', error);
@@ -1047,7 +1044,7 @@ export const analyticsRouter = router({
           { label: 'Resolution Rate', current: curResolution, prior: priorResolution, unit: '%', higherIsBetter: true, isCurrency: false },
           { label: 'Avg Cycle Time', current: curCycle, prior: priorCycle, unit: 'd', higherIsBetter: false, isCurrency: false },
           { label: 'Fraud Flags', current: curFraud, prior: priorFraud, unit: '', higherIsBetter: false, isCurrency: false },
-          { label: 'Fast-Track Rate', current: curFasttackRate, prior: priorFasttackRate, unit: '%', higherIsBetter: true, isCurrency: false },
+          { label: 'Fast-Track Rate', current: curFasttrackRate, prior: priorFasttackRate, unit: '%', higherIsBetter: true, isCurrency: false },
         ],
       };
     } catch (error) {

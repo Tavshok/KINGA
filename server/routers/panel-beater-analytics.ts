@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Panel Beater Analytics Router
  * 
@@ -45,7 +44,7 @@ const panelBeaterAnalyticsProcedure = protectedProcedure.use(({ ctx, next }) => 
   // Check if user has appropriate role
   const hasAccess = 
     ctx.user.role === "admin" || 
-    ctx.user.role === "executive" ||
+    ctx.user.insurerRole === "executive" ||
     ctx.user.insurerRole === "insurer_admin" ||
     ctx.user.insurerRole === "claims_manager";
 
@@ -123,6 +122,7 @@ export const panelBeaterAnalyticsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const { page, limit, sortBy, sortOrder } = input;
       const offset = (page - 1) * limit;
 
@@ -262,6 +262,7 @@ export const panelBeaterAnalyticsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const { panelBeaterId } = input;
 
       try {
@@ -369,6 +370,7 @@ export const panelBeaterAnalyticsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const { limit, rankBy } = input;
 
       try {
@@ -465,6 +467,7 @@ export const panelBeaterAnalyticsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const { panelBeaterId, timeRange, groupBy } = input;
 
       try {
@@ -491,7 +494,7 @@ export const panelBeaterAnalyticsRouter = router({
         // Build query with optional panel beater filter
         const whereConditions = [
           eq(panelBeaters.tenantId, ctx.user.tenantId!),
-          gte(claims.createdAt, startDate),
+          gte(claims.createdAt, startDate.toISOString()),
         ];
 
         if (panelBeaterId) {
@@ -561,6 +564,7 @@ export const panelBeaterAnalyticsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       const { panelBeaterIds } = input;
 
       try {
