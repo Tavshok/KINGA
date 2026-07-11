@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Intake Gate Router
  * 
@@ -13,8 +12,6 @@ import { claims } from "../../drizzle/schema";
 import { auditTrail } from "../../drizzle/schema";
 import { users } from "../../drizzle/schema";
 import { protectedProcedure, router } from "../_core/trpc";
-
-const db = getDb();
 
 /**
  * Intake Gate Router
@@ -34,6 +31,8 @@ export const intakeGateRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
       // Validate claims_manager role
       if (ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "insurer_admin") {
@@ -100,23 +99,22 @@ export const intakeGateRouter = router({
       await db
         .update(claims)
         .set({
-          assignedProcessorId: input.processorId,
+          assignedProcessorId: String(input.processorId),
           priority: input.priority || claim.priority || "medium",
           earlyFraudSuspicion: input.earlyFraudSuspicion ? 1 : (claim.earlyFraudSuspicion || 0),
           workflowState: "assigned",
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(claims.id, input.claimId));
 
       // Insert audit trail entry
       await db.insert(auditTrail).values({
-        tenantId: ctx.user.tenantId!,
+        claimId: input.claimId,
         userId: ctx.user.id,
         action: "ASSIGN_PROCESSOR",
         entityType: "claim",
-        entityId: input.claimId.toString(),
-        metadata: JSON.stringify({
-          claimId: input.claimId,
+        entityId: input.claimId,
+        changeDescription: JSON.stringify({
           processorId: input.processorId,
           processorName: processor.name,
           priority: input.priority || claim.priority || "medium",
@@ -124,7 +122,7 @@ export const intakeGateRouter = router({
           previousState: "intake_queue",
           newState: "assigned",
         }),
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       });
 
       return {
@@ -140,6 +138,8 @@ export const intakeGateRouter = router({
    * Access: claims_manager, executive, insurer_admin
    */
   getIntakeQueue: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
     // Validate role has intake queue access
     if (
@@ -158,8 +158,8 @@ export const intakeGateRouter = router({
       .select({
         id: claims.id,
         claimNumber: claims.claimNumber,
-        claimType: claims.claimType,
-        estimatedValue: claims.estimatedValue,
+        claimantType: claims.claimantType,
+        estimatedClaimValue: claims.estimatedClaimValue,
         priority: claims.priority,
         earlyFraudSuspicion: claims.earlyFraudSuspicion,
         workflowState: claims.workflowState,
@@ -191,6 +191,8 @@ export const intakeGateRouter = router({
    * Access: claims_manager, insurer_admin
    */
   getAvailableProcessors: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
     // Validate role
     if (
@@ -230,6 +232,81 @@ export const intakeGateRouter = router({
   }),
 
   /**
+   * Flag claim for escalation
+   * Access: claims_manager, insurer_admin
+   */
+  flagForEscalation: protectedProcedure
+    .input(
+      z.object({
+        claimId: z.number(),
+        reason: z.string().min(5),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      // Validate role
+      if (
+        ctx.user.insurerRole !== "claims_manager" &&
+        ctx.user.insurerRole !== "insurer_admin"
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only Claims Managers can flag claims for escalation",
+        });
+      }
+
+      // Fetch claim
+      const [claim] = await db
+        .select()
+        .from(claims)
+        .where(
+          and(
+            eq(claims.id, input.claimId),
+            eq(claims.tenantId, ctx.user.tenantId!)
+          )
+        )
+        .limit(1);
+
+      if (!claim) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Claim not found",
+        });
+      }
+
+      // Set early fraud suspicion flag
+      await db
+        .update(claims)
+        .set({
+          earlyFraudSuspicion: 1,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(claims.id, input.claimId));
+
+      // Log escalation flag
+      await db.insert(auditTrail).values({
+        claimId: input.claimId,
+        userId: ctx.user.id,
+        action: "FLAG_ESCALATION",
+        entityType: "claim",
+        entityId: input.claimId,
+        changeDescription: JSON.stringify({
+          reason: input.reason,
+          flaggedBy: ctx.user.name,
+          flaggedRole: ctx.user.insurerRole,
+        }),
+        createdAt: new Date().toISOString(),
+      });
+
+      return {
+        success: true,
+        message: "Claim flagged for escalation",
+      };
+    }),
+
+  /**
    * Override intake gate (emergency bypass)
    * Access: claims_manager, executive, insurer_admin
    */
@@ -242,6 +319,8 @@ export const intakeGateRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
       // Validate role
       if (
@@ -279,26 +358,25 @@ export const intakeGateRouter = router({
         .update(claims)
         .set({
           workflowState: input.targetState,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(claims.id, input.claimId));
 
       // Log override
       await db.insert(auditTrail).values({
-        tenantId: ctx.user.tenantId!,
+        claimId: input.claimId,
         userId: ctx.user.id,
         action: "INTAKE_OVERRIDE",
         entityType: "claim",
-        entityId: input.claimId.toString(),
-        metadata: JSON.stringify({
-          claimId: input.claimId,
+        entityId: input.claimId,
+        changeDescription: JSON.stringify({
           reason: input.reason,
           previousState: claim.workflowState,
           newState: input.targetState,
           overriddenBy: ctx.user.name,
           overriddenRole: ctx.user.insurerRole,
         }),
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       });
 
       return {
@@ -312,6 +390,8 @@ export const intakeGateRouter = router({
    * Access: claims_manager, executive
    */
   getAutoAssignStats: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
     // Validate role
     if (
@@ -326,14 +406,14 @@ export const intakeGateRouter = router({
     }
 
     // Query auto-assignments in last 24 hours
-    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    // Note: audit_trail has no tenantId column — filter by action only
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const result = await db
       .select({ count: sql<number>`count(*)` })
       .from(auditTrail)
       .where(
         and(
-          eq(auditTrail.tenantId, ctx.user.tenantId!),
           eq(auditTrail.action, "INTAKE_AUTO_ASSIGN"),
           sql`${auditTrail.createdAt} >= ${last24Hours}`
         )

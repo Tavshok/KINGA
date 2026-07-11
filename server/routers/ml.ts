@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ML Router - Machine Learning & Training Data Management
  * 
@@ -6,6 +5,7 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
+import { getDb } from "../db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
@@ -145,7 +145,7 @@ export const mlRouter = router({
         .set({
           reviewStatus: "approved",
           reviewedBy: ctx.user.id,
-          reviewedAt: new Date(),
+          reviewedAt: new Date().toISOString(),
           reviewDecision: "approve",
           reviewNotes: input.reviewNotes,
           includeInTrainingDataset: 1,
@@ -176,7 +176,7 @@ export const mlRouter = router({
         .set({
           reviewStatus: "rejected",
           reviewedBy: ctx.user.id,
-          reviewedAt: new Date(),
+          reviewedAt: new Date().toISOString(),
           reviewDecision: "reject",
           reviewNotes: `${input.rejectionReason}\n\n${input.reviewNotes}`,
           includeInTrainingDataset: 0,
@@ -203,12 +203,12 @@ export const mlRouter = router({
 
     const stats = {
       total: allItems.length,
-      pending: allItems.filter((item) => item.reviewStatus === "pending_review").length,
-      inReview: allItems.filter((item) => item.reviewStatus === "in_review").length,
-      approved: allItems.filter((item) => item.reviewStatus === "approved").length,
-      rejected: allItems.filter((item) => item.reviewStatus === "rejected").length,
-      needsMoreInfo: allItems.filter((item) => item.reviewStatus === "needs_more_info").length,
-      highPriority: allItems.filter((item) => item.reviewPriority === "high").length,
+      pending: allItems.filter((item: typeof allItems[number]) => item.reviewStatus === "pending_review").length,
+      inReview: allItems.filter((item: typeof allItems[number]) => item.reviewStatus === "in_review").length,
+      approved: allItems.filter((item: typeof allItems[number]) => item.reviewStatus === "approved").length,
+      rejected: allItems.filter((item: typeof allItems[number]) => item.reviewStatus === "rejected").length,
+      needsMoreInfo: allItems.filter((item: typeof allItems[number]) => item.reviewStatus === "needs_more_info").length,
+      highPriority: allItems.filter((item: typeof allItems[number]) => item.reviewPriority === "high").length,
     };
 
     return stats;

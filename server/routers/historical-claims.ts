@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Historical Claims Intelligence Pipeline Router
  * 
@@ -34,8 +33,6 @@ import {
   generateVarianceDatasets,
   type DocumentExtractionResult,
 } from "../pipeline/document-intelligence";
-
-const db = getDb();
 
 export const historicalClaimsRouter = router({
   // ============================================================
@@ -73,7 +70,6 @@ export const historicalClaimsRouter = router({
       // Create ingestion batch
       const [batch] = await db.insert(ingestionBatches).values({
         tenantId,
-        batchId: batchUuid,
         batchName: input.batchName || `Historical Claims ${new Date().toLocaleDateString("en-US")}`,
         ingestionSource: "legacy_import",
         ingestionChannel: "web_ui",
@@ -131,7 +127,7 @@ export const historicalClaimsRouter = router({
             processedDocuments: pipelineResult.documentsProcessed,
             failedDocuments: pipelineResult.documentsFailed,
             status: pipelineResult.documentsFailed === 0 ? "completed" : "failed",
-            completedAt: new Date(),
+            completedAt: new Date().toISOString(),
           })
           .where(eq(ingestionBatches.id, batchDbId));
       } catch (error) {

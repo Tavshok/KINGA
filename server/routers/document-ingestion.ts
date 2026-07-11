@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getDb, triggerAiAssessment, generateKingaRef } from "../db";
@@ -7,8 +6,6 @@ import { ingestionBatches, ingestionDocuments, extractedDocumentData, claims } f
 import { storagePut } from "../storage";
 import { eq, and, desc, isNull } from "drizzle-orm";
 import crypto from "crypto";
-
-const db = getDb();
 
 /**
  * Generate a unique claim number for document-ingested claims.
@@ -191,7 +188,7 @@ export const documentIngestionRouter = router({
                 const kingaRef = await generateKingaRef(tenantId);
 
                 const [claimInsertResult] = await tx.insert(claims).values({
-                  claimantId: 0,           // Placeholder: no claimant identified yet
+                  claimantId: null,         // Placeholder: no claimant identified yet
                   claimNumber,
                   kingaRef,
                   policyNumber: input.policyNumber || undefined,
@@ -201,7 +198,7 @@ export const documentIngestionRouter = router({
                   sourceDocumentId: docDbId,
                   claimSource: "document_ingestion",
                   documentProcessingStatus: "pending",  // AI parsing not yet triggered
-                  assignedProcessorId: ctx.user.id,
+                  assignedProcessorId: String(ctx.user.id),
                   priority: "medium",
                   earlyFraudSuspicion: 0,
                   aiAssessmentTriggered: 0,
@@ -291,7 +288,7 @@ export const documentIngestionRouter = router({
             processedDocuments: successCount,
             failedDocuments: failedCount,
             status: failedCount === documents.length ? "failed" : "completed",
-            completedAt: new Date(),
+            completedAt: new Date().toISOString(),
           })
           .where(eq(ingestionBatches.id, batchDbId));
 
@@ -553,7 +550,7 @@ export const documentIngestionRouter = router({
         .set({
           validationStatus: "approved",
           validatedByUserId: ctx.user.id,
-          validatedAt: new Date(),
+          validatedAt: new Date().toISOString(),
         })
         .where(eq(ingestionDocuments.id, input.document_id));
 

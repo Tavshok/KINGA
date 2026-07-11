@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Market Quotes Router
  * 
@@ -18,8 +17,6 @@ import {
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { extractMarketQuote } from "../pricing/market-quote-extractor";
 import { storagePut } from "../storage";
-
-const db = getDb();
 
 export const marketQuotesRouter = router({
   /**
@@ -50,22 +47,26 @@ export const marketQuotesRouter = router({
       const extractedData = await extractMarketQuote(documentUrl, input.documentType);
       
       // Create supplier quote record
-      const [quote] = await db.insert(supplierQuotes).values({
+      const quoteResult = await db.insert(supplierQuotes).values({
         supplierName: extractedData.supplierName,
         supplierCountry: extractedData.supplierCountry,
         supplierContact: extractedData.supplierContact || null,
-        quoteDate: new Date(extractedData.quoteDate),
+        quoteDate: new Date(extractedData.quoteDate).toISOString().slice(0, 10),
         quoteNumber: extractedData.quoteNumber || null,
-        quoteValidUntil: extractedData.quoteValidUntil ? new Date(extractedData.quoteValidUntil) : null,
+        quoteValidUntil: extractedData.quoteValidUntil
+          ? new Date(extractedData.quoteValidUntil).toISOString().slice(0, 10)
+          : null,
         documentUrl,
         documentType: input.documentType,
         status: "pending",
-        extractedAt: new Date(),
+        extractedAt: new Date().toISOString(),
         extractionConfidence: extractedData.extractionConfidence.toString(),
         extractionNotes: JSON.stringify(extractedData.extractionNotes),
         uploadedBy: ctx.user.id,
         notes: input.notes || null,
-      }).$returningId();
+      }).$returningId() as Array<{ id: number }>;
+
+      const quote = quoteResult[0];
       
       // Insert line items
       const lineItemsToInsert = extractedData.lineItems.map(item => ({
@@ -88,7 +89,7 @@ export const marketQuotesRouter = router({
         partType: item.partType,
         quantity: item.quantity,
         lineNumber: item.lineNumber,
-        approved: false,
+        approved: 0 as const,
       }));
       
       if (lineItemsToInsert.length > 0) {
@@ -182,7 +183,7 @@ export const marketQuotesRouter = router({
       const { lineItemId, ...updates } = input;
       
       // Convert numeric fields to strings for decimal columns
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (updates.partName !== undefined) updateData.partName = updates.partName;
       if (updates.partNumber !== undefined) updateData.partNumber = updates.partNumber;
       if (updates.partDescription !== undefined) updateData.partDescription = updates.partDescription;
@@ -255,8 +256,8 @@ export const marketQuotesRouter = router({
         partType: item.partType,
         source: `supplier_quote_${quote.id}`,
         sourceUrl: quote.documentUrl,
-        scrapedAt: new Date(),
-        lastUpdated: new Date(),
+        scrapedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
         confidence: "high" as const, // Supplier quotes are high confidence
         dataQuality: JSON.stringify({
           supplierName: quote.supplierName,
@@ -274,7 +275,7 @@ export const marketQuotesRouter = router({
       if (input.approvedLineItemIds.length > 0) {
         await db
           .update(supplierQuoteLineItems)
-          .set({ approved: true })
+          .set({ approved: 1 })
           .where(inArray(supplierQuoteLineItems.id, input.approvedLineItemIds));
       }
       
@@ -283,7 +284,7 @@ export const marketQuotesRouter = router({
         .update(supplierQuotes)
         .set({
           status: "approved",
-          reviewedAt: new Date(),
+          reviewedAt: new Date().toISOString(),
           reviewedBy: ctx.user.id,
         })
         .where(eq(supplierQuotes.id, input.quoteId));
@@ -313,7 +314,7 @@ export const marketQuotesRouter = router({
         .update(supplierQuotes)
         .set({
           status: "rejected",
-          reviewedAt: new Date(),
+          reviewedAt: new Date().toISOString(),
           reviewedBy: ctx.user.id,
           notes: input.rejectionReason,
         })
@@ -362,19 +363,22 @@ async function updateSupplierMetrics(
     .where(eq(supplierQuotes.supplierName, supplierName));
   
   const totalQuotes = quotes.length;
-  const approvedQuotes = quotes.filter(q => q.status === "approved").length;
-  const rejectedQuotes = quotes.filter(q => q.status === "rejected").length;
+  const approvedQuotes = quotes.filter((q: typeof quotes[number]) => q.status === "approved").length;
+  const rejectedQuotes = quotes.filter((q: typeof quotes[number]) => q.status === "rejected").length;
   
   // Calculate average extraction confidence
-  const avgConfidence = quotes.reduce((sum, q) => {
-    const conf = typeof q.extractionConfidence === 'string' ? parseFloat(q.extractionConfidence) : q.extractionConfidence;
+  const avgConfidence = quotes.reduce((sum: number, q: typeof quotes[number]) => {
+    const conf = typeof q.extractionConfidence === 'string' ? parseFloat(q.extractionConfidence) : (q.extractionConfidence as number | null);
     return sum + (conf || 0);
   }, 0) / totalQuotes;
   
-  // Get first and last quote dates
-  const quoteDates = quotes.map(q => new Date(q.quoteDate)).sort((a, b) => a.getTime() - b.getTime());
-  const firstQuoteDate = quoteDates[0];
-  const lastQuoteDate = quoteDates[quoteDates.length - 1];
+  // Get first and last quote dates (quoteDate is date(mode:'string') → YYYY-MM-DD)
+  const quoteDates = quotes
+    .map((q: typeof quotes[number]) => q.quoteDate)
+    .filter((d): d is string => d !== null)
+    .sort();
+  const firstQuoteDate = quoteDates[0] ?? null;
+  const lastQuoteDate = quoteDates[quoteDates.length - 1] ?? null;
   
   if (existing) {
     // Update existing metrics
@@ -386,7 +390,7 @@ async function updateSupplierMetrics(
         totalQuotesRejected: rejectedQuotes,
         avgExtractionConfidence: avgConfidence.toFixed(2),
         lastQuoteDate,
-        lastUpdated: new Date(),
+        lastUpdated: new Date().toISOString(),
       })
       .where(eq(supplierPerformanceMetrics.supplierName, supplierName));
   } else {
@@ -400,7 +404,7 @@ async function updateSupplierMetrics(
       avgExtractionConfidence: avgConfidence.toFixed(2),
       firstQuoteDate,
       lastQuoteDate,
-      lastUpdated: new Date(),
+      lastUpdated: new Date().toISOString(),
     });
   }
 }
