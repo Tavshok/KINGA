@@ -22,8 +22,8 @@ export interface PolicyImpactMetrics {
   policyId: number;
   policyVersion: number;
   policyName: string;
-  effectiveFrom: Date;
-  effectiveUntil: Date | null;
+  effectiveFrom: string;
+  effectiveUntil: string | null | null;
   
   // Claim Volume Metrics
   totalClaims: number;
@@ -149,10 +149,10 @@ export async function getPolicyImpactMetrics(
   }
 
   // Count routing decisions
-  const autoApprovedClaims = routedClaims.filter(c => c.routingDecision === "auto_approve").length;
-  const hybridReviewClaims = routedClaims.filter(c => c.routingDecision === "hybrid_review").length;
-  const escalatedClaims = routedClaims.filter(c => c.routingDecision === "escalate").length;
-  const fraudReviewClaims = routedClaims.filter(c => c.routingDecision === "fraud_review").length;
+  const autoApprovedClaims = routedClaims.filter(c => c.routingDecision === "ai_only").length;
+  const hybridReviewClaims = routedClaims.filter(c => c.routingDecision === "hybrid").length;
+  const escalatedClaims = routedClaims.filter(c => c.routingDecision === "manual").length;
+  const fraudReviewClaims = routedClaims.filter(c => c.routingDecision === "manual").length;
 
   // Get claim details for financial and override metrics
   const claimIds = routedClaims.map(c => c.claimId);
@@ -189,16 +189,16 @@ export async function getPolicyImpactMetrics(
     const routingDecision = routedClaims.find(rc => rc.claimId === claim.id)?.routingDecision;
     const finalDecision = claim.finalDecision;
 
-    if (routingDecision === "auto_approve" && finalDecision === "rejected") {
+    if (routingDecision === "ai_only" && finalDecision === "rejected") {
       totalOverrides++;
       aiToHumanApprovalOverrides++;
-    } else if (routingDecision === "escalate" && finalDecision === "approved") {
+    } else if (routingDecision === "manual" && finalDecision === "completed") {
       totalOverrides++;
       aiToHumanRejectionOverrides++;
     }
 
     // Check for confirmed fraud
-    if (claim.finalFraudOutcome === "fraudulent") {
+    if (claim.finalFraudOutcome === "high") {
       confirmedFraudCases++;
     }
 
@@ -208,10 +208,10 @@ export async function getPolicyImpactMetrics(
       const processingTimeHours = processingTimeMs / (1000 * 60 * 60);
       totalProcessingTime += processingTimeHours;
 
-      if (routingDecision === "auto_approve") {
+      if (routingDecision === "ai_only") {
         autoApprovalProcessingTime += processingTimeHours;
         autoApprovalCount++;
-      } else if (routingDecision === "hybrid_review") {
+      } else if (routingDecision === "hybrid") {
         hybridReviewProcessingTime += processingTimeHours;
         hybridReviewCount++;
       }
@@ -235,10 +235,10 @@ export async function getPolicyImpactMetrics(
     totalConfidenceScore += confidenceScore;
 
     const routingDecision = routedClaims.find(rc => rc.claimId === cs.claimId)?.routingDecision;
-    if (routingDecision === "auto_approve") {
+    if (routingDecision === "ai_only") {
       autoApprovedConfidenceSum += confidenceScore;
       autoApprovedConfidenceCount++;
-    } else if (routingDecision === "hybrid_review") {
+    } else if (routingDecision === "hybrid") {
       hybridReviewConfidenceSum += confidenceScore;
       hybridReviewConfidenceCount++;
     }

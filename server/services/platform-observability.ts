@@ -152,8 +152,8 @@ export async function getClaimTrace(claimId: string) {
     })
     .from(auditTrail)
     .leftJoin(users, eq(auditTrail.userId, users.id))
-    .where(eq(auditTrail.resourceId, claimId))
-    .orderBy(desc(auditTrail.timestamp));
+    .where(eq(auditTrail.entityId, claimId))
+    .orderBy(desc(auditTrail.createdAt));
   
   // Get segregation involvement tracking
   const segregationData = await db
@@ -170,7 +170,7 @@ export async function getClaimTrace(claimId: string) {
     .from(claimInvolvementTracking)
     .leftJoin(users, eq(claimInvolvementTracking.userId, users.id))
     .where(eq(claimInvolvementTracking.claimId, parseInt(claimId)))
-    .orderBy(desc(claimInvolvementTracking.timestamp));
+    .orderBy(desc(claimInvolvementTracking.createdAt));
   
   return {
     claim: claimData,
@@ -216,7 +216,7 @@ export async function getAIConfidenceBreakdown(claimId: string) {
     extractedData: {
       estimatedCost: assessment.estimatedCost,
       damageDescription: assessment.damageDescription,
-      fraudRiskScore: assessment.fraudRiskScore,
+      fraudRiskScore: assessment.fraudScore,
       recommendedAction: assessment.recommendedAction,
     },
     metadata,

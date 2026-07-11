@@ -236,7 +236,7 @@ export async function getRoutingHistory(params: {
   decidedBy: DecidedBy;
   decidedByUserId: number | null;
   justification: string | null;
-  timestamp: Date;
+  timestamp: string;
 }>> {
   const db = await getDb();
   if (!db) {
@@ -250,7 +250,7 @@ export async function getRoutingHistory(params: {
     .from(routingHistory)
     .where(
       and(
-        eq(routingHistory.claimId, params.claimId),
+        eq(routingHistory.claimId, params.claimId ?? ''),
         eq(routingHistory.tenantId, params.tenantId)
       )
     )
@@ -289,7 +289,7 @@ export async function getLatestRoutingDecision(params: {
   decidedBy: DecidedBy;
   decidedByUserId: number | null;
   justification: string | null;
-  timestamp: Date;
+  timestamp: string;
 } | null> {
   const history = await getRoutingHistory(params);
   return history[0] || null;

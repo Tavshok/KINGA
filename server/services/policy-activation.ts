@@ -30,7 +30,7 @@ export async function createPolicyFromProfile(
   const policyData = profileToAutomationPolicy(finalProfile, tenantId, createdByUserId);
 
   // Insert new policy (inactive by default)
-  const [newPolicy] = await db.insert(automationPolicies).values(policyData);
+  const newPolicy = await db.insert(automationPolicies).values(policyData);
 
   // Log policy creation
   await db.insert(auditTrail).values({

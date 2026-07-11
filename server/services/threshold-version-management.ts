@@ -82,7 +82,7 @@ export async function getActiveThresholdConfig(tenantId: string): Promise<{
   mediumThreshold: number;
   aiFastTrackEnabled: boolean;
   createdByUserId: number;
-  createdAt: Date;
+  createdAt: string;
 } | null> {
   const db = await getDb();
   if (!db) {
@@ -153,7 +153,7 @@ export async function createThresholdVersion(
   
   // Deactivate existing active version (if any)
   await db.update(routingThresholdConfig)
-    .set({ isActive: false })
+    .set({ isActive: 0 })
     .where(
       and(
         eq(routingThresholdConfig.tenantId, params.tenantId),
@@ -193,7 +193,7 @@ export async function deactivateThresholdVersion(params: {
   }
 
   const result = await db.update(routingThresholdConfig)
-    .set({ isActive: false })
+    .set({ isActive: 0 })
     .where(
       and(
         eq(routingThresholdConfig.tenantId, params.tenantId),
@@ -231,8 +231,8 @@ export async function getThresholdVersionHistory(tenantId: string): Promise<Arra
   mediumThreshold: number;
   aiFastTrackEnabled: boolean;
   createdByUserId: number;
-  createdAt: Date;
-  isActive: boolean;
+  createdAt: string;
+  isActive: number;
 }>> {
   const db = await getDb();
   if (!db) {

@@ -309,7 +309,7 @@ export async function updateTenantConfig(tenantId: string, updates: {
     .set({
       ...updates,
       displayName: updates.name,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     })
     .where(eq(insurerTenants.id, tenantId));
 
@@ -389,7 +389,7 @@ export async function updateTenantRoleConfig(
     .set({
       enabled: permissions.isEnabled !== undefined ? (permissions.isEnabled ? 1 : 0) : undefined,
       permissions: JSON.stringify(permissions),
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     })
     .where(eq(tenantRoleConfigs.tenantId, tenantId));
 
@@ -440,8 +440,8 @@ export async function updateTenantWorkflowThresholds(
         requireExecutiveApprovalAbove: (thresholds.executiveApprovalLimit ?? DEFAULT_WORKFLOW_CONFIG.requireExecutiveApprovalAbove).toString(),
         fraudFlagThreshold: DEFAULT_WORKFLOW_CONFIG.fraudFlagThreshold.toString(),
         requireInternalAssessment: DEFAULT_WORKFLOW_CONFIG.requireInternalAssessment,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date()
+        createdAt: new Date().toISOString().toISOString(),
+        updatedAt: new Date().toISOString()
       });
 
     return result;
@@ -454,7 +454,7 @@ export async function updateTenantWorkflowThresholds(
       autoApproveBelow: thresholds.autoApprovalLimit?.toString(),
       requireManagerApprovalAbove: thresholds.managerApprovalLimit?.toString(),
       requireExecutiveApprovalAbove: thresholds.executiveApprovalLimit?.toString(),
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     })
     .where(eq(tenantWorkflowConfigs.tenantId, tenantId));
 
@@ -494,6 +494,6 @@ export async function updateTenantSlaConfig(
   return {
     tenantId,
     ...slaConfig,
-    updatedAt: new Date()
+    updatedAt: new Date().toISOString()
   };
 }

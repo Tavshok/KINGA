@@ -6,8 +6,7 @@
  * 
  * All profiles maintain automation_policies as single source of truth.
  */
-
-type InsertAutomationPolicy = typeof automationPolicies.$inferInsert;
+import { automationPolicies } from "../../drizzle/schema";
 
 export type PolicyProfileType = "conservative" | "balanced" | "aggressive" | "fraud_sensitive" | "custom";
 
@@ -28,7 +27,7 @@ export interface PolicyProfileTemplate {
   minVehicleYear: number;
   maxVehicleAge: number;
   requireManagerApprovalAbove: number; // in cents
-  allowPolicyOverride: boolean;
+  allowPolicyOverride: number;
 }
 
 /**
@@ -228,13 +227,13 @@ export function getAllPolicyProfiles(): PolicyProfileTemplate[] {
 }
 
 /**
- * Convert policy profile template to InsertAutomationPolicy
+ * Convert policy profile template to typeof automationPolicies.$inferInsert
  */
 export function profileToAutomationPolicy(
   profile: PolicyProfileTemplate,
   tenantId: string,
   createdByUserId: number
-): Omit<InsertAutomationPolicy, "id" | "createdAt" | "updatedAt"> {
+): Omit<typeof automationPolicies.$inferInsert, "id" | "createdAt" | "updatedAt"> {
   return {
     tenantId,
     policyName: profile.policyName,

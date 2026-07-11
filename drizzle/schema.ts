@@ -3156,6 +3156,35 @@ export const trainingDataset = mysqlTable("training_dataset", {
 	index("training_dataset_historical_claim_id_unique").on(table.historicalClaimId),
 ]);
 
+export const biasDetectionFlags = mysqlTable("bias_detection_flags", {
+	id: int().autoincrement().primaryKey(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	batchId: varchar("batch_id", { length: 64 }).notNull(),
+	biasType: varchar("bias_type", { length: 64 }).notNull(),
+	biasScore: decimal("bias_score", { precision: 5, scale: 4 }),
+	affectedField: varchar("affected_field", { length: 128 }),
+	sampleSize: int("sample_size"),
+	detectedAt: timestamp("detected_at", { mode: 'string' }).defaultNow().notNull(),
+	mitigationApplied: tinyint("mitigation_applied").default(0).notNull(),
+	mitigationNotes: text("mitigation_notes"),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+});
+
+export const humanReviewQueue = mysqlTable("human_review_queue", {
+	id: int().autoincrement().primaryKey(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	historicalClaimId: int("historical_claim_id"),
+	reviewType: varchar("review_type", { length: 64 }).notNull(),
+	priority: mysqlEnum("priority", ['low','medium','high','critical']).default('medium').notNull(),
+	status: mysqlEnum("status", ['pending','in_review','completed','rejected']).default('pending').notNull(),
+	assignedTo: int("assigned_to"),
+	reviewNotes: text("review_notes"),
+	queuedAt: timestamp("queued_at", { mode: 'string' }).defaultNow().notNull(),
+	startedAt: timestamp("started_at", { mode: 'string' }),
+	completedAt: timestamp("completed_at", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+});
+
 export const trainingRecords = mysqlTable("training_records", {
 	id: varchar({ length: 64 }).notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),

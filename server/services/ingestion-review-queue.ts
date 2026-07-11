@@ -74,7 +74,7 @@ export async function getPendingReviews(params: {
     reviewedBy: claimReviewQueue.reviewedBy,
     reviewDecision: claimReviewQueue.reviewDecision,
     reviewNotes: claimReviewQueue.reviewNotes,
-    claimNumber: historicalClaims.claimNumber,
+    claimNumber: historicalClaims.claimReference,
     claimData: historicalClaims.rawExtractedData,
   })
     .from(claimReviewQueue)

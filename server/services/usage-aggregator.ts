@@ -49,7 +49,7 @@ export async function generateMonthlySummary(
     .from(usageEvents)
     .where(
       and(
-        eq(usageEvents.tenantId, tenantId),
+        eq(usageEvents.tenantId, tenantId ?? ''),
         gte(usageEvents.timestamp, periodStart),
         lte(usageEvents.timestamp, periodEnd)
       )

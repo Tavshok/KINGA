@@ -1,4 +1,3 @@
- — AUDIT-01 in progress: db initialisation fixed, audit_trail field mapping applied
 /**
  * Super Audit Mode Service
  *
@@ -45,7 +44,7 @@ export async function createSuperAuditSession(
     isActive: 1,
   });
 
-  // AUDIT-01: audit_trail — super audit session created
+  // AUDIT-01: audit_trail -- super audit session created
   await db.insert(auditTrail).values({
     userId: superAdminUserId,
     action: "SUPER_AUDIT_SESSION_CREATED",
@@ -88,7 +87,7 @@ export async function setAuditContext(
       )
     );
 
-  // AUDIT-01: audit_trail — tenant selection (entityId=sessionId, tenantId stored in changeDescription)
+  // AUDIT-01: audit_trail -- tenant selection (entityId=sessionId, tenantId stored in changeDescription)
   await db.insert(auditTrail).values({
     userId: superAdminUserId,
     action: "SUPER_AUDIT_VIEW_TENANT",
@@ -102,7 +101,7 @@ export async function setAuditContext(
     createdAt: new Date().toISOString(),
   });
 
-  // AUDIT-01: audit_trail — role impersonation
+  // AUDIT-01: audit_trail -- role impersonation
   await db.insert(auditTrail).values({
     userId: superAdminUserId,
     action: "SUPER_AUDIT_IMPERSONATE_ROLE",
@@ -155,7 +154,7 @@ export async function trackAccessedClaim(
       .where(eq(superAuditSessions.id, sessionId));
   }
 
-  // AUDIT-01: audit_trail — claim access
+  // AUDIT-01: audit_trail -- claim access
   await db.insert(auditTrail).values({
     userId: superAdminUserId,
     action: "SUPER_AUDIT_VIEW_CLAIM",
@@ -208,7 +207,7 @@ export async function trackReplayedClaim(
       .where(eq(superAuditSessions.id, sessionId));
   }
 
-  // AUDIT-01: audit_trail — claim replay
+  // AUDIT-01: audit_trail -- claim replay
   await db.insert(auditTrail).values({
     userId: superAdminUserId,
     action: "SUPER_AUDIT_REPLAY_CLAIM",
@@ -261,7 +260,7 @@ export async function trackAiScoringView(
       .where(eq(superAuditSessions.id, sessionId));
   }
 
-  // AUDIT-01: audit_trail — AI scoring view
+  // AUDIT-01: audit_trail -- AI scoring view
   await db.insert(auditTrail).values({
     userId: superAdminUserId,
     action: "SUPER_AUDIT_VIEW_AI_SCORING",
@@ -314,7 +313,7 @@ export async function trackRoutingLogicView(
       .where(eq(superAuditSessions.id, sessionId));
   }
 
-  // AUDIT-01: audit_trail — routing logic view
+  // AUDIT-01: audit_trail -- routing logic view
   await db.insert(auditTrail).values({
     userId: superAdminUserId,
     action: "SUPER_AUDIT_VIEW_ROUTING_LOGIC",
@@ -348,9 +347,10 @@ export async function endSuperAuditSession(
 
   if (!session) return;
 
-  const sessionEndedAt = new Date();
+  const sessionEndedAtDate = new Date();
+  const sessionEndedAt = sessionEndedAtDate.toISOString();
   const sessionDurationSeconds = Math.floor(
-    (sessionEndedAt.getTime() - new Date(session.sessionStartedAt).getTime()) / 1000
+    (sessionEndedAtDate.getTime() - new Date(session.sessionStartedAt).getTime()) / 1000
   );
 
   // Update session
@@ -369,7 +369,7 @@ export async function endSuperAuditSession(
       )
     );
 
-  // AUDIT-01: audit_trail — session end
+  // AUDIT-01: audit_trail -- session end
   await db.insert(auditTrail).values({
     userId: superAdminUserId,
     action: "SUPER_AUDIT_SESSION_ENDED",

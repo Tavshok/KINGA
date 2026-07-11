@@ -296,7 +296,7 @@ async function detectTemporalClustering(claims: any[]): Promise<{
   // Group claims by month
   const monthCounts: Record<string, number> = {};
   claimsWithDate.forEach(c => {
-    const month = c.claimDate.toISOString().slice(0, 7); // YYYY-MM
+    const month = c.claimDate.slice(0, 7); // YYYY-MM
     monthCounts[month] = (monthCounts[month] || 0) + 1;
   });
   

@@ -5,7 +5,7 @@
 
 import { eq, and } from "drizzle-orm";
 import { getDb } from "../db";
-import { usageEvents, type } from "../../drizzle/schema";
+import { usageEvents } from "../../drizzle/schema";
 type InsertUsageEvent = typeof usageEvents.$inferInsert;
 
 export type UsageEventType =

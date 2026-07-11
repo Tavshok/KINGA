@@ -197,7 +197,7 @@ async function calculateDataIntegrityHealth(): Promise<DataIntegrityHealth> {
     .select({ count: count() })
     .from(claims)
     .where(
-      sql`${claims.photoUrls} IS NULL OR ${claims.photoUrls} = '[]' OR ${claims.photoUrls} = ''`
+      sql`${claims.damagePhotos} IS NULL OR ${claims.damagePhotos} = '[]' OR ${claims.damagePhotos} = ''`
     );
   
   const claimsMissingDocuments = claimsMissingDocs[0].count;
@@ -306,7 +306,7 @@ async function calculatePerformanceHealth(): Promise<PerformanceHealth> {
   for (const record of processingTimes) {
     if (record.closedAt) {
       const processingHours =
-        (new Date(record.closedAt).getTime() - record.createdAt.getTime()) /
+        (new Date(record.closedAt).getTime() - record ? new Date(claim.createdAt).getTime() : 0) /
         (1000 * 60 * 60);
       totalProcessingTime += processingHours;
       validCount++;

@@ -216,7 +216,7 @@ export async function getRecentBatches(params: {
   const batches = await db.select()
     .from(ingestionBatches)
     .where(eq(ingestionBatches.tenantId, params.tenantId))
-    .orderBy(desc(ingestionBatches.uploadedAt))
+    .orderBy(desc(ingestionBatches.createdAt))
     .limit(limit);
   
   const batchSummaries: BatchSummary[] = [];
@@ -242,7 +242,7 @@ export async function getRecentBatches(params: {
     batchSummaries.push({
       id: batch.id,
       uploadedBy: batch.uploadedBy,
-      uploadedAt: batch.uploadedAt,
+      uploadedAt: batch.createdAt,
       status: batch.status,
       totalDocuments: batch.totalDocuments,
       processedDocuments: batch.processedDocuments,

@@ -59,9 +59,9 @@ export async function simulateRoutingDistribution(
   const recentClaims = await db
     .select({
       claimId: claims.id,
-      claimType: claims.claimType,
-      claimAmount: claims.aiEstimatedCost,
-      fraudScore: claims.aiFraudScore,
+      claimType: claims.incidentType,
+      claimAmount: claims.estimatedClaimValue,
+      fraudScore: claims.fraudRiskScore,
       vehicleYear: claims.vehicleYear,
       confidenceScoreId: claims.id, // Placeholder for join
     })
@@ -109,7 +109,7 @@ export async function simulateRoutingDistribution(
     totalClaimAmount += claimAmount;
 
     // Track claim type breakdown
-    const claimType = claim.claimType || "unknown";
+    const claimType = claim.incidentType || "unknown";
     claimTypeBreakdown[claimType] = (claimTypeBreakdown[claimType] || 0) + 1;
 
     // Apply policy rules to determine routing decision
@@ -247,11 +247,11 @@ export async function simulateSingleClaimRouting(
     .limit(1);
 
   const confidenceScore = confidenceScoreRecord ? Number(confidenceScoreRecord.compositeConfidenceScore) : 0;
-  const fraudScore = claim.aiFraudScore || 0;
-  const claimAmount = Number(claim.aiEstimatedCost) || 0;
+  const fraudScore = claim.fraudRiskScore || 0;
+  const claimAmount = Number(claim.estimatedClaimValue) || 0;
   const vehicleYear = claim.vehicleYear || 0;
   const vehicleAge = new Date().getFullYear() - vehicleYear;
-  const claimType = claim.claimType || "unknown";
+  const claimType = claim.incidentType || "unknown";
 
   const reasoning: string[] = [];
   let routingDecision = "escalate";
