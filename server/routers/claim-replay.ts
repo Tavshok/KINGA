@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Claim Replay tRPC Router
  * 
@@ -7,9 +7,11 @@
  */
 
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../_core/trpc";
 import { historicalClaims, historicalReplayResults } from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { getDb } from "../db";
 import { replayHistoricalClaim } from "../services/claim-replay-comparison";
 
 // Middleware for replay operations (requires insurer_admin or executive role)
@@ -57,6 +59,7 @@ export const claimReplayRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       
       const results = await db
         .select()
@@ -81,6 +84,7 @@ export const claimReplayRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       
       const [result] = await db
         .select()
@@ -107,6 +111,7 @@ export const claimReplayRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       
       const results = await db
         .select()
@@ -125,6 +130,7 @@ export const claimReplayRouter = router({
   getReplayStatistics: replayProcedure
     .query(async ({ ctx }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       
       const results = await db
         .select()
@@ -146,24 +152,24 @@ export const claimReplayRouter = router({
         };
       }
       
-      const decisionMatches = results.filter(r => r.decisionMatch === 1).length;
+      const decisionMatches = results.filter((r: any) => r.decisionMatch === 1).length;
       const decisionMatchRate = (decisionMatches / results.length) * 100;
       
-      const totalPayoutVariance = results.reduce((sum, r) => 
+      const totalPayoutVariance = results.reduce((sum: number, r: any) => 
         sum + Math.abs(Number(r.payoutVariancePercentage) || 0), 0
       );
       const averagePayoutVariancePercentage = totalPayoutVariance / results.length;
       
-      const totalProcessingTimeDelta = results.reduce((sum, r) => 
+      const totalProcessingTimeDelta = results.reduce((sum: number, r: any) => 
         sum + Math.abs(Number(r.processingTimeDeltaPercentage) || 0), 0
       );
       const averageProcessingTimeDeltaPercentage = totalProcessingTimeDelta / results.length;
       
       const recommendedActions = {
-        adopt_kinga: results.filter(r => r.recommendedAction === "adopt_kinga").length,
-        review_policy: results.filter(r => r.recommendedAction === "review_policy").length,
-        manual_review: results.filter(r => r.recommendedAction === "manual_review").length,
-        no_action: results.filter(r => r.recommendedAction === "no_action").length,
+        adopt_kinga: results.filter((r: any) => r.recommendedAction === "adopt_kinga").length,
+        review_policy: results.filter((r: any) => r.recommendedAction === "review_policy").length,
+        manual_review: results.filter((r: any) => r.recommendedAction === "manual_review").length,
+        no_action: results.filter((r: any) => r.recommendedAction === "no_action").length,
       };
       
       return {
@@ -224,17 +230,16 @@ export const claimReplayRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       
-      let query = db
+      const whereClause = input.onlyUnreplayed
+        ? and(eq(historicalClaims.tenantId, ctx.user.tenantId!), eq(historicalClaims.replayMode, 0))
+        : eq(historicalClaims.tenantId, ctx.user.tenantId!);
+      
+      const claims = await db
         .select()
         .from(historicalClaims)
-        .where(eq(historicalClaims.tenantId, ctx.user.tenantId!));
-      
-      if (input.onlyUnreplayed) {
-        query = query.where(eq(historicalClaims.replayMode, 0));
-      }
-      
-      const claims = await query
+        .where(whereClause)
         .orderBy(desc(historicalClaims.createdAt))
         .limit(input.limit)
         .offset(input.offset);

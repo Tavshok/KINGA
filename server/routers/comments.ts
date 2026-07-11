@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Comments Router
  *
@@ -75,10 +75,10 @@ export const commentsRouter = router({
         toEmails: "[]",
         commentType: "general",
         content: input.content,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       });
 
-      const commentId = extractInsertId(result);
+      const commentId = extractInsertId(result as any);
 
       await db.insert(workflowAuditTrail).values({
         claimId: input.claimId,
@@ -88,7 +88,7 @@ export const commentsRouter = router({
         newState: "created",
         comments: `Comment added: ${input.content.substring(0, 100)}${input.content.length > 100 ? "..." : ""}`,
         metadata: JSON.stringify({ action: "comment_added", commentId }),
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       });
 
       return { success: true, commentId, message: "Comment added successfully" };
@@ -160,7 +160,7 @@ export const commentsRouter = router({
         blocksApproval: input.blocksApproval ? 1 : 0,
       });
 
-      const commentId = extractInsertId(result);
+      const commentId = extractInsertId(result as any);
 
       // Notify relevant roles for high-severity annotations
       if (["critical", "fraud_risk", "compliance"].includes(input.severity)) {
@@ -202,7 +202,7 @@ export const commentsRouter = router({
           severity: input.severity,
           blocksApproval: input.blocksApproval,
         }),
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       });
 
       return { success: true, commentId };
@@ -342,7 +342,7 @@ export const commentsRouter = router({
           commentId: input.commentId,
           disposition: input.disposition,
         }),
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       });
 
       return { success: true };
@@ -448,7 +448,7 @@ export const commentsRouter = router({
 
       await db
         .update(claimComments)
-        .set({ deletedAt: new Date() })
+        .set({ deletedAt: new Date().toISOString() })
         .where(eq(claimComments.id, input.commentId));
 
       await db.insert(workflowAuditTrail).values({
@@ -459,7 +459,7 @@ export const commentsRouter = router({
         newState: "created",
         comments: `Comment deleted (ID: ${input.commentId})`,
         metadata: JSON.stringify({ action: "comment_deleted", commentId: input.commentId }),
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       });
 
       return { success: true, message: "Comment deleted successfully" };

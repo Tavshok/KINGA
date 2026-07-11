@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Claim Completion Router
  * 
@@ -84,8 +84,8 @@ export const claimCompletionRouter = router({
       
       await db.update(claims).set({
         closedBy: ctx.user.id,
-        closedAt: new Date(),
-        updatedAt: new Date(),
+        closedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, input.claimId));
       
       // Create audit entry
@@ -109,7 +109,7 @@ export const claimCompletionRouter = router({
         const approvalData = {
           approvedAmount: claim.approvedAmount || 0,
           approvedBy: claim.technicallyApprovedBy || ctx.user.id,
-          approvedAt: claim.technicallyApprovedAt || new Date(),
+          approvedAt: claim.technicallyApprovedAt ? new Date(claim.technicallyApprovedAt) : new Date(),
         };
         
         await captureClaimIntelligenceDataset(input.claimId, approvalData);
@@ -183,7 +183,7 @@ export const claimCompletionRouter = router({
       await db.update(claims).set({
         closedBy: null,
         closedAt: null,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, input.claimId));
       
       // Create audit entry
