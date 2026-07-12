@@ -135,6 +135,7 @@ import { validateAiAssessmentResponse, validateClaimDetailResponse } from './api
 import { logger } from './logger';
 import { validateClaimAnalysisResponse } from './services/apiResponseValidator';
 import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
+import { treGovernanceRouter } from './routers/tre-governance';
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -9233,6 +9234,7 @@ If any value is not found, use null or 0. Line items category must be one of: pa
   }),
 
   // ── Subrogation Recovery Module ──────────────────────────────────────────
+  treGovernance: treGovernanceRouter,
   recovery: router({
     /**
      * Get all recovery cases for the current insurer tenant.
