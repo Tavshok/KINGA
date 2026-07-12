@@ -115,18 +115,33 @@ export interface ResolvedClaimRecord {
   policeReportNumber: string | null;
 
   // ── Speed Inference Ensemble ───────────────────────────────────────────
-  /** Multi-method speed inference result from Stage 7. Null for pre-feature claims. */
+  /**
+   * Multi-method speed inference result from Stage 7. Null for pre-feature claims.
+   *
+   * CANONICAL FIELD NAMES — these match SpeedInferenceResult in speedInferenceEnsemble.ts.
+   * Do NOT invent aliases (e.g. consensusKmh, confidenceLevel, divergenceFlag, estimateKmh,
+   * available, methodCount) — those caused a three-convention mismatch that silently
+   * displayed the driver-stated speed (70 km/h) instead of the computed consensus (28 km/h).
+   */
   speedInferenceEnsemble: {
-    consensusKmh: number;
-    confidenceLevel: string;
-    methodCount: number;
-    divergenceFlag: boolean;
+    /** Canonical: consensusSpeedKmh (NOT consensusKmh or consensusSpeed) */
+    consensusSpeedKmh: number;
+    /** Canonical: overallConfidence (NOT confidenceLevel) */
+    overallConfidence: string;
+    /** Canonical: methodsRan (NOT methodCount) */
+    methodsRan: number;
+    /** Canonical: highDivergence (NOT divergenceFlag) */
+    highDivergence: boolean;
     methods: Array<{
-      id: string;
-      name: string;
-      estimateKmh: number | null;
+      /** Canonical: method (NOT id) */
+      method: string;
+      /** Canonical: label (NOT name) */
+      label: string;
+      /** Canonical: speedKmh (NOT estimateKmh) */
+      speedKmh: number | null;
       confidenceWeight: number;
-      available: boolean;
+      /** Canonical: ran (NOT available) */
+      ran: boolean;
       note?: string;
     }>;
     crossValidation: {
@@ -134,7 +149,6 @@ export interface ResolvedClaimRecord {
       outlierMethods: string[];
       recommendation: string;
     };
-    // Added by Phase 2 fix: explains WHY methods diverge when HIGH_DIVERGENCE is set
     divergenceExplanation?: Array<{
       methodPair: [string, string];
       speedsKmh: [number, number];
@@ -144,9 +158,6 @@ export interface ResolvedClaimRecord {
       explanation: string;
       recommendedAction: string;
     }>;
-    highDivergence?: boolean;
-    overallConfidence?: string;
-    consensusSpeedKmh?: number;
     confidenceInterval?: [number, number];
     lowerBoundKmh?: number;
   } | null;
@@ -382,10 +393,10 @@ export function resolveClaimRecord(assessment: Record<string, unknown>): Resolve
 }
 
 /**
- * Sync resolved fields back to the flat DB columns so the DB stays consistent
- * with the JSON. Call this at the end of every pipeline run.
- *
- * Returns a partial update object ready to be passed to `db.update(claims).set(...)`.
+ * ORPHANED EXPORT — never called anywhere in the codebase.
+ * Written for a planned claim-data sync-back feature that was never wired up.
+ * Kept as a reference implementation only; verify all field names against the
+ * current Drizzle schema before using.
  */
 export function buildClaimSyncUpdate(resolved: ResolvedClaimRecord): Record<string, unknown> {
   const update: Record<string, unknown> = {};

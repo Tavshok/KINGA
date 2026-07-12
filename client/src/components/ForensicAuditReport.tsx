@@ -2553,10 +2553,12 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
   // ── Speed ensemble data (for 2.2) ────────────────────────────────────────────
   const ensemble = (_phys as any)?.speedInferenceEnsemble;
   const vr = (_phys as any)?.velocityRange ?? (_phys as any)?.physicsNumerical?.velocity_range;
-  const consensusSpeed: number | null = ensemble?.consensusSpeed ?? ensemble?.consensus_speed ?? null;
-  const confidenceLevel: string = ensemble?.confidenceLevel ?? ensemble?.confidence_level ?? 'low';
-  const divergenceFlag: boolean = ensemble?.divergenceFlag ?? ensemble?.divergence_flag ?? false;
-  const activeMethods: any[] = (ensemble?.methods ?? []).filter((m: any) => !(ensemble?.crossValidation?.outlierMethods ?? []).includes(m.method ?? m.id ?? ''));
+  // Field names aligned to SpeedInferenceResult (speedInferenceEnsemble.ts) — do NOT revert to bridge-type aliases
+  const consensusSpeed: number | null = ensemble?.consensusSpeedKmh ?? ensemble?.consensusSpeed ?? ensemble?.consensus_speed ?? null;
+  const confidenceLevel: string = (ensemble?.overallConfidence ?? ensemble?.confidenceLevel ?? ensemble?.confidence_level ?? 'LOW').toLowerCase();
+  const divergenceFlag: boolean = ensemble?.highDivergence ?? ensemble?.divergenceFlag ?? ensemble?.divergence_flag ?? false;
+  // Filter to methods that actually ran (m.ran === true) — not an outlier check, which is a different concept
+  const activeMethods: any[] = (ensemble?.methods ?? []).filter((m: any) => m.ran === true);
   const allMethods: any[] = ensemble?.methods ?? [];
   const availableCount: number = activeMethods.length;
   const spread: number = ensemble?.crossValidation?.spread ?? ensemble?.spread ?? 0;
