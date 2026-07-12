@@ -192,9 +192,11 @@ const VISION_RESPONSE_SCHEMA = {
               // damageFractionEstimate: fraction of panel surface visibly damaged [0.0, 1.0]
               damageFractionEstimate: { type: "number" },
             },
-            required: ["name", "location", "damageType", "severity", "visible",
-                       "crushDepthM", "deformationEnergyJ", "structuralDisplacementM",
-                       "visionConfidenceScore", "panelDeformation", "damageFractionEstimate"],
+            // P4 fix: Physics measurement fields are OPTIONAL — the LLM must NOT fabricate
+            // values when the image is unclear or the component has no measurable deformation.
+            // Only name/location/damageType/severity/visible are required for every component.
+            // Stage 7 already handles missing crushDepthM gracefully (null = excluded from ensemble).
+            required: ["name", "location", "damageType", "severity", "visible"],
             additionalProperties: false,
           },
         },
@@ -247,9 +249,9 @@ Side prefix rules:
   - Example: "LH Front Door", "RH Tail Lamp Assembly", "LH A-Pillar"
   - Use "Bonnet" (not Hood), "Boot Lid" (not Trunk), "Windscreen" (not Windshield)
 
-ABSOLUTE NUMERIC MEASUREMENTS — for each component provide ALL of the following in SI units. Do NOT use qualitative labels.
+ABSOLUTE NUMERIC MEASUREMENTS — provide these SI-unit fields ONLY when they are directly observable in the image. OMIT any field you cannot estimate from the visible damage — do NOT fabricate values. Stage 7 physics will exclude omitted fields from the ensemble.
 
-  crushDepthM [metres] — maximum visible crush/deformation depth on this component:
+  crushDepthM [metres] — maximum visible crush/deformation depth on this component (OMIT for glass, trim, paint-only damage):
     0.0   = no depth deformation (glass, trim, paint only)
     0.01  = paint scratch / surface scuff
     0.02-0.04 = shallow dent (fingertip depth)
@@ -288,7 +290,8 @@ CRITICAL RULES:
   - Do NOT return an empty components array unless absolutely no vehicle damage is visible
   - If uncertain about a component name, choose the closest authorised name from the list above
   - Always return at least one component if any damage is visible
-  - Always populate ALL numeric fields for every component; use 0.0 for fields with no deformation
+  - OMIT physics measurement fields (crushDepthM, deformationEnergyJ, structuralDisplacementM, visionConfidenceScore, damageFractionEstimate) when you cannot directly observe them — do NOT guess or use 0.0 as a placeholder
+  - Only include panelDeformation when the panel shape is visibly distorted
   - Never use qualitative strings in place of numbers
 Return ONLY a JSON object matching the schema — no prose, no markdown.`,
         },
@@ -1087,9 +1090,9 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
                         structuralDisplacementM: { type: "number" }, visionConfidenceScore: { type: "number" },
                         panelDeformation: { type: "boolean" }, damageFractionEstimate: { type: "number" },
                       },
-                      required: ["name", "location", "damageType", "severity", "visible", "notes",
-                                 "crushDepthM", "deformationEnergyJ", "structuralDisplacementM",
-                                 "visionConfidenceScore", "panelDeformation", "damageFractionEstimate"],
+                      // P4 fix: Physics measurement fields are OPTIONAL in the PDF two-pass path.
+                      // The LLM must not fabricate values when the image is unclear.
+                      required: ["name", "location", "damageType", "severity", "visible"],
                       additionalProperties: false,
                     },
                   },

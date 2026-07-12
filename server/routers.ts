@@ -6004,11 +6004,10 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
               // P6: Stage 6 image source reliability — HIGH/MEDIUM/LOW/NONE
               // LOW or NONE means imageIntelligence fallback fired; crush depths were excluded from physics consensus
               visionSourceReliability: (() => {
-                try {
-                  const da = (assessment as any).damageAnalysisJson;
-                  const parsed = da ? (typeof da === 'string' ? JSON.parse(da) : da) : null;
-                  return parsed?.visionSourceReliability ?? 'NONE';
-                } catch { return 'NONE'; }
+                // P6: visionSourceReliability is stored inside physics_analysis JSON
+                // (alongside the ensemble it gates). The old code read damageAnalysisJson
+                // which does not exist as a DB column — fixed to read physicsJson.
+                return physicsJson?.visionSourceReliability ?? 'NONE';
               })(),
             };
           })(),

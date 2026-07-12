@@ -42,6 +42,66 @@ import { storagePut } from "../storage";
 
 const execFileAsync = promisify(execFile);
 
+// ── Quality analysis constants (mirrors pdf-image-extractor.ts analyseImageQuality) ──
+/** Laplacian variance below which a page is considered blurry */
+const BLUR_VARIANCE_THRESHOLD = 50;
+/** Greyscale std dev below which a page is considered uniform/blank */
+const UNIFORM_STDDEV_THRESHOLD = 10;
+/** Fraction of pixels above 220 brightness above which a page is text-heavy */
+const TEXT_PAGE_WHITE_RATIO = 0.65;
+
+/**
+ * P1 fix: Compute real quality metadata from a PNG buffer.
+ * Called before S3 upload so db.ts can use real values instead of hardcoded ones.
+ * Uses the same algorithm as pdf-image-extractor.ts analyseImageQuality().
+ */
+async function computePageQuality(
+  pngBuf: Buffer, w: number, h: number
+): Promise<PdfPageImage['quality']> {
+  const aspectRatio = w / (h || 1);
+  const pixelArea = w * h;
+  let blurScore = 80;       // fallback: neutral
+  let colourVariance = 80;  // fallback: neutral
+  let isBlurry = false;
+  let isTextHeavy = false;
+  let isUniform = false;
+  try {
+    const analysisWidth = Math.min(200, w);
+    const analysisHeight = Math.round(h * (analysisWidth / w));
+    const { data: greyData, info: greyInfo } = await sharp(pngBuf)
+      .resize(analysisWidth, analysisHeight, { fit: 'fill' })
+      .greyscale().raw().toBuffer({ resolveWithObject: true });
+    const pixels = new Uint8Array(greyData);
+    const n = pixels.length;
+    const pw = greyInfo.width, ph = greyInfo.height;
+    // Laplacian variance (blur score)
+    let lapSum = 0, lapSumSq = 0, lapCount = 0;
+    for (let y = 0; y < ph; y++) {
+      for (let x = 1; x < pw - 1; x++) {
+        const idx = y * pw + x;
+        const lap = -pixels[idx - 1] + 2 * pixels[idx] - pixels[idx + 1];
+        lapSum += lap; lapSumSq += lap * lap; lapCount++;
+      }
+    }
+    if (lapCount > 0) {
+      const lapMean = lapSum / lapCount;
+      blurScore = Math.round(Math.abs(lapSumSq / lapCount - lapMean * lapMean));
+    }
+    // Text-heavy detection
+    let whitePixels = 0;
+    for (let i = 0; i < n; i++) if (pixels[i] > 220) whitePixels++;
+    isTextHeavy = whitePixels / n > TEXT_PAGE_WHITE_RATIO;
+    // Colour variance (greyscale std dev)
+    let sum = 0, sumSq = 0;
+    for (let i = 0; i < n; i++) { sum += pixels[i]; sumSq += pixels[i] * pixels[i]; }
+    const mean = sum / n;
+    colourVariance = Math.round(Math.sqrt(Math.max(0, sumSq / n - mean * mean)));
+    isUniform = colourVariance < UNIFORM_STDDEV_THRESHOLD;
+    isBlurry = blurScore < BLUR_VARIANCE_THRESHOLD;
+  } catch { /* non-fatal: use fallback values */ }
+  return { blurScore, colourVariance, isBlurry, isTextHeavy, isUniform, aspectRatio, pixelArea };
+}
+
 export interface PdfToImagesOptions {
   /** DPI resolution for rendering. Default: 100 */
   dpi?: number;
@@ -62,6 +122,21 @@ export interface PdfPageImage {
   width: number;
   /** Height in pixels (read from buffer before upload — no S3 re-fetch needed) */
   height: number;
+  /**
+   * P1 fix: Real quality metadata computed from the buffer before upload.
+   * Replaces the hardcoded blurScore:80/colourVariance:80 in db.ts.
+   * Uses the same Laplacian-variance blur and greyscale std-dev colour metrics
+   * as pdf-image-extractor.ts analyseImageQuality().
+   */
+  quality?: {
+    blurScore: number;       // Laplacian variance (raw, 0-∞; higher = sharper)
+    colourVariance: number;  // Greyscale std dev (raw, 0-255; higher = more colour)
+    isBlurry: boolean;
+    isTextHeavy: boolean;
+    isUniform: boolean;
+    aspectRatio: number;
+    pixelArea: number;
+  };
 }
 
 export interface PdfToImagesResult {
@@ -226,10 +301,12 @@ export async function renderPdfToImages(
           imgWidth = finalMeta.width ?? 0;
           imgHeight = finalMeta.height ?? 0;
         } catch { /* non-fatal — dimensions will be 0 */ }
+        // P1 fix: Compute real quality metadata before upload (while buffer is still in memory)
+        const pageQuality = await computePageQuality(pngBuf, imgWidth, imgHeight);
         const s3Key = `${keyPrefix}/${urlHash}/page-${String(pageNum).padStart(3, "0")}.png`;
         const { url, key } = await storagePut(s3Key, pngBuf, "image/png");
-        pages.push({ pageNumber: pageNum, url, key, fileSizeBytes: pngBuf.length, width: imgWidth, height: imgHeight });
-        log(`Rendered + uploaded page ${pageNum}/${pagesToRender} → ${url}`);
+        pages.push({ pageNumber: pageNum, url, key, fileSizeBytes: pngBuf.length, width: imgWidth, height: imgHeight, quality: pageQuality });
+        log(`Rendered + uploaded page ${pageNum}/${pagesToRender} blur=${pageQuality?.blurScore ?? '?'} colour=${pageQuality?.colourVariance ?? '?'} textHeavy=${pageQuality?.isTextHeavy ?? '?'} → ${url}`);
       } catch (err: any) {
         const msg = `Page ${pageNum} upload failed: ${err.message}`;
         errors.push(msg);

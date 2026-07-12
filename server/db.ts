@@ -814,7 +814,18 @@ export async function triggerAiAssessment(claimId: number) {
           fromScannedPdf: true,
           renderDpi: 100,
           isPageRender: true,
-          quality: { width: w, height: h, blurScore: 80, isBlurry: false, isTextHeavy: false, isUniform: false, colourVariance: 80, aspectRatio: w / (h || 1), pixelArea: w * h },
+          // P1 fix: Use real quality metadata computed in pdfToImages.ts before upload.
+          // Falls back to neutral values (80/80) only if quality is missing (e.g. older cached pages).
+          quality: {
+            width: w, height: h,
+            blurScore: page.quality?.blurScore ?? 80,
+            isBlurry: page.quality?.isBlurry ?? false,
+            isTextHeavy: page.quality?.isTextHeavy ?? false,
+            isUniform: page.quality?.isUniform ?? false,
+            colourVariance: page.quality?.colourVariance ?? 80,
+            aspectRatio: w / (h || 1),
+            pixelArea: w * h,
+          },
         });
       }
       _totalExtracted = extractedImages.length;
@@ -1224,6 +1235,10 @@ export async function triggerAiAssessment(claimId: number) {
     physicsConfidence: (physicsAnalysis as any).physicsConfidence ?? null,
     hasCriticalInconsistency: (physicsAnalysis as any).hasCriticalInconsistency ?? null,
     damageZones: (physicsAnalysis as any).damageZones ?? null,
+    // P6: Stage 6 image source reliability — stored here because Stage 7 reads it to gate the
+    // speed ensemble. HIGH/MEDIUM = trusted vision input; LOW/NONE = fallback fired, crush depths excluded.
+    // Source: Stage6Output.visionSourceReliability passed through the pipeline result.
+    visionSourceReliability: (damageAnalysis as any)?.visionSourceReliability ?? null,
   }) : null;
 
   // Build fraud indicators JSON
