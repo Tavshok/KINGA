@@ -439,7 +439,9 @@ export async function runAssemblyStage(
         insurerName: v.insurerName || null,
         policyNumber: v.policyNumber || ctx.claim.policyNumber || null,
         productType: v.productType || (ctx.claim as any).productType || null,
-        claimReference: v.claimReference || ctx.claim.claimNumber || null,
+        // P4 fix: DB claimNumber is the canonical reference; document-extracted v.claimReference
+        // (e.g. COR 6002812-type values) is only used as fallback when DB has no claimNumber.
+        claimReference: ctx.claim.claimNumber || v.claimReference || null,
         excessAmountUsd: v.excessAmountCents ? v.excessAmountCents / 100 : null,
         bettermentUsd: v.bettermentCents ? v.bettermentCents / 100 : null,
       },

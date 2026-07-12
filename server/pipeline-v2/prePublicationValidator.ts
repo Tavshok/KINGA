@@ -169,8 +169,10 @@ function checkLateSubmissionFlagged(
       if (!engineFlagged) {
         return {
           checkId: "CHECK-05",
-          description: `Claim was submitted ${gapDays} days after the incident but the accidentDateCrossCheck did not flag a critical late submission. This may indicate claimSubmissionDate was not passed to the engine.`,
-          remediation: "Verify that ctx.claim.createdAt is being passed as claimSubmissionDate in the runAccidentDateCrossCheck call in stage-8-fraud.ts.",
+          // P1b fix: stage-8-fraud.ts uses policeReportDate as the submission date proxy,
+          // NOT ctx.claim.createdAt. The remediation text must reflect the actual source.
+          description: `Claim was submitted ${gapDays} days after the incident (based on system createdAt) but the accidentDateCrossCheck did not flag a critical late submission. This is expected when no police report date is available — the system intentionally suppresses the late-submission check rather than using the system ingestion timestamp as a proxy.`,
+          remediation: "If a police report date is available, ensure it is stored in claimRecord.policeReportDate or claimRecord.policeReport.reportDate. The stage-8 engine uses policeReportDate as the submission date proxy. ctx.claim.createdAt is deliberately NOT used to avoid false late-submission flags from ingestion delays.",
           severity: "HIGH",
         };
       }

@@ -37,6 +37,7 @@
  *   C13 — Flood + no underbody/electrical damage
  *   C14 — Fire + no engine bay/interior damage
  *   C15 — Multiple damage zones with single-point impact classification
+ *   C16 — Vehicle manufacture year is after the incident date (impossible timeline)
  */
 
 import type {
@@ -508,6 +509,33 @@ function checkC14(
   return null;
 }
 
+function checkC16(
+  claimRecord: ClaimRecord,
+): ConsistencyFlag | null {
+  // C16: vehicle year must not be after the incident year
+  const vehicleYear = claimRecord.vehicle?.year;
+  const accidentDateStr = claimRecord.accidentDetails?.date;
+  if (!vehicleYear || !accidentDateStr) return null;
+  const incidentYear = new Date(accidentDateStr).getFullYear();
+  if (isNaN(incidentYear)) return null;
+  if (vehicleYear > incidentYear) {
+    return {
+      ruleId: "C16",
+      severity: "HIGH",
+      title: "Vehicle manufacture year is after the incident date",
+      description:
+        `The vehicle is recorded as a ${vehicleYear} model but the incident date is ${accidentDateStr} (${incidentYear}). ` +
+        "A vehicle cannot be involved in an incident before it was manufactured. " +
+        "This indicates a data entry error in either the vehicle year or the incident date.",
+      conflictA: { source: "Vehicle record (Stage 5)", value: `${vehicleYear} model year` },
+      conflictB: { source: "Accident details (Stage 3)", value: `Incident date: ${accidentDateStr}` },
+      adjusterAction:
+        "Verify the vehicle year against the registration certificate and confirm the incident date. " +
+        "Correct the data entry error before proceeding.",
+    };
+  }
+  return null;
+}
 function checkC15(
   incidentType: CanonicalIncidentType | string | null,
   stage6: Stage6Output,
@@ -562,6 +590,7 @@ export function runCrossStageConsistencyCheck(
     checkC13(incidentType, stage6),
     checkC14(incidentType, stage6),
     checkC15(incidentType, stage6),
+    checkC16(claimRecord),
   ];
 
   const flags = rawFlags.filter((f): f is ConsistencyFlag => f !== null);

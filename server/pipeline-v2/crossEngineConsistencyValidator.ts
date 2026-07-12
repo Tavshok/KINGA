@@ -143,6 +143,25 @@ function zoneMatchesDirection(zone: string, direction: string): boolean {
   return compatible.includes(direction);
 }
 
+/**
+ * P3b fix: infer a single canonical direction from the primary damage zone when
+ * collisionDirection is null/unknown. Returns null when the zone maps to multiple
+ * directions (ambiguous) or is not in the map.
+ */
+function inferDirectionFromPrimaryZone(zones: any[]): string | null {
+  if (!zones || zones.length === 0) return null;
+  const SEV_ORD: Record<string, number> = { none: 0, cosmetic: 1, minor: 2, moderate: 3, severe: 4, catastrophic: 5 };
+  const primaryZone = zones.reduce((best: any, z: any) => {
+    const sev = SEV_ORD[z.severity?.toLowerCase() ?? "none"] ?? 0;
+    const bestSev = SEV_ORD[best?.severity?.toLowerCase() ?? "none"] ?? 0;
+    return sev > bestSev ? z : best;
+  }, zones[0]);
+  const zoneName = primaryZone?.zone?.toLowerCase() ?? "";
+  const compatible = ZONE_TO_DIRECTION[zoneName] ?? [];
+  // Only infer when the zone maps to exactly one direction (unambiguous)
+  return compatible.length === 1 ? compatible[0] : null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CHECK FUNCTIONS (C1–C9)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -233,10 +252,14 @@ function checkC1PhysicsDamageSeverity(
  */
 function checkC2PhysicsDocumentDirection(
   claimRecord: ClaimRecord | null,
-  stage7: Stage7Output | null
+  stage7: Stage7Output | null,
+  stage6?: Stage6Output | null
 ): { agreement: ConsistencyAgreement | null; conflict: ConsistencyConflict | null } {
   const physDir = normaliseDirection((stage7 as any)?.impactVector?.direction);
-  const docDir = normaliseDirection((claimRecord as any)?.accidentDetails?.collisionDirection);
+  const rawDocDir = normaliseDirection((claimRecord as any)?.accidentDetails?.collisionDirection);
+  // P3b fix: fall back to zone-inferred direction when collisionDirection is null
+  const zones: any[] = (stage6 as any)?.damageZones ?? [];
+  const docDir = rawDocDir ?? inferDirectionFromPrimaryZone(zones);
 
   if (!physDir || !docDir) return { agreement: null, conflict: null };
 
@@ -865,7 +888,7 @@ export function validateCrossEngineConsistency(
   // Run all 9 checks
   const checks = [
     checkC1PhysicsDamageSeverity(stage6, stage7),
-    checkC2PhysicsDocumentDirection(claimRecord, stage7),
+    checkC2PhysicsDocumentDirection(claimRecord, stage7, stage6),
     checkC3DamageZoneDocumentDirection(claimRecord, stage6),
     checkC4DamagePatternPhysics(stage7),
     checkC5ImageContradictionFraud(stage7, stage8),

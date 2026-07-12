@@ -1121,6 +1121,8 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
               <div className="score-item">
                 <span className={`score-num ${dataClass}`}>{Math.round(dataCompleteness)}%</span>
                 <span className="score-lbl">DATA</span>
+                {/* P1a fix: scope sub-label so the figure is self-explanatory */}
+                <span style={{ fontSize: 9, color: 'var(--kr-muted)', display: 'block', marginTop: 1 }}>{dataCompleteness >= 90 ? 'Sufficient' : dataCompleteness >= 50 ? 'Partial' : 'Insufficient'}</span>
               </div>
             </div>
             {/* Cost cluster: all quotes (lowest tagged) + KINGA Optimised + Potential Savings */}
@@ -4612,7 +4614,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
             <div>
               <p className="sub-heading">3.1 Cost Summary</p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>
-                {pbQuotes.length > 0 ? `${pbQuotes.length} quote${pbQuotes.length !== 1 ? 's' : ''} received` : co?.quotesEvaluated ? `${co.quotesEvaluated} quote${co.quotesEvaluated !== 1 ? 's' : ''} evaluated` : 'No quotes submitted'}
+                {/* P1c fix: prefix with label so the count is self-explanatory */}
+                {pbQuotes.length > 0 ? `Repair quotes received: ${pbQuotes.length}` : co?.quotesEvaluated ? `Repair quotes evaluated: ${co.quotesEvaluated}` : 'No repair quotes submitted'}
                 {l2 > 0 ? ' · KINGA four-tier benchmark hierarchy' : ''}
               </p>
             </div>
@@ -6760,7 +6763,12 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
 
   const keyDrivers: string[] = phase2?.keyDrivers ?? e?.finalDecision?.recommendedActions ?? [];
   const primaryReason: string = e?.finalDecision?.primaryReason ?? phase2?.keyDrivers?.[0] ?? "";
-  const blocked: string[] = e?.finalDecision?.blockedActions ?? [];
+  // P2 fix: blockedActions does not exist on FinalDecisionResult; source from _reportSignals.consistencyFlags
+  const _rs6 = (aiAssessment as any)?._reportSignals;
+  const _cf6 = _rs6?.consistencyFlags;
+  const blocked: string[] = _cf6?.blockAutoApproval && Array.isArray(_cf6?.flags)
+    ? (_cf6.flags as Array<{ description: string }>).map(f => f.description).filter(Boolean)
+    : [];
   // ── Next Steps: prefer Claim Truth Layer actions (canonical), then phase2, then legacy ──
   const nextSteps: string[] = ctl6?.decision?.reviewTriggers?.length > 0
     ? ctl6.decision.reviewTriggers
