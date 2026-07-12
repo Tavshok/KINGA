@@ -1601,6 +1601,8 @@ export async function triggerAiAssessment(claimId: number) {
     decisionAuthorityJson: decisionAuthority ? JSON.stringify(decisionAuthority) : null,
     // Claim Truth Layer: unified resolution of all extraction/decision data
     claimTruthJson: result.claimTruth ? JSON.stringify(result.claimTruth) : null,
+    // TRE: Canonical Claim Truth Object (CTO) — single source of truth for all downstream consumers
+    claimTruthObjectJson: result.claimTruthObject ? JSON.stringify(result.claimTruthObject) : null,
     // Stage 12.5: Report Readiness Gate — whether the claim can be exported as a report
     reportReadinessJson: reportReadiness ? JSON.stringify(reportReadiness) : null,
     // Stage 13: Forensic Analysis — comprehensive forensic analysis summary from all stages

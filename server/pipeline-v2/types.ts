@@ -1843,6 +1843,14 @@ export interface PipelineResult {
   // ── Claim truth layer ────────────────────────────────────────────────────
   claimTruth: import('./claimTruthLayer').ClaimTruth | null;
 
+  // ── Truth Reconciliation Engine output ─────────────────────────────────────
+  /**
+   * Canonical Claim Truth Object (CTO) produced by the Truth Reconciliation Engine.
+   * This is the single source of truth for all downstream consumers (reports, API, dashboard).
+   * All field conflicts are resolved here with provenance tracking and a Truth Certificate.
+   */
+  claimTruthObject: import('./truthReconciliationEngine').ClaimTruthObject | null;
+
   // ── System intervention tracking (audit trail) ───────────────────────────
   /**
    * Count of deterministic corrections applied by the pipeline during this run.

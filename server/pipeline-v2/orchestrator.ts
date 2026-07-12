@@ -170,6 +170,7 @@ import {
   saveStageResult,
   loadCompletedStages,
 } from "../db-pipeline";
+import { runTruthReconciliationEngine, type ClaimTruthObject } from "./truthReconciliationEngine";
 
 
 /**
@@ -469,6 +470,7 @@ export async function runPipelineV2(
   let reconciliationLog: ReconciliationLog | null = null;
   let schemaValidationResult: ClaimRecordValidationResult | null = null;
   let claimTruth: ClaimTruth | null = null;
+  let claimTruthObject: ClaimTruthObject | null = null;
   // Per-stage input validation reports (Phase 2 guards)
   const stageInputReports: Record<string, StageInputReport> = {};
   // Assign to ctx so stage engines can read ctx.stageInputReports?.[stageKey]?.promptPreamble
@@ -1920,7 +1922,39 @@ export async function runPipelineV2(
     ctx.log("CTL", `Claim Truth Layer error (non-fatal): ${ctlErr instanceof Error ? ctlErr.message : String(ctlErr)}`);
   }
 
-  // ── PRE-REPORT INTEGRITY GATE ─────────────────────────────────────────────
+  // ── TRUTH RECONCILIATION ENGINE (TRE) ──────────────────────────────────────
+  // Runs after all engines (CTL, reconciliation, consistency) and produces the
+  // canonical ClaimTruthObject (CTO) that all downstream consumers must read from.
+  try {
+    claimTruthObject = runTruthReconciliationEngine({
+      claimRecord: claimRecord!,
+      claimTruth: claimTruth,
+      physicsAnalysis: stage7Data,
+      damageAnalysis: stage6Data,
+      fraudAnalysis: stage8Data,
+      costAnalysis: stage9Data,
+      turnaroundAnalysis: stage9bData ?? null,
+      reportOutput: stage10Data ?? null,
+      reconciliationLog: reconciliationLog ?? null,
+      consistencyCheck: consistencyCheckResult ?? null,
+      claimQuality: null,
+      consensusResult: consensusResult ?? null,
+      runId: (ctx as any).runId ?? null,
+      stageDurations: Object.fromEntries(Object.entries(stages).map(([id, s]) => [id, s.durationMs ?? 0])),
+      assumptions: allAssumptions.map((a: any) => ({ type: a.assumptionType ?? 'SYSTEM_ESTIMATE', description: a.reason ?? '', impact: a.impact ?? 'LOW' })),
+      recoveryActions: allRecoveryActions.map((r: any) => ({ field: r.target ?? '', strategy: r.strategy ?? '', result: r.success ? 'success' : 'failed' })),
+      integrityGateBlocked: false,
+      integrityGateBlockingReasons: [],
+      integrityGateWarnings: [],
+    });
+    ctx.log("TRE", `Truth Reconciliation Engine complete: recommendation=${claimTruthObject.decision.recommendation}, confidence=${claimTruthObject.decision.confidence}, conflicts=${claimTruthObject.certification.certificate.conflictsDetected}`);
+    if (claimTruthObject.certification.certificate.certified !== 'CERTIFIED') {
+      ctx.log("TRE", `Certificate status: ${claimTruthObject.certification.certificate.certified} — ${claimTruthObject.certification.certificate.blockingReasons.join('; ')}`);
+    }
+  } catch (treErr) {
+    ctx.log("TRE", `Truth Reconciliation Engine error (non-fatal): ${treErr instanceof Error ? treErr.message : String(treErr)}`);
+  }
+    // ── PRE-REPORT INTEGRITY GATE ─────────────────────────────────────────────
   // Hard checks before Stage 10. If any CRITICAL check fails, the report is
   // generated in BLOCKED mode — it is produced but stamped as NOT READY FOR
   // DECISION and the blocking reasons are surfaced prominently.
@@ -2516,7 +2550,8 @@ export async function runPipelineV2(
     consistencyCheckResult,
     contradictionGateResult,
     physicsDeviationScoreValue,
-    claimTruth
+    claimTruth,
+    claimTruthObject
   );
 }
 
@@ -2553,7 +2588,8 @@ function buildResult(
   consistencyCheckResult: import('./claimConsistencyChecker').ConsistencyCheckResult | null = null,
   contradictionGateResult: import('./contradictionDetectionEngine').ContradictionResult | null = null,
   physicsDeviationScoreValue: number | null = null,
-  claimTruthResult: ClaimTruth | null = null
+  claimTruthResult: ClaimTruth | null = null,
+  claimTruthObject: import("./truthReconciliationEngine").ClaimTruthObject | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
 
@@ -2655,6 +2691,7 @@ function buildResult(
     contradictionGateResult,
     physicsDeviationScoreValue,
     claimTruth: claimTruthResult,
+    claimTruthObject: claimTruthObject,
   };
 }
 

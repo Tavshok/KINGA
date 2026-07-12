@@ -5953,6 +5953,12 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           const ctRaw = (assessment as any).claimTruthJson;
           _claimTruth = ctRaw ? (typeof ctRaw === 'string' ? JSON.parse(ctRaw) : ctRaw) : null;
         } catch { /* non-fatal */ }
+        // Parse Canonical Claim Truth Object (CTO) from DB — TRE output
+        let _claimTruthObject: any = null;
+        try {
+          const ctoRaw = (assessment as any).claimTruthObjectJson;
+          _claimTruthObject = ctoRaw ? (typeof ctoRaw === 'string' ? JSON.parse(ctoRaw) : ctoRaw) : null;
+        } catch { /* non-fatal */ }
         const rawResponse = {
           ...result,
           costExtraction,
@@ -5961,6 +5967,7 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           claimId: input.claimId,
           kingaRef: _kingaRef,
           _claimTruth,
+          _claimTruthObject,
           _photoForensics: photoForensicsData,
           // Expose damageZones at top level so ForensicAuditReport Section2 VehicleDamageMap can read it
           // (IntelligenceEnforcementResult.directionFlag does NOT include damageZones — it only has mismatch/explanation)
