@@ -770,6 +770,16 @@ export interface DamageAnalysisComponent {
    * Used for geometric damage area calculation in Stage 7.
    */
   damageFractionEstimate?: number;
+  /**
+   * P5: Provenance of the image that produced this component's measurements.
+   * - 'confirmed_damage_photo': dedicated damage photo or page classified HIGH confidence
+   * - 'ambiguous_page': PDF page classified MEDIUM confidence by imageIntelligence
+   * - 'fallback_page': PDF page used via imageIntelligence fallback (no confirmed photos found)
+   * - 'document_inferred': no image available; measurements inferred from document text only
+   * - 'pdf_direct_vision': raw PDF sent directly to LLM (no page rendering available)
+   * Stage 7 gates M1/M5 on 'confirmed_damage_photo' only.
+   */
+  inputSource?: 'confirmed_damage_photo' | 'ambiguous_page' | 'fallback_page' | 'document_inferred' | 'pdf_direct_vision';
 }
 
 export interface DamageZone {
@@ -823,6 +833,16 @@ export interface Stage6Output {
   imageConfidenceScore: number;
   /** Whether damage analysis was derived from photos (true) or text-only fallback (false) */
   analysisFromPhotos: boolean;
+  /**
+   * P6: Reliability of the vision source used to produce crush-depth measurements.
+   * - 'HIGH': all selected images were confirmed damage photos (imageIntelligence = damage_photo)
+   * - 'MEDIUM': at least one image was ambiguous (MEDIUM confidence) but none were fallback
+   * - 'LOW': imageIntelligence fallback fired — no page was confirmed as a damage photo;
+   *          crush depths from this run MUST NOT enter the physics consensus as point estimates
+   * - 'NONE': no images were processed at all (text-only analysis)
+   * Stage 7 reads this field and nulls out visionCrushDepthM when reliability is LOW or NONE.
+   */
+  visionSourceReliability: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
 
   // ── Audit trails ──────────────────────────────────────────────────────────
   /** One entry per photo in damagePhotoUrls — no photo may be silently omitted */

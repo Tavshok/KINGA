@@ -138,6 +138,7 @@ const stage6Stub: Stage6Output = {
   photosFailed: 0,
   imageConfidenceScore: 0,
   analysisFromPhotos: false,
+  visionSourceReliability: 'NONE' as const,
 };
 
 // ── Minimal Stage 3 output (two extracted quotes) ────────────────────────────

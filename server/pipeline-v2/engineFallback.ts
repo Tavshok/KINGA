@@ -215,6 +215,7 @@ export function buildDamageFallback(reason = "insufficient_input"): DamageFallba
     photosFailed: 0,
     imageConfidenceScore: 0,
     analysisFromPhotos: false,
+    visionSourceReliability: 'NONE' as const,
     _fallback: fallbackMeta,
     _fallback_fields: ["damageZones", "damagedParts", "overallSeverityScore"],
   };
@@ -255,6 +256,7 @@ export function ensureDamageContract(
     excludedComponents: partial.excludedComponents,
     imageConfidenceScore: partial.imageConfidenceScore ?? 0,
     analysisFromPhotos: partial.analysisFromPhotos ?? false,
+    visionSourceReliability: partial.visionSourceReliability ?? 'NONE',
     no_damage_detected: zones.length === 0,
     _fallback_fields: missing,
   };

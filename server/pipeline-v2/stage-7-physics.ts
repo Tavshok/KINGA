@@ -812,15 +812,28 @@ export async function runPhysicsStage(
       const airbagDeployed = claimRecord.accidentDetails.airbagDeployment === true;
       const seatbeltFired = claimRecord.accidentDetails.seatbeltPretensioner === true;
 
-      // Vision crush depth: take maximum crushDepthM across all Stage 6 components.
-      // This is a direct numeric measurement from the LLM, not a qualitative proxy.
+      // Vision crush depth: take maximum crushDepthM across confirmed damage photo components only.
+      // P6: When visionSourceReliability is LOW or NONE (imageIntelligence fallback fired),
+      // exclude vision-derived crush depths from the ensemble — they came from ambiguous
+      // PDF pages, not confirmed vehicle damage photos, and cannot be trusted as physical measurements.
       // Fall back to _forensicAnalysis for backward compatibility with older pipeline runs.
-      const visionDepthsFromParts = damageAnalysis.damagedParts
-        .map(p => p.crushDepthM)
-        .filter((d): d is number => typeof d === 'number' && d > 0);
+      const visionSourceReliability = damageAnalysis.visionSourceReliability ?? 'NONE';
+      const visionInputTrusted = visionSourceReliability === 'HIGH' || visionSourceReliability === 'MEDIUM';
+      const visionDepthsFromParts = visionInputTrusted
+        ? damageAnalysis.damagedParts
+            .filter(p => p.inputSource === 'confirmed_damage_photo' || p.inputSource == null)
+            .map(p => p.crushDepthM)
+            .filter((d): d is number => typeof d === 'number' && d > 0)
+        : [];
       const visionCrushDepthM = visionDepthsFromParts.length > 0
         ? Math.max(...visionDepthsFromParts)
-        : (claimRecord._forensicAnalysis?.visionCrushDepthM ?? null);
+        : (visionInputTrusted ? (claimRecord._forensicAnalysis?.visionCrushDepthM ?? null) : null);
+      if (!visionInputTrusted) {
+        ctx.log('Stage 7',
+          `[P6] visionSourceReliability=${visionSourceReliability} — vision crush depths excluded from ensemble. ` +
+          `Image source was not confirmed as a vehicle damage photo. Physics will use document/inferred inputs only.`
+        );
+      }
 
       // Aggregate per-component numeric physics measurements from Stage 6
       const totalDeformationEnergyJ = damageAnalysis.damagedParts

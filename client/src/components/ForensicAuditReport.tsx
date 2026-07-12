@@ -2417,6 +2417,9 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
     ? _phys!.impactForceKn
     : pe?.impactForceKn ? (pe.impactForceKn.min + pe.impactForceKn.max) / 2 : 0;
   const vehicleMassKg = (_phys?.vehicleMassKg ?? 0) > 0 ? _phys!.vehicleMassKg : null;
+  // P6: Stage 6 image source reliability — drives crush-depth provenance disclosure in 2.5
+  const visionSourceReliability: string = (_phys as any)?.visionSourceReliability ?? 'NONE';
+  const crushDepthTrusted = visionSourceReliability === 'HIGH' || visionSourceReliability === 'MEDIUM';
   const estimatedSpeedKmh = (_phys?.estimatedSpeedKmh ?? 0) > 0 ? _phys!.estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? 0);
   const physicsInferredSpeed = estimatedSpeedKmh > 0 ? estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? null);
   const _sc2 = (_phys as any)?.severityConsensus;
@@ -3001,6 +3004,12 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
             <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--kr-rule)' }}>
               <p className="sub-heading">2.5 Component Measurements</p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--kr-muted)' }}>Numeric measurements from KINGA vision analysis. SI units throughout.</p>
+              {!crushDepthTrusted && (
+                <div className="mt-2 px-3 py-2 flex items-start gap-2" style={{ background: 'var(--fp-warning-bg, #fffbeb)', border: '1px solid var(--fp-warning-text, #b45309)', borderRadius: 4 }}>
+                  <span style={{ color: 'var(--fp-warning-text, #b45309)', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>⚠ Unconfirmed source</span>
+                  <span style={{ color: 'var(--fp-warning-text, #b45309)', fontSize: 11 }}>No confirmed vehicle damage photo was available for this claim. Measurements below were extracted from ambiguous document pages (PDF renders, repair quotes, or form scans) — not from verified damage photographs. These figures have been <strong>excluded from the physics speed consensus</strong> and should not be relied upon as physical measurements without independent verification.</span>
+                </div>
+              )}
             </div>
             <div className="p-4">
               <div style={{ overflowX: 'auto' }}>
@@ -3065,7 +3074,7 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     <div>
                       <span style={{ color: 'var(--kr-muted)', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.05em', fontWeight: 600 }}>Max Crush Depth</span>
                       <div style={{ fontFamily: 'var(--kr-mono)', fontWeight: 700, color: 'var(--kr-text)', fontSize: 14 }}>{maxCrushCm.toFixed(1)} cm</div>
-                      <div style={{ fontSize: 9, color: 'var(--kr-muted)' }}>KINGA Crush-Depth input</div>
+                      <div style={{ fontSize: 9, color: crushDepthTrusted ? 'var(--kr-muted)' : 'var(--fp-warning-text, #b45309)' }}>{crushDepthTrusted ? 'KINGA Crush-Depth input' : 'Unconfirmed — excluded from physics consensus'}</div>
                     </div>
                     {totalEnergyKj > 0 && (
                       <div>

@@ -6001,6 +6001,15 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
               animalStrikePhysics: physicsJson?.animalStrikePhysics ?? null,
               // Causal plausibility score (0–100)
               causalPlausibility: physicsJson?.causalPlausibility ?? null,
+              // P6: Stage 6 image source reliability — HIGH/MEDIUM/LOW/NONE
+              // LOW or NONE means imageIntelligence fallback fired; crush depths were excluded from physics consensus
+              visionSourceReliability: (() => {
+                try {
+                  const da = (assessment as any).damageAnalysisJson;
+                  const parsed = da ? (typeof da === 'string' ? JSON.parse(da) : da) : null;
+                  return parsed?.visionSourceReliability ?? 'NONE';
+                } catch { return 'NONE'; }
+              })(),
             };
           })(),
           // Override photosDetected with numeric count so ForensicAuditReport renders correctly

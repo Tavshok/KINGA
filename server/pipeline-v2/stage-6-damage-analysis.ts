@@ -467,7 +467,9 @@ async function readDamageFromPhotos(
   ctx: PipelineContext,
   assumptions: Assumption[],
   recoveryActions: RecoveryAction[],
-  damageLikelihoodScores?: Map<string, number>
+  damageLikelihoodScores?: Map<string, number>,
+  /** P5: per-URL provenance tag — set by the caller based on imageIntelligence classification */
+  sourceTagMap?: Map<string, DamageAnalysisComponent['inputSource']>
 ): Promise<{
   components: DamageAnalysisComponent[];
   perPhotoResults: import('./types').PerPhotoResult[];
@@ -656,11 +658,15 @@ async function readDamageFromPhotos(
   const seenNames = new Set<string>();
 
   for (const result of processedResults) {
+    // P5: resolve inputSource for this URL from the caller-provided tag map
+    const urlInputSource: DamageAnalysisComponent['inputSource'] =
+      sourceTagMap?.get(result.url) ?? 'ambiguous_page';
     for (const comp of result.components) {
       const key = comp.name.toLowerCase().trim();
       if (!seenNames.has(key)) {
         seenNames.add(key);
-        allComponents.push(comp);
+        // P5: stamp the provenance on the component (preserve any existing value if set)
+        allComponents.push({ ...comp, inputSource: comp.inputSource ?? urlInputSource });
       }
     }
   }
@@ -1402,11 +1408,24 @@ export async function runDamageAnalysisStage(
     // scoring pipeline (feature extraction → classification → dedup → quality rank)
     // to identify which pages are actual damage photos regardless of page position.
     let visionSourceUrls: string[];
+    // P5: track per-URL provenance for inputSource stamping
+    let visionSourceTagMap: Map<string, DamageAnalysisComponent['inputSource']> | undefined;
     if (photoUrls.length > 0) {
       visionSourceUrls = photoUrls;
+      // Dedicated damage photos — all confirmed
+      visionSourceTagMap = new Map(photoUrls.map(u => [u, 'confirmed_damage_photo' as const]));
     } else if (pdfPageUrls.length > 0) {
       const scoredPages = await selectDamagePhotoPages(pdfPageUrls, ctx);
       visionSourceUrls = scoredPages.map(p => p.url);
+      // P5: tag each selected page based on imageIntelligence classification
+      visionSourceTagMap = new Map(
+        scoredPages.map(p => [
+          p.url,
+          p.classification === 'damage_photo'
+            ? ('confirmed_damage_photo' as const)
+            : ('ambiguous_page' as const)
+        ])
+      );
       // ── Stage 6 → imageIntelligence feedback log ─────────────────────────────────
       // Log a structured summary so operators can tune scoring thresholds.
       const totalPages = pdfPageUrls.length;
@@ -1497,7 +1516,8 @@ export async function runDamageAnalysisStage(
       }
       const visionResult = await readDamageFromPhotos(
         visionSourceUrls, claimRecord, ctx, assumptions, recoveryActions,
-        damageLikelihoodScores.size > 0 ? damageLikelihoodScores : undefined
+        damageLikelihoodScores.size > 0 ? damageLikelihoodScores : undefined,
+        visionSourceTagMap
       );
       visionParts = visionResult.components;
       visionPerPhotoResults = visionResult.perPhotoResults;
@@ -1630,6 +1650,32 @@ export async function runDamageAnalysisStage(
     }
     const analysisFromPhotos = visionParts.length > 0;
 
+    // P6: Compute visionSourceReliability based on the image source path taken
+    let visionSourceReliability: Stage6Output['visionSourceReliability'] = 'NONE';
+    if (visionParts.length > 0) {
+      if (photoUrls.length > 0) {
+        // Dedicated damage photos — always HIGH (user or adjuster explicitly uploaded these)
+        visionSourceReliability = 'HIGH';
+      } else if (pdfPageUrls.length > 0) {
+        // Check if any selected page was classified as a confirmed damage_photo
+        // We track this via the sourceTagMap built in the scoredPages block above
+        const hasConfirmedPhoto = visionSourceTagMap
+          ? Array.from(visionSourceTagMap.values()).some(v => v === 'confirmed_damage_photo')
+          : false;
+        visionSourceReliability = hasConfirmedPhoto ? 'MEDIUM' : 'LOW';
+      } else if (ctx.pdfUrl) {
+        // PDF direct vision — LLM classifies pages itself; treat as MEDIUM
+        visionSourceReliability = 'MEDIUM';
+      }
+    }
+    if (visionSourceReliability === 'LOW') {
+      ctx.log(
+        'Stage 6',
+        '[P6] visionSourceReliability=LOW: imageIntelligence fallback fired — no confirmed damage photo found. ' +
+        'Crush depths from this run will be excluded from physics consensus by Stage 7.'
+      );
+    }
+
     const rawOutput: Stage6Output = {
       damagedParts,
       damageZones,
@@ -1643,6 +1689,7 @@ export async function runDamageAnalysisStage(
       perPhotoResults: visionPerPhotoResults.length > 0 ? visionPerPhotoResults : undefined,
       imageConfidenceScore,
       analysisFromPhotos,
+      visionSourceReliability,
     };
     const output = ensureDamageContract(rawOutput, isDegraded ? "inferred_components" : "success");
 
