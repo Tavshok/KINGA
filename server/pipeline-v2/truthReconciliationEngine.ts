@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- * TRUTH RECONCILIATION ENGINE (TRE) — v1.0
+ * TRUTH RECONCILIATION ENGINE (TRE) — v2.0
  * ═══════════════════════════════════════════════════════════════════════════════
  *
  * Architectural position: FINAL synthesis stage — runs after ALL analytical
@@ -13,9 +13,23 @@
  *   3. Reconcile semantic statements (severity labels, narrative vs physics)
  *   4. Reconcile logical decisions (BLOCK vs PASS, APPROVE vs REJECT)
  *   5. Reconcile temporal data (single canonical timeline)
- *   6. Reconcile confidence (physics vs narrative vs summary)
+ *   6. Reconcile confidence (physics vs narrative vs summary) with decay model
  *   7. Generate a Truth Certificate before any report is released
  *   8. Build a TruthGraph with full provenance for every published field
+ *
+ * v2.0 Enhancements:
+ *   E1.  Truth Governance Registry (external, see truthGovernanceRegistry.ts)
+ *   E2.  Reconciliation Explainability — plain-language explanation per decision
+ *   E3.  Confidence Decay Model — conflict-driven confidence penalty
+ *   E4.  Truth Integrity Score — composite quality metric
+ *   E5.  Truth Stability Index — cross-engine agreement metric
+ *   E6.  CTO Schema Versioning — ctoSchemaVersion field on every CTO
+ *   E7.  Historical Truth Reconciliation — drift detection hooks
+ *   E8.  Canonical Provenance Expansion — per-field expanded provenance
+ *   E9.  Reconciliation Analytics — analytics snapshot in every certificate
+ *   E10. Truth Governance Dashboard (see client/src/pages/TruthGovernance.tsx)
+ *   E11. Policy-Based Governance — pluggable GovernancePolicy
+ *   E12. Certification Expansion — per-section certification status
  *
  * Design principles:
  *   Deterministic · Explainable · Auditable · Immutable after certification
@@ -38,11 +52,25 @@ import type { ReconciliationLog } from "./reconciliation-engine";
 import type { ClaimQualityResult } from "./claimQualityScorer";
 import type { SpeedInferenceResult } from "./speedInferenceEnsemble";
 import type { ConsensusResult } from "./crossEngineConsensus";
+import {
+  TRUTH_GOVERNANCE_REGISTRY,
+  DEFAULT_CONFIDENCE_DECAY,
+  DEFAULT_INTEGRITY_SCORE_CONFIG,
+  computeIntegrityScore,
+  computeStabilityIndex,
+  CTO_SCHEMA_VERSION,
+  TRE_ENGINE_VERSION,
+  type TruthIntegrityScore,
+  type TruthStabilityIndex,
+  type GovernancePolicy,
+  STANDARD_GOVERNANCE_POLICY,
+  type ReconciliationAnalyticsRecord,
+} from "./truthGovernanceRegistry";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TRE VERSION
 // ─────────────────────────────────────────────────────────────────────────────
-const TRE_VERSION = "1.0.0";
+const TRE_VERSION = TRE_ENGINE_VERSION;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROVENANCE — every published field carries full lineage
@@ -145,7 +173,7 @@ export interface TruthConflict {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRUTH CERTIFICATE
+// TRUTH CERTIFICATE (v2.0 — expanded)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type CertificationStatus = "CERTIFIED" | "BLOCKED" | "CERTIFIED_WITH_WARNINGS";
@@ -155,6 +183,8 @@ export interface TruthCertificate {
   claimId: number;
   assessmentId: number;
   treVersion: string;
+  /** Enhancement 6: CTO schema version */
+  ctoSchemaVersion: string;
   generatedAt: string;
   consistencyScore: number;
   conflictsDetected: number;
@@ -167,6 +197,18 @@ export interface TruthCertificate {
   warnings: string[];
   ownershipSummary: Partial<Record<CanonicalOwner, number>>;
   ctoHash: string;
+  /** Enhancement 4: Truth Integrity Score */
+  integrityScore: TruthIntegrityScore;
+  /** Enhancement 5: Truth Stability Index */
+  stabilityIndex: TruthStabilityIndex;
+  /** Enhancement 9: Reconciliation analytics snapshot */
+  analytics: Omit<ReconciliationAnalyticsRecord, "assessmentId" | "claimId" | "generatedAt">;
+  /** Enhancement 11: Governance policy applied */
+  governancePolicyName: string;
+  /** Enhancement 2: Plain-language reconciliation explanation */
+  reconciliationExplanation: string[];
+  /** Enhancement 12: Per-section certification */
+  sectionCertification: Record<string, { certified: boolean; reason: string }>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -307,6 +349,15 @@ export interface CTOConfidence {
   fraudConfidence: number | null;
   costConfidence: number | null;
   evidenceConfidence: number | null;
+  /** Enhancement 3: Confidence decay breakdown */
+  decayApplied: number;
+  decayBreakdown: {
+    numericConflicts: number;
+    semanticConflicts: number;
+    temporalConflicts: number;
+    logicalConflicts: number;
+    missingEvidence: number;
+  };
   _provenance: FieldProvenance;
 }
 
@@ -340,7 +391,7 @@ export interface CTOCertification {
 }
 
 /**
- * ClaimTruthObject (CTO) — the canonical output of the Truth Reconciliation Engine.
+ * ClaimTruthObject (CTO) v2.0 — the canonical output of the Truth Reconciliation Engine.
  *
  * This is the ONLY object any downstream consumer (reports, dashboards, APIs,
  * workflow, notifications, analytics) may read from.
@@ -363,8 +414,10 @@ export interface ClaimTruthObject {
   consistency: CTOConsistency;
   auditTrail: CTOAuditTrail;
   certification: CTOCertification;
-  /** TRE schema version */
+  /** TRE engine version */
   treVersion: string;
+  /** Enhancement 6: CTO schema version */
+  ctoSchemaVersion: string;
   /** ISO-8601 timestamp when this CTO was generated */
   generatedAt: string;
 }
@@ -396,34 +449,36 @@ export interface TREInput {
   integrityGateBlocked: boolean;
   integrityGateBlockingReasons: string[];
   integrityGateWarnings: string[];
+  /** Enhancement 11: Governance policy to apply (default: STANDARD) */
+  governancePolicy?: GovernancePolicy;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CANONICAL OWNERSHIP REGISTRY
+// CANONICAL OWNERSHIP REGISTRY (local — mirrors truthGovernanceRegistry.ts)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const CANONICAL_OWNERSHIP: Record<string, CanonicalOwner> = {
-  "fraud.fraudRiskScore":       "stage8_fraud",
-  "fraud.fraudRiskLevel":       "stage8_fraud",
-  "fraud.indicators":           "stage8_fraud",
-  "physics.estimatedSpeedKmh":  "stage7_physics",
-  "physics.deltaVKmh":          "stage7_physics",
-  "physics.impactForceKn":      "stage7_physics",
-  "physics.kineticEnergyJ":     "stage7_physics",
-  "physics.decelerationG":      "stage7_physics",
+  "fraud.fraudRiskScore":           "stage8_fraud",
+  "fraud.fraudRiskLevel":           "stage8_fraud",
+  "fraud.indicators":               "stage8_fraud",
+  "physics.estimatedSpeedKmh":      "stage7_physics",
+  "physics.deltaVKmh":              "stage7_physics",
+  "physics.impactForceKn":          "stage7_physics",
+  "physics.kineticEnergyJ":         "stage7_physics",
+  "physics.decelerationG":          "stage7_physics",
   "physics.damageConsistencyScore": "stage7_physics",
-  "damage.severity":            "stage7_physics",
+  "damage.severity":                "stage7_physics",
   "damage.visionSourceReliability": "stage6_damage_analysis",
-  "damage.components":          "stage6_damage_analysis",
-  "damage.zones":               "stage6_damage_analysis",
-  "cost.optimisedCostUsd":      "stage9_cost",
-  "cost.costRecommendation":    "stage9_cost",
-  "decision.recommendation":    "truth_reconciliation_engine",
-  "workflow.claimAgeDays":      "claim_truth_layer",
-  "workflow.lateSubmission":    "claim_truth_layer",
-  "vehicle.marketValueUsd":     "stage5_assembly",
-  "vehicle.isEconomicWriteOff": "stage9_cost",
-  "confidence.overallConfidence": "truth_reconciliation_engine",
+  "damage.components":              "stage6_damage_analysis",
+  "damage.zones":                   "stage6_damage_analysis",
+  "cost.optimisedCostUsd":          "stage9_cost",
+  "cost.costRecommendation":        "stage9_cost",
+  "decision.recommendation":        "truth_reconciliation_engine",
+  "workflow.claimAgeDays":          "claim_truth_layer",
+  "workflow.lateSubmission":        "claim_truth_layer",
+  "vehicle.marketValueUsd":         "stage5_assembly",
+  "vehicle.isEconomicWriteOff":     "stage9_cost",
+  "confidence.overallConfidence":   "truth_reconciliation_engine",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -506,7 +561,7 @@ function reconcileNumeric(
   // ── Fraud score: Stage 8 is canonical owner ───────────────────────────────
   const s8Score = s8?.fraudRiskScore ?? 0;
   const ctlScore = ctl?.meta?.stage8FraudScore ?? null;
-  let fraudRiskScore = s8Score;
+  const fraudRiskScore = s8Score;
   if (ctlScore !== null && Math.abs(ctlScore - s8Score) > 10) {
     conflicts.push(makeConflict(
       `C-FRAUD-${Date.now()}`,
@@ -533,7 +588,7 @@ function reconcileNumeric(
   const s7Speed = s7?.estimatedSpeedKmh ?? null;
   const recLog = input.reconciliationLog;
   const recSpeed = (recLog?.events?.find(e => e.field === "estimatedSpeedKmh")?.adoptedValue as number | null) ?? null;
-  let estimatedSpeedKmh = s7Speed;
+  const estimatedSpeedKmh = s7Speed;
   if (recSpeed !== null && s7Speed !== null && Math.abs(recSpeed - s7Speed) > 5) {
     conflicts.push(makeConflict(
       `C-SPEED-${Date.now()}`,
@@ -558,7 +613,7 @@ function reconcileNumeric(
   // ── Cost: Stage 9 is canonical owner ─────────────────────────────────────
   const s9Cost = s9?.costDecision?.true_cost_usd ?? s9?.quoteOptimisation?.optimised_cost_usd ?? (s9?.expectedRepairCostCents ? s9.expectedRepairCostCents / 100 : 0);
   const ctlCost = (ctl?.costBasis as any)?.optimisedCostUsd ?? null;
-  let optimisedCostUsd = s9Cost;
+  const optimisedCostUsd = s9Cost;
   if (ctlCost !== null && s9Cost > 0 && Math.abs(ctlCost - s9Cost) / Math.max(s9Cost, 1) > 0.15) {
     conflicts.push(makeConflict(
       `C-COST-${Date.now()}`,
@@ -754,7 +809,7 @@ function reconcileDecision(
     primaryReason = "Both CTL and Stage 9 recommend approval";
     confidence = 85;
     approvalConditions.push("No blocking consistency flags");
-    approvalConditions.push("Fraud score within acceptable range");
+    approvalConditions.push("No high fraud risk");
   } else if (ctlDecision === "REVIEW" || s9Decision === "REVIEW") {
     recommendation = "REVIEW";
     primaryReason = "Decision engine recommends analyst review";
@@ -766,8 +821,8 @@ function reconcileDecision(
   return { recommendation, primaryReason, confidence, reviewTriggers, approvalConditions, isBlocked, blockingReasons };
 }
 
-/** Pass 5: Confidence reconciliation */
-function reconcileConfidence(input: TREInput): CTOConfidence {
+/** Pass 5: Confidence reconciliation with Enhancement 3 decay model */
+function reconcileConfidence(input: TREInput, conflicts: TruthConflict[]): CTOConfidence {
   const s7 = input.physicsAnalysis;
   const s8 = input.fraudAnalysis;
   const s9 = input.costAnalysis;
@@ -779,7 +834,25 @@ function reconcileConfidence(input: TREInput): CTOConfidence {
   const evidenceConfidence = input.claimTruth?.evidence?.completenessScore ?? null;
 
   const scores = [physicsConfidence, fraudConfidence, costConfidence, evidenceConfidence].filter((s): s is number => s !== null);
-  const overallConfidence = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 50;
+  const rawConfidence = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 50;
+
+  // Enhancement 3: Confidence Decay Model
+  const decay = DEFAULT_CONFIDENCE_DECAY;
+  const numericConflicts = conflicts.filter(c => c.type === "numeric_divergence").length;
+  const semanticConflicts = conflicts.filter(c => c.type === "semantic_contradiction").length;
+  const temporalConflicts = conflicts.filter(c => c.type === "temporal_inconsistency").length;
+  const logicalConflicts = conflicts.filter(c => c.type === "logical_contradiction").length;
+  const missingEvidence = Math.max(0, 4 - scores.length);
+
+  const totalDecay = Math.min(
+    decay.maxDecayPoints,
+    numericConflicts * decay.numericConflictPenalty +
+    semanticConflicts * decay.semanticConflictPenalty +
+    temporalConflicts * decay.temporalConflictPenalty +
+    logicalConflicts * decay.logicalConflictPenalty +
+    missingEvidence * decay.missingEvidencePenalty
+  );
+  const overallConfidence = Math.max(0, Math.min(100, rawConfidence - totalDecay));
 
   return {
     overallConfidence,
@@ -787,7 +860,15 @@ function reconcileConfidence(input: TREInput): CTOConfidence {
     fraudConfidence,
     costConfidence,
     evidenceConfidence,
-    _provenance: makeProvenance("truth_reconciliation_engine", overallConfidence, overallConfidence, now, ["Weighted average of physics, fraud, cost, and evidence confidence scores"]),
+    decayApplied: totalDecay,
+    decayBreakdown: { numericConflicts, semanticConflicts, temporalConflicts, logicalConflicts, missingEvidence },
+    _provenance: makeProvenance(
+      "truth_reconciliation_engine",
+      overallConfidence,
+      overallConfidence,
+      now,
+      [`Raw confidence: ${rawConfidence}, decay applied: ${totalDecay} (${numericConflicts} numeric, ${semanticConflicts} semantic, ${temporalConflicts} temporal, ${logicalConflicts} logical conflicts, ${missingEvidence} missing evidence sources)`]
+    ),
   };
 }
 
@@ -1027,7 +1108,7 @@ function buildAuditTrail(
   };
 }
 
-function buildTruthGraph(cto: Omit<ClaimTruthObject, "certification" | "treVersion" | "generatedAt">, now: string): TruthGraph {
+function buildTruthGraph(cto: Omit<ClaimTruthObject, "certification" | "treVersion" | "ctoSchemaVersion" | "generatedAt">, now: string): TruthGraph {
   const nodes: Record<string, TruthGraphNode> = {};
   const edges: Array<{ from: string; to: string; type: "depends_on" | "consumed_by" }> = [];
   let totalConflicts = 0;
@@ -1074,7 +1155,7 @@ function buildTruthGraph(cto: Omit<ClaimTruthObject, "certification" | "treVersi
 
 function generateCertificate(
   input: TREInput,
-  cto: Omit<ClaimTruthObject, "certification" | "treVersion" | "generatedAt">,
+  cto: Omit<ClaimTruthObject, "certification" | "treVersion" | "ctoSchemaVersion" | "generatedAt">,
   conflicts: TruthConflict[],
   now: string
 ): TruthCertificate {
@@ -1113,11 +1194,104 @@ function generateCertificate(
   const hashInput = `${cto.claimIdentity.claimId}:${cto.fraud.fraudRiskScore}:${cto.physics.estimatedSpeedKmh}:${cto.cost.optimisedCostUsd}:${cto.decision.recommendation}`;
   const ctoHash = Buffer.from(hashInput).toString("base64").slice(0, 32);
 
+  // Enhancement 4: Truth Integrity Score
+  const numericConflicts = conflicts.filter(c => c.type === "numeric_divergence").length;
+  const semanticConflicts = conflicts.filter(c => c.type === "semantic_contradiction").length;
+  const temporalConflicts = conflicts.filter(c => c.type === "temporal_inconsistency").length;
+  const logicalConflicts = conflicts.filter(c => c.type === "logical_contradiction").length;
+  const missingEvidenceItems = [cto.physics.physicsConfidence, cto.fraud.fraudRiskScore, cto.cost.optimisedCostUsd, cto.evidence.completenessScore].filter(v => !v).length;
+  const confidenceDecayPoints = cto.confidence.decayApplied;
+  const provenanceGaps = 0; // All sections have _provenance in v2.0
+  const integrityScore = computeIntegrityScore(
+    numericConflicts, semanticConflicts, temporalConflicts, logicalConflicts,
+    0, missingEvidenceItems, confidenceDecayPoints, provenanceGaps,
+    DEFAULT_INTEGRITY_SCORE_CONFIG
+  );
+
+  // Enhancement 5: Truth Stability Index
+  const engineConfidences = [
+    cto.confidence.physicsConfidence,
+    cto.confidence.fraudConfidence,
+    cto.confidence.costConfidence,
+    cto.confidence.evidenceConfidence,
+  ].filter((c): c is number => c !== null);
+  const stabilityIndex = computeStabilityIndex(
+    cto.auditTrail.reconciliationEvents.length,
+    conflicts.length,
+    warnings.length,
+    engineConfidences,
+    conflicts.filter(c => c.resolution === "canonical_owner_wins" || c.resolution === "physics_wins").length
+  );
+
+  // Enhancement 2: Reconciliation Explainability
+  const reconciliationExplanation: string[] = [
+    `TRE v${TRE_VERSION} (schema ${CTO_SCHEMA_VERSION}) processed ${Object.keys(CANONICAL_OWNERSHIP).length} canonical fields.`,
+    `Detected ${conflicts.length} conflict(s): ${numericConflicts} numeric, ${semanticConflicts} semantic, ${temporalConflicts} temporal, ${logicalConflicts} logical.`,
+    ...conflicts.map(c => `[${c.severity}] ${c.fieldPath}: ${c.description} → resolved by ${c.resolvedBy} (${c.resolutionReason})`),
+    `Confidence decay applied: ${confidenceDecayPoints} points (raw → ${cto.confidence.overallConfidence + confidenceDecayPoints}, final → ${cto.confidence.overallConfidence}).`,
+    `Truth Integrity Score: ${integrityScore.score}/100 (${integrityScore.label}) — ${integrityScore.summary}`,
+    `Truth Stability Score: ${stabilityIndex.score}/100 (${stabilityIndex.label}) — ${stabilityIndex.interpretation}`,
+    `Final decision: ${cto.decision.recommendation} (confidence: ${cto.decision.confidence}%)`,
+    `Certification: ${certified}${blockingReasons.length > 0 ? ` — blocked by: ${blockingReasons.join("; ")}` : ""}`,
+  ];
+
+  // Enhancement 9: Reconciliation Analytics
+  const analytics: Omit<ReconciliationAnalyticsRecord, "assessmentId" | "claimId" | "generatedAt"> = {
+    treVersion: TRE_VERSION,
+    ctoSchemaVersion: CTO_SCHEMA_VERSION,
+    integrityScore: integrityScore.score,
+    stabilityScore: stabilityIndex.score,
+    conflictCount: conflicts.length,
+    conflictsByType: {
+      numeric_divergence: numericConflicts,
+      semantic_contradiction: semanticConflicts,
+      temporal_inconsistency: temporalConflicts,
+      logical_conflict: logicalConflicts,
+    },
+    confidenceDecayPoints,
+    overallConfidence: cto.confidence.overallConfidence,
+    overriddenValueCount: conflicts.filter(c => c.resolution === "canonical_owner_wins" || c.resolution === "physics_wins").length,
+    certificationStatus: certified,
+    conflictingFields: conflicts.map(c => c.fieldPath),
+    overriddenEngines: [...new Set(conflicts.map(c => c.values[1]?.source ?? "").filter(Boolean))],
+  };
+
+  // Enhancement 11: Governance policy
+  const policy = input.governancePolicy ?? STANDARD_GOVERNANCE_POLICY;
+  if (policy.blockOnCriticalConflict && conflicts.some(c => c.severity === "CRITICAL")) {
+    blockingReasons.push(`[POLICY:${policy.name}] Critical conflict detected — publication blocked per governance policy`);
+  }
+
+  // Enhancement 12: Per-section certification
+  const sectionCertification: Record<string, { certified: boolean; reason: string }> = {
+    fraud: {
+      certified: cto.fraud.fraudRiskScore !== null && !conflicts.some(c => c.fieldPath.startsWith("fraud") && c.blocksPublication),
+      reason: cto.fraud.fraudRiskScore !== null ? "Stage 8 fraud score available" : "No fraud analysis available",
+    },
+    physics: {
+      certified: cto.physics.estimatedSpeedKmh !== null && !conflicts.some(c => c.fieldPath.startsWith("physics") && c.blocksPublication),
+      reason: cto.physics.estimatedSpeedKmh !== null ? "Physics engine speed estimate available" : "No physics analysis available",
+    },
+    cost: {
+      certified: cto.cost.optimisedCostUsd > 0 && !conflicts.some(c => c.fieldPath.startsWith("cost") && c.blocksPublication),
+      reason: cto.cost.optimisedCostUsd > 0 ? "Stage 9 cost estimate available" : "No cost analysis available",
+    },
+    damage: {
+      certified: cto.damage.visionSourceReliability !== "NONE" && !conflicts.some(c => c.fieldPath.startsWith("damage") && c.blocksPublication),
+      reason: cto.damage.visionSourceReliability !== "NONE" ? `Vision source: ${cto.damage.visionSourceReliability}` : "No vision analysis available",
+    },
+    decision: {
+      certified: blockingReasons.length === 0,
+      reason: blockingReasons.length > 0 ? `Blocked: ${blockingReasons[0]}` : "Decision certified by TRE",
+    },
+  };
+
   return {
     certificateId: `TRE-${input.claimRecord.claimId}-${Date.now()}`,
     claimId: input.claimRecord.claimId,
     assessmentId: 0,
     treVersion: TRE_VERSION,
+    ctoSchemaVersion: CTO_SCHEMA_VERSION,
     generatedAt: now,
     consistencyScore,
     conflictsDetected: conflicts.length,
@@ -1130,6 +1304,12 @@ function generateCertificate(
     warnings,
     ownershipSummary,
     ctoHash,
+    integrityScore,
+    stabilityIndex,
+    analytics,
+    governancePolicyName: policy.name,
+    reconciliationExplanation,
+    sectionCertification,
   };
 }
 
@@ -1138,7 +1318,7 @@ function generateCertificate(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Run the Truth Reconciliation Engine.
+ * Run the Truth Reconciliation Engine v2.0.
  *
  * Call this after ALL analytical engines have completed.
  * The resulting CTO is the single source of truth for all downstream consumers.
@@ -1162,8 +1342,8 @@ export function runTruthReconciliationEngine(input: TREInput): ClaimTruthObject 
   // ── 4. LOGICAL RECONCILIATION (DECISION) ─────────────────────────────────
   const decisionResult = reconcileDecision(input, conflicts, now);
 
-  // ── 5. CONFIDENCE RECONCILIATION ─────────────────────────────────────────
-  const confidenceResult = reconcileConfidence(input);
+  // ── 5. CONFIDENCE RECONCILIATION (with E3 decay model) ───────────────────
+  const confidenceResult = reconcileConfidence(input, conflicts);
 
   // ── BUILD CTO SECTIONS ────────────────────────────────────────────────────
   const claimIdentity = buildClaimIdentity(input, now);
@@ -1191,7 +1371,7 @@ export function runTruthReconciliationEngine(input: TREInput): ClaimTruthObject 
     workflow, decision, evidence, confidence: confidenceResult, consistency, auditTrail,
   };
 
-  // ── TRUTH CERTIFICATE ─────────────────────────────────────────────────────
+  // ── TRUTH CERTIFICATE (E2, E4, E5, E9, E11, E12) ─────────────────────────
   const certificate = generateCertificate(input, partialCto, conflicts, now);
   const truthGraph = buildTruthGraph(partialCto, now);
 
@@ -1199,6 +1379,7 @@ export function runTruthReconciliationEngine(input: TREInput): ClaimTruthObject 
     ...partialCto,
     certification: { certificate, truthGraph },
     treVersion: TRE_VERSION,
+    ctoSchemaVersion: CTO_SCHEMA_VERSION,
     generatedAt: now,
   };
 }
@@ -1228,6 +1409,12 @@ export interface TREDeveloperReport {
   ownershipViolations: string[];
   canonicalFieldCount: number;
   certificationStatus: CertificationStatus;
+  /** Enhancement 4 */
+  integrityScore: TruthIntegrityScore;
+  /** Enhancement 5 */
+  stabilityIndex: TruthStabilityIndex;
+  /** Enhancement 2 */
+  reconciliationExplanation: string[];
 }
 
 export function generateTREDeveloperReport(cto: ClaimTruthObject): TREDeveloperReport {
@@ -1263,5 +1450,8 @@ export function generateTREDeveloperReport(cto: ClaimTruthObject): TREDeveloperR
       .map(c => c.description),
     canonicalFieldCount: cert.canonicalFieldCount,
     certificationStatus: cert.certified,
+    integrityScore: cert.integrityScore,
+    stabilityIndex: cert.stabilityIndex,
+    reconciliationExplanation: cert.reconciliationExplanation,
   };
 }
