@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "created": "2026-07-13",
+  "description": "Ground-truth labels for imageClassifier.ts and imageIntelligence.ts evaluation. Populated via Phase B-1 manual tagging — see README.md.",
+  "totalLabeled": 0,
+  "skipped": 0,
+  "distribution": {
+    "genuine_damage_photo": 0,
+    "vehicle_overview": 0,
+    "document_page": 0,
+    "quotation_scan": 0,
+    "pdf_page_with_embedded_damage_photo": 0,
+    "pdf_page_document_only": 0,
+    "other": 0
+  },
+  "labels": []
+}

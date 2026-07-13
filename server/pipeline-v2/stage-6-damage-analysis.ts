@@ -1420,11 +1420,19 @@ export async function runDamageAnalysisStage(
     } else if (pdfPageUrls.length > 0) {
       const scoredPages = await selectDamagePhotoPages(pdfPageUrls, ctx);
       visionSourceUrls = scoredPages.map(p => p.url);
-      // P5: tag each selected page based on imageIntelligence classification
+      // P5: tag each selected page based on imageIntelligence classification AND confidence.
+      // HIGH or MEDIUM confidence damage_photo → confirmed_damage_photo
+      //   Rationale: PDF-embedded damage photos are the dominant real-world submission pattern.
+      //   imageIntelligence correctly identifies them as damage_photo but scores MEDIUM because
+      //   the feature extractor sees document-page characteristics (aspect ratio, layout).
+      //   Previously, MEDIUM was mapped to ambiguous_page which caused visionSourceReliability=LOW
+      //   and excluded crush depths from the physics consensus for all 7 PDF-photo claims.
+      //   Fix (2026-07-13): MEDIUM confidence damage_photo → confirmed_damage_photo → MEDIUM reliability.
+      // LOW confidence or non-damage_photo → ambiguous_page
       visionSourceTagMap = new Map(
         scoredPages.map(p => [
           p.url,
-          p.classification === 'damage_photo'
+          (p.classification === 'damage_photo' && (p.confidence === 'HIGH' || p.confidence === 'MEDIUM'))
             ? ('confirmed_damage_photo' as const)
             : ('ambiguous_page' as const)
         ])
@@ -1660,12 +1668,13 @@ export async function runDamageAnalysisStage(
         // Dedicated damage photos — always HIGH (user or adjuster explicitly uploaded these)
         visionSourceReliability = 'HIGH';
       } else if (pdfPageUrls.length > 0) {
-        // Check if any selected page was classified as a confirmed damage_photo
-        // We track this via the sourceTagMap built in the scoredPages block above
-        const hasConfirmedPhoto = visionSourceTagMap
-          ? Array.from(visionSourceTagMap.values()).some(v => v === 'confirmed_damage_photo')
-          : false;
-        visionSourceReliability = hasConfirmedPhoto ? 'MEDIUM' : 'LOW';
+        // Determine reliability from imageIntelligence confidence levels.
+        // HIGH or MEDIUM confidence damage_photo pages → MEDIUM reliability (not LOW).
+        // All ambiguous_page → LOW reliability.
+        const confirmedCount = visionSourceTagMap
+          ? Array.from(visionSourceTagMap.values()).filter(v => v === 'confirmed_damage_photo').length
+          : 0;
+        visionSourceReliability = confirmedCount > 0 ? 'MEDIUM' : 'LOW';
       } else if (ctx.pdfUrl) {
         // PDF direct vision — LLM classifies pages itself; treat as MEDIUM
         visionSourceReliability = 'MEDIUM';
@@ -1674,8 +1683,17 @@ export async function runDamageAnalysisStage(
     if (visionSourceReliability === 'LOW') {
       ctx.log(
         'Stage 6',
-        '[P6] visionSourceReliability=LOW: imageIntelligence fallback fired — no confirmed damage photo found. ' +
+        '[P6] visionSourceReliability=LOW: imageIntelligence found no damage_photo pages (all ambiguous or LOW confidence). ' +
         'Crush depths from this run will be excluded from physics consensus by Stage 7.'
+      );
+    } else if (visionSourceReliability === 'MEDIUM' && pdfPageUrls.length > 0) {
+      const confirmedCount = visionSourceTagMap
+        ? Array.from(visionSourceTagMap.values()).filter(v => v === 'confirmed_damage_photo').length
+        : 0;
+      ctx.log(
+        'Stage 6',
+        `[P6] visionSourceReliability=MEDIUM: ${confirmedCount} PDF page(s) classified as damage_photo ` +
+        '(HIGH or MEDIUM confidence). Crush depths will enter physics consensus at MEDIUM confidence with appropriate disclosure.'
       );
     }
 
