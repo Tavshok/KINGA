@@ -844,9 +844,12 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const wfScore = _enforcementAdjustment > 0 ? Math.min(100, _baseScore0 + _enforcementAdjustment) : _baseScore0;
   // Map canonical fraud score to a decision string
   const wfDecision = wfScore >= 70 ? "DECLINE" : wfScore >= 40 ? "REVIEW_REQUIRED" : null;
-  // ── Claim Truth Layer override (unified source of truth) ──
+  // ── Claim Truth Layer + TRE CTO override (unified source of truth) ──
   const ctl = (e as any)?._claimTruth;
-  const rawDecision: string = ctl?.decision?.recommendation ?? wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
+  // TRE CTO: canonical single source for decision, completeness, physics, day-counts
+  const cto0 = (e as any)?._claimTruthObject;
+  // Decision recommendation: CTO > CTL > weighted-fraud > phase2 > enforcement
+  const rawDecision: string = cto0?.decision?.recommendation ?? ctl?.decision?.recommendation ?? wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
   const fraudScore = wfScore;
   const physicsScore = phase2?.physicsConsistency ?? e?.consistencyFlag?.score ?? 0;
 
@@ -879,12 +882,13 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   // Prefer panel_beater_quotes (portal submissions), fallback to selected_quotes from optimisation
   const _quoteTotalsForL1 = _pbQuoteTotals.length > 0 ? _pbQuoteTotals : _selectedQuoteTotals;
   const quotedTotal = _quoteTotalsForL1.length > 0 ? Math.min(..._quoteTotalsForL1) : 0;
-  const photosDetected = ctl?.evidence?.photoCount ?? aiAssessment?.photosDetected ?? 0;
+  const photosDetected = cto0?.evidence?.photoCount ?? ctl?.evidence?.photoCount ?? aiAssessment?.photosDetected ?? 0;
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
 
   const keyDrivers: string[] = phase2?.keyDrivers ?? e?.finalDecision?.recommendedActions ?? [];
   const primaryReason: string = e?.finalDecision?.primaryReason ?? phase2?.keyDrivers?.[0] ?? "";
-  const dataCompleteness = phase2?.dataCompleteness ?? 0;
+  // Data completeness: CTO canonical completenessScore > CTL completenessPercent > phase2
+  const dataCompleteness = cto0?.evidence?.completenessScore ?? phase2?.dataCompleteness ?? 0;
   const deltaV = e?.physicsEstimate?.deltaVKmh ?? 0;
   const claimedSpeed = (aiAssessment as any)?._normalised?.physics?.claimedSpeedKmh ?? aiAssessment?.claimedSpeedKmh ?? 0;
 
@@ -1521,6 +1525,29 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
               <div style={{ fontSize: 11, color: 'var(--kr-muted)', fontFamily: 'var(--kr-mono)' }}>{item.date ? fmtDate(item.date) : 'N/A'}</div>
             </div>
           ))}
+          {/* TRE CTO day-counts — canonical single source, shown when available */}
+          {(() => {
+            const _ctoCover = (enforcement as any)?._claimTruthObject;
+            const claimAgeDays: number | null = _ctoCover?.workflow?.claimAgeDays ?? null;
+            const turnaroundDays: number | null = _ctoCover?.workflow?.estimatedTurnaroundDays ?? null;
+            if (claimAgeDays == null && turnaroundDays == null) return null;
+            return (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
+                {claimAgeDays != null && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0' }}>
+                    <span style={{ color: 'var(--kr-muted)', fontWeight: 600 }}>Claim age</span>
+                    <span style={{ fontFamily: 'var(--kr-mono)', color: 'var(--kr-text)' }}>{claimAgeDays} day{claimAgeDays !== 1 ? 's' : ''}</span>
+                  </div>
+                )}
+                {turnaroundDays != null && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0' }}>
+                    <span style={{ color: 'var(--kr-muted)', fontWeight: 600 }}>Est. turnaround</span>
+                    <span style={{ fontFamily: 'var(--kr-mono)', color: 'var(--kr-text)' }}>{turnaroundDays} day{turnaroundDays !== 1 ? 's' : ''}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -1684,9 +1711,10 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const description = aiAssessment?.incidentDescription ?? claim?.incidentDescription ?? null;
   const corrections: string[] = phase1?.allCorrections ?? [];
   const gates: any[] = phase1?.gates ?? [];
-  // CTL override: use unified evidence completeness when available
+  // TRE CTO override: canonical evidence completeness (completenessScore per CTOEvidence interface)
   const ctl1 = (enforcement as any)?._claimTruth;
-  const dataCompleteness = ctl1?.evidence?.completenessPercent ?? phase2?.dataCompleteness ?? 0;
+  const cto1 = (enforcement as any)?._claimTruthObject;
+  const dataCompleteness = cto1?.evidence?.completenessScore ?? ctl1?.evidence?.completenessPercent ?? ctl1?.evidence?.completenessScore ?? phase2?.dataCompleteness ?? 0;
   const confidenceScore = aiAssessment?.confidenceScore ?? 0;
   const ocrConfidence = phase2?.ocrConfidence ?? phase1?.ocrConfidence ?? confidenceScore;
   const costConfidence = (aiAssessment as any)?._normalised?.costs?.confidence ?? 0;
@@ -2551,7 +2579,9 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
   const isAnimalStrike = incidentType?.toUpperCase().includes('ANIMAL');
 
   // ── Speed ensemble data (for 2.2) ────────────────────────────────────────────
-  const ensemble = (_phys as any)?.speedInferenceEnsemble;
+  // TRE CTO: use canonical physics.speedInferenceEnsemble as primary source for consensus speed
+  const _cto2 = (enforcement as any)?._claimTruthObject;
+  const ensemble = _cto2?.physics?.speedInferenceEnsemble ?? (_phys as any)?.speedInferenceEnsemble;
   const vr = (_phys as any)?.velocityRange ?? (_phys as any)?.physicsNumerical?.velocity_range;
   // Field names aligned to SpeedInferenceResult (speedInferenceEnsemble.ts) — do NOT revert to bridge-type aliases
   const consensusSpeed: number | null = ensemble?.consensusSpeedKmh ?? ensemble?.consensusSpeed ?? ensemble?.consensus_speed ?? null;
@@ -6765,10 +6795,11 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   const phase2 = (e as any)?._phase2 as any;
   const wf = e?.weightedFraud;
   const wfScore = wf?.score ?? 0;
-  // ── Claim Truth Layer override (unified source of truth — same as Section 0 cover) ──
+  // ── TRE CTO override: canonical decision recommendation (same as Section 0 cover) ──
   const ctl6 = (e as any)?._claimTruth;
+  const cto6 = (e as any)?._claimTruthObject;
   const wfDecision = wfScore >= 70 ? "DECLINE" : wfScore >= 40 ? "REVIEW_REQUIRED" : null;
-  const rawDecision: string = ctl6?.decision?.recommendation ?? wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
+  const rawDecision: string = cto6?.decision?.recommendation ?? ctl6?.decision?.recommendation ?? wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
   const decisionColor = decisionColour(rawDecision);
   const decisionText = decisionLabel(rawDecision);
 
