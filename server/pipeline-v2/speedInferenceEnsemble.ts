@@ -136,6 +136,24 @@ export interface SpeedInferenceResult {
     outlierMethods: string[];
     recommendation: string;
   };
+  /**
+   * Plausibility check: compares vision-derived crush depth speed estimates
+   * (Campbell, M5) against the minimum speed implied by observed damage severity.
+   * Fires when crush-depth-derived speeds are implausibly low for the observed
+   * damage evidence (airbag deployment, severe classification).
+   * When flagged, the vision-derived measurements should NOT be trusted as
+   * physical measurements — they likely came from unsuitable image inputs.
+   */
+  crushDepthPlausibilityCheck?: {
+    triggered: boolean;
+    severity: 'CRITICAL' | 'WARNING' | 'OK';
+    impliedMinSpeedKmh: number;
+    visionDerivedMaxSpeedKmh: number | null;
+    gapKmh: number | null;
+    flagMessage: string;
+    recommendedAction: string;
+    evidenceBasis: string[];
+  };
 }
 
 // ── Vehicle stiffness table (kN/m) ───────────────────────────────────────────
@@ -571,6 +589,10 @@ export interface EnsembleInput {
   visionConfidenceScore?: number | null;
   /** Number of distinct damage zones (from Stage 6). When > 2, M5 Path B is disabled. */
   damagedZoneCount?: number | null;
+  /** Damage severity classification from Stage 6 (e.g. 'severe', 'moderate', 'minor') */
+  damageSeverity?: string | null;
+  /** Whether total loss was indicated */
+  totalLossIndicated?: boolean;
 }
 
 export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceResult {
@@ -770,6 +792,116 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
       : 'Methods show moderate spread — treat consensus as indicative, verify with physical inspection.',
   } : undefined;
 
+  // ── Crush-depth plausibility check ──────────────────────────────────────────
+  // Compares vision-derived speed estimates (Campbell, M5) against the minimum
+  // speed implied by observed damage severity evidence.
+  //
+  // RATIONALE: When Campbell = 8 km/h and M5 = 10 km/h but airbag deployed
+  // (FMVSS 208 implies ≥ 20 km/h) and damage is 'severe', the vision-derived
+  // crush depth inputs are physically implausible. Surface this as a visible
+  // flag rather than silently resolving via the deployment floor.
+  //
+  // The flag does NOT change the consensus speed — M4 already floors it.
+  // It surfaces the inconsistency so adjusters can judge image input quality.
+
+  const crushDepthPlausibilityCheck = (() => {
+    // Only check vision-derived methods (Campbell with vision depth, M5)
+    const visionMethods = methods.filter(m =>
+      (m.method === 'CAMPBELL' && m.ran && m.speedKmh !== null) ||
+      (m.method === 'VISION_DEFORMATION' && m.ran && m.speedKmh !== null)
+    );
+
+    if (visionMethods.length === 0) {
+      return {
+        triggered: false, severity: 'OK' as const,
+        impliedMinSpeedKmh: 0, visionDerivedMaxSpeedKmh: null,
+        gapKmh: null,
+        flagMessage: 'No vision-derived speed estimates to check.',
+        recommendedAction: 'No action required.',
+        evidenceBasis: [],
+      };
+    }
+
+    const visionDerivedMaxSpeedKmh = Math.max(...visionMethods.map(m => m.speedKmh!));
+    const evidenceBasis: string[] = [];
+    let impliedMinSpeedKmh = 0;
+
+    // FMVSS 208: airbag deployment → ≥ 20 km/h frontal barrier equivalent
+    if (input.airbagDeployment) {
+      impliedMinSpeedKmh = Math.max(impliedMinSpeedKmh, 20);
+      evidenceBasis.push('Airbag deployment (FMVSS 208: ≥ 20 km/h frontal barrier equivalent)');
+    }
+    if (input.seatbeltPretensioner) {
+      impliedMinSpeedKmh = Math.max(impliedMinSpeedKmh, 15);
+      evidenceBasis.push('Seatbelt pretensioner deployment (≥ 15 km/h)');
+    }
+    const dmgSev = (input.damageSeverity ?? '').toLowerCase();
+    if (dmgSev === 'severe' || dmgSev === 'critical') {
+      impliedMinSpeedKmh = Math.max(impliedMinSpeedKmh, 25);
+      evidenceBasis.push(`Damage classified as '${dmgSev}' — consistent with impact ≥ 25 km/h`);
+    }
+    if (input.totalLossIndicated) {
+      impliedMinSpeedKmh = Math.max(impliedMinSpeedKmh, 30);
+      evidenceBasis.push('Total loss indicated — structural damage consistent with impact ≥ 30 km/h');
+    }
+    if (input.structuralDamage && !input.airbagDeployment) {
+      impliedMinSpeedKmh = Math.max(impliedMinSpeedKmh, 15);
+      evidenceBasis.push('Structural damage detected (≥ 15 km/h indicative)');
+    }
+
+    if (impliedMinSpeedKmh === 0) {
+      return {
+        triggered: false, severity: 'OK' as const,
+        impliedMinSpeedKmh: 0, visionDerivedMaxSpeedKmh,
+        gapKmh: null,
+        flagMessage: 'Insufficient damage severity evidence for plausibility check.',
+        recommendedAction: 'No action required.',
+        evidenceBasis,
+      };
+    }
+
+    const gapKmh = impliedMinSpeedKmh - visionDerivedMaxSpeedKmh;
+
+    // CALIBRATION: thresholds are engineering-judgment values.
+    // Do not change without benchmarking against a labelled claim sample.
+    /** Gap (km/h) above which the plausibility check is CRITICAL */
+    const PLAUSIBILITY_CRITICAL_GAP_KMH = 15;
+    /** Gap (km/h) above which the plausibility check is a WARNING */
+    const PLAUSIBILITY_WARNING_GAP_KMH  = 5;
+
+    const triggered = gapKmh > PLAUSIBILITY_WARNING_GAP_KMH;
+    const flagSeverity: 'CRITICAL' | 'WARNING' | 'OK' =
+      gapKmh > PLAUSIBILITY_CRITICAL_GAP_KMH ? 'CRITICAL' :
+      gapKmh > PLAUSIBILITY_WARNING_GAP_KMH  ? 'WARNING'  : 'OK';
+
+    if (!triggered) {
+      return {
+        triggered: false, severity: 'OK' as const,
+        impliedMinSpeedKmh, visionDerivedMaxSpeedKmh, gapKmh,
+        flagMessage: 'Vision-derived crush depth estimates are consistent with observed damage severity.',
+        recommendedAction: 'No action required.',
+        evidenceBasis,
+      };
+    }
+
+    const evidenceSummary = evidenceBasis.join('; ');
+    const flagMessage = flagSeverity === 'CRITICAL'
+      ? `CRITICAL — Vision-derived crush depth appears inconsistent with damage severity. ` +
+        `Campbell/M5 estimates (max ${visionDerivedMaxSpeedKmh} km/h) are ${gapKmh} km/h below the minimum ` +
+        `implied by observed damage evidence (${impliedMinSpeedKmh} km/h from: ${evidenceSummary}). ` +
+        `Do not trust vision-derived crush depth as a physical measurement — image inputs were likely ` +
+        `unsuitable (wrong angle, too wide, collage, or not showing the primary crush zone). Manual review required.`
+      : `WARNING — Vision-derived crush depth estimates (max ${visionDerivedMaxSpeedKmh} km/h) are ` +
+        `${gapKmh} km/h below the minimum implied by damage evidence (${impliedMinSpeedKmh} km/h from: ${evidenceSummary}). ` +
+        `Verify that images used for crush depth measurement show the primary impact zone clearly.`;
+
+    const recommendedAction = flagSeverity === 'CRITICAL'
+      ? 'Do not use vision-derived crush depth as a physical measurement. Request close-up frontal damage photos from the repairer or assessor. Treat the consensus speed as a lower bound from deployment threshold only.'
+      : 'Request additional close-up frontal damage photos. Verify the primary crush zone is clearly visible before relying on Campbell/M5 estimates.';
+
+    return { triggered, severity: flagSeverity, impliedMinSpeedKmh, visionDerivedMaxSpeedKmh, gapKmh, flagMessage, recommendedAction, evidenceBasis };
+  })();
+
   return {
     consensusSpeedKmh,
     confidenceInterval,
@@ -781,5 +913,6 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
     methodsRan: pointEstimates.length,
     divergenceExplanation: divergenceExplanation.length > 0 ? divergenceExplanation : undefined,
     crossValidation,
+    crushDepthPlausibilityCheck,
   };
 }

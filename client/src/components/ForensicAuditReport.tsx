@@ -2841,6 +2841,39 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
               );
             })()}
 
+            {/* Crush-depth plausibility flag */}
+            {(() => {
+              const pCheck = ensemble?.crushDepthPlausibilityCheck;
+              if (!pCheck || !pCheck.triggered) return null;
+              const isCritical = pCheck.severity === 'CRITICAL';
+              return (
+                <div className="p-3 mb-3 text-xs" style={{
+                  background: isCritical ? 'var(--fp-critical-bg)' : 'var(--fp-warning-bg)',
+                  border: `1px solid ${isCritical ? 'var(--fp-critical-border)' : 'var(--fp-warning-border)'}`,
+                  color: isCritical ? 'var(--fp-critical-text)' : 'var(--fp-warning-text)',
+                }}>
+                  <div className="flex items-start gap-2">
+                    <span className="text-sm mt-0.5">{isCritical ? '⛔' : '⚠️'}</span>
+                    <div>
+                      <p className="font-bold mb-1" style={{ letterSpacing: '0.04em' }}>
+                        {isCritical ? 'CRITICAL — Vision-Derived Crush Depth Inconsistent With Damage Severity' : 'WARNING — Vision-Derived Crush Depth May Be Unreliable'}
+                      </p>
+                      <p className="leading-relaxed mb-2">{pCheck.flagMessage}</p>
+                      <div className="flex gap-4 text-[10px] font-semibold">
+                        <span>Vision-derived max: <strong>{pCheck.visionDerivedMaxSpeedKmh ?? '—'} km/h</strong></span>
+                        <span>Implied minimum: <strong>{pCheck.impliedMinSpeedKmh} km/h</strong></span>
+                        {pCheck.gapKmh != null && <span>Gap: <strong>{pCheck.gapKmh} km/h</strong></span>}
+                      </div>
+                      {pCheck.evidenceBasis?.length > 0 && (
+                        <p className="mt-1 text-[10px]" style={{ opacity: 0.85 }}>Evidence basis: {pCheck.evidenceBasis.join(' · ')}</p>
+                      )}
+                      <p className="mt-2 font-semibold">{pCheck.recommendedAction}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Analysis methods list */}
             {allMethods.length > 0 && (
               <div className="mb-3">

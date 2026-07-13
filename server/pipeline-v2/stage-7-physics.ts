@@ -872,6 +872,9 @@ export async function runPhysicsStage(
         totalDeformationEnergyJ,
         visionConfidenceScore: avgVisionConfidenceScore,
         damagedZoneCount,
+        // Damage severity context for crush-depth plausibility check
+        damageSeverity: output.accidentSeverity ?? null,
+        totalLossIndicated: !!(claimRecord.valuation?.repairToValueRatio && claimRecord.valuation.repairToValueRatio > 0.75),
       });
       ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², airbag=${airbagDeployed}, seatbelt=${seatbeltFired}, visionDepth=${visionCrushDepthM}, deformEnergy=${totalDeformationEnergyJ?.toFixed(0)}J, visionConf=${avgVisionConfidenceScore?.toFixed(1)}`);
       output.speedInferenceEnsemble = ensembleResult;
