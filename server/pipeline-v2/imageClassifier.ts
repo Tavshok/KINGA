@@ -59,6 +59,7 @@ export type ImageCategory =
   | 'vehicle_overview'
   | 'quotation_scan'
   | 'document_page'
+  | 'quote_with_embedded_photo'  // FIX C: quotation/document page that also contains an incidental vehicle photo
   | 'other';
 
 export interface ClassifiedImage {
@@ -72,6 +73,16 @@ export interface ClassifiedImage {
   qualityScore: number;          // 0–100, composite quality score for ranking
   heuristicScore: number;        // 0–1, Tier 1 heuristic confidence
   llmClassified: boolean;        // true if Tier 2 LLM was used
+  /**
+   * FIX C: Whether this image is suitable as a crush-depth measurement input.
+   * A `damage_photo` is suitable; a `quote_with_embedded_photo` is NOT —
+   * even though it contains photographic evidence of damage, the image is a
+   * document page and the embedded photo is too small/low-resolution for
+   * reliable crush-depth estimation.
+   * Stage 6 and Stage 7 MUST check this flag before using an image for
+   * Campbell/M5 speed estimation.
+   */
+  suitableForCrushDepth: boolean;
   metadata: ExtractedImageInput; // full original metadata preserved
 }
 
@@ -399,7 +410,7 @@ const LLM_CLASSIFICATION_SCHEMA = {
               index: { type: "integer", description: "0-based index of the image in the batch" },
               category: {
                 type: "string",
-                enum: ["damage_photo", "vehicle_overview", "quotation_scan", "document_page", "other"],
+                enum: ["damage_photo", "vehicle_overview", "quotation_scan", "document_page", "quote_with_embedded_photo", "other"],
               },
               confidence: {
                 type: "number",
@@ -457,20 +468,22 @@ async function llmClassifyBatch(
 
 Classify each image into EXACTLY ONE of these categories:
 
-1. **damage_photo** — Shows actual vehicle damage (dents, scratches, broken parts, deformation, impact marks). The image clearly depicts a damaged vehicle or vehicle component.
+1. **damage_photo** — The PRIMARY content of the image is a close-up or mid-range photograph of a damaged vehicle or vehicle component. The damage is the main subject. This category is suitable for physical crush-depth measurement.
 
 2. **vehicle_overview** — Shows a full or partial vehicle view WITHOUT visible damage. Could be a pre-accident photo, identification photo, or general vehicle shot.
 
-3. **quotation_scan** — Shows a repair quotation, invoice, or price list. May be handwritten or printed. Contains line items, prices, part numbers, or cost totals. ALSO classify as quotation_scan if the page is a full-page render of a repair estimate from a panel beater or motor body repairer (e.g. Swiss Motors, Cedric Jonker, Kingfisher Auto Motors) — even if the page also contains a company letterhead, logo, or address block. The presence of a table with part descriptions and amounts is the key indicator.
+3. **quotation_scan** — Shows a repair quotation, invoice, or price list. May be handwritten or printed. Contains line items, prices, part numbers, or cost totals. Classify as quotation_scan if the page is primarily a repair estimate from a panel beater or motor body repairer (e.g. Swiss Motors, Cedric Jonker, Kingfisher Auto Motors) — even if the page also contains a company letterhead, logo, or address block. The presence of a table with part descriptions and amounts is the key indicator. If the quotation page also contains a small incidental vehicle photo in the header or margin, use **quote_with_embedded_photo** instead.
 
-4. **document_page** — Shows a form, claim document, police report, ID document, or any text-heavy administrative page. Contains mostly text, checkboxes, signatures, stamps.
+4. **document_page** — Shows a form, claim document, police report, ID document, or any text-heavy administrative page. Contains mostly text, checkboxes, signatures, stamps. If the document page contains a small incidental vehicle photo, use **quote_with_embedded_photo** instead.
 
-5. **other** — Does not fit any of the above categories. Could be a logo, blank page, irrelevant image, or unrecognisable content.
+5. **quote_with_embedded_photo** — A repair quotation, document, or form page whose PRIMARY content is text/tables, but which ALSO contains a small incidental vehicle photo (e.g. in the letterhead, header, or margin). The page IS evidence that a vehicle was photographed, but the embedded photo is too small or incidental for reliable physical measurement. Use this instead of damage_photo when the page format is a document/quotation and the vehicle photo is secondary.
+
+6. **other** — Does not fit any of the above categories. Could be a logo, blank page, irrelevant image, or unrecognisable content.
 
 RULES:
-- If an image shows a vehicle WITH visible damage, classify as "damage_photo" (not "vehicle_overview")
-- If an image is a full page with a small damage photo embedded in it, classify as "damage_photo" (the photo content matters more than the page format)
-- If an image is blurry but appears to show vehicle damage, still classify as "damage_photo" with lower confidence
+- If an image shows a vehicle WITH visible damage as the PRIMARY subject, classify as "damage_photo" (not "vehicle_overview")
+- If a document/quotation page has a small embedded vehicle photo, use "quote_with_embedded_photo" — NOT "damage_photo"
+- If an image is blurry but the primary subject appears to be vehicle damage, still classify as "damage_photo" with lower confidence
 - Return confidence 0.0–1.0 where 1.0 = absolutely certain
 
 Return ONLY JSON matching the schema.`,
@@ -501,7 +514,7 @@ Return ONLY JSON matching the schema.`,
 
     for (const cls of classifications) {
       if (cls.index >= 0 && cls.index < batch.length) {
-        const validCategories: ImageCategory[] = ['damage_photo', 'vehicle_overview', 'quotation_scan', 'document_page', 'other'];
+        const validCategories: ImageCategory[] = ['damage_photo', 'vehicle_overview', 'quotation_scan', 'document_page', 'quote_with_embedded_photo', 'other'];
         const category = validCategories.includes(cls.category as ImageCategory)
           ? cls.category as ImageCategory
           : 'other';
@@ -616,6 +629,12 @@ export async function classifyExtractedImages(
   // ── STEP 5: Build final classified images ─────────────────────────────
   const allClassified: ClassifiedImage[] = [];
 
+  // FIX C: Helper to determine if a classified image is suitable for crush-depth measurement.
+  // Only standalone damage_photo images are suitable — quote_with_embedded_photo images are NOT,
+  // even though they contain photographic evidence of damage.
+  const isSuitableForCrushDepth = (category: ImageCategory): boolean =>
+    category === 'damage_photo';
+
   // Process confident images (heuristic only)
   for (const img of confident) {
     allClassified.push({
@@ -631,6 +650,7 @@ export async function classifyExtractedImages(
       qualityScore: img.qualityScore,
       heuristicScore: img.heuristicScore,
       llmClassified: false,
+      suitableForCrushDepth: isSuitableForCrushDepth(img.heuristicCategory),
       metadata: img,
     });
   }
@@ -650,6 +670,7 @@ export async function classifyExtractedImages(
         qualityScore: img.qualityScore,
         heuristicScore: img.heuristicScore,
         llmClassified: true,
+        suitableForCrushDepth: isSuitableForCrushDepth(llmResult.category),
         metadata: img,
       });
     } else {
@@ -662,10 +683,11 @@ export async function classifyExtractedImages(
         source: img.source,
         category: img.heuristicCategory,
         // CALIBRATION: 0.2 floor and 0.7 reduction factor — origin unknown, do not change without benchmarking.
-      confidence: Math.max(0.2, img.heuristicScore * 0.7), // Reduced confidence
+        confidence: Math.max(0.2, img.heuristicScore * 0.7), // Reduced confidence
         qualityScore: img.qualityScore,
         heuristicScore: img.heuristicScore,
         llmClassified: false,
+        suitableForCrushDepth: isSuitableForCrushDepth(img.heuristicCategory),
         metadata: img,
       });
     }
@@ -713,6 +735,12 @@ export async function classifyExtractedImages(
         break;
       case 'document_page':
         result.documentPages.push(img);
+        break;
+      case 'quote_with_embedded_photo':
+        // FIX C: Route to quotationImages (not damagePhotos) so it does NOT feed
+        // Stage 6 crush-depth extraction. The suitableForCrushDepth=false flag
+        // provides an additional guard for any downstream code that inspects it.
+        result.quotationImages.push(img);
         break;
       default:
         result.fallbackPool.push(img);

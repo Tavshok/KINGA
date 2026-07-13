@@ -812,22 +812,77 @@ export async function runPhysicsStage(
       const airbagDeployed = claimRecord.accidentDetails.airbagDeployment === true;
       const seatbeltFired = claimRecord.accidentDetails.seatbeltPretensioner === true;
 
-      // Vision crush depth: take maximum crushDepthM across confirmed damage photo components only.
-      // P6: When visionSourceReliability is LOW or NONE (imageIntelligence fallback fired),
-      // exclude vision-derived crush depths from the ensemble — they came from ambiguous
-      // PDF pages, not confirmed vehicle damage photos, and cannot be trusted as physical measurements.
-      // Fall back to _forensicAnalysis for backward compatibility with older pipeline runs.
+      // ── FIX A: Zone-conditioned vision crush depth selection ─────────────────
+      // P6: When visionSourceReliability is LOW or NONE, exclude vision crush depths entirely.
+      // When trusted, select crush depths from components whose location matches the
+      // collisionDirection — not the global maximum across all zones.
+      //
+      // Zone matching rules:
+      //   frontal/front  → location contains 'front'
+      //   rear           → location contains 'rear'
+      //   side/lateral   → location contains 'side', 'left', 'right', 'door', 'pillar'
+      //   rollover/roof  → location contains 'roof', 'roll'
+      //   unknown/null   → no zone filter (use all confirmed_damage_photo components)
+      //
+      // Fallback: if no zone-matched components have a crush depth, fall back to all
+      // confirmed_damage_photo components and log the fallback explicitly.
+      //
+      // Multi-event / rollover: if damagedZoneCount > 1 AND collisionDirection is 'rollover'
+      // or 'unknown', Campbell and M5 are disabled downstream via damagedZoneCount guard.
       const visionSourceReliability = damageAnalysis.visionSourceReliability ?? 'NONE';
       const visionInputTrusted = visionSourceReliability === 'HIGH' || visionSourceReliability === 'MEDIUM';
-      const visionDepthsFromParts = visionInputTrusted
-        ? damageAnalysis.damagedParts
-            .filter(p => p.inputSource === 'confirmed_damage_photo' || p.inputSource == null)
+
+      // Build the zone-match predicate from collisionDirection
+      const collDir = (claimRecord.accidentDetails.collisionDirection ?? '').toLowerCase();
+      const zoneMatchFn = (location: string | undefined): boolean => {
+        if (!collDir || collDir === 'unknown' || collDir === 'other') return true; // no filter
+        const loc = (location ?? '').toLowerCase();
+        if (collDir.includes('front')) return loc.includes('front') || loc.includes('bonnet') || loc.includes('hood') || loc.includes('bumper') || loc.includes('grille') || loc.includes('radiator') || loc.includes('chassis rail');
+        if (collDir.includes('rear')) return loc.includes('rear') || loc.includes('boot') || loc.includes('trunk') || loc.includes('tail');
+        if (collDir.includes('side') || collDir.includes('lateral') || collDir.includes('t-bone') || collDir.includes('door')) return loc.includes('side') || loc.includes('door') || loc.includes('pillar') || loc.includes('sill') || loc.includes('left') || loc.includes('right');
+        if (collDir.includes('roll')) return loc.includes('roof') || loc.includes('roll') || loc.includes('pillar');
+        return true; // unknown direction — no filter
+      };
+
+      let visionDepthsFromParts: number[] = [];
+      let zoneFilterApplied = false;
+      if (visionInputTrusted) {
+        const confirmedParts = damageAnalysis.damagedParts
+          .filter(p => p.inputSource === 'confirmed_damage_photo' || p.inputSource == null);
+
+        // First pass: zone-matched components only
+        const zoneMatchedDepths = confirmedParts
+          .filter(p => zoneMatchFn(p.location))
+          .map(p => p.crushDepthM)
+          .filter((d): d is number => typeof d === 'number' && d > 0);
+
+        if (zoneMatchedDepths.length > 0) {
+          visionDepthsFromParts = zoneMatchedDepths;
+          zoneFilterApplied = true;
+          ctx.log('Stage 7',
+            `[FIX-A] Zone-conditioned crush depth: collisionDirection='${collDir}', ` +
+            `${zoneMatchedDepths.length} zone-matched component(s), max=${Math.max(...zoneMatchedDepths).toFixed(3)}m`
+          );
+        } else {
+          // Fallback: no zone-matched components — use all confirmed_damage_photo parts
+          const allDepths = confirmedParts
             .map(p => p.crushDepthM)
-            .filter((d): d is number => typeof d === 'number' && d > 0)
-        : [];
+            .filter((d): d is number => typeof d === 'number' && d > 0);
+          visionDepthsFromParts = allDepths;
+          if (allDepths.length > 0) {
+            ctx.log('Stage 7',
+              `[FIX-A] Zone fallback: no components matched collisionDirection='${collDir}', ` +
+              `using all ${allDepths.length} confirmed_damage_photo component(s), max=${Math.max(...allDepths).toFixed(3)}m. ` +
+              `Crush depth zone provenance is UNVERIFIED — plausibility check will evaluate.`
+            );
+          }
+        }
+      }
+
       const visionCrushDepthM = visionDepthsFromParts.length > 0
         ? Math.max(...visionDepthsFromParts)
         : (visionInputTrusted ? (claimRecord._forensicAnalysis?.visionCrushDepthM ?? null) : null);
+
       if (!visionInputTrusted) {
         ctx.log('Stage 7',
           `[P6] visionSourceReliability=${visionSourceReliability} — vision crush depths excluded from ensemble. ` +

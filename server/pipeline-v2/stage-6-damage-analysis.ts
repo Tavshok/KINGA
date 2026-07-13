@@ -656,9 +656,19 @@ async function readDamageFromPhotos(
     });
   }
 
-  // ── STEP F: Merge per-image results (deduplication by part name) ───────────────────────────────────────────────────────────────────────────────────────
-  const allComponents: DamageAnalysisComponent[] = [];
-  const seenNames = new Set<string>();
+  // ── STEP F: Merge per-image results (deduplication by part name, MAX-wins for physics fields) ──────────────────────────────────────────────────────────────
+  //
+  // FIX B: When the same component (e.g. "Front Bumper Bar") appears in multiple photos,
+  // we previously kept only the FIRST occurrence. This systematically discarded higher
+  // crush-depth estimates from later (often better-angle) photos in favour of earlier
+  // (often lower-quality) ones, biasing Campbell/M5 speed estimates downward.
+  //
+  // Correct behaviour: retain the MAXIMUM value for each physics measurement field
+  // (crushDepthM, deformationEnergyJ, structuralDisplacementM) across all photos
+  // that mention the same component. For non-physics fields (name, location, severity,
+  // description) keep the first occurrence — they are qualitative and stable.
+  // For inputSource: prefer 'confirmed_damage_photo' over any weaker provenance.
+  const componentMap = new Map<string, DamageAnalysisComponent>();
 
   for (const result of processedResults) {
     // P5: resolve inputSource for this URL from the caller-provided tag map
@@ -666,13 +676,46 @@ async function readDamageFromPhotos(
       sourceTagMap?.get(result.url) ?? 'ambiguous_page';
     for (const comp of result.components) {
       const key = comp.name.toLowerCase().trim();
-      if (!seenNames.has(key)) {
-        seenNames.add(key);
-        // P5: stamp the provenance on the component (preserve any existing value if set)
-        allComponents.push({ ...comp, inputSource: comp.inputSource ?? urlInputSource });
+      const resolvedInputSource = comp.inputSource ?? urlInputSource;
+      if (!componentMap.has(key)) {
+        // First occurrence: add with resolved inputSource
+        componentMap.set(key, { ...comp, inputSource: resolvedInputSource });
+      } else {
+        // Subsequent occurrence: update physics measurement fields with MAX values
+        const existing = componentMap.get(key)!;
+        // crushDepthM: take maximum (most severe deformation observed)
+        if (typeof comp.crushDepthM === 'number' && comp.crushDepthM > 0) {
+          if (existing.crushDepthM == null || comp.crushDepthM > existing.crushDepthM) {
+            existing.crushDepthM = comp.crushDepthM;
+          }
+        }
+        // deformationEnergyJ: take maximum (highest energy absorption observed)
+        if (typeof comp.deformationEnergyJ === 'number' && comp.deformationEnergyJ > 0) {
+          if (existing.deformationEnergyJ == null || comp.deformationEnergyJ > existing.deformationEnergyJ) {
+            existing.deformationEnergyJ = comp.deformationEnergyJ;
+          }
+        }
+        // structuralDisplacementM: take maximum (worst structural displacement observed)
+        if (typeof comp.structuralDisplacementM === 'number' && comp.structuralDisplacementM > 0) {
+          if (existing.structuralDisplacementM == null || comp.structuralDisplacementM > existing.structuralDisplacementM) {
+            existing.structuralDisplacementM = comp.structuralDisplacementM;
+          }
+        }
+        // visionConfidenceScore: take maximum (highest-confidence measurement wins)
+        if (typeof comp.visionConfidenceScore === 'number' && comp.visionConfidenceScore > 0) {
+          if (existing.visionConfidenceScore == null || comp.visionConfidenceScore > existing.visionConfidenceScore) {
+            existing.visionConfidenceScore = comp.visionConfidenceScore;
+          }
+        }
+        // inputSource: prefer confirmed_damage_photo over weaker provenance
+        if (resolvedInputSource === 'confirmed_damage_photo' && existing.inputSource !== 'confirmed_damage_photo') {
+          existing.inputSource = 'confirmed_damage_photo';
+        }
       }
     }
   }
+
+  const allComponents: DamageAnalysisComponent[] = Array.from(componentMap.values());
   allComponents.forEach((c, i) => { c.distanceFromImpact = i * 0.3; });
 
   // ── STEP G: Record assumptions ───────────────────────────────────────────────────────────────────────────────────────
