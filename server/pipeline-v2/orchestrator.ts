@@ -948,6 +948,63 @@ export async function runPipelineV2(
     } catch (classifierErr) {
       ctx.log('Stage 2.6', `Image classifier error (non-fatal): ${String(classifierErr)} — using unclassified images`);
     }
+  } else if ((ctx.damagePhotoUrls?.length ?? 0) > 0) {
+    // DIRECT-URL FIX: Stage 1 found no embedded images but direct-URL photos exist.
+    // Synthesize ExtractedImageInput stubs so Stage 2.6 classifies them the same way
+    // as PDF-embedded photos. Fixes the active bug where 6+ claims had photos submitted
+    // as direct URLs that bypassed Stage 2.6 entirely, leaving physics running blind.
+    ctx.log('Stage 2.6', `No embedded image metadata from Stage 1, but ${ctx.damagePhotoUrls.length} direct-URL photo(s) found — synthesizing metadata for classification`);
+    try {
+      const { classifyExtractedImages, selectBestImagesForVision } = await import('./imageClassifier');
+      const synthesizedMetadata = ctx.damagePhotoUrls.map((url: string, idx: number) => ({
+        url,
+        width: 1200,
+        height: 900,
+        pageNumber: idx + 1,
+        source: 'direct_upload' as const,
+        quality: {
+          width: 1200,
+          height: 900,
+          blurScore: 0.1,
+          isBlurry: false,
+          isTextHeavy: false,
+          isUniform: false,
+          colourVariance: 50,
+          aspectRatio: 1200 / 900,
+          pixelArea: 1200 * 900,
+        },
+        fromScannedPdf: false,
+      }));
+      ctx.extractedImagesWithMetadata = synthesizedMetadata;
+      const classified = await classifyExtractedImages(
+        synthesizedMetadata,
+        (msg: string) => ctx.log('Stage 2.6', msg)
+      );
+      ctx.classifiedImages = classified;
+      const { urls: bestUrls, selectionLog } = selectBestImagesForVision(classified);
+      if (bestUrls.length > 0) {
+        ctx.damagePhotoUrls = bestUrls;
+        ctx.log('Stage 2.6', `Direct-URL classification: selected ${bestUrls.length} best image(s) for vision analysis`);
+      } else if (classified.summary.fallbackCount > 0) {
+        ctx.damagePhotoUrls = classified.fallbackPool.map((img: any) => img.url).slice(0, 6);
+        ctx.log('Stage 2.6', `Direct-URL classification: no confident damage photos — using ${ctx.damagePhotoUrls.length} fallback image(s)`);
+      } else {
+        ctx.log('Stage 2.6', `Direct-URL classification: no damage photos identified in ${ctx.damagePhotoUrls.length} direct-URL image(s)`);
+      }
+      for (const line of selectionLog) {
+        ctx.log('Stage 2.6', line);
+      }
+      allAssumptions.push({
+        field: 'imageClassification',
+        assumedValue: JSON.stringify({ source: 'direct_upload_synthesis', ...classified.summary }),
+        reason: `Image classifier (direct-URL path): ${classified.summary.damagePhotoCount} damage photos, ${classified.summary.documentPageCount} documents, ${classified.summary.fallbackCount} fallback`,
+        strategy: 'domain_correction',
+        confidence: Math.round(classified.summary.averageConfidence * 100),
+        stage: 'Stage 2.6',
+      });
+    } catch (classifierErr) {
+      ctx.log('Stage 2.6', `Direct-URL image classifier error (non-fatal): ${String(classifierErr)} — using raw damagePhotoUrls`);
+    }
   } else {
     ctx.log('Stage 2.6', 'No extracted image metadata available — skipping classification (using raw damagePhotoUrls)');
   }

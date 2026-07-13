@@ -315,7 +315,12 @@ export interface CTOCost {
 }
 
 export interface CTOWorkflow {
+  /** @deprecated use daysToLodge for late-submission gap, claimProcessingDays for KINGA processing age */
   claimAgeDays: number | null;
+  /** Days between incident date and claim lodgement in KINGA (late-submission gap). 4402 = 12+ years late. */
+  daysToLodge: number | null;
+  /** Days since the claim was ingested into KINGA (processing age). Typically 1–30 days. */
+  claimProcessingDays: number | null;
   submissionDate: string | null;
   incidentDate: string | null;
   lateSubmission: boolean;
@@ -585,7 +590,10 @@ function reconcileNumeric(
   const fraudRiskLevel: FraudRiskLevel = s8?.fraudRiskLevel ?? "minimal";
 
   // ── Speed: Stage 7 is canonical owner ────────────────────────────────────
-  const s7Speed = s7?.estimatedSpeedKmh ?? null;
+  // ENSEMBLE FIX: prefer the multi-method ensemble consensus over the single-method
+  // Stage 7 estimatedSpeedKmh (which may be driver-stated if Campbell's formula used
+  // the stated speed as input). The ensemble (M1–M5) is the authoritative consensus.
+  const s7Speed = s7?.speedInferenceEnsemble?.consensusSpeedKmh ?? s7?.estimatedSpeedKmh ?? null;
   const recLog = input.reconciliationLog;
   const recSpeed = (recLog?.events?.find(e => e.field === "estimatedSpeedKmh")?.adoptedValue as number | null) ?? null;
   const estimatedSpeedKmh = s7Speed;
@@ -689,12 +697,20 @@ function reconcileTemporal(
   input: TREInput,
   conflicts: TruthConflict[],
   now: string
-): { claimAgeDays: number | null; submissionDate: string | null; incidentDate: string | null; lateSubmission: boolean } {
+): { claimAgeDays: number | null; daysToLodge: number | null; claimProcessingDays: number | null; submissionDate: string | null; incidentDate: string | null; lateSubmission: boolean } {
   const ctl = input.claimTruth;
   const cr = input.claimRecord;
 
-  const claimAgeDays = ctl?.timeline?.daysToLodge ?? null;
-  const submissionDate = ctl?.timeline?.claimRegistrationDate ?? cr.accidentDetails?.date ?? null;
+  // daysToLodge: days between incident and claim lodgement (the late-submission gap)
+  const daysToLodge = ctl?.timeline?.daysToLodge ?? null;
+  // claimAgeDays: legacy alias for daysToLodge (kept for backward compatibility)
+  const claimAgeDays = daysToLodge;
+  // claimProcessingDays: days since the claim was ingested into KINGA
+  const claimRegistrationDate = ctl?.timeline?.claimRegistrationDate ?? null;
+  const claimProcessingDays = claimRegistrationDate
+    ? Math.round((new Date(now).getTime() - new Date(claimRegistrationDate).getTime()) / 86_400_000)
+    : null;
+  const submissionDate = claimRegistrationDate ?? cr.accidentDetails?.date ?? null;
   const incidentDate = ctl?.timeline?.incidentDate ?? cr.accidentDetails?.date ?? null;
   const lateSubmission = ctl?.timeline?.lateSubmission ?? false;
 
@@ -724,7 +740,7 @@ function reconcileTemporal(
     }
   }
 
-  return { claimAgeDays, submissionDate, incidentDate, lateSubmission };
+  return { claimAgeDays, daysToLodge, claimProcessingDays, submissionDate, incidentDate, lateSubmission };
 }
 
 /** Pass 4: Logical reconciliation — final decision */
@@ -1031,6 +1047,8 @@ function buildCost(input: TREInput, optimisedCostUsd: number, now: string): CTOC
 function buildWorkflow(
   input: TREInput,
   claimAgeDays: number | null,
+  daysToLodge: number | null,
+  claimProcessingDays: number | null,
   submissionDate: string | null,
   incidentDate: string | null,
   lateSubmission: boolean,
@@ -1039,11 +1057,13 @@ function buildWorkflow(
   const s9b = input.turnaroundAnalysis;
   return {
     claimAgeDays,
+    daysToLodge,
+    claimProcessingDays,
     submissionDate,
     incidentDate,
     lateSubmission,
     estimatedTurnaroundDays: s9b?.estimatedRepairDays ?? null,
-    _provenance: makeProvenance("claim_truth_layer", { claimAgeDays, lateSubmission }, 80, now, ["ClaimTruth.timeline"]),
+    _provenance: makeProvenance("claim_truth_layer", { daysToLodge, claimProcessingDays, lateSubmission }, 80, now, ["ClaimTruth.timeline"]),
   };
 }
 
@@ -1336,7 +1356,7 @@ export function runTruthReconciliationEngine(input: TREInput): ClaimTruthObject 
     reconcileSemantic(input, conflicts, now);
 
   // ── 3. TEMPORAL RECONCILIATION ────────────────────────────────────────────
-  const { claimAgeDays, submissionDate, incidentDate, lateSubmission } =
+  const { claimAgeDays, daysToLodge, claimProcessingDays, submissionDate, incidentDate, lateSubmission } =
     reconcileTemporal(input, conflicts, now);
 
   // ── 4. LOGICAL RECONCILIATION (DECISION) ─────────────────────────────────
@@ -1354,7 +1374,7 @@ export function runTruthReconciliationEngine(input: TREInput): ClaimTruthObject 
   const physics = buildPhysics(input, estimatedSpeedKmh, now);
   const fraud = buildFraud(input, fraudRiskScore, fraudRiskLevel, now);
   const cost = buildCost(input, optimisedCostUsd, now);
-  const workflow = buildWorkflow(input, claimAgeDays, submissionDate, incidentDate, lateSubmission, now);
+  const workflow = buildWorkflow(input, claimAgeDays, daysToLodge, claimProcessingDays, submissionDate, incidentDate, lateSubmission, now);
   const evidence = buildEvidence(input, now);
   const consistency = buildConsistency(input, now);
 

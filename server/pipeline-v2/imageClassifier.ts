@@ -37,7 +37,7 @@ export interface ExtractedImageInput {
   width: number;
   height: number;
   pageNumber: number;
-  source: 'page_render' | 'embedded_image';
+  source: 'page_render' | 'embedded_image' | 'direct_upload';
   quality: {
     width: number;
     height: number;
@@ -66,7 +66,7 @@ export interface ClassifiedImage {
   width: number;
   height: number;
   pageNumber: number;
-  source: 'page_render' | 'embedded_image';
+  source: 'page_render' | 'embedded_image' | 'direct_upload';
   category: ImageCategory;
   confidence: number;            // 0–1, how confident we are in the category
   qualityScore: number;          // 0–100, composite quality score for ranking

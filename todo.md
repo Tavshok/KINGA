@@ -627,3 +627,13 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Integration test E1→E2→E3 chain: emit event → analyseImpact → enqueue resolution task → resolve
 - [x] Vitest suite: 34/34 tests pass (server/treV4Governance.test.ts)
 - [x] Pre-test checkpoint: 46e7ca99
+
+## Physics / Stage 2.6 Fixes — Jul 13 2026
+- [x] TRE Fix 1: speed reads ensemble consensusSpeedKmh first (28 km/h for VOLTRON, not 70)
+- [x] TRE Fix 2: day-count split — daysToLodge (4402, late-submission gap) vs claimProcessingDays (KINGA age)
+- [x] ForensicAuditReport: updated day-count labels to daysToLodge / claimProcessingDays
+- [x] Stage 2.6 Fix 3: direct-URL photos now synthesize ExtractedImageInput so classifier runs
+- [x] 12/12 regression tests passing (physicsAndStage26Fixes.test.ts)
+- [x] VOLTRON re-run verified: cto_speed=28, cto_days_to_lodge=4402, cto_processing_days=406
+- [ ] POST-LAUNCH: Phase B-2/B-3 — benchmark evaluation and threshold tuning for imageIntelligence
+- [ ] POST-LAUNCH: TRE v3.0/v4.0 frontend wiring (ephemeral state + CTO shape risks documented)

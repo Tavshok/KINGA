@@ -1528,15 +1528,24 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           {/* TRE CTO day-counts — canonical single source, shown when available */}
           {(() => {
             const _ctoCover = (enforcement as any)?._claimTruthObject;
-            const claimAgeDays: number | null = _ctoCover?.workflow?.claimAgeDays ?? null;
+            const daysToLodge: number | null = _ctoCover?.workflow?.daysToLodge ?? _ctoCover?.workflow?.claimAgeDays ?? null;
+            const claimProcessingDays: number | null = _ctoCover?.workflow?.claimProcessingDays ?? null;
             const turnaroundDays: number | null = _ctoCover?.workflow?.estimatedTurnaroundDays ?? null;
-            if (claimAgeDays == null && turnaroundDays == null) return null;
+            if (daysToLodge == null && claimProcessingDays == null && turnaroundDays == null) return null;
             return (
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
-                {claimAgeDays != null && (
+                {claimProcessingDays != null && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0' }}>
-                    <span style={{ color: 'var(--kr-muted)', fontWeight: 600 }}>Claim age</span>
-                    <span style={{ fontFamily: 'var(--kr-mono)', color: 'var(--kr-text)' }}>{claimAgeDays} day{claimAgeDays !== 1 ? 's' : ''}</span>
+                    <span style={{ color: 'var(--kr-muted)', fontWeight: 600 }}>KINGA processing age</span>
+                    <span style={{ fontFamily: 'var(--kr-mono)', color: 'var(--kr-text)' }}>{claimProcessingDays} day{claimProcessingDays !== 1 ? 's' : ''}</span>
+                  </div>
+                )}
+                {daysToLodge != null && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0' }}>
+                    <span style={{ color: 'var(--kr-muted)', fontWeight: 600 }}>Days to lodge (incident → claim)</span>
+                    <span style={{ fontFamily: 'var(--kr-mono)', color: daysToLodge > 365 ? '#dc2626' : 'var(--kr-text)' }}>
+                      {daysToLodge} day{daysToLodge !== 1 ? 's' : ''}{daysToLodge > 365 ? ' ⚠️ late submission' : ''}
+                    </span>
                   </div>
                 )}
                 {turnaroundDays != null && (
