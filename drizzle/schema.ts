@@ -5218,3 +5218,110 @@ export type InsertAssessorEvaluation = typeof assessorEvaluations.$inferInsert;
 export type InsertPanelBeaterQuote = typeof panelBeaterQuotes.$inferInsert;
 export type InsertAppointment = typeof appointments.$inferInsert;
 export type InsertAuditTrailEntry = typeof auditTrail.$inferInsert;
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VEHICLE GEOMETRY KNOWLEDGE LAYER
+// Vision Geometry Engine (VGE) — Phase 1
+//
+// VOLTRON Vehicle Coordinate System (VVCS) convention:
+//   Origin : front axle centreline at ground level
+//   X      : positive forward (towards front of vehicle)
+//   Y      : positive left (driver's left when seated)
+//   Z      : positive up
+//
+// All landmark coordinates stored in VVCS millimetres.
+// All measurements stored in millimetres unless unit field specifies otherwise.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const vehicleModels = mysqlTable("vehicle_models", {
+  id:                int("id").autoincrement().primaryKey(),
+  manufacturer:      varchar("manufacturer", { length: 100 }).notNull(),
+  model:             varchar("model", { length: 100 }).notNull(),
+  variant:           varchar("variant", { length: 100 }),
+  generation:        varchar("generation", { length: 50 }),
+  yearFrom:          int("year_from").notNull(),
+  yearTo:            int("year_to"),
+  bodyType:          varchar("body_type", { length: 50 }),
+  marketRegion:      varchar("market_region", { length: 100 }),
+  completenessScore: decimal("completeness_score", { precision: 4, scale: 3 }).default("0.000"),
+  profileCacheJson:  json("profile_cache_json"),
+  createdAt:         timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt:         timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+});
+
+export const measurementTypes = mysqlTable("measurement_types", {
+  id:              int("id").autoincrement().primaryKey(),
+  code:            varchar("code", { length: 80 }).notNull().unique(),
+  displayName:     varchar("display_name", { length: 120 }).notNull(),
+  unit:            varchar("unit", { length: 20 }).notNull().default("mm"),
+  tier:            int("tier").notNull().default(2),
+  baseReliability: decimal("base_reliability", { precision: 4, scale: 3 }).notNull().default("0.750"),
+  description:     text("description"),
+});
+
+export const vehicleGeometryMeasurements = mysqlTable("vehicle_geometry_measurements", {
+  id:              int("id").autoincrement().primaryKey(),
+  vehicleModelId:  int("vehicle_model_id").notNull().references(() => vehicleModels.id),
+  measurementType: varchar("measurement_type", { length: 80 }).notNull(),
+  valueMm:         decimal("value_mm", { precision: 10, scale: 2 }).notNull(),
+  unit:            varchar("unit", { length: 20 }).notNull().default("mm"),
+  confidence:      decimal("confidence", { precision: 4, scale: 3 }).notNull().default("0.900"),
+  sourceType:      varchar("source_type", { length: 80 }),
+  sourceReference: varchar("source_reference", { length: 255 }),
+  verifiedBy:      varchar("verified_by", { length: 100 }),
+  createdAt:       timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const vehicleLandmarks = mysqlTable("vehicle_landmarks", {
+  id:             int("id").autoincrement().primaryKey(),
+  vehicleModelId: int("vehicle_model_id").notNull().references(() => vehicleModels.id),
+  landmarkType:   varchar("landmark_type", { length: 100 }).notNull(),
+  xMm:            decimal("x_mm", { precision: 10, scale: 2 }),
+  yMm:            decimal("y_mm", { precision: 10, scale: 2 }),
+  zMm:            decimal("z_mm", { precision: 10, scale: 2 }),
+  referenceFrame: varchar("reference_frame", { length: 20 }).notNull().default("VVCS"),
+  confidence:     decimal("confidence", { precision: 4, scale: 3 }).notNull().default("0.900"),
+  sourceType:     varchar("source_type", { length: 80 }),
+  createdAt:      timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const geometrySources = mysqlTable("geometry_sources", {
+  id:               int("id").autoincrement().primaryKey(),
+  measurementId:    int("measurement_id"),
+  landmarkId:       int("landmark_id"),
+  sourceType:       varchar("source_type", { length: 80 }).notNull(),
+  sourceReference:  varchar("source_reference", { length: 255 }),
+  dateAdded:        timestamp("date_added").default(sql`CURRENT_TIMESTAMP`),
+  validationStatus: varchar("validation_status", { length: 30 }).notNull().default("pending"),
+  notes:            text("notes"),
+});
+
+export const visionCalibrationResults = mysqlTable("vision_calibration_results", {
+  id:                          int("id").autoincrement().primaryKey(),
+  claimId:                     varchar("claim_id", { length: 50 }).notNull(),
+  assessmentId:                int("assessment_id"),
+  imageUrl:                    text("image_url").notNull(),
+  imageIndex:                  int("image_index"),
+  vehicleModelId:              int("vehicle_model_id"),
+  referenceType:               varchar("reference_type", { length: 80 }).notNull(),
+  pixelMeasurement:            decimal("pixel_measurement", { precision: 10, scale: 2 }),
+  physicalMeasurementMm:       decimal("physical_measurement_mm", { precision: 10, scale: 2 }),
+  scaleMmPerPixel:             decimal("scale_mm_per_pixel", { precision: 10, scale: 4 }),
+  perspectiveCorrectionMethod: varchar("perspective_correction_method", { length: 50 }).notNull().default("none"),
+  confidence:                  decimal("confidence", { precision: 4, scale: 3 }),
+  failureReason:               varchar("failure_reason", { length: 255 }),
+  calibratedCrushDepthM:       decimal("calibrated_crush_depth_m", { precision: 6, scale: 4 }),
+  calibratedCrushDepthMinM:    decimal("calibrated_crush_depth_min_m", { precision: 6, scale: 4 }),
+  calibratedCrushDepthMaxM:    decimal("calibrated_crush_depth_max_m", { precision: 6, scale: 4 }),
+  geometryEvidenceJson:        json("geometry_evidence_json"),
+  createdAt:                   timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+// VGE Insert types
+export type InsertVehicleModel = typeof vehicleModels.$inferInsert;
+export type InsertMeasurementType = typeof measurementTypes.$inferInsert;
+export type InsertVehicleGeometryMeasurement = typeof vehicleGeometryMeasurements.$inferInsert;
+export type InsertVehicleLandmark = typeof vehicleLandmarks.$inferInsert;
+export type InsertGeometrySource = typeof geometrySources.$inferInsert;
+export type InsertVisionCalibrationResult = typeof visionCalibrationResults.$inferInsert;

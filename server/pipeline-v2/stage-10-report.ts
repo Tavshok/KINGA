@@ -113,7 +113,7 @@ function buildDamageSection(damageAnalysis: Stage6Output | null, claimRecord: Cl
   };
 }
 
-function buildPhysicsSection(physicsAnalysis: Stage7Output | null): ReportSection {
+function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: PipelineContext): ReportSection {
   if (!physicsAnalysis) {
     return {
       title: "Physics Reconstruction",
@@ -127,6 +127,38 @@ function buildPhysicsSection(physicsAnalysis: Stage7Output | null): ReportSectio
       content: { available: true, executed: false, note: "Physics analysis was not applicable for this incident type." },
     };
   }
+
+  // Build Geometry Evidence Block from VGE calibration result (Stage 6.5A)
+  const vge = ctx?.vgeCalibrationResult;
+  const geometryEvidenceBlock = vge ? {
+    calibrationAvailable: vge.calibrationAvailable,
+    confidenceLevel: vge.confidenceLevel,
+    overallCalibrationConfidence: vge.overallCalibrationConfidence,
+    totalReferenceObjectsDetected: vge.totalReferenceObjectsDetected,
+    vehicleProfileUsed: vge.vehicleProfileUsed ?? null,
+    calibratedCrushDepthMm: vge.calibratedCrushDepthM != null ? Math.round(vge.calibratedCrushDepthM * 1000) : null,
+    calibratedCrushDepthRangeMm: (vge.calibratedCrushDepthMinM != null && vge.calibratedCrushDepthMaxM != null)
+      ? { min: Math.round(vge.calibratedCrushDepthMinM * 1000), max: Math.round(vge.calibratedCrushDepthMaxM * 1000) }
+      : null,
+    crushDepthSource: (vge.calibrationAvailable && vge.calibratedCrushDepthM != null &&
+      (vge.confidenceLevel === 'HIGH' || vge.confidenceLevel === 'MEDIUM'))
+      ? `VGE calibrated (${vge.confidenceLevel} confidence, ${vge.totalReferenceObjectsDetected} reference object(s)${vge.vehicleProfileUsed ? `, vehicle profile: ${vge.vehicleProfileUsed}` : ''})`
+      : 'LLM per-component estimate (no VGE calibration available)',
+    referenceObjects: vge.perImageResults
+      .filter(r => r.scaleAvailable)
+      .map(r => ({
+        imageUrl: r.imageUrl,
+        imageIndex: r.imageIndex,
+        detections: r.referenceObjects.map(d => ({
+          type: d.type,
+          knownDimMm: Math.round(d.physicalMeasurementMm),
+          detectedPx: Math.round(d.pixelMeasurementPx),
+          scaleMmPerPx: parseFloat(d.scaleMmPerPixel.toFixed(3)),
+          confidence: d.confidence,
+        }))
+      }))
+      .slice(0, 5),
+  } : null;
 
   return {
     title: "Physics Reconstruction",
@@ -146,6 +178,7 @@ function buildPhysicsSection(physicsAnalysis: Stage7Output | null): ReportSectio
       reconstructionSummary: physicsAnalysis.accidentReconstructionSummary,
       damageConsistencyScore: physicsAnalysis.damageConsistencyScore,
       latentDamageProbability: physicsAnalysis.latentDamageProbability,
+      geometryEvidenceBlock,
     },
   };
 }
@@ -446,7 +479,7 @@ export async function runReportGenerationStage(
     // Build each section — null-safe, always produces output
     const claimSummary = buildClaimSummary(claimRecord);
     const damageSection = buildDamageSection(damageAnalysis, claimRecord);
-    const physicsSection = buildPhysicsSection(physicsAnalysis);
+    const physicsSection = buildPhysicsSection(physicsAnalysis, ctx);
     const costSection = buildCostSection(costAnalysis, claimRecord);
     const fraudSection = buildFraudSection(fraudAnalysis);
     const turnaroundSection = buildTurnaroundSection(turnaroundAnalysis);

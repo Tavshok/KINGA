@@ -882,9 +882,31 @@ export async function runPhysicsStage(
         }
       }
 
-      const visionCrushDepthM = visionDepthsFromParts.length > 0
-        ? Math.max(...visionDepthsFromParts)
-        : (visionInputTrusted ? (claimRecord._forensicAnalysis?.visionCrushDepthM ?? null) : null);
+      // Stage 6.5A VGE: use calibrated crush depth if available and confidence is MEDIUM or HIGH.
+      // Otherwise fall back to the per-component max from Stage 6 vision, then to the forensic analysis field.
+      const vgeResult = ctx.vgeCalibrationResult;
+      let visionCrushDepthM: number | null;
+      if (vgeResult?.calibrationAvailable && vgeResult.calibratedCrushDepthM != null &&
+          (vgeResult.confidenceLevel === 'HIGH' || vgeResult.confidenceLevel === 'MEDIUM')) {
+        visionCrushDepthM = vgeResult.calibratedCrushDepthM;
+        ctx.log('Stage 7',
+          `[VGE] Using VGE calibrated crush depth: ${(visionCrushDepthM * 1000).toFixed(0)} mm ` +
+          `[${((vgeResult.calibratedCrushDepthMinM ?? 0) * 1000).toFixed(0)}\u2013${((vgeResult.calibratedCrushDepthMaxM ?? 0) * 1000).toFixed(0)} mm] ` +
+          `(${vgeResult.confidenceLevel} confidence, ${vgeResult.totalReferenceObjectsDetected} reference objects, ` +
+          `vehicle: ${vgeResult.vehicleProfileUsed ?? 'no profile'})`
+        );
+      } else {
+        // Fall back to raw LLM per-component crush depths
+        visionCrushDepthM = visionDepthsFromParts.length > 0
+          ? Math.max(...visionDepthsFromParts)
+          : (visionInputTrusted ? (claimRecord._forensicAnalysis?.visionCrushDepthM ?? null) : null);
+        if (vgeResult != null) {
+          ctx.log('Stage 7',
+            `[VGE] Falling back to raw LLM crush depth (VGE confidence: ${vgeResult.confidenceLevel ?? 'NONE'}) — ` +
+            `raw value: ${visionCrushDepthM != null ? (visionCrushDepthM * 1000).toFixed(0) + ' mm' : 'null'}`
+          );
+        }
+      }
 
       if (!visionInputTrusted) {
         ctx.log('Stage 7',

@@ -1707,6 +1707,13 @@ export interface PipelineContext {
    */
   semanticImageClassifications?: Map<string, import('./semanticImageClassifier').SemanticImageMeta> | null;
   /**
+   * Set by Stage 6.5A — Vision Geometry Engine scale calibration result.
+   * Contains per-image calibration results, overall calibration confidence,
+   * and the calibrated crush depth estimate (replaces raw LLM visionCrushDepthM in Stage 7).
+   * Null when VGE could not find any reference objects in any image.
+   */
+  vgeCalibrationResult?: import('./stage-6-5a-vge').VGECalibrationResult | null;
+  /**
    * Enriched photo metadata JSON — set by Stage 6 (damage analysis).
    * Injected into the pipeline result by db.ts for the forensic validator.
    */

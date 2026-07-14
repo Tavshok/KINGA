@@ -1,0 +1,46 @@
+{
+  "_comment": "Honda Fit/Jazz GK5 generation — Southern Africa market (2017–2020). VVCS: origin at front axle centreline at ground level, X positive forward, Y positive left, Z positive up. All values in mm.",
+  "model": {
+    "manufacturer": "Honda",
+    "model": "Fit",
+    "variant": "GK5",
+    "generation": "GK",
+    "yearFrom": 2017,
+    "yearTo": 2020,
+    "bodyType": "hatchback",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1694, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GK5 Technical Data Sheet", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1525, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GK5 Technical Data Sheet", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2530, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GK5 Technical Data Sheet", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1475, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GK5 Technical Data Sheet", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1465, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GK5 Technical Data Sheet", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 520,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement — 2018 Honda Fit VTi", "confidence": 0.87 },
+    { "type": "bumper_width_mm",         "valueMm": 1660, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GK5 Technical Data Sheet", "confidence": 0.94 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1210, "sourceType": "oem_cad",                    "sourceReference": "Honda GK body engineering reference", "confidence": 0.91 },
+    { "type": "grille_width_mm",         "valueMm": 920,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement — 2018 Honda Fit VTi", "confidence": 0.84 },
+    { "type": "bonnet_width_mm",         "valueMm": 1620, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GK5 Technical Data Sheet", "confidence": 0.93 },
+    { "type": "windscreen_width_mm",     "valueMm": 1380, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement — 2018 Honda Fit VTi", "confidence": 0.86 },
+    { "type": "wheel_diameter_mm",       "valueMm": 634,  "sourceType": "tyre_specification",         "sourceReference": "185/55R16 — OEM fitment Honda Fit GK5 VTi", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 611,  "sourceType": "tyre_specification",         "sourceReference": "175/65R15 — OEM fitment Honda Fit GK5 S", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1080, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GK5 kerb weight (VTi)", "confidence": 0.96 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 737,  "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.95 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -737, "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.95 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2530,"yMm": 732,  "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.95 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2530,"yMm": -732, "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.95 },
+    { "type": "lh_headlamp_centre",      "xMm": 150,  "yMm": 605,  "zMm": 680, "sourceType": "oem_cad", "confidence": 0.87 },
+    { "type": "rh_headlamp_centre",      "xMm": 150,  "yMm": -605, "zMm": 680, "sourceType": "oem_cad", "confidence": 0.87 },
+    { "type": "front_bumper_lh_corner",  "xMm": 170,  "yMm": 830,  "zMm": 520, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 170,  "yMm": -830, "zMm": 520, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 185,  "yMm": 0,    "zMm": 520, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 165,  "yMm": 0,    "zMm": 420, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 175,  "yMm": 0,    "zMm": 640, "sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 120,  "yMm": 810,  "zMm": 840, "sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 120,  "yMm": -810, "zMm": 840, "sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}

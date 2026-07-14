@@ -1323,6 +1323,30 @@ export async function runPipelineV2(
     saveStageResult(ctx.runId, "6_damage_analysis", stage6Data).catch(() => {});
   }
 
+  // ── STAGE 6.5A: VISION GEOMETRY ENGINE — Scale Calibration ─────────────
+  // Runs AFTER Stage 6 (damage analysis) so we know which photos are damage photos.
+  // Runs BEFORE Stage 7 (physics) so the calibrated crush depth is available to M1.
+  // Non-fatal: if VGE fails, Stage 7 falls back to the raw LLM visionCrushDepthM.
+  ctx.onStageStart?.("Stage 6.5A — Vision Geometry Engine");
+  try {
+    const { runVGECalibration } = await import('./stage-6-5a-vge');
+    const vgeResult = await runVGECalibration(ctx);
+    ctx.vgeCalibrationResult = vgeResult;
+    if (vgeResult?.calibrationAvailable) {
+      ctx.log('Stage 6.5A', `VGE calibration complete: ${vgeResult.confidenceLevel} confidence (${(vgeResult.overallCalibrationConfidence * 100).toFixed(0)}%), ${vgeResult.totalReferenceObjectsDetected} reference object(s) detected across ${vgeResult.perImageResults.filter(r => r.scaleAvailable).length}/${vgeResult.perImageResults.length} image(s)`);
+      if (vgeResult.calibratedCrushDepthM != null) {
+        ctx.log('Stage 6.5A', `Calibrated crush depth: ${(vgeResult.calibratedCrushDepthM * 1000).toFixed(0)} mm [${((vgeResult.calibratedCrushDepthMinM ?? 0) * 1000).toFixed(0)}–${((vgeResult.calibratedCrushDepthMaxM ?? 0) * 1000).toFixed(0)} mm] — vehicle: ${vgeResult.vehicleProfileUsed ?? 'no profile'}`);
+      } else {
+        ctx.log('Stage 6.5A', `VGE: no crush depth measurable from available images — Stage 7 will use raw LLM estimate`);
+      }
+    } else {
+      ctx.log('Stage 6.5A', `VGE: no reference objects detected in any image — Stage 7 will use raw LLM estimate`);
+    }
+  } catch (vgeErr) {
+    ctx.log('Stage 6.5A', `VGE error (non-fatal): ${String(vgeErr)} — Stage 7 will use raw LLM estimate`);
+    ctx.vgeCalibrationResult = null;
+  }
+
   // ── SOURCE TRUTH RESOLUTION (Stage 6 → Stage 7) ─────────────────────
   // Resolve direction/zone/severity conflicts across photo and document sources.
   // Physics is not yet available; will re-resolve with full priority after Stage 7.
