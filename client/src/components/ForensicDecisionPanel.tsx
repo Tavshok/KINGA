@@ -859,6 +859,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
             estimatedCost={costBasis}
             structuralDamage={severity === "severe" || severity === "catastrophic"}
             airbagDeployment={!!physics?.airbagDeployment}
+            physicsValidation={physics?.impactVector?.angle != null ? { impactAngleDegrees: physics.impactVector.angle } : null}
           />
 
           {/* Damage severity distribution chart */}

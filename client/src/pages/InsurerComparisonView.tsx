@@ -1320,6 +1320,19 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
 
   // Parse damage description to extract inferred hidden damage
   const damageDescription = sanitiseField(aiAssessment.damageDescription || "");
+
+  // Physics validation for expected-vs-detected overlay in VehicleDamageVisualization
+  const physicsValidation = (() => {
+    if (!aiAssessment?.physicsAnalysis) return null;
+    try {
+      const raw = typeof aiAssessment.physicsAnalysis === 'string'
+        ? JSON.parse(aiAssessment.physicsAnalysis)
+        : aiAssessment.physicsAnalysis;
+      const angle = raw?._raw?.impactPoint?.impactAngle ?? raw?._raw?.impactAngle ?? raw?.impactAngle ?? raw?.impactPoint?.impactAngle;
+      if (angle == null) return null;
+      return { impactAngleDegrees: Number(angle) };
+    } catch { return null; }
+  })();
   
   // Component categories for cost breakdown
   const componentCategories = {
@@ -1453,6 +1466,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
           estimatedCost={aiAssessment.estimatedCost || 0}
           structuralDamage={hasStructuralDamage}
           airbagDeployment={hasAirbagDeployment}
+          physicsValidation={physicsValidation}
         />
       </div>
     );
@@ -1615,6 +1629,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
           estimatedCost={aiAssessment.estimatedCost || 0}
           structuralDamage={hasStructuralDamage}
           airbagDeployment={hasAirbagDeployment}
+          physicsValidation={physicsValidation}
         />
       </div>
 

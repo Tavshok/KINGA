@@ -971,6 +971,7 @@ export default function AssessmentResults() {
                 damagedComponents={extractedData.damagedComponents || []}
                 accidentType={extractedData.accidentType}
                 estimatedCost={extractedData.estimatedCost}
+                physicsValidation={physicsValidation}
               />
             </Card>
 
@@ -1057,6 +1058,7 @@ export default function AssessmentResults() {
               damagedComponents={damagedComponents}
               accidentType={extractedData.accidentType}
               estimatedCost={extractedData.estimatedCost}
+              physicsValidation={physicsValidation}
             />
 
             <ImageGallery damagePhotos={extractedData.damagePhotos || []} allPhotos={extractedData.allPhotos} />
