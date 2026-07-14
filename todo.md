@@ -640,3 +640,20 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] VOLTRON re-run verified: cto_speed=28, cto_days_to_lodge=4402, cto_processing_days=406
 - [ ] POST-LAUNCH: Phase B-2/B-3 — benchmark evaluation and threshold tuning for imageIntelligence
 - [ ] POST-LAUNCH: TRE v3.0/v4.0 frontend wiring (ephemeral state + CTO shape risks documented)
+
+## Physics Engine Strategic Roadmap (July 2026)
+
+### Pre-Launch (Required — 4 days total)
+- [ ] **P1 — Velocity range in report** — Replace single consensus speed with low/mid/high km/h range from `physicsNumerical.velocity_range`. Add braking coherence note when stated speed > physics lower bound: "Stated travel speed [X] km/h is consistent with physics lower bound [Y] km/h if the vehicle decelerated over approximately [Z] metres before impact." UI change only — data already in pipeline. (1 day)
+- [ ] **P2 — Speed discrepancy → fraud score** — Wire `speedInferenceEnsemble.consensusSpeedKmh` into Stage 8 fraud scoring. When stated speed > 1.5× consensus speed AND confidence MEDIUM/HIGH, add `speed_claim_inconsistency` fraud indicator with calibrated score contribution. Closes the most important missing link between physics and fraud. (2 days)
+- [ ] **P3 — Methodology disclosure in report** — Replace "methodology available under confidentiality undertaking" with: method names (Campbell, FMVSS 208, momentum), input sources, assumptions (vehicle mass assumed, friction coefficient assumed, braking not modelled), velocity range, and expert review pathway statement. (1 day)
+
+### Post-Launch Phase 1 (First 90 days — 15 days total)
+- [ ] **P4 — Latent damage probability → cost reserve** — Wire `physicsAnalysis.latentDamageProbability` into Stage 9. When engine/transmission/frame probability > 0.3, add hidden damage contingency line to cost estimate and flag for adjudicator. (3 days)
+- [ ] **P5 — Energy-conditioned damage pattern validation** — Extend `damagePatternValidationEngine` to accept `energyDissipatedKj` and condition expected component list on both direction AND energy level. A 20 km/h frontal ≠ 60 km/h frontal in expected components. Currently both get identical pattern match. (5 days)
+- [ ] **P6 — Physics-grounded cost envelope** — Wire `physicsAnalysis` into `costRealismValidator`. Compute expected cost range from energy × component count × market rates. Flag repair quotes exceeding physics upper bound. This is the most powerful fraud detection capability currently absent from the system. (7 days)
+
+### Post-Launch Phase 2 (90–180 days)
+- [ ] **P7 — Braking coherence model** — Implement pre-impact speed model: given stated speed + road type + friction coefficient (0.7 tarmac / 0.4 gravel), compute minimum braking distance and resulting impact speed. Distinguish coherent deceleration from genuine inconsistency. Resolves the 70 km/h vs 28 km/h "contradiction" in VOLTRON and similar claims. (5 days)
+- [ ] **P8 — Calibration dataset** — Build ground-truth dataset of claims with known outcomes (fraud confirmed / legitimate / contested). Calibrate fraud score contributions from physics signals empirically. Without calibration, score weights are engineering estimates. (ongoing)
+- [ ] **P9 — Expert review integration** — For LOW confidence or plausibility-check-fired claims, add escalation pathway to qualified accident reconstructionist. AI provides structured evidence package; expert provides court-admissible opinion. (10 days)
