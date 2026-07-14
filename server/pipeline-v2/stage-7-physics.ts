@@ -885,12 +885,25 @@ export async function runPhysicsStage(
       // Stage 6.5A VGE: use calibrated crush depth if available and confidence is MEDIUM or HIGH.
       // Otherwise fall back to the per-component max from Stage 6 vision, then to the forensic analysis field.
       const vgeResult = ctx.vgeCalibrationResult;
+      const vgrResult = ctx.vgeReconciliationResult;
       let visionCrushDepthM: number | null;
-      if (vgeResult?.calibrationAvailable && vgeResult.calibratedCrushDepthM != null &&
+
+      // Priority 1: VGR consensus (Stage 6.5B) — multi-image view-angle-weighted
+      if (vgrResult?.reconciliationAvailable && vgrResult.consensusCrushDepthM != null &&
+          (vgrResult.confidenceLevel === 'HIGH' || vgrResult.confidenceLevel === 'MEDIUM')) {
+        visionCrushDepthM = vgrResult.consensusCrushDepthM;
+        ctx.log('Stage 7',
+          `[VGR] Using VGR consensus crush depth: ${(visionCrushDepthM * 1000).toFixed(0)} mm ` +
+          `[${((vgrResult.consensusCrushDepthMinM ?? 0) * 1000).toFixed(0)}\u2013${((vgrResult.consensusCrushDepthMaxM ?? 0) * 1000).toFixed(0)} mm] ` +
+          `(${vgrResult.confidenceLevel} confidence, ${vgrResult.agreementAssessment.contributingImages} image(s), ` +
+          `agreement: ${vgrResult.agreementAssessment.agreementLevel})`
+        );
+      // Priority 2: VGE single-best (Stage 6.5A) — fallback when VGR not available
+      } else if (vgeResult?.calibrationAvailable && vgeResult.calibratedCrushDepthM != null &&
           (vgeResult.confidenceLevel === 'HIGH' || vgeResult.confidenceLevel === 'MEDIUM')) {
         visionCrushDepthM = vgeResult.calibratedCrushDepthM;
         ctx.log('Stage 7',
-          `[VGE] Using VGE calibrated crush depth: ${(visionCrushDepthM * 1000).toFixed(0)} mm ` +
+          `[VGE] Using VGE calibrated crush depth (Stage 6.5A single-best): ${(visionCrushDepthM * 1000).toFixed(0)} mm ` +
           `[${((vgeResult.calibratedCrushDepthMinM ?? 0) * 1000).toFixed(0)}\u2013${((vgeResult.calibratedCrushDepthMaxM ?? 0) * 1000).toFixed(0)} mm] ` +
           `(${vgeResult.confidenceLevel} confidence, ${vgeResult.totalReferenceObjectsDetected} reference objects, ` +
           `vehicle: ${vgeResult.vehicleProfileUsed ?? 'no profile'})`

@@ -1714,6 +1714,12 @@ export interface PipelineContext {
    */
   vgeCalibrationResult?: import('./stage-6-5a-vge').VGECalibrationResult | null;
   /**
+   * Stage 6.5B VGR cross-image reconciliation result.
+   * Populated after Stage 6.5A when at least one calibrated image is available.
+   * Provides a view-angle-weighted consensus crush depth across all images.
+   */
+  vgeReconciliationResult?: import('./stage-6-5b-vgr').VGRConsensusResult | null;
+  /**
    * Enriched photo metadata JSON — set by Stage 6 (damage analysis).
    * Injected into the pipeline result by db.ts for the forensic validator.
    */

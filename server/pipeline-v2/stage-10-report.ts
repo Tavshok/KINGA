@@ -130,7 +130,32 @@ function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: Pipelin
 
   // Build Geometry Evidence Block from VGE calibration result (Stage 6.5A)
   const vge = ctx?.vgeCalibrationResult;
+  const vgr = ctx?.vgeReconciliationResult;
   const geb = vge?.geometryEvidenceBlock;
+
+  // VGR reconciliation summary — populated when Stage 6.5B ran successfully
+  const vgrReconciliation = vgr?.reconciliationAvailable ? {
+    consensusCrushDepthMm: vgr.consensusCrushDepthM != null ? Math.round(vgr.consensusCrushDepthM * 1000) : null,
+    consensusCrushDepthRangeMm: (vgr.consensusCrushDepthMinM != null && vgr.consensusCrushDepthMaxM != null)
+      ? { min: Math.round(vgr.consensusCrushDepthMinM * 1000), max: Math.round(vgr.consensusCrushDepthMaxM * 1000) }
+      : null,
+    confidenceLevel: vgr.confidenceLevel,
+    overallConfidence: vgr.overallConfidence,
+    contributingImages: vgr.agreementAssessment.contributingImages,
+    viewBreakdown: {
+      frontal: vgr.frontalImages,
+      angle45: vgr.angle45Images,
+      side: vgr.sideImages,
+      unknown: vgr.unknownAngleImages,
+    },
+    agreementLevel: vgr.agreementAssessment.agreementLevel,
+    spreadMm: Math.round(vgr.agreementAssessment.spreadMm),
+    spreadPct: Math.round(vgr.agreementAssessment.spreadPct),
+    convergenceAdjustment: vgr.agreementAssessment.convergenceAdjustment,
+    conflictDescription: vgr.agreementAssessment.conflictDescription ?? null,
+    crushDepthSource: `VGR consensus (${vgr.agreementAssessment.contributingImages} image(s), ${vgr.agreementAssessment.agreementLevel} agreement, ${vgr.confidenceLevel} confidence)`,
+  } : null;
+
   const geometryEvidenceBlock = vge ? {
     calibrationAvailable: vge.calibrationAvailable,
     calibrationStatusCode: geb?.calibrationStatusCode ?? (vge.calibrationAvailable ? 'CALIBRATED' : 'FAILED'),
@@ -192,6 +217,7 @@ function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: Pipelin
       damageConsistencyScore: physicsAnalysis.damageConsistencyScore,
       latentDamageProbability: physicsAnalysis.latentDamageProbability,
       geometryEvidenceBlock,
+      vgrReconciliation,
     },
   };
 }

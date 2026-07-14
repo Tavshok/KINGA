@@ -1347,6 +1347,36 @@ export async function runPipelineV2(
     ctx.vgeCalibrationResult = null;
   }
 
+  // ── STAGE 6.5B — VISION GEOMETRY RECONCILIATION ───────────────────────────────────────
+  // Cross-image weighted consensus. Runs only when Stage 6.5A produced at least
+  // one calibrated image. Non-fatal: falls back to Stage 6.5A single-best estimate.
+  ctx.onStageStart?.("Stage 6.5B — Vision Geometry Reconciliation");
+  try {
+    const vge65A = ctx.vgeCalibrationResult;
+    if (vge65A?.calibrationAvailable && vge65A.perImageResults.length > 0) {
+      const { runVGRReconciliation } = await import('./stage-6-5b-vgr');
+      const vgrResult = runVGRReconciliation(vge65A.perImageResults);
+      ctx.vgeReconciliationResult = vgrResult;
+      if (vgrResult?.reconciliationAvailable) {
+        ctx.log('Stage 6.5B', `VGR consensus: ${vgrResult.confidenceLevel} confidence (${(vgrResult.overallConfidence * 100).toFixed(0)}%), ` +
+          `${vgrResult.agreementAssessment.contributingImages} image(s), ` +
+          `agreement: ${vgrResult.agreementAssessment.agreementLevel} (spread ${vgrResult.agreementAssessment.spreadPct.toFixed(0)}%), ` +
+          `consensus crush depth: ${vgrResult.consensusCrushDepthM != null ? (vgrResult.consensusCrushDepthM * 1000).toFixed(0) + ' mm' : 'null'}`);
+        if (vgrResult.agreementAssessment.conflictDescription) {
+          ctx.log('Stage 6.5B', `VGR CONFLICT: ${vgrResult.agreementAssessment.conflictDescription}`);
+        }
+      } else {
+        ctx.log('Stage 6.5B', `VGR: ${vgrResult?.failureReason ?? 'no consensus available'} — Stage 7 will use Stage 6.5A single-best estimate`);
+      }
+    } else {
+      ctx.vgeReconciliationResult = null;
+      ctx.log('Stage 6.5B', 'VGR skipped — no calibrated images from Stage 6.5A');
+    }
+  } catch (vgrErr) {
+    ctx.log('Stage 6.5B', `VGR error (non-fatal): ${String(vgrErr)} — Stage 7 will use Stage 6.5A single-best estimate`);
+    ctx.vgeReconciliationResult = null;
+  }
+
   // ── SOURCE TRUTH RESOLUTION (Stage 6 → Stage 7) ─────────────────────
   // Resolve direction/zone/severity conflicts across photo and document sources.
   // Physics is not yet available; will re-resolve with full priority after Stage 7.
