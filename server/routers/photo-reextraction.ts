@@ -13,6 +13,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import { runPhotoReextraction } from "../photo-reextraction-worker";
+import mysql from 'mysql2/promise';
 import { invokeLLM } from "../_core/llm";
 
 export const photoReextractionRouter = router({
@@ -145,7 +146,7 @@ export const photoReextractionRouter = router({
    */
   classifyPhotoUrls: protectedProcedure
     .input(z.object({
-      urls: z.array(z.string().url()).max(12),
+      urls: z.array(z.string().url()).max(50),
       assessmentId: z.number().int().positive().optional(), // Optional: if provided, check DB cache first
     }))
     .query(async ({ input }) => {
@@ -394,12 +395,22 @@ Return ONLY valid JSON: { "classifications": [ { "index": 0, "category": "...", 
 
 // ── Helper: persist photo classification result to the DB cache ───────────────
 async function persistClassificationCache(
-  db: any,
+  _db: any,
   assessmentId: number,
   entries: Array<{ url: string; category: string; confidence: number }>
 ): Promise<void> {
-  await db.execute(
-    `UPDATE ai_assessments SET photo_classification_json = ? WHERE id = ?`,
-    [JSON.stringify(entries), assessmentId]
-  );
+  // Use a raw mysql2 connection — the Drizzle ORM instance returned by getDb()
+  // does not support positional ? placeholders in .execute(), causing silent failures.
+  const DB_URL = process.env.DATABASE_URL;
+  if (!DB_URL) return;
+  let conn: mysql.Connection | null = null;
+  try {
+    conn = await mysql.createConnection(DB_URL);
+    await conn.execute(
+      'UPDATE ai_assessments SET photo_classification_json = ? WHERE id = ?',
+      [JSON.stringify(entries), assessmentId]
+    );
+  } finally {
+    if (conn) await conn.end().catch(() => {});
+  }
 }

@@ -1009,6 +1009,57 @@ export async function runPipelineV2(
     ctx.log('Stage 2.6', 'No extracted image metadata available — skipping classification (using raw damagePhotoUrls)');
   }
 
+  // ── STAGE 2.6 PHASE B: Semantic Image Classification Gate ─────────────────
+  // Classifies ALL images in ctx.damagePhotoUrls by semantic type using a single
+  // LLM vision call. Prevents non-vehicle images (quotation scans, documents, ID
+  // pages) from being fed into Stage 6 damage analysis.
+  //
+  // This runs AFTER Stage 2.6 Phase A (imageClassifier.ts) so that Phase A's
+  // URL selection (quality ranking, deduplication) is respected. Phase B then
+  // adds a semantic-type gate on top of Phase A's output.
+  //
+  // Non-fatal: if the LLM call fails, all images remain eligible for Stage 6
+  // (preserving pre-fix behaviour as a safe fallback).
+  if ((ctx.damagePhotoUrls?.length ?? 0) > 0) {
+    try {
+      const { runSemanticClassification } = await import('./semanticImageClassifier');
+      const semanticResult = await runSemanticClassification(
+        ctx.damagePhotoUrls,
+        (msg: string) => ctx.log('Stage 2.6B', msg)
+      );
+      ctx.semanticImageClassifications = semanticResult;
+
+      // Pipeline gate: count Stage 6-eligible images
+      const stage6Eligible = [...semanticResult.values()].filter(m => m.eligibleStages.includes('Stage6'));
+      const excluded = [...semanticResult.values()].filter(m => !m.eligibleStages.includes('Stage6'));
+
+      if (excluded.length > 0) {
+        ctx.log('Stage 2.6B', `Pipeline gate: ${excluded.length} image(s) excluded from Stage 6 — types: ${excluded.map(m => m.semanticType).join(', ')}`);
+        for (const meta of excluded) {
+          ctx.log('Stage 2.6B', `  EXCLUDED: ${meta.imageId} → ${meta.semanticType} (confidence: ${(meta.semanticConfidence * 100).toFixed(0)}%) — ${meta.reasoning}`);
+        }
+      }
+
+      if (stage6Eligible.length === 0 && ctx.damagePhotoUrls.length > 0) {
+        ctx.log('Stage 2.6B', `WARNING: Zero Stage-6-eligible images after semantic classification — all ${ctx.damagePhotoUrls.length} image(s) were classified as non-damage content. Stage 6 will receive no images and produce empty damagedParts[].`);
+        allAssumptions.push({
+          field: 'semanticClassification',
+          assumedValue: JSON.stringify({ stage6Eligible: 0, total: ctx.damagePhotoUrls.length }),
+          reason: `Semantic classifier found no damage photos among ${ctx.damagePhotoUrls.length} submitted image(s). All images were classified as non-vehicle or document content. Stage 6 damage analysis will produce empty results.`,
+          strategy: 'domain_correction',
+          confidence: 30,
+          stage: 'Stage 2.6B',
+        });
+      } else {
+        ctx.log('Stage 2.6B', `Pipeline gate passed: ${stage6Eligible.length}/${ctx.damagePhotoUrls.length} image(s) eligible for Stage 6`);
+      }
+    } catch (semanticErr) {
+      ctx.log('Stage 2.6B', `Semantic classifier error (non-fatal): ${String(semanticErr)} — all images remain eligible for Stage 6`);
+    }
+  } else {
+    ctx.log('Stage 2.6B', 'No images to classify — skipping semantic gate');
+  }
+
   // ── STAGE 2.7: Embedded Quote Extraction from Quotation Scan Images ────────
   // After Stage 2.6 classifies embedded images, any images classified as
   // 'quotation_scan' may contain repair quotes that were not captured by Stage 2

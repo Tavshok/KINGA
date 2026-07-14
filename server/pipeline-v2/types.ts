@@ -1700,6 +1700,13 @@ export interface PipelineContext {
   /** Set by image classifier — classified images with confidence scores and quality rankings */
   classifiedImages?: import('./imageClassifier').ClassificationResult | null;
   /**
+   * Set by Stage 2.6 Phase B — semantic classification of ALL images (direct-upload + PDF-embedded).
+   * Maps each image URL to its SemanticImageMeta (semanticType, quality, eligibleStages, etc.).
+   * Used by Stage 6 to filter out non-vehicle images before damage analysis.
+   * Safe default: absent or empty map → all images included (pre-fix behaviour preserved).
+   */
+  semanticImageClassifications?: Map<string, import('./semanticImageClassifier').SemanticImageMeta> | null;
+  /**
    * Enriched photo metadata JSON — set by Stage 6 (damage analysis).
    * Injected into the pipeline result by db.ts for the forensic validator.
    */

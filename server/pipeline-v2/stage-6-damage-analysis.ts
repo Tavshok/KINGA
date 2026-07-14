@@ -774,24 +774,31 @@ async function readDamageFromPhotos(
 
   // ── STEP H: Persist enriched photo metadata to ctx ───────────────────────────────────────────────────────────────────────────────────────
   // Stage 7 and Stage 7b read ctx.enrichedPhotosJson for severity consensus. R-B-03: typed in PipelineContext.
-  const enrichedPhotoSummary = processedResults.map((r, idx) => ({
-    url: r.url,
-    index: idx,
-    componentCount: r.components.length,
-    severity: r.components.length > 0
-      ? (r.components.some(c => c.severity === 'severe' || c.severity === 'catastrophic') ? 'severe'
-        : r.components.some(c => c.severity === 'moderate') ? 'moderate' : 'minor')
-      : 'unknown',
-    impactZone: r.components[0]?.location ?? 'unknown',
-    detectedComponents: r.components.map(c => c.name),
-    caption: r.components.length > 0
-      ? `${r.components.length} component(s) detected: ${r.components.slice(0, 3).map(c => c.name).join(', ')}${r.components.length > 3 ? '...' : ''}`
-      : (r.succeeded ? 'No damage components detected in this image' : 'Image analysis failed'),
-    confidenceScore: r.confidence === 'high' ? 85 : r.confidence === 'medium' ? 65 : r.succeeded ? 40 : 0,
-    imageQuality: r.succeeded ? (r.confidence === 'high' ? 'good' : 'poor') : 'unusable',
-    usedFallback: r.usedFallback,
-    enrichedAt: new Date().toISOString(),
-  }));
+  const enrichedPhotoSummary = processedResults.map((r, idx) => {
+    // Attach semantic classification metadata if available (from Stage 2.6B)
+    const semanticMeta = ctx.semanticImageClassifications?.get(r.url);
+    return {
+      url: r.url,
+      index: idx,
+      componentCount: r.components.length,
+      severity: r.components.length > 0
+        ? (r.components.some(c => c.severity === 'severe' || c.severity === 'catastrophic') ? 'severe'
+          : r.components.some(c => c.severity === 'moderate') ? 'moderate' : 'minor')
+        : 'unknown',
+      impactZone: r.components[0]?.location ?? 'unknown',
+      detectedComponents: r.components.map(c => c.name),
+      caption: r.components.length > 0
+        ? `${r.components.length} component(s) detected: ${r.components.slice(0, 3).map(c => c.name).join(', ')}${r.components.length > 3 ? '...' : ''}`
+        : (r.succeeded ? 'No damage components detected in this image' : 'Image analysis failed'),
+      confidenceScore: r.confidence === 'high' ? 85 : r.confidence === 'medium' ? 65 : r.succeeded ? 40 : 0,
+      imageQuality: semanticMeta?.quality ?? (r.succeeded ? (r.confidence === 'high' ? 'good' : 'poor') : 'unusable'),
+      usedFallback: r.usedFallback,
+      enrichedAt: new Date().toISOString(),
+      // Stage 2.6B semantic classification metadata
+      semanticType: semanticMeta?.semanticType ?? null,
+      semanticConfidence: semanticMeta?.semanticConfidence ?? null,
+    };
+  });
   ctx.enrichedPhotosJson = JSON.stringify(enrichedPhotoSummary);
 
   return { components: allComponents, perPhotoResults, photosProcessed, photosDeferred, photosFailed };
@@ -1457,9 +1464,24 @@ export async function runDamageAnalysisStage(
     // P5: track per-URL provenance for inputSource stamping
     let visionSourceTagMap: Map<string, DamageAnalysisComponent['inputSource']> | undefined;
     if (photoUrls.length > 0) {
-      visionSourceUrls = photoUrls;
-      // Dedicated damage photos — all confirmed
-      visionSourceTagMap = new Map(photoUrls.map(u => [u, 'confirmed_damage_photo' as const]));
+      // Stage 2.6B semantic gate: filter out non-vehicle images (quotation scans,
+      // documents, ID pages) that were classified by the semantic classifier.
+      // Safe default: if no classification data exists, include all images (pre-fix behaviour).
+      const semanticClassifications = ctx.semanticImageClassifications;
+      const semanticFilteredUrls = semanticClassifications && semanticClassifications.size > 0
+        ? photoUrls.filter(url => {
+            const meta = semanticClassifications.get(url);
+            if (!meta) return true; // Unknown URL → include (safe default)
+            const eligible = meta.eligibleStages.includes('Stage6');
+            if (!eligible) {
+              ctx.log('Stage 6', `Semantic gate: excluding ${meta.imageId} (${meta.semanticType}, conf: ${(meta.semanticConfidence * 100).toFixed(0)}%) — not eligible for Stage 6`);
+            }
+            return eligible;
+          })
+        : photoUrls;
+      visionSourceUrls = semanticFilteredUrls;
+      // Dedicated damage photos — all confirmed (semantically filtered)
+      visionSourceTagMap = new Map(semanticFilteredUrls.map(u => [u, 'confirmed_damage_photo' as const]));
     } else if (pdfPageUrls.length > 0) {
       const scoredPages = await selectDamagePhotoPages(pdfPageUrls, ctx);
       visionSourceUrls = scoredPages.map(p => p.url);

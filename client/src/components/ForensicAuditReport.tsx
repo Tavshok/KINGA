@@ -5399,6 +5399,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
     impactZone: string;
     severity: string;
     confidenceScore?: number;
+    imageQuality?: string;       // 'good' | 'poor' | 'unusable'
+    aiVisionDescription?: string; // Stage 6 raw vision text — used for document detection guard
+    isNonVehicle?: boolean;       // Stage 6 explicit non-vehicle flag
   }
   // Build a lookup map from resolvedPhotosOverride for O(1) URL swapping
   const _farResolvedUrlMap = new Map<number, string>();
@@ -5425,6 +5428,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
               impactZone: p.impactZone ?? 'unknown',
               severity: p.severity ?? 'unknown',
               confidenceScore: typeof p.confidenceScore === 'number' ? Math.round(p.confidenceScore) : undefined,
+              imageQuality: typeof p.imageQuality === 'string' ? p.imageQuality : undefined,
+              aiVisionDescription: typeof p.aiVisionDescription === 'string' ? p.aiVisionDescription : undefined,
+              isNonVehicle: typeof p.isNonVehicle === 'boolean' ? p.isNonVehicle : undefined,
             }));
         }
       } catch { /* fall through */ }
@@ -5453,7 +5459,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
   // On LLM failure, all photos default to 'damage_photo' so gallery degrades gracefully.
   const { data: photoClassification, isLoading: photoClassifying } =
     trpc.photoReextraction.classifyPhotoUrls.useQuery(
-      { urls: photoUrls.slice(0, 12), assessmentId: aiAssessment?.id ?? undefined },
+      { urls: photoUrls.slice(0, 50), assessmentId: aiAssessment?.id ?? undefined },
       {
         enabled: photoUrls.length > 0,
         staleTime: 1000 * 60 * 60 * 24, // 24 h — cached in DB, no need to re-run LLM
@@ -5707,6 +5713,12 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                 const zoneMap = new Map<string, ZonePhoto[]>();
                 const poorQualityPhotos: string[] = [];
 
+                // ── isDocumentVisionText: guard against Stage 6 hallucinating components on docs ──
+                const isDocVisionText = (text: string): boolean => {
+                  if (!text) return false;
+                  return /\b(quotation|invoice|repair quote|line item|labour|parts list|vat|total amount|claim form|police report|id document|registration certificate|licence disc)\b/i.test(text);
+                };
+
                 damagePhotoUrls.forEach(url => {
                   const enriched = enrichedByUrl.get(url);
                   const comps = enriched?.detectedComponents ?? [];
@@ -5715,6 +5727,18 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                   const isGood = comps.length > 0 && conf >= 40;
                   const rawZone = enriched?.impactZone ?? 'unknown';
                   const zone = normaliseZone(rawZone);
+
+                  // Guard 1: Stage 6 non-vehicle flag
+                  if ((enriched as any)?.isNonVehicle === true) {
+                    poorQualityPhotos.push(url);
+                    return;
+                  }
+
+                  // Guard 2: Stage 6 vision description contains document/quotation language
+                  if (isDocVisionText((enriched as any)?.aiVisionDescription ?? '')) {
+                    poorQualityPhotos.push(url);
+                    return;
+                  }
 
                   if (!isGood && comps.length === 0) {
                     poorQualityPhotos.push(url);
