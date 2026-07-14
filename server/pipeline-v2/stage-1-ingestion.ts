@@ -240,9 +240,11 @@ export async function runIngestionStage(
 
         // Page rendering via pdftoppm
         try {
+          // KINGA precision: use full DPI matching the scan type detected by the primary path.
+          // isScanned is not available here (primary failed), so default to 200 DPI (scanned-safe).
           const renderResult = await renderPdfToImages(pdfRenderUrl, {
-            dpi: 100,
-            maxPages: 25,
+            dpi: 200,
+            maxPages: 40,
             keyPrefix: `claims/${ctx.claimId}/pdf-pages`,
             log: (msg: string) => ctx.log("Stage 1 [PDF Render Fallback]", msg),
           });

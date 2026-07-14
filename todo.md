@@ -689,3 +689,12 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] DRA-P6-2: VOLTRON re-run (claim 8880001) — confirm pipeline still completes correctly
 - [ ] DRA-P6-3: Degraded claim test (claim 9330001) — confirm it now routes to DOCUMENT_FAILED not assessment_complete
 - [ ] DRA-P6-4: Checkpoint
+
+## Pipeline Crash Resilience — Always-Complete Guarantee
+
+- [ ] RESILIENCE-1: Fix NapiCanvasFactory null canvas crash in pdf-image-extractor.ts (Stage 1 scanned PDF crash) [DONE in code, not checkpointed]
+- [ ] RESILIENCE-2: Add process.on('uncaughtException') + process.on('unhandledRejection') safety net in triggerAiAssessment that writes terminal DB state before process exit
+- [ ] RESILIENCE-3: Wrap entire orchestrator call in db.ts with guaranteed finally block that always writes terminal state
+- [ ] RESILIENCE-4: Fix Document Health Gate isDocumentIngested logic (incidentDate/description are pipeline outputs, not pre-conditions) [DONE]
+- [ ] RESILIENCE-5: Fix gate cache_rehydration path (synthesise quality data when photos are cached) [DONE]
+- [ ] RESILIENCE-6: Methodist claim (9330001) completes to analysis_complete end-to-end

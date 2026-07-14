@@ -152,6 +152,12 @@ export interface PdfToImagesResult {
  * Hard 60-second timeout covers both the connection and the full body read.
  */
 async function downloadPdfBuffer(url: string): Promise<Buffer> {
+  // Support file:// URLs for local temp files (used by pdf-image-extractor.ts)
+  if (url.startsWith('file://')) {
+    const { readFileSync } = await import('fs');
+    const filePath = url.replace(/^file:\/\//, '');
+    return readFileSync(filePath);
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60_000);
   try {
@@ -196,17 +202,12 @@ export async function renderPdfToImages(
   } = options;
 
   // ── MEMORY GUARD ──────────────────────────────────────────────────────────
-  // Cloud Run has 512MB RAM. At 100 DPI, 25 A4 pages ≈ 200MB RAM — safe.
-  // At 150 DPI, 25 pages would exceed 400MB — unsafe. Hard-cap both DPI and pages
-  // so callers cannot accidentally pass unsafe values.
-  const SAFE_MAX_PAGES = 25;
-  const SAFE_MAX_DPI = 100;
-  const effectiveMaxPages = Math.min(maxPages, SAFE_MAX_PAGES);
-  const effectiveDpi = Math.min(dpi, SAFE_MAX_DPI);
-  if (dpi > SAFE_MAX_DPI) {
-    log(`[Memory Guard] DPI capped from ${dpi} to ${effectiveDpi} (caller requested ${dpi} DPI which would exceed Cloud Run memory limit)`);
-  }
-  log(`[Memory Guard] Rendering ${effectiveMaxPages} pages at ${effectiveDpi} DPI (Cloud Run safe)`);
+  // KINGA precision principle: honour caller-specified DPI and page limit exactly.
+  // pdftoppm writes pages to disk one at a time, so peak RAM = 1 page buffer.
+  // The Dockerfile allocates sufficient memory for full-resolution rendering.
+  const effectiveMaxPages = maxPages;
+  const effectiveDpi = dpi;
+  log(`Rendering up to ${effectiveMaxPages} pages at ${effectiveDpi} DPI`);
 
   const errors: string[] = [];
   const pages: PdfPageImage[] = [];
@@ -355,7 +356,7 @@ export async function renderSpecificPdfPages(
   options: PdfToImagesOptions = {}
 ): Promise<Map<number, PdfPageImage>> {
   const {
-    dpi = 100,
+    dpi = 200, // KINGA precision: full DPI for targeted damage page renders
     keyPrefix = "pdf-damage-pages",
     log = () => {},
   } = options;

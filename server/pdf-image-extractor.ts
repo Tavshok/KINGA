@@ -52,7 +52,7 @@ const DOWNLOAD_TIMEOUT_MS = 45_000;
 const DOWNLOAD_RETRIES = 3;
 const S3_UPLOAD_RETRIES = 3;
 const DPI_NATIVE = 150;
-const DPI_SCANNED = 200; // Reduced from 250 to 200 — still readable, but uses ~36% less memory per page
+const DPI_SCANNED = 200; // Scanned PDFs require higher DPI for legibility. pdftoppm handles any canvas size natively — no @napi-rs/canvas size limit applies.
 const MIN_DIM_PAGE_RENDER = 300;
 const MIN_DIM_EMBEDDED = 400;
 const MIN_PIXEL_AREA = 90_000;
@@ -133,12 +133,18 @@ class NapiCanvasFactory {
     return { canvas, context: canvas.getContext('2d') };
   }
   reset(canvasAndContext: any, width: number, height: number) {
-    canvasAndContext.canvas.width = width;
-    canvasAndContext.canvas.height = height;
+    if (canvasAndContext?.canvas) {
+      canvasAndContext.canvas.width = width;
+      canvasAndContext.canvas.height = height;
+    }
   }
   destroy(canvasAndContext: any) {
-    canvasAndContext.canvas.width = 0;
-    canvasAndContext.canvas.height = 0;
+    // Guard against pdfjs-dist calling destroy on an already-freed or null canvas
+    // (happens with scanned PDFs when InternalRenderTask.cancel fires during cleanup)
+    if (canvasAndContext?.canvas) {
+      canvasAndContext.canvas.width = 0;
+      canvasAndContext.canvas.height = 0;
+    }
   }
 }
 
@@ -417,30 +423,33 @@ async function extractEmbeddedImagesFromPage(
 
 // ─── Main Extraction Orchestrator ────────────────────────────────────────────
 /**
- * Core extraction orchestrator. Loads the PDF, detects scan type, renders each
- * page (with rotation correction), extracts embedded images, and assembles the
- * ExtractionSummary. Each page is processed and released immediately to keep
- * peak memory at ~2 page buffers rather than N pages simultaneously.
+ * Core extraction orchestrator.
  *
- * Sub-functions:
- *   detectScannedPdf()          — R-A-06 median-chars scanned detection
- *   applyHeuristicRotation()    — R-A-07 heuristic rotation correction
- *   extractEmbeddedImagesFromPage() — pdf.js operator-list embedded extraction
- *   processBuffer()             — dimension/quality check + S3 upload
+ * PAGE RENDERING: pdftoppm (poppler-utils) via renderPdfToImages().
+ *   Full DPI, no canvas size limits, no @napi-rs/canvas native binary issues.
+ *   pdftoppm writes pages to disk one at a time — peak RAM = 1 page buffer.
+ *
+ * EMBEDDED IMAGE EXTRACTION: pdfjs-dist operator-list extraction.
+ *   Does NOT use canvas. Reliable XObject/inline image extraction.
+ *
+ * KINGA precision principle: honour caller-specified DPI exactly.
  */
 async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined, sessionId: string, forceDpi?: number): Promise<ExtractionSummary> {
+  const { renderPdfToImages } = await import('./pipeline-v2/pdfToImages');
+  const osModule = await import('os');
+  const fsModule = await import('fs');
+  const pathModule = await import('path');
+
   const errors: string[] = [];
   const extractedImages: ExtractedImage[] = [];
   let rejectedByDimension = 0, rejectedByQuality = 0, blurryCount = 0, textHeavyCount = 0;
 
   try {
+    // ── STEP 1: Detect scan type using pdfjs-dist (text extraction only, no canvas) ──
     const pdfjsLib = await getPdfjsLib();
-    const canvasFactory = new NapiCanvasFactory();
-
-    console.log(`[PDF Extractor] Loading PDF (${pdfBuffer.length} bytes, session: ${sessionId})`);
+    console.log(`[PDF Extractor] Loading PDF for scan detection (${pdfBuffer.length} bytes, session: ${sessionId})`);
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(pdfBuffer),
-      canvasFactory,
       disableFontFace: true,
       standardFontDataUrl: undefined,
     });
@@ -450,76 +459,142 @@ async function _doExtraction(pdfBuffer: Buffer, pdfFileName: string | undefined,
 
     const isScanned = await detectScannedPdf(pdfDoc, pageCount);
     const renderDpi = forceDpi ?? (isScanned ? DPI_SCANNED : DPI_NATIVE);
-    const SCALE = renderDpi / 72;
+    console.log(`[PDF Extractor] PDF type: ${isScanned ? 'SCANNED' : 'NATIVE'}, pages: ${pageCount}, DPI: ${renderDpi}`);
 
-    // R-A-05 FIX: Enforce page cap to prevent OOM on large PDFs
-    const pagesToRender = Math.min(pageCount, MAX_PAGES_TO_RENDER);
     if (pageCount > MAX_PAGES_TO_RENDER) {
-      const truncationMsg = `[PDF Extractor] R-A-05: PDF has ${pageCount} pages — rendering capped at ${MAX_PAGES_TO_RENDER} to prevent OOM. Pages ${MAX_PAGES_TO_RENDER + 1}-${pageCount} will not be rendered as images (LLM still receives full PDF via file_url in Stage 3).`;
-      console.warn(truncationMsg);
-      errors.push(truncationMsg);
+      const truncMsg = `R-A-05: PDF has ${pageCount} pages — rendering capped at ${MAX_PAGES_TO_RENDER}. Pages ${MAX_PAGES_TO_RENDER + 1}-${pageCount} not rendered as images (LLM still receives full PDF via file_url in Stage 3).`;
+      console.warn(`[PDF Extractor] ${truncMsg}`);
+      errors.push(truncMsg);
     }
-    console.log(`[PDF Extractor] PDF type: ${isScanned ? 'SCANNED' : 'NATIVE'}, pages: ${pageCount} (rendering: ${pagesToRender}), DPI: ${renderDpi}`);
 
-    // ── STREAMING EXTRACTION: render + process + release each page immediately ──
-    // This prevents accumulating all page PNG buffers in memory simultaneously.
-    // Peak memory = ~2 page buffers (current render + 1 in-flight upload) instead of N pages.
-    // Speed is maintained: processBuffer uploads to S3 while next page renders.
+    // ── STEP 2: Page rendering via pdftoppm ──────────────────────────────────────
+    // Write PDF buffer to a temp file so pdftoppm can read it via file:// URL
+    const tmpDir = fsModule.mkdtempSync(pathModule.join(osModule.tmpdir(), 'kinga-ext-'));
+    const tmpPdfPath = pathModule.join(tmpDir, 'input.pdf');
     let pagesRendered = 0;
     let embeddedCandidates = 0;
 
-    for (let pageNum = 1; pageNum <= pagesToRender; pageNum++) {
-      try {
-        const page = await pdfDoc.getPage(pageNum);
+    try {
+      fsModule.writeFileSync(tmpPdfPath, pdfBuffer);
+      const tmpPdfUrl = `file://${tmpPdfPath}`;
 
-        // Respect PDF metadata rotation (/Rotate entry) — see applyHeuristicRotation() for full rationale
-        const declaredRotation: number = page.rotate ?? 0;
-        const viewport = page.getViewport({ scale: SCALE, rotation: declaredRotation });
+      const renderResult = await renderPdfToImages(tmpPdfUrl, {
+        dpi: renderDpi,
+        maxPages: MAX_PAGES_TO_RENDER,
+        keyPrefix: `extracted-images/${sessionId}/pages`,
+        log: (msg: string) => console.log(`[PDF Extractor] [pdftoppm] ${msg}`),
+      });
 
-        const napiCanvas = await getCanvas();
-        const canvas = napiCanvas.createCanvas(Math.round(viewport.width), Math.round(viewport.height));
-        const ctx = canvas.getContext('2d');
-        await page.render({ canvasContext: ctx as any, viewport }).promise;
-        pagesRendered++;
+      if (renderResult.errors.length > 0) {
+        errors.push(...renderResult.errors.map((e: string) => `pdftoppm: ${e}`));
+      }
 
-        // Apply heuristic rotation for un-tagged scanned pages (R-A-07)
-        const pngBuffer = await applyHeuristicRotation(
-          canvas.toBuffer('image/png'), pageNum, pagesToRender, isScanned, declaredRotation
-        );
+      pagesRendered = renderResult.totalPagesRendered;
 
-        // Process page render immediately (uploads to S3, releases buffer)
-        const pageResult = await processBuffer(pngBuffer, 'page_render', MIN_DIM_PAGE_RENDER, pageNum, sessionId, isScanned, renderDpi);
-        if (pageResult) {
-          extractedImages.push(pageResult);
-          if (pageResult.quality.isBlurry) blurryCount++;
-          if (pageResult.quality.isTextHeavy) textHeavyCount++;
-        } else {
-          rejectedByDimension++;
-        }
-
-        // Extract embedded images from this page (same pass, no second getPage call)
+      // Convert PdfPageImage[] → ExtractedImage[], applying heuristic rotation
+      for (const page of renderResult.pages) {
         try {
-          const emb = await extractEmbeddedImagesFromPage(page, pageNum, sessionId, isScanned, renderDpi);
+          // Fetch rendered PNG from S3 for rotation analysis
+          const res = await fetch(page.url);
+          if (!res.ok) throw new Error(`S3 fetch failed: ${res.status}`);
+          let pngBuf = Buffer.from(await res.arrayBuffer());
+
+          // Apply R-A-07 heuristic rotation to pdftoppm output
+          pngBuf = await applyHeuristicRotation(pngBuf, page.pageNumber, pagesRendered, isScanned, 0);
+
+          const sharpInst = await getSharp();
+          const meta = await sharpInst(pngBuf).metadata();
+          const w = meta.width ?? page.width;
+          const h = meta.height ?? page.height;
+          const quality = await analyseImageQuality(pngBuf, w, h);
+
+          // Skip blank/uniform pages
+          if (quality.isUniform) {
+            console.log(`[PDF Extractor] Skipped uniform page ${page.pageNumber} (stddev=${quality.colourVariance})`);
+            rejectedByDimension++;
+            continue;
+          }
+
+          // Re-upload only if rotation changed the image dimensions
+          let finalUrl = page.url;
+          if (w !== page.width || h !== page.height) {
+            const rotKey = `extracted-images/${sessionId}/pages/rotated-page-${String(page.pageNumber).padStart(3, '0')}.png`;
+            const uploaded = await uploadToS3WithRetry(pngBuf, rotKey, 'image/png', `page_render_rotated_p${page.pageNumber}`);
+            if (uploaded) finalUrl = uploaded;
+          }
+
+          const extracted: ExtractedImage = {
+            url: finalUrl,
+            width: w,
+            height: h,
+            pageNumber: page.pageNumber,
+            source: 'page_render',
+            quality,
+            fromScannedPdf: isScanned,
+            renderDpi,
+          };
+          extractedImages.push(extracted);
+          if (quality.isBlurry) blurryCount++;
+          if (quality.isTextHeavy) textHeavyCount++;
+          console.log(`[PDF Extractor] Page ${page.pageNumber}: ${w}x${h} blur=${quality.blurScore} textHeavy=${quality.isTextHeavy} → ${finalUrl.substring(0, 80)}...`);
+        } catch (pageErr: any) {
+          console.warn(`[PDF Extractor] Page ${page.pageNumber} post-process failed: ${pageErr.message}`);
+          errors.push(`page_postprocess_${page.pageNumber}: ${pageErr.message}`);
+          // Include page with original metadata rather than dropping it
+          extractedImages.push({
+            url: page.url,
+            width: page.width,
+            height: page.height,
+            pageNumber: page.pageNumber,
+            source: 'page_render',
+            quality: page.quality ?? { width: page.width, height: page.height, blurScore: 80, isBlurry: false, isTextHeavy: false, isUniform: false, colourVariance: 80, aspectRatio: page.width / (page.height || 1), pixelArea: page.width * page.height },
+            fromScannedPdf: isScanned,
+            renderDpi,
+          });
+        }
+      }
+
+      console.log(`[PDF Extractor] pdftoppm complete: ${pagesRendered} pages rendered, ${extractedImages.length} page images`);
+
+    } finally {
+      try { fsModule.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* non-fatal */ }
+    }
+
+    // ── STEP 3: Embedded image extraction via pdfjs-dist (no canvas needed) ──────
+    // Re-load PDF in pdfjs-dist for operator-list XObject extraction only.
+    // This path does NOT use canvas — reads imgData directly from page.objs.
+    try {
+      const embLoadingTask = pdfjsLib.getDocument({
+        data: new Uint8Array(pdfBuffer),
+        disableFontFace: true,
+        standardFontDataUrl: undefined,
+      });
+      const embPdfDoc = await embLoadingTask.promise;
+      const pagesToScan = Math.min(embPdfDoc.numPages, MAX_PAGES_TO_RENDER);
+      const renderDpi2 = forceDpi ?? (isScanned ? DPI_SCANNED : DPI_NATIVE);
+      for (let pageNum = 1; pageNum <= pagesToScan; pageNum++) {
+        try {
+          const page = await embPdfDoc.getPage(pageNum);
+          const emb = await extractEmbeddedImagesFromPage(page, pageNum, sessionId, isScanned, renderDpi2);
           extractedImages.push(...emb.images);
           embeddedCandidates += emb.candidates;
           rejectedByDimension += emb.rejectedByDimension;
           blurryCount += emb.blurryCount;
           textHeavyCount += emb.textHeavyCount;
-        } catch (embErr: any) {
-          // Non-fatal: embedded extraction failure for this page
-          errors.push(`embedded_p${pageNum}: ${embErr.message}`);
+          page.cleanup();
+        } catch (embPageErr: any) {
+          errors.push(`embedded_p${pageNum}: ${embPageErr.message}`);
         }
-
-        page.cleanup();
-      } catch (e: any) {
-        console.warn(`[PDF Extractor] Failed to render page ${pageNum}: ${e.message}`);
-        errors.push(`page_render_${pageNum}: ${e.message}`);
       }
+      console.log(`[PDF Extractor] Embedded extraction complete: ${embeddedCandidates} candidates`);
+    } catch (embErr: any) {
+      console.warn(`[PDF Extractor] Embedded extraction failed (non-fatal): ${embErr.message}`);
+      errors.push(`embedded_extraction: ${embErr.message}`);
     }
 
-    console.log(`[PDF Extractor] Complete: ${extractedImages.length} image(s) uploaded (${pagesRendered} pages rendered, ${embeddedCandidates} embedded candidates, ${rejectedByDimension} rejected, ${blurryCount} blurry, ${textHeavyCount} text-heavy)`);
-
+    console.log(`[PDF Extractor] Complete: ${extractedImages.length} image(s) (${pagesRendered} pages rendered, ${embeddedCandidates} embedded candidates, ${rejectedByDimension} rejected, ${blurryCount} blurry, ${textHeavyCount} text-heavy)`);
     return { images: extractedImages, isScannedPdf: isScanned, renderDpi, pageCount, pagesRendered, embeddedCandidates, rejectedByDimension, rejectedByQuality, blurryCount, textHeavyCount, errors };
+
   } catch (error: any) {
     const msg = `Fatal extraction error: ${error.message}`;
     errors.push(msg);

@@ -546,8 +546,34 @@ export async function runPipelineV2(
   };
 
   // ── STAGE 1: Document Ingestion ──────────────────────────────────────
+  // SKIP when imageNormSource === 'cache_rehydration':
+  // The claim already has trusted cached photos from a prior successful extraction.
+  // Re-running Stage 1 would re-download and re-process the PDF unnecessarily,
+  // and on scanned PDFs this triggers a pdfjs-dist canvas crash (NapiCanvasFactory.destroy).
+  // The cached photos are the authoritative evidence set — Stage 2.6 will use them directly.
+  const _skipStage1 = ctx.imageNormSource === 'cache_rehydration' && (ctx.damagePhotoUrls?.length ?? 0) > 0;
+  if (_skipStage1) {
+    ctx.log('Stage 1', `SKIPPED — cache_rehydration: ${ctx.damagePhotoUrls?.length ?? 0} trusted cached photo(s) already available. No PDF re-processing needed.`);
+  }
   ctx.onStageStart?.("Stage 1 — Ingestion");
-  const s1 = await runWithTimeout("1_ingestion", () => runIngestionStage(ctx)).catch((err) => {
+  const s1 = _skipStage1
+    ? {
+        status: 'skipped' as const,
+        data: { documents: [], primaryDocumentIndex: -1, totalDocuments: 0 },
+        durationMs: 0,
+        savedToDb: false,
+        assumptions: [{
+          field: 'documents',
+          assumedValue: 'skipped',
+          reason: `Stage 1 skipped — cache_rehydration: ${ctx.damagePhotoUrls?.length ?? 0} trusted cached photo(s) already available from prior extraction.`,
+          strategy: 'default_value' as const,
+          confidence: 95,
+          stage: 'Stage 1',
+        }],
+        recoveryActions: [],
+        degraded: false,
+      }
+    : await runWithTimeout("1_ingestion", () => runIngestionStage(ctx)).catch((err) => {
     const isTimeout = err instanceof StageTimeoutError;
     const reason = isTimeout
       ? `stage_timeout: exceeded ${err.budgetMs}ms budget`

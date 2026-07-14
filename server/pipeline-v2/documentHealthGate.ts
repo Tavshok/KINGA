@@ -136,6 +136,13 @@ export interface DocumentHealthGateInput {
   s3UploadFailed: boolean;
   /** Error message from render failure (if any) */
   renderErrorMessage: string | null;
+  /**
+   * Whether this claim was created from a document ingestion (sourceDocumentId IS NOT NULL).
+   * For document-ingested claims, incidentDate and incidentDescription are OUTPUTS of the pipeline
+   * (extracted by the LLM from the PDF), not pre-conditions. The contract must not require them
+   * before the pipeline runs.
+   */
+  isDocumentIngested: boolean;
   /** Claim record fields for contract evaluation */
   claimRecord: {
     claimNumber: string | null;
@@ -327,13 +334,19 @@ function evaluateContract(input: DocumentHealthGateInput): EvidenceCompletenessC
   const absentOptionals: string[] = [];
 
   // Required fields
+  // NOTE: For document-ingested claims, incidentDate and incidentDescription are pipeline
+  // OUTPUTS (extracted by the LLM from the PDF). They must NOT be required as pre-conditions
+  // before the pipeline runs — only form-submitted claims have these fields pre-populated.
   const requiredChecks: Array<{ label: string; value: string | null | undefined | number }> = [
     { label: 'Claim document exists', value: input.sourceDocumentFound ? 'yes' : null },
     { label: 'Claim number', value: claimRecord.claimNumber },
     { label: 'Vehicle make', value: claimRecord.vehicleMake },
     { label: 'Vehicle model', value: claimRecord.vehicleModel },
-    { label: 'Incident date', value: claimRecord.incidentDate },
-    { label: 'Incident description', value: claimRecord.incidentDescription },
+    // For document-ingested claims these fields are extracted BY the pipeline — skip pre-check
+    ...(input.isDocumentIngested ? [] : [
+      { label: 'Incident date', value: claimRecord.incidentDate },
+      { label: 'Incident description', value: claimRecord.incidentDescription },
+    ] as Array<{ label: string; value: string | null | undefined | number }>),
     { label: 'Minimum evidence images available', value: input.vehicleDamageImageCount > 0 ? 'yes' : null },
     { label: 'Document integrity verified', value: input.pdfSizeBytes > 0 ? 'yes' : null },
   ];
@@ -567,6 +580,8 @@ export function runDocumentHealthGate(input: DocumentHealthGateInput): DocumentH
  */
 export function buildGateInput(params: {
   claimId: number;
+  /** True when the claim was created via document ingestion (sourceDocumentId IS NOT NULL) */
+  isDocumentIngested: boolean;
   sourceDocumentFound: boolean;
   presignSucceeded: boolean;
   pdfBuffer: Buffer | null;
@@ -609,6 +624,7 @@ export function buildGateInput(params: {
     nonVehicleImageCount: params.nonVehicleImageCount,
     renderFailed: params.renderFailed,
     s3UploadFailed: params.s3UploadFailed,
+    isDocumentIngested: params.isDocumentIngested,
     renderErrorMessage: params.renderErrorMessage,
     claimRecord: {
       claimNumber: params.claim.claimNumber ?? null,
