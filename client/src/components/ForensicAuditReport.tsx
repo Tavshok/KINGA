@@ -5643,6 +5643,39 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                 const pfData = (enforcement as any)?._photoForensics as any;
                 const pfPhotos: any[] = pfData?.photos ?? [];
 
+                // ── Proposal 3: Photo Coverage Audit Table ──────────────────────────────
+                // Derive coverage stats from enrichedPhotosFAR before rendering the gallery
+                const allEnriched = enrichedPhotosFAR.length > 0 ? enrichedPhotosFAR : [];
+                const highConfCount = allEnriched.filter(p => (p.confidenceScore ?? 0) >= 70).length;
+                const poorQualityCount = (() => {
+                  const raw = aiAssessment?.enrichedPhotosJson;
+                  if (!raw) return 0;
+                  try {
+                    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                    return Array.isArray(parsed) ? parsed.filter((p: any) => p.imageQuality === 'poor' || p.componentCount === 0).length : 0;
+                  } catch { return 0; }
+                })();
+                const uniqueComponents = (() => {
+                  const seen = new Set<string>();
+                  allEnriched.forEach(p => (p.detectedComponents ?? []).forEach((c: string) => seen.add(c.toLowerCase())));
+                  return seen.size;
+                })();
+                const zonesPresent = (() => {
+                  const seen = new Set<string>();
+                  allEnriched.forEach(p => { if (p.impactZone && p.impactZone !== 'unknown') seen.add(p.impactZone.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())); });
+                  return Array.from(seen);
+                })();
+                const poorPct = damagePhotoUrls.length > 0 ? poorQualityCount / damagePhotoUrls.length : 0;
+
+                // ── Proposal 5: Cross-photo component consensus frequency map ──────────
+                const componentFreqMap = new Map<string, number>();
+                allEnriched.forEach(p => {
+                  (p.detectedComponents ?? []).forEach((c: string) => {
+                    const key = c.toLowerCase();
+                    componentFreqMap.set(key, (componentFreqMap.get(key) ?? 0) + 1);
+                  });
+                });
+
                 // Find matching forensics record by URL
                 const getForensics = (url: string) => pfPhotos.find((p: any) =>
                   (p.url ?? p.imageUrl ?? '') === url
@@ -5653,6 +5686,33 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                     <p className="sub-heading">
                       4.1 Damage Photo Gallery ({damagePhotoUrls.length} image{damagePhotoUrls.length !== 1 ? 's' : ''})
                     </p>
+
+                    {/* ── Proposal 3: Coverage Audit Table ─────────────────────────── */}
+                    {allEnriched.length > 0 && (
+                      <div style={{ marginBottom: 14, border: '1px solid #e2e8f0', borderRadius: 4, overflow: 'hidden', background: '#f8fafc' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', borderBottom: '1px solid #e2e8f0' }}>
+                          {[
+                            { label: 'Photos analysed', value: String(damagePhotoUrls.length) },
+                            { label: 'High-confidence', value: String(highConfCount) },
+                            { label: 'Poor quality / no detection', value: String(poorQualityCount), warn: poorPct >= 0.2 },
+                            { label: 'Unique components', value: String(uniqueComponents) },
+                            { label: 'Zones covered', value: zonesPresent.length > 0 ? zonesPresent.join(', ') : '—' },
+                          ].map((cell, ci) => (
+                            <div key={ci} style={{ padding: '7px 10px', borderRight: ci < 4 ? '1px solid #e2e8f0' : undefined }}>
+                              <p style={{ fontSize: 8, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0, fontWeight: 600 }}>{cell.label}</p>
+                              <p style={{ fontSize: 12, fontWeight: 700, color: (cell as any).warn ? '#b91c1c' : '#0f172a', margin: '2px 0 0', lineHeight: 1.2 }}>{cell.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {poorPct >= 0.2 && (
+                          <div style={{ padding: '5px 10px', background: '#fef2f2', borderTop: '1px solid #fecaca' }}>
+                            <p style={{ fontSize: 9, color: '#b91c1c', margin: 0 }}>
+                              ⚠ {poorQualityCount} of {damagePhotoUrls.length} photos produced no component detections — damage extent may be understated.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {/* ── TIER 1: Featured Evidence — top 5 photos, clean horizontal card ── */}
                     {(() => {
                       const SEV_COLOUR: Record<string, string> = {
@@ -5743,6 +5803,28 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                                   ) : (
                                     <p style={{ fontSize: 9, color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>Forensic description pending analysis.</p>
                                   )}
+                                  {/* Proposal 5: Consensus badges on featured cards */}
+                                  {parts.length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 2 }}>
+                                      {parts.slice(0, 6).map((p: string, pi: number) => {
+                                        const freq = componentFreqMap.get(p.toLowerCase()) ?? 1;
+                                        const isCorroborated = freq >= 3;
+                                        return (
+                                          <span key={pi} style={{
+                                            fontSize: 7.5, color: isCorroborated ? '#15803d' : '#64748b',
+                                            background: isCorroborated ? '#f0fdf4' : '#f8fafc',
+                                            border: `1px solid ${isCorroborated ? '#86efac' : '#e2e8f0'}`,
+                                            borderRadius: 3, padding: '1px 5px', display: 'flex', alignItems: 'center', gap: 3,
+                                          }}>
+                                            {isCorroborated && <span style={{ color: '#15803d', fontWeight: 700 }}>✓</span>}
+                                            {p}
+                                            <span style={{ color: isCorroborated ? '#16a34a' : '#94a3b8', fontWeight: 600 }}>{freq}×</span>
+                                          </span>
+                                        );
+                                      })}
+                                      {parts.length > 6 && <span style={{ fontSize: 7.5, color: '#94a3b8', padding: '1px 3px' }}>+{parts.length - 6}</span>}
+                                    </div>
+                                  )}
                                   {/* Confidence */}
                                   {confScore != null && (
                                     <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -5786,6 +5868,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                               const zone = enriched?.impactZone && enriched.impactZone !== 'unknown'
                                 ? enriched.impactZone.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
                                 : null;
+                              // Proposal 1: component tags for supporting grid
+                              const gridParts = enriched?.detectedComponents ?? [];
+                              const noDetection = gridParts.length === 0;
                               return (
                                 <div key={ri} style={{ border: '1px solid #e2e8f0', borderRadius: 4, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
                                   <div style={{ position: 'relative', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 90 }}>
@@ -5798,13 +5883,35 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                                     <div style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(15,23,42,0.6)', color: '#fff', fontSize: 7, fontWeight: 800, padding: '1px 4px', borderRadius: 2 }}>
                                       {String(globalIdx + 1).padStart(2, '0')}
                                     </div>
+                                    {noDetection && (
+                                      <div style={{ position: 'absolute', bottom: 4, right: 4, background: 'rgba(185,28,28,0.75)', color: '#fff', fontSize: 6.5, fontWeight: 700, padding: '1px 4px', borderRadius: 2, letterSpacing: '0.04em' }}>NO DETECTION</div>
+                                    )}
                                   </div>
                                   <div style={{ padding: '5px 7px', borderTop: `2px solid ${sev ? sevCol : '#e2e8f0'}` }}>
-                                    <p style={{ fontSize: 8, fontWeight: 600, color: '#0f172a', margin: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{caption}</p>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-                                      {zone && <p style={{ fontSize: 7.5, color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{zone}</p>}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                                      {zone && <p style={{ fontSize: 7.5, color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{zone}</p>}
                                       {sev && <span style={{ fontSize: 7, fontWeight: 700, color: sevCol, textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>{sev}</span>}
                                     </div>
+                                    {/* Proposal 1: component chip row */}
+                                    {gridParts.length > 0 ? (
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: 2 }}>
+                                        {gridParts.slice(0, 4).map((p: string, pi: number) => {
+                                          const freq = componentFreqMap.get(p.toLowerCase()) ?? 1;
+                                          const corroborated = freq >= 3;
+                                          return (
+                                            <span key={pi} style={{
+                                              fontSize: 6.5, color: corroborated ? '#15803d' : '#475569',
+                                              background: corroborated ? '#f0fdf4' : '#f8fafc',
+                                              border: `1px solid ${corroborated ? '#86efac' : '#e2e8f0'}`,
+                                              borderRadius: 2, padding: '0px 3px', lineHeight: 1.6,
+                                            }}>{p}</span>
+                                          );
+                                        })}
+                                        {gridParts.length > 4 && <span style={{ fontSize: 6.5, color: '#94a3b8', padding: '0px 2px', lineHeight: 1.6 }}>+{gridParts.length - 4}</span>}
+                                      </div>
+                                    ) : (
+                                      <p style={{ fontSize: 7, color: '#94a3b8', fontStyle: 'italic', margin: '2px 0 0' }}>No components detected</p>
+                                    )}
                                   </div>
                                 </div>
                               );
