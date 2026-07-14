@@ -1342,13 +1342,23 @@ export async function triggerAiAssessment(claimId: number) {
       import('./db-pipeline').then(({ recordRunComplete }) => {
         recordRunComplete({ runId: _pipelineRunId, status: 'failed', totalDurationMs: 0, stagesCompleted: 0, stagesFailed: 1, stagesDegraded: 0 }).catch(() => {});
       }).catch(() => {});
+      // DRA: Route PipelineIncompleteError to DRA terminal state, not legacy failed/intake_pending.
+      // This ensures the stuck-recovery-job and UI see the correct state.
       await db.update(claims).set({
-        documentProcessingStatus: "failed",
-        status: "intake_pending",
+        documentProcessingStatus: "DOCUMENT_FAILED",
+        status: "document_failed",
         workflowState: "intake_queue",
         aiAssessmentTriggered: 0,
         updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, claimId));
+      // Notify owner of pipeline incomplete failure
+      try {
+        const { notifyOwner } = await import('./_core/notification');
+        await notifyOwner({
+          title: `⚠️ Claim ${claimId}: Pipeline Incomplete`,
+          content: `Pipeline failed to complete for claim ${claimId}: ${pipelineErr.message}. Claim routed to DOCUMENT_FAILED for human review.`,
+        });
+      } catch { /* non-fatal */ }
       // Upsert a minimal ai_assessment record so the exception queue can surface it
       const existingAssessment = await db.select({ id: aiAssessments.id })
         .from(aiAssessments).where(eq(aiAssessments.claimId, claimId)).limit(1);
