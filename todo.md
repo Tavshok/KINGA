@@ -95,6 +95,9 @@
 - [ ] Fix: Report missing critical sections when image analysis fails (assessor remarks, cost breakdown, evidence summary should degrade gracefully, not disappear)
 - [ ] Add image classification pre-step: distinguish page renders vs damage photos vs document scans before vision analysis
 - [ ] Re-run BMW 318i case study: target consistencyScore > 70, criticalFailures = 0
+- [ ] **POST-LAUNCH: Fix C larger-sample validation** — Run imageClassifier on 100+ claims processed before Fix C (checkpoint 22811f0f) and confirm `quote_with_embedded_photo` category fires correctly for document pages with incidental vehicle images. Spot-check found one case (VOLTRON page-002: accident sketch form) that reached photoForensicsEngine as a document page in the pre-fix pipeline. Validate Fix C catches these at the classifier stage, not downstream. Target: zero document pages reaching Stage 6 vision analysis.
+- [ ] **POST-LAUNCH: Claimant photo-capture UX proposal** — Design and implement a guided photo-capture flow for claimants submitting via the portal. Goal: ensure at least one close-up, perpendicular, front-crush-zone photograph with a visible scale reference is captured per claim. Current portfolio has 23% of claims falling back to deployment-threshold/momentum-only speed estimation because no SUITABLE crush-depth image exists. A guided capture flow ("Take a photo of the front bumper from directly in front, within 1 metre") would directly improve physics input quality. Requires: UX design, mobile-first implementation, integration with the claim submission flow.
+- [ ] **POST-LAUNCH: Physics confidence label audit** — After 50+ new claims are processed with Fixes A/B/C in place, audit the distribution of MEDIUM vs LOW vs HIGH confidence speed estimates to confirm the 77% usable-crush-depth rate holds on new submissions vs the pre-fix portfolio.
 
 ---
 
