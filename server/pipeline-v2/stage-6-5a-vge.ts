@@ -67,6 +67,10 @@ export interface PerImageCalibrationResult {
 export interface VGECalibrationResult {
   /** True if at least one image produced a usable scale calibration */
   calibrationAvailable: boolean;
+  /** Source quality assessment — populated when all images are unsuitable */
+  sourceQualityAssessment?: GeometrySourceAssessment;
+  /** Evidence acquisition recommendation when source is unsuitable */
+  evidenceAcquisitionRecommendation?: string;
   /** Overall calibration confidence across all images (0–1) */
   overallCalibrationConfidence: number;
   confidenceLevel: CalibrationConfidenceLevel;
@@ -88,12 +92,36 @@ export interface VGECalibrationResult {
 export interface GeometryEvidenceBlock {
   vehicle: string;
   calibrationStatus: string;
+  /** 'CALIBRATED' | 'NOT_APPLICABLE' | 'FAILED' */
+  calibrationStatusCode: 'CALIBRATED' | 'NOT_APPLICABLE' | 'FAILED';
+  sourceQualityAssessment?: GeometrySourceAssessment;
+  evidenceAcquisitionRecommendation?: string;
   referenceObjectsSummary: string[];
   overallCalibrationConfidencePct: number;
   perspectiveCorrectionApplied: boolean;
   estimatedDeformationRange: string | null;
   measurementBasis: string;
   limitations: string[];
+  /** Populated when reference objects disagree on scale by more than 15% */
+  referenceDisagreementWarning?: string;
+}
+
+// ── Source Quality Gate types ────────────────────────────────────────────────
+
+export type GeometrySourceType =
+  | "DIRECT_DIGITAL_PHOTO"
+  | "PDF_RENDERED_PHOTO"
+  | "SCANNED_DOCUMENT"
+  | "SCREENSHOT"
+  | "UNKNOWN";
+
+export type GeometryUsability = "SUITABLE" | "LIMITED" | "UNSUITABLE";
+
+export interface GeometrySourceAssessment {
+  sourceType: GeometrySourceType;
+  geometryUsability: GeometryUsability;
+  reason: string;
+  confidence: number;  // 0–1
 }
 
 // ── Reference object reliability weights ─────────────────────────────────────
@@ -108,6 +136,77 @@ const REFERENCE_RELIABILITY: Record<string, { tier: 1 | 2 | 3; baseReliability: 
   badge:             { tier: 3, baseReliability: 0.40 },
   door_handle:       { tier: 3, baseReliability: 0.35 },
 };
+
+// ── Source Quality Gate ──────────────────────────────────────────────────────
+
+/**
+ * Classify the geometry usability of an image URL without making an LLM call.
+ * Uses URL pattern heuristics and filename analysis.
+ * PDF page renders are identified by the page-NNN.png naming convention used
+ * by the pipeline's PDF-to-image converter.
+ */
+function assessSourceQuality(imageUrl: string): GeometrySourceAssessment {
+  const lower = imageUrl.toLowerCase();
+  const filename = lower.split('/').pop() ?? lower;
+
+  // PDF page renders: pipeline names them page-NNN.png or page-NNN.jpg
+  if (/page-\d{3,}\.(png|jpg|jpeg|webp)/.test(filename)) {
+    return {
+      sourceType: "PDF_RENDERED_PHOTO",
+      geometryUsability: "UNSUITABLE",
+      reason: "Image originated from a PDF page render. Print scaling and scan resolution prevent reliable pixel-to-mm conversion. The physical dimensions of any reference object cannot be determined from this image source.",
+      confidence: 0.95,
+    };
+  }
+
+  // Screenshot patterns
+  if (/screenshot|screen_shot|screen-shot|capture/.test(filename)) {
+    return {
+      sourceType: "SCREENSHOT",
+      geometryUsability: "UNSUITABLE",
+      reason: "Image appears to be a screenshot. Display scaling and unknown source resolution prevent reliable pixel-to-mm conversion.",
+      confidence: 0.80,
+    };
+  }
+
+  // Scanned documents: common scanner output patterns
+  if (/scan|scanned|doc_\d|document/.test(filename)) {
+    return {
+      sourceType: "SCANNED_DOCUMENT",
+      geometryUsability: "UNSUITABLE",
+      reason: "Image appears to be a scanned document. Scanner DPI and print scaling introduce unknown distortion factors.",
+      confidence: 0.75,
+    };
+  }
+
+  // Direct digital photo patterns: camera/phone naming conventions
+  if (/img_\d|dsc_\d|dscn|\bphoto\b|\bpic\b|\bcam\b|\bimage\b.*\d{4,}/.test(filename) ||
+      /\.(jpg|jpeg|heic|heif)$/.test(filename)) {
+    return {
+      sourceType: "DIRECT_DIGITAL_PHOTO",
+      geometryUsability: "SUITABLE",
+      reason: "Image appears to be a direct digital photograph. Pixel-to-mm calibration is applicable.",
+      confidence: 0.70,
+    };
+  }
+
+  // PNG without page- prefix — could be direct photo or processed image
+  if (/\.png$/.test(filename)) {
+    return {
+      sourceType: "UNKNOWN",
+      geometryUsability: "LIMITED",
+      reason: "Image source type cannot be determined from filename alone. Calibration will be attempted but results should be treated with caution.",
+      confidence: 0.50,
+    };
+  }
+
+  return {
+    sourceType: "UNKNOWN",
+    geometryUsability: "LIMITED",
+    reason: "Image source type unknown. Calibration will be attempted.",
+    confidence: 0.40,
+  };
+}
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
 
@@ -355,6 +454,30 @@ function classifyConfidence(conf: number): CalibrationConfidenceLevel {
   return "NONE";
 }
 
+// ── Reference disagreement detection ─────────────────────────────────────────
+
+/**
+ * Check if reference objects within a single image disagree on scale by more than 15%.
+ * Returns a warning string if disagreement is detected, null otherwise.
+ */
+function detectReferenceDisagreement(results: PerImageCalibrationResult[]): string | null {
+  for (const result of results) {
+    if (!result.scaleAvailable || result.referenceObjects.length < 2) continue;
+    const scales = result.referenceObjects.map(r => r.scaleMmPerPixel);
+    const minScale = Math.min(...scales);
+    const maxScale = Math.max(...scales);
+    const spreadPct = ((maxScale - minScale) / minScale) * 100;
+    if (spreadPct > 15) {
+      const types = result.referenceObjects.map(r => r.type).join(', ');
+      return `Reference objects disagree on scale by ${spreadPct.toFixed(0)}% in image ${result.imageIndex + 1} ` +
+        `(${types}; scales: ${scales.map(s => s.toFixed(2)).join(', ')} mm/px). ` +
+        `This may indicate perspective distortion, measurement error, or damage to one of the reference objects. ` +
+        `Calibration confidence has been reduced.`;
+    }
+  }
+  return null;
+}
+
 // ── Geometry Evidence Block builder ──────────────────────────────────────────
 
 function buildGeometryEvidenceBlock(
@@ -363,7 +486,9 @@ function buildGeometryEvidenceBlock(
   calibratedCrushDepthM: number | null,
   calibratedCrushDepthMinM: number | null,
   calibratedCrushDepthMaxM: number | null,
-  overallConf: number
+  overallConf: number,
+  sourceQualityAssessment?: GeometrySourceAssessment,
+  evidenceAcquisitionRecommendation?: string
 ): GeometryEvidenceBlock {
   const successfulImages = results.filter(r => r.scaleAvailable);
   const allRefObjects = successfulImages.flatMap(r => r.referenceObjects);
@@ -377,8 +502,14 @@ function buildGeometryEvidenceBlock(
     return `${type.replace(/_/g, ' ')} (${count} detection${count > 1 ? 's' : ''}, reliability ${((meta?.baseReliability ?? 0.5) * 100).toFixed(0)}%)`;
   });
 
+  const referenceDisagreementWarning = detectReferenceDisagreement(results);
+
   const limitations: string[] = [];
-  if (successfulImages.length === 0) limitations.push("No reference objects detected — raw LLM estimate used");
+  if (sourceQualityAssessment?.geometryUsability === 'UNSUITABLE') {
+    limitations.push(`Source images are ${sourceQualityAssessment.sourceType.replace(/_/g, ' ').toLowerCase()} — physical scale calibration not applicable`);
+  } else if (successfulImages.length === 0) {
+    limitations.push("No reference objects detected — raw LLM estimate used");
+  }
   if (successfulImages.length === 1) limitations.push("Single image calibration — multi-image cross-validation not available");
   if (results.some(r => r.referenceObjects.some(d => d.wheelEllipseAspectRatio != null && d.wheelEllipseAspectRatio! < 0.4))) {
     limitations.push("Extreme perspective distortion detected in one or more images — perspective correction not applied");
@@ -390,21 +521,41 @@ function buildGeometryEvidenceBlock(
     ? `${Math.round((calibratedCrushDepthMinM ?? calibratedCrushDepthM * 0.85) * 1000)}–${Math.round((calibratedCrushDepthMaxM ?? calibratedCrushDepthM * 1.15) * 1000)} mm`
     : null;
 
-  const measurementBasis = successfulImages.length > 0
-    ? `Photogrammetric scale calibration from ${successfulImages.length} image(s), ${allRefObjects.length} reference object(s) detected. ${results.some(r => r.perspectiveCorrected) ? 'Perspective correction applied via wheel ellipse analysis.' : 'No perspective correction required.'}`
-    : "No scale calibration available — raw LLM crush depth estimate used without geometric correction.";
+  let measurementBasis: string;
+  if (sourceQualityAssessment?.geometryUsability === 'UNSUITABLE') {
+    measurementBasis = `Calibration not applicable: ${sourceQualityAssessment.reason}`;
+  } else if (successfulImages.length > 0) {
+    measurementBasis = `Photogrammetric scale calibration from ${successfulImages.length} image(s), ${allRefObjects.length} reference object(s) detected. ${results.some(r => r.perspectiveCorrected) ? 'Perspective correction applied via wheel ellipse analysis.' : 'No perspective correction required.'}`;
+  } else {
+    measurementBasis = "No scale calibration available — raw LLM crush depth estimate used without geometric correction.";
+  }
+
+  let calibrationStatus: string;
+  let calibrationStatusCode: 'CALIBRATED' | 'NOT_APPLICABLE' | 'FAILED';
+  if (sourceQualityAssessment?.geometryUsability === 'UNSUITABLE') {
+    calibrationStatus = `⚠ Not applicable — source images are ${sourceQualityAssessment.sourceType.replace(/_/g, ' ').toLowerCase()}`;
+    calibrationStatusCode = 'NOT_APPLICABLE';
+  } else if (successfulImages.length > 0) {
+    calibrationStatus = `✓ Scale calibrated from ${successfulImages.length}/${results.length} image(s)`;
+    calibrationStatusCode = 'CALIBRATED';
+  } else {
+    calibrationStatus = `✗ Calibration failed — no reference objects detected`;
+    calibrationStatusCode = 'FAILED';
+  }
 
   return {
     vehicle: vehicleLabel ?? "Unknown vehicle",
-    calibrationStatus: successfulImages.length > 0
-      ? `✓ Scale calibrated from ${successfulImages.length}/${results.length} image(s)`
-      : `✗ Calibration failed — no reference objects detected`,
+    calibrationStatus,
+    calibrationStatusCode,
+    sourceQualityAssessment,
+    evidenceAcquisitionRecommendation,
     referenceObjectsSummary: refSummary,
     overallCalibrationConfidencePct: Math.round(overallConf * 100),
     perspectiveCorrectionApplied: results.some(r => r.perspectiveCorrected),
     estimatedDeformationRange: deformationRange,
     measurementBasis,
     limitations,
+    referenceDisagreementWarning: referenceDisagreementWarning ?? undefined,
   };
 }
 
@@ -421,6 +572,39 @@ export async function runVGECalibration(ctx: PipelineContext): Promise<VGECalibr
   const photoUrls = ctx.damagePhotoUrls ?? [];
   if (photoUrls.length === 0) return null;
 
+  // ── SOURCE QUALITY GATE ──────────────────────────────────────────────────
+  // Assess every image's geometry usability before making any LLM calls.
+  // If all images are UNSUITABLE, skip calibration entirely and return a
+  // structured NOT_APPLICABLE result with an evidence acquisition recommendation.
+  const sourceAssessments = photoUrls.map(url => assessSourceQuality(url));
+  const suitableCount = sourceAssessments.filter(a => a.geometryUsability !== 'UNSUITABLE').length;
+  const unsuitableCount = sourceAssessments.filter(a => a.geometryUsability === 'UNSUITABLE').length;
+
+  // Determine the dominant source type for the claim
+  const sourceTypeCounts: Record<string, number> = {};
+  for (const a of sourceAssessments) {
+    sourceTypeCounts[a.sourceType] = (sourceTypeCounts[a.sourceType] ?? 0) + 1;
+  }
+  const dominantSourceType = Object.entries(sourceTypeCounts)
+    .sort((a, b) => b[1] - a[1])[0]?.[0] as GeometrySourceType ?? 'UNKNOWN';
+
+  const allUnsuitable = suitableCount === 0;
+  const dominantSourceAssessment: GeometrySourceAssessment | undefined = allUnsuitable
+    ? {
+        sourceType: dominantSourceType,
+        geometryUsability: 'UNSUITABLE',
+        reason: sourceAssessments[0]?.reason ?? 'Source images are unsuitable for geometric calibration.',
+        confidence: sourceAssessments.reduce((s, a) => s + a.confidence, 0) / sourceAssessments.length,
+      }
+    : undefined;
+
+  const evidenceAcquisitionRecommendation = allUnsuitable
+    ? `The submitted evidence contains ${unsuitableCount} ${dominantSourceType.replace(/_/g, ' ').toLowerCase()} image(s) unsuitable for physical deformation measurement. ` +
+      `To enable calibrated geometry analysis, request original digital photographs taken directly with a camera or smartphone at the scene. ` +
+      `Original photographs allow pixel-to-millimetre scale calibration using vehicle reference objects (wheels, licence plate, headlamp spacing), ` +
+      `producing a defensible crush depth measurement chain.`
+    : undefined;
+
   // Resolve vehicle profile from DB using the raw claim record on ctx
   const make = (ctx.claim as any)?.vehicleMake ?? null;
   const model = (ctx.claim as any)?.vehicleModel ?? null;
@@ -428,9 +612,34 @@ export async function runVGECalibration(ctx: PipelineContext): Promise<VGECalibr
 
   const profile = await getVehicleProfile(make, model, year);
 
+  if (allUnsuitable) {
+    // Skip LLM calls entirely — return NOT_APPLICABLE with full provenance
+    return {
+      calibrationAvailable: false,
+      sourceQualityAssessment: dominantSourceAssessment,
+      evidenceAcquisitionRecommendation,
+      overallCalibrationConfidence: 0,
+      confidenceLevel: "NONE",
+      vehicleModelId: profile?.id ?? null,
+      vehicleProfileUsed: profile?.label ?? null,
+      perImageResults: [],
+      calibratedCrushDepthM: null,
+      calibratedCrushDepthMinM: null,
+      calibratedCrushDepthMaxM: null,
+      totalReferenceObjectsDetected: 0,
+      geometryEvidenceBlock: buildGeometryEvidenceBlock(
+        profile?.label ?? null, [], null, null, null, 0,
+        dominantSourceAssessment, evidenceAcquisitionRecommendation
+      ),
+    };
+  }
+
+  // Only process images that are SUITABLE or LIMITED
+  const suitableUrls = photoUrls.filter((_, i) => sourceAssessments[i]?.geometryUsability !== 'UNSUITABLE');
+
   // Process up to 8 images (prioritise frontal/45° views; limit LLM calls)
   const MAX_IMAGES = 8;
-  const urlsToProcess = photoUrls.slice(0, MAX_IMAGES);
+  const urlsToProcess = suitableUrls.slice(0, MAX_IMAGES);
 
   const perImageResults: PerImageCalibrationResult[] = [];
   for (let i = 0; i < urlsToProcess.length; i++) {

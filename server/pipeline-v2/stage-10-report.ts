@@ -130,12 +130,23 @@ function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: Pipelin
 
   // Build Geometry Evidence Block from VGE calibration result (Stage 6.5A)
   const vge = ctx?.vgeCalibrationResult;
+  const geb = vge?.geometryEvidenceBlock;
   const geometryEvidenceBlock = vge ? {
     calibrationAvailable: vge.calibrationAvailable,
+    calibrationStatusCode: geb?.calibrationStatusCode ?? (vge.calibrationAvailable ? 'CALIBRATED' : 'FAILED'),
+    calibrationStatus: geb?.calibrationStatus ?? (vge.calibrationAvailable ? '✓ Calibrated' : '✗ Not available'),
     confidenceLevel: vge.confidenceLevel,
     overallCalibrationConfidence: vge.overallCalibrationConfidence,
     totalReferenceObjectsDetected: vge.totalReferenceObjectsDetected,
     vehicleProfileUsed: vge.vehicleProfileUsed ?? null,
+    // Source quality gate output
+    sourceQualityAssessment: geb?.sourceQualityAssessment ?? null,
+    evidenceAcquisitionRecommendation: geb?.evidenceAcquisitionRecommendation ?? null,
+    // Measurement basis and limitations
+    measurementBasis: geb?.measurementBasis ?? null,
+    limitations: geb?.limitations ?? [],
+    referenceDisagreementWarning: geb?.referenceDisagreementWarning ?? null,
+    // Calibrated crush depth
     calibratedCrushDepthMm: vge.calibratedCrushDepthM != null ? Math.round(vge.calibratedCrushDepthM * 1000) : null,
     calibratedCrushDepthRangeMm: (vge.calibratedCrushDepthMinM != null && vge.calibratedCrushDepthMaxM != null)
       ? { min: Math.round(vge.calibratedCrushDepthMinM * 1000), max: Math.round(vge.calibratedCrushDepthMaxM * 1000) }
@@ -143,7 +154,9 @@ function buildPhysicsSection(physicsAnalysis: Stage7Output | null, ctx?: Pipelin
     crushDepthSource: (vge.calibrationAvailable && vge.calibratedCrushDepthM != null &&
       (vge.confidenceLevel === 'HIGH' || vge.confidenceLevel === 'MEDIUM'))
       ? `VGE calibrated (${vge.confidenceLevel} confidence, ${vge.totalReferenceObjectsDetected} reference object(s)${vge.vehicleProfileUsed ? `, vehicle profile: ${vge.vehicleProfileUsed}` : ''})`
-      : 'LLM per-component estimate (no VGE calibration available)',
+      : geb?.calibrationStatusCode === 'NOT_APPLICABLE'
+        ? `Not applicable — ${geb.sourceQualityAssessment?.sourceType?.replace(/_/g, ' ').toLowerCase() ?? 'unsuitable source images'}`
+        : 'LLM per-component estimate (no VGE calibration available)',
     referenceObjects: vge.perImageResults
       .filter(r => r.scaleAvailable)
       .map(r => ({
