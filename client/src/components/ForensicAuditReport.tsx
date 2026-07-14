@@ -5637,44 +5637,262 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
               {photoClassifying && (
                 <p className="text-xs mb-2" style={{ color: 'var(--kr-muted)' }}>⏳ Classifying photos…</p>
               )}
-              {/* Damage photos gallery — tiled forensic grid with per-photo analysis bullets */}
+              {/* ─── Zone-Card Evidence System ─────────────────────────────────────────
+               * Replaces the flat gallery. Photos are grouped by impact zone.
+               * Each zone card shows: evidence grade, detection confidence, evidence
+               * summary, hero photo, key findings, component categories, and a
+               * thumbnail strip (max 3 supporting photos). Zones with no damage are
+               * omitted entirely. Poor-quality / no-detection photos go to a collapsed
+               * note at the bottom.
+               * ─────────────────────────────────────────────────────────────────────── */}
               {damagePhotoUrls.length > 0 && (() => {
-                // Build a merged per-photo data object combining enriched metadata + EXIF forensics
+                // ── Zone utilities ──────────────────────────────────────────────────────
+                const ZONE_CANONICAL: Record<string, string> = {
+                  front: 'FRONT', 'front zone': 'FRONT',
+                  'front left': 'FRONT_LEFT', 'front_left': 'FRONT_LEFT', 'front left zone': 'FRONT_LEFT',
+                  'front right': 'FRONT_RIGHT', 'front_right': 'FRONT_RIGHT',
+                  'rear': 'REAR', 'rear zone': 'REAR',
+                  'rear left': 'REAR_LEFT', 'rear_left': 'REAR_LEFT',
+                  'rear right': 'REAR_RIGHT', 'rear_right': 'REAR_RIGHT',
+                  'left side': 'LEFT_SIDE', 'left_side': 'LEFT_SIDE', 'driver side': 'LEFT_SIDE',
+                  'right side': 'RIGHT_SIDE', 'right_side': 'RIGHT_SIDE', 'passenger side': 'RIGHT_SIDE',
+                  'interior': 'INTERIOR', 'cabin': 'INTERIOR',
+                  'roof': 'ROOF', 'undercarriage': 'UNDERCARRIAGE',
+                  'unknown': 'UNKNOWN', '': 'UNKNOWN',
+                };
+                const ZONE_DISPLAY: Record<string, string> = {
+                  FRONT: 'Front Zone', FRONT_LEFT: 'Front Left Zone', FRONT_RIGHT: 'Front Right Zone',
+                  REAR: 'Rear Zone', REAR_LEFT: 'Rear Left Zone', REAR_RIGHT: 'Rear Right Zone',
+                  LEFT_SIDE: 'Left Side', RIGHT_SIDE: 'Right Side',
+                  INTERIOR: 'Interior / Cabin', ROOF: 'Roof', UNDERCARRIAGE: 'Undercarriage',
+                  UNKNOWN: 'Unknown',
+                };
+                const normaliseZone = (raw: string): string => {
+                  const key = (raw ?? '').toLowerCase().trim().replace(/_/g, ' ');
+                  return ZONE_CANONICAL[key] ?? 'UNKNOWN';
+                };
+
+                // ── Component category lookup ────────────────────────────────────────────
+                const COMP_CATEGORIES: Record<string, string[]> = {
+                  Structural:  ['support','crossmember','rail','sill','pillar','chassis','subframe','frame','beam','member'],
+                  Exterior:    ['bumper','bonnet','hood','door','fender','wing','panel','grille','guard','skirt','spoiler','mirror'],
+                  Lighting:    ['headlamp','headlight','tail lamp','taillight','fog lamp','foglight','drl','indicator','lamp','light'],
+                  Cooling:     ['radiator','condenser','intercooler','fan','cooler'],
+                  Suspension:  ['control arm','strut','hub','knuckle','spring','shock','absorber','suspension','wishbone','trailing'],
+                  Safety:      ['airbag','seatbelt','seat belt','pretensioner','curtain','module'],
+                  Glazing:     ['windscreen','windshield','glass','window'],
+                  Drivetrain:  ['engine','gearbox','transmission','driveshaft','axle','diff'],
+                };
+                const categoriseComponent = (name: string): string => {
+                  const n = name.toLowerCase();
+                  for (const [cat, keywords] of Object.entries(COMP_CATEGORIES)) {
+                    if (keywords.some(k => n.includes(k))) return cat;
+                  }
+                  return 'Other';
+                };
+
+                // ── Build per-photo enriched lookup (url → enriched) ────────────────────
+                const enrichedByUrl = new Map<string, typeof enrichedPhotosFAR[0]>();
+                enrichedPhotosFAR.forEach(p => enrichedByUrl.set(p.url, p));
+
+                // ── Group photos by canonical zone ───────────────────────────────────────
+                interface ZonePhoto {
+                  url: string;
+                  enriched: typeof enrichedPhotosFAR[0] | undefined;
+                  components: string[];
+                  severity: string;
+                  confidence: number;
+                  isGoodQuality: boolean;
+                }
+                const zoneMap = new Map<string, ZonePhoto[]>();
+                const poorQualityPhotos: string[] = [];
+
+                damagePhotoUrls.forEach(url => {
+                  const enriched = enrichedByUrl.get(url);
+                  const comps = enriched?.detectedComponents ?? [];
+                  const sev = (enriched?.severity ?? 'unknown').toLowerCase();
+                  const conf = enriched?.confidenceScore ?? 0;
+                  const isGood = comps.length > 0 && conf >= 40;
+                  const rawZone = enriched?.impactZone ?? 'unknown';
+                  const zone = normaliseZone(rawZone);
+
+                  if (!isGood && comps.length === 0) {
+                    poorQualityPhotos.push(url);
+                    // Still add to zone if we know the zone
+                    if (zone === 'UNKNOWN') return;
+                  }
+
+                  if (!zoneMap.has(zone)) zoneMap.set(zone, []);
+                  zoneMap.get(zone)!.push({ url, enriched, components: comps, severity: sev, confidence: conf, isGoodQuality: isGood });
+                });
+
+                // ── Evidence scoring ─────────────────────────────────────────────────────
+                const SEV_SCORE: Record<string, number> = { severe: 3, catastrophic: 3, moderate: 2, minor: 1, cosmetic: 0.5, unknown: 1 };
+                const scoreZone = (photos: ZonePhoto[]): number => {
+                  if (photos.length === 0) return 0;
+                  const avgConf = photos.reduce((s, p) => s + p.confidence, 0) / photos.length / 100;
+                  const allComps = new Set<string>();
+                  const compPhotoCount = new Map<string, number>();
+                  photos.forEach(p => p.components.forEach(c => {
+                    const k = c.toLowerCase();
+                    allComps.add(k);
+                    compPhotoCount.set(k, (compPhotoCount.get(k) ?? 0) + 1);
+                  }));
+                  const corroborated = Array.from(allComps).filter(c => (compPhotoCount.get(c) ?? 0) >= 2).length;
+                  const corrobRate = allComps.size > 0 ? corroborated / allComps.size : 0;
+                  const maxSev = photos.reduce((m, p) => Math.max(m, SEV_SCORE[p.severity] ?? 1), 0);
+                  const sevScore = maxSev / 3;
+                  const qualRate = photos.filter(p => p.isGoodQuality).length / photos.length;
+                  return (0.35 * avgConf) + (0.30 * corrobRate) + (0.20 * sevScore) + (0.15 * qualRate);
+                };
+                const gradeZone = (score: number): { label: string; colour: string; bg: string } => {
+                  if (score >= 0.85) return { label: 'Excellent Evidence', colour: '#15803d', bg: '#f0fdf4' };
+                  if (score >= 0.70) return { label: 'Strong Evidence',    colour: '#1d4ed8', bg: '#eff6ff' };
+                  if (score >= 0.55) return { label: 'Moderate Evidence',  colour: '#b45309', bg: '#fffbeb' };
+                  if (score >= 0.40) return { label: 'Limited Evidence',   colour: '#9a3412', bg: '#fff7ed' };
+                  return { label: 'Insufficient Evidence', colour: '#b91c1c', bg: '#fef2f2' };
+                };
+
+                // ── Key findings rules ───────────────────────────────────────────────────
+                const buildKeyFindings = (photos: ZonePhoto[], zoneKey: string): string[] => {
+                  const allComps = new Set<string>();
+                  const compPhotoCount = new Map<string, number>();
+                  photos.forEach(p => p.components.forEach(c => {
+                    const k = c.toLowerCase();
+                    allComps.add(k);
+                    compPhotoCount.set(k, (compPhotoCount.get(k) ?? 0) + 1);
+                  }));
+                  const findings: string[] = [];
+                  // 1. Safety system activation
+                  const safetyComps = Array.from(allComps).filter(c => COMP_CATEGORIES.Safety.some(k => c.includes(k)));
+                  if (safetyComps.length > 0) {
+                    const names = photos.flatMap(p => p.components.filter(c => COMP_CATEGORIES.Safety.some(k => c.toLowerCase().includes(k)))).filter((v,i,a)=>a.indexOf(v)===i).slice(0,2);
+                    findings.push(`Safety system activation detected — ${names.join(', ')} observed.`);
+                  }
+                  // 2. Structural damage
+                  const structComps = Array.from(allComps).filter(c => COMP_CATEGORIES.Structural.some(k => c.includes(k)));
+                  if (structComps.length > 0) {
+                    const names = photos.flatMap(p => p.components.filter(c => COMP_CATEGORIES.Structural.some(k => c.toLowerCase().includes(k)))).filter((v,i,a)=>a.indexOf(v)===i).slice(0,2);
+                    findings.push(`Structural damage identified — ${names.join(', ')} affected.`);
+                  }
+                  // 3. Suspension involvement
+                  const suspComps = Array.from(allComps).filter(c => COMP_CATEGORIES.Suspension.some(k => c.includes(k)));
+                  if (suspComps.length > 0) {
+                    const names = photos.flatMap(p => p.components.filter(c => COMP_CATEGORIES.Suspension.some(k => c.toLowerCase().includes(k)))).filter((v,i,a)=>a.indexOf(v)===i).slice(0,2);
+                    findings.push(`Suspension system involvement — ${names.join(', ')} detected.`);
+                  }
+                  // 4. Cross-zone component propagation
+                  const otherZoneComps = new Set<string>();
+                  zoneMap.forEach((zPhotos, zKey) => {
+                    if (zKey === zoneKey) return;
+                    zPhotos.forEach(p => p.components.forEach(c => otherZoneComps.add(c.toLowerCase())));
+                  });
+                  const crossZone = Array.from(allComps).filter(c => otherZoneComps.has(c));
+                  if (crossZone.length >= 2) {
+                    findings.push(`Damage propagation across ${crossZone.length} components shared with adjacent zones.`);
+                  }
+                  // 5. Strong corroboration
+                  const corroborated = Array.from(allComps).filter(c => (compPhotoCount.get(c) ?? 0) >= 3).length;
+                  if (corroborated >= 3 && photos.length >= 3) {
+                    findings.push(`${corroborated} components independently confirmed across ${photos.length} photographs.`);
+                  }
+                  // 6. Limited viewpoints
+                  if (photos.length === 1) {
+                    findings.push('Single photograph available — additional viewpoints recommended for full assessment.');
+                  }
+                  // 7. Poor image quality
+                  const poorCount = photos.filter(p => !p.isGoodQuality).length;
+                  if (poorCount > 0 && poorCount >= photos.length / 2) {
+                    findings.push(`${poorCount} of ${photos.length} zone photographs are low quality — damage extent may be understated.`);
+                  }
+                  return findings.slice(0, 5);
+                };
+
+                // ── Evidence summary template ────────────────────────────────────────────
+                const buildEvidenceSummary = (photos: ZonePhoto[], zoneDisplay: string): string => {
+                  const allComps = new Set<string>();
+                  const compPhotoCount = new Map<string, number>();
+                  photos.forEach(p => p.components.forEach(c => {
+                    const k = c.toLowerCase();
+                    allComps.add(k);
+                    compPhotoCount.set(k, (compPhotoCount.get(k) ?? 0) + 1);
+                  }));
+                  const maxSev = photos.reduce((m, p) => {
+                    const s = SEV_SCORE[p.severity] ?? 1;
+                    return s > (SEV_SCORE[m] ?? 1) ? p.severity : m;
+                  }, 'unknown');
+                  const sevDesc = maxSev === 'severe' || maxSev === 'catastrophic' ? 'Severe' :
+                    maxSev === 'moderate' ? 'Moderate' : maxSev === 'minor' ? 'Minor' : '';
+                  // Top 3 most-seen components
+                  const topComps = Array.from(allComps)
+                    .sort((a, b) => (compPhotoCount.get(b) ?? 0) - (compPhotoCount.get(a) ?? 0))
+                    .slice(0, 3)
+                    .map(c => photos.flatMap(p => p.components).find(pc => pc.toLowerCase() === c) ?? c);
+                  const corroborated = Array.from(allComps).filter(c => (compPhotoCount.get(c) ?? 0) >= 2).length;
+                  const corrobDesc = corroborated / allComps.size >= 0.8 ? 'strong' :
+                    corroborated / allComps.size >= 0.6 ? 'moderate' :
+                    corroborated / allComps.size >= 0.4 ? 'limited' : 'minimal';
+                  const photoWord = photos.length === 1 ? '1 photograph' : `${photos.length} photographs`;
+                  const compStr = topComps.length >= 3 ? `${topComps[0]}, ${topComps[1]}, and ${topComps[2]}`
+                    : topComps.length === 2 ? `${topComps[0]} and ${topComps[1]}`
+                    : topComps[0] ?? 'multiple components';
+                  return `${sevDesc ? sevDesc + ' ' : ''}${zoneDisplay.toLowerCase()} damage involving ${compStr} was observed across ${photoWord} with ${corrobDesc} cross-image corroboration.`;
+                };
+
+                // ── Hero selection ───────────────────────────────────────────────────────
+                const selectHero = (photos: ZonePhoto[]): ZonePhoto => {
+                  if (photos.length === 1) return photos[0];
+                  return photos.reduce((best, p) => {
+                    const score = p.components.length * (p.confidence / 100) * (SEV_SCORE[p.severity] ?? 1);
+                    const bestScore = best.components.length * (best.confidence / 100) * (SEV_SCORE[best.severity] ?? 1);
+                    return score > bestScore ? p : best;
+                  });
+                };
+
+                // ── Supporting thumbnail selection (max 3, by new-component contribution) ─
+                const selectSupporting = (photos: ZonePhoto[], hero: ZonePhoto): ZonePhoto[] => {
+                  const seen = new Set(hero.components.map(c => c.toLowerCase()));
+                  const scored = photos
+                    .filter(p => p.url !== hero.url)
+                    .map(p => {
+                      const newComps = p.components.filter(c => !seen.has(c.toLowerCase())).length;
+                      return { photo: p, newComps };
+                    })
+                    .sort((a, b) => b.newComps - a.newComps);
+                  return scored.slice(0, 3).map(s => s.photo);
+                };
+
+                // ── Zone ordering: severity first, then component count ──────────────────
+                const SEV_ORDER: Record<string, number> = { severe: 0, catastrophic: 0, moderate: 1, minor: 2, cosmetic: 3, unknown: 4 };
+                const orderedZones = Array.from(zoneMap.entries())
+                  .filter(([key]) => key !== 'UNKNOWN')
+                  .sort(([, a], [, b]) => {
+                    const aSev = a.reduce((m, p) => Math.min(m, SEV_ORDER[p.severity] ?? 4), 4);
+                    const bSev = b.reduce((m, p) => Math.min(m, SEV_ORDER[p.severity] ?? 4), 4);
+                    if (aSev !== bSev) return aSev - bSev;
+                    const aComps = new Set(a.flatMap(p => p.components.map(c => c.toLowerCase()))).size;
+                    const bComps = new Set(b.flatMap(p => p.components.map(c => c.toLowerCase()))).size;
+                    return bComps - aComps;
+                  });
+
+                // ── Severity colours ─────────────────────────────────────────────────────
+                const SEV_COL: Record<string, string> = {
+                  catastrophic: '#7f1d1d', severe: '#9a3412', moderate: '#92400e', minor: '#14532d', cosmetic: '#1e3a5f', unknown: '#475569',
+                };
+                const SEV_BG: Record<string, string> = {
+                  catastrophic: '#fef2f2', severe: '#fff7ed', moderate: '#fffbeb', minor: '#f0fdf4', cosmetic: '#eff6ff', unknown: '#f8fafc',
+                };
+
                 const pfData = (enforcement as any)?._photoForensics as any;
                 const pfPhotos: any[] = pfData?.photos ?? [];
 
-                // ── Proposal 3: Photo Coverage Audit Table ──────────────────────────────
-                // Derive coverage stats from enrichedPhotosFAR before rendering the gallery
+                // ── Coverage stats (used in zone card header bar) ────────────────────
                 const allEnriched = enrichedPhotosFAR.length > 0 ? enrichedPhotosFAR : [];
-                const highConfCount = allEnriched.filter(p => (p.confidenceScore ?? 0) >= 70).length;
-                const poorQualityCount = (() => {
-                  const raw = aiAssessment?.enrichedPhotosJson;
-                  if (!raw) return 0;
-                  try {
-                    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-                    return Array.isArray(parsed) ? parsed.filter((p: any) => p.imageQuality === 'poor' || p.componentCount === 0).length : 0;
-                  } catch { return 0; }
-                })();
-                const uniqueComponents = (() => {
+                const uniqueComponentsAll = (() => {
                   const seen = new Set<string>();
                   allEnriched.forEach(p => (p.detectedComponents ?? []).forEach((c: string) => seen.add(c.toLowerCase())));
                   return seen.size;
                 })();
-                const zonesPresent = (() => {
-                  const seen = new Set<string>();
-                  allEnriched.forEach(p => { if (p.impactZone && p.impactZone !== 'unknown') seen.add(p.impactZone.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())); });
-                  return Array.from(seen);
-                })();
-                const poorPct = damagePhotoUrls.length > 0 ? poorQualityCount / damagePhotoUrls.length : 0;
-
-                // ── Proposal 5: Cross-photo component consensus frequency map ──────────
-                const componentFreqMap = new Map<string, number>();
-                allEnriched.forEach(p => {
-                  (p.detectedComponents ?? []).forEach((c: string) => {
-                    const key = c.toLowerCase();
-                    componentFreqMap.set(key, (componentFreqMap.get(key) ?? 0) + 1);
-                  });
-                });
 
                 // Find matching forensics record by URL
                 const getForensics = (url: string) => pfPhotos.find((p: any) =>
@@ -5683,243 +5901,181 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
 
                 return (
                   <>
-                    <p className="sub-heading">
-                      4.1 Damage Photo Gallery ({damagePhotoUrls.length} image{damagePhotoUrls.length !== 1 ? 's' : ''})
-                    </p>
-
-                    {/* ── Proposal 3: Coverage Audit Table ─────────────────────────── */}
-                    {allEnriched.length > 0 && (
-                      <div style={{ marginBottom: 14, border: '1px solid #e2e8f0', borderRadius: 4, overflow: 'hidden', background: '#f8fafc' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', borderBottom: '1px solid #e2e8f0' }}>
-                          {[
-                            { label: 'Photos analysed', value: String(damagePhotoUrls.length) },
-                            { label: 'High-confidence', value: String(highConfCount) },
-                            { label: 'Poor quality / no detection', value: String(poorQualityCount), warn: poorPct >= 0.2 },
-                            { label: 'Unique components', value: String(uniqueComponents) },
-                            { label: 'Zones covered', value: zonesPresent.length > 0 ? zonesPresent.join(', ') : '—' },
-                          ].map((cell, ci) => (
-                            <div key={ci} style={{ padding: '7px 10px', borderRight: ci < 4 ? '1px solid #e2e8f0' : undefined }}>
-                              <p style={{ fontSize: 8, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0, fontWeight: 600 }}>{cell.label}</p>
-                              <p style={{ fontSize: 12, fontWeight: 700, color: (cell as any).warn ? '#b91c1c' : '#0f172a', margin: '2px 0 0', lineHeight: 1.2 }}>{cell.value}</p>
+                    {/* ── Zone-card section heading + summary bar ─────────────────── */}
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <p className="sub-heading" style={{ margin: 0 }}>
+                        4.1 Damage Evidence by Zone
+                      </p>
+                      <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>
+                        {orderedZones.length} zone{orderedZones.length !== 1 ? 's' : ''} · {damagePhotoUrls.length} photo{damagePhotoUrls.length !== 1 ? 's' : ''} · {uniqueComponentsAll} components
+                      </span>
+                    </div>
+                    {/* ── Zone Cards ────────────────────────────────────────────────────────────────────── */}
+                    {orderedZones.length === 0 && (
+                      <p style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic' }}>No damage zones could be identified from the submitted photographs.</p>
+                    )}
+                    {orderedZones.map(([zoneKey, zonePhotos]) => {
+                      const zoneDisplay = ZONE_DISPLAY[zoneKey] ?? zoneKey;
+                      const score = scoreZone(zonePhotos);
+                      const grade = gradeZone(score);
+                      const hero = selectHero(zonePhotos);
+                      const supporting = selectSupporting(zonePhotos, hero);
+                      const findings = buildKeyFindings(zonePhotos, zoneKey);
+                      const summary = buildEvidenceSummary(zonePhotos, zoneDisplay);
+                      const maxSev = zonePhotos.reduce((m, p) => {
+                        const s = SEV_SCORE[p.severity] ?? 1;
+                        return s > (SEV_SCORE[m] ?? 1) ? p.severity : m;
+                      }, 'unknown');
+                      const sevLabel = maxSev.charAt(0).toUpperCase() + maxSev.slice(1);
+                      const sevColour = SEV_COL[maxSev] ?? '#475569';
+                      const sevBg = SEV_BG[maxSev] ?? '#f8fafc';
+                      const avgConf = Math.round(zonePhotos.reduce((s, p) => s + p.confidence, 0) / zonePhotos.length);
+                      // Component categories
+                      const allZoneComps = Array.from(new Set(zonePhotos.flatMap(p => p.components)));
+                      const compByCategory: Record<string, string[]> = {};
+                      allZoneComps.forEach(c => {
+                        const cat = categoriseComponent(c);
+                        if (!compByCategory[cat]) compByCategory[cat] = [];
+                        compByCategory[cat].push(c);
+                      });
+                      const catOrder = ['Safety','Structural','Suspension','Exterior','Lighting','Cooling','Glazing','Drivetrain','Other'];
+                      const sortedCats = catOrder.filter(c => compByCategory[c]?.length > 0);
+                      return (
+                        <div key={zoneKey} style={{
+                          marginBottom: 16,
+                          border: `1px solid ${sevColour}40`,
+                          borderRadius: 5,
+                          overflow: 'hidden',
+                          background: 'var(--kr-white)',
+                        }}>
+                          {/* Zone header */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '7px 12px', background: sevBg,
+                            borderBottom: `1px solid ${sevColour}30`,
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{zoneDisplay}</span>
+                              <span style={{
+                                fontSize: 8, fontWeight: 700, color: sevColour,
+                                background: `${sevColour}18`, border: `1px solid ${sevColour}40`,
+                                borderRadius: 3, padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.06em',
+                              }}>{sevLabel}</span>
+                              <span style={{
+                                fontSize: 8, fontWeight: 700, color: grade.colour,
+                                background: grade.bg, border: `1px solid ${grade.colour}40`,
+                                borderRadius: 3, padding: '1px 5px',
+                              }}>{grade.label}</span>
                             </div>
-                          ))}
-                        </div>
-                        {poorPct >= 0.2 && (
-                          <div style={{ padding: '5px 10px', background: '#fef2f2', borderTop: '1px solid #fecaca' }}>
-                            <p style={{ fontSize: 9, color: '#b91c1c', margin: 0 }}>
-                              ⚠ {poorQualityCount} of {damagePhotoUrls.length} photos produced no component detections — damage extent may be understated.
-                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <span style={{ fontSize: 8, color: '#64748b' }}>
+                                Detection confidence: <strong style={{ color: avgConf >= 70 ? '#15803d' : avgConf >= 50 ? '#b45309' : '#b91c1c' }}>{avgConf}%</strong>
+                              </span>
+                              <span style={{ fontSize: 8, color: '#94a3b8' }}>
+                                {zonePhotos.length} photo{zonePhotos.length !== 1 ? 's' : ''} · {allZoneComps.length} component{allZoneComps.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
                           </div>
-                        )}
+
+                          {/* Evidence summary */}
+                          <div style={{ padding: '8px 12px 0', borderBottom: '1px solid #f1f5f9' }}>
+                            <p style={{ fontSize: 9, color: '#475569', fontStyle: 'italic', margin: '0 0 8px', lineHeight: 1.5 }}>{summary}</p>
+                          </div>
+
+                          {/* Hero + Key Findings side by side */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 0 }}>
+                            {/* Hero photo */}
+                            <div style={{ borderRight: '1px solid #f1f5f9', padding: 10 }}>
+                              <img
+                                src={hero.url}
+                                alt={`${zoneDisplay} hero`}
+                                style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 3, display: 'block' }}
+                              />
+                              {hero.enriched?.caption && (
+                                <p style={{ fontSize: 7, color: '#94a3b8', margin: '4px 0 0', lineHeight: 1.4 }}>{hero.enriched.caption}</p>
+                              )}
+                              {/* Supporting thumbnails */}
+                              {supporting.length > 0 && (
+                                <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                                  {supporting.map((sp, si) => (
+                                    <div key={si} style={{ position: 'relative', flex: 1 }}>
+                                      <img
+                                        src={sp.url}
+                                        alt={`${zoneDisplay} supporting ${si + 1}`}
+                                        style={{ width: '100%', height: 44, objectFit: 'cover', borderRadius: 2, display: 'block', opacity: 0.85 }}
+                                      />
+                                    </div>
+                                  ))}
+                                  {zonePhotos.length - 1 - supporting.length > 0 && (
+                                    <div style={{
+                                      flex: '0 0 32px', height: 44, background: '#f1f5f9', borderRadius: 2,
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    }}>
+                                      <span style={{ fontSize: 7, color: '#64748b', fontWeight: 700 }}>+{zonePhotos.length - 1 - supporting.length}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Key findings + component categories */}
+                            <div style={{ padding: '10px 12px' }}>
+                              {findings.length > 0 && (
+                                <div style={{ marginBottom: 10 }}>
+                                  <p style={{ fontSize: 8, fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 5px' }}>Key Findings</p>
+                                  {findings.map((f, fi) => (
+                                    <div key={fi} style={{ display: 'flex', alignItems: 'flex-start', gap: 5, marginBottom: 3 }}>
+                                      <span style={{ fontSize: 8, color: sevColour, fontWeight: 700, lineHeight: 1.5, flexShrink: 0 }}>
+                                        {fi === 0 && findings.some(x => x.startsWith('Safety')) ? '⚠' : '•'}
+                                      </span>
+                                      <p style={{ fontSize: 8.5, color: '#334155', margin: 0, lineHeight: 1.5 }}>{f}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Component categories */}
+                              {sortedCats.length > 0 && (
+                                <div>
+                                  <p style={{ fontSize: 8, fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 5px' }}>Components Identified</p>
+                                  {sortedCats.map(cat => (
+                                    <div key={cat} style={{ marginBottom: 4 }}>
+                                      <span style={{ fontSize: 7.5, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 2 }}>{cat}</span>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                        {(compByCategory[cat] ?? []).slice(0, 8).map((c, ci) => (
+                                          <span key={ci} style={{
+                                            fontSize: 7, color: '#334155',
+                                            background: '#f8fafc', border: '1px solid #e2e8f0',
+                                            borderRadius: 2, padding: '1px 4px', lineHeight: 1.6,
+                                          }}>{c}</span>
+                                        ))}
+                                        {(compByCategory[cat] ?? []).length > 8 && (
+                                          <span style={{ fontSize: 7, color: '#94a3b8', padding: '1px 2px', lineHeight: 1.6 }}>+{(compByCategory[cat] ?? []).length - 8}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* ── Poor-quality / no-detection note ────────────────────────────────────────── */}
+                    {poorQualityPhotos.length > 0 && (
+                      <div style={{
+                        marginTop: 4, padding: '7px 12px',
+                        background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4,
+                      }}>
+                        <p style={{ fontSize: 8.5, color: '#64748b', margin: 0 }}>
+                          <strong>{poorQualityPhotos.length}</strong> photograph{poorQualityPhotos.length !== 1 ? 's' : ''} could not be analysed (poor image quality or no vehicle components detected). Included in evidence appendix.
+                        </p>
                       </div>
                     )}
-                    {/* ── TIER 1: Featured Evidence — top 5 photos, clean horizontal card ── */}
-                    {(() => {
-                      const SEV_COLOUR: Record<string, string> = {
-                        catastrophic: '#7f1d1d', severe: '#9a3412',
-                        moderate: '#92400e', minor: '#14532d', cosmetic: '#1e3a5f',
-                      };
-                      const SEV_BG: Record<string, string> = {
-                        catastrophic: '#fef2f2', severe: '#fff7ed',
-                        moderate: '#fffbeb', minor: '#f0fdf4', cosmetic: '#eff6ff',
-                      };
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {damagePhotoUrls.slice(0, 5).map((url, i) => {
-                            const enrichedIdx = photoUrls.indexOf(url);
-                            const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
-                            const forensics = getForensics(url);
-                            const fr = forensics?.analysisResult ?? {};
-                            const caption = enriched?.caption
-                              ?? (enriched?.detectedComponents?.slice(0, 2).join(', '))
-                              ?? (() => {
-                                  const dz = (phase2?.damageZones ?? []) as string[];
-                                  return dz[i] ? dz[i].replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : `Photo ${i + 1}`;
-                                })();
-                            const sev = (enriched?.severity ?? '').toLowerCase();
-                            const sevCol = SEV_COLOUR[sev] ?? '#475569';
-                            const sevBg = SEV_BG[sev] ?? '#f8fafc';
-                            const aiDesc = fr.ai_vision_description ?? null;
-                            const cleanDesc = aiDesc
-                              ? aiDesc
-                                  .replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1')
-                                  .replace(/^[A-Z][A-Z\s]{2,}:\s*/gm, '')
-                                  .replace(/\b(EXIF|exif|manipulation|Manipulation|suspicious|SUSPICIOUS|flag|Flag|FLAG)[^.\n]*/gi, '')
-                                  .replace(/\s{2,}/g, ' ').trim()
-                              : null;
-                            const parts = enriched?.detectedComponents ?? [];
-                            const zone = enriched?.impactZone && enriched.impactZone !== 'unknown'
-                              ? enriched.impactZone.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-                              : null;
-                            const confScore = typeof enriched?.confidenceScore === 'number' ? enriched.confidenceScore : null;
-                            return (
-                              <div key={i} style={{ display: 'flex', border: '1px solid #e2e8f0', borderRadius: 5, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-                                {/* Severity left-edge bar */}
-                                <div style={{ width: 4, flexShrink: 0, background: sevCol, opacity: 0.85 }} />
-                                {/* Image panel — contain so full page is visible */}
-                                <div style={{ width: 200, minWidth: 200, flexShrink: 0, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: 150 }}>
-                                  <img
-                                    src={url}
-                                    alt={`Photo ${i + 1}`}
-                                    style={{ maxWidth: '100%', maxHeight: 180, objectFit: 'contain', display: 'block' }}
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                  />
-                                  <div style={{ position: 'absolute', top: 5, left: 5, background: 'rgba(15,23,42,0.65)', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 6px', borderRadius: 2, letterSpacing: '0.06em' }}>
-                                    {String(i + 1).padStart(2, '0')}
-                                  </div>
-                                </div>
-                                {/* Forensics panel */}
-                                <div style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column', minWidth: 0, gap: 5 }}>
-                                  {/* Header row: caption + severity badge */}
-                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                                    <p style={{ fontSize: 10.5, fontWeight: 700, color: '#0f172a', margin: 0, lineHeight: 1.4, flex: 1 }}>{caption}</p>
-                                    {sev && (
-                                      <span style={{ fontSize: 8, fontWeight: 700, color: sevCol, background: sevBg, border: `1px solid ${sevCol}30`, borderRadius: 3, padding: '2px 7px', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                        {sev}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {/* Zone + parts row */}
-                                  {(zone || parts.length > 0) && (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                                      {zone && (
-                                        <span style={{ fontSize: 8, fontWeight: 600, color: '#1e40af', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 3, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                          {zone}
-                                        </span>
-                                      )}
-                                      {parts.slice(0, 5).map((p: string, pi: number) => (
-                                        <span key={pi} style={{ fontSize: 8, color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 3, padding: '1px 6px' }}>{p}</span>
-                                      ))}
-                                      {parts.length > 5 && <span style={{ fontSize: 8, color: '#94a3b8', padding: '1px 3px' }}>+{parts.length - 5}</span>}
-                                    </div>
-                                  )}
-                                  {/* Divider */}
-                                  <div style={{ height: 1, background: '#f1f5f9', margin: '1px 0' }} />
-                                  {/* AI description */}
-                                  {cleanDesc && !fr.is_non_vehicle ? (
-                                    <p style={{ fontSize: 9.5, color: '#374151', lineHeight: 1.7, margin: 0, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                      {cleanDesc}
-                                    </p>
-                                  ) : (
-                                    <p style={{ fontSize: 9, color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>Forensic description pending analysis.</p>
-                                  )}
-                                  {/* Proposal 5: Consensus badges on featured cards */}
-                                  {parts.length > 0 && (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 2 }}>
-                                      {parts.slice(0, 6).map((p: string, pi: number) => {
-                                        const freq = componentFreqMap.get(p.toLowerCase()) ?? 1;
-                                        const isCorroborated = freq >= 3;
-                                        return (
-                                          <span key={pi} style={{
-                                            fontSize: 7.5, color: isCorroborated ? '#15803d' : '#64748b',
-                                            background: isCorroborated ? '#f0fdf4' : '#f8fafc',
-                                            border: `1px solid ${isCorroborated ? '#86efac' : '#e2e8f0'}`,
-                                            borderRadius: 3, padding: '1px 5px', display: 'flex', alignItems: 'center', gap: 3,
-                                          }}>
-                                            {isCorroborated && <span style={{ color: '#15803d', fontWeight: 700 }}>✓</span>}
-                                            {p}
-                                            <span style={{ color: isCorroborated ? '#16a34a' : '#94a3b8', fontWeight: 600 }}>{freq}×</span>
-                                          </span>
-                                        );
-                                      })}
-                                      {parts.length > 6 && <span style={{ fontSize: 7.5, color: '#94a3b8', padding: '1px 3px' }}>+{parts.length - 6}</span>}
-                                    </div>
-                                  )}
-                                  {/* Confidence */}
-                                  {confScore != null && (
-                                    <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                      <span style={{ fontSize: 8, color: '#94a3b8' }}>Detection confidence</span>
-                                      <span style={{ fontSize: 8, fontWeight: 700, color: confScore >= 80 ? '#15803d' : confScore >= 60 ? '#b45309' : '#b91c1c' }}>{confScore}%</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
 
-                    {/* ── TIER 2: Supporting Evidence — 4-column thumbnail grid ── */}
-                    {damagePhotoUrls.length > 5 && (() => {
-                      const remaining = damagePhotoUrls.slice(5);
-                      const SEV_COL: Record<string, string> = {
-                        catastrophic: '#7f1d1d', severe: '#9a3412', moderate: '#92400e', minor: '#14532d', cosmetic: '#1e3a5f',
-                      };
-                      return (
-                        <div style={{ marginTop: 14 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-                            <p style={{ fontSize: 8.5, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0, whiteSpace: 'nowrap' }}>
-                              Supporting Evidence &mdash; {remaining.length} image{remaining.length !== 1 ? 's' : ''}
-                            </p>
-                            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-                            {remaining.map((url, ri) => {
-                              const globalIdx = ri + 5;
-                              const enrichedIdx = photoUrls.indexOf(url);
-                              const enriched = enrichedIdx >= 0 ? enrichedPhotosFAR[enrichedIdx] : undefined;
-                              const sev = (enriched?.severity ?? '').toLowerCase();
-                              const sevCol = SEV_COL[sev] ?? '#475569';
-                              const caption = enriched?.caption
-                                ?? (enriched?.detectedComponents?.slice(0, 1).join(', '))
-                                ?? `Photo ${globalIdx + 1}`;
-                              const zone = enriched?.impactZone && enriched.impactZone !== 'unknown'
-                                ? enriched.impactZone.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-                                : null;
-                              // Proposal 1: component tags for supporting grid
-                              const gridParts = enriched?.detectedComponents ?? [];
-                              const noDetection = gridParts.length === 0;
-                              return (
-                                <div key={ri} style={{ border: '1px solid #e2e8f0', borderRadius: 4, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-                                  <div style={{ position: 'relative', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 90 }}>
-                                    <img
-                                      src={url}
-                                      alt={caption}
-                                      style={{ maxWidth: '100%', maxHeight: 90, objectFit: 'contain', display: 'block' }}
-                                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                    />
-                                    <div style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(15,23,42,0.6)', color: '#fff', fontSize: 7, fontWeight: 800, padding: '1px 4px', borderRadius: 2 }}>
-                                      {String(globalIdx + 1).padStart(2, '0')}
-                                    </div>
-                                    {noDetection && (
-                                      <div style={{ position: 'absolute', bottom: 4, right: 4, background: 'rgba(185,28,28,0.75)', color: '#fff', fontSize: 6.5, fontWeight: 700, padding: '1px 4px', borderRadius: 2, letterSpacing: '0.04em' }}>NO DETECTION</div>
-                                    )}
-                                  </div>
-                                  <div style={{ padding: '5px 7px', borderTop: `2px solid ${sev ? sevCol : '#e2e8f0'}` }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                                      {zone && <p style={{ fontSize: 7.5, color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{zone}</p>}
-                                      {sev && <span style={{ fontSize: 7, fontWeight: 700, color: sevCol, textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>{sev}</span>}
-                                    </div>
-                                    {/* Proposal 1: component chip row */}
-                                    {gridParts.length > 0 ? (
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: 2 }}>
-                                        {gridParts.slice(0, 4).map((p: string, pi: number) => {
-                                          const freq = componentFreqMap.get(p.toLowerCase()) ?? 1;
-                                          const corroborated = freq >= 3;
-                                          return (
-                                            <span key={pi} style={{
-                                              fontSize: 6.5, color: corroborated ? '#15803d' : '#475569',
-                                              background: corroborated ? '#f0fdf4' : '#f8fafc',
-                                              border: `1px solid ${corroborated ? '#86efac' : '#e2e8f0'}`,
-                                              borderRadius: 2, padding: '0px 3px', lineHeight: 1.6,
-                                            }}>{p}</span>
-                                          );
-                                        })}
-                                        {gridParts.length > 4 && <span style={{ fontSize: 6.5, color: '#94a3b8', padding: '0px 2px', lineHeight: 1.6 }}>+{gridParts.length - 4}</span>}
-                                      </div>
-                                    ) : (
-                                      <p style={{ fontSize: 7, color: '#94a3b8', fontStyle: 'italic', margin: '2px 0 0' }}>No components detected</p>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    {/* Dummy reference to avoid unused-var TS error for getForensics */}
+                    {void getForensics}
                   </>
                 );
               })()}
