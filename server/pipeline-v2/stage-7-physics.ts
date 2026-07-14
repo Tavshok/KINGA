@@ -753,6 +753,9 @@ export async function runPhysicsStage(
       },
       physicsExecuted: true,
       physicsStatus: 'EXECUTED' as const,
+      // Carry forward speedForensics from analyzeAccidentPhysics so the enrichment
+      // block below (which adds ensemble consensus) has something to work with.
+      speedForensics: physicsResult.speedForensics ?? null,
     };
 
     ctx.log("Stage 7", `Physics complete. Force: ${finalForceKn.toFixed(1)}kN${sideswipeCoefficient < 1 ? ` (sideswipe coeff ${sideswipeCoefficient})` : ''}, Speed: ${estimatedSpeedKmh.toFixed(0)}km/h, Energy: ${finalEnergyKj.toFixed(1)}kJ, Severity: ${output.accidentSeverity}`);
