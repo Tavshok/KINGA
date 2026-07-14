@@ -2774,6 +2774,26 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                 if (pct < 0.20) return null;
                 return { pct, direction: physicsSpeed > claimedSpeed ? 'higher' : 'lower', severity: pct >= 0.50 ? 'significant' : 'material' };
               })();
+              // P1: Velocity range from ensemble confidence interval
+              const ciLow: number | null = ensemble?.confidenceInterval?.[0] ?? null;
+              const ciHigh: number | null = ensemble?.confidenceInterval?.[1] ?? null;
+              const lowerBound: number | null = ensemble?.lowerBoundKmh ?? null;
+              const hasRange = ciLow != null && ciHigh != null;
+              const rangeLow = hasRange ? ciLow! : (lowerBound != null ? lowerBound : null);
+              const rangeHigh = hasRange ? ciHigh! : (lowerBound != null ? Math.round(lowerBound * 1.5) : null);
+              const rangeLabel = hasRange ? '90% confidence interval' : lowerBound != null ? 'deployment floor range' : null;
+              // P1: Braking coherence note — only when stated speed > consensus and Z > 5 m
+              const brakingNote: string | null = (() => {
+                if (!claimedSpeed || claimedSpeed <= 0 || !displaySpeed || displaySpeed <= 0) return null;
+                if (claimedSpeed <= displaySpeed) return null;
+                const mu = 0.7;
+                const g = 9.81;
+                const vStated = claimedSpeed / 3.6;
+                const vImpact = displaySpeed / 3.6;
+                const Z = (vStated * vStated - vImpact * vImpact) / (2 * mu * g);
+                if (Z < 5) return null;
+                return `Stated travel speed ${claimedSpeed} km/h is consistent with the physics lower bound of ${Math.round(displaySpeed)} km/h if the vehicle decelerated over approximately ${Math.round(Z)} m before impact (assuming μ = 0.7 tarmac surface, no pre-impact braking modelled).`;
+              })();
               return (
                 <div className="mb-4">
                   {/* Speed hero + convergence */}
@@ -2782,6 +2802,14 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                       <div className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--kr-muted)' }}>Consensus Speed</div>
                       <div className="text-4xl font-bold tabular-nums" style={{ fontFamily: 'var(--kr-mono)', color: speedZoneColour[speedZone] }}>{Math.round(displaySpeed)}</div>
                       <div className="text-xs font-semibold" style={{ color: speedZoneColour[speedZone] }}>km/h</div>
+                      {(rangeLow != null && rangeHigh != null) && (
+                        <div className="text-[10px] mt-0.5" style={{ color: 'var(--kr-muted)' }}>
+                          Range: <span className="font-semibold tabular-nums" style={{ color: speedZoneColour[speedZone] }}>{Math.round(rangeLow)}–{Math.round(rangeHigh)}</span> km/h
+                        </div>
+                      )}
+                      {rangeLabel && (
+                        <div className="text-[9px] italic" style={{ color: 'var(--kr-muted)' }}>{rangeLabel}</div>
+                      )}
                     </div>
                     <div className="flex-1 pt-1">
                       <p className="text-xs font-semibold mb-1" style={{ color: 'var(--kr-text)' }}>{speedZoneLabel[speedZone]}</p>
@@ -2835,6 +2863,12 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                   {speedDiscrepancy && (
                     <div className="p-2.5 mb-3 text-xs" style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)', color: 'var(--fp-critical-text)' }}>
                       <strong>Speed discrepancy:</strong> Driver stated {claimedSpeed.toFixed(0)} km/h; physics model estimates {physicsSpeed.toFixed(0)} km/h — a {speedDiscrepancy.severity} difference of {Math.round(speedDiscrepancy.pct * 100)}% ({speedDiscrepancy.direction} than claimed). Verify stated speed before settlement.
+                    </div>
+                  )}
+                  {/* P1: Braking coherence note */}
+                  {brakingNote && (
+                    <div className="p-2.5 mb-3 text-xs" style={{ background: 'var(--fp-info-bg)', border: '1px solid var(--fp-info-border)', color: 'var(--fp-info-text)' }}>
+                      <strong>Braking coherence:</strong> {brakingNote}
                     </div>
                   )}
                 </div>
@@ -2904,7 +2938,36 @@ function Section2Physics({ claim, aiAssessment, enforcement, quotes, fmtMoney = 
                     );
                   })}
                 </div>
-                <p className="text-[9px] mt-1 italic" style={{ color: 'var(--kr-muted)' }}>Detailed methodology available to qualified experts under confidentiality undertaking.</p>
+                {/* P3: Methodology disclosure */}
+                <div className="mt-2 p-2.5" style={{ background: 'var(--kr-off-white)', border: '1px solid var(--kr-rule)' }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--kr-muted)' }}>Methodology Disclosure</p>
+                  <div className="space-y-1 text-[10px]" style={{ color: 'var(--kr-text)' }}>
+                    <div className="grid grid-cols-3 gap-2 pb-1" style={{ borderBottom: '1px solid var(--kr-rule)', color: 'var(--kr-muted)', fontWeight: 600 }}>
+                      <span>Method</span><span>Computes</span><span>Primary Inputs</span>
+                    </div>
+                    {([
+                      { id: 'CAMPBELL', name: 'Crush-Depth Analysis', computes: 'Impact speed from residual deformation depth', inputs: 'Vision-derived crush depth, vehicle stiffness coefficient' },
+                      { id: 'ENERGY_MOMENTUM', name: 'Energy-Momentum Balance', computes: 'Delta-V from kinetic energy dissipated in deformation', inputs: 'Vehicle mass, crush depth, restitution coefficient' },
+                      { id: 'IMPULSE', name: 'Contact Impulse Analysis', computes: 'Impact speed from force-time integral', inputs: 'Airbag deployment threshold, vehicle mass, contact duration estimate' },
+                      { id: 'DEPLOYMENT_THRESHOLD', name: 'Safety System Activation', computes: 'Speed floor from airbag/seatbelt pre-tensioner activation', inputs: 'OEM deployment threshold range for vehicle class' },
+                      { id: 'VISION_DEFORMATION', name: 'Vision Deformation', computes: 'Crush depth estimate from photographic analysis', inputs: 'Damage photographs, vehicle reference dimensions' },
+                    ] as Array<{ id: string; name: string; computes: string; inputs: string }>)
+                      .filter(m => allMethods.some((am: any) => (am.method ?? am.id) === m.id))
+                      .map(m => (
+                        <div key={m.id} className="grid grid-cols-3 gap-2 py-0.5" style={{ borderBottom: '1px solid var(--kr-rule)', opacity: 0.9 }}>
+                          <span className="font-medium" style={{ color: 'var(--kr-text)' }}>{m.name}</span>
+                          <span>{m.computes}</span>
+                          <span style={{ color: 'var(--kr-muted)' }}>{m.inputs}</span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                  <div className="mt-2 text-[9px] space-y-0.5" style={{ color: 'var(--kr-muted)' }}>
+                    <p><strong style={{ color: 'var(--kr-text)' }}>Key assumptions:</strong> Vehicle mass estimated from make/model class where not stated. Friction coefficient μ = 0.7 (tarmac) used for braking coherence calculations. Pre-impact braking is not modelled in the speed lower-bound estimate. Crush-depth inputs are subject to photographic resolution and angle constraints.</p>
+                    <p><strong style={{ color: 'var(--kr-text)' }}>Uncertainty:</strong> The consensus speed is a physics-derived lower bound, not a certified reconstruction. Results are supporting evidence for adjuster decision-making and do not constitute a standalone expert opinion. Independent forensic reconstruction is recommended for claims above the insurer’s materiality threshold.</p>
+                    <p><strong style={{ color: 'var(--kr-text)' }}>Expert review:</strong> Full methodology documentation and raw computation traces are available to qualified forensic engineers under a confidentiality undertaking. Contact your KINGA account representative to initiate an expert review request.</p>
+                  </div>
+                </div>
               </div>
             )}
 

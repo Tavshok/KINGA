@@ -742,6 +742,45 @@ export async function runFraudAnalysisStage(
       ctx.log("Stage 8", `Damage pattern: ${damagePatternResult.pattern_match} (confidence: ${damagePatternResult.confidence}/100, image_contradiction: ${damagePatternResult.validation_detail.image_contradiction})`);
     }
 
+    // 3d. Speed-claim inconsistency — inject as physical_consistency indicator when
+    //     speedForensics shows a significant or critical deviation AND the ensemble
+    //     confidence is MEDIUM or HIGH (guards against low-confidence false positives).
+    //
+    // Design rationale:
+    //   - Uses the pre-computed speedForensics.deviationClass from computeSpeedForensics()
+    //     (accidentPhysics.ts) — consistent thresholds: significant ≥36%, critical >60%.
+    //   - riskScoreContribution (15 for significant, 25 for critical) is already calibrated
+    //     in accidentPhysics.ts; we reuse it directly.
+    //   - Maps to physical_consistency (C1) via category='consistency'.
+    //   - NOT added to PHYSICS_ONLY_SIGNAL_CODES because it requires corroboration
+    //     (ensemble confidence gate) before contributing to the fraud score.
+    try {
+      const sf = physicsAnalysis.speedForensics;
+      const ensembleConf: string = ((physicsAnalysis.speedInferenceEnsemble as any)?.overallConfidence ?? 'LOW').toUpperCase();
+      const confGatePassed = ensembleConf === 'MEDIUM' || ensembleConf === 'HIGH';
+      if (sf && sf.deviationClass && confGatePassed &&
+          (sf.deviationClass === 'significant' || sf.deviationClass === 'critical')) {
+        const alreadyPresent = allIndicators.some(i => i.indicator === 'speed_claim_inconsistency');
+        if (!alreadyPresent && sf.claimedSpeedKmh != null && sf.claimedSpeedKmh > 0) {
+          const isCritical = sf.deviationClass === 'critical';
+          allIndicators.push({
+            indicator: 'speed_claim_inconsistency',
+            category: 'consistency',
+            score: sf.riskScoreContribution,
+            description:
+              `Stated speed (${sf.claimedSpeedKmh} km/h) is ${sf.deviationPct}% ` +
+              `${sf.deviationKmh != null && sf.deviationKmh < 0 ? 'above' : 'below'} the physics-inferred consensus ` +
+              `(${sf.physicsSpeedKmh} km/h, ${ensembleConf.toLowerCase()} confidence ensemble). ` +
+              `Deviation class: ${sf.deviationLabel}. ${sf.interpretation}`,
+            severity: isCritical ? 'critical' : 'high',
+          } as FraudIndicator);
+          ctx.log('Stage 8', `Speed-claim inconsistency indicator injected: ${sf.deviationClass} (${sf.deviationPct}% deviation, +${sf.riskScoreContribution}pts, ensemble=${ensembleConf})`);
+        }
+      }
+    } catch (speedErr) {
+      ctx.log('Stage 8', `Speed-claim inconsistency check failed (non-fatal): ${String(speedErr)}`);
+    }
+
     // 3b. Narrative Reasoning fraud signals (Stage 7e)
     // If the incident narrative engine detected inconsistencies, inject them
     // as FraudIndicator entries so they contribute to the overall risk score.
