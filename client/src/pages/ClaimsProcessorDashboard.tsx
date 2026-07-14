@@ -150,8 +150,16 @@ export default function ClaimsProcessorDashboard() {
           const claims = (data as any)?.claims || (data as any)?.items || [];
           const hasInProgress = claims.some((c: any) =>
             c.status === "assessment_in_progress" ||
+            c.status === "document_validating" ||
+            c.status === "document_ready" ||
+            c.status === "analysis_running" ||
+            c.status === "recovery_attempted" ||
             c.documentProcessingStatus === "parsing" ||
-            c.documentProcessingStatus === "processing"
+            c.documentProcessingStatus === "processing" ||
+            c.documentProcessingStatus === "DOCUMENT_VALIDATING" ||
+            c.documentProcessingStatus === "DOCUMENT_READY" ||
+            c.documentProcessingStatus === "ANALYSIS_RUNNING" ||
+            c.documentProcessingStatus === "RECOVERY_ATTEMPTED"
           );
           // Poll every 2s when KINGA is actively running so stage transitions appear quickly,
           // fall back to 30s when idle to reduce server load.
@@ -181,7 +189,11 @@ export default function ClaimsProcessorDashboard() {
   const inReviewClaims = filteredClaims.filter((c: any) =>
     c.status === "assessment_in_progress" || c.status === "quotes_pending"
   );
-  const aiFlaggedClaims = filteredClaims.filter((c: any) => c.status === "assessment_complete");
+  const aiFlaggedClaims = filteredClaims.filter((c: any) =>
+    c.status === "assessment_complete" ||
+    c.status === "analysis_complete" ||
+    c.documentProcessingStatus === "ANALYSIS_COMPLETE"
+  );
   const completedClaims = filteredClaims.filter((c: any) => c.status === "closed");
 
   // Detect when KINGA processing completes (claim moves from in_review to ai_flagged)
@@ -195,7 +207,20 @@ export default function ClaimsProcessorDashboard() {
       if (!claim) return;
       // Claim finished successfully — but only if the completion timestamp is
       // NEWER than when the re-run was triggered (avoids firing on stale state).
-      if (claim.status === "assessment_complete" && claim.documentProcessingStatus !== "parsing" && claim.documentProcessingStatus !== "processing") {
+      const isComplete = (
+        claim.status === "assessment_complete" ||
+        claim.status === "analysis_complete" ||
+        claim.documentProcessingStatus === "ANALYSIS_COMPLETE"
+      );
+      const isTransient = (
+        claim.documentProcessingStatus === "parsing" ||
+        claim.documentProcessingStatus === "processing" ||
+        claim.documentProcessingStatus === "DOCUMENT_VALIDATING" ||
+        claim.documentProcessingStatus === "DOCUMENT_READY" ||
+        claim.documentProcessingStatus === "ANALYSIS_RUNNING" ||
+        claim.documentProcessingStatus === "RECOVERY_ATTEMPTED"
+      );
+      if (isComplete && !isTransient) {
         const rerunStartedAt = rerunStartedAtRef.current.get(id);
         if (rerunStartedAt) {
           // Re-run: only complete if aiAssessmentCompletedAt is after rerunStartedAt
@@ -467,11 +492,24 @@ export default function ClaimsProcessorDashboard() {
     // even if documentProcessingStatus is stale (e.g. still 'parsing' or 'processing').
     // The stuck-recovery job (Case 9) fixes the stale dps in the background, but the
     // UI must not block report access in the meantime.
-    const isAlreadyComplete = claim.status === "assessment_complete" || claim.status === "closed";
+    const isAlreadyComplete = (
+      claim.status === "assessment_complete" ||
+      claim.status === "analysis_complete" ||
+      claim.documentProcessingStatus === "ANALYSIS_COMPLETE" ||
+      claim.status === "closed"
+    );
     const isProcessing = !isAlreadyComplete && (
       aiProcessingClaimIds.has(claim.id) ||
       claim.documentProcessingStatus === "parsing" ||
-      claim.documentProcessingStatus === "processing"
+      claim.documentProcessingStatus === "processing" ||
+      claim.documentProcessingStatus === "DOCUMENT_VALIDATING" ||
+      claim.documentProcessingStatus === "DOCUMENT_READY" ||
+      claim.documentProcessingStatus === "ANALYSIS_RUNNING" ||
+      claim.documentProcessingStatus === "RECOVERY_ATTEMPTED" ||
+      claim.status === "document_validating" ||
+      claim.status === "document_ready" ||
+      claim.status === "analysis_running" ||
+      claim.status === "recovery_attempted"
     );
     const isTriggering = triggeringClaimId === claim.id;
 
@@ -485,12 +523,29 @@ export default function ClaimsProcessorDashboard() {
         );
       }
 
-      // Show FAILED badge when document processing failed
-      if (claim.documentProcessingStatus === "failed") {
+      // Show FAILED badge when document processing failed (DRA failure states)
+      if (
+        claim.documentProcessingStatus === "failed" ||
+        claim.documentProcessingStatus === "DOCUMENT_FAILED" ||
+        claim.status === "document_failed"
+      ) {
         return (
           <Badge className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700 flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
             PROCESSING FAILED
+          </Badge>
+        );
+      }
+
+      // Show HUMAN REVIEW badge when routed to manual review
+      if (
+        claim.documentProcessingStatus === "HUMAN_REVIEW_REQUIRED" ||
+        claim.status === "human_review_required"
+      ) {
+        return (
+          <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700 flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            HUMAN REVIEW REQUIRED
           </Badge>
         );
       }
@@ -517,6 +572,8 @@ export default function ClaimsProcessorDashboard() {
         intake_pending: { label: "PENDING REVIEW", style: { background: KINGA_AMBER_BG, color: KINGA_AMBER, border: 'none' } },
         quotes_pending: { label: "QUOTES PENDING", style: { background: KINGA_BLUE_BG, color: KINGA_BLUE, border: 'none' } },
         assessment_complete: { label: "ASSESSMENT COMPLETE", style: { background: KINGA_TEAL_BG, color: KINGA_TEAL, border: 'none' } },
+        // DRA Phase 2 success terminal state
+        analysis_complete: { label: "ASSESSMENT COMPLETE", style: { background: KINGA_TEAL_BG, color: KINGA_TEAL, border: 'none' } },
         closed: { label: "COMPLETED", style: { background: KINGA_GREEN_BG, color: KINGA_GREEN, border: 'none' } },
       };
 
@@ -1244,11 +1301,24 @@ export default function ClaimsProcessorDashboard() {
                     </thead>
                     <tbody>
                       {activeClaims.slice(0, 20).map((claim: any) => {
-                        const isAlreadyComplete = claim.status === "assessment_complete" || claim.status === "closed";
+                        const isAlreadyComplete = (
+                          claim.status === "assessment_complete" ||
+                          claim.status === "analysis_complete" ||
+                          claim.documentProcessingStatus === "ANALYSIS_COMPLETE" ||
+                          claim.status === "closed"
+                        );
                         const isProcessing = !isAlreadyComplete && (
                           aiProcessingClaimIds.has(claim.id) ||
                           claim.documentProcessingStatus === "parsing" ||
-                          claim.documentProcessingStatus === "processing"
+                          claim.documentProcessingStatus === "processing" ||
+                          claim.documentProcessingStatus === "DOCUMENT_VALIDATING" ||
+                          claim.documentProcessingStatus === "DOCUMENT_READY" ||
+                          claim.documentProcessingStatus === "ANALYSIS_RUNNING" ||
+                          claim.documentProcessingStatus === "RECOVERY_ATTEMPTED" ||
+                          claim.status === "document_validating" ||
+                          claim.status === "document_ready" ||
+                          claim.status === "analysis_running" ||
+                          claim.status === "recovery_attempted"
                         );
                         const hoursOld = (Date.now() - new Date(claim.createdAt).getTime()) / 3600000;
                         const slaClass = hoursOld > 72 ? 'red' : hoursOld > 48 ? 'amber' : 'green';
@@ -1257,6 +1327,9 @@ export default function ClaimsProcessorDashboard() {
                           assessment_in_progress: { label: 'In Review', cls: 'blue' },
                           quotes_pending: { label: 'Quotes Pending', cls: 'blue' },
                           assessment_complete: { label: 'KINGA Complete', cls: 'green' },
+                          analysis_complete: { label: 'KINGA Complete', cls: 'green' },
+                          document_failed: { label: 'Processing Failed', cls: 'red' },
+                          human_review_required: { label: 'Human Review', cls: 'amber' },
                           closed: { label: 'Completed', cls: 'green' },
                         };
                         const st = statusMap[claim.status] || { label: claim.status, cls: 'muted' };

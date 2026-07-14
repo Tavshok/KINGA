@@ -463,3 +463,206 @@ export async function renderSpecificPdfPages(
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* non-fatal */ }
   }
 }
+
+// ── RECOVERY LADDER ────────────────────────────────────────────────────────────
+//
+// Document Reliability Architecture — Phase 4
+//
+// When pdftoppm fails or produces 0 pages, the recovery ladder attempts
+// alternative extraction strategies before escalating to human review.
+//
+// Strategy 1: pdfimages — extract embedded images directly from the PDF
+//   (works for PDFs that contain JPEG/PNG photos embedded as objects)
+// Strategy 2: pdftotext — extract text content only
+//   (works for text-based PDFs; provides evidence for Stage 3 even without photos)
+//
+// Both strategies are available via poppler-utils (already in apt.txt).
+// ──────────────────────────────────────────────────────────────────────────────
+
+export interface EmbeddedImageExtractionResult {
+  /** Number of embedded images found in the PDF */
+  imagesFound: number;
+  /** S3 URLs of extracted images that passed dimension threshold */
+  imageUrls: string[];
+  /** Images that failed dimension threshold */
+  rejectedCount: number;
+  /** Error message if extraction failed */
+  error: string | null;
+  /** Duration in milliseconds */
+  durationMs: number;
+}
+
+export interface OcrTextExtractionResult {
+  /** Whether text was successfully extracted */
+  success: boolean;
+  /** Extracted text content */
+  text: string;
+  /** Number of characters extracted */
+  charCount: number;
+  /** Error message if extraction failed */
+  error: string | null;
+  /** Duration in milliseconds */
+  durationMs: number;
+}
+
+/**
+ * Recovery Strategy 1: Extract embedded images from a PDF using pdfimages.
+ *
+ * pdfimages (poppler-utils) extracts images that are embedded as objects
+ * within the PDF, as opposed to pdftoppm which renders each page as a raster.
+ * This is the correct tool for PDFs that contain JPEG/PNG photos (e.g. a
+ * claim form with embedded damage photographs).
+ *
+ * @param pdfBuffer  PDF file content as a Buffer
+ * @param keyPrefix  S3 key prefix for uploaded images
+ * @param log        Logger function
+ */
+export async function extractEmbeddedImages(
+  pdfBuffer: Buffer,
+  keyPrefix: string = 'pdf-embedded',
+  log: (msg: string) => void = () => {}
+): Promise<EmbeddedImageExtractionResult> {
+  const startMs = Date.now();
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kinga-pdfimages-'));
+  const pdfPath = path.join(tmpDir, 'input.pdf');
+  const outputPrefix = path.join(tmpDir, 'img');
+
+  try {
+    fs.writeFileSync(pdfPath, pdfBuffer);
+    log(`[Recovery-1] Running pdfimages on ${pdfBuffer.length} byte PDF`);
+
+    try {
+      await execFileAsync(
+        'pdfimages',
+        ['-png', '-j', pdfPath, outputPrefix],
+        { timeout: 60_000, maxBuffer: 100 * 1024 * 1024 }
+      );
+    } catch (err: any) {
+      log(`[Recovery-1] pdfimages failed: ${err.message}`);
+      return { imagesFound: 0, imageUrls: [], rejectedCount: 0, error: err.message, durationMs: Date.now() - startMs };
+    }
+
+    // Find extracted image files
+    const imgFiles = fs.readdirSync(tmpDir)
+      .filter(f => f.startsWith('img') && (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.ppm')))
+      .sort();
+
+    log(`[Recovery-1] pdfimages extracted ${imgFiles.length} image(s)`);
+
+    if (imgFiles.length === 0) {
+      return { imagesFound: 0, imageUrls: [], rejectedCount: 0, error: null, durationMs: Date.now() - startMs };
+    }
+
+    // Upload images that pass dimension threshold to S3
+    const imageUrls: string[] = [];
+    let rejectedCount = 0;
+    const urlHash = createHash('md5').update(pdfBuffer.slice(0, 256)).digest('hex').slice(0, 8);
+
+    for (let i = 0; i < imgFiles.length; i++) {
+      const imgFile = imgFiles[i];
+      const imgPath = path.join(tmpDir, imgFile);
+      try {
+        let imgBuf: Buffer = fs.readFileSync(imgPath);
+
+        // Convert PPM to PNG if needed (pdfimages can output PPM for some images)
+        if (imgFile.endsWith('.ppm')) {
+          try {
+            imgBuf = Buffer.from(await sharp(imgBuf).png().toBuffer());
+          } catch {
+            log(`[Recovery-1] PPM→PNG conversion failed for ${imgFile}, skipping`);
+            rejectedCount++;
+            continue;
+          }
+        }
+
+        // Dimension check
+        let w = 0, h = 0;
+        try {
+          const meta = await sharp(imgBuf).metadata();
+          w = meta.width ?? 0;
+          h = meta.height ?? 0;
+        } catch { /* non-fatal */ }
+
+        if (w < 200 || h < 200) {
+          log(`[Recovery-1] Image ${i + 1}: too small (${w}×${h}), skipping`);
+          rejectedCount++;
+          continue;
+        }
+
+        const s3Key = `${keyPrefix}/${urlHash}/embedded-${String(i + 1).padStart(3, '0')}.png`;
+        const { url } = await storagePut(s3Key, imgBuf, 'image/png');
+        imageUrls.push(url);
+        log(`[Recovery-1] Image ${i + 1}: ${w}×${h} → uploaded to S3`);
+      } catch (err: any) {
+        log(`[Recovery-1] Image ${i + 1}: upload failed — ${err.message}`);
+        rejectedCount++;
+      }
+    }
+
+    log(`[Recovery-1] Complete: ${imageUrls.length} uploaded, ${rejectedCount} rejected`);
+    return {
+      imagesFound: imgFiles.length,
+      imageUrls,
+      rejectedCount,
+      error: null,
+      durationMs: Date.now() - startMs,
+    };
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* non-fatal */ }
+  }
+}
+
+/**
+ * Recovery Strategy 2: Extract text content from a PDF using pdftotext.
+ *
+ * pdftotext (poppler-utils) extracts the text layer from a PDF.
+ * This is useful when pdftoppm fails but the PDF contains readable text
+ * (e.g. a digitally-created claim form). The extracted text can be passed
+ * to Stage 3 for structured data extraction even without images.
+ *
+ * @param pdfBuffer  PDF file content as a Buffer
+ * @param log        Logger function
+ */
+export async function extractPdfText(
+  pdfBuffer: Buffer,
+  log: (msg: string) => void = () => {}
+): Promise<OcrTextExtractionResult> {
+  const startMs = Date.now();
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kinga-pdftext-'));
+  const pdfPath = path.join(tmpDir, 'input.pdf');
+  const txtPath = path.join(tmpDir, 'output.txt');
+
+  try {
+    fs.writeFileSync(pdfPath, pdfBuffer);
+    log(`[Recovery-2] Running pdftotext on ${pdfBuffer.length} byte PDF`);
+
+    try {
+      await execFileAsync(
+        'pdftotext',
+        ['-layout', pdfPath, txtPath],
+        { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }
+      );
+    } catch (err: any) {
+      log(`[Recovery-2] pdftotext failed: ${err.message}`);
+      return { success: false, text: '', charCount: 0, error: err.message, durationMs: Date.now() - startMs };
+    }
+
+    if (!fs.existsSync(txtPath)) {
+      return { success: false, text: '', charCount: 0, error: 'pdftotext produced no output file', durationMs: Date.now() - startMs };
+    }
+
+    const text = fs.readFileSync(txtPath, 'utf-8');
+    const charCount = text.trim().length;
+    log(`[Recovery-2] pdftotext extracted ${charCount} characters`);
+
+    return {
+      success: charCount > 0,
+      text,
+      charCount,
+      error: null,
+      durationMs: Date.now() - startMs,
+    };
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* non-fatal */ }
+  }
+}

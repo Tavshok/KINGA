@@ -837,7 +837,11 @@ export const claims = mysqlTable("claims", {
 	damagePhotos: text("damage_photos"),
 	policyNumber: varchar("policy_number", { length: 100 }),
 	policyVerified: tinyint("policy_verified"),
-	status: mysqlEnum(['submitted','triage','assessment_pending','assessment_in_progress','quotes_pending','comparison','repair_assigned','repair_in_progress','completed','rejected','intake_pending','assessment_complete','closed']).default('submitted').notNull(),
+	// Document Reliability Architecture (DRA) states added 2026-07-14:
+	// document_validating → document_ready → analysis_running → analysis_complete (success path)
+	// document_failed → recovery_attempted → human_review_required (failure path)
+	// A failed document MUST NEVER reach analysis_complete.
+	status: mysqlEnum(['submitted','triage','assessment_pending','assessment_in_progress','quotes_pending','comparison','repair_assigned','repair_in_progress','completed','rejected','intake_pending','assessment_complete','closed','document_validating','document_ready','analysis_running','analysis_complete','document_failed','recovery_attempted','human_review_required']).default('submitted').notNull(),
 	workflowState: mysqlEnum("workflow_state", ['created','intake_queue','intake_verified','assigned','under_assessment','internal_review','technical_approval','financial_decision','payment_authorized','closed','disputed','ai_assessment_pending','ai_assessment_completed','manual_review']),
 	assignedAssessorId: int("assigned_assessor_id"),
 	assignedPanelBeaterId: int("assigned_panel_beater_id"),

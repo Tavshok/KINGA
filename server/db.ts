@@ -645,15 +645,17 @@ export async function triggerAiAssessment(claimId: number) {
   // Previously, deleting upfront caused both the financial and photo sections of the
   // Forensic Report to show empty when a re-run degraded.
 
-  // Mark assessment as triggered and transition to 'parsing'.
-  // Also reset aiAssessmentCompleted to 0 so the frontend polling knows to wait.
+  // DRA Phase 2: Transition to DOCUMENT_VALIDATING — ingestion is starting.
+  // This is the first state in the Document Reliability Architecture state machine.
+  // The claim will NOT reach ANALYSIS_COMPLETE unless all gate conditions are met.
   await db.update(claims).set({
     aiAssessmentTriggered: 1,
     aiAssessmentCompleted: 0,
-    documentProcessingStatus: "parsing",
+    documentProcessingStatus: "DOCUMENT_VALIDATING",
+    status: "document_validating",
     updatedAt: new Date().toISOString(),
   }).where(eq(claims.id, claimId));
-  console.log(`[KINGA Assessment] Claim ${claimId} — Pipeline v2 starting (clean slate).`);
+  console.log(`[KINGA Assessment] Claim ${claimId} — Pipeline v2 starting. State: DOCUMENT_VALIDATING.`);
 
   // This flag is set to true just before the success-path DB write.
   // The finally safety-net checks this flag before resetting the claim to
@@ -769,6 +771,12 @@ export async function triggerAiAssessment(claimId: number) {
   let _dbPhotoIngestionLog: any = null;
   // Preserve full ExtractedImage metadata for the image classifier
   let _extractedImagesWithMetadata: any[] = [];
+  // DRA Phase 3/4: Hoisted to outer scope so the Document Health Gate and recovery
+  // ladder can read them after the PDF extraction block closes.
+  let _extractionError: string | null = null;
+  let _qualitySummary: any = null;
+  let _isScannedPdf = false;
+  let _pdfBuffer: Buffer | null = null;
   // ── PDF IMAGE EXTRACTION ────────────────────────────────────────────────────────────────
   // poppler-utils (pdftoppm) is declared in apt.txt and is available in both development
   // and production. The previous SKIP_NATIVE_EXTRACTION guard was written before apt.txt
@@ -779,11 +787,21 @@ export async function triggerAiAssessment(claimId: number) {
 
   if (pdfUrl && damagePhotos.length === 0) {
     const _photoIngestionStart = Date.now();
-    let _extractionError: string | null = null;
     let _totalExtracted = 0;
-    let _qualitySummary: any = null;
-    let _isScannedPdf = false;
+    // _extractionError, _qualitySummary, _isScannedPdf, _pdfBuffer are hoisted to outer scope (DRA Phase 3/4)
     try {
+      // Pre-download the PDF buffer so the recovery ladder and health gate can use it
+      // without a second network round-trip.
+      try {
+        const downloadUrl = pdfDownloadUrl || pdfUrl!;
+        const pdfFetchRes = await fetch(downloadUrl);
+        if (pdfFetchRes.ok) {
+          _pdfBuffer = Buffer.from(await pdfFetchRes.arrayBuffer());
+          console.log(`[KINGA Assessment] Claim ${claimId}: PDF pre-downloaded for recovery ladder (${_pdfBuffer.length} bytes).`);
+        }
+      } catch (preDlErr: any) {
+        console.warn(`[KINGA Assessment] Claim ${claimId}: PDF pre-download failed (non-fatal, recovery ladder will skip): ${preDlErr.message}`);
+      }
       const downloadUrlForRender = pdfDownloadUrl || pdfUrl!;
       console.log(`[KINGA Assessment] Claim ${claimId}: No cached photos — rendering PDF pages via pdftoppm (presigned URL: ${!!pdfDownloadUrl}).`);
       // Use pdftoppm (poppler-utils) to render each PDF page as a PNG.
@@ -863,23 +881,87 @@ export async function triggerAiAssessment(claimId: number) {
       // DIAGNOSTIC: Log full stack so production Cloud Run logs surface the real cause
       console.error(`[KINGA Assessment] Claim ${claimId}: PDF image re-extraction FAILED — ${imgErr.message}`);
       console.error(`[KINGA Assessment] Claim ${claimId}: Extraction error stack: ${imgErr.stack ?? '(no stack)'}`);
-      // FALLBACK: If PDF rendering failed, try to reuse photo URLs from the previous
-      // ai_assessments record (damagePhotosJson). This prevents a re-run from losing
-      // photos that were successfully extracted in an earlier run.
-      try {
-        const prevAssessment = await db.select({ damagePhotosJson: aiAssessments.damagePhotosJson })
-          .from(aiAssessments)
-          .where(eq(aiAssessments.claimId, claimId))
-          .limit(1);
-        if (prevAssessment[0]?.damagePhotosJson) {
-          const prevPhotos: string[] = JSON.parse(prevAssessment[0].damagePhotosJson as string);
-          if (prevPhotos.length > 0) {
-            damagePhotos = prevPhotos;
-            console.log(`[KINGA Assessment] Claim ${claimId}: Fallback — reusing ${prevPhotos.length} photo URL(s) from previous assessment record.`);
+
+      // ── DRA Phase 4: Recovery Ladder ────────────────────────────────────────
+      // Primary extraction (pdftoppm) failed. Attempt fallback strategies before
+      // escalating to human review.
+      // Strategy 1: pdfimages — extract embedded images directly from the PDF
+      // Strategy 2: pdftotext — extract text content for Stage 3 even without photos
+      // Strategy 3: Reuse cached photos from previous assessment run
+      // ────────────────────────────────────────────────────────────────────────
+      let _recoveryAttempted = false;
+
+      // Mark claim as RECOVERY_ATTEMPTED
+      await db.update(claims).set({
+        status: 'recovery_attempted',
+        documentProcessingStatus: 'RECOVERY_ATTEMPTED',
+        updatedAt: new Date().toISOString(),
+      }).where(eq(claims.id, claimId)).catch(() => {});
+
+      // Strategy 1: pdfimages embedded image extraction
+      if (_pdfBuffer && _pdfBuffer.length > 0) {
+        try {
+          const { extractEmbeddedImages } = await import('./pipeline-v2/pdfToImages');
+          const embeddedResult = await extractEmbeddedImages(
+            _pdfBuffer,
+            `claims/${claimId}/embedded-images`,
+            (msg: string) => console.log(`[KINGA Assessment] Claim ${claimId}: ${msg}`)
+          );
+          if (embeddedResult.imageUrls.length > 0) {
+            damagePhotos = embeddedResult.imageUrls;
+            _recoveryAttempted = true;
+            console.log(`[KINGA Assessment] Claim ${claimId}: Recovery-1 (pdfimages) succeeded — ${embeddedResult.imageUrls.length} embedded image(s) recovered.`);
+          } else {
+            console.log(`[KINGA Assessment] Claim ${claimId}: Recovery-1 (pdfimages) found no usable embedded images.`);
           }
+        } catch (r1Err: any) {
+          console.warn(`[KINGA Assessment] Claim ${claimId}: Recovery-1 (pdfimages) failed: ${r1Err.message}`);
         }
-      } catch (fallbackErr: any) {
-        console.warn(`[KINGA Assessment] Claim ${claimId}: Fallback photo reuse also failed: ${fallbackErr.message}`);
+      }
+
+      // Strategy 2: pdftotext OCR (if Strategy 1 didn't recover photos)
+      if (!_recoveryAttempted && _pdfBuffer && _pdfBuffer.length > 0) {
+        try {
+          const { extractPdfText } = await import('./pipeline-v2/pdfToImages');
+          const textResult = await extractPdfText(
+            _pdfBuffer,
+            (msg: string) => console.log(`[KINGA Assessment] Claim ${claimId}: ${msg}`)
+          );
+          if (textResult.success && textResult.charCount > 50) {
+            // Store extracted text for Stage 3 to use even without images
+            (claim as any)._recoveredPdfText = textResult.text;
+            _recoveryAttempted = true;
+            console.log(`[KINGA Assessment] Claim ${claimId}: Recovery-2 (pdftotext) succeeded — ${textResult.charCount} chars extracted for Stage 3.`);
+          } else {
+            console.log(`[KINGA Assessment] Claim ${claimId}: Recovery-2 (pdftotext) found no usable text (${textResult.charCount} chars).`);
+          }
+        } catch (r2Err: any) {
+          console.warn(`[KINGA Assessment] Claim ${claimId}: Recovery-2 (pdftotext) failed: ${r2Err.message}`);
+        }
+      }
+
+      // Strategy 3: Reuse cached photos from previous assessment run
+      if (!_recoveryAttempted) {
+        try {
+          const prevAssessment = await db.select({ damagePhotosJson: aiAssessments.damagePhotosJson })
+            .from(aiAssessments)
+            .where(eq(aiAssessments.claimId, claimId))
+            .limit(1);
+          if (prevAssessment[0]?.damagePhotosJson) {
+            const prevPhotos: string[] = JSON.parse(prevAssessment[0].damagePhotosJson as string);
+            if (prevPhotos.length > 0) {
+              damagePhotos = prevPhotos;
+              _recoveryAttempted = true;
+              console.log(`[KINGA Assessment] Claim ${claimId}: Recovery-3 (cached photos) succeeded — reusing ${prevPhotos.length} photo URL(s) from previous assessment.`);
+            }
+          }
+        } catch (fallbackErr: any) {
+          console.warn(`[KINGA Assessment] Claim ${claimId}: Recovery-3 (cached photos) also failed: ${fallbackErr.message}`);
+        }
+      }
+
+      if (!_recoveryAttempted) {
+        console.error(`[KINGA Assessment] Claim ${claimId}: All recovery strategies exhausted — no usable evidence recovered.`);
       }
     }
     // Build structured photo ingestion log for the forensic report
@@ -962,28 +1044,55 @@ export async function triggerAiAssessment(claimId: number) {
     console.log(`[KINGA Assessment] Claim ${claimId}: Image normalisation — cache_rehydration (${damagePhotos.length} trusted cached photos, classifier bypassed)`);
   }
 
-  // If we have neither a PDF nor photos, create a placeholder and return
+  // ── DRA Phase 5: No Silent Failure Invariant ──────────────────────────────────────────────────────
+  // SYSTEM INVARIANT: A claim with no evidence MUST NEVER reach analysis_complete.
+  // Previously this path created a fake 'assessment_complete' placeholder, which
+  // caused claims to appear processed when they had no evidence at all.
+  // This is the root cause of the silent failure bug.
+  //
+  // NEW BEHAVIOUR: No evidence → DOCUMENT_FAILED → HUMAN_REVIEW_REQUIRED
+  //   • Owner is notified
+  //   • Claim is blocked from proceeding
+  //   • Adjuster sees clear failure reason in the UI
+  // ────────────────────────────────────────────────────────────────────────────────────
   if (!pdfUrl && damagePhotos.length === 0) {
-    console.log(`[KINGA Assessment] Claim ${claimId}: No PDF and no damage photos. Creating placeholder.`);
-    await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch(() => {});
-    await db.insert(aiAssessments).values({
-      claimId,
-      tenantId: claim.tenantId ?? null,
-      damageDescription: "Assessment pending - No damage photos or documents uploaded yet.",
-      damagedComponentsJson: JSON.stringify([]),
-      estimatedCost: 0,
-      fraudIndicators: JSON.stringify(["No photos or documents available for analysis"]),
-      fraudRiskLevel: "low",
-      totalLossIndicated: 0,
-      structuralDamageSeverity: "none"
-    });
-    await db.update(claims).set({ 
-      aiAssessmentCompleted: 1,
-      status: "assessment_complete",
-      documentProcessingStatus: "extracted",
-      updatedAt: new Date().toISOString() 
-    }).where(eq(claims.id, claimId));
-    return { success: true, message: "Placeholder assessment created. Please upload damage photos or documents for full analysis." };
+    console.error(`[KINGA Assessment] Claim ${claimId}: No evidence available (no PDF, no photos). Routing to DOCUMENT_FAILED.`);
+
+    // Transition to DOCUMENT_FAILED
+    await db.update(claims).set({
+      aiAssessmentCompleted: 0,
+      status: 'document_failed',
+      documentProcessingStatus: 'DOCUMENT_FAILED',
+      updatedAt: new Date().toISOString(),
+    }).where(eq(claims.id, claimId)).catch(() => {});
+
+    // Notify owner (non-blocking)
+    try {
+      const { notifyOwner } = await import('./_core/notification');
+      await notifyOwner({
+        title: `⚠️ Claim ${claimId}: No Evidence — Assessment Blocked`,
+        content: `Claim ${claimId} has no PDF document and no damage photographs. ` +
+          `The assessment pipeline was blocked to prevent a silent failure. ` +
+          `Action required: ask the claimant to upload their claim document and damage photographs. ` +
+          `Claim status: DOCUMENT_FAILED → HUMAN_REVIEW_REQUIRED.`,
+      });
+    } catch (notifyErr: any) {
+      console.warn(`[KINGA Assessment] Claim ${claimId}: Owner notification failed (non-fatal): ${notifyErr.message}`);
+    }
+
+    // Transition to HUMAN_REVIEW_REQUIRED
+    await db.update(claims).set({
+      status: 'human_review_required',
+      documentProcessingStatus: 'HUMAN_REVIEW_REQUIRED',
+      updatedAt: new Date().toISOString(),
+    }).where(eq(claims.id, claimId)).catch(() => {});
+
+    return {
+      success: false,
+      message: 'Assessment blocked: no claim document or damage photographs found. ' +
+        'The claim has been routed to human review. ' +
+        'Please upload a claim document or damage photographs to proceed.',
+    };
   }
   // ── PIPELINE V2 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   // Build pipeline context and run the 10-stage orchestrator.
@@ -1001,6 +1110,107 @@ export async function triggerAiAssessment(claimId: number) {
   } catch (rateErr) {
     console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to load tenant rates (non-fatal):`, rateErr);
   }
+  // ── DRA Phase 3: Document Health Gate ──────────────────────────────────────
+  // Run the Document Health Gate BEFORE the pipeline starts.
+  // Evidence has been collected above. The gate evaluates 6 quality dimensions
+  // and decides whether the pipeline may proceed.
+  //
+  // ROUTING:
+  //   PROCEED_AUTOMATICALLY → transition to DOCUMENT_READY, run pipeline
+  //   PROCEED_WITH_WARNING  → transition to DOCUMENT_READY, run pipeline (with warning)
+  //   REQUIRE_REVIEW        → transition to HUMAN_REVIEW_REQUIRED, block pipeline
+  //   BLOCK_ASSESSMENT      → transition to DOCUMENT_FAILED, block pipeline
+  // ────────────────────────────────────────────────────────────────────────────
+  let _gateResult: any = null;
+  try {
+    const { runDocumentHealthGate, buildGateInput } = await import('./pipeline-v2/documentHealthGate');
+    const gateInput = buildGateInput({
+      claimId,
+      sourceDocumentFound: !!pdfUrl,
+      presignSucceeded: !!pdfDownloadUrl,
+      pdfBuffer: _pdfBuffer ?? null,
+      totalPdfPages: _qualitySummary?.passedDimensionGate != null
+        ? (_qualitySummary.passedDimensionGate + (_qualitySummary.rejectedTooSmall ?? 0))
+        : 0,
+      pagesRendered: _isScannedPdf
+        ? ((_qualitySummary?.passedDimensionGate ?? 0) + (_qualitySummary?.rejectedTooSmall ?? 0))
+        : 0,
+      pagesDimensionPass: _qualitySummary?.passedDimensionGate ?? 0,
+      pagesDimensionFail: _qualitySummary?.rejectedTooSmall ?? 0,
+      textExtracted: false,
+      textCharCount: 0,
+      totalImagesForAnalysis: damagePhotos.length,
+      vehicleDamageImageCount: damagePhotos.length,
+      nonVehicleImageCount: 0,
+      renderFailed: !!_extractionError && damagePhotos.length === 0,
+      s3UploadFailed: false,
+      renderErrorMessage: _extractionError ?? null,
+      claim: {
+        claimNumber: (claim as any).claimNumber ?? null,
+        vehicleMake: (claim as any).vehicleMake ?? null,
+        vehicleModel: (claim as any).vehicleModel ?? null,
+        vehicleYear: (claim as any).vehicleYear ?? null,
+        incidentDate: (claim as any).incidentDate ?? null,
+        incidentDescription: (claim as any).incidentDescription ?? null,
+        claimantId: (claim as any).claimantId ?? null,
+        policyNumber: (claim as any).policyNumber ?? null,
+      },
+    });
+    _gateResult = runDocumentHealthGate(gateInput);
+    console.log(
+      `[KINGA Assessment] Claim ${claimId}: Document Health Gate — ` +
+      `score=${_gateResult.overallScore}%, decision=${_gateResult.decision}, ` +
+      `failureModes=${_gateResult.detectedFailureModes.join(',') || 'none'}`
+    );
+
+    if (!_gateResult.mayProceed) {
+      // Gate blocked the assessment
+      const isHardBlock = _gateResult.decision === 'BLOCK_ASSESSMENT';
+      const newStatus = isHardBlock ? 'document_failed' : 'human_review_required';
+      const newDps = isHardBlock ? 'DOCUMENT_FAILED' : 'HUMAN_REVIEW_REQUIRED';
+
+      await db.update(claims).set({
+        status: newStatus,
+        documentProcessingStatus: newDps,
+        updatedAt: new Date().toISOString(),
+      }).where(eq(claims.id, claimId)).catch(() => {});
+
+      // Notify owner
+      try {
+        const { notifyOwner } = await import('./_core/notification');
+        await notifyOwner({
+          title: `⚠️ Claim ${claimId}: Document Health Gate Blocked Assessment`,
+          content: `${_gateResult.summary} Recommended action: ${_gateResult.recommendedAction}`,
+        });
+      } catch { /* non-fatal */ }
+
+      return {
+        success: false,
+        message: `Assessment blocked by Document Health Gate (score: ${_gateResult.overallScore}%). ` +
+          `${_gateResult.summary} ${_gateResult.recommendedAction}`,
+      };
+    }
+
+    // Gate passed — transition to DOCUMENT_READY
+    await db.update(claims).set({
+      status: 'document_ready',
+      documentProcessingStatus: 'DOCUMENT_READY',
+      updatedAt: new Date().toISOString(),
+    }).where(eq(claims.id, claimId)).catch(() => {});
+
+    console.log(`[KINGA Assessment] Claim ${claimId}: Document Health Gate passed. State: DOCUMENT_READY → ANALYSIS_RUNNING.`);
+  } catch (gateErr: any) {
+    // Gate failure is non-fatal — log and proceed
+    console.warn(`[KINGA Assessment] Claim ${claimId}: Document Health Gate failed (non-fatal, proceeding): ${gateErr.message}`);
+  }
+
+  // Transition to ANALYSIS_RUNNING
+  await db.update(claims).set({
+    status: 'analysis_running',
+    documentProcessingStatus: 'ANALYSIS_RUNNING',
+    updatedAt: new Date().toISOString(),
+  }).where(eq(claims.id, claimId)).catch(() => {});
+
   // ── Phase 1 Observability: generate a unique runId for this pipeline execution ──
   const _pipelineRunId = `${claimId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   // Record the run start (fire-and-forget — never blocks the pipeline)
@@ -2113,10 +2323,16 @@ export async function triggerAiAssessment(claimId: number) {
 
   // Update claim status to complete + backfill vehicle info from extraction
   const finalFraudScore = safeFloat(fraudAnalysis ? fraudAnalysis.fraudRiskScore : 0) ?? 0;
+  // DRA Phase 2: Transition to ANALYSIS_COMPLETE (success terminal state).
+  // This state is ONLY reachable if:
+  //   1. Document Health Gate passed (mayProceed === true)
+  //   2. Pipeline ran to completion
+  //   3. Assessment was persisted to DB
+  // The claim then transitions to assessment_complete for the adjuster workflow.
   const claimUpdate: Record<string, any> = {
     aiAssessmentCompleted: 1,
-    status: "assessment_complete",
-    documentProcessingStatus: "extracted",
+    status: "analysis_complete",
+    documentProcessingStatus: "ANALYSIS_COMPLETE",
     fraudRiskScore: finalFraudScore,
     fraudFlags: fraudIndicatorsJson,
     estimatedCost: safeInt(estimatedCost) ?? 0,
@@ -2243,8 +2459,8 @@ export async function triggerAiAssessment(claimId: number) {
     try {
       await db.update(claims).set({
         aiAssessmentCompleted: 1,
-        status: "assessment_complete",
-        documentProcessingStatus: "extracted",
+        status: "analysis_complete",
+        documentProcessingStatus: "ANALYSIS_COMPLETE",
         pipelineCurrentStage: null,
         updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, claimId));
@@ -2256,13 +2472,13 @@ export async function triggerAiAssessment(claimId: number) {
     }
   }
 
-  // ── Safety-net: ensure dps='extracted' and pipelineCurrentStage=null are always set ──
+  // ── Safety-net: ensure dps='ANALYSIS_COMPLETE' and pipelineCurrentStage=null are always set ──
   // Even if the main claimUpdate above partially failed (e.g. varchar truncation on a
   // backfilled field causing MySQL to skip some columns in non-strict mode), the UI
-  // spinner depends on dps != 'parsing'. This minimal update is idempotent and safe.
+  // spinner depends on dps not being a transient state. This minimal update is idempotent and safe.
   try {
     await db.update(claims).set({
-      documentProcessingStatus: "extracted",
+      documentProcessingStatus: "ANALYSIS_COMPLETE",
       pipelineCurrentStage: null,
     }).where(eq(claims.id, claimId));
   } catch (safetyNetErr: any) {
@@ -2488,13 +2704,15 @@ export async function triggerAiAssessment(claimId: number) {
       try {
         const dbInner = await getDb();
         if (dbInner) {
+          // DRA Phase 2: Unhandled pipeline error → DOCUMENT_FAILED
+          // (not intake_pending — that was the claim-cycling bug)
           await dbInner.update(claims).set({
-            documentProcessingStatus: "failed",
-            status: "intake_pending",
+            documentProcessingStatus: "DOCUMENT_FAILED",
+            status: "document_failed",
             workflowState: "intake_queue",  // Reset workflow state so re-run can transition cleanly
             updatedAt: new Date().toISOString(),
           }).where(eq(claims.id, claimId));
-          console.log(`[KINGA Assessment] Claim ${claimId} marked as failed after AI error. workflowState reset to intake_queue.`);
+          console.log(`[KINGA Assessment] Claim ${claimId} marked as DOCUMENT_FAILED after AI error. workflowState reset to intake_queue.`);
         }
       } catch (updateError) {
         console.error(`[KINGA Assessment] Could not update failure status for claim ${claimId}:`, updateError);
@@ -2514,11 +2732,12 @@ export async function triggerAiAssessment(claimId: number) {
           const [currentState] = await dbFinally.select({
             dps: claims.documentProcessingStatus,
           }).from(claims).where(eq(claims.id, claimId)).limit(1);
-          if (currentState && (currentState.dps === 'parsing' || currentState.dps === 'extracting' || currentState.dps === 'analysing')) {
-            console.error(`[KINGA Assessment] SAFETY NET: Claim ${claimId} still in '${currentState.dps}' after pipeline failure — forcing to 'failed'.`);
+          const transientStates = ['parsing', 'extracting', 'analysing', 'DOCUMENT_VALIDATING', 'DOCUMENT_READY', 'ANALYSIS_RUNNING', 'RECOVERY_ATTEMPTED'];
+          if (currentState && transientStates.includes(currentState.dps as string)) {
+            console.error(`[KINGA Assessment] SAFETY NET: Claim ${claimId} still in '${currentState.dps}' after pipeline failure — forcing to DOCUMENT_FAILED.`);
             await dbFinally.update(claims).set({
-              documentProcessingStatus: "failed",
-              status: "intake_pending",
+              documentProcessingStatus: "DOCUMENT_FAILED",
+              status: "document_failed",
               workflowState: "intake_queue",
               aiAssessmentTriggered: 0,
               updatedAt: new Date().toISOString(),

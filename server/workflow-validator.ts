@@ -26,7 +26,17 @@ export type ClaimStatus =
   | "repair_in_progress"
   | "completed"
   | "rejected"  
-  | "closed";
+  | "closed"
+  // Document Reliability Architecture (DRA) states — 2026-07-14
+  // Success path: document_validating → document_ready → analysis_running → analysis_complete
+  // Failure path: document_failed → recovery_attempted → human_review_required
+  | "document_validating"
+  | "document_ready"
+  | "analysis_running"
+  | "analysis_complete"
+  | "document_failed"
+  | "recovery_attempted"
+  | "human_review_required";
 
 /**
  * Map of allowed state transitions
@@ -36,17 +46,17 @@ export type ClaimStatus =
  */
 export const ALLOWED_TRANSITIONS: Record<ClaimStatus, ClaimStatus[]> = {
   // Initial submission can go to triage or assessment
-  submitted: ["triage", "assessment_pending", "rejected"],
+  submitted: ["triage", "assessment_pending", "document_validating", "rejected"],
   
   // Triage can route to assessment or rejection
-  triage: ["assessment_pending", "rejected"],
+  triage: ["assessment_pending", "document_validating", "rejected"],
   
   // Intake pending (from document ingestion) — can go to assessment_pending (assign assessor),
-  // assessment_in_progress (AI triggered), or rejected
-  intake_pending: ["assessment_pending", "assessment_in_progress", "rejected"],
+  // assessment_in_progress (AI triggered), document_validating (DRA path), or rejected
+  intake_pending: ["assessment_pending", "assessment_in_progress", "document_validating", "rejected"],
   
   // Assessment pending can start assessment or be rejected
-  assessment_pending: ["assessment_in_progress", "rejected"],
+  assessment_pending: ["assessment_in_progress", "document_validating", "rejected"],
   
   // Assessment in progress can complete to assessment_complete, quotes_pending, or be rejected
   assessment_in_progress: ["assessment_complete", "quotes_pending", "rejected"],
@@ -70,6 +80,32 @@ export const ALLOWED_TRANSITIONS: Record<ClaimStatus, ClaimStatus[]> = {
   completed: [],
   rejected: [],
   closed: [],
+
+  // ── Document Reliability Architecture (DRA) states ──────────────────────────
+  // Success path: document_validating → document_ready → analysis_running → analysis_complete
+  // Failure path: document_failed → recovery_attempted → human_review_required
+  // INVARIANT: document_failed MUST NEVER transition to analysis_complete
+
+  // Validating: can proceed to ready, fail, or be rejected
+  document_validating: ["document_ready", "document_failed", "rejected"],
+
+  // Ready: evidence validated — start analysis or fail
+  document_ready: ["analysis_running", "document_failed", "rejected"],
+
+  // Analysis running: pipeline executing — complete or fail
+  analysis_running: ["analysis_complete", "document_failed", "rejected"],
+
+  // Analysis complete: success terminal — can proceed to quotes or comparison
+  analysis_complete: ["quotes_pending", "comparison", "assessment_complete", "rejected"],
+
+  // Document failed: primary path failed — attempt recovery or escalate
+  document_failed: ["recovery_attempted", "human_review_required", "rejected"],
+
+  // Recovery attempted: recovery ran — can succeed (back to validating) or escalate
+  recovery_attempted: ["document_validating", "human_review_required", "rejected"],
+
+  // Human review required: terminal failure state — awaiting manual intervention
+  human_review_required: ["document_validating", "rejected"],
 };
 
 /**

@@ -657,3 +657,35 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] **P7 — Braking coherence model** — Implement pre-impact speed model: given stated speed + road type + friction coefficient (0.7 tarmac / 0.4 gravel), compute minimum braking distance and resulting impact speed. Distinguish coherent deceleration from genuine inconsistency. Resolves the 70 km/h vs 28 km/h "contradiction" in VOLTRON and similar claims. (5 days)
 - [ ] **P8 — Calibration dataset** — Build ground-truth dataset of claims with known outcomes (fraud confirmed / legitimate / contested). Calibrate fraud score contributions from physics signals empirically. Without calibration, score weights are engineering estimates. (ongoing)
 - [ ] **P9 — Expert review integration** — For LOW confidence or plausibility-check-fired claims, add escalation pathway to qualified accident reconstructionist. AI provides structured evidence package; expert provides court-admissible opinion. (10 days)
+
+## Document Reliability Architecture — Phase 1 (Active)
+
+### Phase 2 — Pipeline State Machine
+- [x] DRA-P2-1: Add new document pipeline states to claims.documentProcessingStatus in schema.ts: DOCUMENT_VALIDATING, DOCUMENT_READY, ANALYSIS_RUNNING, DOCUMENT_FAILED, RECOVERY_ATTEMPTED, HUMAN_REVIEW_REQUIRED
+- [x] DRA-P2-2: Add new claim status values to claims.status enum: document_failed, recovery_attempted, human_review_required
+- [x] DRA-P2-3: Update workflow-validator.ts ClaimStatus type and ALLOWED_TRANSITIONS with new states
+- [x] DRA-P2-4: Update db.ts triggerAiAssessment() to use new states at each transition point
+
+### Phase 3 — Document Health Gate
+- [x] DRA-P3-1: Create server/pipeline-v2/documentHealthGate.ts with 6-dimension ingestion confidence scoring
+- [x] DRA-P3-2: Implement Evidence Completeness Contract (required vs optional fields)
+- [x] DRA-P3-3: Implement threshold routing: >=90% auto-proceed, 70-90% warn, 40-70% require review, <40% block
+- [x] DRA-P3-4: Wire documentHealthGate into db.ts triggerAiAssessment() before pipeline runs
+
+### Phase 4 — Recovery Ladder
+- [x] DRA-P4-1: Add pdfimages embedded image extraction as first fallback when pdftoppm produces 0 pages
+- [x] DRA-P4-2: Add pdftotext OCR text-only path as second fallback
+- [x] DRA-P4-3: Add human escalation path as final fallback (sets HUMAN_REVIEW_REQUIRED state)
+- [x] DRA-P4-4: Update pdfToImages.ts renderPdfToImages() to return structured failure reasons
+
+### Phase 5 — No Silent Failure Invariant
+- [x] DRA-P5-1: Create server/pipeline-v2/ingestionFailureReport.ts with structured IngestionFailureReport type
+- [x] DRA-P5-2: Block assessment_complete unless all 4 conditions met (ingestion passed, analysis executed, confidence threshold, audit trail)
+- [x] DRA-P5-3: Trigger notifyOwner on every ingestion failure with failure type and recommended action
+- [x] DRA-P5-4: Ensure placeholder path (no PDF + no photos) routes to DOCUMENT_FAILED not assessment_complete
+
+### Phase 6 — TypeScript + VOLTRON + Checkpoint
+- [x] DRA-P6-1: TypeScript EXIT:0 on server-check tsconfig (0 errors)
+- [ ] DRA-P6-2: VOLTRON re-run (claim 8880001) — confirm pipeline still completes correctly
+- [ ] DRA-P6-3: Degraded claim test (claim 9330001) — confirm it now routes to DOCUMENT_FAILED not assessment_complete
+- [ ] DRA-P6-4: Checkpoint

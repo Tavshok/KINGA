@@ -53,16 +53,32 @@ function deriveAiState(claim: Claim | null | undefined, aiAssessment: AiAssessme
   const workflowState = claim.workflowState ?? "";
   const docStatus = claim.documentProcessingStatus ?? "";
 
-  // Explicit failure states (extend as the workflow evolves)
-  if (status === "ai_failed" || workflowState === "ai_failed") return "failed";
+  // Explicit failure states — DRA Phase 2 failure path
+  if (
+    status === "ai_failed" ||
+    workflowState === "ai_failed" ||
+    status === "document_failed" ||
+    status === "human_review_required" ||
+    docStatus === "DOCUMENT_FAILED" ||
+    docStatus === "HUMAN_REVIEW_REQUIRED" ||
+    docStatus === "failed"
+  ) return "failed";
 
-  // Re-run in progress: documentProcessingStatus is parsing/processing even if
-  // an old assessment record exists. Check this BEFORE the complete check so
-  // re-runs show the spinner correctly.
+  // DRA Phase 2 transient states — show spinner
+  // Includes both legacy states (parsing/processing/extracting) and new DRA states.
+  // Check this BEFORE the complete check so re-runs show the spinner correctly.
   if (
     docStatus === "parsing" ||
     docStatus === "processing" ||
     docStatus === "extracting" ||
+    docStatus === "DOCUMENT_VALIDATING" ||
+    docStatus === "DOCUMENT_READY" ||
+    docStatus === "ANALYSIS_RUNNING" ||
+    docStatus === "RECOVERY_ATTEMPTED" ||
+    status === "document_validating" ||
+    status === "document_ready" ||
+    status === "analysis_running" ||
+    status === "recovery_attempted" ||
     status === "assessment_in_progress" ||
     status === "assessment_pending" ||
     workflowState === "ai_assessment_pending" ||
@@ -71,10 +87,11 @@ function deriveAiState(claim: Claim | null | undefined, aiAssessment: AiAssessme
     return "analysing";
   }
 
-  // Complete: either the flag is set, the status is assessment_complete, or a
-  // record already exists.
+  // Complete: DRA success terminal (analysis_complete) or legacy assessment_complete
   if (
     claim.aiAssessmentCompleted === 1 ||
+    status === "analysis_complete" ||
+    docStatus === "ANALYSIS_COMPLETE" ||
     status === "assessment_complete" ||
     workflowState === "ai_assessment_completed" ||
     (aiAssessment != null)

@@ -287,14 +287,14 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             const db = await getDb();
             if (!db) return;
             return db.update(claims).set({
-              status: "assessment_complete",
-              documentProcessingStatus: "extracted",
+              status: "analysis_complete",
+              documentProcessingStatus: "ANALYSIS_COMPLETE",
               // Reset retry counter on successful completion
               recoveryRetryCount: 0,
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery finalise claim ${claim.id}`);
-          console.log(`[StuckRecovery] Finalised claim ${claim.claimNumber} (id=${claim.id}) → assessment_complete [pipeline had completed]`);
+          console.log(`[StuckRecovery] Finalised claim ${claim.claimNumber} (id=${claim.id}) → analysis_complete [DRA: pipeline had completed]`);
           totalFixed++;
         } catch (err) {
           console.error(`[StuckRecovery] Failed to finalise claim ${claim.id}:`, err);
@@ -614,12 +614,10 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
-    // ── CASE 9: status='assessment_complete' + dps still in a transient/active state ──────────
-    // The pipeline completed and set status='assessment_complete', but documentProcessingStatus
-    // was never updated to 'extracted' (e.g. partial MySQL write on truncation, or the stuck-
-    // recovery Case 3 set status without updating dps). The UI checks dps='parsing' to show
-    // the spinner — so these claims show "Re-running KINGA analysis..." even though the report
-    // is ready. Fix: set dps='extracted' and clear pipelineCurrentStage. No re-trigger needed.
+    // ── CASE 9: status in success terminal + dps still in a transient/active state ──────────
+    // DRA Phase 2: The pipeline completed and set status='assessment_complete' or
+    // 'analysis_complete', but documentProcessingStatus was never updated to a terminal
+    // state. The UI checks dps to show the spinner — fix dps to ANALYSIS_COMPLETE.
     const completedWithStaleDps = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -628,8 +626,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         .from(claims)
         .where(
           and(
-            eq(claims.status, "assessment_complete"),
-            inArray(claims.documentProcessingStatus, ["parsing", "processing", "extracting", "analysing", "pending"])
+            inArray(claims.status as any, ["assessment_complete", "analysis_complete"]),
+            inArray(claims.documentProcessingStatus, ["parsing", "processing", "extracting", "analysing", "pending", "DOCUMENT_VALIDATING", "DOCUMENT_READY", "ANALYSIS_RUNNING", "RECOVERY_ATTEMPTED"])
           )
         )
         .limit(50);
@@ -637,8 +635,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
 
     if (completedWithStaleDps.length > 0) {
       console.log(
-        `[StuckRecovery] CASE 9: Found ${completedWithStaleDps.length} claim(s) in assessment_complete ` +
-        `with stale documentProcessingStatus — fixing dps to 'extracted'`
+        `[StuckRecovery] CASE 9: Found ${completedWithStaleDps.length} claim(s) in success terminal ` +
+        `with stale documentProcessingStatus — fixing dps to ANALYSIS_COMPLETE`
       );
       for (const claim of completedWithStaleDps) {
         try {
@@ -646,14 +644,14 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             const db = await getDb();
             if (!db) return;
             return db.update(claims).set({
-              documentProcessingStatus: "extracted",
+              documentProcessingStatus: "ANALYSIS_COMPLETE",
               pipelineCurrentStage: null,
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-9 fix claim ${claim.id}`);
           console.log(
             `[StuckRecovery] CASE 9: Fixed claim ${claim.claimNumber} (id=${claim.id}) ` +
-            `dps '${claim.documentProcessingStatus}' → 'extracted' (report was already ready)`
+            `dps '${claim.documentProcessingStatus}' → 'ANALYSIS_COMPLETE' (report was already ready)`
           );
           totalFixed++;
         } catch (err) {
