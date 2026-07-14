@@ -973,6 +973,20 @@ export async function runPhysicsStage(
       output.speedInferenceEnsemble = ensembleResult;
       ctx.log('Stage 7', `Speed ensemble: consensus=${ensembleResult.consensusSpeedKmh} km/h, methods=${ensembleResult.methodsRan}, confidence=${ensembleResult.overallConfidence}${ensembleResult.highDivergence ? ' [HIGH_DIVERGENCE]' : ''}`);
 
+      // ── Override estimatedSpeedKmh with ensemble consensus ────────────────────
+      // The ensemble is the authoritative multi-method speed estimate.
+      // output.estimatedSpeedKmh was set from the legacy analyzeAccidentPhysics()
+      // call above. Now that the ensemble has run, replace it with the consensus
+      // so the report, fraud engine, and speed forensics all use the same number.
+      // Only override when the ensemble produced a valid consensus.
+      if (ensembleResult.consensusSpeedKmh != null && ensembleResult.consensusSpeedKmh > 0) {
+        const legacySpeed = output.estimatedSpeedKmh;
+        output.estimatedSpeedKmh = ensembleResult.consensusSpeedKmh;
+        ctx.log('Stage 7',
+          `[ENSEMBLE_OVERRIDE] estimatedSpeedKmh: ${legacySpeed} km/h (legacy) → ${ensembleResult.consensusSpeedKmh} km/h (ensemble consensus, ${ensembleResult.overallConfidence} confidence)`
+        );
+      }
+
       // ── Enrich speedForensics with ensemble consensus and speed limit ───────────
       // Now that the ensemble has run, recompute speedForensics with the
       // ensemble consensus as the best physics estimate (more accurate than
