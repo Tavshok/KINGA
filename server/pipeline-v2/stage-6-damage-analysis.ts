@@ -47,6 +47,7 @@ import type {
   RecoveryAction,
 } from "./types";
 import { TIMEOUT_VISION_MS } from "./pipelineContractRegistry";
+import { normaliseVisionComponentNames } from "../services/visionTermNormaliser";
 // R-B-06 fix: import TIMEOUT_VISION_MS from pipelineContractRegistry so the
 // stage-level budget is a single source of truth (currently 200_000 ms / 200 s).
 // The orchestrator enforces this via runWithTimeout("6_damage_analysis", ...).
@@ -786,7 +787,7 @@ async function readDamageFromPhotos(
           : r.components.some(c => c.severity === 'moderate') ? 'moderate' : 'minor')
         : 'unknown',
       impactZone: r.components[0]?.location ?? 'unknown',
-      detectedComponents: r.components.map(c => c.name),
+      detectedComponents: normaliseVisionComponentNames(r.components.map(c => c.name)),
       caption: r.components.length > 0
         ? `${r.components.length} component(s) detected: ${r.components.slice(0, 3).map(c => c.name).join(', ')}${r.components.length > 3 ? '...' : ''}`
         : (r.succeeded ? 'No damage components detected in this image' : 'Image analysis failed'),
@@ -1077,7 +1078,7 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
             componentCount: imgResult.components?.length ?? 0,
             severity,
             impactZone: imgResult.components?.[0]?.location ?? pass1Page?.brief_description ?? "unknown",
-            detectedComponents: (imgResult.components || []).map((c: any) => normalisePartName(c.name || "Unknown")),
+            detectedComponents: normaliseVisionComponentNames((imgResult.components || []).map((c: any) => normalisePartName(c.name || "Unknown"))),
             caption: imgResult.components && imgResult.components.length > 0
               ? `Page ${pageNum}: ${imgResult.components.length} component(s) — ${imgResult.components.slice(0, 3).map((c: any) => c.name).join(", ")}${imgResult.components.length > 3 ? "..." : ""}`
               : `Page ${pageNum}: ${pass1Page?.brief_description ?? "No damage components detected"}`,
@@ -1258,7 +1259,7 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
           ? (page.components.some(c => c.severity === "severe" || c.severity === "catastrophic") ? "severe"
             : page.components.some(c => c.severity === "moderate") ? "moderate" : "minor") : "unknown",
         impactZone: page.components?.[0]?.location ?? "unknown",
-        detectedComponents: (page.components || []).map(c => normalisePartName(c.name || "Unknown")),
+        detectedComponents: normaliseVisionComponentNames((page.components || []).map(c => normalisePartName(c.name || "Unknown"))),
         caption: page.components && page.components.length > 0
           ? `Page ${page.page_number}: ${page.components.length} component(s) — ${page.components.slice(0, 3).map(c => c.name).join(", ")}${page.components.length > 3 ? "..." : ""}`
           : `Page ${page.page_number}: No damage components detected`,

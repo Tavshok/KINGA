@@ -698,3 +698,9 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] RESILIENCE-4: Fix Document Health Gate isDocumentIngested logic (incidentDate/description are pipeline outputs, not pre-conditions) [DONE]
 - [ ] RESILIENCE-5: Fix gate cache_rehydration path (synthesise quality data when photos are cached) [DONE]
 - [ ] RESILIENCE-6: Methodist claim (9330001) completes to analysis_complete end-to-end
+
+## Photo-Evidence Enhancement Track — Remaining Polish (2026-07-15)
+
+- [x] VISION-NORMALISATION: Implemented server/services/visionTermNormaliser.ts — normalises Wing→Fender at all 3 detectedComponents assignment points in Stage 6. 23/23 tests pass. Backfilled 14 existing assessments (all enriched-photo claims). VOLTRON verified: Wing terms remaining=NONE, Fender terms present=LH Front Fender/RH Front Fender, 📷×7 confirmed (expected 7). Other UK terms (Bonnet, Windscreen, Boot Lid, Sill, Tyre) confirmed consistent with real documents — NOT normalised.
+- [x] VISION-NORMALISATION: Full systematic scan completed across all 31 enriched-photo claims and 30+ real quote line items. Only Wing/Fender is a systematic mismatch. All other UK terms also appear in real submitted documents and require no change.
+- [ ] COVERAGE-AUDIT: "Zones Covered: 1" in Section 4.1 audit table for VOLTRON is correct but may confuse adjusters. Consider adding "(pre-zone-tagging)" note when zone count = 1 and enrichedPhotosJson exists.
