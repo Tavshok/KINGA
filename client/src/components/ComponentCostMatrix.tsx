@@ -36,6 +36,7 @@ export interface MatrixRow {
   cells: Array<{ amount: number | null; flag?: "missing" | "variance" | "over" | "under" }>;
   kingaAmount?: number | null;
   kingaSource?: string | null;  // clean source label, e.g. "Swiss Motors" or "ML Benchmark"
+  photoCount?: number | null;   // P5: number of photos in which this component was detected
 }
 
 export interface AdvisoryFlag {
@@ -255,7 +256,24 @@ export function ComponentCostMatrix({
               return (
                 <tr key={ri} style={{ background: rowBg }}>
                   {/* Description */}
-                  <td style={{ ...td, background: rowBg, fontWeight: 500 }}>{row.description}</td>
+                  <td style={{ ...td, background: rowBg, fontWeight: 500 }}>
+                    <span>{row.description}</span>
+                    {/* P5: photo-count consensus badge */}
+                    {row.photoCount != null && row.photoCount > 0 && (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 2,
+                        marginLeft: 5, fontSize: 9, fontWeight: 700, lineHeight: 1,
+                        padding: '1px 4px', borderRadius: 3,
+                        background: row.photoCount >= 3 ? '#dcfce7' : row.photoCount === 2 ? '#fef9c3' : '#f1f5f9',
+                        color: row.photoCount >= 3 ? '#15803d' : row.photoCount === 2 ? '#92400e' : '#64748b',
+                        border: `1px solid ${row.photoCount >= 3 ? '#bbf7d0' : row.photoCount === 2 ? '#fde68a' : '#e2e8f0'}`,
+                        verticalAlign: 'middle',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        📷×{row.photoCount}
+                      </span>
+                    )}
+                  </td>
                   {/* Zone */}
                   <td style={{ ...td, background: rowBg, color: "#64748b", fontSize: 11 }}>
                     {row.zone ?? "—"}

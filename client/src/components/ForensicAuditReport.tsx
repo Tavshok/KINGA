@@ -4917,6 +4917,28 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           })(),
         }));
 
+        // P5: Build per-component photo count from enrichedPhotosFAR
+        // For each component name in the matrix, count how many enriched photos
+        // list that component in their detectedComponents array (case-insensitive).
+        const enrichedForMatrix: Array<{ detectedComponents: string[] }> = (() => {
+          const raw = aiAssessment?.enrichedPhotosJson;
+          if (!raw) return [];
+          try {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (Array.isArray(parsed)) return parsed.filter((p: any) => Array.isArray(p?.detectedComponents));
+          } catch { /* ignore */ }
+          return [];
+        })();
+        const photoCountForComponent = (name: string): number => {
+          const n = name.toLowerCase().trim();
+          return enrichedForMatrix.filter(p =>
+            p.detectedComponents.some((c: string) => {
+              const cl = c.toLowerCase().trim();
+              return cl === n || cl.includes(n) || n.includes(cl);
+            })
+          ).length;
+        };
+
         // Build MatrixRow[] from allRows3 with benchmark colour flags
         const matrixRows: MatrixRow[] = allRows3.map((row: any) => {
           const benchmark = perComponentBenchmarks?.[row.description];
@@ -4944,6 +4966,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
             cells,
             kingaAmount,
             kingaSource,
+            photoCount: enrichedForMatrix.length > 0 ? photoCountForComponent(row.description) : null,
           };
         });
 
@@ -5923,8 +5946,54 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                   (p.url ?? p.imageUrl ?? '') === url
                 );
 
+                // ── Coverage audit stats for table ─────────────────────────────────────
+                const highConfCount = allEnriched.filter(p => (p.confidenceScore ?? 0) >= 70).length;
+                const zonesCount = orderedZones.length;
+
                 return (
                   <>
+                    {/* ── P3: Photo Coverage Audit Table ───────────────────────────────────────────
+                     * Consolidates all photo-quality disclosure into one scannable table.
+                     * Placed above zone cards so the reader sees the coverage summary before
+                     * diving into per-zone evidence. Data is derived entirely from already-
+                     * computed local variables — no new fetches required.
+                     * ─────────────────────────────────────────────────────────────────────────── */}
+                    {allEnriched.length > 0 && (
+                      <div style={{ marginBottom: 12, border: '1px solid #e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                          <thead>
+                            <tr style={{ background: '#f8fafc' }}>
+                              {['Photos Analysed', 'High Confidence (≥70%)', 'Poor Quality / No Detection', 'Unique Components', 'Zones Covered'].map(h => (
+                                <th key={h} style={{ padding: '5px 10px', textAlign: 'center', fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr style={{ background: '#fff' }}>
+                              <td style={{ padding: '6px 10px', textAlign: 'center', borderRight: '1px solid #f1f5f9' }}>
+                                <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{allEnriched.length}</span>
+                              </td>
+                              <td style={{ padding: '6px 10px', textAlign: 'center', borderRight: '1px solid #f1f5f9' }}>
+                                <span style={{ fontSize: 15, fontWeight: 700, color: highConfCount === allEnriched.length ? '#15803d' : highConfCount >= Math.ceil(allEnriched.length * 0.6) ? '#92400e' : '#dc2626' }}>{highConfCount}</span>
+                                <span style={{ fontSize: 9, color: '#94a3b8', marginLeft: 3 }}>/ {allEnriched.length}</span>
+                              </td>
+                              <td style={{ padding: '6px 10px', textAlign: 'center', borderRight: '1px solid #f1f5f9' }}>
+                                <span style={{ fontSize: 15, fontWeight: 700, color: poorQualityPhotos.length === 0 ? '#15803d' : poorQualityPhotos.length <= 2 ? '#92400e' : '#dc2626' }}>{poorQualityPhotos.length}</span>
+                                {poorQualityPhotos.length > 0 && (
+                                  <span style={{ fontSize: 9, color: '#dc2626', marginLeft: 3 }}>⚠</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '6px 10px', textAlign: 'center', borderRight: '1px solid #f1f5f9' }}>
+                                <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{uniqueComponentsAll}</span>
+                              </td>
+                              <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                                <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{zonesCount}</span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                     {/* ── Zone-card section heading + summary bar ─────────────────── */}
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
                       <p className="sub-heading" style={{ margin: 0 }}>
@@ -6028,6 +6097,27 @@ function Section4Evidence({ aiAssessment, enforcement, claim, resolvedPhotosOver
                                         alt={`${zoneDisplay} supporting ${si + 1}`}
                                         style={{ width: '100%', height: 44, objectFit: 'cover', borderRadius: 2, display: 'block', opacity: 0.85 }}
                                       />
+                                      {/* P1: minimal indicator — confidence + component count */}
+                                      <div style={{
+                                        position: 'absolute', bottom: 2, left: 2, right: 2,
+                                        display: 'flex', gap: 2, justifyContent: 'center',
+                                      }}>
+                                        {sp.confidence > 0 && (
+                                          <span style={{
+                                            fontSize: 6, fontWeight: 700, lineHeight: 1,
+                                            padding: '1px 3px', borderRadius: 2,
+                                            background: sp.confidence >= 70 ? 'rgba(21,128,61,0.85)' : sp.confidence >= 40 ? 'rgba(146,64,14,0.85)' : 'rgba(100,116,139,0.85)',
+                                            color: '#fff',
+                                          }}>{sp.confidence}%</span>
+                                        )}
+                                        {sp.components.length > 0 && (
+                                          <span style={{
+                                            fontSize: 6, fontWeight: 700, lineHeight: 1,
+                                            padding: '1px 3px', borderRadius: 2,
+                                            background: 'rgba(15,23,42,0.7)', color: '#e2e8f0',
+                                          }}>{sp.components.length}c</span>
+                                        )}
+                                      </div>
                                     </div>
                                   ))}
                                   {zonePhotos.length - 1 - supporting.length > 0 && (
