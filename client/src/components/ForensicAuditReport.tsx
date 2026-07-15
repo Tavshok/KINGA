@@ -9103,6 +9103,66 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes, 
         );
       })()}
 
+      {/* ══ IMPOSSIBILITY DETECTION ENGINE — Section 8.X ══
+           Rendered when the impossibility engine detected at least one flag.
+           Appears as a subsection within Section 8 (or standalone if Section 8 is absent). */}
+      {(() => {
+        const flags: any[] = (enforcement as any)?._impossibilityFlags ?? [];
+        if (!flags.length) return null;
+        const criticalFlags = flags.filter((f: any) => f.severity === 'CRITICAL');
+        const highFlags = flags.filter((f: any) => f.severity === 'HIGH');
+        const hasCritical = criticalFlags.length > 0;
+        const headerBg = hasCritical ? '#7f1d1d' : '#78350f';
+        const borderColor = hasCritical ? '#dc2626' : '#d97706';
+        const bgColor = hasCritical ? '#fef2f2' : '#fffbeb';
+        const textColor = hasCritical ? '#7f1d1d' : '#78350f';
+        return (
+          <>
+            <div className="section-heading" style={{ background: headerBg, color: '#fff' }}>
+              ⚠️ Impossibility Detection — {flags.length} Flag{flags.length !== 1 ? 's' : ''} Detected
+            </div>
+            <div style={{ background: bgColor, border: `2px solid ${borderColor}`, borderRadius: 3, padding: '10px 16px', marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: textColor, marginBottom: 8, lineHeight: 1.5, fontWeight: 600 }}>
+                KINGA detected {flags.length} logical, temporal, or physical impossibilit{flags.length === 1 ? 'y' : 'ies'} that a senior adjuster would flag on first review.
+                {hasCritical ? ' Critical flags indicate data that cannot be true under any circumstances and must be corrected before this claim is processed.' : ' These flags require adjuster verification before the claim can proceed.'}
+              </p>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <thead>
+                  <tr style={{ background: headerBg, color: '#fff' }}>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '7%' }}>Code</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '8%' }}>Class</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '10%' }}>Severity</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '25%' }}>Flag</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700, width: '50%' }}>Detail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {flags.map((flag: any, i: number) => {
+                    const isCrit = flag.severity === 'CRITICAL';
+                    const rowBg = i % 2 === 0 ? (isCrit ? '#fff5f5' : '#fffdf0') : '#fff';
+                    const sevColor = isCrit ? '#dc2626' : flag.severity === 'HIGH' ? '#d97706' : '#6b7280';
+                    return (
+                      <tr key={i} style={{ borderBottom: `1px solid ${borderColor}22`, background: rowBg }}>
+                        <td style={{ padding: '5px 8px', fontFamily: 'var(--kr-mono)', fontSize: 10, fontWeight: 700, color: sevColor }}>{flag.code}</td>
+                        <td style={{ padding: '5px 8px', fontSize: 10, color: 'var(--kr-muted)' }}>{flag.class}</td>
+                        <td style={{ padding: '5px 8px' }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', background: sevColor, color: '#fff', borderRadius: 2 }}>{flag.severity}</span>
+                        </td>
+                        <td style={{ padding: '5px 8px', fontWeight: 600, color: 'var(--kr-text)', fontSize: 11 }}>{flag.title}</td>
+                        <td style={{ padding: '5px 8px', color: 'var(--kr-text)', fontSize: 11, lineHeight: 1.45 }}>{flag.detail}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p style={{ fontSize: 10, color: 'var(--kr-muted)', marginTop: 8 }}>
+                Fraud score contribution from impossibility flags: +{(enforcement as any)?._impossibilityPoints ?? 0} points (capped at 60).
+              </p>
+            </div>
+          </>
+        );
+      })()}
+
       {/* ══ R-F-01: Cross-Stage Consistency Conflict Warning ══
            Rendered when blockAutoApproval=true from crossStageConsistencyEngine.
            Previously this flag was computed but never surfaced to adjusters. */}

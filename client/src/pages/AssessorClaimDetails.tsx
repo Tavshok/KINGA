@@ -189,7 +189,31 @@ export default function AssessorClaimDetails() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Claim Details - Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Vehicle & Incident Information */}
+            {/* Temporal Impossibility Warning Banner */}
+            {(() => {
+              if (!claim?.incidentDate || !(claim as any)?.vehicleYear) return null;
+              const incidentYear = new Date(claim.incidentDate).getFullYear();
+              const vehicleYear = Number((claim as any).vehicleYear);
+              if (isNaN(incidentYear) || isNaN(vehicleYear) || incidentYear >= vehicleYear) return null;
+              return (
+                <div className="flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800 p-4">
+                  <span className="text-red-600 dark:text-red-400 text-xl mt-0.5" aria-hidden>⚠</span>
+                  <div>
+                    <p className="font-semibold text-red-800 dark:text-red-300 text-sm">
+                      Data Integrity Alert — Temporal Impossibility
+                    </p>
+                    <p className="text-red-700 dark:text-red-400 text-sm mt-1">
+                      The incident date ({new Date(claim.incidentDate).toLocaleDateString()}) is recorded as {incidentYear}, but this vehicle is a {vehicleYear} model — it did not exist until {vehicleYear}. This is a critical data error that must be corrected before this claim is processed. Please verify the correct incident date with the claimant.
+                    </p>
+                    <p className="text-red-600 dark:text-red-500 text-xs mt-2 font-medium">
+                      This claim will be flagged as Elevated fraud risk until the date is corrected.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
+          {/* Vehicle & Incident Information */}
             <Card>
               <CardHeader>
                 <CardTitle>Vehicle & Incident Details</CardTitle>

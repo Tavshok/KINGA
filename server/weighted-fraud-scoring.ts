@@ -76,6 +76,15 @@ export interface FraudScoringInput {
     details: string;
   };
   /**
+   * Temporal impossibility flag: set to true when incident_date year < vehicle_year.
+   * This is a data integrity failure, not merely a risk signal — scored at 35 points.
+   */
+  temporalImpossibility?: {
+    triggered: boolean;
+    incidentYear: number;
+    vehicleYear: number;
+  };
+  /**
    * Stage 29: Full consistency_check_json document for governed penalty computation.
    * When provided, this takes precedence over multiSourceConflict for Factor 7.
    */
@@ -260,6 +269,21 @@ export function computeWeightedFraudScore(
     detail: penaltyResult.summary,
   });
   base += conflictValue;
+
+  // Factor 8: Temporal Impossibility — incident date predates vehicle manufacture year (+35)
+  // This is a data integrity failure: the vehicle did not exist at the reported incident date.
+  // Scored at 35 to force the claim to 'high' or 'elevated' fraud level regardless of other factors.
+  const temporalTriggered = input.temporalImpossibility?.triggered === true;
+  const temporalValue = temporalTriggered ? 35 : 0;
+  if (temporalTriggered) {
+    contributions.push({
+      factor: "Temporal Impossibility",
+      value: temporalValue,
+      triggered: true,
+      detail: `Incident date year (${input.temporalImpossibility!.incidentYear}) predates the vehicle manufacture year (${input.temporalImpossibility!.vehicleYear}). The vehicle did not exist at the reported incident date. This is a critical data integrity failure requiring immediate investigation.`,
+    });
+    base += temporalValue;
+  }
 
   // Cap at 100
   const score = Math.min(100, Math.round(base * 10) / 10);

@@ -1126,6 +1126,26 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         damagePhotos: z.array(z.string()),
         policyNumber: z.string(),
         triggerAI: z.boolean().default(true),
+      }).superRefine((data, ctx) => {
+        // Temporal impossibility check: incident cannot predate vehicle manufacture year
+        const incidentYear = new Date(data.incidentDate).getFullYear();
+        if (!isNaN(incidentYear) && incidentYear < data.vehicleYear) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["incidentDate"],
+            message: `Incident date (${incidentYear}) cannot be before the vehicle manufacture year (${data.vehicleYear}). A ${data.vehicleYear} vehicle cannot have been involved in an incident in ${incidentYear}.`,
+          });
+        }
+        // Incident date cannot be in the future
+        const now = new Date();
+        const incidentDate = new Date(data.incidentDate);
+        if (incidentDate > now) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["incidentDate"],
+            message: `Incident date cannot be in the future.`,
+          });
+        }
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -1236,6 +1256,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         incidentDescription: z.string(),
         incidentLocation: z.string(),
         damagePhotos: z.array(z.string()), // Array of S3 URLs
+        // NOTE: cross-field temporal validation applied via superRefine below
         policyNumber: z.string(),
         /**
          * Odometer reading in km, supplied by the claimant at intake.
@@ -1266,6 +1287,26 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         companyRegistration: z.string().optional(),
         claimantDepartment: z.string().max(255).optional(),
         fleetAccountId: z.number().int().positive().optional(),
+      }).superRefine((data, ctx) => {
+        // Temporal impossibility check: incident cannot predate vehicle manufacture year
+        const incidentYear = new Date(data.incidentDate).getFullYear();
+        if (!isNaN(incidentYear) && incidentYear < data.vehicleYear) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["incidentDate"],
+            message: `Incident date (${incidentYear}) cannot be before the vehicle manufacture year (${data.vehicleYear}). A ${data.vehicleYear} vehicle cannot have been involved in an incident in ${incidentYear}.`,
+          });
+        }
+        // Incident date cannot be in the future
+        const now = new Date();
+        const incidentDate = new Date(data.incidentDate);
+        if (incidentDate > now) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["incidentDate"],
+            message: `Incident date cannot be in the future.`,
+          });
+        }
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
@@ -5836,6 +5877,10 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           }
         } catch { /* ignore parse errors — signal simply won't be injected */ }
 
+        // Temporal data for impossibility engine (engine runs after the claim row fetch below)
+        const claimIncidentDate = assessment.accidentDate ?? null;
+        const claimVehicleYear = assessment.vehicleYear ? Number(assessment.vehicleYear) : null;
+
         const weightedFraud = computeWeightedFraudScore({
           consistencyScore: Number(consistencyScore),
           aiEstimatedCost,
@@ -5846,6 +5891,8 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
           missingDataCount,
           aiIndicators: fraudIndicators.map(i => ({ label: i.indicator, points: i.score })),
           multiSourceConflict,
+          // T1 temporal impossibility — derived from the full engine below after claim row fetch
+          // Will be injected post-engine via impossibilityPoints adjustment
         });
         // Phase 2 — Decision & Consistency Engine
         // Runs after all scoring engines so it has the final fraud score from
@@ -5863,18 +5910,68 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
         } catch { /* non-fatal */ }
         // Resolve vehicleMarketValue from the claims table (stored in cents)
         let phase2MarketValueCents: number | null = null;
+        let claimMileageKm: number | null = null;
+        let claimSubmittedAt: number | null = null;
+        let claimRegistration: string | null = null;
+        let otherClaimsForReg: Array<{ claimId: number; claimNumber: string; incidentDate: string }> = [];
         try {
           const { claims: claimsTable } = await import('../drizzle/schema');
-          const { eq } = await import('drizzle-orm');
+          const { eq, and: andEq, ne } = await import('drizzle-orm');
           const db2 = await getDb();
           if (db2) {
-            const [claimRow] = await db2.select({ vehicleMarketValue: claimsTable.vehicleMarketValue })
+            const [claimRow] = await db2.select({
+              vehicleMarketValue: claimsTable.vehicleMarketValue,
+              vehicleMileage: claimsTable.vehicleMileage,
+              createdAt: claimsTable.createdAt,
+              vehicleRegistration: claimsTable.vehicleRegistration,
+              incidentDate: claimsTable.incidentDate,
+            })
               .from(claimsTable)
               .where(eq(claimsTable.id, input.claimId))
               .limit(1);
             phase2MarketValueCents = claimRow?.vehicleMarketValue ?? null;
+            // Parse mileage string to integer km
+            if (claimRow?.vehicleMileage) {
+              const stripped = String(claimRow.vehicleMileage).replace(/[\s,]/g, '');
+              const parsed = parseInt(stripped, 10);
+              if (!isNaN(parsed) && parsed > 0) claimMileageKm = parsed;
+            }
+            claimSubmittedAt = claimRow?.createdAt ? new Date(claimRow.createdAt).getTime() : null;
+            claimRegistration = claimRow?.vehicleRegistration ?? null;
+            // I2: look for other claims with same registration within 7 days
+            if (claimRow?.vehicleRegistration && claimRow?.incidentDate) {
+              const otherRows = await db2.select({
+                id: claimsTable.id,
+                claimNumber: claimsTable.claimNumber,
+                incidentDate: claimsTable.incidentDate,
+              })
+                .from(claimsTable)
+                .where(andEq(
+                  eq(claimsTable.vehicleRegistration, claimRow.vehicleRegistration),
+                  ne(claimsTable.id, input.claimId)
+                ))
+                .limit(20);
+              otherClaimsForReg = otherRows
+                .filter(r => r.incidentDate)
+                .map(r => ({ claimId: r.id, claimNumber: r.claimNumber ?? '', incidentDate: r.incidentDate! }));
+            }
           }
         } catch { /* non-fatal */ }
+
+        // ── Full Impossibility Detection Engine ──────────────────────────────────
+        const { detectImpossibilities, impossibilityFraudPoints, impossibilitySummary } = await import('./services/impossibilityDetector');
+        const impossibilityFlags = detectImpossibilities({
+          incidentDate: claimIncidentDate,
+          vehicleYear: claimVehicleYear,
+          submittedAt: claimSubmittedAt,
+          vehicleMileageKm: claimMileageKm,
+          quotedRepairCost: primaryQuotedAmount > 0 ? primaryQuotedAmount : null,
+          vehicleMarketValue: phase2MarketValueCents ? phase2MarketValueCents / 100 : null,
+          vehicleRegistration: claimRegistration,
+          otherClaimsForRegistration: otherClaimsForReg,
+        });
+        const impossibilityPoints = impossibilityFraudPoints(impossibilityFlags);
+        const impossibilityNote = impossibilitySummary(impossibilityFlags);
         // Use bridge for authoritative photo and incident data
         // FAR-2 fix: if bridge.photoUrls and damagePhotosJson are both empty, fall back to
         // damage_photo entries in claimDocuments (uploaded via the portal but not yet synced
@@ -6099,6 +6196,11 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
             } catch { /* non-fatal */ }
             return null;
           })(),
+          // Impossibility Detection Engine output — all logical/temporal/physical impossibilities
+          // detected for this claim. Empty array = no impossibilities found.
+          _impossibilityFlags: impossibilityFlags,
+          _impossibilityPoints: impossibilityPoints,
+          _impossibilityNote: impossibilityNote,
         };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
         // Wrapped in try-catch: validation warnings are logged server-side but never block the UI.

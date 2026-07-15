@@ -1486,6 +1486,46 @@ export default function ClaimDecisionReport() {
           return null;
         })()}
 
+        {/* ── IMPOSSIBILITY FLAGS banner — shown when engine detects logical/temporal/physical impossibilities ── */}
+        {(() => {
+          const flags: any[] = (enforcement as any)?._impossibilityFlags ?? [];
+          if (!flags.length) return null;
+          const criticalFlags = flags.filter((f: any) => f.severity === 'CRITICAL');
+          const highFlags = flags.filter((f: any) => f.severity === 'HIGH');
+          const borderColor = criticalFlags.length > 0 ? 'border-red-600' : 'border-amber-500';
+          const bgColor = criticalFlags.length > 0 ? 'bg-red-50 dark:bg-red-950/30' : 'bg-amber-50 dark:bg-amber-950/30';
+          const icon = criticalFlags.length > 0 ? '🚫' : '⚠️';
+          const titleColor = criticalFlags.length > 0 ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400';
+          const bodyColor = criticalFlags.length > 0 ? 'text-red-600 dark:text-red-300' : 'text-amber-600 dark:text-amber-300';
+          return (
+            <div className={`mb-4 rounded-xl border-2 ${borderColor} ${bgColor} p-4 no-print`}>
+              <div className="flex gap-3 mb-2">
+                <div className="text-xl mt-0.5">{icon}</div>
+                <div>
+                  <div className={`font-bold text-sm mb-1 ${titleColor}`}>
+                    Data Integrity Alert — {flags.length} Logical Impossibilit{flags.length === 1 ? 'y' : 'ies'} Detected
+                  </div>
+                  <div className={`text-xs ${bodyColor}`}>
+                    KINGA has detected {criticalFlags.length > 0 ? `${criticalFlags.length} critical` : ''}{criticalFlags.length > 0 && highFlags.length > 0 ? ' and ' : ''}{highFlags.length > 0 ? `${highFlags.length} high-severity` : ''} data impossibilit{flags.length === 1 ? 'y' : 'ies'} that a senior adjuster would flag on first review. This claim must not be processed until these issues are resolved.
+                  </div>
+                </div>
+              </div>
+              <div className="ml-8 space-y-2">
+                {flags.map((f: any, i: number) => (
+                  <div key={i} className="border-l-2 border-current pl-3">
+                    <div className={`text-xs font-semibold ${f.severity === 'CRITICAL' ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                      [{f.code}] {f.title} <span className="font-normal opacity-70">({f.severity})</span>
+                    </div>
+                    <div className={`text-xs mt-0.5 ${f.severity === 'CRITICAL' ? 'text-red-600 dark:text-red-300' : 'text-amber-600 dark:text-amber-300'}`}>
+                      {f.detail}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── Report chooser — two prominent cards ── */}
         <div className="no-print">
           <ReportChooser
