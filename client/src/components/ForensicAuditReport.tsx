@@ -4931,10 +4931,14 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         })();
         const photoCountForComponent = (name: string): number => {
           const n = name.toLowerCase().trim();
+          // Also derive a singular stem (strip trailing 's') for plural-to-singular matching
+          // e.g. 'Airbags' → 'airbag' matches 'Driver Airbag', 'Passenger Airbag'
+          const nStem = n.endsWith('s') ? n.slice(0, -1) : n;
           return enrichedForMatrix.filter(p =>
             p.detectedComponents.some((c: string) => {
               const cl = c.toLowerCase().trim();
-              return cl === n || cl.includes(n) || n.includes(cl);
+              return cl === n || cl.includes(n) || n.includes(cl) ||
+                     (nStem.length >= 4 && (cl.includes(nStem) || nStem.includes(cl)));
             })
           ).length;
         };
