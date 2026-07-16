@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Mazda",
+    "model": "Axela",
+    "variant": "BK/BL Hatchback",
+    "generation": "BK/BL",
+    "yearFrom": 2003,
+    "yearTo": 2013,
+    "bodyType": "hatchback",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1755, "sourceType": "manufacturer_specification", "sourceReference": "Mazda Axela BL Technical Data Sheet — autoevolution.com", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1465, "sourceType": "manufacturer_specification", "sourceReference": "Mazda Axela BL Technical Data Sheet — autoevolution.com", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2640, "sourceType": "manufacturer_specification", "sourceReference": "Mazda Axela BL Technical Data Sheet — gvi.kiwi", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1520, "sourceType": "manufacturer_specification", "sourceReference": "Mazda Axela BL specifications — autoevolution.com", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1525, "sourceType": "manufacturer_specification", "sourceReference": "Mazda Axela BL specifications — autoevolution.com", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 510,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Mazda Axela BL hatchback", "confidence": 0.85 },
+    { "type": "bumper_width_mm",         "valueMm": 1720, "sourceType": "manufacturer_specification", "sourceReference": "Mazda Axela BL Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1260, "sourceType": "oem_cad",                    "sourceReference": "Mazda Axela BL body engineering reference", "confidence": 0.88 },
+    { "type": "grille_width_mm",         "valueMm": 960,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Mazda Axela BL", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1685, "sourceType": "manufacturer_specification", "sourceReference": "Mazda Axela BL Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1430, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Mazda Axela BL", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 660,  "sourceType": "tyre_specification",         "sourceReference": "205/55R16 — OEM fitment Mazda Axela BL Sport", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 634,  "sourceType": "tyre_specification",         "sourceReference": "195/65R15 — OEM fitment Mazda Axela BL base", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1270, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Mazda Axela BL 2.0 hatchback kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 760,  "zMm": 330, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -760, "zMm": 330, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2640,"yMm": 762,  "zMm": 330, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2640,"yMm": -762, "zMm": 330, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 148,  "yMm": 630,  "zMm": 680, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 148,  "yMm": -630, "zMm": 680, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 168,  "yMm": 860,  "zMm": 510, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 168,  "yMm": -860, "zMm": 510, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 183,  "yMm": 0,    "zMm": 510, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 163,  "yMm": 0,    "zMm": 410, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 173,  "yMm": 0,    "zMm": 660, "sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 118,  "yMm": 842,  "zMm": 840, "sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 118,  "yMm": -842, "zMm": 840, "sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}

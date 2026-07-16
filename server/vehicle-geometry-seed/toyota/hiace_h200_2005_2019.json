@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Toyota",
+    "model": "Hiace",
+    "variant": "H200 Commuter/Van",
+    "generation": "H200",
+    "yearFrom": 2005,
+    "yearTo": 2019,
+    "bodyType": "van",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1880, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Hiace H200 Technical Data Sheet — carbarn.ss", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 2285, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Hiace H200 Commuter GL Technical Data Sheet", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2985, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Hiace H200 Technical Data Sheet — toyota.dreamhosters.com", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1560, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Hiace H200 specifications — toyota.dreamhosters.com", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1560, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Hiace H200 specifications — toyota.dreamhosters.com", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 650,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Hiace H200 Commuter", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1840, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Hiace H200 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1380, "sourceType": "oem_cad",                    "sourceReference": "Toyota Hiace H200 body engineering reference", "confidence": 0.87 },
+    { "type": "grille_width_mm",         "valueMm": 1100, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Hiace H200", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1800, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Hiace H200 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1560, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Hiace H200", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 669,  "sourceType": "tyre_specification",         "sourceReference": "195/70R15 — OEM fitment Toyota Hiace H200 KDH", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 645,  "sourceType": "tyre_specification",         "sourceReference": "195R15C — OEM fitment Toyota Hiace H200 cargo", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 2090, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Toyota Hiace H200 KDH222 Commuter kerb weight", "confidence": 0.94 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 780,  "zMm": 335, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -780, "zMm": 335, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2985,"yMm": 780,  "zMm": 335, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2985,"yMm": -780, "zMm": 335, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "lh_headlamp_centre",      "xMm": 155,  "yMm": 690,  "zMm": 870, "sourceType": "oem_cad", "confidence": 0.85 },
+    { "type": "rh_headlamp_centre",      "xMm": 155,  "yMm": -690, "zMm": 870, "sourceType": "oem_cad", "confidence": 0.85 },
+    { "type": "front_bumper_lh_corner",  "xMm": 175,  "yMm": 920,  "zMm": 650, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_rh_corner",  "xMm": 175,  "yMm": -920, "zMm": 650, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_centre",     "xMm": 190,  "yMm": 0,    "zMm": 650, "sourceType": "vehicle_survey", "confidence": 0.83 },
+    { "type": "licence_plate_centre",    "xMm": 170,  "yMm": 0,    "zMm": 530, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "grille_centre",           "xMm": 180,  "yMm": 0,    "zMm": 960, "sourceType": "vehicle_survey", "confidence": 0.78 },
+    { "type": "bonnet_lh_corner",        "xMm": 125,  "yMm": 900,  "zMm": 1100,"sourceType": "vehicle_survey", "confidence": 0.76 },
+    { "type": "bonnet_rh_corner",        "xMm": 125,  "yMm": -900, "zMm": 1100,"sourceType": "vehicle_survey", "confidence": 0.76 }
+  ]
+}

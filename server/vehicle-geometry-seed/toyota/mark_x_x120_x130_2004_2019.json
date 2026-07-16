@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Toyota",
+    "model": "Mark X",
+    "variant": "X120/X130 Sedan",
+    "generation": "X120/X130",
+    "yearFrom": 2004,
+    "yearTo": 2019,
+    "bodyType": "sedan",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1775, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Mark X X120 Technical Data Sheet — toyota-global.com", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1435, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Mark X X120 Technical Data Sheet — toyota-global.com", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2850, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Mark X X120 Technical Data Sheet — wikipedia.org", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1530, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Mark X X120 specifications — autoevolution.com", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1530, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Mark X X120 specifications — autoevolution.com", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 510,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Mark X X120", "confidence": 0.85 },
+    { "type": "bumper_width_mm",         "valueMm": 1740, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Mark X X120 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1270, "sourceType": "oem_cad",                    "sourceReference": "Toyota Mark X X120 body engineering reference", "confidence": 0.88 },
+    { "type": "grille_width_mm",         "valueMm": 1000, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Mark X X120", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1705, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Mark X X120 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1450, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Mark X X120", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 660,  "sourceType": "tyre_specification",         "sourceReference": "215/55R17 — OEM fitment Toyota Mark X X120/X130 250G", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 686,  "sourceType": "tyre_specification",         "sourceReference": "225/50R17 — OEM fitment Toyota Mark X X130 350S", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1540, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Toyota Mark X X120 2.5 250G kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 765,  "zMm": 330, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -765, "zMm": 330, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2850,"yMm": 765,  "zMm": 330, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2850,"yMm": -765, "zMm": 330, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 150,  "yMm": 635,  "zMm": 680, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 150,  "yMm": -635, "zMm": 680, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 170,  "yMm": 870,  "zMm": 510, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 170,  "yMm": -870, "zMm": 510, "confidence": 0.81, "sourceType": "vehicle_survey" },
+    { "type": "front_bumper_centre",     "xMm": 185,  "yMm": 0,    "zMm": 510, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 165,  "yMm": 0,    "zMm": 410, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 175,  "yMm": 0,    "zMm": 660, "sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 120,  "yMm": 852,  "zMm": 840, "sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 120,  "yMm": -852, "zMm": 840, "sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}

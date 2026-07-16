@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Nissan",
+    "model": "Navara",
+    "variant": "D40 Double Cab 4x4",
+    "generation": "D40",
+    "yearFrom": 2005,
+    "yearTo": 2015,
+    "bodyType": "pickup",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1850, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Navara D40 Technical Data Sheet — automoli.com", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1774, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Navara D40 Technical Data Sheet — automoli.com", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 3200, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Navara D40 Technical Data Sheet — carfolio.com", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1570, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Navara D40 Technical Data Sheet — carfolio.com", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1570, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Navara D40 Technical Data Sheet — carfolio.com", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 780,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — 2010 Nissan Navara D40 4x4", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1820, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Navara D40 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1370, "sourceType": "oem_cad",                    "sourceReference": "Nissan Navara D40 body engineering reference", "confidence": 0.87 },
+    { "type": "grille_width_mm",         "valueMm": 1040, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Nissan Navara D40", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1780, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Navara D40 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1530, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Nissan Navara D40", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 762,  "sourceType": "tyre_specification",         "sourceReference": "265/65R17 — OEM fitment Nissan Navara D40 4x4 ST-X", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 745,  "sourceType": "tyre_specification",         "sourceReference": "255/70R16 — OEM fitment Nissan Navara D40 ST", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1950, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Nissan Navara D40 2.5dCi 4x4 kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 785,  "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -785, "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -3200,"yMm": 785,  "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -3200,"yMm": -785, "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 172,  "yMm": 685,  "zMm": 840, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 172,  "yMm": -685, "zMm": 840, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 192,  "yMm": 910,  "zMm": 780, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 192,  "yMm": -910, "zMm": 780, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 207,  "yMm": 0,    "zMm": 780, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 187,  "yMm": 0,    "zMm": 630, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 197,  "yMm": 0,    "zMm": 920, "sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 142,  "yMm": 890,  "zMm": 1060,"sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 142,  "yMm": -890, "zMm": 1060,"sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}

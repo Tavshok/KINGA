@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Mazda",
+    "model": "BT-50",
+    "variant": "UP/UR Double Cab 4x4",
+    "generation": "UP/UR",
+    "yearFrom": 2011,
+    "yearTo": 2020,
+    "bodyType": "pickup",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1849, "sourceType": "manufacturer_specification", "sourceReference": "Mazda BT-50 UP Technical Data Sheet — autoevolution.com", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1801, "sourceType": "manufacturer_specification", "sourceReference": "Mazda BT-50 UP Technical Data Sheet — autoevolution.com", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 3220, "sourceType": "manufacturer_specification", "sourceReference": "Mazda BT-50 UP Technical Data Sheet — autoevolution.com", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1560, "sourceType": "manufacturer_specification", "sourceReference": "Mazda BT-50 UP specifications — autoevolution.com", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1560, "sourceType": "manufacturer_specification", "sourceReference": "Mazda BT-50 UP specifications — autoevolution.com", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 800,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — 2015 Mazda BT-50 UR 4x4", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1820, "sourceType": "manufacturer_specification", "sourceReference": "Mazda BT-50 UP Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1350, "sourceType": "oem_cad",                    "sourceReference": "Mazda BT-50 UP body engineering reference", "confidence": 0.87 },
+    { "type": "grille_width_mm",         "valueMm": 1060, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Mazda BT-50 UP", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1780, "sourceType": "manufacturer_specification", "sourceReference": "Mazda BT-50 UP Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1530, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Mazda BT-50 UP", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 762,  "sourceType": "tyre_specification",         "sourceReference": "265/65R17 — OEM fitment Mazda BT-50 UR GT 4x4", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 745,  "sourceType": "tyre_specification",         "sourceReference": "245/70R16 — OEM fitment Mazda BT-50 UP XTR 4x2", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1980, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Mazda BT-50 UR 3.2 4x4 kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 780,  "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -780, "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -3220,"yMm": 780,  "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -3220,"yMm": -780, "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 170,  "yMm": 675,  "zMm": 850, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 170,  "yMm": -675, "zMm": 850, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 190,  "yMm": 910,  "zMm": 800, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 190,  "yMm": -910, "zMm": 800, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 205,  "yMm": 0,    "zMm": 800, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 185,  "yMm": 0,    "zMm": 645, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 195,  "yMm": 0,    "zMm": 940, "sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 140,  "yMm": 890,  "zMm": 1065,"sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 140,  "yMm": -890, "zMm": 1065,"sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}
