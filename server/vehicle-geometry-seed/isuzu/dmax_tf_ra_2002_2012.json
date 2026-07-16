@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Isuzu",
+    "model": "D-Max",
+    "variant": "TF/RA Double Cab 4x4",
+    "generation": "TF/RA",
+    "yearFrom": 2002,
+    "yearTo": 2012,
+    "bodyType": "pickup",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1775, "sourceType": "manufacturer_specification", "sourceReference": "Isuzu D-Max TF Technical Data Sheet — professionalpickup.com", "confidence": 0.97 },
+    { "type": "overall_height_mm",       "valueMm": 1785, "sourceType": "manufacturer_specification", "sourceReference": "Isuzu D-Max TF Technical Data Sheet — autoevolution.com 2012", "confidence": 0.97 },
+    { "type": "wheelbase_mm",            "valueMm": 3096, "sourceType": "manufacturer_specification", "sourceReference": "Isuzu D-Max TF/RA Technical Data Sheet — autoevolution.com", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1510, "sourceType": "manufacturer_specification", "sourceReference": "Isuzu D-Max TF specifications — professionalpickup.com", "confidence": 0.96 },
+    { "type": "rear_track_mm",           "valueMm": 1510, "sourceType": "manufacturer_specification", "sourceReference": "Isuzu D-Max TF specifications — professionalpickup.com", "confidence": 0.96 },
+    { "type": "front_bumper_height_mm",  "valueMm": 770,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — 2008 Isuzu D-Max TF 4x4", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1740, "sourceType": "manufacturer_specification", "sourceReference": "Isuzu D-Max TF Technical Data Sheet", "confidence": 0.91 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1290, "sourceType": "oem_cad",                    "sourceReference": "Isuzu D-Max TF body engineering reference", "confidence": 0.86 },
+    { "type": "grille_width_mm",         "valueMm": 1020, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Isuzu D-Max TF", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1710, "sourceType": "manufacturer_specification", "sourceReference": "Isuzu D-Max TF Technical Data Sheet", "confidence": 0.91 },
+    { "type": "windscreen_width_mm",     "valueMm": 1460, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Isuzu D-Max TF", "confidence": 0.83 },
+    { "type": "wheel_diameter_mm",       "valueMm": 745,  "sourceType": "tyre_specification",         "sourceReference": "245/70R16 — OEM fitment Isuzu D-Max TF 4x4", "confidence": 0.98 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 717,  "sourceType": "tyre_specification",         "sourceReference": "225/65R17 — OEM fitment Isuzu D-Max TF LS 4x4", "confidence": 0.98 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1870, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Isuzu D-Max TF 3.0 TD 4x4 kerb weight", "confidence": 0.94 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 755,  "zMm": 372, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -755, "zMm": 372, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -3096,"yMm": 755,  "zMm": 372, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -3096,"yMm": -755, "zMm": 372, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "lh_headlamp_centre",      "xMm": 165,  "yMm": 645,  "zMm": 840, "sourceType": "oem_cad", "confidence": 0.85 },
+    { "type": "rh_headlamp_centre",      "xMm": 165,  "yMm": -645, "zMm": 840, "sourceType": "oem_cad", "confidence": 0.85 },
+    { "type": "front_bumper_lh_corner",  "xMm": 185,  "yMm": 870,  "zMm": 770, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_rh_corner",  "xMm": 185,  "yMm": -870, "zMm": 770, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_centre",     "xMm": 200,  "yMm": 0,    "zMm": 770, "sourceType": "vehicle_survey", "confidence": 0.83 },
+    { "type": "licence_plate_centre",    "xMm": 180,  "yMm": 0,    "zMm": 620, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "grille_centre",           "xMm": 190,  "yMm": 0,    "zMm": 920, "sourceType": "vehicle_survey", "confidence": 0.78 },
+    { "type": "bonnet_lh_corner",        "xMm": 135,  "yMm": 855,  "zMm": 1050,"sourceType": "vehicle_survey", "confidence": 0.76 },
+    { "type": "bonnet_rh_corner",        "xMm": 135,  "yMm": -855, "zMm": 1050,"sourceType": "vehicle_survey", "confidence": 0.76 }
+  ]
+}

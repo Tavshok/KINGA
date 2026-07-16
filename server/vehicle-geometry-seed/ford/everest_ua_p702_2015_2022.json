@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Ford",
+    "model": "Everest",
+    "variant": "UA/P702 4WD",
+    "generation": "UA/P702",
+    "yearFrom": 2015,
+    "yearTo": 2022,
+    "bodyType": "suv",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1860, "sourceType": "manufacturer_specification", "sourceReference": "Ford Everest UA Technical Data Sheet — carsguide.com.au", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1837, "sourceType": "manufacturer_specification", "sourceReference": "Ford Everest UA Technical Data Sheet — carsguide.com.au", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2850, "sourceType": "manufacturer_specification", "sourceReference": "Ford Everest UA Technical Data Sheet — carsguide.com.au", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1572, "sourceType": "manufacturer_specification", "sourceReference": "Ford Everest UA specifications — ford.com.au", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1572, "sourceType": "manufacturer_specification", "sourceReference": "Ford Everest UA specifications — ford.com.au", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 810,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Ford Everest UA 4WD", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1825, "sourceType": "manufacturer_specification", "sourceReference": "Ford Everest UA Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1360, "sourceType": "oem_cad",                    "sourceReference": "Ford Everest UA body engineering reference", "confidence": 0.87 },
+    { "type": "grille_width_mm",         "valueMm": 1095, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Ford Everest UA", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1790, "sourceType": "manufacturer_specification", "sourceReference": "Ford Everest UA Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1510, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Ford Everest UA", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 745,  "sourceType": "tyre_specification",         "sourceReference": "245/70R17 — OEM fitment Ford Everest UA XLT/Titanium", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 717,  "sourceType": "tyre_specification",         "sourceReference": "225/65R17 — OEM fitment Ford Everest UA Ambiente", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 2100, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Ford Everest UA 3.2 TDCi 4WD kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 786,  "zMm": 372, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -786, "zMm": 372, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2850,"yMm": 786,  "zMm": 372, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2850,"yMm": -786, "zMm": 372, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 175,  "yMm": 680,  "zMm": 890, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 175,  "yMm": -680, "zMm": 890, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 195,  "yMm": 912,  "zMm": 810, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 195,  "yMm": -912, "zMm": 810, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 210,  "yMm": 0,    "zMm": 810, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 190,  "yMm": 0,    "zMm": 650, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 200,  "yMm": 0,    "zMm": 1000,"sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 145,  "yMm": 895,  "zMm": 1100,"sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 145,  "yMm": -895, "zMm": 1100,"sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}

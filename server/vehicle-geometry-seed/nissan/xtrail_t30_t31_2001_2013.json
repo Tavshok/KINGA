@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Nissan",
+    "model": "X-Trail",
+    "variant": "T30/T31 4x4",
+    "generation": "T30/T31",
+    "yearFrom": 2001,
+    "yearTo": 2013,
+    "bodyType": "suv",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1790, "sourceType": "manufacturer_specification", "sourceReference": "Nissan X-Trail T31 Technical Data Sheet — carexpert.com.au", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1700, "sourceType": "manufacturer_specification", "sourceReference": "Nissan X-Trail T31 Technical Data Sheet — automobile-catalog.com", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2629, "sourceType": "manufacturer_specification", "sourceReference": "Nissan X-Trail T31 Technical Data Sheet — wikipedia.org", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1545, "sourceType": "manufacturer_specification", "sourceReference": "Nissan X-Trail T31 specifications — carexpert.com.au", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1545, "sourceType": "manufacturer_specification", "sourceReference": "Nissan X-Trail T31 specifications — carexpert.com.au", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 680,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Nissan X-Trail T31 4x4", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1755, "sourceType": "manufacturer_specification", "sourceReference": "Nissan X-Trail T31 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1290, "sourceType": "oem_cad",                    "sourceReference": "Nissan X-Trail T31 body engineering reference", "confidence": 0.87 },
+    { "type": "grille_width_mm",         "valueMm": 1010, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Nissan X-Trail T31", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1720, "sourceType": "manufacturer_specification", "sourceReference": "Nissan X-Trail T31 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1460, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Nissan X-Trail T31", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 680,  "sourceType": "tyre_specification",         "sourceReference": "215/60R17 — OEM fitment Nissan X-Trail T31 ST-L", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 693,  "sourceType": "tyre_specification",         "sourceReference": "215/65R16 — OEM fitment Nissan X-Trail T30/T31 ST", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1630, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Nissan X-Trail T31 2.0 4x4 kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 772,  "zMm": 340, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -772, "zMm": 340, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2629,"yMm": 772,  "zMm": 340, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2629,"yMm": -772, "zMm": 340, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 163,  "yMm": 645,  "zMm": 760, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 163,  "yMm": -645, "zMm": 760, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 183,  "yMm": 877,  "zMm": 680, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 183,  "yMm": -877, "zMm": 680, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 198,  "yMm": 0,    "zMm": 680, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 178,  "yMm": 0,    "zMm": 545, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 188,  "yMm": 0,    "zMm": 840, "sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 133,  "yMm": 860,  "zMm": 990, "sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 133,  "yMm": -860, "zMm": 990, "sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}

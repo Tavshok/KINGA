@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Honda",
+    "model": "CR-V",
+    "variant": "RD/RE/RM 4WD",
+    "generation": "RD/RE/RM",
+    "yearFrom": 2002,
+    "yearTo": 2016,
+    "bodyType": "suv",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1820, "sourceType": "manufacturer_specification", "sourceReference": "Honda CR-V RE4 Technical Data Sheet — hondanews.com", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1685, "sourceType": "manufacturer_specification", "sourceReference": "Honda CR-V RE4 Technical Data Sheet — hondanews.com", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2620, "sourceType": "manufacturer_specification", "sourceReference": "Honda CR-V RD/RE Technical Data Sheet — hondanews.com", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1535, "sourceType": "manufacturer_specification", "sourceReference": "Honda CR-V RD specifications — edmunds.com 2002", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1535, "sourceType": "manufacturer_specification", "sourceReference": "Honda CR-V RD specifications — edmunds.com 2002", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 680,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Honda CR-V RE4 4WD", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1785, "sourceType": "manufacturer_specification", "sourceReference": "Honda CR-V RE4 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1310, "sourceType": "oem_cad",                    "sourceReference": "Honda CR-V RE4 body engineering reference", "confidence": 0.87 },
+    { "type": "grille_width_mm",         "valueMm": 1020, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Honda CR-V RE4", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1750, "sourceType": "manufacturer_specification", "sourceReference": "Honda CR-V RE4 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1460, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Honda CR-V RE4", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 693,  "sourceType": "tyre_specification",         "sourceReference": "215/65R16 — OEM fitment Honda CR-V RD/RE/RM", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 717,  "sourceType": "tyre_specification",         "sourceReference": "225/65R17 — OEM fitment Honda CR-V RM 2012+", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1600, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Honda CR-V RE4 2.4 4WD kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 767,  "zMm": 346, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -767, "zMm": 346, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2620,"yMm": 767,  "zMm": 346, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2620,"yMm": -767, "zMm": 346, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 163,  "yMm": 655,  "zMm": 760, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 163,  "yMm": -655, "zMm": 760, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 183,  "yMm": 892,  "zMm": 680, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 183,  "yMm": -892, "zMm": 680, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 198,  "yMm": 0,    "zMm": 680, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 178,  "yMm": 0,    "zMm": 545, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 188,  "yMm": 0,    "zMm": 840, "sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 133,  "yMm": 875,  "zMm": 990, "sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 133,  "yMm": -875, "zMm": 990, "sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}

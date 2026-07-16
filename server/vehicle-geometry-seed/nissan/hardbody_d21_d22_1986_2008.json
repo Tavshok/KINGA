@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Nissan",
+    "model": "Hardbody",
+    "variant": "D21/D22 Single/Double Cab",
+    "generation": "D21/D22",
+    "yearFrom": 1986,
+    "yearTo": 2008,
+    "bodyType": "pickup",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1690, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Hardbody D21 Technical Data Sheet — motortrend.com", "confidence": 0.97 },
+    { "type": "overall_height_mm",       "valueMm": 1680, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Hardbody D21 Technical Data Sheet — motortrend.com", "confidence": 0.97 },
+    { "type": "wheelbase_mm",            "valueMm": 2970, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Hardbody D21 double cab wheelbase — motortrend.com", "confidence": 0.98 },
+    { "type": "front_track_mm",          "valueMm": 1430, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Hardbody D21 specifications — infamousnissan.com", "confidence": 0.96 },
+    { "type": "rear_track_mm",           "valueMm": 1420, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Hardbody D21 specifications — infamousnissan.com", "confidence": 0.96 },
+    { "type": "front_bumper_height_mm",  "valueMm": 720,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Nissan Hardbody D21 4x4", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1655, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Hardbody D21 Technical Data Sheet", "confidence": 0.91 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1180, "sourceType": "oem_cad",                    "sourceReference": "Nissan Hardbody D21 body engineering reference", "confidence": 0.85 },
+    { "type": "grille_width_mm",         "valueMm": 960,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Nissan Hardbody D21", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1625, "sourceType": "manufacturer_specification", "sourceReference": "Nissan Hardbody D21 Technical Data Sheet", "confidence": 0.91 },
+    { "type": "windscreen_width_mm",     "valueMm": 1360, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Nissan Hardbody D21", "confidence": 0.83 },
+    { "type": "wheel_diameter_mm",       "valueMm": 693,  "sourceType": "tyre_specification",         "sourceReference": "215/75R15 — OEM fitment Nissan Hardbody D21 4x4", "confidence": 0.98 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 669,  "sourceType": "tyre_specification",         "sourceReference": "205/75R15 — OEM fitment Nissan Hardbody D21 2WD", "confidence": 0.98 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1450, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Nissan Hardbody D21 2.4 4x4 kerb weight", "confidence": 0.94 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 715,  "zMm": 346, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -715, "zMm": 346, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2970,"yMm": 710,  "zMm": 346, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2970,"yMm": -710, "zMm": 346, "sourceType": "manufacturer_specification", "confidence": 0.92 },
+    { "type": "lh_headlamp_centre",      "xMm": 155,  "yMm": 590,  "zMm": 800, "sourceType": "oem_cad", "confidence": 0.84 },
+    { "type": "rh_headlamp_centre",      "xMm": 155,  "yMm": -590, "zMm": 800, "sourceType": "oem_cad", "confidence": 0.84 },
+    { "type": "front_bumper_lh_corner",  "xMm": 175,  "yMm": 827,  "zMm": 720, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_rh_corner",  "xMm": 175,  "yMm": -827, "zMm": 720, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_centre",     "xMm": 190,  "yMm": 0,    "zMm": 720, "sourceType": "vehicle_survey", "confidence": 0.83 },
+    { "type": "licence_plate_centre",    "xMm": 170,  "yMm": 0,    "zMm": 575, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "grille_centre",           "xMm": 180,  "yMm": 0,    "zMm": 880, "sourceType": "vehicle_survey", "confidence": 0.78 },
+    { "type": "bonnet_lh_corner",        "xMm": 125,  "yMm": 812,  "zMm": 1000,"sourceType": "vehicle_survey", "confidence": 0.76 },
+    { "type": "bonnet_rh_corner",        "xMm": 125,  "yMm": -812, "zMm": 1000,"sourceType": "vehicle_survey", "confidence": 0.76 }
+  ]
+}

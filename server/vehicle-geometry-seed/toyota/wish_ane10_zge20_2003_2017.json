@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Toyota",
+    "model": "Wish",
+    "variant": "ANE10/ZGE20 MPV",
+    "generation": "ANE10/ZGE20",
+    "yearFrom": 2003,
+    "yearTo": 2017,
+    "bodyType": "mpv",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1695, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Wish ANE10 Technical Data Sheet — toyota-global.com", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1590, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Wish ANE10 Technical Data Sheet — toyota-global.com", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2750, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Wish ANE10 Technical Data Sheet — wikipedia.org", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1480, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Wish ANE10 specifications — carfromjapan.com", "confidence": 0.96 },
+    { "type": "rear_track_mm",           "valueMm": 1470, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Wish ANE10 specifications — carfromjapan.com", "confidence": 0.96 },
+    { "type": "front_bumper_height_mm",  "valueMm": 510,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Wish ANE10 MPV", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1660, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Wish ANE10 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1185, "sourceType": "oem_cad",                    "sourceReference": "Toyota Wish ANE10 body engineering reference", "confidence": 0.87 },
+    { "type": "grille_width_mm",         "valueMm": 880,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Wish ANE10", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1625, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Wish ANE10 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1350, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Wish ANE10", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 634,  "sourceType": "tyre_specification",         "sourceReference": "195/65R15 — OEM fitment Toyota Wish ANE10/ZGE20", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 660,  "sourceType": "tyre_specification",         "sourceReference": "205/55R16 — OEM fitment Toyota Wish ZGE20 Z", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1395, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Toyota Wish ANE10 1.8 kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 740,  "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -740, "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2750,"yMm": 735,  "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2750,"yMm": -735, "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 145,  "yMm": 592,  "zMm": 690, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 145,  "yMm": -592, "zMm": 690, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 165,  "yMm": 830,  "zMm": 510, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 165,  "yMm": -830, "zMm": 510, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 180,  "yMm": 0,    "zMm": 510, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 160,  "yMm": 0,    "zMm": 405, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 170,  "yMm": 0,    "zMm": 670, "sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 115,  "yMm": 812,  "zMm": 870, "sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 115,  "yMm": -812, "zMm": 870, "sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}
