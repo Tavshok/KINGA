@@ -239,14 +239,14 @@ async function startServer() {
     import('child_process').then(({ execFile }) => {
       execFile('pdftoppm', ['-v'], { timeout: 5000 }, (err) => {
         if (err) {
-          // Hard failure: pdftoppm is a required dependency for PDF claim processing.
-          // A missing binary means every PDF claim will fail silently at extraction.
-          // Fail fast so the deployment is caught immediately rather than discovered
-          // during a live claim run.
-          console.error('[Startup] ❌ FATAL: pdftoppm not found. PDF rendering is unavailable.');
-          console.error('[Startup] ❌ Ensure poppler-utils is listed in apt.txt and the image has been rebuilt.');
-          console.error('[Startup] ❌ Exiting to prevent silent PDF extraction failures in production.');
-          process.exit(1);
+          // Degraded mode: pdftoppm is unavailable. PDF claims will fall back to
+          // embedded image extraction (pdfjs-dist path). Do NOT exit — a missing
+          // binary must never prevent logins or non-PDF claim processing.
+          // Ensure poppler-utils is listed in apt.txt and the deployment image
+          // has been rebuilt to restore full PDF page rendering.
+          console.warn('[Startup] ⚠️  pdftoppm not found — PDF page rendering unavailable.');
+          console.warn('[Startup] ⚠️  PDF claims will fall back to embedded image extraction.');
+          console.warn('[Startup] ⚠️  Ensure poppler-utils is in apt.txt and the deployment has been rebuilt.');
         } else {
           console.log('[Startup] ✅ pdftoppm (poppler-utils) available — PDF page rendering enabled in all environments');
         }
