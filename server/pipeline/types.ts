@@ -95,33 +95,55 @@ export const FORCE_THRESHOLDS = {
 
 export const VEHICLE_MASS_TABLE: Record<string, number> = {
   // ── Honda ──
-  "honda fit": 1050, "honda jazz": 1050, "honda city": 1150, "honda civic": 1250,
+  "honda fit": 1050, "honda jazz": 1050,
+  "honda fit gd1": 1050, "honda fit gd": 1050,                   // GD1 first-gen
+  "honda fit ge6": 1080, "honda fit ge": 1080,                   // GE6 second-gen (slightly heavier)
+  "honda fit gk5": 1100, "honda fit gk": 1100,                   // GK5 third-gen
+  "honda city": 1150, "honda civic": 1250,
   "honda accord": 1500, "honda cr-v": 1550, "honda hr-v": 1300, "honda pilot": 2000,
   "honda passport": 1900, "honda ridgeline": 2000, "honda odyssey": 1900,
   "honda element": 1550, "honda insight": 1250, "honda freed": 1200,
   // ── Toyota ──
-  "toyota vitz": 980, "toyota yaris": 1050, "toyota corolla": 1300,
+  "toyota vitz": 980, "toyota yaris": 1050,
+  "toyota aqua": 1080, "toyota prius c": 1080,                    // Aqua NHP10
+  "toyota allion": 1300, "toyota axio": 1200,                     // Allion T240/T260, Axio E160
+  "toyota belta": 1050,                                           // Belta SCP92
+  "toyota ist": 1100, "toyota urban cruiser": 1100,               // ist NCP60/NCP110
+  "toyota passo": 900, "toyota passo sette": 1100,                // Passo KGC10/NGC30
+  "toyota wish": 1400, "toyota vanguard": 1800,                   // Wish ANE10/ZGE20, Vanguard ACA38
+  "toyota auris": 1300, "toyota blade": 1300,                     // Auris E150/E180
+  "toyota runx": 1200, "toyota allex": 1200, "toyota corolla sport": 1200,  // RunX E120
+  "toyota corolla": 1300,
   "toyota corolla cross": 1450, "toyota camry": 1600, "toyota avalon": 1700,
   "toyota rav4": 1700, "toyota c-hr": 1400, "toyota rush": 1500,
   "toyota hilux": 1900, "toyota fortuner": 2100, "toyota land cruiser": 2500,
   "toyota land cruiser prado": 2200, "toyota prado": 2200, "toyota 4runner": 2100,
   "toyota tundra": 2300, "toyota tacoma": 1800, "toyota sienna": 2100,
-  "toyota hiace": 1900, "toyota quantum": 1900, "toyota probox": 1100,
+  "toyota hiace": 1900, "toyota quantum": 1900,
+  "toyota hiace commuter": 2000, "toyota hiace van": 1900,        // H200 variants
+  "toyota probox": 1100,
   "toyota starlet": 900, "toyota etios": 1050, "toyota agya": 900,
   // ── Nissan ──
-  "nissan np200": 900, "nissan np300": 1700, "nissan navara": 1900,
+  "nissan np200": 900, "nissan np 200": 900,                     // aliases: NP 200
+  "nissan np300": 1700, "nissan np 300": 1700, "nissan navara": 1900,
   "nissan x-trail": 1600, "nissan qashqai": 1450, "nissan juke": 1250,
   "nissan micra": 950, "nissan note": 1100, "nissan tiida": 1200,
   "nissan almera": 1200, "nissan sentra": 1300, "nissan altima": 1600,
   "nissan patrol": 2600, "nissan murano": 1900, "nissan pathfinder": 2100,
   "nissan leaf": 1600, "nissan ariya": 2100, "nissan kicks": 1350,
-  "nissan hardbody": 1400, "nissan frontier": 1900, "nissan ad": 1050,
+  "nissan hardbody": 1400, "nissan d21": 1400, "nissan d22": 1400,  // aliases: D21, D22
+  "nissan sylphy": 1300, "nissan bluebird sylphy": 1300,           // Sylphy B17
+  "nissan xtrail": 1600, "nissan x trail": 1600,                  // aliases: XTRAIL, X TRAIL
+  "nissan frontier": 1900, "nissan ad": 1050,
   "nissan ad wagon": 1050, "nissan latio": 1150,
   // ── Isuzu ──
   "isuzu d-max": 1900, "isuzu d-teq": 1900, "isuzu kb": 1900,
-  "isuzu mu-x": 2100, "isuzu trooper": 2000, "isuzu rodeo": 1800,
+  "isuzu mu-x": 2100, "isuzu mux": 2100, "isuzu mu x": 2100,  // aliases: MUX, MU X
+  "isuzu dmax": 1900, "isuzu d max": 1900,                      // aliases: DMAX, D MAX
+  "isuzu trooper": 2000, "isuzu rodeo": 1800,
   // ── Mazda ──
-  "mazda 2": 1050, "mazda 3": 1300, "mazda 6": 1500, "mazda cx-3": 1250,
+  "mazda 2": 1050, "mazda 3": 1300, "mazda axela": 1300,          // Axela = Mazda3 BK/BL
+  "mazda 6": 1500, "mazda cx-3": 1250,
   "mazda cx-5": 1600, "mazda cx-7": 1700, "mazda cx-9": 2000,
   "mazda bt-50": 1900, "mazda bt50": 1900, "mazda bt 50": 1900, "mazda mx-5": 1100,
   // ── Ford ──

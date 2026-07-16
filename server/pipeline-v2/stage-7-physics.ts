@@ -952,6 +952,8 @@ export async function runPhysicsStage(
 
       const ensembleResult = runSpeedInferenceEnsemble({
         massKg: claimRecord.vehicle.massKg,
+        make: claimRecord.vehicle.make,
+        model: claimRecord.vehicle.model,
         bodyType: claimRecord.vehicle.bodyType,
         collisionDirection: claimRecord.accidentDetails.collisionDirection,
         documentCrushDepthM: claimRecord.accidentDetails.maxCrushDepthM,

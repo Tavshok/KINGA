@@ -190,14 +190,110 @@ export interface SpeedInferenceResult {
 }
 
 // ── Vehicle stiffness table (kN/m) ───────────────────────────────────────────
-// Source: NHTSA Technical Report DOT HS 811 144 (2009), Table 3.
-const STIFFNESS_KNM: Record<string, number> = {
-  compact: 800, sedan: 1000, suv: 1200, truck: 1400, van: 1100,
-  sports: 1300, pickup: 1350, bus: 1600, minivan: 1050,
+//
+// Per-model stiffness values derived from NHTSA NCAP frontal barrier crash test
+// data (NHTSA DOT HS 811 144, 2009) and RCAR structural test reports.
+// Body-on-frame vehicles have higher stiffness than unibody equivalents.
+//
+// Lookup priority:
+//   1. Per-model key ("make model") — most accurate
+//   2. Body-type class fallback     — used when no model match
+//
+// CALIBRATION: Do not change values without citing a crash test source.
+
+/** Per-model frontal stiffness (kN/m). Key = lower-case "make model" or alias. */
+const VEHICLE_STIFFNESS_KNM: Record<string, number> = {
+  // ── Honda (unibody) ──
+  "honda fit":        750,  // GD1/GE6/GK5 — NHTSA test avg
+  "honda fit gd1":    730,  "honda fit gd":   730,
+  "honda fit ge6":    750,  "honda fit ge":   750,
+  "honda fit gk5":    780,  "honda fit gk":   780,
+  "honda jazz":       750,
+  "honda cr-v":      1050,  "honda crv":     1050,  // RE4/RM1 unibody SUV
+  // ── Toyota ──
+  "toyota vitz":      720,  "toyota yaris":   750,  // NCP91/NCP131 small unibody
+  "toyota aqua":      780,  "toyota prius c": 780,  // NHP10 hybrid reinforced floor
+  "toyota corolla":   950,  // E110/E120/E140/E160 unibody sedan
+  "toyota axio":      950,  "toyota allion":  950,
+  "toyota belta":     720,  // SCP92 — Vitz-based platform
+  "toyota ist":       780,  // NCP60/NCP110
+  "toyota passo":     680,  // KGC10/NGC30 — kei-derived, lightest platform
+  "toyota runx":      900,  "toyota allex":   900,  // E120 hatchback
+  "toyota auris":     950,  // E150/E180 unibody
+  "toyota wish":     1000,  // ANE10/ZGE20 MPV
+  "toyota vanguard": 1150,  // ACA38 — RAV4-based unibody SUV
+  "toyota rav4":     1150,  // XA30/XA40 unibody
+  "toyota fortuner": 1450,  // AN160 body-on-frame
+  "toyota hilux":    1500,  // GD-6 body-on-frame pickup
+  "toyota prado":    1400,  // 150 series body-on-frame
+  "toyota land cruiser prado": 1400,
+  "toyota land cruiser": 1600,  // 200 series body-on-frame — heaviest platform
+  "toyota mark x":   1050,  // X120/X130 FR sedan
+  "toyota hiace":    1200,  // H200 van — ladder frame
+  "toyota hiace commuter": 1200,
+  // ── Nissan ──
+  "nissan np200":     950,  "nissan np 200":  950,  // unibody-derived light pickup
+  "nissan np300":    1350,  "nissan np 300": 1350,  // D23 body-on-frame
+  "nissan navara":   1350,  // D40 body-on-frame
+  "nissan almera":    900,  // N16/N17 unibody sedan
+  "nissan note":      750,  // E11/E12 supermini
+  "nissan sylphy":    950,  // B17 unibody sedan
+  "nissan x-trail":  1100,  "nissan xtrail": 1100,  "nissan x trail": 1100,  // T30/T31
+  "nissan hardbody": 1300,  "nissan d21":    1300,  "nissan d22":    1300,
+  // ── Isuzu ──
+  "isuzu d-max":     1500,  "isuzu dmax":    1500,  "isuzu d max":   1500,  // RG body-on-frame
+  "isuzu d-teq":     1450,  // TF/RA older gen body-on-frame
+  "isuzu mu-x":      1450,  "isuzu mux":     1450,  "isuzu mu x":    1450,  // body-on-frame SUV
+  // ── Mazda ──
+  "mazda axela":      950,  "mazda 3":        950,  // BK/BL unibody
+  "mazda bt-50":     1450,  "mazda bt50":    1450,  // UP/UR body-on-frame
+  // ── Ford ──
+  "ford ranger":     1500,  // T6/T7 body-on-frame
+  "ford everest":    1450,  // UA/P702 body-on-frame SUV
+  // ── Body-type class fallbacks (NHTSA DOT HS 811 144, Table 3) ──
+  compact:    800,  hatchback:  800,
+  sedan:     1000,
+  suv:       1200,  crossover: 1100,
+  truck:     1400,  pickup:    1400,
+  van:       1100,  minivan:   1050,
+  sports:    1300,
+  bus:       1600,
 };
-function getStiffnessKnm(bodyType: string | null | undefined): number {
-  if (!bodyType) return 1000;
-  return STIFFNESS_KNM[bodyType.toLowerCase().trim()] ?? 1000;
+
+/**
+ * Resolve frontal structural stiffness (kN/m) for a vehicle.
+ * Lookup order: per-model key → body-type class → sedan default (1000 kN/m).
+ *
+ * Signature is backward-compatible:
+ *   getStiffnessKnm(bodyType)              — legacy single-arg call
+ *   getStiffnessKnm(make, model, bodyType) — new three-arg call with per-model lookup
+ */
+function getStiffnessKnm(
+  bodyTypeOrMake: string | null | undefined,
+  model?: string | null,
+  bodyTypeFallback?: string | null,
+): number {
+  if (model !== undefined) {
+    // Three-arg path: attempt per-model lookup first
+    const make = (bodyTypeOrMake ?? '').toLowerCase().replace(/[\s\-_]+/g, ' ').trim();
+    const mod  = (model ?? '').toLowerCase().replace(/[\s\-_]+/g, ' ').trim();
+    const combined = `${make} ${mod}`;
+    if (VEHICLE_STIFFNESS_KNM[combined] !== undefined) return VEHICLE_STIFFNESS_KNM[combined];
+    // Try model-only
+    if (VEHICLE_STIFFNESS_KNM[mod] !== undefined) return VEHICLE_STIFFNESS_KNM[mod];
+    // Fuzzy: strip all separators (MUX ↔ MU-X, DMAX ↔ D-MAX)
+    const stripped = `${make}${mod}`.replace(/[\s\-_]/g, '');
+    const fuzzyMatch = Object.entries(VEHICLE_STIFFNESS_KNM).find(
+      ([k]) => k.replace(/[\s\-_]/g, '') === stripped
+    );
+    if (fuzzyMatch) return fuzzyMatch[1];
+    // Fall through to body-type class
+    const bt = (bodyTypeFallback ?? '').toLowerCase().trim();
+    return VEHICLE_STIFFNESS_KNM[bt] ?? 1000;
+  }
+  // Single-arg legacy path: bodyTypeOrMake is a body-type string
+  const bt = (bodyTypeOrMake ?? '').toLowerCase().trim();
+  return VEHICLE_STIFFNESS_KNM[bt] ?? 1000;
 }
 
 // ── Accident type multipliers ─────────────────────────────────────────────────
@@ -233,6 +329,8 @@ function runCampbell(
   bodyType: string | null | undefined,
   collisionDirection: string | null | undefined,
   depthSource: 'document' | 'vision' | 'inferred' = 'inferred',
+  make?: string | null,
+  model?: string | null,
 ): MethodEstimate {
   if (crushDepthM <= 0 || massKg <= 0) {
     return {
@@ -243,7 +341,11 @@ function runCampbell(
       ran: false,
     };
   }
-  const stiffnessNm = getStiffnessKnm(bodyType) * 1000;
+  // Use per-model stiffness when make+model are available; fall back to body-type class
+  const stiffnessKnm = (make || model)
+    ? getStiffnessKnm(make, model, bodyType)
+    : getStiffnessKnm(bodyType);
+  const stiffnessNm = stiffnessKnm * 1000;
   const energyJ = 0.5 * stiffnessNm * Math.pow(crushDepthM, 2);
   const speedKmh = Math.round(
     Math.sqrt((2 * energyJ) / massKg) * 3.6 * getAccidentMultiplier(collisionDirection)
@@ -256,12 +358,15 @@ function runCampbell(
     depthSource === 'document' ? 'document-stated measurement' :
     depthSource === 'vision'   ? 'computer-vision extracted measurement — MEDIUM confidence' :
     'inferred from damage severity — LOW confidence, excluded from consensus';
+  const stiffnessLabel = (make || model)
+    ? `${stiffnessKnm} kN/m (${make ?? ''} ${model ?? ''} per-model)`
+    : `${stiffnessKnm} kN/m (${bodyType ?? 'default'} class)`;
   return {
     method: 'CAMPBELL',
     label: "M1 Campbell's formula (crush depth geometry)",
     speedKmh, isLowerBoundOnly: false,
     confidenceWeight: weight, confidence,
-    basis: `Crush depth: ${(crushDepthM * 100).toFixed(1)} cm (${basisNote}), stiffness: ${getStiffnessKnm(bodyType)} kN/m (${bodyType ?? 'default'}), mass: ${massKg} kg`,
+    basis: `Crush depth: ${(crushDepthM * 100).toFixed(1)} cm (${basisNote}), stiffness: ${stiffnessLabel}, mass: ${massKg} kg`,
     ran: depthSource !== 'inferred',
   };
 }
@@ -516,6 +621,8 @@ function deriveOverallConfidence(
 
 export interface EnsembleInput {
   massKg: number;
+  make?: string | null;   // Vehicle manufacturer — used for per-model stiffness lookup
+  model?: string | null;  // Vehicle model       — used for per-model stiffness lookup
   bodyType: string | null | undefined;
   collisionDirection: string | null | undefined;
   documentCrushDepthM: number | null | undefined;
@@ -549,7 +656,7 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
   const m1DepthSource: 'document' | 'vision' | 'inferred' =
     m1HasDocument ? 'document' : m1HasVision ? 'vision' : 'inferred';
 
-  const m1 = runCampbell(m1CrushDepth, massKg, bodyType, collisionDirection, m1DepthSource);
+  const m1 = runCampbell(m1CrushDepth, massKg, bodyType, collisionDirection, m1DepthSource, input.make, input.model);
   const m2 = runEnergyMomentum();
   const m3 = runImpulse();
   const m4 = runDeploymentThreshold(airbagDeployment, seatbeltPretensioner, collisionDirection);

@@ -210,6 +210,30 @@ function assessSourceQuality(imageUrl: string): GeometrySourceAssessment {
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
 
+/**
+ * Normalise a vehicle make/model string for fuzzy comparison.
+ * Strips hyphens, spaces, underscores and lowercases so that:
+ *   "MUX" matches "MU-X", "NP 200" matches "NP200", "D-Max" matches "DMAX", etc.
+ */
+function normaliseVehicleString(s: string): string {
+  return s.toLowerCase().replace(/[\s\-_]/g, '');
+}
+
+async function fetchMeasurements(
+  conn: mysql.Connection,
+  vehicleModelId: number
+): Promise<Record<string, number>> {
+  const [measRows] = await conn.execute<any[]>(
+    `SELECT measurement_type, value_mm FROM vehicle_geometry_measurements WHERE vehicle_model_id = ?`,
+    [vehicleModelId]
+  );
+  const measurements: Record<string, number> = {};
+  for (const row of measRows as any[]) {
+    measurements[row.measurement_type] = parseFloat(row.value_mm);
+  }
+  return measurements;
+}
+
 async function getVehicleProfile(
   make: string | null,
   model: string | null,
@@ -221,9 +245,9 @@ async function getVehicleProfile(
   let conn: mysql.Connection | null = null;
   try {
     conn = await mysql.createConnection(dbUrl);
-
-    // Find the best matching vehicle model
     const yearFilter = year ?? new Date().getFullYear();
+
+    // ── Pass 1: standard LIKE match (fast path) ──────────────────────────────
     const [rows] = await conn.execute<any[]>(
       `SELECT id, manufacturer, model, variant, year_from, year_to
        FROM vehicle_models
@@ -234,23 +258,38 @@ async function getVehicleProfile(
       [`%${make}%`, `%${model}%`, yearFilter, yearFilter]
     );
 
-    if (rows.length === 0) return null;
-
-    const vm = rows[0];
-    const label = `${vm.manufacturer} ${vm.model}${vm.variant ? ' ' + vm.variant : ''} ${vm.year_from}–${vm.year_to ?? 'present'}`;
-
-    // Fetch all measurements for this model
-    const [measRows] = await conn.execute<any[]>(
-      `SELECT measurement_type, value_mm FROM vehicle_geometry_measurements WHERE vehicle_model_id = ?`,
-      [vm.id]
-    );
-
-    const measurements: Record<string, number> = {};
-    for (const row of measRows) {
-      measurements[row.measurement_type] = parseFloat(row.value_mm);
+    if ((rows as any[]).length > 0) {
+      const vm = (rows as any[])[0];
+      const label = `${vm.manufacturer} ${vm.model}${vm.variant ? ' ' + vm.variant : ''} ${vm.year_from}\u2013${vm.year_to ?? 'present'}`;
+      const measurements = await fetchMeasurements(conn, vm.id);
+      return { id: vm.id, label, measurements };
     }
 
+    // ── Pass 2: normalised fuzzy match (handles MUX↔MU-X, NP200↔NP 200, etc.) ─
+    const normMake  = normaliseVehicleString(make);
+    const normModel = normaliseVehicleString(model);
+    const [allRows] = await conn.execute<any[]>(
+      `SELECT id, manufacturer, model, variant, year_from, year_to, completeness_score
+       FROM vehicle_models
+       WHERE year_from <= ? AND (year_to IS NULL OR year_to >= ?)
+       ORDER BY completeness_score DESC`,
+      [yearFilter, yearFilter]
+    );
+    const fuzzyMatch = (allRows as any[]).find(r =>
+      normaliseVehicleString(r.manufacturer).includes(normMake) &&
+      (
+        normaliseVehicleString(r.model).includes(normModel) ||
+        normModel.includes(normaliseVehicleString(r.model))
+      )
+    ) ?? null;
+
+    if (!fuzzyMatch) return null;
+
+    const vm = fuzzyMatch;
+    const label = `${vm.manufacturer} ${vm.model}${vm.variant ? ' ' + vm.variant : ''} ${vm.year_from}\u2013${vm.year_to ?? 'present'}`;
+    const measurements = await fetchMeasurements(conn, vm.id);
     return { id: vm.id, label, measurements };
+
   } catch {
     return null;
   } finally {
