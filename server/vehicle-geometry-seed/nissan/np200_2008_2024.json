@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Nissan",
+    "model": "NP200",
+    "variant": "1.6 Single Cab",
+    "generation": "I",
+    "yearFrom": 2008,
+    "yearTo": 2024,
+    "bodyType": "pickup",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1735, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP200 Technical Data Sheet (ZA)", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1554, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP200 Technical Data Sheet (ZA)", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2905, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP200 Technical Data Sheet (ZA)", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1466, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP200 I 1.5dCi specifications — drive.place", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1458, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP200 I 1.5dCi specifications — drive.place", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 620,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — NP200 single cab", "confidence": 0.82 },
+    { "type": "bumper_width_mm",         "valueMm": 1700, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — NP200 single cab", "confidence": 0.84 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1260, "sourceType": "oem_cad",                    "sourceReference": "Nissan NP200 body engineering reference", "confidence": 0.88 },
+    { "type": "grille_width_mm",         "valueMm": 900,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — NP200", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1660, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP200 Technical Data Sheet (ZA)", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1340, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — NP200", "confidence": 0.83 },
+    { "type": "wheel_diameter_mm",       "valueMm": 639,  "sourceType": "tyre_specification",         "sourceReference": "185/65R15 — OEM fitment Nissan NP200 1.5dCi", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 611,  "sourceType": "tyre_specification",         "sourceReference": "185/70R14 — OEM fitment Nissan NP200 1.6 petrol", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1175, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP200 1.5dCi kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 733,  "zMm": 320, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -733, "zMm": 320, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2905,"yMm": 729,  "zMm": 320, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2905,"yMm": -729, "zMm": 320, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 155,  "yMm": 630,  "zMm": 760, "sourceType": "oem_cad", "confidence": 0.85 },
+    { "type": "rh_headlamp_centre",      "xMm": 155,  "yMm": -630, "zMm": 760, "sourceType": "oem_cad", "confidence": 0.85 },
+    { "type": "front_bumper_lh_corner",  "xMm": 175,  "yMm": 850,  "zMm": 620, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_rh_corner",  "xMm": 175,  "yMm": -850, "zMm": 620, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_centre",     "xMm": 190,  "yMm": 0,    "zMm": 620, "sourceType": "vehicle_survey", "confidence": 0.83 },
+    { "type": "licence_plate_centre",    "xMm": 170,  "yMm": 0,    "zMm": 500, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "grille_centre",           "xMm": 180,  "yMm": 0,    "zMm": 820, "sourceType": "vehicle_survey", "confidence": 0.78 },
+    { "type": "bonnet_lh_corner",        "xMm": 130,  "yMm": 830,  "zMm": 970, "sourceType": "vehicle_survey", "confidence": 0.76 },
+    { "type": "bonnet_rh_corner",        "xMm": 130,  "yMm": -830, "zMm": 970, "sourceType": "vehicle_survey", "confidence": 0.76 }
+  ]
+}

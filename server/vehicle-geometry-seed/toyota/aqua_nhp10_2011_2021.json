@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Toyota",
+    "model": "Aqua",
+    "variant": "NHP10 Hybrid",
+    "generation": "NHP10",
+    "yearFrom": 2011,
+    "yearTo": 2021,
+    "bodyType": "hatchback",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1695, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Aqua NHP10 Technical Data Sheet (JDM)", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1455, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Aqua NHP10 Technical Data Sheet (JDM)", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2550, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Aqua NHP10 Technical Data Sheet — Wikipedia", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1481, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Prius C/Aqua specifications — autoevolution.com", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1476, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Prius C/Aqua specifications — autoevolution.com", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 490,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Aqua NHP10", "confidence": 0.85 },
+    { "type": "bumper_width_mm",         "valueMm": 1660, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Aqua NHP10 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1190, "sourceType": "oem_cad",                    "sourceReference": "Toyota NHP10 body engineering reference", "confidence": 0.89 },
+    { "type": "grille_width_mm",         "valueMm": 870,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Aqua NHP10", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1625, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Aqua NHP10 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1360, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Toyota Aqua NHP10", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 634,  "sourceType": "tyre_specification",         "sourceReference": "185/60R15 — OEM fitment Toyota Aqua NHP10", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 611,  "sourceType": "tyre_specification",         "sourceReference": "175/65R15 — OEM fitment Toyota Aqua NHP10 base", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1090, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Toyota Aqua NHP10 kerb weight", "confidence": 0.96 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 740,  "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -740, "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2550,"yMm": 738,  "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2550,"yMm": -738, "zMm": 317, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 145,  "yMm": 595,  "zMm": 660, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 145,  "yMm": -595, "zMm": 660, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 165,  "yMm": 830,  "zMm": 490, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_rh_corner",  "xMm": 165,  "yMm": -830, "zMm": 490, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_centre",     "xMm": 180,  "yMm": 0,    "zMm": 490, "sourceType": "vehicle_survey", "confidence": 0.83 },
+    { "type": "licence_plate_centre",    "xMm": 160,  "yMm": 0,    "zMm": 390, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "grille_centre",           "xMm": 170,  "yMm": 0,    "zMm": 630, "sourceType": "vehicle_survey", "confidence": 0.78 },
+    { "type": "bonnet_lh_corner",        "xMm": 115,  "yMm": 812,  "zMm": 800, "sourceType": "vehicle_survey", "confidence": 0.76 },
+    { "type": "bonnet_rh_corner",        "xMm": 115,  "yMm": -812, "zMm": 800, "sourceType": "vehicle_survey", "confidence": 0.76 }
+  ]
+}

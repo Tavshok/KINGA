@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Honda",
+    "model": "Fit",
+    "variant": "GD1",
+    "generation": "GD",
+    "yearFrom": 2001,
+    "yearTo": 2008,
+    "bodyType": "hatchback",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1682, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GD1 Technical Data Sheet (JDM/Global)", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1524, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GD1 Technical Data Sheet", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2450, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GD1 Technical Data Sheet", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1456, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GD1 Technical Data Sheet — autocatalogarchive.com", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1445, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GD1 Technical Data Sheet — autocatalogarchive.com", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 500,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Honda Fit GD1", "confidence": 0.85 },
+    { "type": "bumper_width_mm",         "valueMm": 1645, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GD1 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1180, "sourceType": "oem_cad",                    "sourceReference": "Honda GD body engineering reference", "confidence": 0.89 },
+    { "type": "grille_width_mm",         "valueMm": 880,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Honda Fit GD1", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1610, "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GD1 Technical Data Sheet", "confidence": 0.92 },
+    { "type": "windscreen_width_mm",     "valueMm": 1350, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Honda Fit GD1", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 611,  "sourceType": "tyre_specification",         "sourceReference": "175/65R15 — OEM fitment Honda Fit GD1", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 587,  "sourceType": "tyre_specification",         "sourceReference": "175/70R14 — OEM fitment Honda Fit GD1 base", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1010, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Honda Fit GD1 1.3 kerb weight", "confidence": 0.96 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 728,  "zMm": 306, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -728, "zMm": 306, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2450,"yMm": 722,  "zMm": 306, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2450,"yMm": -722, "zMm": 306, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 145,  "yMm": 590,  "zMm": 670, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 145,  "yMm": -590, "zMm": 670, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 165,  "yMm": 820,  "zMm": 500, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_rh_corner",  "xMm": 165,  "yMm": -820, "zMm": 500, "sourceType": "vehicle_survey", "confidence": 0.80 },
+    { "type": "front_bumper_centre",     "xMm": 180,  "yMm": 0,    "zMm": 500, "sourceType": "vehicle_survey", "confidence": 0.83 },
+    { "type": "licence_plate_centre",    "xMm": 160,  "yMm": 0,    "zMm": 400, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "grille_centre",           "xMm": 170,  "yMm": 0,    "zMm": 630, "sourceType": "vehicle_survey", "confidence": 0.78 },
+    { "type": "bonnet_lh_corner",        "xMm": 115,  "yMm": 805,  "zMm": 820, "sourceType": "vehicle_survey", "confidence": 0.76 },
+    { "type": "bonnet_rh_corner",        "xMm": 115,  "yMm": -805, "zMm": 820, "sourceType": "vehicle_survey", "confidence": 0.76 }
+  ]
+}

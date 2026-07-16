@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Toyota",
+    "model": "Land Cruiser",
+    "variant": "200 Series VX/Sahara",
+    "generation": "J200",
+    "yearFrom": 2007,
+    "yearTo": 2021,
+    "bodyType": "suv",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1980, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Land Cruiser 200 Series Technical Data Sheet", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1870, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Land Cruiser 200 Series Technical Data Sheet", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2850, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Land Cruiser 200 Series Technical Data Sheet", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1640, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Land Cruiser 200 Series Technical Data Sheet", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1645, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Land Cruiser 200 Series Technical Data Sheet", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 870,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — 2018 Land Cruiser 200 VX", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1950, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Land Cruiser 200 Series Technical Data Sheet", "confidence": 0.93 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1500, "sourceType": "oem_cad",                    "sourceReference": "Toyota Land Cruiser 200 body engineering reference", "confidence": 0.88 },
+    { "type": "grille_width_mm",         "valueMm": 1200, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Land Cruiser 200", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1900, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Land Cruiser 200 Series Technical Data Sheet", "confidence": 0.93 },
+    { "type": "windscreen_width_mm",     "valueMm": 1620, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Land Cruiser 200", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 800,  "sourceType": "tyre_specification",         "sourceReference": "285/60R18 — OEM fitment Toyota Land Cruiser 200 VX", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 776,  "sourceType": "tyre_specification",         "sourceReference": "265/65R17 — OEM fitment Toyota Land Cruiser 200 GX", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 2700, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Toyota Land Cruiser 200 4.5 V8 kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 820,  "zMm": 400, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -820, "zMm": 400, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2850,"yMm": 822,  "zMm": 400, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2850,"yMm": -822, "zMm": 400, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 185,  "yMm": 750,  "zMm": 930, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 185,  "yMm": -750, "zMm": 930, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 205,  "yMm": 975,  "zMm": 870, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 205,  "yMm": -975, "zMm": 870, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 220,  "yMm": 0,    "zMm": 870, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 200,  "yMm": 0,    "zMm": 700, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 210,  "yMm": 0,    "zMm": 1010,"sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 155,  "yMm": 950,  "zMm": 1150,"sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 155,  "yMm": -950, "zMm": 1150,"sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}

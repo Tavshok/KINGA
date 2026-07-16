@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Nissan",
+    "model": "NP300 Navara",
+    "variant": "D23 Double Cab 4x4",
+    "generation": "D23",
+    "yearFrom": 2015,
+    "yearTo": 2022,
+    "bodyType": "pickup",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1850, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP300 Navara D23 Technical Data Sheet (AU)", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1810, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP300 Navara D23 Technical Data Sheet (AU)", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 3150, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP300 Navara D23 Technical Data Sheet (AU)", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1570, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP300 Navara D23 Technical Data Sheet (AU)", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1570, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP300 Navara D23 Technical Data Sheet (AU)", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 790,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — 2018 NP300 Navara 4x4", "confidence": 0.84 },
+    { "type": "bumper_width_mm",         "valueMm": 1820, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP300 Navara D23 Technical Data Sheet", "confidence": 0.93 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1380, "sourceType": "oem_cad",                    "sourceReference": "Nissan NP300 Navara D23 body engineering reference", "confidence": 0.88 },
+    { "type": "grille_width_mm",         "valueMm": 1050, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — NP300 Navara", "confidence": 0.82 },
+    { "type": "bonnet_width_mm",         "valueMm": 1780, "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP300 Navara D23 Technical Data Sheet", "confidence": 0.93 },
+    { "type": "windscreen_width_mm",     "valueMm": 1540, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — NP300 Navara", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 762,  "sourceType": "tyre_specification",         "sourceReference": "255/65R17 — OEM fitment Nissan NP300 Navara ST/STX", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 745,  "sourceType": "tyre_specification",         "sourceReference": "215/65R16 — OEM fitment Nissan NP300 Navara RX", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 1965, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Nissan NP300 Navara 2.3dCi 4x4 kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 785,  "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -785, "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -3150,"yMm": 785,  "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -3150,"yMm": -785, "zMm": 381, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 175,  "yMm": 690,  "zMm": 850, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 175,  "yMm": -690, "zMm": 850, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 195,  "yMm": 910,  "zMm": 790, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 195,  "yMm": -910, "zMm": 790, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 210,  "yMm": 0,    "zMm": 790, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 190,  "yMm": 0,    "zMm": 640, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 200,  "yMm": 0,    "zMm": 930, "sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 145,  "yMm": 890,  "zMm": 1070,"sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 145,  "yMm": -890, "zMm": 1070,"sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}

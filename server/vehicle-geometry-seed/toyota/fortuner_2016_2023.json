@@ -1,0 +1,45 @@
+{
+  "model": {
+    "manufacturer": "Toyota",
+    "model": "Fortuner",
+    "variant": "GD-6 4x4",
+    "generation": "AN160",
+    "yearFrom": 2016,
+    "yearTo": 2023,
+    "bodyType": "suv",
+    "marketRegion": "Southern Africa"
+  },
+  "measurements": [
+    { "type": "overall_width_mm",        "valueMm": 1855, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Fortuner AN160 Technical Data Sheet", "confidence": 0.98 },
+    { "type": "overall_height_mm",       "valueMm": 1835, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Fortuner AN160 Technical Data Sheet", "confidence": 0.98 },
+    { "type": "wheelbase_mm",            "valueMm": 2745, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Fortuner AN160 Technical Data Sheet", "confidence": 0.99 },
+    { "type": "front_track_mm",          "valueMm": 1545, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Fortuner AN160 — CFAO Motors specification", "confidence": 0.97 },
+    { "type": "rear_track_mm",           "valueMm": 1555, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Fortuner AN160 — carexpert.co.nz specification", "confidence": 0.97 },
+    { "type": "front_bumper_height_mm",  "valueMm": 800,  "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — 2020 Fortuner GD6 4x4", "confidence": 0.85 },
+    { "type": "bumper_width_mm",         "valueMm": 1820, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Fortuner AN160 Technical Data Sheet", "confidence": 0.93 },
+    { "type": "headlamp_spacing_mm",     "valueMm": 1380, "sourceType": "oem_cad",                    "sourceReference": "Toyota Fortuner AN160 body engineering reference", "confidence": 0.89 },
+    { "type": "grille_width_mm",         "valueMm": 1100, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Fortuner AN160", "confidence": 0.83 },
+    { "type": "bonnet_width_mm",         "valueMm": 1780, "sourceType": "manufacturer_specification", "sourceReference": "Toyota Fortuner AN160 Technical Data Sheet", "confidence": 0.93 },
+    { "type": "windscreen_width_mm",     "valueMm": 1520, "sourceType": "vehicle_survey",             "sourceReference": "Ground measurement estimate — Fortuner AN160", "confidence": 0.84 },
+    { "type": "wheel_diameter_mm",       "valueMm": 776,  "sourceType": "tyre_specification",         "sourceReference": "265/65R17 — OEM fitment Toyota Fortuner GX/GXL", "confidence": 0.99 },
+    { "type": "wheel_diameter_alt_mm",   "valueMm": 762,  "sourceType": "tyre_specification",         "sourceReference": "265/60R18 — OEM fitment Toyota Fortuner VX/Legender", "confidence": 0.99 },
+    { "type": "licence_plate_width_mm",  "valueMm": 520,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "licence_plate_height_mm", "valueMm": 110,  "sourceType": "regulatory_standard",        "sourceReference": "Zimbabwe Vehicle Licence Plate Standard", "confidence": 0.99 },
+    { "type": "vehicle_mass_kg",         "valueMm": 2115, "unit": "kg", "sourceType": "manufacturer_specification", "sourceReference": "Toyota Fortuner GD-6 4x4 kerb weight", "confidence": 0.95 }
+  ],
+  "landmarks": [
+    { "type": "front_lh_wheel_centre",   "xMm": 0,    "yMm": 772,  "zMm": 388, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "front_rh_wheel_centre",   "xMm": 0,    "yMm": -772, "zMm": 388, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_lh_wheel_centre",    "xMm": -2745,"yMm": 777,  "zMm": 388, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "rear_rh_wheel_centre",    "xMm": -2745,"yMm": -777, "zMm": 388, "sourceType": "manufacturer_specification", "confidence": 0.93 },
+    { "type": "lh_headlamp_centre",      "xMm": 175,  "yMm": 690,  "zMm": 870, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "rh_headlamp_centre",      "xMm": 175,  "yMm": -690, "zMm": 870, "sourceType": "oem_cad", "confidence": 0.86 },
+    { "type": "front_bumper_lh_corner",  "xMm": 195,  "yMm": 910,  "zMm": 800, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_rh_corner",  "xMm": 195,  "yMm": -910, "zMm": 800, "sourceType": "vehicle_survey", "confidence": 0.81 },
+    { "type": "front_bumper_centre",     "xMm": 210,  "yMm": 0,    "zMm": 800, "sourceType": "vehicle_survey", "confidence": 0.84 },
+    { "type": "licence_plate_centre",    "xMm": 190,  "yMm": 0,    "zMm": 650, "sourceType": "vehicle_survey", "confidence": 0.82 },
+    { "type": "grille_centre",           "xMm": 200,  "yMm": 0,    "zMm": 950, "sourceType": "vehicle_survey", "confidence": 0.79 },
+    { "type": "bonnet_lh_corner",        "xMm": 145,  "yMm": 890,  "zMm": 1100,"sourceType": "vehicle_survey", "confidence": 0.77 },
+    { "type": "bonnet_rh_corner",        "xMm": 145,  "yMm": -890, "zMm": 1100,"sourceType": "vehicle_survey", "confidence": 0.77 }
+  ]
+}
