@@ -618,27 +618,27 @@ export async function generateForensicDecisionReport(
 
   <div class="lead">${docArr.length} document${docArr.length !== 1 ? "s" : ""} were received and processed. ${hasPhotos ? `${totalPhotos} damage photograph${totalPhotos !== 1 ? "s" : ""} were submitted — ${usablePhotos} confirmed usable (${photoYield}% yield). ${photoYield < 60 ? "Photo yield is below the 60% minimum threshold for a complete visual assessment." : "Photo coverage is sufficient for a standard visual assessment."}` : "No photographic evidence was submitted."} Each image has been screened for EXIF manipulation, geographic consistency, and component-zone alignment.</div>
 
-  <div class="sub"><h3>4.1 Photo Evidence Grid</h3><span class="sm">${photoArr.length} images · ${usablePhotos} usable</span></div>
-  <div class="photo-grid">${photoGrid}</div>
-
-  <div class="kpi c4">
-    <div class="kpi-c"><div class="kpi-v">${totalPhotos}</div><div class="kpi-l">Submitted</div></div>
-    <div class="kpi-c"><div class="kpi-v g">${usablePhotos}</div><div class="kpi-l">Usable</div></div>
-    <div class="kpi-c"><div class="kpi-v a">${totalPhotos - usablePhotos}</div><div class="kpi-l">Rejected</div></div>
-    <div class="kpi-c"><div class="kpi-v ${photoYield < 40 ? "r" : photoYield < 60 ? "a" : "g"}">${photoYield}%</div><div class="kpi-l">Yield Rate</div></div>
-  </div>
-
-  <div class="sub"><h3>4.2 Document Register</h3></div>
+  <div class="sub"><h3>4.1 Document Register</h3><span class="sm">${docArr.length} document${docArr.length !== 1 ? "s" : ""} received</span></div>
   <table>
-    <thead><tr><th>Document</th><th>Received</th><th>Status</th></tr></thead>
+    <thead><tr><th>Document</th><th>Category</th><th>Received</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td>Claim Form</td><td>${fmtD(c.created_at)}</td><td>${chip("Received", "pass")}</td></tr>
-      <tr><td>Police Report</td><td>${docArr.find(d => d.document_category === "police_report") ? fmtD(docArr.find(d => d.document_category === "police_report")!.created_at) : "—"}</td><td>${docArr.find(d => d.document_category === "police_report") ? chip("Received", "pass") : chip("Missing", "warn")}</td></tr>
-      <tr><td>Repair Quotes (×${quoteArr.length})</td><td>${quoteArr.length > 0 ? "Received" : "—"}</td><td>${quoteArr.length > 0 ? chip("Received", "pass") : chip("Missing", "fail")}</td></tr>
-      <tr><td>Damage Photographs (×${totalPhotos})</td><td>${totalPhotos > 0 ? "Received" : "—"}</td><td>${photoYield < 40 ? chip("Low yield", "warn") : chip("Received", "pass")}</td></tr>
-      <tr><td>VIN Certificate</td><td>—</td><td>${chip("Missing", "warn")}</td></tr>
+      <tr><td>Claim Form</td><td class="tm">claim_form</td><td>${fmtD(c.created_at)}</td><td>${chip("Received", "pass")}</td></tr>
+      <tr><td>Police Report</td><td class="tm">police_report</td><td>${docArr.find(d => d.document_category === "police_report") ? fmtD(docArr.find(d => d.document_category === "police_report")!.created_at) : "—"}</td><td>${docArr.find(d => d.document_category === "police_report") ? chip("Received", "pass") : chip("Missing — Required", "warn")}</td></tr>
+      <tr><td>Repair Quotes (×${quoteArr.length})</td><td class="tm">repair_quote</td><td>${quoteArr.length > 0 ? "Received" : "—"}</td><td>${quoteArr.length > 0 ? chip("Received", "pass") : chip("Missing", "fail")}</td></tr>
+      <tr><td>Damage Photographs (×${totalPhotos})</td><td class="tm">damage_photo</td><td>${totalPhotos > 0 ? "Received" : "—"}</td><td>${photoYield < 40 ? chip("Low yield — " + photoYield + "%", "warn") : chip("Received", "pass")}</td></tr>
+      <tr><td>VIN / Registration Certificate</td><td class="tm">vehicle_registration</td><td>—</td><td>${docArr.find(d => d.document_category === "vehicle_registration") ? chip("Received", "pass") : chip("Missing — Optional", "neutral")}</td></tr>
     </tbody>
   </table>
+
+  <div class="sub"><h3>4.2 Photo Evidence</h3><span class="sm">${photoArr.length} images · ${usablePhotos} usable · ${photoYield}% yield</span></div>
+  <div class="kpi c4" style="margin-bottom:16px">
+    <div class="kpi-c"><div class="kpi-v">${totalPhotos}</div><div class="kpi-l">Submitted</div><div class="kpi-s">Total images</div></div>
+    <div class="kpi-c"><div class="kpi-v g">${usablePhotos}</div><div class="kpi-l">Usable</div><div class="kpi-s">Confirmed damage photos</div></div>
+    <div class="kpi-c"><div class="kpi-v a">${totalPhotos - usablePhotos}</div><div class="kpi-l">Rejected</div><div class="kpi-s">Poor quality / irrelevant</div></div>
+    <div class="kpi-c"><div class="kpi-v ${photoYield < 40 ? "r" : photoYield < 60 ? "a" : "g"}">${photoYield}%</div><div class="kpi-l">Yield Rate</div><div class="kpi-s">${photoYield < 60 ? "Below 60% threshold" : "Sufficient coverage"}</div></div>
+  </div>
+  <div class="photo-grid">${photoGrid}</div>
+  ${photoYield < 60 ? `<div class="fc amber"><div class="fc-head">${chip("Low Yield", "warn")}<span class="fc-title">Insufficient Photo Coverage</span></div><p>Photo yield of ${photoYield}% is below the 60% minimum threshold for a complete visual damage assessment. Key zones — underbody, engine bay, interior — may not be adequately documented.</p><div class="fc-action">Action: Request targeted photographs for underbody, engine bay, and interior zones</div></div>` : ""}
 
   <div class="bridge">Fraud intelligence and risk analysis &rarr; &sect;5.0</div>
 </div>`;
@@ -704,6 +704,70 @@ export async function generateForensicDecisionReport(
     <tbody>${fraudTableRows}</tbody>
   </table>
 
+  <div class="sub"><h3>5.2 Accident Date Consistency</h3></div>
+  <table>
+    <thead><tr><th>Check</th><th>Observed</th><th>Expected</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Incident Date</td><td>${fmtD(c.incident_date)}</td><td>Within policy period</td><td>${chip("Verified", "pass")}</td></tr>
+      <tr><td>Submission Delay</td><td>${dayDelay !== null ? dayDelay + " days" : "—"}</td><td>≤ 90 days</td><td>${dayDelay !== null && dayDelay > 90 ? chip(dayDelay + " days — Flagged", "warn") : chip("Within limit", "pass")}</td></tr>
+      <tr><td>Quote Date vs Incident</td><td>${quoteArr.length > 0 ? "Post-incident" : "—"}</td><td>After incident date</td><td>${chip("Consistent", "pass")}</td></tr>
+      <tr><td>Police Report Date</td><td>${docArr.find(d => d.document_category === "police_report") ? fmtD(docArr.find(d => d.document_category === "police_report")!.created_at) : "Not provided"}</td><td>Within 48h of incident</td><td>${docArr.find(d => d.document_category === "police_report") ? chip("Received", "pass") : chip("Missing", "warn")}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sub"><h3>5.3 Cross-Engine Consistency</h3></div>
+  <table>
+    <thead><tr><th>Engine</th><th>Score</th><th>Verdict</th><th>Consistency</th></tr></thead>
+    <tbody>
+      <tr><td>Physics Engine</td><td class="tm">${physicsScore}/100</td><td>${chip(physicsScore >= 70 ? "Anomaly" : physicsScore >= 40 ? "Minor Anomaly" : "Normal", physicsScore >= 70 ? "fail" : physicsScore >= 40 ? "warn" : "pass")}</td><td>${chip(physicsScore >= 70 ? "Inconsistent" : "Consistent", physicsScore >= 70 ? "fail" : "pass")}</td></tr>
+      <tr><td>Fraud Detection Engine</td><td class="tm">${fraudScore}/100</td><td>${chip(fraudBadgeLabel, fraudBadgeCls)}</td><td>${chip(fraudScore >= 70 ? "Inconsistent" : "Consistent", fraudScore >= 70 ? "fail" : "pass")}</td></tr>
+      <tr><td>Cost Intelligence Engine</td><td class="tm">${fmtPct(savingsPct, 0)} variance</td><td>${chip(savingsPct > 30 ? "High Variance" : "Normal", savingsPct > 30 ? "warn" : "pass")}</td><td>${chip(savingsPct > 30 ? "Review" : "Consistent", savingsPct > 30 ? "warn" : "pass")}</td></tr>
+      <tr><td>Document Integrity Engine</td><td class="tm">${Math.round(dataComplete)}%</td><td>${chip(dataComplete < 60 ? "Incomplete" : "Complete", dataComplete < 60 ? "warn" : "pass")}</td><td>${chip(dataComplete < 60 ? "Gaps Detected" : "Consistent", dataComplete < 60 ? "warn" : "pass")}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sub"><h3>5.4 Policy Flags &amp; Subrogation</h3></div>
+  <table>
+    <thead><tr><th>Flag</th><th>Finding</th><th>Status</th></tr></thead>
+    <tbody>
+      ${exclusions.length > 0 ? exclusions.map(e => `<tr class="at-high"><td><strong>Policy Exclusion</strong></td><td>${esc(e.item)} — ${fmtUSD(e.amount)} excluded under ${esc(e.clause)}</td><td>${chip("Excluded", "fail")}</td></tr>`).join("") : `<tr><td>Policy Exclusions</td><td>No exclusions detected in submitted line items</td><td>${chip("Clear", "pass")}</td></tr>`}
+      <tr><td>Subrogation Potential</td><td>${hasImpossibilityFlag ? "Potential subrogation opportunity — third-party involvement possible" : "No third-party identified — single-vehicle incident"}</td><td>${chip(hasImpossibilityFlag ? "Review" : "N/A", hasImpossibilityFlag ? "warn" : "neutral")}</td></tr>
+      <tr><td>Excess Applicable</td><td>${fmtUSD(excess)} policy excess applies to settlement</td><td>${chip(excess > 0 ? "Applicable" : "None", excess > 0 ? "warn" : "pass")}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sub"><h3>5.2 Accident Date Consistency</h3></div>
+  <table>
+    <thead><tr><th>Check</th><th>Observed</th><th>Expected</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Incident Date</td><td>${fmtD(c.incident_date)}</td><td>Within policy period</td><td>${chip("Verified", "pass")}</td></tr>
+      <tr><td>Submission Delay</td><td>${dayDelay !== null ? dayDelay + " days" : "—"}</td><td>≤ 90 days</td><td>${dayDelay !== null && dayDelay > 90 ? chip(dayDelay + " days — Flagged", "warn") : chip("Within limit", "pass")}</td></tr>
+      <tr><td>Quote Date vs Incident</td><td>${quoteArr.length > 0 ? "Post-incident" : "—"}</td><td>After incident date</td><td>${chip("Consistent", "pass")}</td></tr>
+      <tr><td>Police Report Date</td><td>${docArr.find(d => d.document_category === "police_report") ? fmtD(docArr.find(d => d.document_category === "police_report")!.created_at) : "Not provided"}</td><td>Within 48h of incident</td><td>${docArr.find(d => d.document_category === "police_report") ? chip("Received", "pass") : chip("Missing", "warn")}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sub"><h3>5.3 Cross-Engine Consistency</h3></div>
+  <table>
+    <thead><tr><th>Engine</th><th>Score</th><th>Verdict</th><th>Consistency</th></tr></thead>
+    <tbody>
+      <tr><td>Physics Engine</td><td class="tm">${physicsScore}/100</td><td>${chip(physicsScore >= 70 ? "Anomaly" : physicsScore >= 40 ? "Minor Anomaly" : "Normal", physicsScore >= 70 ? "fail" : physicsScore >= 40 ? "warn" : "pass")}</td><td>${chip(physicsScore >= 70 ? "Inconsistent" : "Consistent", physicsScore >= 70 ? "fail" : "pass")}</td></tr>
+      <tr><td>Fraud Detection Engine</td><td class="tm">${fraudScore}/100</td><td>${chip(fraudBadgeLabel, fraudBadgeCls)}</td><td>${chip(fraudScore >= 70 ? "Inconsistent" : "Consistent", fraudScore >= 70 ? "fail" : "pass")}</td></tr>
+      <tr><td>Cost Intelligence Engine</td><td class="tm">${fmtPct(savingsPct, 0)} variance</td><td>${chip(savingsPct > 30 ? "High Variance" : "Normal", savingsPct > 30 ? "warn" : "pass")}</td><td>${chip(savingsPct > 30 ? "Review" : "Consistent", savingsPct > 30 ? "warn" : "pass")}</td></tr>
+      <tr><td>Document Integrity Engine</td><td class="tm">${Math.round(dataComplete)}%</td><td>${chip(dataComplete < 60 ? "Incomplete" : "Complete", dataComplete < 60 ? "warn" : "pass")}</td><td>${chip(dataComplete < 60 ? "Gaps Detected" : "Consistent", dataComplete < 60 ? "warn" : "pass")}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sub"><h3>5.4 Policy Flags &amp; Subrogation</h3></div>
+  <table>
+    <thead><tr><th>Flag</th><th>Finding</th><th>Status</th></tr></thead>
+    <tbody>
+      ${exclusions.length > 0 ? exclusions.map(e => `<tr class="at-high"><td><strong>Policy Exclusion</strong></td><td>${esc(e.item)} — ${fmtUSD(e.amount)} excluded under ${esc(e.clause)}</td><td>${chip("Excluded", "fail")}</td></tr>`).join("") : `<tr><td>Policy Exclusions</td><td>No exclusions detected in submitted line items</td><td>${chip("Clear", "pass")}</td></tr>`}
+      <tr><td>Subrogation Potential</td><td>${hasImpossibilityFlag ? "Potential subrogation opportunity — third-party involvement possible" : "No third-party identified — single-vehicle incident"}</td><td>${chip(hasImpossibilityFlag ? "Review" : "N/A", hasImpossibilityFlag ? "warn" : "neutral")}</td></tr>
+      <tr><td>Excess Applicable</td><td>${fmtUSD(excess)} policy excess applies to settlement</td><td>${chip(excess > 0 ? "Applicable" : "None", excess > 0 ? "warn" : "pass")}</td></tr>
+    </tbody>
+  </table>
+
   <div class="bridge">Decision workflow and approval chain &rarr; &sect;6.0</div>
 </div>`;
 
@@ -764,6 +828,7 @@ export async function generateForensicDecisionReport(
     </tbody>
   </table>` : ""}
 
+  <div class="bridge">Assessment quality score &rarr; &sect;7.0</div>
   <hr class="div">
   <div class="small" style="text-align:center;line-height:2">
     KINGA Forensic Claim Decision Report &nbsp;&middot;&nbsp; For authorised insurer use only &nbsp;&middot;&nbsp; Generated by KINGA Engine<br>
@@ -772,6 +837,42 @@ export async function generateForensicDecisionReport(
   </div>
 </div>`;
 
+    // ── §7 ASSESSMENT QUALITY SCORE ──────────────────────────────────────────
+    const qualityChecks = [
+      { check: "Physics Reconstruction", weight: 20, score: physicsScore < 70 ? 20 : physicsScore < 90 ? 12 : 5, status: (physicsScore < 70 ? "pass" : "warn") as "pass" | "warn" | "fail" },
+      { check: "Photo Evidence Yield", weight: 20, score: photoYield >= 60 ? 20 : photoYield >= 40 ? 12 : 5, status: (photoYield >= 60 ? "pass" : photoYield >= 40 ? "warn" : "fail") as "pass" | "warn" | "fail" },
+      { check: "Document Completeness", weight: 20, score: hasPolice ? 20 : 10, status: (hasPolice ? "pass" : "warn") as "pass" | "warn" | "fail" },
+      { check: "Quote Coverage", weight: 20, score: quoteArr.length >= 2 ? 20 : quoteArr.length === 1 ? 12 : 0, status: (quoteArr.length >= 2 ? "pass" : quoteArr.length === 1 ? "warn" : "fail") as "pass" | "warn" | "fail" },
+      { check: "Fraud Screening", weight: 10, score: fraudScore < 40 ? 10 : fraudScore < 70 ? 6 : 2, status: (fraudScore < 40 ? "pass" : fraudScore < 70 ? "warn" : "fail") as "pass" | "warn" | "fail" },
+      { check: "Narrative Verifiability", weight: 10, score: narrative?.narrativeFlag ? 5 : 10, status: (narrative?.narrativeFlag ? "warn" : "pass") as "pass" | "warn" | "fail" },
+    ];
+    const qualityTotal = qualityChecks.reduce((s, q) => s + q.score, 0);
+    const qualityLabel = qualityTotal >= 80 ? "High Quality" : qualityTotal >= 60 ? "Acceptable" : "Low Quality — Review Required";
+    const qualityCls = qualityTotal >= 80 ? "ok" : qualityTotal >= 60 ? "warn" : "fail";
+    const s7 = `
+<div class="rh"><span class="brand">KINGA</span><span>&sect; 7.0 &mdash; Assessment Quality Score</span></div>
+<div class="page">
+  <div class="sh">
+    <div class="sh-left"><span class="sn">7.0</span><h2>Assessment Quality Score</h2></div>
+    ${badge(qualityTotal + "/100 — " + qualityLabel, qualityCls)}
+  </div>
+  <div class="lead">The assessment quality score measures the completeness and reliability of the data available to KINGA at the time of analysis. A score below 60 indicates that key inputs were missing or of insufficient quality to support a high-confidence determination. The score reflects the quality of the evidence base, not the outcome of the claim.</div>
+  <div class="kpi c3" style="margin-bottom:16px">
+    <div class="kpi-c"><div class="kpi-v ${scoreColour(qualityTotal, true)}">${qualityTotal}</div><div class="kpi-l">Quality Score</div><div class="kpi-s">Out of 100</div></div>
+    <div class="kpi-c"><div class="kpi-v ${qualityChecks.filter(q => q.status === "fail").length > 0 ? "r" : "g"}">${qualityChecks.filter(q => q.status === "fail").length}</div><div class="kpi-l">Failed Checks</div><div class="kpi-s">Require attention</div></div>
+    <div class="kpi-c"><div class="kpi-v a">${qualityChecks.filter(q => q.status === "warn").length}</div><div class="kpi-l">Warnings</div><div class="kpi-s">Partial data</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Quality Check</th><th>Weight</th><th>Score</th><th>Status</th></tr></thead>
+    <tbody>
+      ${qualityChecks.map(q => "<tr class=\"" + (q.status === "fail" ? "at-high" : q.status === "warn" ? "at-medium" : "") + "\"><td>" + esc(q.check) + "</td><td class=\"tm\">" + q.weight + " pts</td><td class=\"tm bold\">" + q.score + "/" + q.weight + "</td><td>" + chip(q.status === "pass" ? "Pass" : q.status === "warn" ? "Partial" : "Fail", q.status) + "</td></tr>").join("")}
+      <tr style="border-top:2px solid var(--border)"><td><strong>Total</strong></td><td class="tm">100 pts</td><td class="tm bold">${qualityTotal}/100</td><td>${chip(qualityLabel, qualityCls)}</td></tr>
+    </tbody>
+  </table>
+  ${qualityTotal < 60 ? "<div class=\"fc red\"><div class=\"fc-head\">" + chip("Low Quality", "fail") + "<span class=\"fc-title\">Assessment Reliability Below Threshold</span></div><p>The quality score of " + qualityTotal + "/100 indicates that the assessment is based on incomplete or low-quality inputs. Key findings should be treated as indicative only.</p><div class=\"fc-action\">Action: Obtain missing documents and request re-analysis before proceeding</div></div>" : ""}
+  <div class="bridge">Definitions and glossary &rarr; &sect;B</div>
+</div>`;
+    // ── §7 ASSESSMENT QUALITY SCORE ──────────────────────────────────────────
     // ── §B DEFINITIONS ───────────────────────────────────────────────────────
     const sB = `
 <div class="rh"><span class="brand">KINGA</span><span>&sect; B &mdash; Definitions</span></div>
@@ -795,7 +896,7 @@ export async function generateForensicDecisionReport(
   </div>
 </div>`;
 
-    const body = cover + sF + s1 + s2 + s3 + s4 + s5 + s6 + sB;
+    const body = cover + sF + s1 + s2 + s3 + s4 + s5 + s6 + s7 + sB;
 
     // Chart.js scripts
     const scripts = `

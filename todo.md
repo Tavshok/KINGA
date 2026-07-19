@@ -716,3 +716,12 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] VISION-NORMALISATION: Implemented server/services/visionTermNormaliser.ts — normalises Wing→Fender at all 3 detectedComponents assignment points in Stage 6. 23/23 tests pass. Backfilled enrichedPhotosJson on 14 assessments AND damagedComponentsJson on 13 assessments (13/14 were contaminated — not a small number). Post-backfill: detectedComponents Wing terms=NONE ✅, damagedComponentsJson Wing terms=NONE ✅. Caption field retains old text (not consumed by any UI consumer — confirmed). VOLTRON: 📷×7 for Fender confirmed. Regex safety confirmed: only LH/RH Front Wing appeared in corpus — no Wing Mirror or other compound terms.
 - [x] VISION-NORMALISATION: Full systematic scan completed across all 31 enriched-photo claims and 30+ real quote line items. Only Wing/Fender is a systematic mismatch. All other UK terms (Bonnet, Windscreen, Boot Lid, Sill, Tyre) also appear in real submitted documents and require no change.
 - [ ] COVERAGE-AUDIT: "Zones Covered: 1" in Section 4.1 audit table for VOLTRON is correct but may confuse adjusters. Consider adding "(pre-zone-tagging)" note when zone count = 1 and enrichedPhotosJson exists.
+
+---
+
+## Report Realignment — July 2026 (Active)
+
+- [ ] Rewrite forensicDecisionReport.ts to match original PDF section order exactly (cover → decision page → vehicle/policy → incident facts → physics → damage zone → cost summary → repair analysis → fraud → quality → definitions)
+- [ ] Update Claims Processor queue dropdown (ClaimsProcessorDashboard.tsx) to use the new report generators
+- [ ] Re-test both reports against LIVE-RUN-VOLTRON-001 after forensic realignment
+- [ ] Update kinga-reports.test.ts to reflect the corrected forensic section structure
