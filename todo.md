@@ -732,4 +732,10 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] CONCERN 2: Forensic report redesign — URL parser bug fixed in InsurerComparisonView.tsx (line 215: ?report=intelligence was falling through to 'standard'). ReportChooser.tsx updated to 3 cards.
 - [x] CONCERN 3: Intelligence report wiring — All 4 dropdown instances in ClaimsProcessorDashboard.tsx confirmed with 3 reports. ReportChooser.tsx updated to 3-card layout. InsurerComparisonView.tsx: intelligence render block added, URL parser fixed, print label updated. ClaimsManagerReportsCentre already had intelligence via KingaReportButton. pipeline_runs schema column name fixed (pipeline_run_status → status).
 - [x] Fix any gaps discovered during the audit — all gaps fixed
-- [ ] Run full test suite and save checkpoint
+- [x] Run full test suite and save checkpoint
+
+## ForensicAuditReport Browser View — v7 Redesign (Jul 2026)
+
+- [x] Fix: Add triggerAiAssessment() to upload-documents.ts so new claims auto-start pipeline
+- [x] Rewrite ForensicAuditReport.tsx to match v7 design — replaced 9,554-line React renderer with 100-line server-rendered iframe component using previewHtml tRPC procedure. Browser view and PDF now identical.
+- [x] Verify redesigned component renders correctly — tested against claim 7410001 (COR 6002812): HTML length 71,454 chars, all 8 sections present (§F, §1.0–§7.0, §B)

@@ -259,6 +259,31 @@ uploadDocumentsRouter.post(
         .filter((d) => d.status === "uploaded" && (d as any).kinga_ref)
         .map((d) => (d as any).kinga_ref as string);
 
+      // Trigger KINGA AI pipeline for each successfully created claim.
+      // This is fire-and-forget (setImmediate) — it must not block the HTTP response
+      // and must not propagate errors back to the client.
+      const successfulClaimIds = uploadedDocs
+        .filter((d) => d.status === "uploaded" && d.claim_id)
+        .map((d) => d.claim_id as number);
+
+      if (successfulClaimIds.length > 0) {
+        setImmediate(async () => {
+          try {
+            const { triggerAiAssessment } = await import("./db");
+            for (const claimId of successfulClaimIds) {
+              try {
+                console.log(`[MultipartUpload] Triggering KINGA pipeline for claim ${claimId}`);
+                await triggerAiAssessment(claimId);
+              } catch (pipelineErr: any) {
+                console.error(`[MultipartUpload] Pipeline trigger failed for claim ${claimId}:`, pipelineErr.message);
+              }
+            }
+          } catch (importErr: any) {
+            console.error("[MultipartUpload] Failed to import triggerAiAssessment:", importErr.message);
+          }
+        });
+      }
+
       return res.status(200).json({
         batch_id: batchUuid,
         batch_db_id: batchDbId,
