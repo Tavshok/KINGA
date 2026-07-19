@@ -167,13 +167,13 @@
 - [x] analytics.getExecutiveAlerts procedure + Executive Alerts Centre component
 - [x] analytics.getMonthComparison procedure + Month Comparison Strip component (real data)
 - [x] analytics.getClaimsAgeing procedure + Claims Ageing Panel component
-- [ ] analytics.getEscalationCounts procedure + Escalations Dashboard component
+- [x] analytics.getEscalationCounts procedure + Escalations Dashboard component
 - [x] analytics.getFraudInvestigationFunnel procedure + Investigation Funnel component
-- [ ] crossClaim.getTopEntities procedure + Cross-Claim Intelligence panel
-- [ ] analytics.getSettlementTrend procedure + Settlement Trend chart
-- [ ] governance.getExceptionsRegister procedure + Governance Exceptions Register
+- [x] crossClaim.getTopEntities procedure + Cross-Claim Intelligence panel
+- [x] analytics.getSettlementTrend procedure + Settlement Trend chart
+- [x] governance.getExceptionsRegister procedure + Governance Exceptions Register
 - [x] Add Leakage tile to Financial Overview
-- [ ] Wire Recovery Dashboard to recovery.getKPIs + recovery.getCases
+- [x] Wire Recovery Dashboard to recovery.getKPIs + recovery.getCases (already wired in RecoveryPortal.tsx)
 
 ### Phase 4: Executive Report
 - [x] executive.full_report added to REPORT_ACCESS + switch statement in reportDefinitions.ts

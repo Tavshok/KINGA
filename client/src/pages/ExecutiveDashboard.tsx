@@ -41,6 +41,10 @@ import { ExecutiveEscalationQueue } from "@/components/executive/ExecutiveEscala
 import { ExecutiveReportTab } from "@/components/executive/ExecutiveReportTab";
 import { ClaimsAgeingPanel } from "@/components/executive/ClaimsAgeingPanel";
 import { FraudInvestigationFunnel } from "@/components/executive/FraudInvestigationFunnel";
+import { EscalationsDashboard } from "@/components/executive/EscalationsDashboard";
+import { SettlementTrendChart } from "@/components/executive/SettlementTrendChart";
+import { GovernanceExceptionsRegister } from "@/components/executive/GovernanceExceptionsRegister";
+import { CrossClaimIntelligencePanel } from "@/components/executive/CrossClaimIntelligencePanel";
 import {
   DEMO_EXEC_SUMMARY,
   DEMO_KPI_SUMMARY,
@@ -208,8 +212,10 @@ export default function ExecutiveDashboard() {
     financials: "roi-breakdown",
     "roi-breakdown": "roi-breakdown",
     "operational-health": "operational-health",
+    escalations: "escalations",
     notifications: "notifications",
     overview: "overview",
+    reports: "reports",
   };
   const [activeTab, setActiveTab] = useState(() => {
     const param = new URLSearchParams(searchStr).get("tab") ?? "overview";
@@ -481,6 +487,7 @@ export default function ExecutiveDashboard() {
         {([
           { value: 'overview', label: 'Overview' },
           { value: 'operational-health', label: 'Operational Health' },
+          { value: 'escalations', label: 'Escalations' },
           { value: 'roi-breakdown', label: 'ROI & Financials' },
           { value: 'notifications', label: 'Notifications', badge: true },
           { value: 'reports', label: 'Executive Report' },
@@ -525,6 +532,7 @@ export default function ExecutiveDashboard() {
             {([
               { value: 'overview', label: 'Overview' },
               { value: 'operational-health', label: 'Operational Health' },
+              { value: 'escalations', label: 'Escalations' },
               { value: 'roi-breakdown', label: 'ROI & Financials' },
               { value: 'notifications', label: 'Notifications', badge: true },
                 { value: 'reports', label: 'Executive Report' },
@@ -1221,6 +1229,53 @@ export default function ExecutiveDashboard() {
             </Card>
           </TabsContent>
         
+          {/* ── Escalations Tab ─────────────────────────────────────── */}
+          <TabsContent value="escalations" className="mt-6 space-y-6">
+            {/* Escalations KPI + Category breakdown */}
+            <div style={{ background: '#FFFFFF', border: '1px solid #E7E2D6', borderRadius: '10px', overflow: 'hidden' }}>
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid #E7E2D6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#15201A' }}>Escalations Dashboard</span>
+                <span style={{ fontSize: '11px', color: '#6B7280' }}>All active claims</span>
+              </div>
+              <div style={{ padding: '16px' }}>
+                <EscalationsDashboard />
+              </div>
+            </div>
+
+            {/* Settlement Trend */}
+            <div style={{ background: '#FFFFFF', border: '1px solid #E7E2D6', borderRadius: '10px', overflow: 'hidden' }}>
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid #E7E2D6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#15201A' }}>Settlement Trend</span>
+                <span style={{ fontSize: '11px', color: '#6B7280' }}>Completed claims only</span>
+              </div>
+              <div style={{ padding: '16px' }}>
+                <SettlementTrendChart />
+              </div>
+            </div>
+
+            {/* Cross-Claim Intelligence */}
+            <div style={{ background: '#FFFFFF', border: '1px solid #E7E2D6', borderRadius: '10px', overflow: 'hidden' }}>
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid #E7E2D6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#15201A' }}>Cross-Claim Intelligence</span>
+                <span style={{ fontSize: '11px', color: '#6B7280' }}>Top entities by signal frequency</span>
+              </div>
+              <div style={{ padding: '16px' }}>
+                <CrossClaimIntelligencePanel />
+              </div>
+            </div>
+
+            {/* Governance Exceptions Register */}
+            <div style={{ background: '#FFFFFF', border: '1px solid #E7E2D6', borderRadius: '10px', overflow: 'hidden' }}>
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid #E7E2D6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#15201A' }}>Governance Exceptions Register</span>
+                <span style={{ fontSize: '11px', color: '#6B7280' }}>Overrides &amp; segregation violations</span>
+              </div>
+              <div style={{ padding: '16px' }}>
+                <GovernanceExceptionsRegister />
+              </div>
+            </div>
+          </TabsContent>
+
           {/* ── Notifications Tab ─────────────────────────────────────── */}
           <TabsContent value="notifications" className="mt-6">
             <NotificationsInbox />

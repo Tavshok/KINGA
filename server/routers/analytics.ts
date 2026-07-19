@@ -1219,6 +1219,126 @@ export const analyticsRouter = router({
     }),
 
   /**
+   * Get Escalation Counts
+   * Returns escalation counts by type and severity for the Escalations Dashboard.
+   */
+  getEscalationCounts: analyticsRoleProcedure
+    .input(z.object({
+      startDate: z.date().optional(),
+      endDate: z.date().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const tenantId = ctx.user.tenantId;
+        const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const startDate = input.startDate ?? thirtyDaysAgo;
+        const endDate = input.endDate ?? now;
+
+        const result = await db.execute(sql`
+          SELECT
+            SUM(CASE WHEN c.workflow_state = 'disputed' THEN 1 ELSE 0 END) as disputed_count,
+            SUM(CASE WHEN ai.fraud_risk_level = 'high' AND c.status NOT IN ('completed','rejected','cancelled') THEN 1 ELSE 0 END) as fraud_escalations,
+            SUM(CASE WHEN ai.estimated_cost > 1000000 AND c.workflow_state IN ('technical_approval','financial_decision') THEN 1 ELSE 0 END) as high_value_pending,
+            SUM(CASE WHEN TIMESTAMPDIFF(DAY, c.created_at, NOW()) > 30 AND c.status NOT IN ('completed','rejected','cancelled') THEN 1 ELSE 0 END) as aged_claims,
+            SUM(CASE WHEN c.created_at >= ${startDate.toISOString()} AND c.created_at <= ${endDate.toISOString()} AND c.workflow_state = 'disputed' THEN 1 ELSE 0 END) as disputed_period,
+            SUM(CASE WHEN c.created_at >= ${startDate.toISOString()} AND c.created_at <= ${endDate.toISOString()} AND ai.fraud_risk_level = 'high' THEN 1 ELSE 0 END) as fraud_period,
+            COUNT(DISTINCT c.id) as total_active
+          FROM claims c
+          LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
+          WHERE ${sql.raw(tf)}
+        `);
+
+        const _rows = (result as any)[0];
+        const row = (Array.isArray(_rows) ? _rows[0] : _rows) as any;
+
+        return {
+          summary: {
+            disputed: safeNumber(row?.disputed_count, 0),
+            fraudEscalations: safeNumber(row?.fraud_escalations, 0),
+            highValuePending: safeNumber(row?.high_value_pending, 0),
+            agedClaims: safeNumber(row?.aged_claims, 0),
+            totalActive: safeNumber(row?.total_active, 0),
+          },
+          period: {
+            disputed: safeNumber(row?.disputed_period, 0),
+            fraud: safeNumber(row?.fraud_period, 0),
+          },
+          categories: [
+            { label: 'Disputed Claims', count: safeNumber(row?.disputed_count, 0), severity: 'high' as const, color: '#EF4444' },
+            { label: 'Fraud Escalations', count: safeNumber(row?.fraud_escalations, 0), severity: 'critical' as const, color: '#7C3AED' },
+            { label: 'High-Value Pending', count: safeNumber(row?.high_value_pending, 0), severity: 'medium' as const, color: '#F59E0B' },
+            { label: 'Aged Claims (30d+)', count: safeNumber(row?.aged_claims, 0), severity: 'medium' as const, color: '#6B7280' },
+          ],
+        };
+      } catch (error) {
+        console.error('[Analytics] getEscalationCounts error:', error);
+        return { summary: { disputed: 0, fraudEscalations: 0, highValuePending: 0, agedClaims: 0, totalActive: 0 }, period: { disputed: 0, fraud: 0 }, categories: [] };
+      }
+    }),
+
+  /**
+   * Get Settlement Trend
+   * Returns monthly settlement amounts and counts for the Settlement Trend chart.
+   */
+  getSettlementTrend: analyticsRoleProcedure
+    .input(z.object({
+      months: z.number().min(3).max(24).default(12),
+    }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+        const tenantId = ctx.user.tenantId;
+        const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
+        const monthsBack = input.months;
+
+        const result = await db.execute(sql`
+          SELECT
+            DATE_FORMAT(c.closed_at, '%Y-%m') as month,
+            COUNT(DISTINCT c.id) as settled_count,
+            SUM(COALESCE(c.final_approved_amount, 0)) as settled_amount_cents,
+            AVG(COALESCE(c.final_approved_amount, 0)) as avg_settlement_cents,
+            SUM(CASE WHEN ai.fraud_risk_level = 'high' THEN 1 ELSE 0 END) as fraud_count,
+            AVG(CASE
+              WHEN c.final_approved_amount IS NOT NULL AND ai.estimated_cost IS NOT NULL AND ai.estimated_cost > 0
+              THEN (c.final_approved_amount / ai.estimated_cost) * 100
+              ELSE NULL
+            END) as avg_settlement_ratio
+          FROM claims c
+          LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
+          WHERE ${sql.raw(tf)}
+            AND c.status = 'completed'
+            AND c.closed_at IS NOT NULL
+            AND c.closed_at >= DATE_SUB(NOW(), INTERVAL ${sql.raw(String(monthsBack))} MONTH)
+          GROUP BY DATE_FORMAT(c.closed_at, '%Y-%m')
+          ORDER BY month ASC
+        `);
+
+        const _rows = (result as any)[0];
+        const rows = (Array.isArray(_rows) ? _rows : [_rows]) as any[];
+
+        const trend = rows.filter(r => r?.month).map(r => ({
+          month: String(r.month),
+          settledCount: safeNumber(r.settled_count, 0),
+          settledAmount: Math.round(safeNumber(r.settled_amount_cents, 0) / 100),
+          avgSettlement: Math.round(safeNumber(r.avg_settlement_cents, 0) / 100),
+          fraudCount: safeNumber(r.fraud_count, 0),
+          avgSettlementRatio: r.avg_settlement_ratio != null ? Math.round(safeNumber(r.avg_settlement_ratio, 0) * 10) / 10 : null,
+        }));
+
+        return { trend };
+      } catch (error) {
+        console.error('[Analytics] getSettlementTrend error:', error);
+        return { trend: [] };
+      }
+    }),
+
+  /**
    * Get Fraud Investigation Funnel
    * Returns the funnel from flagged → investigated → confirmed → prevented.
    */

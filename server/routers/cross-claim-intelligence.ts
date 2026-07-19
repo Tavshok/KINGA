@@ -185,6 +185,109 @@ export const crossClaimIntelligenceRouter = router({
     }),
 
   /**
+   * Get Top Entities — returns the most frequently appearing entities (vehicles, drivers, repairers)
+   * across cross-claim signals. Used by the Cross-Claim Intelligence panel.
+   */
+  getTopEntities: protectedProcedure
+    .input(z.object({
+      tenantId: z.string().optional(),
+      limit: z.number().min(1).max(50).default(10),
+      entityType: z.enum(['vehicle', 'driver', 'repairer', 'all']).default('all'),
+    }))
+    .query(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) return { vehicles: [], drivers: [], repairers: [], summary: { totalSignals: 0, highConfidence: 0, dismissed: 0 } };
+
+      const tenantId = input.tenantId ?? ctx.user.tenantId ?? null;
+      const tf = tenantId ? `ccs.tenant_id = '${tenantId}'` : '1=1';
+
+      // Summary stats
+      const summaryResult = await db.execute(sql`
+        SELECT
+          COUNT(*) as total_signals,
+          SUM(CASE WHEN ccs.confidence = 'high' THEN 1 ELSE 0 END) as high_confidence,
+          SUM(CASE WHEN ccs.is_dismissed = 1 THEN 1 ELSE 0 END) as dismissed
+        FROM cross_claim_signals ccs
+        WHERE ${sql.raw(tf)}
+      `);
+      const _sumRows = (summaryResult as any)[0];
+      const sumRow = (Array.isArray(_sumRows) ? _sumRows[0] : _sumRows) as any;
+
+      // Top vehicles by signal count
+      const vehicleRows = (input.entityType === 'all' || input.entityType === 'vehicle') ? await db.execute(sql`
+        SELECT
+          c.vehicle_registration as entity_value,
+          c.vehicle_make,
+          c.vehicle_model,
+          COUNT(DISTINCT ccs.id) as signal_count,
+          COUNT(DISTINCT ccs.claim_id) as claim_count,
+          MAX(ccs.score_contribution) as max_score,
+          SUM(CASE WHEN ccs.confidence = 'high' THEN 1 ELSE 0 END) as high_conf_count
+        FROM cross_claim_signals ccs
+        INNER JOIN claims c ON ccs.claim_id = c.id
+        WHERE ${sql.raw(tf)} AND ccs.is_dismissed = 0 AND c.vehicle_registration IS NOT NULL
+        GROUP BY c.vehicle_registration, c.vehicle_make, c.vehicle_model
+        ORDER BY signal_count DESC
+        LIMIT ${sql.raw(String(input.limit))}
+      `) : null;
+
+      // Top drivers by signal count
+      const driverRows = (input.entityType === 'all' || input.entityType === 'driver') ? await db.execute(sql`
+        SELECT
+          c.driver_name as entity_value,
+          COUNT(DISTINCT ccs.id) as signal_count,
+          COUNT(DISTINCT ccs.claim_id) as claim_count,
+          MAX(ccs.score_contribution) as max_score,
+          SUM(CASE WHEN ccs.confidence = 'high' THEN 1 ELSE 0 END) as high_conf_count
+        FROM cross_claim_signals ccs
+        INNER JOIN claims c ON ccs.claim_id = c.id
+        WHERE ${sql.raw(tf)} AND ccs.is_dismissed = 0 AND c.driver_name IS NOT NULL
+        GROUP BY c.driver_name
+        ORDER BY signal_count DESC
+        LIMIT ${sql.raw(String(input.limit))}
+      `) : null;
+
+      const parseRows = (result: any) => {
+        if (!result) return [];
+        const _rows = (result as any)[0];
+        return (Array.isArray(_rows) ? _rows : []) as any[];
+      };
+
+      const vehicles = parseRows(vehicleRows).map((r: any) => ({
+        entityValue: String(r.entity_value ?? ''),
+        make: r.vehicle_make ?? null,
+        model: r.vehicle_model ?? null,
+        signalCount: Number(r.signal_count ?? 0),
+        claimCount: Number(r.claim_count ?? 0),
+        maxScore: Number(r.max_score ?? 0),
+        highConfCount: Number(r.high_conf_count ?? 0),
+        type: 'vehicle' as const,
+      }));
+
+      const drivers = parseRows(driverRows).map((r: any) => ({
+        entityValue: String(r.entity_value ?? ''),
+        make: null,
+        model: null,
+        signalCount: Number(r.signal_count ?? 0),
+        claimCount: Number(r.claim_count ?? 0),
+        maxScore: Number(r.max_score ?? 0),
+        highConfCount: Number(r.high_conf_count ?? 0),
+        type: 'driver' as const,
+      }));
+
+      return {
+        vehicles,
+        drivers,
+        repairers: [],
+        summary: {
+          totalSignals: Number(sumRow?.total_signals ?? 0),
+          highConfidence: Number(sumRow?.high_confidence ?? 0),
+          dismissed: Number(sumRow?.dismissed ?? 0),
+        },
+      };
+    }),
+
+  /**
    * Manually trigger the cross-claim intelligence engine for a specific claim.
    * Useful for re-running after new data is available or for testing.
    */

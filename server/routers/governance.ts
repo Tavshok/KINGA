@@ -407,6 +407,91 @@ export const governanceRouter = router({
     return Object.entries(buckets).map(([name, value]) => ({ name, value }));
   }),
 
+  /**
+   * Get Exceptions Register
+   * Returns a list of governance exceptions (overrides, violations, escalations) for the Exceptions Register.
+   */
+  getExceptionsRegister: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(25),
+      offset: z.number().default(0),
+      type: z.enum(['all', 'override', 'segregation', 'escalation']).default('all'),
+    }))
+    .query(async ({ ctx, input }) => {
+      if (!ctx.user?.tenantId) return { exceptions: [], total: 0 };
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+      const tenantId = ctx.user.tenantId;
+
+      // Overrides from workflow audit trail
+      const overrides = await db
+        .select({
+          id: workflowAuditTrail.id,
+          claimId: workflowAuditTrail.claimId,
+          type: sql<string>`'override'`,
+          description: sql<string>`CONCAT('Executive override: ', COALESCE(${workflowAuditTrail.previousState},'?'), ' → ', COALESCE(${workflowAuditTrail.newState},'?'))`,
+          reason: workflowAuditTrail.overrideReason,
+          userId: workflowAuditTrail.userId,
+          createdAt: workflowAuditTrail.createdAt,
+          severity: sql<string>`'medium'`,
+        })
+        .from(workflowAuditTrail)
+        .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
+        .where(
+          and(
+            eq(claims.tenantId, tenantId),
+            eq(workflowAuditTrail.executiveOverride, 1)
+          )
+        )
+        .orderBy(sql`${workflowAuditTrail.createdAt} DESC`)
+        .limit(input.type === 'all' || input.type === 'override' ? 50 : 0);
+
+      // Segregation violations from involvement tracking
+      const segregationRows = await db.execute(sql`
+        SELECT
+          cit.user_id,
+          cit.claim_id,
+          COUNT(DISTINCT cit.workflow_stage) as stage_count,
+          MAX(cit.created_at) as last_seen
+        FROM claim_involvement_tracking cit
+        INNER JOIN claims c ON cit.claim_id = c.id
+        WHERE c.tenant_id = ${tenantId}
+        GROUP BY cit.user_id, cit.claim_id
+        HAVING COUNT(DISTINCT cit.workflow_stage) > 1
+        ORDER BY last_seen DESC
+        LIMIT 50
+      `);
+      const _segRows = (segregationRows as any)[0];
+      const segRows = (Array.isArray(_segRows) ? _segRows : []) as any[];
+
+      const segregationExceptions = segRows.map((r: any) => ({
+        id: `seg-${r.user_id}-${r.claim_id}`,
+        claimId: r.claim_id,
+        type: 'segregation' as const,
+        description: `User involved in ${r.stage_count} workflow stages on same claim`,
+        reason: null,
+        userId: r.user_id,
+        createdAt: r.last_seen,
+        severity: 'high' as const,
+      }));
+
+      // Combine and sort
+      const allExceptions = [
+        ...(input.type === 'all' || input.type === 'override' ? overrides.map(o => ({ ...o, type: 'override' as const, severity: 'medium' as const })) : []),
+        ...(input.type === 'all' || input.type === 'segregation' ? segregationExceptions : []),
+      ].sort((a, b) => {
+        const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bDate - aDate;
+      });
+
+      const total = allExceptions.length;
+      const paginated = allExceptions.slice(input.offset, input.offset + input.limit);
+
+      return { exceptions: paginated, total };
+    }),
+
   /** Override history — paginated list of executive overrides with claim context */
   getOverrideHistory: protectedProcedure
     .input(z.object({ limit: z.number().default(10), offset: z.number().default(0) }))
