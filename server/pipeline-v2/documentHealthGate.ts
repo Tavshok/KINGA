@@ -340,14 +340,19 @@ function evaluateContract(input: DocumentHealthGateInput): EvidenceCompletenessC
   const requiredChecks: Array<{ label: string; value: string | null | undefined | number }> = [
     { label: 'Claim document exists', value: input.sourceDocumentFound ? 'yes' : null },
     { label: 'Claim number', value: claimRecord.claimNumber },
-    { label: 'Vehicle make', value: claimRecord.vehicleMake },
-    { label: 'Vehicle model', value: claimRecord.vehicleModel },
-    // For document-ingested claims these fields are extracted BY the pipeline — skip pre-check
+    // For document-ingested claims, vehicleMake/vehicleModel/incidentDate/incidentDescription
+    // are pipeline OUTPUTS extracted by the LLM from the PDF. They must NOT be required as
+    // pre-conditions before the pipeline runs — only form-submitted claims have these pre-populated.
     ...(input.isDocumentIngested ? [] : [
+      { label: 'Vehicle make', value: claimRecord.vehicleMake },
+      { label: 'Vehicle model', value: claimRecord.vehicleModel },
       { label: 'Incident date', value: claimRecord.incidentDate },
       { label: 'Incident description', value: claimRecord.incidentDescription },
     ] as Array<{ label: string; value: string | null | undefined | number }>),
-    { label: 'Minimum evidence images available', value: input.vehicleDamageImageCount > 0 ? 'yes' : null },
+    // NOTE: vehicleDamageImageCount is NOT a required pre-condition.
+    // Semantic classification (Stage 2.6B) runs AFTER this gate, so vehicleDamageImageCount
+    // is always 0 at gate time for document-ingested claims. We only require that pages were
+    // rendered (pagesRendered > 0) — the gate already checks this via the Page Rendering dimension.
     { label: 'Document integrity verified', value: input.pdfSizeBytes > 0 ? 'yes' : null },
   ];
 
@@ -393,10 +398,7 @@ function evaluateContract(input: DocumentHealthGateInput): EvidenceCompletenessC
   let blockReason = `Missing required evidence: ${missing.join(', ')}`;
   let recommendedAction = 'Upload a complete claim document with vehicle details and damage photographs.';
 
-  if (missing.includes('Minimum evidence images available')) {
-    blockReason = 'Vehicle damage evidence unavailable — no damage photographs could be extracted from the submitted document.';
-    recommendedAction = 'Upload clear photographs of the vehicle damage. Photographs should be taken from multiple angles, including close-up views of all damaged areas.';
-  } else if (missing.includes('Claim document exists')) {
+  if (missing.includes('Claim document exists')) {
     blockReason = 'No claim document found — the source document could not be located in the system.';
     recommendedAction = 'Re-upload the claim document. If the problem persists, contact the system administrator.';
   } else if (missing.includes('Document integrity verified')) {
@@ -434,17 +436,46 @@ function detectFailureModes(input: DocumentHealthGateInput): string[] {
 
 /**
  * Compute the routing decision from the overall score and critical failures.
+ *
+ * DESIGN CHANGE: The gate is now advisory-only for document-ingested claims.
+ * The gate records quality issues as warnings but NEVER blocks the pipeline
+ * when a PDF was found and pages were successfully rendered.
+ *
+ * Hard-block conditions (apply to ALL claims):
+ *   1. No source document found (F1) — nothing to analyse
+ *   2. PDF rendered 0 pages AND pdfSizeBytes=0 — file is empty/corrupt
+ *
+ * All other issues (low score, missing text, non-vehicle images, contract
+ * violations on pipeline-output fields) produce PROCEED_WITH_WARNING so the
+ * pipeline runs and flags the issues in the forensic report.
  */
 function computeDecision(
   overallScore: number,
   hasCriticalFailure: boolean,
-  contractStatus: ContractStatus
+  contractStatus: ContractStatus,
+  input?: DocumentHealthGateInput
 ): IngestionDecision {
-  // Contract violation always blocks
+  // Hard-block 1: No source document at all — nothing to analyse
+  if (input && !input.sourceDocumentFound) {
+    return 'BLOCK_ASSESSMENT';
+  }
+  // Hard-block 2: Empty/corrupt file (0 bytes AND 0 pages rendered)
+  if (input && input.pdfSizeBytes === 0 && input.pagesRendered === 0) {
+    return 'BLOCK_ASSESSMENT';
+  }
+  // For document-ingested claims with rendered pages: always proceed, downgrade blocking to warning
+  if (input?.isDocumentIngested && input.pagesRendered > 0) {
+    if (overallScore >= SCORE_THRESHOLDS.PROCEED_AUTOMATICALLY) {
+      return 'PROCEED_AUTOMATICALLY';
+    }
+    // Downgrade REQUIRE_REVIEW and BLOCK_ASSESSMENT to PROCEED_WITH_WARNING
+    // The gate records the issues; the pipeline runs and flags them in the report
+    return 'PROCEED_WITH_WARNING';
+  }
+  // For form-submitted claims: use the original strict routing
   if (contractStatus === 'NOT_READY_FOR_ANALYSIS') {
     return 'BLOCK_ASSESSMENT';
   }
-  // Any critical dimension at 0 blocks regardless of overall score
   if (hasCriticalFailure) {
     return 'BLOCK_ASSESSMENT';
   }
@@ -551,7 +582,7 @@ export function runDocumentHealthGate(input: DocumentHealthGateInput): DocumentH
   const criticalFailures = dims.filter(d => d.isCritical && d.score === 0).map(d => d.name);
   const hasCriticalFailure = criticalFailures.length > 0;
 
-  const decision = computeDecision(overallScore, hasCriticalFailure, contract.status);
+  const decision = computeDecision(overallScore, hasCriticalFailure, contract.status, input);
   const mayProceed = decision === 'PROCEED_AUTOMATICALLY' || decision === 'PROCEED_WITH_WARNING';
 
   const summary = buildSummary(overallScore, decision, dims, failureModes, contract);

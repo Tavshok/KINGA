@@ -2953,10 +2953,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         } else if (currentStatus === "assessment_in_progress" || currentStatus === "assessment_complete") {
           // Already in progress or complete — just re-run the assessment
         } else if (
-          currentStatus === "ai_assessment_completed" ||
-          currentStatus === "technical_approval" ||
-          currentStatus === "internal_review" ||
-          currentStatus === "financial_decision"
+          (currentStatus as string) === "ai_assessment_completed" ||
+          (currentStatus as string) === "technical_approval" ||
+          (currentStatus as string) === "internal_review" ||
+          (currentStatus as string) === "financial_decision"
         ) {
           // Re-run from post-assessment states: transition back to assessment_in_progress
           // WORKFLOW_TRANSITIONS now allows under_assessment from these states

@@ -120,7 +120,8 @@ export async function generateForensicDecisionReport(
     const excess = Number(c.policy_excess ?? c.deductible ?? 0);
     const recommendedSettlement = Math.max(0, kingaOptimised - totalExclusions - excess);
 
-    const fraudBadgeCls = fraudScore >= 70 ? "fail" : fraudScore >= 40 ? "warn" : "ok";
+    const fraudBadgeCls = fraudScore >= 70 ? "fail" : fraudScore >= 40 ? "warn" : "pass"; // chip-compatible (pass/warn/fail)
+    const fraudBadgeClsBadge = fraudScore >= 70 ? "fail" : fraudScore >= 40 ? "warn" : "ok"; // badge-compatible (ok/warn/fail/info)
     const fraudBadgeLabel = fraudScore >= 70 ? "High Risk" : fraudScore >= 40 ? "Moderate Risk" : "Low Risk";
 
     const dataComplete = Number(ife?.overallScore ?? ife?.documentCompleteness ?? 75);
@@ -673,7 +674,7 @@ export async function generateForensicDecisionReport(
 <div class="page">
   <div class="sh">
     <div class="sh-left"><span class="sn">5.0</span><h2>Fraud Intelligence</h2></div>
-    ${badge(`${fraudScore}/100 — ${fraudBadgeLabel}`, fraudBadgeCls)}
+    ${badge(`${fraudScore}/100 — ${fraudBadgeLabel}`, fraudBadgeClsBadge)}
   </div>
 
   <div class="lead">Automated fraud screening returned a <strong>${fraudBadgeLabel.toLowerCase()} score of ${fraudScore}/100</strong>${hasImpossibilityFlag ? `, adjusted to <strong>${fraudScoreAdjusted}/100</strong> following the impossibility flag I2` : ""}. ${fraudScore < 40 ? "No significant fraud indicators were triggered. The score does not warrant escalation." : `The score warrants ${fraudScore >= 70 ? "immediate escalation to the risk team" : "adjuster review before settlement"}. The primary contributing factors are detailed below.`}</div>
@@ -848,13 +849,14 @@ export async function generateForensicDecisionReport(
     ];
     const qualityTotal = qualityChecks.reduce((s, q) => s + q.score, 0);
     const qualityLabel = qualityTotal >= 80 ? "High Quality" : qualityTotal >= 60 ? "Acceptable" : "Low Quality — Review Required";
-    const qualityCls = qualityTotal >= 80 ? "ok" : qualityTotal >= 60 ? "warn" : "fail";
+    const qualityCls = qualityTotal >= 80 ? "pass" : qualityTotal >= 60 ? "warn" : "fail"; // chip-compatible (pass/warn/fail)
+    const qualityClsBadge = qualityTotal >= 80 ? "ok" : qualityTotal >= 60 ? "warn" : "fail"; // badge-compatible (ok/warn/fail/info)
     const s7 = `
 <div class="rh"><span class="brand">KINGA</span><span>&sect; 7.0 &mdash; Assessment Quality Score</span></div>
 <div class="page">
   <div class="sh">
     <div class="sh-left"><span class="sn">7.0</span><h2>Assessment Quality Score</h2></div>
-    ${badge(qualityTotal + "/100 — " + qualityLabel, qualityCls)}
+    ${badge(qualityTotal + "/100 — " + qualityLabel, qualityClsBadge)}
   </div>
   <div class="lead">The assessment quality score measures the completeness and reliability of the data available to KINGA at the time of analysis. A score below 60 indicates that key inputs were missing or of insufficient quality to support a high-confidence determination. The score reflects the quality of the evidence base, not the outcome of the claim.</div>
   <div class="kpi c3" style="margin-bottom:16px">
@@ -866,7 +868,7 @@ export async function generateForensicDecisionReport(
     <thead><tr><th>Quality Check</th><th>Weight</th><th>Score</th><th>Status</th></tr></thead>
     <tbody>
       ${qualityChecks.map(q => "<tr class=\"" + (q.status === "fail" ? "at-high" : q.status === "warn" ? "at-medium" : "") + "\"><td>" + esc(q.check) + "</td><td class=\"tm\">" + q.weight + " pts</td><td class=\"tm bold\">" + q.score + "/" + q.weight + "</td><td>" + chip(q.status === "pass" ? "Pass" : q.status === "warn" ? "Partial" : "Fail", q.status) + "</td></tr>").join("")}
-      <tr style="border-top:2px solid var(--border)"><td><strong>Total</strong></td><td class="tm">100 pts</td><td class="tm bold">${qualityTotal}/100</td><td>${chip(qualityLabel, qualityCls)}</td></tr>
+      <tr style="border-top:2px solid var(--border)"><td><strong>Total</strong></td><td class="tm">100 pts</td><td class="tm bold">${qualityTotal}/100</td><td>${chip(qualityLabel, qualityCls as "pass" | "warn" | "fail")}</td></tr>
     </tbody>
   </table>
   ${qualityTotal < 60 ? "<div class=\"fc red\"><div class=\"fc-head\">" + chip("Low Quality", "fail") + "<span class=\"fc-title\">Assessment Reliability Below Threshold</span></div><p>The quality score of " + qualityTotal + "/100 indicates that the assessment is based on incomplete or low-quality inputs. Key findings should be treated as indicative only.</p><div class=\"fc-action\">Action: Obtain missing documents and request re-analysis before proceeding</div></div>" : ""}

@@ -785,7 +785,11 @@ export async function triggerAiAssessment(claimId: number) {
   // Memory guard: skip extraction only for very large PDFs (>10MB) to prevent OOM.
   const PDF_EXTRACTION_SIZE_LIMIT_BYTES = 10 * 1024 * 1024; // 10MB
 
-  if (pdfUrl && damagePhotos.length === 0) {
+  // ALWAYS re-render the PDF on every pipeline run — do NOT skip because cached photos exist.
+  // Cached photos from a previous failed run are stale and should not prevent fresh extraction.
+  // Skipping PDF extraction also skips Stage 3 (LLM PDF text extraction), producing empty assessments.
+  // The cache_rehydration path is now only used as a fallback when pdftoppm itself fails.
+  if (pdfUrl) {
     const _photoIngestionStart = Date.now();
     let _totalExtracted = 0;
     // _extractionError, _qualitySummary, _isScannedPdf, _pdfBuffer are hoisted to outer scope (DRA Phase 3/4)

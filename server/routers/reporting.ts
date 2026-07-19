@@ -18,15 +18,18 @@ async function getConn() { return mysql.createConnection(DB_URL); }
 // ─── Permission Check ───────────────────────────────────────────────────────
 // For insurer users, access is determined by insurerRole (sub-role).
 // For admin / platform users, access is determined by the top-level role.
-// NOTE: admin users are NOT given blanket access — they only see Platform Admin
-// reports. Use insurerRole='insurer_admin' for insurer-level admin access.
+// NOTE: Tier/subscription system not yet implemented — all insurer roles have
+// access to all claim-level reports. Access is role-based only.
+// insurerRole takes precedence over top-level role so that admin accounts
+// with an insurer sub-role (e.g. the platform owner) can access insurer reports.
 export function canAccessReport(reportKey: string, userRole: string, insurerRole?: string | null): boolean {
   const allowed = REPORT_ACCESS[reportKey];
   if (!allowed) return false;
-  // Platform admins see only platform-admin-scoped reports
-  if (userRole === "admin") return allowed.includes("admin");
-  // Insurer users: check their sub-role (insurerRole takes precedence)
+  // If the user has an insurer sub-role, use it for access checks regardless
+  // of their top-level role (handles admin accounts with insurer sub-roles).
   if (insurerRole) return allowed.includes(insurerRole);
+  // Platform admins without an insurerRole see only platform-admin-scoped reports
+  if (userRole === "admin") return allowed.includes("admin");
   // Non-insurer roles (assessor, panel_beater) use top-level role
   return allowed.includes(userRole);
 }
