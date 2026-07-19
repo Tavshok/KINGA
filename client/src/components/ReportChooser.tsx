@@ -1,18 +1,19 @@
 /**
  * ReportChooser.tsx
  *
- * A prominent two-card selector that makes the two KINGA reports visually
+ * A three-card selector that makes the three KINGA reports visually
  * distinct and clearly communicates their different purposes.
  *
- * - Card 1: KINGA Claims Report  (standard, always accessible)
- * - Card 2: Forensic Audit Report (advanced, tier-lock architecture ready)
+ * - Card 1: KINGA Claims Report       (standard, always accessible)
+ * - Card 2: KINGA Claims Intelligence (intelligence, always accessible)
+ * - Card 3: Forensic Audit Report     (advanced, tier-lock architecture ready)
  *
  * The `tierLocked` prop is wired but NOT enforced yet — pass false for now.
  * When tier gating is implemented, pass true for users below the required plan.
  */
-import { FileText, Shield, ChevronRight, Lock, CheckCircle2 } from "lucide-react";
+import { FileText, Shield, Brain, ChevronRight, Lock, CheckCircle2 } from "lucide-react";
 
-export type ReportView = "standard" | "forensic";
+export type ReportView = "standard" | "intelligence" | "forensic";
 
 interface ReportChooserProps {
   /** Currently active report */
@@ -48,11 +49,52 @@ const CLAIMS_REPORT = {
   bgIdle: "#ffffff",
   textActive: "#ffffff",
   textIdle: "#1a3a5c",
+  gradientActive: "linear-gradient(90deg, #38bdf8, #1a3a5c)",
+  iconActiveColor: "#7dd3fc",
+  bulletActiveColor: "#38bdf8",
+  checkActiveColor: "#7dd3fc",
+  textActiveMuted: "rgba(255,255,255,0.65)",
+  textActiveBullet: "rgba(255,255,255,0.8)",
+  badgeActiveColor: "#bfdbfe",
+  indexActiveColor: "rgba(255,255,255,0.6)",
+};
+
+const INTELLIGENCE_REPORT = {
+  id: "intelligence" as ReportView,
+  index: 2,
+  icon: Brain,
+  label: "KINGA Claims Intelligence",
+  badge: "INTELLIGENCE",
+  badgeBg: "#EDE9FE",
+  badgeColor: "#7C3AED",
+  tagline: "Policy check, cost intelligence & risk indicators",
+  bullets: [
+    "Policy coverage & compliance check",
+    "Cost intelligence & benchmark analysis",
+    "Risk indicators & exception flags",
+    "Decision actions & recommendations",
+  ],
+  accentColor: "#5b21b6",
+  accentLight: "#f5f3ff",
+  borderActive: "#7C3AED",
+  borderIdle: "#d1d5db",
+  bgActive: "#2e1065",
+  bgIdle: "#faf9ff",
+  textActive: "#ede9fe",
+  textIdle: "#5b21b6",
+  gradientActive: "linear-gradient(90deg, #a78bfa, #7C3AED)",
+  iconActiveColor: "#c4b5fd",
+  bulletActiveColor: "#a78bfa",
+  checkActiveColor: "#c4b5fd",
+  textActiveMuted: "rgba(237,233,254,0.65)",
+  textActiveBullet: "rgba(237,233,254,0.8)",
+  badgeActiveColor: "#ddd6fe",
+  indexActiveColor: "rgba(237,233,254,0.6)",
 };
 
 const FORENSIC_REPORT = {
   id: "forensic" as ReportView,
-  index: 2,
+  index: 3,
   icon: Shield,
   label: "Forensic Audit Report",
   badge: "ADVANCED",
@@ -73,10 +115,18 @@ const FORENSIC_REPORT = {
   bgIdle: "#fffbf5",
   textActive: "#fef3c7",
   textIdle: "#78350f",
+  gradientActive: "linear-gradient(90deg, #f59e0b, #92400e)",
+  iconActiveColor: "#fcd34d",
+  bulletActiveColor: "#f59e0b",
+  checkActiveColor: "#fcd34d",
+  textActiveMuted: "rgba(254,243,199,0.65)",
+  textActiveBullet: "rgba(254,243,199,0.8)",
+  badgeActiveColor: "#fde68a",
+  indexActiveColor: "rgba(254,243,199,0.6)",
 };
 
 export function ReportChooser({ active, onSelect, tierLocked = false, claimNumber }: ReportChooserProps) {
-  const reports = [CLAIMS_REPORT, FORENSIC_REPORT];
+  const reports = [CLAIMS_REPORT, INTELLIGENCE_REPORT, FORENSIC_REPORT];
 
   return (
     <div style={{ marginBottom: 24 }}>
@@ -102,18 +152,18 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
           KINGA REPORTS
         </span>
         <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>
-          2 reports generated{claimNumber ? ` for ${claimNumber}` : ''}
+          3 reports generated{claimNumber ? ` for ${claimNumber}` : ''}
         </span>
         <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 4 }}>
           — Select a report to view
         </span>
       </div>
 
-      {/* Two-card grid */}
+      {/* Three-card grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 16,
+        gridTemplateColumns: '1fr 1fr 1fr',
+        gap: 14,
       }}>
         {reports.map((report) => {
           const isActive = active === report.id;
@@ -126,7 +176,7 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
               onClick={() => !isLocked && onSelect(report.id)}
               style={{
                 textAlign: 'left',
-                padding: '20px 22px',
+                padding: '18px 18px',
                 borderRadius: 12,
                 border: isActive
                   ? `2.5px solid ${report.borderActive}`
@@ -151,9 +201,7 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
                   left: 0,
                   right: 0,
                   height: 3,
-                  background: report.id === 'standard'
-                    ? 'linear-gradient(90deg, #38bdf8, #1a3a5c)'
-                    : 'linear-gradient(90deg, #f59e0b, #92400e)',
+                  background: report.gradientActive,
                   borderRadius: '12px 12px 0 0',
                 }} />
               )}
@@ -164,10 +212,10 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
                   fontSize: 9,
                   fontWeight: 700,
                   letterSpacing: '1.5px',
-                  color: isActive ? (report.id === 'standard' ? 'rgba(255,255,255,0.6)' : 'rgba(254,243,199,0.6)') : '#9ca3af',
+                  color: isActive ? report.indexActiveColor : '#9ca3af',
                   textTransform: 'uppercase',
                 }}>
-                  REPORT {report.index} OF 2
+                  REPORT {report.index} OF 3
                 </span>
                 <span style={{
                   fontSize: 9,
@@ -177,7 +225,7 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
                   padding: '2px 7px',
                   borderRadius: 4,
                   background: isActive ? 'rgba(255,255,255,0.15)' : report.badgeBg,
-                  color: isActive ? (report.id === 'standard' ? '#bfdbfe' : '#fde68a') : report.badgeColor,
+                  color: isActive ? report.badgeActiveColor : report.badgeColor,
                 }}>
                   {report.badge}
                 </span>
@@ -189,16 +237,16 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
                     width: 14,
                     height: 14,
                     marginLeft: 'auto',
-                    color: report.id === 'standard' ? '#7dd3fc' : '#fcd34d',
+                    color: report.checkActiveColor,
                   }} />
                 )}
               </div>
 
               {/* Icon + title */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
                 <div style={{
-                  width: 40,
-                  height: 40,
+                  width: 36,
+                  height: 36,
                   borderRadius: 10,
                   display: 'flex',
                   alignItems: 'center',
@@ -207,26 +255,24 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
                   flexShrink: 0,
                 }}>
                   <Icon style={{
-                    width: 20,
-                    height: 20,
-                    color: isActive
-                      ? (report.id === 'standard' ? '#7dd3fc' : '#fcd34d')
-                      : report.accentColor,
+                    width: 18,
+                    height: 18,
+                    color: isActive ? report.iconActiveColor : report.accentColor,
                   }} />
                 </div>
                 <div>
                   <div style={{
-                    fontSize: 15,
+                    fontSize: 13,
                     fontWeight: 800,
                     lineHeight: 1.2,
                     marginBottom: 3,
-                    color: isActive ? (report.id === 'standard' ? '#ffffff' : '#fef3c7') : '#111827',
+                    color: isActive ? report.textActive : '#111827',
                   }}>
                     {report.label}
                   </div>
                   <div style={{
                     fontSize: 11,
-                    color: isActive ? (report.id === 'standard' ? 'rgba(255,255,255,0.65)' : 'rgba(254,243,199,0.65)') : '#6b7280',
+                    color: isActive ? report.textActiveMuted : '#6b7280',
                     lineHeight: 1.4,
                   }}>
                     {report.tagline}
@@ -242,18 +288,14 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
                     alignItems: 'center',
                     gap: 6,
                     fontSize: 11,
-                    color: isActive
-                      ? (report.id === 'standard' ? 'rgba(255,255,255,0.8)' : 'rgba(254,243,199,0.8)')
-                      : '#374151',
+                    color: isActive ? report.textActiveBullet : '#374151',
                     marginBottom: 4,
                   }}>
                     <span style={{
                       width: 5,
                       height: 5,
                       borderRadius: '50%',
-                      background: isActive
-                        ? (report.id === 'standard' ? '#38bdf8' : '#f59e0b')
-                        : report.accentColor,
+                      background: isActive ? report.bulletActiveColor : report.accentColor,
                       flexShrink: 0,
                     }} />
                     {bullet}
@@ -279,9 +321,7 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
                   <span style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    color: isActive
-                      ? (report.id === 'standard' ? '#7dd3fc' : '#fcd34d')
-                      : report.accentColor,
+                    color: isActive ? report.iconActiveColor : report.accentColor,
                   }}>
                     {isActive ? 'Currently viewing' : 'View this report'}
                   </span>
@@ -290,9 +330,7 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
                   <ChevronRight style={{
                     width: 16,
                     height: 16,
-                    color: isActive
-                      ? (report.id === 'standard' ? '#7dd3fc' : '#fcd34d')
-                      : report.accentColor,
+                    color: isActive ? report.iconActiveColor : report.accentColor,
                   }} />
                 )}
               </div>
@@ -309,8 +347,10 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
         textAlign: 'center',
       }}>
         {active === 'standard'
-          ? 'Switch to the Forensic Audit Report for physics validation, evidence chain analysis, and legal-grade audit trail'
-          : 'Switch to the KINGA Claims Report for the standard assessment summary and cost decision'}
+          ? 'Switch to Claims Intelligence for cost benchmarks & risk indicators, or Forensic Audit for physics validation & legal-grade audit trail'
+          : active === 'intelligence'
+          ? 'Switch to KINGA Claims Report for the standard assessment summary, or Forensic Audit for physics validation & legal-grade audit trail'
+          : 'Switch to KINGA Claims Report for the standard assessment summary, or Claims Intelligence for cost benchmarks & risk indicators'}
       </div>
     </div>
   );

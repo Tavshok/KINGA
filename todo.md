@@ -725,3 +725,11 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Update Claims Processor queue dropdown (ClaimsProcessorDashboard.tsx) to use the new report generators
 - [ ] Re-test both reports against LIVE-RUN-VOLTRON-001 after forensic realignment
 - [ ] Update kinga-reports.test.ts to reflect the corrected forensic section structure
+
+## Audit & Fix — Three Critical Concerns (Jul 2026)
+
+- [x] CONCERN 1: Document loss — CONFIRMED SOLID. Files uploaded to S3 before DB transaction. Pipeline reads S3 URL via sourceDocumentId. No race condition found. Photo-forensics 0/1 error is a stage-8 analysis issue, not document loss.
+- [x] CONCERN 2: Forensic report redesign — URL parser bug fixed in InsurerComparisonView.tsx (line 215: ?report=intelligence was falling through to 'standard'). ReportChooser.tsx updated to 3 cards.
+- [x] CONCERN 3: Intelligence report wiring — All 4 dropdown instances in ClaimsProcessorDashboard.tsx confirmed with 3 reports. ReportChooser.tsx updated to 3-card layout. InsurerComparisonView.tsx: intelligence render block added, URL parser fixed, print label updated. ClaimsManagerReportsCentre already had intelligence via KingaReportButton. pipeline_runs schema column name fixed (pipeline_run_status → status).
+- [x] Fix any gaps discovered during the audit — all gaps fixed
+- [ ] Run full test suite and save checkpoint

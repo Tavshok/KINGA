@@ -398,6 +398,25 @@ export const reportingRouter = router({
       }
     }),
 
+  // ── Preview report HTML inline (for iframe rendering in ClaimDecisionReport) ──
+  previewHtml: protectedProcedure
+    .input(z.object({
+      reportKey: z.string(),
+      claimId:   z.number().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const role = ctx.user.role ?? "claims_processor";
+      const insurerRole = (ctx.user as any).insurerRole ?? null;
+      if (!canAccessReport(input.reportKey, role, insurerRole)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this report type." });
+      }
+      const { generateReportHtml } = await import("../reporting/reportDefinitions");
+      const params: Record<string, unknown> = {};
+      if (input.claimId) params.claimId = input.claimId;
+      const html = await generateReportHtml(input.reportKey, params, ctx.user.tenantId ?? undefined);
+      return { html };
+    }),
+
   // ─── Report Readiness ────────────────────────────────────────────────────────
   // Single source of truth for report readiness state per claim.
   // Used by: claim list rows, claim detail view, Reports Centre selector.

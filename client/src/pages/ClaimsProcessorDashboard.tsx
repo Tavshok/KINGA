@@ -885,6 +885,21 @@ export default function ClaimsProcessorDashboard() {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=intelligence`; }}
+                            className="cursor-pointer py-2.5"
+                          >
+                            <div className="flex items-start gap-3 w-full">
+                              <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#7C3AED' }} />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">KINGA Claims Intelligence</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: '#EDE9FE', color: '#7C3AED' }}>INTELLIGENCE</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">Policy check, cost intelligence &amp; risk indicators</p>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() => {
                               if (TIER_GATE_ENABLED) return;
                               window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`;
@@ -1011,6 +1026,21 @@ export default function ClaimsProcessorDashboard() {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=intelligence`; }}
+                            className="cursor-pointer py-2.5"
+                          >
+                            <div className="flex items-start gap-3 w-full">
+                              <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#7C3AED' }} />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">KINGA Claims Intelligence</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: '#EDE9FE', color: '#7C3AED' }}>INTELLIGENCE</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">Policy check, cost intelligence &amp; risk indicators</p>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() => {
                               if (TIER_GATE_ENABLED) return; // Future: show upgrade prompt
                               window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`;
@@ -1053,7 +1083,7 @@ export default function ClaimsProcessorDashboard() {
                     <CheckCircle2 className="h-3 w-3" />
                     KINGA Reports Ready
                   </span>
-                  <span className="text-[10px] text-muted-foreground">2 available</span>
+                  <span className="text-[10px] text-muted-foreground">3 available</span>
                 </div>
               )}
             </div>
@@ -1436,6 +1466,17 @@ export default function ClaimsProcessorDashboard() {
                                             </div>
                                           </DropdownMenuItem>
                                           <DropdownMenuItem
+                                            onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=intelligence`; }}
+                                            className="cursor-pointer py-2">
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                              <FileText style={{ width: 13, height: 13, marginTop: 2, flexShrink: 0, color: '#7C3AED' }} />
+                                              <div>
+                                                <div style={{ fontWeight: 600, fontSize: 12 }}>KINGA Claims Intelligence</div>
+                                                <div style={{ fontSize: 11, color: 'var(--muted)' }}>Policy check, cost &amp; risk indicators</div>
+                                              </div>
+                                            </div>
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem
                                             onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=forensic`; }}
                                             className="cursor-pointer py-2">
                                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -1480,6 +1521,15 @@ export default function ClaimsProcessorDashboard() {
                                               <div>
                                                 <div style={{ fontWeight: 600, fontSize: 12 }}>KINGA Claims Report</div>
                                                 <div style={{ fontSize: 11, color: 'var(--muted)' }}>Assessment summary &amp; cost comparison</div>
+                                              </div>
+                                            </div>
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => { window.location.href = `/insurer/claims/${claim.id}/comparison?report=intelligence`; }} className="cursor-pointer py-2">
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                              <FileText style={{ width: 13, height: 13, marginTop: 2, flexShrink: 0, color: '#7C3AED' }} />
+                                              <div>
+                                                <div style={{ fontWeight: 600, fontSize: 12 }}>KINGA Claims Intelligence</div>
+                                                <div style={{ fontSize: 11, color: 'var(--muted)' }}>Policy check, cost &amp; risk indicators</div>
                                               </div>
                                             </div>
                                           </DropdownMenuItem>

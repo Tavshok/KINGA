@@ -41,6 +41,7 @@ import { ForensicAuditReport } from "@/components/ForensicAuditReport";
 import { KingaClaimsReport } from "@/components/KingaClaimsReport";
 import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
 import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
+import { ClaimsIntelligenceReportView } from "@/components/ClaimsIntelligenceReportView";
 
 // Insurer role labels for the Push Report dialog
 const INSURER_ROLE_OPTIONS = [
@@ -212,7 +213,8 @@ export default function InsurerComparisonView() {
   // URL-driven report selection: ?report=standard|forensic
   const searchString = useSearch();
   const searchParams = new URLSearchParams(searchString);
-  const initialReport = (searchParams.get('report') === 'forensic' ? 'forensic' : 'standard') as ReportView;
+  const rawReport = searchParams.get('report');
+  const initialReport = (rawReport === 'forensic' ? 'forensic' : rawReport === 'intelligence' ? 'intelligence' : 'standard') as ReportView;
   const [reportView, setReportView] = useState<ReportView>(initialReport);
 
   // Incident type override dialog state
@@ -929,7 +931,7 @@ export default function InsurerComparisonView() {
                     if (!claim.incidentDate) missingForDraft.push('incident date');
                   }
                   const isDraftExport = missingForDraft.length > 0;
-                  const label = reportView === 'forensic' ? 'Forensic Audit Report' : 'KINGA Claims Report';
+                  const label = reportView === 'forensic' ? 'Forensic Audit Report' : reportView === 'intelligence' ? 'KINGA Claims Intelligence Report' : 'KINGA Claims Report';
                   if (isDraftExport) {
                     toast.warning(
                       `Exporting ${label} as DRAFT — incomplete data: ${missingForDraft.join(', ')}. Complete the missing fields and re-export for the final version.`,
@@ -1045,7 +1047,12 @@ export default function InsurerComparisonView() {
               />
             </div>
 
-            {/* Report 2: Forensic Audit Report */}
+            {/* Report 2: KINGA Claims Intelligence Report */}
+            <div data-report-view="intelligence" style={reportView !== 'intelligence' ? { display: 'none' } : undefined}>
+              <ClaimsIntelligenceReportView claimId={Number(claimId)} />
+            </div>
+
+            {/* Report 3: Forensic Audit Report */}
             <div data-report-view="forensic" style={reportView !== 'forensic' ? { display: 'none' } : undefined}>
               <ForensicAuditReport
                 claim={claim}

@@ -5153,7 +5153,7 @@ export const pipelineRuns = mysqlTable("pipeline_runs", {
   tenantId: varchar("tenant_id", { length: 255 }),
   triggeredBy: varchar("triggered_by", { length: 255 }),
   triggerReason: varchar("trigger_reason", { length: 255 }),
-  status: mysqlEnum("pipeline_run_status", ["running", "completed", "failed", "partial"]).default("running").notNull(),
+  status: mysqlEnum("status", ["running", "completed", "failed", "partial"]).default("running").notNull(),
   isRerun: tinyint("is_rerun").default(0).notNull(),
   stagesCompleted: int("stages_completed").default(0).notNull(),
   stagesFailed: int("stages_failed").default(0).notNull(),
