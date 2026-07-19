@@ -64,9 +64,9 @@ export async function generateForensicDecisionReport(
     ) as [Record<string, unknown>[], unknown];
 
     const [lineItems] = await conn.execute(
-      `SELECT li.description, li.item_description, li.part_type, li.unit_price,
-              li.quantity, li.kinga_benchmark, li.is_missing_in_other_quotes,
-              li.is_extra_in_quote, li.scope_flag,
+      `SELECT li.description, li.unit_price,
+              li.quantity, li.line_total, li.category,
+              li.is_missing_in_other_quotes, li.ai_review,
               pb.business_name AS panel_beater_name
        FROM quote_line_items li
        JOIN panel_beater_quotes q ON q.id = li.quote_id
@@ -78,7 +78,7 @@ export async function generateForensicDecisionReport(
 
     // ── 3. Fetch documents ───────────────────────────────────────────────────
     const [docs] = await conn.execute(
-      `SELECT document_type, document_category, file_name, created_at, status, file_url
+      `SELECT document_category, file_name, created_at, file_url
        FROM claim_documents
        WHERE claim_id = ?
        ORDER BY created_at DESC`,
@@ -168,7 +168,7 @@ export async function generateForensicDecisionReport(
 
     // Convenience booleans (must be after vehicleReg is declared)
     const hasPhotos = totalPhotos > 0;
-    const hasPolice = (docs as Record<string, unknown>[]).some(d => d.document_type === "police_report" || d.document_category === "police_report");
+    const hasPolice = (docs as Record<string, unknown>[]).some(d => d.document_category === "police_report");
     const hasVehicleReg = !!vehicleReg && vehicleReg !== "—";
     const policyNum = esc(c.policy_number ?? "—");
     const insurer = esc(c.insurer_name ?? c.tenant_name ?? "—");
@@ -590,7 +590,7 @@ export async function generateForensicDecisionReport(
 
     // ── §4 EVIDENCE & PHOTO FORENSICS ────────────────────────────────────────
     const docArr = docs as Record<string, unknown>[];
-    const photoArr = docArr.filter(d => d.document_category === "damage_photo" || d.document_type === "damage_image");
+    const photoArr = docArr.filter(d => d.document_category === "damage_photo");
 
     const photoGrid = photoArr.slice(0, 9).map((p, i) => `
     <div class="photo-card">
@@ -600,7 +600,7 @@ export async function generateForensicDecisionReport(
         <div class="photo-conf">${Math.round(70 + Math.random() * 25)}%</div>
       </div>
       <div class="photo-meta">
-        <div class="photo-component">${esc(p.document_type ?? `Component ${i + 1}`)}</div>
+        <div class="photo-component">${esc(p.document_category ?? `Component ${i + 1}`)}</div>
         <div class="photo-tags">
           ${chip("Front Zone", "info")}
           ${chip("Usable", "pass")}
@@ -633,7 +633,7 @@ export async function generateForensicDecisionReport(
     <thead><tr><th>Document</th><th>Received</th><th>Status</th></tr></thead>
     <tbody>
       <tr><td>Claim Form</td><td>${fmtD(c.created_at)}</td><td>${chip("Received", "pass")}</td></tr>
-      <tr><td>Police Report</td><td>${docArr.find(d => d.document_type === "police_report") ? fmtD(docArr.find(d => d.document_type === "police_report")!.created_at) : "—"}</td><td>${docArr.find(d => d.document_type === "police_report") ? chip("Received", "pass") : chip("Missing", "warn")}</td></tr>
+      <tr><td>Police Report</td><td>${docArr.find(d => d.document_category === "police_report") ? fmtD(docArr.find(d => d.document_category === "police_report")!.created_at) : "—"}</td><td>${docArr.find(d => d.document_category === "police_report") ? chip("Received", "pass") : chip("Missing", "warn")}</td></tr>
       <tr><td>Repair Quotes (×${quoteArr.length})</td><td>${quoteArr.length > 0 ? "Received" : "—"}</td><td>${quoteArr.length > 0 ? chip("Received", "pass") : chip("Missing", "fail")}</td></tr>
       <tr><td>Damage Photographs (×${totalPhotos})</td><td>${totalPhotos > 0 ? "Received" : "—"}</td><td>${photoYield < 40 ? chip("Low yield", "warn") : chip("Received", "pass")}</td></tr>
       <tr><td>VIN Certificate</td><td>—</td><td>${chip("Missing", "warn")}</td></tr>
@@ -713,7 +713,7 @@ export async function generateForensicDecisionReport(
     if (copyQuotation?.detected) actions.push({ action: "Request independent itemised quote — copy-quotation pattern detected", owner: "Adjuster", priority: "High", ref: "§F" });
     if (criticalStructural.length > 0) actions.push({ action: `Commission independent structural assessment for ${criticalStructural.map(g => g.component).join(", ")}`, owner: "Adjuster", priority: "High", ref: "§3" });
     if (totalExclusions > 0) actions.push({ action: `Remove excluded line items (${fmtUSD(totalExclusions)}) from settlement calculation`, owner: "Adjuster", priority: "High", ref: "§F" });
-    if (!docArr.find(d => d.document_type === "police_report")) actions.push({ action: "Obtain police report — required for all accident claims", owner: "Claimant", priority: "High", ref: "§4" });
+    if (!docArr.find(d => d.document_category === "police_report")) actions.push({ action: "Obtain police report — required for all accident claims", owner: "Claimant", priority: "High", ref: "§4" });
     if (dayDelay !== null && dayDelay > 90) actions.push({ action: `Obtain written explanation for ${dayDelay}-day submission delay`, owner: "Adjuster", priority: "Medium", ref: "§1" });
     if (photoYield < 40) actions.push({ action: "Request focused damage photographs — underbody, engine bay, interior zones", owner: "Claimant", priority: "Medium", ref: "§4" });
     if (rtvRatio >= 0.5) actions.push({ action: "Confirm total-loss threshold with insurer before authorising structural repairs", owner: "Adjuster", priority: "Medium", ref: "§5" });

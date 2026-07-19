@@ -73,7 +73,7 @@ export async function generateClaimsIntelligenceReport(
 
     // ── 3. Fetch documents ───────────────────────────────────────────────────
     const [docs] = await conn.execute(
-      `SELECT document_type, document_category, file_name, created_at, status
+      `SELECT document_category, file_name, created_at
        FROM claim_documents
        WHERE claim_id = ?
        ORDER BY created_at DESC`,
@@ -421,10 +421,10 @@ export async function generateClaimsIntelligenceReport(
     const liArr = lineItems as Record<string, unknown>[];
     const topItems = liArr.slice(0, 8);
     const compTableRows = topItems.map(li => `<tr>
-      <td>${esc(li.description ?? li.item_description ?? "—")}</td>
-      <td class="tm">${esc(li.part_type ?? "—")}</td>
+      <td>${esc(li.description ?? "—")}</td>
+      <td class="tm">${esc(li.category ?? "—")}</td>
       <td class="tm">${fmtUSD(Number(li.unit_price ?? 0) / 100)}</td>
-      <td class="tm">${fmtUSD(Number(li.kinga_benchmark ?? li.unit_price ?? 0) / 100)}</td>
+      <td class="tm">${fmtUSD(Number(li.unit_price ?? 0) / 100)}</td>
       <td class="tm">${li.is_missing_in_other_quotes ? chip("Gap", "warn") : chip("Matched", "pass")}</td>
     </tr>`).join("");
 
@@ -521,9 +521,9 @@ export async function generateClaimsIntelligenceReport(
 
     // ── §4 EVIDENCE SNAPSHOT ─────────────────────────────────────────────────
     const docArr = docs as Record<string, unknown>[];
-    const hasPolice = docArr.some(d => d.document_type === "police_report" || d.document_category === "police_report");
+    const hasPolice = docArr.some(d => d.document_category === "police_report");
     const hasQuotes = quoteArr.length > 0;
-    const hasPhotos = docArr.some(d => d.document_category === "damage_photo" || d.document_type === "damage_image");
+    const hasPhotos = docArr.some(d => d.document_category === "damage_photo");
     const hasVehicleReg = !!vehicleReg && vehicleReg !== "—";
 
     const docRegRows = [
