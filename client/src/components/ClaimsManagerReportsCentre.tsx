@@ -43,6 +43,20 @@ const CLAIMS_MANAGER_REPORTS: ReportEntry[] = [
     category: "Claim-Level",
   },
   {
+    reportKey: "claim.intelligence",
+    label: "Claims Intelligence Report",
+    description: "Process-tier: cost intelligence, risk indicators, evidence snapshot, and decision actions",
+    icon: FileText,
+    category: "Claim-Level",
+  },
+  {
+    reportKey: "claim.forensic_decision",
+    label: "Forensic Claim Decision Report",
+    description: "Forensic-tier: full physics reconstruction, damage zone map, fraud radar, and 5-stage approval workflow",
+    icon: Shield,
+    category: "Claim-Level",
+  },
+  {
     reportKey: "claim.forensic",
     label: "Forensic Report",
     description: "Fraud and integrity forensic analysis",
