@@ -242,10 +242,16 @@ export default function ClaimsProcessorDashboard() {
   );
 
   // 2. In Review — actively running, but NOT already complete
+  // Also includes claims tracked in aiProcessingClaimIds (triggered this session)
+  // so they move to In Review immediately even before the DB status updates.
   const inReviewClaims = filteredClaims.filter((c: any) =>
     !COMPLETE_STATUSES.has(c.status) &&
     c.documentProcessingStatus !== "ANALYSIS_COMPLETE" &&
-    (IN_REVIEW_STATUSES.has(c.status) || IN_REVIEW_DPS.has(c.documentProcessingStatus))
+    (
+      aiProcessingClaimIds.has(c.id) ||
+      IN_REVIEW_STATUSES.has(c.status) ||
+      IN_REVIEW_DPS.has(c.documentProcessingStatus)
+    )
   );
 
   // 3. Pending — waiting for action (intake, failed, or unclassified)
@@ -351,6 +357,11 @@ export default function ClaimsProcessorDashboard() {
 
   // Trigger KINGA Assessment mutation
   const triggerAiMutation = trpc.claims.triggerAiAssessment.useMutation({ // eslint-disable-line react-hooks/rules-of-hooks
+    onMutate: (variables) => {
+      // Immediately add to aiProcessingClaimIds so the claim moves to In Review
+      // before the server even responds. This prevents the "stuck in Pending" flash.
+      setAiProcessingClaimIds(prev => new Set(prev).add(variables.claimId));
+    },
     onSuccess: (_data, variables) => {
       // Record the timestamp so completion detection can ignore the pre-existing
       // assessment_complete state and only fire the toast for the NEW result.
