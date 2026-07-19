@@ -179,13 +179,14 @@ export const WORKFLOW_TRANSITIONS: Record<WorkflowState, WorkflowState[]> = {
   intake_queue: ["created", "assigned", "under_assessment"],
   created: ["assigned", "under_assessment", "disputed"],
   assigned: ["under_assessment", "disputed"],
-  under_assessment: ["internal_review", "disputed"],
+  under_assessment: ["internal_review", "disputed", "under_assessment"], // self-transition allowed for re-run/re-analysis
   internal_review: ["technical_approval", "under_assessment", "disputed"], // Can send back
   technical_approval: [
     "financial_decision",
     "internal_review",
     "payment_authorized", // Fast-track: STRAIGHT_TO_PAYMENT
-    "disputed"
+    "disputed",
+    "under_assessment", // Allows KINGA re-run from technical_approval state
   ],
   financial_decision: ["payment_authorized", "technical_approval", "disputed"], // Can send back
   payment_authorized: ["closed", "disputed"],
@@ -194,7 +195,7 @@ export const WORKFLOW_TRANSITIONS: Record<WorkflowState, WorkflowState[]> = {
   // Additional states from DB schema
   intake_verified: ["assigned", "under_assessment"],
   ai_assessment_pending: ["ai_assessment_completed", "manual_review"],
-  ai_assessment_completed: ["internal_review", "technical_approval"],
+  ai_assessment_completed: ["internal_review", "technical_approval", "under_assessment"], // under_assessment allows KINGA re-run from completed state
   manual_review: ["internal_review", "technical_approval"],
 };
 

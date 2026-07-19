@@ -24,7 +24,9 @@ export type LegacyStatus =
   | "repair_in_progress"
   | "completed"
   | "rejected"  
-  | "closed";
+  | "closed"
+  | "document_validating"
+  | "document_failed";
 
 /**
  * Mapping from legacy status to governance workflowState
@@ -43,6 +45,8 @@ export const STATUS_TO_WORKFLOW_STATE: Record<LegacyStatus, WorkflowState> = {
   completed: "closed",
   rejected: "closed",
   closed: "closed",
+  document_validating: "intake_queue", // New upload state: maps to intake_queue like intake_pending
+  document_failed: "intake_queue", // Failed document upload: stays in intake_queue for retry
 };
 
 /**

@@ -739,3 +739,10 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Fix: Add triggerAiAssessment() to upload-documents.ts so new claims auto-start pipeline
 - [x] Rewrite ForensicAuditReport.tsx to match v7 design — replaced 9,554-line React renderer with 100-line server-rendered iframe component using previewHtml tRPC procedure. Browser view and PDF now identical.
 - [x] Verify redesigned component renders correctly — tested against claim 7410001 (COR 6002812): HTML length 71,454 chars, all 8 sections present (§F, §1.0–§7.0, §B)
+
+## Upload & Re-run Failures — Root Cause Fixes (Jul 2026)
+
+- [ ] FIX-RERUN-1: Add `under_assessment` to allowed transitions from `ai_assessment_completed` in rbac.ts WORKFLOW_TRANSITIONS (re-run fails with "Invalid workflow transition: ai_assessment_completed → under_assessment")
+- [ ] FIX-RERUN-2: Handle `document_validating` and `DOCUMENT_FAILED` workflow states in triggerAiAssessment procedure's status transition logic in routers.ts (currently falls through to the else branch which may throw)
+- [ ] FIX-RERUN-3: Add `under_assessment` to allowed transitions from `technical_approval` and `ai_assessment_completed` for re-run scenarios
+- [ ] FIX-UPLOAD-1: Verify upload endpoint returns proper error response when multer rejects a file (add multer error handler middleware)
