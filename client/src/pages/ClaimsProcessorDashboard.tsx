@@ -139,7 +139,20 @@ export default function ClaimsProcessorDashboard() {
   const { data: allClaimsData, isLoading: allClaimsLoading, refetch: refetchAll } =
     trpc.workflowQueries.getClaimsByStatus.useQuery(  // eslint-disable-line react-hooks/rules-of-hooks
       {
-        statuses: ["intake_pending", "assessment_in_progress", "quotes_pending", "assessment_complete", "closed"],
+        statuses: [
+          "intake_pending",
+          "assessment_in_progress",
+          "quotes_pending",
+          "assessment_complete",
+          "analysis_complete",
+          "document_validating",
+          "document_ready",
+          "analysis_running",
+          "recovery_attempted",
+          "human_review_required",
+          "document_failed",
+          "closed",
+        ],
         limit: 200,
         offset: 0,
       },
@@ -185,14 +198,42 @@ export default function ClaimsProcessorDashboard() {
     : allClaims;
 
   // Partition into dashboard sections
-  const pendingClaims = filteredClaims.filter((c: any) => c.status === "intake_pending");
+  // "Pending" = waiting for action. Includes failed claims so user can retry.
+  const pendingClaims = filteredClaims.filter((c: any) =>
+    c.status === "intake_pending" ||
+    c.status === "document_failed" ||
+    c.documentProcessingStatus === "DOCUMENT_FAILED" ||
+    c.documentProcessingStatus === "failed"
+  );
+  // "In Review" = any claim actively being processed by KINGA or awaiting quotes.
+  // Includes all pipeline-running statuses so re-analysis claims remain visible.
+  const IN_REVIEW_STATUSES = new Set([
+    "assessment_in_progress",
+    "quotes_pending",
+    "document_validating",
+    "document_ready",
+    "analysis_running",
+    "recovery_attempted",
+    "human_review_required",
+  ]);
+  const IN_REVIEW_DPS = new Set([
+    "parsing",
+    "processing",
+    "DOCUMENT_VALIDATING",
+    "DOCUMENT_READY",
+    "ANALYSIS_RUNNING",
+    "RECOVERY_ATTEMPTED",
+    "HUMAN_REVIEW_REQUIRED",
+  ]);
   const inReviewClaims = filteredClaims.filter((c: any) =>
-    c.status === "assessment_in_progress" || c.status === "quotes_pending"
+    IN_REVIEW_STATUSES.has(c.status) || IN_REVIEW_DPS.has(c.documentProcessingStatus)
   );
   const aiFlaggedClaims = filteredClaims.filter((c: any) =>
-    c.status === "assessment_complete" ||
+    (c.status === "assessment_complete" ||
     c.status === "analysis_complete" ||
-    c.documentProcessingStatus === "ANALYSIS_COMPLETE"
+    c.documentProcessingStatus === "ANALYSIS_COMPLETE") &&
+    !IN_REVIEW_STATUSES.has(c.status) &&
+    !IN_REVIEW_DPS.has(c.documentProcessingStatus)
   );
   const completedClaims = filteredClaims.filter((c: any) => c.status === "closed");
 

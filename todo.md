@@ -751,3 +751,13 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Root cause: pdftoppm fails on production for non-scanned PDFs (typed assessment documents). Gate input pagesRendered=0 + renderFailed=true → critical block → document_failed
 - [x] Fix: When _pdfBuffer downloaded successfully, set pagesRendered=1 and renderFailed=false. LLM reads PDF natively via file_url proxy — pdftoppm images not required for non-scanned PDFs
 - [x] Reset 3 stuck claims (10239902, 10209903, 10209902) from document_failed → intake_pending
+
+---
+
+## Re-Analysis Bug Fix (July 2026)
+
+- [x] Fix: Re-analysis toast fires but claim vanishes from dashboard (root cause: getClaimsByStatus Zod enum missing pipeline statuses + inReviewClaims filter too narrow)
+- [x] Expand getClaimsByStatus Zod enum to include all pipeline statuses: document_validating, document_ready, analysis_running, recovery_attempted, human_review_required, document_failed, analysis_complete
+- [x] Expand inReviewClaims filter to include all pipeline-running statuses (IN_REVIEW_STATUSES + IN_REVIEW_DPS sets)
+- [x] Add document_failed claims to pendingClaims so users can retry failed analyses
+- [x] Guard aiFlaggedClaims to exclude claims still in pipeline-running states
