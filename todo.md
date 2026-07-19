@@ -3,6 +3,18 @@
 
 ---
 
+## Reports — Claims Intelligence & Forensic Claim Decision (Completed July 2026)
+
+- [x] Build shared KINGA CSS design system (kingaDesignSystem.ts)
+- [x] Build Claims Intelligence Report generator (claimsIntelligenceReport.ts) — 6 sections: §1 Claim Identity, §P Policy & Coverage, §2 Cost Intelligence, §3 Risk Indicators, §4 Evidence Snapshot, §5 Decision & Next Steps + upgrade banner
+- [x] Redesign Forensic Claim Decision Report (forensicDecisionReport.ts) — v7 design: compact rows, SVG speed scale, damage zone map, Chart.js fraud radar, photo forensics grid, 5-stage workflow
+- [x] Register claim.intelligence in REPORT_ACCESS, REPORT_CATALOGUE, dispatcher, and UI
+- [x] Route claim.forensic to new v7 generateForensicDecisionReport generator
+- [x] Remove redundant claim.forensic_decision key (claim.forensic is canonical)
+- [x] Write full test suite: 111 tests covering access control, column mapping, HTML structure, design system, UI wiring (server/kinga-reports.test.ts)
+
+---
+
 ## Codebase Maintainability — Phase 1 (Active)
 
 - [x] Write developer README.md — quick start, pipeline overview, table map, code standards, key decisions

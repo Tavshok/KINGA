@@ -71,8 +71,6 @@ export const REPORT_ACCESS: Record<string, string[]> = {
   "claim.forensic":             ["insurer_admin", "claims_processor", "claims_manager", "risk_manager"],
   // Claims Intelligence Report (Process tier) — standard automated assessment
   "claim.intelligence":         ["insurer_admin", "claims_processor", "assessor_internal", "assessor_external", "claims_manager", "risk_manager"],
-  // Forensic Decision Report (Forensic tier) — full reconstruction + decision workflow
-  "claim.forensic_decision":    ["insurer_admin", "claims_processor", "claims_manager", "risk_manager"],
   // Audit trail: processor accountability + manager/risk oversight
   "claim.audit_trail":          ["insurer_admin", "claims_processor", "claims_manager", "risk_manager"],
 
@@ -131,9 +129,8 @@ export async function generateReportHtml(
 ): Promise<string> {
   switch (reportKey) {
     case "claim.assessment":      return generateClaimAssessmentReport(params, tenantId);
-    case "claim.forensic":        return generateForensicReport(params, tenantId);
+    case "claim.forensic":        return generateForensicDecisionReport(Number(params.claimId), tenantId);
     case "claim.intelligence":    return generateClaimsIntelligenceReport(Number(params.claimId), tenantId);
-    case "claim.forensic_decision": return generateForensicDecisionReport(Number(params.claimId), tenantId);
     case "claim.audit_trail":     return generateAuditTrailReport(params, tenantId);
     case "claim.cost_comparison": return generateCostComparisonReport(params, tenantId);
     case "claim.repair_decision": return generateRepairDecisionReport(params, tenantId);
