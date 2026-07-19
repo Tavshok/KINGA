@@ -1476,8 +1476,8 @@ export default function ClaimsProcessorDashboard() {
                                     <Eye style={{ width: 11, height: 11 }} /> View
                                   </button>
 
-                                  {/* PENDING: Run KINGA + Assign Assessor */}
-                                  {claim.status === 'intake_pending' && (
+                                  {/* PENDING / FAILED: Run KINGA + Assign Assessor */}
+                                  {(claim.status === 'intake_pending' || claim.status === 'document_failed' || claim.documentProcessingStatus === 'DOCUMENT_FAILED' || claim.documentProcessingStatus === 'failed') && (
                                     <>
                                       <button className="p11-btn-outline" style={{ padding: '4px 8px', fontSize: 11 }}
                                         onClick={() => handleTriggerAI(claim.id)}
