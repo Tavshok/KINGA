@@ -746,3 +746,8 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] FIX-RERUN-2: Handle `document_validating` and `DOCUMENT_FAILED` workflow states in triggerAiAssessment procedure's status transition logic in routers.ts (currently falls through to the else branch which may throw)
 - [ ] FIX-RERUN-3: Add `under_assessment` to allowed transitions from `technical_approval` and `ai_assessment_completed` for re-run scenarios
 - [ ] FIX-UPLOAD-1: Verify upload endpoint returns proper error response when multer rejects a file (add multer error handler middleware)
+
+## Document Health Gate Fix — 2026-07-19
+- [x] Root cause: pdftoppm fails on production for non-scanned PDFs (typed assessment documents). Gate input pagesRendered=0 + renderFailed=true → critical block → document_failed
+- [x] Fix: When _pdfBuffer downloaded successfully, set pagesRendered=1 and renderFailed=false. LLM reads PDF natively via file_url proxy — pdftoppm images not required for non-scanned PDFs
+- [x] Reset 3 stuck claims (10239902, 10209903, 10209902) from document_failed → intake_pending

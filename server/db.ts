@@ -1148,7 +1148,12 @@ export async function triggerAiAssessment(claimId: number) {
         ? _cachedPhotoCount
         : (_isScannedPdf
           ? ((_qualitySummary?.passedDimensionGate ?? 0) + (_qualitySummary?.rejectedTooSmall ?? 0))
-          : 0),
+          // Non-scanned PDF: if the PDF buffer was downloaded successfully, treat it as 1 rendered page.
+          // The LLM reads the PDF natively via file_url proxy — it does not need pdftoppm page images.
+          // Without this, pdftoppm failure on a non-scanned PDF causes pagesRendered=0 which triggers
+          // the critical Page Rendering gate block even though the document is perfectly accessible.
+          : (_pdfBuffer && _pdfBuffer.length > 0 ? 1 : 0)),
+
       pagesDimensionPass: _isCacheRehydration
         ? _cachedPhotoCount
         : (_qualitySummary?.passedDimensionGate ?? 0),
@@ -1158,7 +1163,9 @@ export async function triggerAiAssessment(claimId: number) {
       totalImagesForAnalysis: damagePhotos.length,
       vehicleDamageImageCount: damagePhotos.length,
       nonVehicleImageCount: 0,
-      renderFailed: !_isCacheRehydration && !!_extractionError && damagePhotos.length === 0,
+      // renderFailed: only true when pdftoppm failed AND no PDF buffer was downloaded.
+      // If _pdfBuffer is available, the LLM can read the PDF directly — pdftoppm failure is non-fatal.
+      renderFailed: !_isCacheRehydration && !!_extractionError && damagePhotos.length === 0 && !(_pdfBuffer && _pdfBuffer.length > 0),
       s3UploadFailed: false,
       renderErrorMessage: _isCacheRehydration ? null : (_extractionError ?? null),
       claim: {
