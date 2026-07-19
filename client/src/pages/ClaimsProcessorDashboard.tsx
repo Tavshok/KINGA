@@ -179,6 +179,10 @@ export default function ClaimsProcessorDashboard() {
           return (aiProcessingClaimIds.size > 0 || hasInProgress) ? 2_000 : 30_000;
         },
         refetchIntervalInBackground: false,
+        // Always re-fetch on mount so claims uploaded on the upload page
+        // appear immediately when the user navigates back to this dashboard.
+        refetchOnMount: "always",
+        staleTime: 0,
       }
     );
 
@@ -197,16 +201,21 @@ export default function ClaimsProcessorDashboard() {
       })
     : allClaims;
 
-  // Partition into dashboard sections
-  // "Pending" = waiting for action. Includes failed claims so user can retry.
-  const pendingClaims = filteredClaims.filter((c: any) =>
-    c.status === "intake_pending" ||
-    c.status === "document_failed" ||
-    c.documentProcessingStatus === "DOCUMENT_FAILED" ||
-    c.documentProcessingStatus === "failed"
-  );
-  // "In Review" = any claim actively being processed by KINGA or awaiting quotes.
-  // Includes all pipeline-running statuses so re-analysis claims remain visible.
+  // ─── Dashboard section partition ────────────────────────────────────────────
+  // Rules are applied in PRIORITY ORDER — each claim belongs to exactly one
+  // section. Status field takes precedence over documentProcessingStatus so
+  // stale DPS values never steal a claim from the wrong section.
+  //
+  // Priority: COMPLETE > IN_REVIEW > FAILED/PENDING > PENDING
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Terminal complete statuses — status field wins, DPS is ignored.
+  const COMPLETE_STATUSES = new Set([
+    "analysis_complete",
+    "assessment_complete",   // legacy alias
+  ]);
+
+  // Pipeline-running statuses — only applies when NOT in a complete status.
   const IN_REVIEW_STATUSES = new Set([
     "assessment_in_progress",
     "quotes_pending",
@@ -225,16 +234,30 @@ export default function ClaimsProcessorDashboard() {
     "RECOVERY_ATTEMPTED",
     "HUMAN_REVIEW_REQUIRED",
   ]);
-  const inReviewClaims = filteredClaims.filter((c: any) =>
-    IN_REVIEW_STATUSES.has(c.status) || IN_REVIEW_DPS.has(c.documentProcessingStatus)
-  );
+
+  // 1. KINGA Complete — terminal status wins regardless of DPS
   const aiFlaggedClaims = filteredClaims.filter((c: any) =>
-    (c.status === "assessment_complete" ||
-    c.status === "analysis_complete" ||
-    c.documentProcessingStatus === "ANALYSIS_COMPLETE") &&
-    !IN_REVIEW_STATUSES.has(c.status) &&
-    !IN_REVIEW_DPS.has(c.documentProcessingStatus)
+    COMPLETE_STATUSES.has(c.status) ||
+    c.documentProcessingStatus === "ANALYSIS_COMPLETE"
   );
+
+  // 2. In Review — actively running, but NOT already complete
+  const inReviewClaims = filteredClaims.filter((c: any) =>
+    !COMPLETE_STATUSES.has(c.status) &&
+    c.documentProcessingStatus !== "ANALYSIS_COMPLETE" &&
+    (IN_REVIEW_STATUSES.has(c.status) || IN_REVIEW_DPS.has(c.documentProcessingStatus))
+  );
+
+  // 3. Pending — waiting for action (intake, failed, or unclassified)
+  const pendingClaims = filteredClaims.filter((c: any) =>
+    !COMPLETE_STATUSES.has(c.status) &&
+    c.documentProcessingStatus !== "ANALYSIS_COMPLETE" &&
+    !IN_REVIEW_STATUSES.has(c.status) &&
+    !IN_REVIEW_DPS.has(c.documentProcessingStatus) &&
+    c.status !== "closed"
+  );
+
+  // 4. Completed — closed/resolved
   const completedClaims = filteredClaims.filter((c: any) => c.status === "closed");
 
   // Detect when KINGA processing completes (claim moves from in_review to ai_flagged)
@@ -249,8 +272,7 @@ export default function ClaimsProcessorDashboard() {
       // Claim finished successfully — but only if the completion timestamp is
       // NEWER than when the re-run was triggered (avoids firing on stale state).
       const isComplete = (
-        claim.status === "assessment_complete" ||
-        claim.status === "analysis_complete" ||
+        COMPLETE_STATUSES.has(claim.status) ||
         claim.documentProcessingStatus === "ANALYSIS_COMPLETE"
       );
       const isTransient = (
@@ -534,8 +556,7 @@ export default function ClaimsProcessorDashboard() {
     // The stuck-recovery job (Case 9) fixes the stale dps in the background, but the
     // UI must not block report access in the meantime.
     const isAlreadyComplete = (
-      claim.status === "assessment_complete" ||
-      claim.status === "analysis_complete" ||
+      COMPLETE_STATUSES.has(claim.status) ||
       claim.documentProcessingStatus === "ANALYSIS_COMPLETE" ||
       claim.status === "closed"
     );
@@ -1373,8 +1394,7 @@ export default function ClaimsProcessorDashboard() {
                     <tbody>
                       {activeClaims.slice(0, 20).map((claim: any) => {
                         const isAlreadyComplete = (
-                          claim.status === "assessment_complete" ||
-                          claim.status === "analysis_complete" ||
+                          COMPLETE_STATUSES.has(claim.status) ||
                           claim.documentProcessingStatus === "ANALYSIS_COMPLETE" ||
                           claim.status === "closed"
                         );
@@ -1484,7 +1504,7 @@ export default function ClaimsProcessorDashboard() {
                                   )}
 
                                   {/* KINGA COMPLETE: Report dropdown + Re-run + Assign */}
-                                  {claim.status === 'assessment_complete' && (
+                                  {(COMPLETE_STATUSES.has(claim.status) || claim.documentProcessingStatus === 'ANALYSIS_COMPLETE') && (
                                     <>
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
