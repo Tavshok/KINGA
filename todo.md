@@ -761,3 +761,10 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Expand inReviewClaims filter to include all pipeline-running statuses (IN_REVIEW_STATUSES + IN_REVIEW_DPS sets)
 - [x] Add document_failed claims to pendingClaims so users can retry failed analyses
 - [x] Guard aiFlaggedClaims to exclude claims still in pipeline-running states
+
+## Report Design Alignment — Approved Reference (2026-07-20)
+- [ ] Replace Claims Intelligence report template with approved dark-theme design (black bg, KINGA green accents, monospaced claim ref, score strip, section cards)
+- [ ] Replace Standard / Forensic report template with approved white-theme design (left-border accents, structured tables, VERIFIED badge, section headers)
+- [ ] Align kingaDesignSystem.ts cover layout to match approved PDF: dark cover block with green KPI strip, white body pages with left-rule section headers
+- [ ] Ensure report HTML renders correctly inside the iframe preview in ClaimDecisionReport
+- [ ] Verify all three report types (Standard, Intelligence, Forensic) render with correct approved design after changes

@@ -156,80 +156,75 @@ export async function generateClaimsIntelligenceReport(
 
     // ── COVER ────────────────────────────────────────────────────────────────
     const cover = `
-<div class="cover">
-  <div class="cover-head">
-    <div>
-      <div class="cover-brand">KINGA &middot; Claims Intelligence Report</div>
-      <div><span class="tier-ribbon">Process Tier &middot; Standard Assessment</span></div>
-      <div class="cover-title" style="margin-top:6px">${claimRef} &mdash; ${claimantName}</div>
-      <div class="cover-sub">Independent automated assessment &nbsp;&middot;&nbsp; Not legal advice &nbsp;&middot;&nbsp; Requires adjuster sign-off</div>
-    </div>
-    <div class="cover-doc">
-      <div><strong>${docRef}</strong></div>
-      <div>${esc(c.kinga_reference ?? `KNG-${claimId}`)}</div>
-      <div>Generated ${genDate}</div>
-    </div>
+<div class="cover-head">
+  <div>
+    <div class="cover-brand">KINGA &middot; Claims Intelligence Report</div>
+    <div><span class="tier-ribbon">Process Tier &middot; Standard Assessment</span></div>
+    <div class="cover-title" style="margin-top:6px">${claimRef} &mdash; ${claimantName}</div>
+    <div class="cover-sub">Independent automated assessment &nbsp;&middot;&nbsp; Not legal advice &nbsp;&middot;&nbsp; Requires adjuster sign-off</div>
   </div>
-
-  <div class="cover-meta">
-    <div class="cover-meta-cell"><div class="cover-meta-label">Claimant</div><div class="cover-meta-value">${claimantName}</div></div>
-    <div class="cover-meta-cell"><div class="cover-meta-label">Vehicle</div><div class="cover-meta-value">${vehicleDesc}</div></div>
-    <div class="cover-meta-cell"><div class="cover-meta-label">Registration</div><div class="cover-meta-value mono">${vehicleReg}</div></div>
-    <div class="cover-meta-cell"><div class="cover-meta-label">Incident Date</div><div class="cover-meta-value">${fmtD(c.incident_date)}</div></div>
+  <div class="cover-doc">
+    <div><strong>${docRef}</strong></div>
+    <div>${esc(c.kinga_reference ?? `KNG-${claimId}`)}</div>
+    <div>Generated ${genDate}</div>
   </div>
-
-  <div class="cost-snap">
-    <div class="cost-snap-cell">
-      <div class="cost-snap-label">Highest Submitted Quote</div>
-      <div class="cost-snap-value">${fmtUSD(highestQuote)}</div>
-      <div class="cost-snap-sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div>
-    </div>
-    <div class="cost-snap-cell">
-      <div class="cost-snap-label">KINGA Optimised</div>
-      <div class="cost-snap-value green">${fmtUSD(kingaOptimised)}</div>
-      <div class="cost-snap-sub">AI-benchmarked estimate</div>
-    </div>
-    <div class="cost-snap-cell">
-      <div class="cost-snap-label">Recommended Settlement</div>
-      <div class="cost-snap-value green">${fmtUSD(recommendedSettlement)}</div>
-      <div class="cost-snap-sub">Less exclusions &amp; excess</div>
-    </div>
+</div>
+<div class="meta-grid">
+  <div class="mg-cell"><div class="mg-lbl">Claimant</div><div class="mg-val">${claimantName}</div></div>
+  <div class="mg-cell"><div class="mg-lbl">Vehicle</div><div class="mg-val">${vehicleDesc}</div></div>
+  <div class="mg-cell"><div class="mg-lbl">Registration</div><div class="mg-val">${vehicleReg}</div></div>
+</div>
+<div class="meta-grid">
+  <div class="mg-cell"><div class="mg-lbl">Incident Date</div><div class="mg-val">${fmtD(c.incident_date)}</div></div>
+  <div class="mg-cell"><div class="mg-lbl">Policy Number</div><div class="mg-val">${policyNum}</div></div>
+  <div class="mg-cell"><div class="mg-lbl">Insurer</div><div class="mg-val">${insurer}</div></div>
+</div>
+<div class="cost-snap">
+  <div class="cs-cell">
+    <div class="cs-lbl">Highest Submitted Quote</div>
+    <div class="cs-val">${fmtUSD(highestQuote)}</div>
+    <div class="cs-sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div>
   </div>
-
-  <div class="verdict-bar">
-    <div class="verdict-label">Verdict</div>
-    <div class="verdict-value ${fraudBadgeCls === "fail" ? "red" : fraudBadgeCls === "warn" ? "amber" : "green"}">
-      ${esc(String(c.recommendation ?? "REVIEW REQUIRED").toUpperCase())}
-    </div>
-    <div style="font-size:11px;color:#666;">${fraudBadgeLabel} &nbsp;&middot;&nbsp; Fraud Score ${fraudScore}/100</div>
+  <div class="cs-cell hl">
+    <div class="cs-lbl">KINGA Optimised Estimate</div>
+    <div class="cs-val">${fmtUSD(kingaOptimised)}</div>
+    <div class="cs-sub">AI-benchmarked estimate</div>
   </div>
-
-  <div class="score-strip">
-    <div class="score-cell">
-      <div class="score-num ${scoreColour(fraudScore)}">${fraudScore}</div>
-      <div class="score-lbl">Fraud Risk</div>
-    </div>
-    <div class="score-cell">
-      <div class="score-num ${scoreColour(dataComplete, true)}">${Math.round(dataComplete)}%</div>
-      <div class="score-lbl">Data Complete</div>
-    </div>
-    <div class="score-cell">
-      <div class="score-num ${quoteArr.length >= 3 ? "g" : quoteArr.length >= 2 ? "a" : "r"}">${quoteArr.length}</div>
-      <div class="score-lbl">Quotes Received</div>
-    </div>
-    <div class="score-cell">
-      <div class="score-num ${rtvRatio >= 0.7 ? "r" : rtvRatio >= 0.5 ? "a" : "g"}">${fmtPct(rtvRatio * 100, 0)}</div>
-      <div class="score-lbl">Repair-to-Value</div>
-    </div>
+  <div class="cs-cell">
+    <div class="cs-lbl">Recommended Settlement</div>
+    <div class="cs-val g">${fmtUSD(recommendedSettlement)}</div>
+    <div class="cs-sub">Less exclusions &amp; excess</div>
   </div>
-
-  <div class="contents-grid">
-    <div class="contents-item"><span class="contents-ref">&sect;1</span><span class="contents-name">Claim Identity &amp; Policy</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;P</span><span class="contents-name">Policy &amp; Coverage Check</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;2</span><span class="contents-name">Cost Intelligence</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;3</span><span class="contents-name">Risk Indicators</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;4</span><span class="contents-name">Evidence Snapshot</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;5</span><span class="contents-name">Decision &amp; Next Steps</span><span class="contents-status">Included</span></div>
+</div>
+<div class="verdict-bar">
+  <div class="vbadge ${fraudBadgeCls === "fail" ? "reject" : fraudBadgeCls === "warn" ? "review" : "approve"}">
+    ${esc(String(c.recommendation ?? "REVIEW REQUIRED").toUpperCase())}
+  </div>
+  <div class="vbody">
+    <h3>${fraudBadgeLabel} &nbsp;&middot;&nbsp; Fraud Score ${fraudScore}/100</h3>
+    <ul>
+      ${rtvRatio >= 0.7 ? `<li>Repair-to-value ratio ${fmtPct(rtvRatio * 100, 0)} — total loss threshold exceeded</li>` : ""}
+      ${quoteArr.length < 3 ? `<li>Only ${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received — minimum 3 required for benchmarking</li>` : ""}
+      ${dayDelay !== null && dayDelay > 90 ? `<li>Claim submitted ${dayDelay} days after incident — written explanation required</li>` : ""}
+      <li>Adjuster sign-off required before settlement authorisation</li>
+    </ul>
+  </div>
+</div>
+<div class="score-strip c4">
+  <div class="ss-c"><div class="ss-n ${scoreColour(fraudScore)}">${fraudScore}</div><div class="ss-l">Fraud Risk</div></div>
+  <div class="ss-c"><div class="ss-n ${scoreColour(dataComplete, true)}">${Math.round(dataComplete)}%</div><div class="ss-l">Data Complete</div></div>
+  <div class="ss-c"><div class="ss-n ${quoteArr.length >= 3 ? "g" : quoteArr.length >= 2 ? "a" : "r"}">${quoteArr.length}</div><div class="ss-l">Quotes Received</div></div>
+  <div class="ss-c"><div class="ss-n ${rtvRatio >= 0.7 ? "r" : rtvRatio >= 0.5 ? "a" : "g"}">${fmtPct(rtvRatio * 100, 0)}</div><div class="ss-l">Repair-to-Value</div></div>
+</div>
+<div class="contents">
+  <div class="ct-title">Contents</div>
+  <div class="ct-grid">
+    <div class="ci"><span class="ci-n">&sect;1</span><span class="ci-t">Claim Identity &amp; Policy</span>${chip("Included", "pass")}</div>
+    <div class="ci"><span class="ci-n">&sect;P</span><span class="ci-t">Policy &amp; Coverage Check</span>${chip("Included", "pass")}</div>
+    <div class="ci"><span class="ci-n">&sect;2</span><span class="ci-t">Cost Intelligence</span>${chip("Included", "pass")}</div>
+    <div class="ci"><span class="ci-n">&sect;3</span><span class="ci-t">Risk Indicators</span>${chip("Included", "pass")}</div>
+    <div class="ci"><span class="ci-n">&sect;4</span><span class="ci-t">Evidence Snapshot</span>${chip("Included", "pass")}</div>
+    <div class="ci"><span class="ci-n">&sect;5</span><span class="ci-t">Decision &amp; Next Steps</span>${chip("Included", "pass")}</div>
   </div>
 </div>`;
 
@@ -249,13 +244,13 @@ export async function generateClaimsIntelligenceReport(
       <div class="sub"><h3>Vehicle &amp; Claimant</h3></div>
       <table>
         <tbody>
-          <tr><td style="width:40%;color:var(--text-muted)">Claim Reference</td><td class="mono bold">${claimRef}</td></tr>
-          <tr><td style="color:var(--text-muted)">Claimant</td><td>${claimantName}</td></tr>
-          <tr><td style="color:var(--text-muted)">Vehicle</td><td>${vehicleDesc}</td></tr>
-          <tr><td style="color:var(--text-muted)">Registration</td><td class="mono">${vehicleReg}</td></tr>
-          <tr><td style="color:var(--text-muted)">Incident Type</td><td>${incidentType}</td></tr>
-          <tr><td style="color:var(--text-muted)">Incident Date</td><td>${fmtD(c.incident_date)}</td></tr>
-          ${c.incident_location ? `<tr><td style="color:var(--text-muted)">Incident Location</td><td>${esc(c.incident_location)}</td></tr>` : ""}
+          <tr><td style="width:40%;color:var(--ink-mid)">Claim Reference</td><td class="mono bold">${claimRef}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Claimant</td><td>${claimantName}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Vehicle</td><td>${vehicleDesc}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Registration</td><td class="mono">${vehicleReg}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Incident Type</td><td>${incidentType}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Incident Date</td><td>${fmtD(c.incident_date)}</td></tr>
+          ${c.incident_location ? `<tr><td style="color:var(--ink-mid)">Incident Location</td><td>${esc(c.incident_location)}</td></tr>` : ""}
         </tbody>
       </table>
     </div>
@@ -263,13 +258,13 @@ export async function generateClaimsIntelligenceReport(
       <div class="sub"><h3>Policy Details</h3></div>
       <table>
         <tbody>
-          <tr><td style="width:40%;color:var(--text-muted)">Policy Number</td><td class="mono bold">${policyNum}</td></tr>
-          <tr><td style="color:var(--text-muted)">Insurer</td><td>${insurer}</td></tr>
-          <tr><td style="color:var(--text-muted)">Cover Type</td><td>${esc(c.cover_type ?? c.policy_type ?? "Comprehensive")}</td></tr>
-          <tr><td style="color:var(--text-muted)">Sum Insured</td><td>${fmtUSD(c.sum_insured ?? c.vehicle_market_value)}</td></tr>
-          <tr><td style="color:var(--text-muted)">Policy Excess</td><td>${fmtUSD(excess)}</td></tr>
-          <tr><td style="color:var(--text-muted)">Claim Lodged</td><td>${fmtD(c.created_at)}</td></tr>
-          <tr><td style="color:var(--text-muted)">Submission Delay</td><td>${dayDelay !== null ? `${dayDelay} days` : "—"} ${dayDelay !== null && dayDelay > 90 ? chip("Flagged", "warn") : dayDelay !== null ? chip("Normal", "pass") : ""}</td></tr>
+          <tr><td style="width:40%;color:var(--ink-mid)">Policy Number</td><td class="mono bold">${policyNum}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Insurer</td><td>${insurer}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Cover Type</td><td>${esc(c.cover_type ?? c.policy_type ?? "Comprehensive")}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Sum Insured</td><td>${fmtUSD(c.sum_insured ?? c.vehicle_market_value)}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Policy Excess</td><td>${fmtUSD(excess)}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Claim Lodged</td><td>${fmtD(c.created_at)}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Submission Delay</td><td>${dayDelay !== null ? `${dayDelay} days` : "—"} ${dayDelay !== null && dayDelay > 90 ? chip("Flagged", "warn") : dayDelay !== null ? chip("Normal", "pass") : ""}</td></tr>
         </tbody>
       </table>
     </div>
@@ -315,7 +310,7 @@ export async function generateClaimsIntelligenceReport(
 
   ${narrative?.claimantStatement ? `
   <div class="sub"><h3>Claimant Statement</h3><span class="sm">Extracted from claim form</span></div>
-  <blockquote style="border-left:3px solid var(--border);padding:10px 16px;font-style:italic;font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+  <blockquote style="border-left:3px solid var(--rule);padding:10px 16px;font-style:italic;font-size:12px;color:var(--ink-mid);margin-bottom:12px;">
     &ldquo;${esc(String(narrative.claimantStatement))}&rdquo;
   </blockquote>` : ""}
 
@@ -415,7 +410,7 @@ export async function generateClaimsIntelligenceReport(
           <div class="qc-amount green">${fmtUSD(kingaOptimised)}</div>
           <div class="qc-sub">Savings: ${fmtUSD(savings)} (${fmtPct(savingsPct)})</div>
         </div>`
-      : `<div class="quote-card" style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-sm)">No quotes received</div>`;
+      : `<div class="quote-card" style="grid-column:1/-1;text-align:center;padding:20px;color:var(--ink-light)">No quotes received</div>`;
 
     // Build top-6 comparison line items
     const liArr = lineItems as Record<string, unknown>[];
@@ -616,7 +611,7 @@ export async function generateClaimsIntelligenceReport(
   <div class="sub"><h3>Required Actions Before Sign-Off</h3><span class="sm">Prioritised by impact on settlement</span></div>
   <table>
     <thead><tr><th>#</th><th>Action Required</th><th>Owner</th><th>Priority</th><th>Ref</th></tr></thead>
-    <tbody>${actionRows || `<tr><td colspan="5" style="text-align:center;color:var(--text-sm);padding:16px">No outstanding actions — claim is ready for settlement</td></tr>`}</tbody>
+    <tbody>${actionRows || `<tr><td colspan="5" style="text-align:center;color:var(--ink-light);padding:16px">No outstanding actions — claim is ready for settlement</td></tr>`}</tbody>
   </table>
 
   <div class="sub"><h3>Sign-Off Workflow</h3><span class="sm">3-stage approval</span></div>

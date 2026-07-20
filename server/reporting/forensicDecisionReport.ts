@@ -178,72 +178,79 @@ export async function generateForensicDecisionReport(
 
     // ── COVER ────────────────────────────────────────────────────────────────
     const cover = `
-<div class="cover">
-  <div class="cover-head">
-    <div>
-      <div class="cover-brand">KINGA &middot; Forensic Claim Decision Report</div>
-      <div><span class="tier-ribbon">Forensic Tier &middot; Full Reconstruction</span></div>
-      <div class="cover-title" style="margin-top:6px">${claimRef} &mdash; ${claimantName}</div>
-      <div class="cover-sub">Independent forensic assessment &nbsp;&middot;&nbsp; Not legal advice &nbsp;&middot;&nbsp; Requires adjuster sign-off</div>
-    </div>
-    <div class="cover-doc">
-      <div><strong>${docRef}</strong></div>
-      <div>${esc(c.kinga_reference ?? `KNG-${claimId}`)}</div>
-      <div>Generated ${genDate}</div>
-    </div>
+<div class="cover-head">
+  <div>
+    <div class="cover-brand">KINGA &middot; Forensic Claim Decision Report</div>
+    <div><span class="tier-ribbon">Forensic Tier &middot; Advanced Assessment</span></div>
+    <div class="cover-title" style="margin-top:6px">${claimRef} &mdash; ${claimantName}</div>
+    <div class="cover-sub">Automated forensic analysis &nbsp;&middot;&nbsp; Not legal advice &nbsp;&middot;&nbsp; Requires human adjuster review</div>
   </div>
-
-  <div class="cover-meta">
-    <div class="cover-meta-cell"><div class="cover-meta-label">Claimant</div><div class="cover-meta-value">${claimantName}</div></div>
-    <div class="cover-meta-cell"><div class="cover-meta-label">Vehicle</div><div class="cover-meta-value">${vehicleDesc}</div></div>
-    <div class="cover-meta-cell"><div class="cover-meta-label">Registration</div><div class="cover-meta-value mono">${vehicleReg}</div></div>
-    <div class="cover-meta-cell"><div class="cover-meta-label">Incident Date</div><div class="cover-meta-value">${fmtD(c.incident_date)}</div></div>
+  <div class="cover-doc">
+    <div><strong>${docRef}</strong></div>
+    <div>${esc(c.kinga_reference ?? `KNG-${claimId}`)}</div>
+    <div>Generated ${genDate}</div>
   </div>
-
-  <div class="cost-snap">
-    <div class="cost-snap-cell">
-      <div class="cost-snap-label">Submitted Quote</div>
-      <div class="cost-snap-value">${fmtUSD(highestQuote)}</div>
-      <div class="cost-snap-sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div>
-    </div>
-    <div class="cost-snap-cell">
-      <div class="cost-snap-label">KINGA Optimised</div>
-      <div class="cost-snap-value green">${fmtUSD(kingaOptimised)}</div>
-      <div class="cost-snap-sub">AI-benchmarked estimate</div>
-    </div>
-    <div class="cost-snap-cell">
-      <div class="cost-snap-label">Savings</div>
-      <div class="cost-snap-value green">${fmtUSD(savings)}</div>
-      <div class="cost-snap-sub">${fmtPct(savingsPct)} against highest quote</div>
-    </div>
+</div>
+<div class="meta-grid">
+  <div class="mg-cell"><div class="mg-lbl">Vehicle</div><div class="mg-val">${vehicleDesc} &middot; ${vehicleReg}</div></div>
+  <div class="mg-cell"><div class="mg-lbl">Claimant</div><div class="mg-val">${claimantName}</div></div>
+  <div class="mg-cell"><div class="mg-lbl">Incident Date</div><div class="mg-val">${fmtD(c.incident_date)}</div></div>
+</div>
+<div class="meta-grid">
+  <div class="mg-cell"><div class="mg-lbl">Claim Reference</div><div class="mg-val">${claimRef}</div></div>
+  <div class="mg-cell"><div class="mg-lbl">Insurer</div><div class="mg-val">${insurer}</div></div>
+  <div class="mg-cell"><div class="mg-lbl">Policy Number</div><div class="mg-val">${policyNum}</div></div>
+</div>
+<div class="cost-snap">
+  <div class="cs-cell">
+    <div class="cs-lbl">Submitted Quote (Lowest)</div>
+    <div class="cs-val">${fmtUSD(lowestQuote > 0 ? lowestQuote : highestQuote)}</div>
+    <div class="cs-sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} benchmarked</div>
   </div>
-
-  <div class="verdict-bar">
-    <div class="verdict-label">Verdict</div>
-    <div class="verdict-value ${fraudBadgeCls === "fail" ? "red" : fraudBadgeCls === "warn" ? "amber" : "green"}">
-      ${esc(String(c.recommendation ?? "REVIEW REQUIRED").toUpperCase())}
-    </div>
-    <div style="font-size:11px;color:#666;">${fraudBadgeLabel} &nbsp;&middot;&nbsp; Fraud Score ${fraudScore}/100${hasImpossibilityFlag ? ` &rarr; ${fraudScoreAdjusted}/100 (adjusted)` : ""}</div>
+  <div class="cs-cell hl">
+    <div class="cs-lbl">KINGA Optimised Estimate</div>
+    <div class="cs-val">${fmtUSD(kingaOptimised)}</div>
+    <div class="cs-sub">Best price per component &middot; ${quoteArr.length} quotes benchmarked</div>
   </div>
-
-  <div class="score-strip c6">
-    <div class="score-cell"><div class="score-num ${scoreColour(fraudScore)}">${fraudScore}</div><div class="score-lbl">Fraud Score</div></div>
-    <div class="score-cell"><div class="score-num ${scoreColour(physicsScore)}">${physicsScore}</div><div class="score-lbl">Physics Score</div></div>
-    <div class="score-cell"><div class="score-num ${scoreColour(dataComplete, true)}">${Math.round(dataComplete)}%</div><div class="score-lbl">Data Complete</div></div>
-    <div class="score-cell"><div class="score-num ${rtvRatio >= 0.7 ? "r" : rtvRatio >= 0.5 ? "a" : "g"}">${fmtPct(rtvRatio * 100, 0)}</div><div class="score-lbl">Repair-to-Value</div></div>
-    <div class="score-cell"><div class="score-num ${photoYield < 40 ? "r" : photoYield < 60 ? "a" : "g"}">${photoYield}%</div><div class="score-lbl">Photo Yield</div></div>
-    <div class="score-cell"><div class="score-num">${quoteArr.length}</div><div class="score-lbl">Quotes</div></div>
+  <div class="cs-cell">
+    <div class="cs-lbl">Savings Opportunity</div>
+    <div class="cs-val g">${fmtUSD(savings)}</div>
+    <div class="cs-sub">${fmtPct(savingsPct)} reduction against highest quote</div>
   </div>
-
-  <div class="contents-grid">
-    <div class="contents-item"><span class="contents-ref">&sect;F</span><span class="contents-name">Critical Flags</span><span class="contents-status">${hasImpossibilityFlag || copyQuotation?.detected ? "CRITICAL" : "Clear"}</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;1</span><span class="contents-name">Vehicle Identity &amp; Claim</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;2</span><span class="contents-name">Physics &amp; Incident Analysis</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;3</span><span class="contents-name">Cost Intelligence</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;4</span><span class="contents-name">Evidence &amp; Photo Forensics</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;5</span><span class="contents-name">Fraud Intelligence</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;6</span><span class="contents-name">Decision &amp; Approval Workflow</span><span class="contents-status">Included</span></div>
-    <div class="contents-item"><span class="contents-ref">&sect;B</span><span class="contents-name">Definitions</span><span class="contents-status">Appendix</span></div>
+</div>
+<div class="verdict-bar">
+  <div class="vbadge ${fraudBadgeCls === "fail" ? "reject" : fraudBadgeCls === "warn" ? "review" : "approve"}">
+    ${fraudBadgeCls === "fail" ? "⚠ " : fraudBadgeCls === "warn" ? "⚠ " : "✓ "}${esc(String(c.recommendation ?? "REVIEW REQUIRED").toUpperCase())}
+  </div>
+  <div class="vbody">
+    <h3>${fraudBadgeLabel} &nbsp;&middot;&nbsp; Fraud Score ${fraudScore}/100${hasImpossibilityFlag ? ` &rarr; ${fraudScoreAdjusted}/100 (adjusted)` : ""}</h3>
+    <ul>
+      ${hasImpossibilityFlag ? "<li>Forensic impossibility flag active — requires independent verification before settlement</li>" : ""}
+      ${physicsScore < 50 ? `<li>Physics consistency score ${physicsScore}/100 — damage pattern vs reported impact direction requires clarification</li>` : ""}
+      ${Math.round(dataComplete) < 90 ? `<li>Data completeness ${Math.round(dataComplete)}% — below the 90% threshold required for automated approval</li>` : ""}
+      ${photoYield < 40 ? `<li>Photo yield ${photoYield}% — insufficient coverage for definitive structural assessment</li>` : ""}
+    </ul>
+  </div>
+</div>
+<div class="score-strip c6">
+  <div class="ss-c"><div class="ss-n ${scoreColour(fraudScore)}">${fraudScore}</div><div class="ss-l">Fraud Risk</div></div>
+  <div class="ss-c"><div class="ss-n ${scoreColour(physicsScore)}">${physicsScore}</div><div class="ss-l">Physics Score</div></div>
+  <div class="ss-c"><div class="ss-n ${scoreColour(dataComplete, true)}">${Math.round(dataComplete)}%</div><div class="ss-l">Data Complete</div></div>
+  <div class="ss-c"><div class="ss-n ${rtvRatio >= 0.7 ? "r" : rtvRatio >= 0.5 ? "a" : "g"}">${fmtPct(rtvRatio * 100, 0)}</div><div class="ss-l">Repair-to-Value</div></div>
+  <div class="ss-c"><div class="ss-n ${photoYield < 40 ? "r" : photoYield < 60 ? "a" : "g"}">${photoYield}%</div><div class="ss-l">Photo Yield</div></div>
+  <div class="ss-c"><div class="ss-n">${quoteArr.length}</div><div class="ss-l">Quotes</div></div>
+</div>
+<div class="contents">
+  <div class="ct-title">Contents</div>
+  <div class="ct-grid">
+    <div class="ci"><span class="ci-n">&sect;F</span><span class="ci-t">Critical Flags</span>${'${hasImpossibilityFlag || copyQuotation?.detected ? chip("Critical", "fail") : chip("Clear", "pass")}'}</div>
+    <div class="ci"><span class="ci-n">&sect;1</span><span class="ci-t">Vehicle Identity &amp; Claim</span>${'${chip("Included", "pass")}'}</div>
+    <div class="ci"><span class="ci-n">&sect;2</span><span class="ci-t">Physics &amp; Incident Analysis</span>${'${chip("Included", "pass")}'}</div>
+    <div class="ci"><span class="ci-n">&sect;3</span><span class="ci-t">Cost Intelligence</span>${'${chip("Included", "pass")}'}</div>
+    <div class="ci"><span class="ci-n">&sect;4</span><span class="ci-t">Evidence &amp; Photo Forensics</span>${'${chip("Included", "pass")}'}</div>
+    <div class="ci"><span class="ci-n">&sect;5</span><span class="ci-t">Fraud Intelligence</span>${'${chip("Included", "pass")}'}</div>
+    <div class="ci"><span class="ci-n">&sect;6</span><span class="ci-t">Decision &amp; Approval Workflow</span>${'${chip("Included", "pass")}'}</div>
+    <div class="ci"><span class="ci-n">&sect;B</span><span class="ci-t">Definitions</span>${'${chip("Appendix", "neutral")}'}</div>
   </div>
 </div>`;
 
@@ -268,8 +275,8 @@ export async function generateForensicDecisionReport(
     <div class="iflag-body">
       <table style="margin-bottom:8px">
         <tbody>
-          <tr><td style="width:40%;color:var(--text-muted)">Registration</td><td class="mono bold">${vehicleReg}</td><td style="width:40%;color:var(--text-muted)">Linked Claims</td><td class="bold">${linkedClaims.length} within 7-day window</td></tr>
-          <tr><td style="color:var(--text-muted)">Fraud Score Impact</td><td class="bold">+30 pts &rarr; adjusted ${fraudScoreAdjusted}/100</td><td style="color:var(--text-muted)">Action Required</td><td>Verify all ${linkedClaims.length} linked claims</td></tr>
+          <tr><td style="width:40%;color:var(--ink-mid)">Registration</td><td class="mono bold">${vehicleReg}</td><td style="width:40%;color:var(--ink-mid)">Linked Claims</td><td class="bold">${linkedClaims.length} within 7-day window</td></tr>
+          <tr><td style="color:var(--ink-mid)">Fraud Score Impact</td><td class="bold">+30 pts &rarr; adjusted ${fraudScoreAdjusted}/100</td><td style="color:var(--ink-mid)">Action Required</td><td>Verify all ${linkedClaims.length} linked claims</td></tr>
         </tbody>
       </table>
       <p>Registration ${vehicleReg} appears in ${linkedClaims.length} other claims with an incident date within 7 days of this claim. The same vehicle being involved in separate accidents within a week requires immediate verification. This may indicate claim duplication, staged accidents, or an administrative error.</p>
@@ -324,13 +331,13 @@ export async function generateForensicDecisionReport(
       <div class="sub"><h3>Vehicle Details</h3></div>
       <table>
         <tbody>
-          <tr><td style="width:40%;color:var(--text-muted)">Make / Model</td><td>${esc(c.vehicle_make)} ${esc(c.vehicle_model)}</td></tr>
-          <tr><td style="color:var(--text-muted)">Year</td><td>${esc(c.vehicle_year)}</td></tr>
-          <tr><td style="color:var(--text-muted)">Registration</td><td class="mono bold">${vehicleReg}</td></tr>
-          <tr><td style="color:var(--text-muted)">VIN</td><td class="mono">${esc(c.vin ?? c.chassis_number ?? "—")}</td></tr>
-          <tr><td style="color:var(--text-muted)">Colour</td><td>${esc(c.vehicle_colour ?? "—")}</td></tr>
-          <tr><td style="color:var(--text-muted)">Market Value</td><td>${fmtUSD(marketValue > 0 ? marketValue : estimatedCost / Math.max(rtvRatio, 0.01))}</td></tr>
-          <tr><td style="color:var(--text-muted)">Odometer</td><td>${esc(c.odometer ?? "—")}</td></tr>
+          <tr><td style="width:40%;color:var(--ink-mid)">Make / Model</td><td>${esc(c.vehicle_make)} ${esc(c.vehicle_model)}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Year</td><td>${esc(c.vehicle_year)}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Registration</td><td class="mono bold">${vehicleReg}</td></tr>
+          <tr><td style="color:var(--ink-mid)">VIN</td><td class="mono">${esc(c.vin ?? c.chassis_number ?? "—")}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Colour</td><td>${esc(c.vehicle_colour ?? "—")}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Market Value</td><td>${fmtUSD(marketValue > 0 ? marketValue : estimatedCost / Math.max(rtvRatio, 0.01))}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Odometer</td><td>${esc(c.odometer ?? "—")}</td></tr>
         </tbody>
       </table>
     </div>
@@ -338,13 +345,13 @@ export async function generateForensicDecisionReport(
       <div class="sub"><h3>Claim &amp; Policy</h3></div>
       <table>
         <tbody>
-          <tr><td style="width:40%;color:var(--text-muted)">Claim Reference</td><td class="mono bold">${claimRef}</td></tr>
-          <tr><td style="color:var(--text-muted)">Policy Number</td><td class="mono">${policyNum}</td></tr>
-          <tr><td style="color:var(--text-muted)">Insurer</td><td>${insurer}</td></tr>
-          <tr><td style="color:var(--text-muted)">Cover Type</td><td>${esc(c.cover_type ?? "Comprehensive")}</td></tr>
-          <tr><td style="color:var(--text-muted)">Sum Insured</td><td>${fmtUSD(c.sum_insured)}</td></tr>
-          <tr><td style="color:var(--text-muted)">Policy Excess</td><td>${fmtUSD(excess)}</td></tr>
-          <tr><td style="color:var(--text-muted)">Incident Date</td><td>${fmtD(c.incident_date)}</td></tr>
+          <tr><td style="width:40%;color:var(--ink-mid)">Claim Reference</td><td class="mono bold">${claimRef}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Policy Number</td><td class="mono">${policyNum}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Insurer</td><td>${insurer}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Cover Type</td><td>${esc(c.cover_type ?? "Comprehensive")}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Sum Insured</td><td>${fmtUSD(c.sum_insured)}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Policy Excess</td><td>${fmtUSD(excess)}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Incident Date</td><td>${fmtD(c.incident_date)}</td></tr>
         </tbody>
       </table>
     </div>
@@ -352,7 +359,7 @@ export async function generateForensicDecisionReport(
 
   ${narrative?.claimantStatement ? `
   <div class="sub"><h3>Claimant Statement</h3><span class="sm">Claimant statement</span></div>
-  <blockquote style="border-left:3px solid var(--border);padding:10px 16px;font-style:italic;font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+  <blockquote style="border-left:3px solid var(--rule);padding:10px 16px;font-style:italic;font-size:12px;color:var(--ink-mid);margin-bottom:12px;">
     &ldquo;${esc(String(narrative.claimantStatement))}&rdquo;
   </blockquote>` : ""}
 
@@ -542,7 +549,7 @@ export async function generateForensicDecisionReport(
           <div class="qc-amount green">${fmtUSD(kingaOptimised)}</div>
           <div class="qc-sub">Savings: ${fmtUSD(savings)} (${fmtPct(savingsPct)})</div>
         </div>`
-      : `<div class="quote-card" style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-sm)">No quotes received</div>`;
+      : `<div class="quote-card" style="grid-column:1/-1;text-align:center;padding:20px;color:var(--ink-light)">No quotes received</div>`;
 
     const tableRows = liArr.slice(0, 35).map((li, i) => `<tr>
       <td class="tm">${i + 1}</td>
@@ -575,7 +582,7 @@ export async function generateForensicDecisionReport(
   <div class="sub"><h3>3.1 Full Line Item Comparison</h3><span class="sm">${liArr.length} items</span></div>
   <table>
     <thead><tr><th>#</th><th>Component</th><th>Type</th><th>Submitted</th><th class="kinga-opt">KINGA</th><th>Status</th></tr></thead>
-    <tbody>${tableRows || `<tr><td colspan="6" style="text-align:center;color:var(--text-sm);padding:16px">No line items available</td></tr>`}</tbody>
+    <tbody>${tableRows || `<tr><td colspan="6" style="text-align:center;color:var(--ink-light);padding:16px">No line items available</td></tr>`}</tbody>
   </table>
 
   ${criticalStructural.length > 0 ? `
@@ -607,7 +614,7 @@ export async function generateForensicDecisionReport(
           ${chip("Usable", "pass")}
         </div>
       </div>
-    </div>`).join("") || `<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--text-sm)">No damage photographs submitted</div>`;
+    </div>`).join("") || `<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--ink-light)">No damage photographs submitted</div>`;
 
     const s4 = `
 <div class="rh"><span class="brand">KINGA</span><span>&sect; 4.0 &mdash; Evidence &amp; Photo Forensics</span></div>
@@ -692,8 +699,8 @@ export async function generateForensicDecisionReport(
       </div>
       <table>
         <tbody>
-          ${fraudIndicators.filter(i => i.score > 0).map(i => `<tr><td>${esc(i.name)}</td><td class="tr bold">+${i.score} pts</td></tr>`).join("") || `<tr><td colspan="2" style="color:var(--text-sm)">No indicators triggered</td></tr>`}
-          <tr style="border-top:2px solid var(--border)"><td><strong>Total</strong></td><td class="tr bold">${fraudScore} pts</td></tr>
+          ${fraudIndicators.filter(i => i.score > 0).map(i => `<tr><td>${esc(i.name)}</td><td class="tr bold">+${i.score} pts</td></tr>`).join("") || `<tr><td colspan="2" style="color:var(--ink-light)">No indicators triggered</td></tr>`}
+          <tr style="border-top:2px solid var(--rule)"><td><strong>Total</strong></td><td class="tr bold">${fraudScore} pts</td></tr>
         </tbody>
       </table>
     </div>
@@ -804,7 +811,7 @@ export async function generateForensicDecisionReport(
   <div class="sub"><h3>Required Actions</h3><span class="sm">Prioritised by impact on settlement</span></div>
   <table>
     <thead><tr><th>#</th><th>Action Required</th><th>Owner</th><th>Priority</th><th>Ref</th></tr></thead>
-    <tbody>${actionRows || `<tr><td colspan="5" style="text-align:center;color:var(--text-sm);padding:16px">No outstanding actions — claim is ready for settlement</td></tr>`}</tbody>
+    <tbody>${actionRows || `<tr><td colspan="5" style="text-align:center;color:var(--ink-light);padding:16px">No outstanding actions — claim is ready for settlement</td></tr>`}</tbody>
   </table>
 
   <div class="sub"><h3>5-Stage Approval Workflow</h3></div>
@@ -868,7 +875,7 @@ export async function generateForensicDecisionReport(
     <thead><tr><th>Quality Check</th><th>Weight</th><th>Score</th><th>Status</th></tr></thead>
     <tbody>
       ${qualityChecks.map(q => "<tr class=\"" + (q.status === "fail" ? "at-high" : q.status === "warn" ? "at-medium" : "") + "\"><td>" + esc(q.check) + "</td><td class=\"tm\">" + q.weight + " pts</td><td class=\"tm bold\">" + q.score + "/" + q.weight + "</td><td>" + chip(q.status === "pass" ? "Pass" : q.status === "warn" ? "Partial" : "Fail", q.status) + "</td></tr>").join("")}
-      <tr style="border-top:2px solid var(--border)"><td><strong>Total</strong></td><td class="tm">100 pts</td><td class="tm bold">${qualityTotal}/100</td><td>${chip(qualityLabel, qualityCls as "pass" | "warn" | "fail")}</td></tr>
+      <tr style="border-top:2px solid var(--rule)"><td><strong>Total</strong></td><td class="tm">100 pts</td><td class="tm bold">${qualityTotal}/100</td><td>${chip(qualityLabel, qualityCls as "pass" | "warn" | "fail")}</td></tr>
     </tbody>
   </table>
   ${qualityTotal < 60 ? "<div class=\"fc red\"><div class=\"fc-head\">" + chip("Low Quality", "fail") + "<span class=\"fc-title\">Assessment Reliability Below Threshold</span></div><p>The quality score of " + qualityTotal + "/100 indicates that the assessment is based on incomplete or low-quality inputs. Key findings should be treated as indicative only.</p><div class=\"fc-action\">Action: Obtain missing documents and request re-analysis before proceeding</div></div>" : ""}
