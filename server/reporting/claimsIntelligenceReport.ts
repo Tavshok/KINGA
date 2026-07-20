@@ -81,12 +81,12 @@ export async function generateClaimsIntelligenceReport(
     ) as [Record<string, unknown>[], unknown];
 
     // ── 4. Parse JSON fields ─────────────────────────────────────────────────
-    const costIntel  = safeJson(c.cost_intelligence_json);
-    const repairIntel = safeJson(c.repair_intelligence_json);
-    const fraudBreak = safeJson(c.fraud_score_breakdown_json);
-    const ife        = safeJson(c.ife_result_json);
-    const physics    = safeJson(c.physics_analysis);
-    const narrative  = safeJson(c.narrative_analysis_json);
+    const costIntel  = safeJson(c.cost_intelligence_json as string) as any;
+    const repairIntel = safeJson(c.repair_intelligence_json as string) as any;
+    const fraudBreak = safeJson(c.fraud_score_breakdown_json as string) as any;
+    const ife        = safeJson(c.ife_result_json as string) as any;
+    const physics    = safeJson(c.physics_analysis as string) as any;
+    const narrative  = safeJson(c.narrative_analysis_json as string) as any;
 
     // ── 5. Derived values ────────────────────────────────────────────────────
     const fraudScore   = Number(c.fraud_score ?? 0);
@@ -218,7 +218,7 @@ export async function generateClaimsIntelligenceReport(
 </div>
 <div class="score-strip c4">
   <div class="ss-c"><div class="ss-n ${scoreColour(fraudScore)}">${fraudScore}</div><div class="ss-l">Fraud Risk</div></div>
-  <div class="ss-c"><div class="ss-n ${scoreColour(dataComplete, true)}">${Math.round(dataComplete)}%</div><div class="ss-l">Data Complete</div></div>
+  <div class="ss-c"><div class="ss-n ${scoreColour(Math.round(dataComplete))}">${Math.round(dataComplete)}%</div><div class="ss-l">Data Complete</div></div>
   <div class="ss-c"><div class="ss-n ${quoteArr.length >= 3 ? "g" : quoteArr.length >= 2 ? "a" : "r"}">${quoteArr.length}</div><div class="ss-l">Quotes Received</div></div>
   <div class="ss-c"><div class="ss-n ${rtvRatio >= 0.7 ? "r" : rtvRatio >= 0.5 ? "a" : "g"}">${fmtPct(rtvRatio * 100, 0)}</div><div class="ss-l">Repair-to-Value</div></div>
 </div>
@@ -267,7 +267,7 @@ export async function generateClaimsIntelligenceReport(
           <tr><td style="width:40%;color:var(--ink-mid)">Policy Number</td><td class="mono bold">${policyNum}</td></tr>
           <tr><td style="color:var(--ink-mid)">Insurer</td><td>${insurer}</td></tr>
           <tr><td style="color:var(--ink-mid)">Cover Type</td><td>${esc(c.cover_type ?? c.policy_type ?? "Comprehensive")}</td></tr>
-          <tr><td style="color:var(--ink-mid)">Sum Insured</td><td>${fmtUSD(c.sum_insured ?? c.vehicle_market_value)}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Sum Insured</td><td>${fmtUSD(c.sum_insured as string | number | null | undefined ?? c.vehicle_market_value as string | number | null | undefined)}</td></tr>
           <tr><td style="color:var(--ink-mid)">Policy Excess</td><td>${fmtUSD(excess)}</td></tr>
           <tr><td style="color:var(--ink-mid)">Claim Lodged</td><td>${fmtD(c.created_at)}</td></tr>
           <tr><td style="color:var(--ink-mid)">Submission Delay</td><td>${dayDelay !== null ? `${dayDelay} days` : "—"} ${dayDelay !== null && dayDelay > 90 ? chip("Flagged", "warn") : dayDelay !== null ? chip("Normal", "pass") : ""}</td></tr>
