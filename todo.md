@@ -768,3 +768,17 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Align kingaDesignSystem.ts cover layout to match approved PDF: dark cover block with green KPI strip, white body pages with left-rule section headers
 - [ ] Ensure report HTML renders correctly inside the iframe preview in ClaimDecisionReport
 - [ ] Verify all three report types (Standard, Intelligence, Forensic) render with correct approved design after changes
+
+---
+
+## Report Quality Fixes — July 2026 (Live-Run PDF Review)
+
+- [ ] Fix currency formatting: fmtUSD producing wrong comma/decimal position (e.g. $24,782.31 should not render as $247,82.31)
+- [ ] Fix blank first pages when printing/exporting reports to PDF (CSS print media query / page-break issue)
+- [ ] Fix SVG damage diagram to match the approved live-run reference layout and semantics
+- [ ] Restore missing report sections from live-run PDF: FCDI bar chart, claim timeline, executive summary, physics snapshot bar, repair quote summary table with panel beater names, decision score summary, incident facts table with confidence badge, incident narrative with reconstructed sequence and cross-validation, vehicle details + policyholder split table
+- [ ] Restore running header to show "Claim: | Report Date: | Page N of M" format matching live-run PDF
+- [ ] Restore DRAFT watermark banner when VIN is missing or claim is in draft state
+- [ ] Restore right-column cost stack on cover (individual panel beater quotes listed vertically with amounts and LOWEST badge)
+- [ ] Restore 4-metric score strip on cover (Fraud Risk, Physics, FCDI, Data) matching live-run layout
+- [ ] Restore KINGA DECISION block on cover (REVIEW REQUIRED / APPROVE / REJECT in large bold with sub-text)

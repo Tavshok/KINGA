@@ -266,6 +266,7 @@ tbody td:first-child { color:var(--ink); font-weight:600; }
 /* ── DAMAGE ZONE MAP ────────────────────────────────── */
 .zone-map-wrap { display:flex; gap:20px; align-items:flex-start; margin-bottom:10px; }
 .zone-map-svg { flex-shrink:0; }
+.zone-svg-wrap { flex-shrink:0; display:flex; justify-content:center; align-items:center; }
 .zone-legend { flex:1; font-size:10.5px; }
 .zl-row { display:flex; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid var(--rule-light); }
 .zl-row:last-child { border-bottom:none; }
@@ -287,11 +288,23 @@ hr.div { border:none; border-top:1px solid var(--rule-light); margin:10px 0; }
 .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 .two-col-3-2 { display:grid; grid-template-columns:3fr 2fr; gap:20px; }
 
+@page { margin:15mm 12mm; }
 @media print {
   body { background:#fff; }
-  .report { box-shadow:none; margin:0; max-width:100%; }
-  .page { page-break-inside:avoid; }
-  .rh { page-break-after:avoid; }
+  .report { box-shadow:none; margin:0; max-width:100%; padding:0; }
+  /* Each section running-header starts a new page, its content block follows immediately */
+  .rh { break-before:page; page-break-before:always; break-after:avoid; page-break-after:avoid; }
+  /* The cover is the first element — no break-before */
+  .cover-head { break-before:avoid !important; page-break-before:avoid !important; }
+  /* Cover ends with a page break so §F always starts on page 2 */
+  .contents { break-after:page; page-break-after:always; }
+  /* Keep each content block together */
+  .page { break-inside:avoid; page-break-inside:avoid; }
+  /* Keep tables, cards, and key components together */
+  table, .fc, .quote-card, .kpi, .score-strip, .verdict-bar, .iflag { break-inside:avoid; page-break-inside:avoid; }
+  /* Remove screen-only decorations */
+  .fc, .quote-card, .kpi-c { box-shadow:none !important; }
+  .report { box-shadow:none !important; }
 }
 `;
 

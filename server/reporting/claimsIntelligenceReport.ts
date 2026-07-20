@@ -105,9 +105,15 @@ export async function generateClaimsIntelligenceReport(
     const quoteAmounts = quoteArr.map(q => Number(q.quoted_amount ?? 0) / 100);
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
-    const kingaOptimised = costIntel?.kingaOptimisedAmount
-      ? Number(costIntel.kingaOptimisedAmount)
-      : estimatedCost;
+    // kingaOptimisedAmount is not a real field — use compositeOptimisedCostCents (÷100) or
+    // totalEstimatedCost (already dollars) or fall back to estimatedCost (already dollars).
+    const kingaOptimised: number = (() => {
+      const comp = (costIntel?.compositeOptimisation as Record<string, unknown> | null | undefined);
+      if (comp?.compositeOptimisedCostCents) return Number(comp.compositeOptimisedCostCents) / 100;
+      if (costIntel?.totalEstimatedCost) return Number(costIntel.totalEstimatedCost);
+      if (costIntel?.expectedRepairCostCents) return Number(costIntel.expectedRepairCostCents) / 100;
+      return estimatedCost; // already in dollars
+    })();
     const savings = highestQuote > 0 ? highestQuote - kingaOptimised : 0;
     const savingsPct = highestQuote > 0 ? (savings / highestQuote * 100) : 0;
 
@@ -418,8 +424,8 @@ export async function generateClaimsIntelligenceReport(
     const compTableRows = topItems.map(li => `<tr>
       <td>${esc(li.description ?? "—")}</td>
       <td class="tm">${esc(li.category ?? "—")}</td>
-      <td class="tm">${fmtUSD(Number(li.unit_price ?? 0) / 100)}</td>
-      <td class="tm">${fmtUSD(Number(li.unit_price ?? 0) / 100)}</td>
+      <td class="tm">${fmtUSD(Number(li.unit_price ?? 0))}</td>
+      <td class="tm">${fmtUSD(Number(li.unit_price ?? 0))}</td>
       <td class="tm">${li.is_missing_in_other_quotes ? chip("Gap", "warn") : chip("Matched", "pass")}</td>
     </tr>`).join("");
 

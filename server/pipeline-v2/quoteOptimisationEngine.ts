@@ -1019,78 +1019,97 @@ export function buildCompositeQuote(
       benchmarkCoverageCount++;
     }
 
-    // Select lowest price that passed the gate
+    // ── KINGA Optimised Price Rule ──────────────────────────────────────────
+    // The KINGA optimised price for each component is:
+    //   min(lowest credible submitted price, KINGA trained model P50)
+    //
+    // The KINGA model always competes against submitted prices. If the model
+    // knows the component should cost less than any panel beater quoted, the
+    // model wins (T1/T2). If a panel beater is cheaper than the model, the
+    // panel beater wins (T3/T4). This ensures the optimised estimate is always
+    // the best available price — not just the cheapest quote.
+    //
+    // Variance sanity check: if the KINGA model price is more than
+    // MAX_MODEL_DISCOUNT_PCT below the lowest submitted price, the model may
+    // be calibrated to a different market. In that case, use the lowest
+    // submitted price instead to keep the estimate realistic.
+    /** Max % the KINGA model can be below the lowest submitted price before
+     *  the submitted price is used as the floor. Engineering-judgment constant.
+     *  Do not change without benchmarking against a labelled cost dataset. */
+    const MAX_MODEL_DISCOUNT_PCT = 0.45; // 45% below lowest submitted = unrealistic
+
     const gatedPrices = prices.filter(p => p.passedGate);
+    const lowestSubmittedUsd: number | null = prices.length > 0
+      ? prices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b).costUsd
+      : null;
+    const lowestGatedUsd: number | null = gatedPrices.length > 0
+      ? gatedPrices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b).costUsd
+      : null;
+
     let selectedCostUsd: number;
     let selectedFromQuote: string;
     let isBenchmarkFill = false;
     // Four-tier KINGA Optimised source hierarchy:
-    // T1 = ML model  T2 = Market benchmark  T3 = Best quote (multi)  T4 = Quoted (single)
+    // T1 = ML model beats submitted  T2 = Statistical benchmark beats submitted
+    // T3 = Best quote (multi-quote competition)  T4 = Quoted (single source)
     let kingaOptimisedTier: 'T1' | 'T2' | 'T3' | 'T4';
     let kingaOptimisedTierLabel: string;
 
-    if (gatedPrices.length > 0) {
-      const best = gatedPrices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b);
-      selectedCostUsd = best.costUsd;
-      selectedFromQuote = best.quote;
-      // Determine T3 vs T4 based on whether multiple quotes provided this component
-      if (prices.length > 1) {
-        kingaOptimisedTier = 'T3';
-        kingaOptimisedTierLabel = `Best Quote · ${best.quote}`;
-      } else {
-        kingaOptimisedTier = 'T4';
-        kingaOptimisedTierLabel = `Quoted · ${best.quote}`;
-      }
-    } else if (prices.length > 0) {
-      // All prices failed the credibility gate.
-      // Apply variance check: if submitted prices are internally consistent (CV ≤ 40%),
-      // the prices are likely real — use the lowest submitted price (T4) rather than
-      // substituting a benchmark that may be calibrated to a different market.
-      // Only fall back to the benchmark P50 when prices are wildly inconsistent (CV > 40%)
-      // or when there is only one price that failed (no cross-quote validation possible).
-      const rawValues = prices.map(p => p.costUsd);
-      const mean = rawValues.reduce((a, b) => a + b, 0) / rawValues.length;
-      const cv = mean > 0
-        ? Math.sqrt(rawValues.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / rawValues.length) / mean * 100
-        : Infinity;
+    if (lowestGatedUsd !== null || lowestSubmittedUsd !== null) {
+      // We have at least one submitted price — apply min(submitted, KINGA model)
+      const bestSubmittedUsd = lowestGatedUsd ?? lowestSubmittedUsd!;
+      const bestSubmittedQuote = (lowestGatedUsd !== null
+        ? gatedPrices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b)
+        : prices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b)).quote;
 
-      const useSubmitted = prices.length >= 2 ? cv <= 40 : false;
+      if (p50 !== null) {
+        // Variance sanity check: is the model price realistic vs submitted?
+        const modelDiscountFraction = (bestSubmittedUsd - p50) / bestSubmittedUsd;
+        const modelIsRealistic = modelDiscountFraction <= MAX_MODEL_DISCOUNT_PCT;
 
-      if (useSubmitted) {
-        // Prices are consistent — lowest submitted price wins
-        const lowestRaw = prices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b);
-        selectedCostUsd = lowestRaw.costUsd;
-        selectedFromQuote = lowestRaw.quote;
-        kingaOptimisedTier = prices.length > 1 ? 'T3' : 'T4';
-        kingaOptimisedTierLabel = prices.length > 1
-          ? `Best Quote · ${lowestRaw.quote}`
-          : `Quoted · ${lowestRaw.quote}`;
-      } else if (p50 !== null) {
-        // Prices are inconsistent or single — use benchmark P50 as credibility anchor
-        selectedCostUsd = p50;
-        selectedFromQuote = 'benchmark_fill';
-        isBenchmarkFill = true;
-        const modelSource = (bm as any)?.modelSource ?? 'statistical';
-        if (modelSource === 'ml') {
-          kingaOptimisedTier = 'T1';
-          kingaOptimisedTierLabel = `ML Model · n=${(bm as any)?.sampleSize ?? '?'}`;
+        if (p50 < bestSubmittedUsd && modelIsRealistic) {
+          // KINGA model is cheaper AND realistic — use model price (T1 or T2)
+          selectedCostUsd = p50;
+          selectedFromQuote = 'kinga_model';
+          isBenchmarkFill = true;
+          const modelSource = (bm as any)?.modelSource ?? 'statistical';
+          if (modelSource === 'ml') {
+            kingaOptimisedTier = 'T1';
+            kingaOptimisedTierLabel = `ML Model · n=${(bm as any)?.sampleSize ?? '?'} · saves ${((modelDiscountFraction) * 100).toFixed(0)}% vs ${bestSubmittedQuote}`;
+          } else {
+            kingaOptimisedTier = 'T2';
+            kingaOptimisedTierLabel = `Market Benchmark · n=${(bm as any)?.sampleSize ?? '?'} · saves ${((modelDiscountFraction) * 100).toFixed(0)}% vs ${bestSubmittedQuote}`;
+          }
         } else {
-          kingaOptimisedTier = 'T2';
-          kingaOptimisedTierLabel = `Market Benchmark · n=${(bm as any)?.sampleSize ?? '?'}`;
+          // Submitted price is cheaper than model, or model discount is unrealistically large
+          // — use the best submitted price (T3 multi-quote, T4 single-quote)
+          selectedCostUsd = bestSubmittedUsd;
+          selectedFromQuote = bestSubmittedQuote;
+          if (prices.length > 1) {
+            kingaOptimisedTier = 'T3';
+            kingaOptimisedTierLabel = `Best Quote · ${bestSubmittedQuote}`;
+          } else {
+            kingaOptimisedTier = 'T4';
+            kingaOptimisedTierLabel = `Quoted · ${bestSubmittedQuote}`;
+          }
         }
       } else {
-        // No benchmark either — use lowest raw price
-        const lowestRaw = prices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b);
-        selectedCostUsd = lowestRaw.costUsd;
-        selectedFromQuote = lowestRaw.quote;
-        kingaOptimisedTier = 'T4';
-        kingaOptimisedTierLabel = `Quoted · ${lowestRaw.quote}`;
+        // No KINGA model for this component — use best submitted price
+        selectedCostUsd = bestSubmittedUsd;
+        selectedFromQuote = bestSubmittedQuote;
+        if (prices.length > 1) {
+          kingaOptimisedTier = 'T3';
+          kingaOptimisedTierLabel = `Best Quote · ${bestSubmittedQuote}`;
+        } else {
+          kingaOptimisedTier = 'T4';
+          kingaOptimisedTierLabel = `Quoted · ${bestSubmittedQuote}`;
+        }
       }
     } else {
       // No submitted prices at all — use benchmark P50 if available
       if (p50 !== null) {
         selectedCostUsd = p50;
-        selectedFromQuote = 'benchmark_fill';
+        selectedFromQuote = 'kinga_model';
         isBenchmarkFill = true;
         const modelSource = (bm as any)?.modelSource ?? 'statistical';
         kingaOptimisedTier = modelSource === 'ml' ? 'T1' : 'T2';

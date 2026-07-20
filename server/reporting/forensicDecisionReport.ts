@@ -109,8 +109,15 @@ export async function generateForensicDecisionReport(
     const quoteAmounts = quoteArr.map(q => Number(q.quoted_amount ?? 0) / 100);
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
-    const kingaOptimised = costIntel?.kingaOptimisedAmount
-      ? Number(costIntel.kingaOptimisedAmount) : estimatedCost;
+    // kingaOptimisedAmount is not a real field — use compositeOptimisedCostCents (÷100) or
+    // totalEstimatedCost (already dollars) or fall back to estimatedCost (already dollars).
+    const kingaOptimised: number = (() => {
+      const comp = (costIntel?.compositeOptimisation as Record<string, unknown> | null | undefined);
+      if (comp?.compositeOptimisedCostCents) return Number(comp.compositeOptimisedCostCents) / 100;
+      if (costIntel?.totalEstimatedCost) return Number(costIntel.totalEstimatedCost);
+      if (costIntel?.expectedRepairCostCents) return Number(costIntel.expectedRepairCostCents) / 100;
+      return estimatedCost; // already in dollars
+    })();
     const savings = highestQuote > 0 ? highestQuote - kingaOptimised : 0;
     const savingsPct = highestQuote > 0 ? (savings / highestQuote * 100) : 0;
 
@@ -136,15 +143,24 @@ export async function generateForensicDecisionReport(
       String(g.severity ?? "").toLowerCase().includes("structural")
     );
 
-    // Physics values
-    const deltaV = physics?.deltaV ? Number(physics.deltaV) : 15.0;
-    const kineticEnergy = physics?.kineticEnergy ? Number(physics.kineticEnergy) : 18.0;
-    const impactForce = physics?.impactForce ? Number(physics.impactForce) : 2709.6;
+    // Physics values — field names match the actual physics_analysis JSON schema
+    const deltaV = physics?.deltaVKmh ? Number(physics.deltaVKmh) : (physics?.deltaV ? Number(physics.deltaV) : 15.0);
+    const kineticEnergy = (physics?.energyDistribution as any)?.kineticEnergyJ
+      ? Number((physics?.energyDistribution as any).kineticEnergyJ) / 1000  // J → kJ
+      : (physics?.kineticEnergy ? Number(physics.kineticEnergy) : 18.0);
+    const impactForce = physics?.impactForceKn ? Number(physics.impactForceKn) : (physics?.impactForce ? Number(physics.impactForce) : 2709.6);
     const vehicleMass = physics?.vehicleMass ? Number(physics.vehicleMass) : 2150;
-    const deceleration = physics?.deceleration ? Number(physics.deceleration) : 500;
-    const preImpactSpeed = physics?.preImpactSpeed ? Number(physics.preImpactSpeed) : 70;
-    const physicsScore = physics?.anomalyScore ? Number(physics.anomalyScore) : 50;
-    const ebsSeverity = physics?.ebsSeverity ?? "Severe";
+    const deceleration = physics?.decelerationG ? Number(physics.decelerationG) : (physics?.deceleration ? Number(physics.deceleration) : 500);
+    const preImpactSpeed = physics?.estimatedSpeedKmh ? Number(physics.estimatedSpeedKmh) : (physics?.preImpactSpeed ? Number(physics.preImpactSpeed) : 70);
+    const physicsScore = physics?.damageConsistencyScore ? Number(physics.damageConsistencyScore) : (physics?.anomalyScore ? Number(physics.anomalyScore) : 50);
+    const ebsSeverity = physics?.accidentSeverity ?? physics?.ebsSeverity ?? "Severe";
+    // Impact direction from impactVector
+    const impactDirection: string = String((physics?.impactVector as any)?.direction ?? physics?.impactDirection ?? "front").toLowerCase();
+    // Damage zones — derive from physics.damageZones or fall back to impactDirection
+    const rawDamageZones: Array<{zone: string; severity: string; photoCoverage?: number}> =
+      Array.isArray(physics?.damageZones) && physics.damageZones.length > 0
+        ? (physics.damageZones as Array<{zone: string; severity: string; photoCoverage?: number}>)
+        : [{ zone: impactDirection, severity: "severe" }];
 
     // Linked claims (impossibility flag)
     const linkedClaims: string[] = (forensicAudit?.linkedClaims as string[]) ??
@@ -406,43 +422,92 @@ export async function generateForensicDecisionReport(
 </div>`;
 
     // Damage zone map SVG (top-down vehicle silhouette)
+    // Build data-driven damage zone SVG from rawDamageZones
+    // Zone layout: top-down vehicle silhouette, 220×300 viewBox
+    // Zones rendered in order: front (y=40), underbody (y=185), rear (y=225)
+    // Primary impact zone highlighted with severity colour
+    const ZONE_COLOURS: Record<string, {fill: string; stroke: string; text: string}> = {
+      severe:   { fill: '#FEE2E2', stroke: '#B91C1C', text: '#B91C1C' },
+      critical: { fill: '#FEE2E2', stroke: '#B91C1C', text: '#B91C1C' },
+      moderate: { fill: '#FEF3C7', stroke: '#B45309', text: '#B45309' },
+      minor:    { fill: '#DCFCE7', stroke: '#166534', text: '#166534' },
+      none:     { fill: '#f0f0f0', stroke: '#ccc',    text: '#888' },
+    };
+    function zoneColour(sev: string) {
+      const s = sev.toLowerCase();
+      return ZONE_COLOURS[s] ?? ZONE_COLOURS.none;
+    }
+    // Map zone names to SVG positions
+    const ZONE_POSITIONS: Record<string, {x: number; y: number; w: number; h: number; label: string}> = {
+      front:     { x: 55, y: 40,  w: 110, h: 30, label: 'FRONT' },
+      rear:      { x: 65, y: 225, w: 90,  h: 25, label: 'REAR' },
+      underbody: { x: 65, y: 185, w: 90,  h: 30, label: 'UNDERBODY' },
+      left:      { x: 40, y: 80,  w: 20,  h: 120, label: 'LEFT' },
+      right:     { x: 160, y: 80, w: 20,  h: 120, label: 'RIGHT' },
+      roof:      { x: 65, y: 70,  w: 90,  h: 100, label: 'ROOF' },
+    };
+    // Normalise zone names
+    function normaliseZone(z: string): string {
+      const s = z.toLowerCase();
+      if (s.includes('front')) return 'front';
+      if (s.includes('rear') || s.includes('back')) return 'rear';
+      if (s.includes('under') || s.includes('chassis')) return 'underbody';
+      if (s.includes('left') || s.includes('driver')) return 'left';
+      if (s.includes('right') || s.includes('passenger')) return 'right';
+      if (s.includes('roof') || s.includes('top')) return 'roof';
+      return 'front'; // fallback
+    }
+    // Build zone rects
+    const zoneRects = rawDamageZones.map(dz => {
+      const key = normaliseZone(dz.zone);
+      const pos = ZONE_POSITIONS[key] ?? ZONE_POSITIONS.front;
+      const col = zoneColour(dz.severity);
+      const coverageTxt = dz.photoCoverage != null ? ` · ${dz.photoCoverage}% coverage` : '';
+      return {
+        key, pos, col, severity: dz.severity, zone: dz.zone, coverageTxt,
+        label: `${pos.label} — ${dz.severity.charAt(0).toUpperCase() + dz.severity.slice(1)}${coverageTxt}`,
+      };
+    });
+    // Primary zone (first in list = highest severity)
+    const primaryZone = zoneRects[0] ?? { key: impactDirection, pos: ZONE_POSITIONS[impactDirection] ?? ZONE_POSITIONS.front, col: ZONE_COLOURS.severe, label: `${impactDirection.toUpperCase()} — Severe`, severity: 'severe', zone: impactDirection, coverageTxt: '' };
+    // Callout line from primary zone
+    const calloutY = primaryZone.pos.y;
+    const calloutX = 110;
+    // Build SVG zone rects HTML
+    const zoneRectsHtml = zoneRects.map(z => `
+      <rect x="${z.pos.x}" y="${z.pos.y}" width="${z.pos.w}" height="${z.pos.h}" rx="4" fill="${z.col.fill}" stroke="${z.col.stroke}" stroke-width="${z.key === primaryZone.key ? '2' : '1.5'}"/>
+      <text x="${z.pos.x + z.pos.w / 2}" y="${z.pos.y + z.pos.h / 2 + 3}" font-size="8" fill="${z.col.text}" font-family="Inter,sans-serif" text-anchor="middle" font-weight="700">${z.pos.label} — ${z.severity.toUpperCase()}</text>`
+    ).join('');
+    // Legend rows
+    const legendRowsHtml = zoneRects.map(z =>
+      `<div class="zl-row"><svg width="10" height="10"><rect width="10" height="10" fill="${z.col.fill}" stroke="${z.col.stroke}" stroke-width="1.5"/></svg><span><strong>${z.pos.label}</strong> — ${z.severity.charAt(0).toUpperCase() + z.severity.slice(1)}${z.coverageTxt}</span></div>`
+    ).join('');
     const damageZoneSvg = `
 <div class="zone-map-wrap">
-  <div class="zone-map-svg">
-    <svg width="200" height="340" viewBox="0 0 200 340" xmlns="http://www.w3.org/2000/svg">
+  <div class="zone-svg-wrap">
+    <svg width="220" height="300" viewBox="0 0 220 300" xmlns="http://www.w3.org/2000/svg">
       <!-- Vehicle body outline -->
-      <rect x="30" y="40" width="140" height="260" rx="20" fill="#f5f5f5" stroke="#ccc" stroke-width="1.5"/>
-      <!-- Front zone (critical) -->
-      <rect x="30" y="40" width="140" height="70" rx="10" fill="#ef4444" opacity="0.25"/>
-      <rect x="30" y="40" width="140" height="70" rx="10" fill="none" stroke="#ef4444" stroke-width="1.5"/>
-      <text x="100" y="82" text-anchor="middle" font-size="9" fill="#c0392b" font-family="IBM Plex Mono,monospace" font-weight="600">FRONT</text>
-      <text x="100" y="94" text-anchor="middle" font-size="8" fill="#c0392b" font-family="IBM Plex Mono,monospace">Critical</text>
-      <!-- Cabin zone (minor) -->
-      <rect x="30" y="120" width="140" height="100" rx="4" fill="#e0e0e0" opacity="0.3"/>
-      <text x="100" y="175" text-anchor="middle" font-size="9" fill="#888" font-family="IBM Plex Mono,monospace">CABIN</text>
-      <text x="100" y="187" text-anchor="middle" font-size="8" fill="#888" font-family="IBM Plex Mono,monospace">Minor</text>
-      <!-- Underbody zone (severe) -->
-      <rect x="40" y="230" width="120" height="50" rx="4" fill="#f97316" opacity="0.25"/>
-      <rect x="40" y="230" width="120" height="50" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
-      <text x="100" y="258" text-anchor="middle" font-size="9" fill="#c2410c" font-family="IBM Plex Mono,monospace">UNDERBODY</text>
-      <text x="100" y="270" text-anchor="middle" font-size="8" fill="#c2410c" font-family="IBM Plex Mono,monospace">Severe</text>
-      <!-- Rear zone (minor) -->
-      <rect x="30" y="285" width="140" height="15" rx="4" fill="#e0e0e0" opacity="0.3"/>
-      <text x="100" y="298" text-anchor="middle" font-size="8" fill="#888" font-family="IBM Plex Mono,monospace">REAR — Minor</text>
+      <rect x="55" y="60" width="110" height="180" rx="8" fill="#f0f0f0" stroke="#ccc" stroke-width="1.5"/>
+      <!-- Roof -->
+      <rect x="65" y="70" width="90" height="100" rx="4" fill="#e0e0e0" stroke="#bbb" stroke-width="1"/>
+      <!-- Damage zones -->
+      ${zoneRectsHtml}
       <!-- Wheels -->
-      <rect x="12" y="70" width="18" height="40" rx="4" fill="#ccc"/>
-      <rect x="170" y="70" width="18" height="40" rx="4" fill="#ccc"/>
-      <rect x="12" y="230" width="18" height="40" rx="4" fill="#ccc"/>
-      <rect x="170" y="230" width="18" height="40" rx="4" fill="#ccc"/>
-      <!-- North arrow -->
-      <text x="100" y="20" text-anchor="middle" font-size="10" fill="#888" font-family="IBM Plex Mono,monospace">&#9650; FRONT</text>
+      <ellipse cx="68" cy="95"  rx="10" ry="12" fill="#ccc" stroke="#999" stroke-width="1"/>
+      <ellipse cx="152" cy="95" rx="10" ry="12" fill="#ccc" stroke="#999" stroke-width="1"/>
+      <ellipse cx="68" cy="215" rx="10" ry="12" fill="#ccc" stroke="#999" stroke-width="1"/>
+      <ellipse cx="152" cy="215" rx="10" ry="12" fill="#ccc" stroke="#999" stroke-width="1"/>
+      <!-- Callout line from primary zone to component labels -->
+      <line x1="${calloutX}" y1="${calloutY}" x2="${calloutX}" y2="20" stroke="${primaryZone.col.stroke}" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="${calloutX}" y="16" font-size="8" fill="${primaryZone.col.text}" font-family="Inter,sans-serif" text-anchor="middle">${esc(primaryZone.label)}</text>
+      <!-- Direction arrow -->
+      <polygon points="${calloutX},8 ${calloutX - 6},18 ${calloutX + 6},18" fill="${primaryZone.col.stroke}"/>
+      <text x="110" y="290" font-size="8" fill="#888" font-family="Inter,sans-serif" text-anchor="middle">Impact Direction →</text>
     </svg>
   </div>
   <div class="zone-legend">
-    <div class="zone-legend-item"><div class="zone-dot sev-critical"></div><div><strong>Front Zone</strong> — Critical damage. Primary energy absorption zone. Bumper assembly, front subframe, engine bay.</div></div>
-    <div class="zone-legend-item"><div class="zone-dot sev-severe"></div><div><strong>Underbody Zone</strong> — Severe. Secondary involvement. Front lower control arm, suspension subframe.</div></div>
-    <div class="zone-legend-item"><div class="zone-dot sev-moderate"></div><div><strong>Cabin Zone</strong> — Minor. Airbag deployment, windscreen, interior trim.</div></div>
-    <div class="zone-legend-item"><div class="zone-dot sev-minor"></div><div><strong>Rear Zone</strong> — Minor. No structural involvement identified.</div></div>
+    ${legendRowsHtml}
+    <hr class="div">
   </div>
 </div>`;
 
@@ -555,8 +620,8 @@ export async function generateForensicDecisionReport(
       <td class="tm">${i + 1}</td>
       <td>${esc(li.description ?? li.item_description ?? "—")}</td>
       <td class="tm">${esc(li.part_type ?? "—")}</td>
-      <td class="tm">${fmtUSD(Number(li.unit_price ?? 0) / 100)}</td>
-      <td class="tm kinga-opt">${fmtUSD(Number(li.kinga_benchmark ?? li.unit_price ?? 0) / 100)}</td>
+      <td class="tm">${fmtUSD(Number(li.unit_price ?? 0))}</td>
+      <td class="tm kinga-opt">${fmtUSD(Number(li.kinga_benchmark ?? li.unit_price ?? 0))}</td>
       <td class="tm">${li.scope_flag ? chip(String(li.scope_flag), li.scope_flag === "missing" ? "warn" : li.scope_flag === "extra" ? "excl" : "pass") : chip("Matched", "pass")}</td>
     </tr>`).join("");
 
