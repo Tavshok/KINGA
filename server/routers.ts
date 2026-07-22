@@ -7286,6 +7286,86 @@ If any value is not found, use null or 0. Line items category must be one of: pa
 
         return { success: true };
       }),
+
+    // ── Unified document list: merges ingestion_documents (original upload) + claim_documents ──
+    // The original uploaded PDF lives in ingestion_documents (via claims.source_document_id).
+    // claim_documents holds manually-uploaded supplementary files.
+    // This procedure returns both, so DocumentList shows ALL files for a claim.
+    allByClaim: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const db = await getDb();
+        if (!db) return [];
+        const { claimDocuments: cdTable, ingestionDocuments: idTable, claims: claimsTable } = await import("../drizzle/schema");
+        const { eq, desc } = await import("drizzle-orm");
+
+        // 1. claim_documents rows (manually uploaded supplementary files)
+        const cdRows = await db
+          .select()
+          .from(cdTable)
+          .where(eq(cdTable.claimId, input.claimId))
+          .orderBy(desc(cdTable.createdAt));
+
+        // Filter by role-based access
+        const filteredCd = cdRows.filter(doc => {
+          if (!doc.visibleToRoles) return true;
+          try {
+            const roles = JSON.parse(doc.visibleToRoles);
+            return roles.includes(ctx.user?.role);
+          } catch { return true; }
+        });
+
+        // 2. ingestion document (original upload via multipart endpoint)
+        const claimRows = await db
+          .select({ sourceDocumentId: claimsTable.sourceDocumentId })
+          .from(claimsTable)
+          .where(eq(claimsTable.id, input.claimId))
+          .limit(1);
+
+        const sourceDocId = claimRows[0]?.sourceDocumentId;
+        let ingRow: (typeof idTable.$inferSelect) | null = null;
+        if (sourceDocId) {
+          const ingRows = await db
+            .select()
+            .from(idTable)
+            .where(eq(idTable.id, sourceDocId))
+            .limit(1);
+          ingRow = ingRows[0] ?? null;
+        }
+
+        // Normalise ingestion document to the same shape as claim_documents
+        const ingNormalised = ingRow ? [{
+          id: ingRow.id,
+          fileName: ingRow.originalFilename,
+          fileUrl: ingRow.s3Url,
+          fileSize: ingRow.fileSizeBytes,
+          mimeType: ingRow.mimeType,
+          documentTitle: ingRow.originalFilename,
+          documentCategory: ingRow.documentType ?? 'other',
+          createdAt: ingRow.createdAt,
+          source: 'ingestion_document' as const,
+        }] : [];
+
+        // Deduplicate: skip claim_documents whose filename matches the ingestion document
+        const ingFilenames = new Set(ingNormalised.map(r => r.fileName));
+        const cdNormalised = filteredCd
+          .filter(r => !ingFilenames.has(r.fileName))
+          .map(r => ({
+            id: r.id,
+            fileName: r.fileName,
+            fileUrl: r.fileUrl,
+            fileSize: r.fileSize,
+            mimeType: r.mimeType,
+            documentTitle: r.documentTitle ?? r.fileName,
+            documentCategory: r.documentCategory,
+            createdAt: r.createdAt,
+            source: 'claim_document' as const,
+          }));
+
+        // Ingestion document first (primary source), then supplementary files
+        return [...ingNormalised, ...cdNormalised];
+      }),
   }),
 
 

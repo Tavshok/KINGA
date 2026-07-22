@@ -15,6 +15,15 @@
 
 ---
 
+## Stabilization Pass — July 2026
+
+- [ ] Fix document visibility: add documents.allByClaim tRPC procedure merging ingestion_documents + claim_documents; update DocumentList component
+- [ ] CI hardening: pre-commit hook blocking commits with git conflict markers
+- [ ] Pipeline observability: pipeline_execution_logs table + telemetry hooks in orchestrator
+- [ ] End-to-end regression test suite: upload → analysis → report lifecycle
+
+---
+
 ## Codebase Maintainability — Phase 1 (Active)
 
 - [x] Write developer README.md — quick start, pipeline overview, table map, code standards, key decisions
