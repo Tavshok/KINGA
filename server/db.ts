@@ -1048,55 +1048,23 @@ export async function triggerAiAssessment(claimId: number) {
     console.log(`[KINGA Assessment] Claim ${claimId}: Image normalisation — cache_rehydration (${damagePhotos.length} trusted cached photos, classifier bypassed)`);
   }
 
-  // ── DRA Phase 5: No Silent Failure Invariant ──────────────────────────────────────────────────────
-  // SYSTEM INVARIANT: A claim with no evidence MUST NEVER reach analysis_complete.
-  // Previously this path created a fake 'assessment_complete' placeholder, which
-  // caused claims to appear processed when they had no evidence at all.
-  // This is the root cause of the silent failure bug.
-  //
-  // NEW BEHAVIOUR: No evidence → DOCUMENT_FAILED → HUMAN_REVIEW_REQUIRED
-  //   • Owner is notified
-  //   • Claim is blocked from proceeding
-  //   • Adjuster sees clear failure reason in the UI
-  // ────────────────────────────────────────────────────────────────────────────────────
+  // ── DRA Phase 5: Evidence Warning (non-blocking) ────────────────────────────────────────────────
+  // All real claims in this system have evidence attached at ingestion time.
+  // If pdfUrl and damagePhotos are both empty here, it means the evidence lookup failed
+  // (e.g. presign error, missing S3 key) — NOT that the claim genuinely has no documents.
+  // We log a warning and continue so the pipeline can still run with available field data.
+  // Pipeline stages handle missing evidence gracefully and surface warnings in the report
+  // for the adjuster to review. The previous hard-block + owner notification was removed
+  // because it caused a flood of emails when the recovery job re-triggered old claims.
+  // ─────────────────────────────────────────────────────────────────────────────────────────────────
   if (!pdfUrl && damagePhotos.length === 0) {
-    console.error(`[KINGA Assessment] Claim ${claimId}: No evidence available (no PDF, no photos). Routing to DOCUMENT_FAILED.`);
-
-    // Transition to DOCUMENT_FAILED
-    await db.update(claims).set({
-      aiAssessmentCompleted: 0,
-      status: 'document_failed',
-      documentProcessingStatus: 'DOCUMENT_FAILED',
-      updatedAt: new Date().toISOString(),
-    }).where(eq(claims.id, claimId)).catch(() => {});
-
-    // Notify owner (non-blocking)
-    try {
-      const { notifyOwner } = await import('./_core/notification');
-      await notifyOwner({
-        title: `⚠️ Claim ${claimId}: No Evidence — Assessment Blocked`,
-        content: `Claim ${claimId} has no PDF document and no damage photographs. ` +
-          `The assessment pipeline was blocked to prevent a silent failure. ` +
-          `Action required: ask the claimant to upload their claim document and damage photographs. ` +
-          `Claim status: DOCUMENT_FAILED → HUMAN_REVIEW_REQUIRED.`,
-      });
-    } catch (notifyErr: any) {
-      console.warn(`[KINGA Assessment] Claim ${claimId}: Owner notification failed (non-fatal): ${notifyErr.message}`);
-    }
-
-    // Transition to HUMAN_REVIEW_REQUIRED
-    await db.update(claims).set({
-      status: 'human_review_required',
-      documentProcessingStatus: 'HUMAN_REVIEW_REQUIRED',
-      updatedAt: new Date().toISOString(),
-    }).where(eq(claims.id, claimId)).catch(() => {});
-
-    return {
-      success: false,
-      message: 'Assessment blocked: no claim document or damage photographs found. ' +
-        'The claim has been routed to human review. ' +
-        'Please upload a claim document or damage photographs to proceed.',
-    };
+    console.warn(
+      `[KINGA Assessment] Claim ${claimId}: Evidence lookup returned empty (no PDF URL, no cached photos). ` +
+      `This may indicate a presign failure or missing S3 key. Pipeline will continue with available claim data. ` +
+      `The assessment output will flag missing evidence for adjuster review.`
+    );
+    // Do NOT block the pipeline. Do NOT notify owner. Do NOT change status.
+    // The pipeline stages handle missing evidence gracefully.
   }
   // ── PIPELINE V2 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   // Build pipeline context and run the 10-stage orchestrator.

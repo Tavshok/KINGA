@@ -63,8 +63,8 @@
  */
 
 import { getDb, withDbRetry, triggerAiAssessment } from "./db";
-import { claims } from "../drizzle/schema";
-import { eq, and, or, notInArray, inArray, sql, lt } from "drizzle-orm";
+import { claims, ingestionDocuments } from "../drizzle/schema";
+import { eq, and, or, notInArray, inArray, sql, lt, isNotNull } from "drizzle-orm";
 
 const TEN_MINUTES_MS    = 10 * 60 * 1000;
 const MAX_RECOVERY_RETRIES = 3;
@@ -669,13 +669,19 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
     const stuckAssessmentPending = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
+      // CRITICAL: Only re-trigger claims that have an actual ingestion document with an S3 URL.
+      // Claims with no evidence (no PDF, no photos) should NOT be re-triggered — they will
+      // immediately hit the No Evidence hard block, route to DOCUMENT_FAILED, and spam
+      // owner notifications. Filter by source_document_id IS NOT NULL to ensure evidence exists.
       return db
         .select({ id: claims.id, claimNumber: claims.claimNumber, status: claims.status })
         .from(claims)
+        .innerJoin(ingestionDocuments, eq(claims.sourceDocumentId, ingestionDocuments.id))
         .where(
           and(
             eq(claims.status, "assessment_pending" as any),
-            olderThanMinutes(claims.updatedAt, 30)
+            olderThanMinutes(claims.updatedAt, 30),
+            isNotNull(ingestionDocuments.s3Url)
           )
         )
         .limit(20);
