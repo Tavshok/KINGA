@@ -660,6 +660,58 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
+    // ── CASE 10: status='assessment_pending' + >30 min ──────────────────────────────────────
+    // Claims reach assessment_pending when assignClaimToAssessor() is called, but
+    // triggerAiAssessment() is a separate step. If the server crashed or the trigger
+    // was never sent, these claims sit in assessment_pending indefinitely.
+    // The recovery job previously had no case for this status — they were invisible.
+    // Action: Reset to intake_pending so the standard pipeline trigger path picks them up.
+    const stuckAssessmentPending = await withDbRetry(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db
+        .select({ id: claims.id, claimNumber: claims.claimNumber, status: claims.status })
+        .from(claims)
+        .where(
+          and(
+            eq(claims.status, "assessment_pending" as any),
+            olderThanMinutes(claims.updatedAt, 30)
+          )
+        )
+        .limit(20);
+    }, 3, 2000, 'StuckRecovery case-10 query');
+
+    if (stuckAssessmentPending.length > 0) {
+      console.log(
+        `[StuckRecovery] CASE 10: Found ${stuckAssessmentPending.length} claim(s) stuck in 'assessment_pending' ` +
+        `for >30 minutes — re-triggering AI pipeline`
+      );
+      for (const claim of stuckAssessmentPending) {
+        const triggered = await retriggerWithTracking(
+          claim.id, claim.claimNumber, 'Case10',
+          async () => {
+            const db = await getDb();
+            if (!db) return;
+            // Reset to intake_pending so the standard pipeline trigger path picks it up
+            await db.update(claims).set({
+              status: "intake_pending" as any,
+              workflowState: "intake_queue",
+              documentProcessingStatus: "pending",
+              aiAssessmentTriggered: 0,
+              aiAssessmentCompleted: 0,
+              updatedAt: new Date().toISOString() as any,
+            }).where(eq(claims.id, claim.id));
+          }
+        );
+        if (triggered) totalFixed++;
+        else totalFixed++;
+        console.log(
+          `[StuckRecovery] CASE 10: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
+          `from assessment_pending → intake_pending for AI pipeline re-trigger`
+        );
+      }
+    }
+
     if (totalFixed === 0) {
       console.log("[StuckRecovery] No stuck claims found.");
     } else {
