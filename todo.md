@@ -857,3 +857,28 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] FIX-L2-FORMULA: Set MAX_MODEL_DISCOUNT_PCT = 0.30 (was 0.45) in quoteOptimisationEngine.ts buildCompositeQuote
 - [ ] FIX-L2-FORMULA: Delete all wrong formula variants in quoteOptimisationEngine.ts and stage-9-cost.ts that contradict the canonical rule
 - [ ] FIX-QUOTE-LINE-ITEMS: Stage 9 DB fallback must join quote_line_items so buildCompositeQuote receives real line items (not empty components[])
+
+---
+
+## L2 Formula Rebuild — Confirmed Correct Architecture (July 2026)
+
+### The correct L2 formula (confirmed by product owner):
+### 1. Normalise all quotes to total-cost-of-operation (parts + associated labour per component)
+### 2. L1 = lowest normalised quote total across all repairers
+### 3. K = KINGA benchmark/model price for the full repair
+### 4. If K exists and |L1-K|/L1 ≤ 0.30: L2 = min(L1, K)
+### 5. If K exists and |L1-K|/L1 > 0.30: L2 = L1 (model is outlier; accept market floor)
+### 6. If K does not exist (T3/T4): L2 = L1
+### L2 ≤ L1 ALWAYS. KINGA never increases cost burden on insurer.
+
+- [ ] REBUILD-L2-1: Delete the per-component cherry-pick logic from buildCompositeQuote entirely
+- [ ] REBUILD-L2-2: Implement quote normalisation: for each quote, sum all rows per component (parts + repair-ops) to get total-cost-of-operation per component, then sum across all components to get the normalised quote total
+- [ ] REBUILD-L2-3: Identify L1 = lowest normalised quote total
+- [ ] REBUILD-L2-4: Apply 30% benchmark rule against L1 to produce L2 (L2 ≤ L1 always)
+- [ ] REBUILD-L2-5: Scope classification (safety-critical, severity-based repair/replace) used only to decide which scope to use when normalising each quote — not for cherry-picking across quotes
+- [ ] REBUILD-L2-6: Update stage-9-cost.ts to pass normalised quote totals and benchmark K to rebuilt function
+- [ ] REBUILD-L2-7: Update FDR to show L1 (lowest submitted quote), L2 (KINGA estimate), savings = L1 - L2
+- [ ] REBUILD-L2-8: Update CIR to match FDR
+- [ ] REBUILD-L2-9: TypeScript check — 0 errors
+- [ ] REBUILD-L2-10: Recompute verification against claim 8880001 — confirm L2 ≤ L1
+- [ ] REBUILD-L2-11: Update KINGA_FORMULA_REFERENCE.md with the correct architecture
