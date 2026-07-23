@@ -786,6 +786,12 @@ import { isComponentCoveredByAssembly } from './canonicalPartsVocabulary.js';
 export interface InputQuoteLineItem {
   componentName: string;
   costUsd: number;
+  /** True when this row is a repair operation (not a replacement part supply) */
+  isRepair?: boolean;
+  /** True when this row is a replacement part supply */
+  isReplacement?: boolean;
+  /** True when this row is a non-component cost (labour, paint, diagnostic, VAT) that should not enter the parts matrix */
+  isNonPartCost?: boolean;
 }
 
 export interface InputQuoteWithLineItems extends InputQuote {
@@ -926,7 +932,9 @@ function computeBenchmarkVerdict(
 export function buildCompositeQuote(
   quotes: InputQuoteWithLineItems[],
   benchmarks: BenchmarkMap,
-  l1TotalUsd: number
+  l1TotalUsd: number,
+  /** Per-component severity from the physics/vision pipeline. Used to determine repair vs replace validity. */
+  componentSeverityMap?: Map<string, string>
 ): CompositeQuoteResult {
   // ── 0. Handle edge cases ──────────────────────────────────────────────────
   if (quotes.length === 0) {
@@ -961,53 +969,119 @@ export function buildCompositeQuote(
     return match / allComponents.size;
   });
 
-  // ── 2. Build component matrix ─────────────────────────────────────────────
-  const componentMatrix: Map<string, Array<{
-    quote: string;
-    costUsd: number;
-    passedGate: boolean;
-    gateFailReason?: string;
-  }>> = new Map();
+  // ── 2. Build component matrix (total-cost-of-operation per component per quote) ──
+  //
+  // Core principle (Part A decision): compare "what does it cost, all-in, to fix this
+  // specific component, per quote" — each quote's number is already a complete answer
+  // for that component, whether labour is bundled (Cedric/Swiss) or itemised (Grand Auto).
+  //
+  // For quotes with itemised labour (Grand Auto): sum ALL rows belonging to the same
+  // component from the same quote (parts rows + associated repair-operation rows) to
+  // get the total-cost-of-operation for that scope of work.
+  //
+  // For quotes with bundled labour (Cedric/Swiss): the line item total already is the
+  // all-in cost — use it as-is (scope = 'bundled').
+  //
+  // Non-component rows (standalone labour/paint/diagnostic/VAT lines that are not
+  // associated with a specific component) are excluded from the matrix.
+
+  /** Safety-critical components that must always be replaced, never repaired. */
+  const SAFETY_CRITICAL_REPLACE_ONLY = new Set([
+    'airbag', 'driver airbag', 'passenger airbag', 'knee airbag', 'curtain airbag',
+    'side airbag', 'airbag module', 'airbag control module', 'srs module',
+    'seat belt', 'seatbelt', 'seat belt pretensioner', 'seat belt buckle',
+    'chassis', 'subframe', 'chassis frame', 'chassis frame subframe',
+    'front subframe', 'rear subframe', 'engine subframe',
+  ]);
+
+  // Intermediate: per-quote, per-component, per-scope accumulator
+  // Key: `${normName}|||${repairerName}|||${scope}` where scope = 'repair'|'replace'|'bundled'
+  const scopeAccumulator: Map<string, {
+    normName: string;
+    repairerName: string;
+    scope: 'repair' | 'replace' | 'bundled';
+    totalCostUsd: number;
+  }> = new Map();
 
   for (let qi = 0; qi < quotes.length; qi++) {
     const q = quotes[qi];
     const repairerName = q.panel_beater ?? `Quote ${qi + 1}`;
-    const coverageRatio = quoteCoverageRatios[qi];
 
     for (const item of (q.lineItems ?? [])) {
-      // Skip zero-priced items — $0 means the price was not extracted from the document,
-      // not that the part is free. Including $0 would cause the optimiser to select
-      // a non-existent price over a real quoted price from another repairer.
       if (!item.costUsd || item.costUsd <= 0) continue;
+      // Skip standalone non-component rows (e.g. a paint or VAT line with no component name)
+      if (!item.componentName || item.componentName.trim() === '') continue;
+      // Skip rows explicitly flagged as non-part-cost with no component association
+      // (e.g. a standalone 'Labour' row not tied to a specific component)
+      if (item.isNonPartCost && !item.isRepair) continue;
 
       const normName = normalise(item.componentName);
-      const bm = benchmarks[normName] ?? benchmarks[item.componentName] ?? null;
-      const gate = applyCredibilityGate(
-        item.costUsd,
-        bm?.p25Usd ?? null,
-        bm?.p75Usd ?? null,
-        coverageRatio
-      );
 
-      if (!componentMatrix.has(normName)) {
-        componentMatrix.set(normName, []);
+      // Determine scope for this row:
+      // - isRepair=true → repair operation row → contributes to 'repair' scope
+      // - isReplacement=true → replacement part row → contributes to 'replace' scope
+      // - neither flag set → bundled (labour-inclusive part price, cannot be decomposed)
+      const rowScope: 'repair' | 'replace' | 'bundled' =
+        item.isRepair ? 'repair' :
+        item.isReplacement ? 'replace' :
+        'bundled';
+
+      const key = `${normName}|||${repairerName}|||${rowScope}`;
+      const existing = scopeAccumulator.get(key);
+      if (existing) {
+        existing.totalCostUsd += item.costUsd;
+      } else {
+        scopeAccumulator.set(key, { normName, repairerName, scope: rowScope, totalCostUsd: item.costUsd });
       }
-      componentMatrix.get(normName)!.push({
-        quote: repairerName,
-        costUsd: item.costUsd,
-        passedGate: gate.passed,
-        gateFailReason: gate.reason,
-      });
     }
   }
 
-  // ── 3. Select best credible price per component ───────────────────────────
+  // Build the component matrix from the accumulated scope totals
+  // Key: normName → array of per-quote scope entries
+  const componentMatrix: Map<string, Array<{
+    quote: string;
+    costUsd: number;
+    scope: 'repair' | 'replace' | 'bundled';
+    passedGate: boolean;
+    gateFailReason?: string;
+  }>> = new Map();
+
+  for (const entry of scopeAccumulator.values()) {
+    const { normName, repairerName, scope, totalCostUsd } = entry;
+    // Find the quote index for coverage ratio
+    const qi = quotes.findIndex(q => (q.panel_beater ?? `Quote ${quotes.indexOf(q) + 1}`) === repairerName);
+    const coverageRatio = qi >= 0 ? quoteCoverageRatios[qi] : 1.0;
+    const bm = benchmarks[normName] ?? null;
+    const gate = applyCredibilityGate(
+      totalCostUsd,
+      bm?.p25Usd ?? null,
+      bm?.p75Usd ?? null,
+      coverageRatio
+    );
+    if (!componentMatrix.has(normName)) componentMatrix.set(normName, []);
+    componentMatrix.get(normName)!.push({
+      quote: repairerName,
+      costUsd: totalCostUsd,
+      scope,
+      passedGate: gate.passed,
+      gateFailReason: gate.reason,
+    });
+  }
+
+  // ── 3. Select best credible price per component (with scope filtering) ──────
   const compositeLineItems: CompositeLineItem[] = [];
   let compositePartsUsd = 0;
   let benchmarkReferenceUsd = 0;
   let benchmarkCoverageCount = 0;
 
-  for (const [normName, prices] of componentMatrix.entries()) {
+  /** Max % the KINGA model can be below the lowest submitted price before
+   *  the submitted price is used as the floor.
+   *  Rule: KINGA model price must not be more than 30% below the lowest
+   *  submitted price. If deviation exceeds 30%, the lowest submitted price
+   *  is used as the floor instead of the model price. */
+  const MAX_MODEL_DISCOUNT_PCT = 0.30;
+
+  for (const [normName, allScopePrices] of componentMatrix.entries()) {
     const bm = benchmarks[normName] ?? null;
     const p25 = bm?.p25Usd ?? null;
     const p50 = bm?.p50Usd ?? null;
@@ -1019,58 +1093,91 @@ export function buildCompositeQuote(
       benchmarkCoverageCount++;
     }
 
-    // ── KINGA Optimised Price Rule ──────────────────────────────────────────
-    // The KINGA optimised price for each component is:
-    //   min(lowest credible submitted price, KINGA trained model P50)
-    //
-    // The KINGA model always competes against submitted prices. If the model
-    // knows the component should cost less than any panel beater quoted, the
-    // model wins (T1/T2). If a panel beater is cheaper than the model, the
-    // panel beater wins (T3/T4). This ensures the optimised estimate is always
-    // the best available price — not just the cheapest quote.
-    //
-    // Variance sanity check: if the KINGA model price is more than
-    // MAX_MODEL_DISCOUNT_PCT below the lowest submitted price, the model may
-    // be calibrated to a different market. In that case, use the lowest
-    // submitted price instead to keep the estimate realistic.
-    /** Max % the KINGA model can be below the lowest submitted price before
-     *  the submitted price is used as the floor.
-     *  Rule: KINGA model price must not be more than 30% below the lowest
-     *  submitted price. If deviation exceeds 30%, the lowest submitted price
-     *  is used as the floor instead of the model price. */
-    const MAX_MODEL_DISCOUNT_PCT = 0.30; // 30% below lowest submitted = floor threshold
+    // ── Scope filtering ───────────────────────────────────────────────────────
+    // Determine which scopes are valid for this component based on:
+    // 1. Safety-critical rule (replace-only for airbags, seat belts, chassis)
+    // 2. Severity rule (severe/catastrophic → replace-only; moderate/minor/cosmetic → both valid)
+    // 3. Default: all scopes valid
+    const isSafetyCritical = SAFETY_CRITICAL_REPLACE_ONLY.has(normName);
+    const severity = componentSeverityMap?.get(normName) ?? null;
+    const severityRequiresReplace = severity === 'severe' || severity === 'catastrophic';
+    const replaceOnlyRule = isSafetyCritical ? 'SAFETY_CRITICAL_REPLACE_ONLY' :
+      severityRequiresReplace ? 'SEVERITY_REPLACE_ONLY' : null;
 
-    const gatedPrices = prices.filter(p => p.passedGate);
-    const lowestSubmittedUsd: number | null = prices.length > 0
-      ? prices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b).costUsd
+    // Filter prices to valid scopes:
+    // - If replace-only rule applies: keep 'replace' and 'bundled' scopes only
+    // - Otherwise: keep all scopes
+    const validPrices = replaceOnlyRule
+      ? allScopePrices.filter(p => p.scope === 'replace' || p.scope === 'bundled')
+      : allScopePrices;
+
+    // ── Data gap detection ────────────────────────────────────────────────────
+    // If a replace-only rule applies but no replacement-scope price exists, emit a data gap.
+    if (replaceOnlyRule && validPrices.length === 0) {
+      compositeLineItems.push({
+        componentName: normName,
+        selectedCostUsd: 0,
+        selectedFromQuote: 'data_gap',
+        isBenchmarkFill: false,
+        kingaOptimisedTier: 'T4',
+        kingaOptimisedTierLabel: 'Data Gap',
+        benchmarkVerdict: 'NO_DATA',
+        benchmarkSignal: `No replacement-scope quote available for ${normName}.`,
+        p25Usd: p25,
+        p50Usd: p50,
+        p75Usd: p75,
+        allQuotedPrices: allScopePrices,
+        selectedScope: 'replace',
+        scopeDecisionRule: replaceOnlyRule,
+        scopeDecisionConfidence: 'high',
+        dataGap: true,
+        dataGapReason: `${replaceOnlyRule === 'SAFETY_CRITICAL_REPLACE_ONLY' ? 'Safety-critical component' : `Severity '${severity}'`}: replacement is required but no replacement-scope quote was submitted. A replace-scope quote must be sourced before KINGA can produce a rule-compliant recommendation.`,
+      });
+      continue; // Do NOT add to compositePartsUsd
+    }
+
+    if (validPrices.length === 0) continue; // No prices at all — skip
+
+    // ── Scope decision for the selected price ─────────────────────────────────
+    // Determine the scope decision rule for the winning price
+    const hasMultipleScopes = new Set(validPrices.map(p => p.scope)).size > 1;
+    const scopeDecisionRule: CompositeLineItem['scopeDecisionRule'] =
+      replaceOnlyRule ?? (hasMultipleScopes ? 'COST_COMPARISON' : 'SINGLE_SCOPE_AVAILABLE');
+    const scopeDecisionConfidence: CompositeLineItem['scopeDecisionConfidence'] =
+      replaceOnlyRule ? 'high' :
+      (severity && severity !== 'unknown') ? 'medium' : 'low';
+
+    // ── KINGA Optimised Price Rule ────────────────────────────────────────────
+    // For each component: compare lowest valid submitted price vs KINGA model P50.
+    // If KINGA model is cheaper AND within 30% of lowest submitted → use model (T1/T2).
+    // Otherwise → use lowest submitted (T3/T4).
+    const gatedPrices = validPrices.filter(p => p.passedGate);
+    const lowestSubmittedEntry: typeof validPrices[0] | null = validPrices.length > 0
+      ? validPrices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b)
       : null;
-    const lowestGatedUsd: number | null = gatedPrices.length > 0
-      ? gatedPrices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b).costUsd
+    const lowestGatedEntry: typeof validPrices[0] | null = gatedPrices.length > 0
+      ? gatedPrices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b)
       : null;
 
     let selectedCostUsd: number;
     let selectedFromQuote: string;
+    let selectedScope: CompositeLineItem['selectedScope'];
     let isBenchmarkFill = false;
-    // Four-tier KINGA Optimised source hierarchy:
-    // T1 = ML model beats submitted  T2 = Statistical benchmark beats submitted
-    // T3 = Best quote (multi-quote competition)  T4 = Quoted (single source)
     let kingaOptimisedTier: 'T1' | 'T2' | 'T3' | 'T4';
     let kingaOptimisedTierLabel: string;
 
-    if (lowestGatedUsd !== null || lowestSubmittedUsd !== null) {
-      // We have at least one submitted price — apply min(submitted, KINGA model)
-      const bestSubmittedUsd = lowestGatedUsd ?? lowestSubmittedUsd!;
-      const bestSubmittedQuote = (lowestGatedUsd !== null
-        ? gatedPrices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b)
-        : prices.reduce((a, b) => a.costUsd <= b.costUsd ? a : b)).quote;
+    if (lowestGatedEntry !== null || lowestSubmittedEntry !== null) {
+      const bestEntry = lowestGatedEntry ?? lowestSubmittedEntry!;
+      const bestSubmittedUsd = bestEntry.costUsd;
+      const bestSubmittedQuote = bestEntry.quote;
+      selectedScope = bestEntry.scope === 'bundled' ? 'bundled' :
+        bestEntry.scope === 'repair' ? 'repair' : 'replace';
 
       if (p50 !== null) {
-        // Variance sanity check: is the model price realistic vs submitted?
         const modelDiscountFraction = (bestSubmittedUsd - p50) / bestSubmittedUsd;
         const modelIsRealistic = modelDiscountFraction <= MAX_MODEL_DISCOUNT_PCT;
 
         if (p50 < bestSubmittedUsd && modelIsRealistic) {
-          // KINGA model is cheaper AND realistic — use model price (T1 or T2)
           selectedCostUsd = p50;
           selectedFromQuote = 'kinga_model';
           isBenchmarkFill = true;
@@ -1083,44 +1190,35 @@ export function buildCompositeQuote(
             kingaOptimisedTierLabel = `Market Benchmark · n=${(bm as any)?.sampleSize ?? '?'} · saves ${((modelDiscountFraction) * 100).toFixed(0)}% vs ${bestSubmittedQuote}`;
           }
         } else {
-          // Submitted price is cheaper than model, or model discount is unrealistically large
-          // — use the best submitted price (T3 multi-quote, T4 single-quote)
           selectedCostUsd = bestSubmittedUsd;
           selectedFromQuote = bestSubmittedQuote;
-          if (prices.length > 1) {
-            kingaOptimisedTier = 'T3';
-            kingaOptimisedTierLabel = `Best Quote · ${bestSubmittedQuote}`;
-          } else {
-            kingaOptimisedTier = 'T4';
-            kingaOptimisedTierLabel = `Quoted · ${bestSubmittedQuote}`;
-          }
+          kingaOptimisedTier = validPrices.length > 1 ? 'T3' : 'T4';
+          kingaOptimisedTierLabel = validPrices.length > 1
+            ? `Best Quote · ${bestSubmittedQuote}`
+            : `Quoted · ${bestSubmittedQuote}`;
         }
       } else {
-        // No KINGA model for this component — use best submitted price
         selectedCostUsd = bestSubmittedUsd;
         selectedFromQuote = bestSubmittedQuote;
-        if (prices.length > 1) {
-          kingaOptimisedTier = 'T3';
-          kingaOptimisedTierLabel = `Best Quote · ${bestSubmittedQuote}`;
-        } else {
-          kingaOptimisedTier = 'T4';
-          kingaOptimisedTierLabel = `Quoted · ${bestSubmittedQuote}`;
-        }
+        kingaOptimisedTier = validPrices.length > 1 ? 'T3' : 'T4';
+        kingaOptimisedTierLabel = validPrices.length > 1
+          ? `Best Quote · ${bestSubmittedQuote}`
+          : `Quoted · ${bestSubmittedQuote}`;
       }
     } else {
-      // No submitted prices at all — use benchmark P50 if available
+      // No submitted prices — use benchmark P50 if available
       if (p50 !== null) {
         selectedCostUsd = p50;
         selectedFromQuote = 'kinga_model';
         isBenchmarkFill = true;
+        selectedScope = 'replace'; // Benchmark prices are always replacement-scope
         const modelSource = (bm as any)?.modelSource ?? 'statistical';
         kingaOptimisedTier = modelSource === 'ml' ? 'T1' : 'T2';
         kingaOptimisedTierLabel = modelSource === 'ml'
           ? `ML Model · n=${(bm as any)?.sampleSize ?? '?'}`
           : `Market Benchmark · n=${(bm as any)?.sampleSize ?? '?'}`;
       } else {
-        // Nothing available — skip this component
-        continue;
+        continue; // Nothing available — skip
       }
     }
 
@@ -1140,11 +1238,19 @@ export function buildCompositeQuote(
       p25Usd: p25,
       p50Usd: p50,
       p75Usd: p75,
-      allQuotedPrices: prices,
+      allQuotedPrices: allScopePrices,
+      selectedScope,
+      scopeDecisionRule,
+      scopeDecisionConfidence,
     });
   }
 
   // ── 4. Single-Source Labour Rule ──────────────────────────────────────────
+  // With the total-cost-of-operation architecture, component-level labour is already
+  // included in the per-component totals (Step 2). The labour_cost field on each quote
+  // is used here ONLY for standalone overhead labour (e.g. a general workshop fee not
+  // tied to any specific component). Stage-9 sets labour_cost=null for quotes that have
+  // line items, so this step only fires for quote-total-only submissions (no line items).
   const labourTotals = quotes
     .map((q, i) => ({ repairer: q.panel_beater ?? `Quote ${i + 1}`, labour: q.labour_cost ?? null }))
     .filter(x => x.labour !== null && x.labour > 0) as Array<{ repairer: string; labour: number }>;

@@ -1143,6 +1143,16 @@ export interface CompositeLineItem {
     passedGate: boolean;
     gateFailReason?: string;
   }>;
+  /** Scope of work selected for this component: 'repair' | 'replace' | 'bundled' (labour-inclusive, cannot be decomposed) */
+  selectedScope?: 'repair' | 'replace' | 'bundled';
+  /** Rule that drove the repair/replace decision */
+  scopeDecisionRule?: 'SAFETY_CRITICAL_REPLACE_ONLY' | 'SEVERITY_REPLACE_ONLY' | 'COST_COMPARISON' | 'SINGLE_SCOPE_AVAILABLE' | 'BUNDLED_NO_DECOMPOSITION';
+  /** Confidence in the scope decision: high = safety rule or clear severity; medium = cost comparison with good data; low = ambiguous or missing severity data */
+  scopeDecisionConfidence?: 'high' | 'medium' | 'low';
+  /** True when KINGA cannot produce a rule-compliant recommendation due to missing required data */
+  dataGap?: boolean;
+  /** Human-readable explanation of the data gap, surfaced in the report */
+  dataGapReason?: string;
 }
 
 export interface QuotedNotDamagedFlag {

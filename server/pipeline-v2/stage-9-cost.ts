@@ -1688,25 +1688,26 @@ export async function runCostOptimisationStage(
             return q.quote_type !== 'parts_supplier';
           });
           const compositeInputQuotes: InputQuoteWithLineItems[] = repairQuotes.map((q: any) => {
-            // CRITICAL: exclude is_non_part_cost rows (labour, paint, VAT) from lineItems.
-            // buildCompositeQuote sums lineItems into compositePartsUsd, then adds bestLabourUsd
-            // separately from q.labour_cost. Including labour rows here causes double-counting
-            // and inflates L2 above the submitted quote totals.
-            const partLineItems = (q.line_items ?? [])
-              .filter((li: any) => !li.is_non_part_cost)
+            // Pass ALL line items to buildCompositeQuote with their scope flags.
+            // buildCompositeQuote now groups rows by component+scope to compute the
+            // total-cost-of-operation per component per quote, so it needs the full
+            // picture including repair-operation rows and non-part-cost rows.
+            // The isNonPartCost flag tells the engine which rows to exclude from the
+            // component matrix (standalone overhead labour not tied to a component).
+            const allLineItems = (q.line_items ?? [])
               .map((li: any) => ({
                 componentName: li.component ?? li.description ?? '',
                 costUsd: li.line_total ?? li.unit_cost ?? 0,
-              })).filter((li: any) => li.componentName && li.costUsd > 0);
+                isRepair: !!(li.is_repair),
+                isReplacement: !!(li.is_replacement),
+                isNonPartCost: !!(li.is_non_part_cost),
+              }))
+              .filter((li: any) => li.componentName && li.costUsd > 0);
 
-            // CRITICAL: In MIAZ-format quotes (Swiss Motors, Grand Auto Premier etc.),
-            // labour operations appear as individual line items (e.g. "Cut in Join $140",
-            // "Rubberising $337.50"). These are already included in partLineItems above.
-            // The quote header also has a summary labour_cost field (e.g. $253.80) which
-            // is the SUM of those same labour line items — NOT additional labour.
-            // If we have line items, set labour_cost = null to prevent double-counting.
-            // Only use labour_cost when there are NO line items (quote-total-only case).
-            const effectiveLabourCost = partLineItems.length > 0 ? null : (q.labour_cost ?? null);
+            // labour_cost on the quote header is the summary overhead labour field.
+            // With line items present, component-level labour is already in the line items.
+            // Set labour_cost = null to prevent double-counting in the Step 4 overhead rule.
+            const effectiveLabourCost = allLineItems.length > 0 ? null : (q.labour_cost ?? null);
 
             return {
               panel_beater: q.panel_beater ?? null,
@@ -1718,9 +1719,16 @@ export async function runCostOptimisationStage(
               labour_cost: effectiveLabourCost,
               parts_cost: q.parts_cost ?? null,
               confidence: (q.confidence as 'high' | 'medium' | 'low') ?? 'low',
-              lineItems: partLineItems,
+              lineItems: allLineItems,
             };
           });
+
+          // Build per-component severity map from damage analysis for repair/replace decisions
+          const componentSeverityMap = new Map<string, string>(
+            damageAnalysis.damagedParts
+              .filter((p: any) => p.name && p.severity)
+              .map((p: any) => [p.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, ' ').trim(), p.severity as string])
+          );
 
           // L1 = lowest submitted quote total across panel beater quotes only.
           // Parts supplier quotes (e.g. Sarjazz) are excluded — they are not repairers
@@ -1744,7 +1752,8 @@ export async function runCostOptimisationStage(
             const compositeResult = buildCompositeQuote(
               compositeInputQuotes,
               benchmarkMap,
-              l1TotalUsd
+              l1TotalUsd,
+              componentSeverityMap
             );
 
             // Component classification: quoted-not-damaged and damaged-not-quoted
