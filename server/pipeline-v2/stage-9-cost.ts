@@ -1414,9 +1414,26 @@ export async function runCostOptimisationStage(
     // Fetch p25/median/p75 from componentRepairOutcomes for each damaged component.
     // This enriches the report with per-line-item over/fair/under flags.
     try {
-      const damagedComponentNames = damageAnalysis.damagedParts
+      // Primary source: stage-6 damaged parts list.
+      // Fallback: when stage-6 has no damaged parts (e.g. PRE_ASSESSMENT mode or
+      // vision stage skipped), derive component names from the submitted quote
+      // line items so the benchmark phase still runs and benchmarks are applied.
+      let damagedComponentNames = damageAnalysis.damagedParts
         .map((p: any) => p.name)
         .filter((n: any): n is string => typeof n === 'string' && n.length > 0);
+      if (damagedComponentNames.length === 0) {
+        const quoteComponentNamesSet = new Set<string>();
+        for (const q of resolvedExtractedQuotes) {
+          for (const li of ((q as any).line_items ?? [])) {
+            const name: string = ((li.component ?? li.description ?? '') as string).trim();
+            if (name && !li.is_non_part_cost) quoteComponentNamesSet.add(name);
+          }
+        }
+        damagedComponentNames = Array.from(quoteComponentNamesSet);
+        if (damagedComponentNames.length > 0) {
+          ctx.log('Stage 9', `Phase 2 benchmark fallback: using ${damagedComponentNames.length} component name(s) from submitted quotes (stage-6 damagedParts was empty).`);
+        }
+      }
       if (damagedComponentNames.length > 0) {
         // ── HYBRID BENCHMARK LAYER ────────────────────────────────────────────
         // Tier 1: ML quantile regression (engine, boot_lid, roof, dashboard,

@@ -4368,9 +4368,67 @@ export async function getComponentBenchmarksFromTrainingData(
 
   const results: ComponentBenchmark[] = [];
 
+  // Mapping from canonical display names (and common aliases) to component_benchmarks.component_id.
+  // The DB uses a different naming convention from resolveToCanonicalId(), so we need an
+  // explicit bridge. This map is the single source of truth for the display-name → DB-ID alignment.
+  // Add entries here when new component_ids are seeded into component_benchmarks.
+  const DISPLAY_TO_DB_ID: Record<string, string> = {
+    // Airbags
+    'Driver Airbag': 'driver_airbag',
+    'Passenger Airbag': 'passenger_airbag',
+    'Knee Airbag': 'knee_airbag',
+    'Curtain Airbag (Left)': 'curtain_airbag_left',
+    'Curtain Airbag (Right)': 'curtain_airbag_right',
+    'Airbag Control Module': 'airbag_module',
+    // Headlights
+    'Headlight Assembly (Left)': 'left_headlight',
+    'Headlight Assembly (Right)': 'right_headlight',
+    // Fenders
+    'Front Fender (Left)': 'left_fender',
+    'Front Fender (Right)': 'right_fender',
+    // Doors
+    'Front Door (Left)': 'left_front_door',
+    'Front Door (Right)': 'right_front_door',
+    'Rear Door (Left)': 'left_rear_door',
+    'Rear Door (Right)': 'right_rear_door',
+    // Mirrors
+    'Side Mirror (Left)': 'left_side_mirror',
+    'Side Mirror (Right)': 'right_side_mirror',
+    // Shock absorbers
+    'Shock Absorber (Left)': 'left_shock',
+    'Shock Absorber (Right)': 'right_shock',
+    // Body panels
+    'Bonnet (Hood)': 'bonnet',
+    'Boot Lid': 'boot_lid',
+    'Windscreen (Windshield)': 'windscreen',
+    'Rear Window': 'rear_window',
+    'Front Bumper': 'front_bumper',
+    'Rear Bumper': 'rear_bumper',
+    'Grille': 'grille',
+    'Roof': 'roof',
+    // Mechanical
+    'Radiator Assembly': 'radiator',
+    'Condenser': 'condenser',
+    'Intercooler': 'intercooler',
+    'Engine': 'engine',
+    'Gearbox': 'gearbox',
+    'Exhaust System': 'exhaust',
+    'Steering Rack': 'steering_rack',
+    'Steering Wheel': 'steering_wheel',
+    'Tie Rod End': 'tie_rod_end',
+    'Wheel Bearing': 'wheel_bearing',
+    'Control Arm (Left)': 'control_arm_left',
+    'Fog Light': 'fog_light',
+    'Dashboard': 'dashboard',
+  };
+
   for (const component of componentNames) {
-    // Normalise component name to component_id format (spaces → underscores, lowercase)
-    const componentId = component.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    // Resolve component name to DB component_id using:
+    //   1. Explicit display-name → DB-ID mapping (most accurate)
+    //   2. Simple normalisation fallback (spaces → underscores, lowercase)
+    const mappedId = DISPLAY_TO_DB_ID[component] ?? null;
+    const fallbackId = component.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    const componentId = mappedId ?? fallbackId;
 
     // Try make-specific first, then global fallback
     for (const makeFiltered of [true, false]) {
