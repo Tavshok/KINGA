@@ -178,6 +178,7 @@ export const KINGA_REPORT_CSS = `
   .bar-col .bar{width:60%; background:var(--teal); position:relative;}
   .bar-col .lbl{font-family:'Helvetica Neue',Arial,sans-serif; font-size:8px; color:var(--ink-soft); margin-top:4px; text-align:center;}
   .bar-col .val{font-family:'Helvetica Neue',Arial,sans-serif; font-size:9.5px; font-weight:700; margin-bottom:3px;}
+  .thresh-marker{position:absolute; left:-6px; right:-6px; border-top:2px dashed var(--ink-faint);}
 
   /* damage severity stacked bar */
   .stackbar{display:flex; height:22px; width:100%; border:1px solid var(--hairline-strong); overflow:hidden;}
@@ -204,6 +205,7 @@ export const KINGA_REPORT_CSS = `
     padding:1px 5px; border-radius:2px;
   }
   .photo-cap{font-family:'Helvetica Neue',Arial,sans-serif; font-size:8px; color:var(--ink-soft); padding:4px 6px; border-top:1px solid var(--hairline);}
+  .photo-ph.dark{background:#2a2a2a;}
   .photo-meta{display:flex; flex-direction:column; justify-content:flex-start;}
   .zone-row{display:flex; align-items:center; gap:10px; padding:6px 2px; border-top:1px dotted var(--hairline);}
   .zone-row:first-child{border-top:none;}

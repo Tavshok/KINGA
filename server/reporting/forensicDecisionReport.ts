@@ -35,7 +35,7 @@ export async function generateForensicDecisionReport(
               a.cost_intelligence_json, a.repair_intelligence_json,
               a.fraud_score_breakdown_json, a.ife_result_json,
               a.narrative_analysis_json, a.physics_analysis,
-              a.forensic_audit_validation_json,
+              a.forensic_audit_validation_json, a.claim_quality_json,
               a.created_at AS assessment_date, a.model_version
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
@@ -75,6 +75,7 @@ export async function generateForensicDecisionReport(
     const physics      = safeJson(c.physics_analysis);
     const narrative    = safeJson(c.narrative_analysis_json);
     const forensicAudit = safeJson(c.forensic_audit_validation_json);
+    const claimQuality  = safeJson(c.claim_quality_json);
 
     // ── 5. Derived values ────────────────────────────────────────────────────
     const fraudScore  = Number(c.fraud_score ?? 0);
@@ -377,10 +378,10 @@ export async function generateForensicDecisionReport(
       <div class="value">${Number(ife?.overallScore ?? 75)}<span style="font-size:12px;">%</span></div>
       <div class="sub">${Number(ife?.overallScore ?? 75) >= 90 ? "Above threshold" : "Below 90% threshold"}</div>
     </div>
-    <div class="score-cell ${scoreCellCls(auditScore, true)}">
+    <div class="score-cell ${(() => { const qs = Number(claimQuality?.overallScore ?? auditScore); return qs >= 80 ? 'good' : qs >= 60 ? 'warn' : 'bad'; })()}">
       <div class="label">Quality Score</div>
-      <div class="value">${auditScore}<span style="font-size:12px;">/100</span></div>
-      <div class="sub">Grade ${auditScore >= 80 ? "A" : auditScore >= 70 ? "B" : auditScore >= 60 ? "C" : "D"}</div>
+      <div class="value">${Number(claimQuality?.overallScore ?? auditScore)}<span style="font-size:12px;">/100</span></div>
+      <div class="sub">Grade ${String(claimQuality?.grade ?? (auditScore >= 80 ? 'A' : auditScore >= 70 ? 'B' : auditScore >= 60 ? 'C' : 'D'))}</div>
     </div>
   </div>
 
