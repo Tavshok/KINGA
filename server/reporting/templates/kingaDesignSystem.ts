@@ -367,30 +367,7 @@ export const KINGA_REPORT_CSS = `
   .verdict-value.green { color:var(--green); }
   .verdict-value.amber { color:var(--amber); }
   .verdict-value.red { color:var(--red); }
-  .cover { background:#0f0e0c; color:#f5f5f0; }
-  .cover-head { padding:28px 28px 16px; border-bottom:1px solid #2a2a28; display:flex; align-items:flex-start; justify-content:space-between; }
-  .cover-brand { font-family:'Helvetica Neue',Arial,sans-serif; font-weight:800; letter-spacing:3px; font-size:11px; color:#8a8a80; text-transform:uppercase; margin-bottom:6px; }
-  .cover-title { font-size:22px; font-weight:700; color:#f5f5f0; line-height:1.2; }
-  .cover-sub { font-size:10px; color:#6a6a60; font-family:'Helvetica Neue',Arial,sans-serif; margin-top:4px; }
-  .cover-doc { text-align:right; font-family:'Helvetica Neue',Arial,sans-serif; font-size:10px; color:#6a6a60; }
-  .cover-meta { display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid #2a2a28; }
-  .cover-meta-cell { padding:12px 18px; border-right:1px solid #2a2a28; }
-  .cover-meta-cell:last-child { border-right:none; }
-  .cover-meta-label { font-size:8.5px; text-transform:uppercase; letter-spacing:0.1em; color:#6a6a60; font-family:'Helvetica Neue',Arial,sans-serif; margin-bottom:3px; }
-  .cover-meta-value { font-size:12px; font-weight:600; color:#f5f5f0; }
-  .cost-snap { display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid #2a2a28; }
-  .cost-snap-cell { padding:14px 18px; border-right:1px solid #2a2a28; }
-  .cost-snap-cell:last-child { border-right:none; }
-  .cost-snap-label { font-size:8.5px; text-transform:uppercase; letter-spacing:0.1em; color:#6a6a60; font-family:'Helvetica Neue',Arial,sans-serif; margin-bottom:4px; }
-  .cost-snap-value { font-size:20px; font-weight:700; color:#f5f5f0; font-family:'Helvetica Neue',Arial,sans-serif; }
-  .cost-snap-value.green { color:#4ade80; }
-  .cost-snap-sub { font-size:9px; color:#6a6a60; font-family:'Helvetica Neue',Arial,sans-serif; margin-top:2px; }
-  .contents-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:#2a2a28; border-top:1px solid #2a2a28; }
-  .contents-item { background:#0f0e0c; padding:8px 12px; display:flex; align-items:center; gap:6px; }
-  .contents-ref { font-family:'Helvetica Neue',Arial,sans-serif; font-size:9px; color:#6a6a60; width:22px; flex-shrink:0; }
-  .contents-name { font-size:10px; color:#c0c0b8; flex:1; }
-  .contents-status { font-size:8.5px; font-family:'Helvetica Neue',Arial,sans-serif; color:#4ade80; }
-  .tier-ribbon { font-family:'Helvetica Neue',Arial,sans-serif; font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#4ade80; border:1px solid #4ade80; padding:2px 8px; display:inline-block; }
+  /* Dark cover classes removed — all tiers now use the white masthead pattern */
   .page { border:1px solid var(--hairline); }
   @media print {
     body { background: var(--paper); }

@@ -1,5 +1,5 @@
 /**
- * KINGA Claims Intelligence Report — Process Tier
+ * KINGA Claims Intelligence Report — Protect Tier
  *
  * Generates the full HTML for the Claims Intelligence Report from live DB data.
  * Uses the approved v1 design (white/light-grey, left-border accents, compact tables).
@@ -166,94 +166,71 @@ export async function generateClaimsIntelligenceReport(
     const docRef = `DOC-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-CIR-${claimId}`;
 
     // ── COVER ────────────────────────────────────────────────────────────────
+    // Derived values for masthead decision chip
+    const recLabel = String(c.recommendation ?? "REVIEW REQUIRED").toUpperCase();
+    const chipCls = recLabel.includes("APPROVE") || recLabel.includes("ACCEPT") ? "approve" : recLabel.includes("REJECT") ? "reject" : "review";
+    const chipIcon = chipCls === "approve" ? "✓" : chipCls === "reject" ? "✗" : "⚠";
+    const scoreCardFraudCls = fraudScore >= 70 ? "bad" : fraudScore >= 40 ? "warn" : "good";
+    const scoreCardRtvCls = rtvRatio >= 0.7 ? "bad" : rtvRatio >= 0.5 ? "warn" : "good";
+    const scoreCardDataCls = dataComplete >= 80 ? "good" : dataComplete >= 60 ? "warn" : "bad";
+    const scoreCardQCls = quoteArr.length >= 3 ? "good" : quoteArr.length >= 2 ? "warn" : "bad";
+    const delayFlag = dayDelay !== null && dayDelay > 90;
+
     const cover = `
-<div class="cover-head">
+<div class="page">
+<!-- ── MASTHEAD ── -->
+<div class="masthead">
   <div>
-    <div class="cover-brand">KINGA &middot; Claims Intelligence Report</div>
-    <div><span class="tier-ribbon">Protect Tier &middot; Intelligence Assessment</span></div>
-    <div class="cover-title" style="margin-top:6px">${claimRef} &mdash; ${claimantName}</div>
-    <div class="cover-sub">Independent automated assessment &nbsp;&middot;&nbsp; Not legal advice &nbsp;&middot;&nbsp; Requires adjuster sign-off</div>
+    <div class="brand sans">KINGA<span>·</span>AI <span style="display:inline-block;font-size:8.5px;font-weight:700;letter-spacing:0.6px;color:#fff;background:var(--ink-soft);padding:2px 7px;border-radius:2px;margin-left:8px;vertical-align:middle;font-family:'Helvetica Neue',Arial,sans-serif">PROTECT TIER</span></div>
+    <div class="doc-title">Claims Intelligence Report</div>
+    <div class="doc-sub">KINGA Engine · Intelligence assessment · Not legal advice · Requires adjuster sign-off</div>
   </div>
-  <div class="cover-doc">
-    <div><strong>${docRef}</strong></div>
-    <div>${esc(c.kinga_reference ?? `KNG-${claimId}`)}</div>
-    <div>Generated ${genDate}</div>
-  </div>
-</div>
-<div class="meta-grid">
-  <div class="mg-cell"><div class="mg-lbl">Claimant</div><div class="mg-val">${claimantName}</div></div>
-  <div class="mg-cell"><div class="mg-lbl">Vehicle</div><div class="mg-val">${vehicleDesc}</div></div>
-  <div class="mg-cell"><div class="mg-lbl">Registration</div><div class="mg-val">${vehicleReg}</div></div>
-</div>
-<div class="meta-grid">
-  <div class="mg-cell"><div class="mg-lbl">Incident Date</div><div class="mg-val">${fmtD(c.incident_date)}</div></div>
-  <div class="mg-cell"><div class="mg-lbl">Policy Number</div><div class="mg-val">${policyNum}</div></div>
-  <div class="mg-cell"><div class="mg-lbl">Insurer</div><div class="mg-val">${insurer}</div></div>
-</div>
-<div class="cost-snap">
-  <div class="cs-cell">
-    <div class="cs-lbl">Highest Submitted Quote</div>
-    <div class="cs-val">${fmtUSD(highestQuote)}</div>
-    <div class="cs-sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div>
-  </div>
-  <div class="cs-cell hl">
-    <div class="cs-lbl">KINGA Optimised Estimate</div>
-    <div class="cs-val">${fmtUSD(kingaOptimised)}</div>
-    <div class="cs-sub">AI-benchmarked estimate</div>
-  </div>
-  <div class="cs-cell">
-    <div class="cs-lbl">Recommended Settlement</div>
-    <div class="cs-val g">${fmtUSD(recommendedSettlement)}</div>
-    <div class="cs-sub">Less exclusions &amp; excess</div>
+  <div class="meta sans">
+    <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:28px;display:block;margin-bottom:6px;margin-left:auto">
+    <div class="claimno mono">${claimRef}</div>
+    <div>Generated ${genDate} · Insurer: ${insurer}</div>
+    <div class="decision-chip ${chipCls}">${chipIcon} ${recLabel}</div>
   </div>
 </div>
-<div class="verdict-bar">
-  <div class="vbadge ${fraudBadgeCls === "fail" ? "reject" : fraudBadgeCls === "warn" ? "review" : "approve"}">
-    ${esc(String(c.recommendation ?? "REVIEW REQUIRED").toUpperCase())}
-  </div>
-  <div class="vbody">
-    <h3>${fraudBadgeLabel} &nbsp;&middot;&nbsp; Fraud Score ${fraudScore}/100</h3>
-    <ul>
-      ${rtvRatio >= 0.7 ? `<li>Repair-to-value ratio ${fmtPct(rtvRatio * 100, 0)} — total loss threshold exceeded</li>` : ""}
-      ${quoteArr.length < 3 ? `<li>Only ${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received — minimum 3 required for benchmarking</li>` : ""}
-      ${dayDelay !== null && dayDelay > 90 ? `<li>Claim submitted ${dayDelay} days after incident — written explanation required</li>` : ""}
-      <li>Adjuster sign-off required before settlement authorisation</li>
-    </ul>
-  </div>
+<!-- ── SCORECARD ── -->
+<div class="scorecard">
+  <div class="score-cell ${scoreCardFraudCls}"><div class="label">Fraud Score</div><div class="value">${fraudScore}</div><div class="sub">${fraudBadgeLabel}</div></div>
+  <div class="score-cell ${scoreCardDataCls}"><div class="label">Data Complete</div><div class="value">${Math.round(dataComplete)}<span style="font-size:12px">%</span></div><div class="sub">${dataComplete >= 80 ? "Good" : dataComplete >= 60 ? "Partial" : "Incomplete"}</div></div>
+  <div class="score-cell ${scoreCardQCls}"><div class="label">Quotes Received</div><div class="value">${quoteArr.length}</div><div class="sub">${quoteArr.length >= 3 ? "Sufficient" : "Below minimum"}</div></div>
+  <div class="score-cell ${scoreCardRtvCls}"><div class="label">Repair-to-Value</div><div class="value">${fmtPct(rtvRatio * 100, 0)}</div><div class="sub">${rtvRatio >= 0.7 ? "Total loss risk" : rtvRatio >= 0.5 ? "Monitor" : "Within range"}</div></div>
 </div>
-<div class="score-strip c4">
-  <div class="ss-c"><div class="ss-n ${scoreColour(fraudScore)}">${fraudScore}</div><div class="ss-l">Fraud Risk</div></div>
-  <div class="ss-c"><div class="ss-n ${scoreColour(Math.round(dataComplete))}">${Math.round(dataComplete)}%</div><div class="ss-l">Data Complete</div></div>
-  <div class="ss-c"><div class="ss-n ${quoteArr.length >= 3 ? "g" : quoteArr.length >= 2 ? "a" : "r"}">${quoteArr.length}</div><div class="ss-l">Quotes Received</div></div>
-  <div class="ss-c"><div class="ss-n ${rtvRatio >= 0.7 ? "r" : rtvRatio >= 0.5 ? "a" : "g"}">${fmtPct(rtvRatio * 100, 0)}</div><div class="ss-l">Repair-to-Value</div></div>
+${delayFlag ? `<div class="callout red" style="margin-bottom:14px"><b>Reject — claim submitted ${dayDelay} days after incident.</b> A written explanation is required before this claim can proceed. Adjuster sign-off is required before settlement authorisation, regardless of the fraud score.</div>` : ""}
+<!-- ── VERDICT STRIP ── -->
+<div class="verdict-strip">
+  <div class="verdict-cell"><div class="label">Highest Submitted Quote</div><div class="value">${fmtUSD(highestQuote)}</div><div class="sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div></div>
+  <div class="verdict-cell accent"><div class="label">KINGA Optimised Estimate</div><div class="value" style="color:var(--green)">${fmtUSD(kingaOptimised)}</div><div class="sub">AI-benchmarked estimate</div></div>
+  <div class="verdict-cell"><div class="label">Recommended Settlement</div><div class="value" style="color:var(--green)">${fmtUSD(recommendedSettlement)}</div><div class="sub">Less exclusions &amp; excess</div></div>
 </div>
-<div class="contents">
-  <div class="ct-title">Contents</div>
-  <div class="ct-grid">
-    <div class="ci"><span class="ci-n">&sect;1</span><span class="ci-t">Claim Identity &amp; Policy</span>${chip("Included", "pass")}</div>
-    <div class="ci"><span class="ci-n">&sect;P</span><span class="ci-t">Policy &amp; Coverage Check</span>${chip("Included", "pass")}</div>
-    <div class="ci"><span class="ci-n">&sect;2</span><span class="ci-t">Cost Intelligence</span>${chip("Included", "pass")}</div>
-    <div class="ci"><span class="ci-n">&sect;3</span><span class="ci-t">Risk Indicators</span>${chip("Included", "pass")}</div>
-    <div class="ci"><span class="ci-n">&sect;4</span><span class="ci-t">Evidence Snapshot</span>${chip("Included", "pass")}</div>
-    <div class="ci"><span class="ci-n">&sect;5</span><span class="ci-t">Decision &amp; Next Steps</span>${chip("Included", "pass")}</div>
+<!-- ── TOC ── -->
+<div style="display:flex;flex-wrap:wrap;gap:1px;background:var(--hairline);border:1px solid var(--hairline-strong);margin-bottom:16px">
+  <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§1</div><div style="font-size:10px;color:var(--ink)">Claim Identity &amp; Policy</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
+  <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§P</div><div style="font-size:10px;color:var(--ink)">Policy &amp; Coverage Check</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
+  <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§2</div><div style="font-size:10px;color:var(--ink)">Cost Intelligence</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
+  <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§3</div><div style="font-size:10px;color:var(--ink)">Risk Indicators</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
+  <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§4</div><div style="font-size:10px;color:var(--ink)">Evidence Snapshot</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
+  <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§5</div><div style="font-size:10px;color:var(--ink)">Decision &amp; Next Steps</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
+</div>
+  <div class="footer-strip sans" style="position:static;margin-top:10px;">
+    <div>KINGA AI · Confidential Claims Intelligence Report</div>
+    <div>${docRef} · Page 1 of 2</div>
   </div>
 </div>`;
 
     // ── §1 CLAIM IDENTITY & POLICY ───────────────────────────────────────────
     const s1 = `
-<div class="rh"><span class="brand">KINGA</span><span>&sect; 1.0 &mdash; Claim Identity &amp; Policy</span></div>
-<div class="page">
-  <div class="sh">
-    <div class="sh-left"><span class="sn">1.0</span><h2>Claim Identity &amp; Policy</h2></div>
-    ${badge("Verified", "ok")}
-  </div>
-
-  <div class="lead">This section establishes the core identity of the claim and the policy under which it is lodged. All fields have been extracted from submitted documentation and cross-referenced against the insurer's policy register. ${dayDelay !== null && dayDelay > 90 ? `The claim was submitted <strong>${dayDelay} days</strong> after the incident date — a written explanation is required before the claim can proceed.` : "Submission timing is within normal parameters."}</div>
-
-  <div class="two-col">
-    <div>
-      <div class="sub"><h3>Vehicle &amp; Claimant</h3></div>
-      <table>
+<div class="page page-break">
+<div class="section">
+  <div class="section-tab sans"><span class="num">01</span> Claim Identity &amp; Policy <span class="flag-right ok">Verified</span></div>
+  <p class="small" style="margin:0 0 8px 0;">Core claim and policy identity, extracted from submitted documentation and cross-referenced against the insurer's policy register. ${dayDelay !== null && dayDelay > 90 ? `The claim was submitted <strong>${dayDelay} days</strong> after the incident date — a written explanation is required before the claim can proceed.` : "Submission timing is within normal parameters."}</p>
+  <div class="cols-2">
+    <div class="box">
+      <h4>Vehicle &amp; Claimant</h4>
+      <table class="kv">
         <tbody>
           <tr><td style="width:40%;color:var(--ink-mid)">Claim Reference</td><td class="mono bold">${claimRef}</td></tr>
           <tr><td style="color:var(--ink-mid)">Claimant</td><td>${claimantName}</td></tr>
@@ -265,9 +242,9 @@ export async function generateClaimsIntelligenceReport(
         </tbody>
       </table>
     </div>
-    <div>
-      <div class="sub"><h3>Policy Details</h3></div>
-      <table>
+    <div class="box">
+      <h4>Policy Details</h4>
+      <table class="kv">
         <tbody>
           <tr><td style="width:40%;color:var(--ink-mid)">Policy Number</td><td class="mono bold">${policyNum}</td></tr>
           <tr><td style="color:var(--ink-mid)">Insurer</td><td>${insurer}</td></tr>
@@ -281,9 +258,10 @@ export async function generateClaimsIntelligenceReport(
     </div>
   </div>
 
-  <div class="sub"><h3>Timeline Integrity</h3><span class="sm">Key dates in chronological order</span></div>
-  <table>
-    <thead><tr><th>Event</th><th>Date</th><th>Days from Incident</th><th>Status</th></tr></thead>
+  <div class="box" style="margin-top:10px;">
+  <h4>Timeline Integrity</h4>
+  <table class="grid-t">
+    <tr><th>Event</th><th>Date</th><th>Days from Incident</th><th>Status</th></tr>
     <tbody>
       <tr>
         <td>Incident</td>
@@ -313,11 +291,7 @@ export async function generateClaimsIntelligenceReport(
   </table>
 
   ${dayDelay !== null && dayDelay > 90 ? `
-  <div class="fc amber">
-    <div class="fc-head">${chip("Late Submission", "warn")}<span class="fc-title">Claim Submitted ${dayDelay} Days After Incident</span></div>
-    <p>The claim was submitted ${dayDelay} days after the reported incident date. Claims submitted more than 90 days after the incident require a written explanation from the claimant. This flag contributes to the risk score but does not automatically disqualify the claim.</p>
-    <div class="fc-action">Action: Request written explanation from claimant for submission delay</div>
-  </div>` : ""}
+  <div class="callout amber" style="margin-top:8px;"><b>Late Submission — ${dayDelay} days after incident.</b> Claims submitted more than 90 days after the incident require a written explanation from the claimant. Action: Request written explanation from claimant.</div>` : ""}
 
   ${narrative?.claimantStatement ? `
   <div class="sub"><h3>Claimant Statement</h3><span class="sm">Extracted from claim form</span></div>
@@ -326,13 +300,14 @@ export async function generateClaimsIntelligenceReport(
   </blockquote>` : ""}
 
   ${physics ? `
-  <div class="fc blue">
-    <div class="fc-head">${chip("Physics Signal", "info")}<span class="fc-title">Supporting Physics Indicator</span></div>
-    <p>${physics.deltaV != null ? `Estimated Delta-V: <strong>${physics.deltaV} km/h</strong>. ` : ""}${physics.summary ? esc(String(physics.summary)) : "Physics analysis was performed at the standard tier. No significant anomalies detected at this assessment level."}</p>
-    ${physicsAnomaly > 30 ? `<div class="fc-action">Note: Physics anomaly score ${physicsAnomaly}/100 — full reconstruction available in the Forensic Report</div>` : ""}
-  </div>` : ""}
+  <div class="callout" style="margin-top:8px;">${physics.deltaV != null ? `Estimated Delta-V: <strong>${physics.deltaV} km/h</strong>. ` : ""}${physics.summary ? esc(String(physics.summary)) : "Physics analysis was performed at the standard tier. No significant anomalies detected at this assessment level."}${physicsAnomaly > 30 ? ` <em>Physics anomaly score ${physicsAnomaly}/100 — full reconstruction available in the Forensic Report.</em>` : ""}</div>` : ""}
 
-  <div class="bridge">Policy &amp; coverage check &rarr; &sect;P</div>
+</div>
+</div>
+  <div class="footer-strip sans" style="position:static;margin-top:10px;">
+    <div>KINGA AI · Confidential Claims Intelligence Report</div>
+    <div>${docRef} · Page 1 of 2</div>
+  </div>
 </div>`;
 
     // ── §P POLICY & COVERAGE CHECK ───────────────────────────────────────────
@@ -365,60 +340,51 @@ export async function generateClaimsIntelligenceReport(
       : `<tr><td colspan="4" style="text-align:center;color:var(--ink-light);padding:12px">Coverage data not yet available — awaiting policy document extraction</td></tr>`;
 
     const sP = `
-<div class="rh"><span class="brand">KINGA</span><span>&sect; P &mdash; Policy &amp; Coverage Check</span></div>
-<div class="page">
-  <div class="sh">
-    <div class="sh-left"><span class="sn">P</span><h2>Policy &amp; Coverage Check</h2></div>
-    ${badge(exclusions.length > 0 || totalExclusions > 0 ? "Exclusions Detected" : "Coverage Confirmed", exclusions.length > 0 || totalExclusions > 0 ? "warn" : "ok")}
+<div class="page page-break">
+<div class="section">
+  <div class="section-tab sans"><span class="num">P</span> Policy &amp; Coverage Check <span class="flag-right ${exclusions.length > 0 || totalExclusions > 0 ? "mid" : "ok"}">${exclusions.length > 0 || totalExclusions > 0 ? "Exclusions Detected" : "Pass"}</span></div>
+  <div class="cols-2">
+    <div class="box">
+      <h4>Coverage Status</h4>
+      <table class="kv">
+        <tr><td class="k">Cover type</td><td class="v">${esc(c.cover_type ?? c.policy_type ?? "Comprehensive")}</td></tr>
+        <tr><td class="k">Sum insured</td><td class="v">${fmtUSD(c.sum_insured as string | number | null | undefined ?? c.vehicle_market_value as string | number | null | undefined)}</td></tr>
+        <tr><td class="k">Policy excess applicable</td><td class="v">${fmtUSD(excess)}</td></tr>
+        <tr><td class="k">Exclusions triggered</td><td class="v">${exclusions.length > 0 ? `<span class="pill amber">${exclusions.length} detected</span>` : `<span class="pill green">None detected</span>`}</td></tr>
+      </table>
+    </div>
+    <div class="box">
+      <h4>Coverage Notes</h4>
+      <p class="small" style="margin:0;">${exclusions.length > 0 || totalExclusions > 0 ? `One or more line items fall outside the scope of cover. These must be removed from the settlement calculation before any payment is authorised.` : "All submitted repair items appear to fall within the scope of the applicable cover. No exclusions were identified at this assessment tier."} Confirm the policy number against the insurer's register before final settlement.</p>
+    </div>
   </div>
-
-  <div class="lead">Coverage eligibility has been assessed against the applicable policy wording. ${exclusions.length > 0 || totalExclusions > 0 ? `<strong>One or more line items in the submitted quote fall outside the scope of cover.</strong> These must be removed from the settlement calculation before any payment is authorised.` : "All submitted repair items appear to fall within the scope of the applicable cover. No exclusions were identified at this assessment tier."} The settlement position below reflects the KINGA optimised estimate after applying confirmed exclusions and the policy excess.</div>
-
-  <div class="sub"><h3>Coverage Assessment</h3><span class="sm">Per item eligibility</span></div>
-  <table>
-    <thead><tr><th>Item / Component</th><th>Status</th><th>Policy Basis</th><th>Excluded Amount</th></tr></thead>
-    <tbody>${coverageRows}</tbody>
-  </table>
-
-  <div class="sub"><h3>Settlement Position</h3><span class="sm">KINGA optimised &rarr; net payable</span></div>
-  <div class="settlement-pos">
-    <div class="sp-cell">
-      <div class="sp-label">KINGA Optimised</div>
-      <div class="sp-value">${fmtUSD(kingaOptimised)}</div>
-      <div class="sp-sub">AI-benchmarked estimate</div>
-    </div>
-    <div class="sp-cell">
-      <div class="sp-label">Less Exclusions</div>
-      <div class="sp-value red">&minus;${fmtUSD(totalExclusions > 0 ? totalExclusions : 1650)}</div>
-      <div class="sp-sub">Policy exclusions removed</div>
-    </div>
-    <div class="sp-cell">
-      <div class="sp-label">Less Excess</div>
-      <div class="sp-value red">&minus;${fmtUSD(excess)}</div>
-      <div class="sp-sub">Policy deductible</div>
-    </div>
-    <div class="sp-cell active">
-      <div class="sp-label">Recommended Settlement</div>
-      <div class="sp-value green">${fmtUSD(recommendedSettlement)}</div>
-      <div class="sp-sub">Subject to structural assessment</div>
+  <div class="section" style="margin-top:10px;">
+    <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Coverage Assessment</span></div>
+    <table class="grid-t">
+      <tr><th>Item / Component</th><th>Status</th><th>Policy Basis</th><th>Excluded Amount</th></tr>
+      ${coverageRows}
+    </table>
+  </div>
+  <div class="section" style="margin-top:10px;">
+    <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Settlement Position</span></div>
+    <div class="verdict-strip">
+      <div class="verdict-cell"><div class="label">KINGA Optimised</div><div class="value">${fmtUSD(kingaOptimised)}</div><div class="sub">AI-benchmarked estimate</div></div>
+      <div class="verdict-cell"><div class="label">Less Exclusions</div><div class="value" style="color:var(--red)">&minus;${fmtUSD(totalExclusions > 0 ? totalExclusions : 0)}</div><div class="sub">Policy exclusions removed</div></div>
+      <div class="verdict-cell"><div class="label">Less Excess</div><div class="value" style="color:var(--red)">&minus;${fmtUSD(excess)}</div><div class="sub">Policy deductible</div></div>
+      <div class="verdict-cell accent"><div class="label">Recommended Settlement</div><div class="value" style="color:var(--green)">${fmtUSD(recommendedSettlement)}</div><div class="sub">Subject to structural assessment</div></div>
     </div>
   </div>
 
   ${totalExclusions > 0 || exclusions.length > 0 ? `
-  <div class="fc red">
-    <div class="fc-head">${chip("Excluded", "fail")}<span class="fc-title">Policy Exclusion — Remove from Settlement</span></div>
-    <p>One or more repair line items are specifically excluded under the applicable policy wording. These items must be removed from the settlement calculation before any payment is authorised. The adjuster must confirm the exclusion with the policy document before communicating the settlement figure to the claimant.</p>
-    <div class="fc-action">Action: Remove excluded line items from settlement — confirm with policy §14.3 before communicating to claimant</div>
-  </div>` : ""}
+  <div class="callout red" style="margin-top:8px;"><b>Policy Exclusion — Remove from Settlement.</b> One or more repair line items are specifically excluded under the applicable policy wording. These items must be removed from the settlement calculation before any payment is authorised. Confirm with policy §14.3 before communicating to claimant.</div>` : ""}
 
   ${rtvRatio >= 0.5 ? `
-  <div class="fc amber">
-    <div class="fc-head">${chip("Monitor", "warn")}<span class="fc-title">Repair Cost Approaching Total-Loss Threshold</span></div>
-    <p>At ${fmtPct(rtvRatio * 100)} of market value (${fmtUSD(marketValue > 0 ? marketValue : estimatedCost / rtvRatio)}), the repair cost is approaching the typical total-loss threshold of 60–70%. If additional structural components are confirmed following independent assessment, the claim may cross this threshold. Confirm the insurer's total-loss policy before authorising repairs.</p>
-    <div class="fc-action">Action: Confirm total-loss threshold with insurer before authorising structural repair</div>
-  </div>` : ""}
-
-  <div class="bridge">Cost intelligence &rarr; &sect;2.0</div>
+  <div class="callout amber" style="margin-top:8px;"><b>Repair Cost Approaching Total-Loss Threshold.</b> At ${fmtPct(rtvRatio * 100)} of market value, the repair cost is approaching the typical total-loss threshold. Confirm the insurer's total-loss policy before authorising repairs.</div>` : ""}
+</div>
+  <div class="footer-strip sans" style="position:static;margin-top:10px;">
+    <div>KINGA AI · Confidential Claims Intelligence Report</div>
+    <div>${docRef} · Page 2 of 2</div>
+  </div>
 </div>`;
 
     // ── §2 COST INTELLIGENCE ─────────────────────────────────────────────────
@@ -474,41 +440,45 @@ export async function generateClaimsIntelligenceReport(
     }).join("");
 
     const s2 = `
-<div class="rh"><span class="brand">KINGA</span><span>&sect; 2.0 &mdash; Cost Intelligence</span></div>
-<div class="page">
-  <div class="sh">
-    <div class="sh-left"><span class="sn">2.0</span><h2>Cost Intelligence</h2></div>
-    ${badge(savings > 0 ? `${fmtUSD(savings)} Savings Identified` : "Cost Assessed", savings > 0 ? "ok" : "info")}
-  </div>
+<div class="page page-break">
+<div class="section">
+  <div class="section-tab sans"><span class="num">02</span> Cost Intelligence</div>
+  <p class="small" style="margin:0 0 8px 0;">KINGA benchmarked ${quoteArr.length} submitted quote${quoteArr.length !== 1 ? "s" : ""} against market rates for the ${vehicleDesc}. The optimised estimate of <strong>${fmtUSD(kingaOptimised)}</strong> represents a saving of <strong>${fmtUSD(savings)} (${fmtPct(savingsPct)})</strong> against the highest submitted quote. ${criticalStructural.length > 0 ? `<strong>${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} identified in the damage scope do not appear in any submitted quote</strong> — an independent structural assessment is required before the cost can be finalised.` : "All major components appear in at least one submitted quote."}</p>
+  <div class="cols-2">
+    <div class="box">
+      <h4>Quote Comparison — ${quoteArr.length} quotes received</h4>
+      ${quoteCardHtml}
+    </div>
 
-  <div class="lead">KINGA benchmarked ${quoteArr.length} submitted quote${quoteArr.length !== 1 ? "s" : ""} against market rates for the ${vehicleDesc}. The optimised estimate of <strong>${fmtUSD(kingaOptimised)}</strong> represents a saving of <strong>${fmtUSD(savings)} (${fmtPct(savingsPct)})</strong> against the highest submitted quote. ${criticalStructural.length > 0 ? `<strong>${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} identified in the damage scope do not appear in any submitted quote</strong> — an independent structural assessment is required before the cost can be finalised.` : "All major components appear in at least one submitted quote."}</div>
-
-  <div class="quote-cards">${quoteCardHtml}</div>
-
-  <div class="kpi c4">
-    <div class="kpi-c"><div class="kpi-v">${quoteArr.length}</div><div class="kpi-l">Quotes Received</div><div class="kpi-s">Original quotes only</div></div>
-    <div class="kpi-c"><div class="kpi-v a">${fmtUSD(highestQuote)}</div><div class="kpi-l">Highest Quote</div><div class="kpi-s">Submitted amount</div></div>
-    <div class="kpi-c"><div class="kpi-v g">${fmtUSD(kingaOptimised)}</div><div class="kpi-l">KINGA Optimised</div><div class="kpi-s">AI benchmark</div></div>
-    <div class="kpi-c"><div class="kpi-v g">${fmtPct(savingsPct)}</div><div class="kpi-l">Savings</div><div class="kpi-s">${fmtUSD(savings)}</div></div>
+    <div class="box">
+      <h4>Repair Economics &amp; Verdict</h4>
+      <table class="kv">
+        <tr><td class="k">Highest submitted quote</td><td class="v">${fmtUSD(highestQuote)}</td></tr>
+        <tr><td class="k">KINGA optimised estimate</td><td class="v">${fmtUSD(kingaOptimised)}</td></tr>
+        <tr><td class="k">Recommended settlement</td><td class="v">${fmtUSD(recommendedSettlement)}</td></tr>
+        <tr><td class="k">Negotiation gap</td><td class="v">${savings > 0 ? fmtUSD(savings) + " (" + fmtPct(savingsPct) + ")" : "None detected"}</td></tr>
+        <tr><td class="k">Repair-to-value ratio</td><td class="v">${fmtPct(rtvRatio * 100)}</td></tr>
+      </table>
+      <div class="callout green" style="margin-top:8px;"><span class="pill green">${rtvRatio >= 0.7 ? "Total Loss — above write-off threshold" : "Repair — well below write-off threshold"}</span></div>
+    </div>
   </div>
 
   ${topItems.length > 0 ? `
-  <div class="sub"><h3>Top Line Item Comparison</h3><span class="sm">Highest-value components</span></div>
-  <table>
-    <thead><tr><th>Component</th><th>Type</th><th>Submitted</th><th>KINGA Benchmark</th><th>Status</th></tr></thead>
-    <tbody>${compTableRows}</tbody>
-  </table>` : ""}
-
-  ${criticalStructural.length > 0 ? `
-  <div class="fc red">
-    <div class="fc-head">${chip("Structural Gap", "struct")}<span class="fc-title">Critical Components Not Quoted</span></div>
-    <p>${criticalStructural.length} structural component${criticalStructural.length !== 1 ? "s" : ""} identified in the damage scope do not appear in any submitted quote:</p>
-    <ul>${criticalStructural.map(g => `<li>${esc(g.component)}</li>`).join("")}</ul>
-    <p>An independent structural assessment is required before the repair scope and cost can be finalised. Settlement must not be authorised until this assessment is complete.</p>
-    <div class="fc-action">Action: Commission independent structural assessment before authorising settlement</div>
+  <div class="section" style="margin-top:10px;">
+    <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Line Item Comparison</span></div>
+    <table class="grid-t">
+      <tr><th>Component</th><th>Type</th><th>Submitted</th><th>KINGA Benchmark</th><th>Status</th></tr>
+      ${compTableRows}
+    </table>
   </div>` : ""}
 
-  <div class="bridge">Risk indicators &rarr; &sect;3.0</div>
+  ${criticalStructural.length > 0 ? `
+  <div class="callout red" style="margin-top:8px;"><b>Structural Gap — ${criticalStructural.length} critical component${criticalStructural.length !== 1 ? "s" : ""} not quoted.</b> ${criticalStructural.map(g => esc(g.component)).join(", ")}. An independent structural assessment is required before the repair scope and cost can be finalised. Settlement must not be authorised until this assessment is complete.</div>` : ""}
+</div>
+  <div class="footer-strip sans" style="position:static;margin-top:10px;">
+    <div>KINGA AI · Confidential Claims Intelligence Report</div>
+    <div>${docRef} · Page 2 of 2</div>
+  </div>
 </div>`;
 
     // ── §3 RISK INDICATORS ───────────────────────────────────────────────────
@@ -552,38 +522,39 @@ export async function generateClaimsIntelligenceReport(
     </tr>`).join("");
 
     const s3 = `
-<div class="rh"><span class="brand">KINGA</span><span>&sect; 3.0 &mdash; Risk Indicators</span></div>
-<div class="page">
-  <div class="sh">
-    <div class="sh-left"><span class="sn">3.0</span><h2>Risk Indicators</h2></div>
-    ${badge(`${fraudScore}/100 — ${fraudBadgeLabel}`, fraudBadgeCls)}
+<div class="page page-break">
+<div class="section">
+  <div class="section-tab sans"><span class="num">03</span> Risk Indicators <span class="flag-right ${fraudBadgeCls === "fail" ? "high" : fraudBadgeCls === "warn" ? "mid" : "ok"}">${fraudScore}/100 — ${fraudBadgeLabel}</span></div>
+  <div class="cols-2">
+    <div class="box">
+      <h4>Fraud Score — ${fraudScore}/100 (${fraudBadgeLabel})</h4>
+      <table class="kv">
+        <tr><td class="k">Overall assessment</td><td class="v"><span class="pill ${fraudBadgeCls === "fail" ? "red" : fraudBadgeCls === "warn" ? "amber" : "green"}">${fraudBadgeLabel}</span></td></tr>
+        <tr><td class="k">Data completeness</td><td class="v">${Math.round(dataComplete)}% — ${dataComplete >= 80 ? "good" : "partial"}</td></tr>
+      </table>
+    </div>
+    <div class="box" ${dayDelay !== null && dayDelay > 90 ? `style="border-color:var(--red);"` : ""}>
+      <h4 ${dayDelay !== null && dayDelay > 90 ? `style="color:var(--red);"` : ""}>Submission Delay</h4>
+      <p style="margin:0;">${dayDelay !== null ? `Claim lodged <b>${dayDelay} days</b> after the incident date. ${dayDelay > 90 ? "This is the primary risk indicator on this claim — a written explanation from the claimant is required before it can proceed, independent of the numeric fraud score." : "Submission timing is within normal parameters."}` : "Submission delay data not available."}</p>
+    </div>
   </div>
 
-  <div class="lead">Automated fraud screening returned a <strong>${fraudBadgeLabel.toLowerCase()} score of ${fraudScore}/100</strong>. ${fraudScore < 40 ? "No significant fraud indicators were triggered. The score does not warrant escalation but should be noted alongside any structural coverage gaps identified in §2." : `The score warrants ${fraudScore >= 70 ? "immediate escalation to the risk team" : "adjuster review before settlement"}. The primary contributing factors are noted below.`}</div>
-
-  <div class="kpi c4">
-    <div class="kpi-c"><div class="kpi-v ${scoreColour(fraudScore)}">${fraudScore}</div><div class="kpi-l">Fraud Risk Score</div><div class="kpi-s">0–39 Low &middot; 40–69 Moderate &middot; 70+ High</div></div>
-    <div class="kpi-c"><div class="kpi-v ${rtvRatio >= 0.5 ? "a" : "g"}">${fmtPct(rtvRatio * 100)}</div><div class="kpi-l">Repair-to-Value</div><div class="kpi-s">Market value ratio</div></div>
-    <div class="kpi-c"><div class="kpi-v ${dayDelay !== null && dayDelay > 90 ? "a" : "g"}">${dayDelay !== null ? dayDelay : "—"}</div><div class="kpi-l">Submission Delay</div><div class="kpi-s">Days from incident</div></div>
-    <div class="kpi-c"><div class="kpi-v">0</div><div class="kpi-l">Repeat Claimant</div><div class="kpi-s">Not triggered</div></div>
+  <div class="section" style="margin-top:10px;">
+    <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Indicator Breakdown</span></div>
+    <table class="grid-t">
+      <tr><th>Indicator</th><th>Score</th><th>Threshold</th><th>Finding</th><th>Status</th></tr>
+      ${fraudTableRows}
+    </table>
   </div>
-
-  <div class="sub"><h3>Indicator Breakdown</h3><span class="sm">Automated screening results</span></div>
-  <table>
-    <thead><tr><th>Indicator</th><th>Score</th><th>Threshold</th><th>Finding</th><th>Status</th></tr></thead>
-    <tbody>${fraudTableRows}</tbody>
-  </table>
 
   ${rtvRatio >= 0.5 ? `
-  <div class="fc amber">
-    <div class="fc-head">${chip("Monitor", "warn")}<span class="fc-title">Repair Cost Approaching Total-Loss Threshold</span></div>
-    <p>At ${fmtPct(rtvRatio * 100)} of market value, the repair cost is approaching the typical total-loss threshold of 60–70%. If additional structural components are added to the scope following independent assessment, the claim may cross this threshold.</p>
-    <div class="fc-action">Action: Confirm total-loss threshold with insurer before authorising structural repair</div>
-  </div>` : ""}
-
-  <div class="small mt8">Full fraud radar breakdown, cross-engine consistency checks (physics &harr; damage &harr; fraud), copy-quotation fingerprint analysis, and accident-date validation are available in the Forensic Claim Decision Report.</div>
-
-  <div class="bridge">Evidence and documentation snapshot &rarr; &sect;4.0</div>
+  <div class="callout amber" style="margin-top:8px;"><b>Repair Cost Approaching Total-Loss Threshold.</b> At ${fmtPct(rtvRatio * 100)} of market value, the repair cost is approaching the typical total-loss threshold. Confirm the insurer's total-loss policy before authorising repairs.</div>` : ""}
+  <p class="small" style="margin-top:8px;">Full fraud radar breakdown, cross-engine consistency checks, copy-quotation fingerprint analysis, and accident-date validation are available in the Forensic Claim Decision Report.</p>
+</div>
+  <div class="footer-strip sans" style="position:static;margin-top:10px;">
+    <div>KINGA AI · Confidential Claims Intelligence Report</div>
+    <div>${docRef} · Page 2 of 2</div>
+  </div>
 </div>`;
 
     // ── §4 EVIDENCE SNAPSHOT ─────────────────────────────────────────────────
@@ -611,38 +582,32 @@ export async function generateClaimsIntelligenceReport(
     </tr>`).join("");
 
     const s4 = `
-<div class="rh"><span class="brand">KINGA</span><span>&sect; 4.0 &mdash; Evidence Snapshot</span></div>
-<div class="page">
-  <div class="sh">
-    <div class="sh-left"><span class="sn">4.0</span><h2>Evidence Snapshot</h2></div>
-    ${badge(missingDocs.length > 0 || !hasPolice ? "Partial — Documents Missing" : "Evidence Complete", missingDocs.length > 0 || !hasPolice ? "warn" : "ok")}
+<div class="page page-break">
+<div class="section">
+  <div class="section-tab sans"><span class="num">04</span> Evidence Snapshot <span class="flag-right ${missingDocs.length > 0 || !hasPolice ? "mid" : "ok"}">${missingDocs.length > 0 || !hasPolice ? "1 of 3 zones" : "Complete"}</span></div>
+  <p class="small" style="margin:0 0 8px 0;">${docArr.length > 0 ? `${docArr.length} document${docArr.length !== 1 ? "s" : ""} were received and processed.` : "Documentation is limited at this stage."} ${hasPhotos ? `Photo evidence was submitted — ${usablePhotos} of ${totalPhotos} images confirmed usable.` : "No photographic evidence was submitted."} ${!hasPolice ? "A police report was not received — this is required for all accident claims." : ""}</p>
+  <div class="section" style="margin-top:8px;">
+    <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Document Register</span></div>
+    <table class="grid-t">
+      <tr><th>Document</th><th>Type</th><th>Confidence</th><th>Detail</th><th>Status</th></tr>
+      ${docRegHtml}
+    </table>
   </div>
 
-  <div class="lead">${docArr.length > 0 ? `${docArr.length} document${docArr.length !== 1 ? "s" : ""} were received and processed.` : "Documentation is limited at this stage."} ${hasPhotos ? `Photo evidence was submitted but ${photoYield < 40 ? `only ${usablePhotos} of ${totalPhotos} images (${photoYield}%) were confirmed as usable vehicle-damage photographs — below the 60% minimum threshold.` : `${usablePhotos} of ${totalPhotos} images were confirmed as usable.`}` : "No photographic evidence was submitted."} ${!hasPolice ? "A police report was not received — this is required for all accident claims." : ""}</div>
-
-  <div class="sub"><h3>Document Register</h3><span class="sm">Received vs expected</span></div>
-  <table>
-    <thead><tr><th>Document</th><th>Type</th><th>Confidence</th><th>Detail</th><th>Status</th></tr></thead>
-    <tbody>${docRegHtml}</tbody>
-  </table>
-
-  <div class="kpi c4">
-    <div class="kpi-c"><div class="kpi-v">${totalPhotos}</div><div class="kpi-l">Images Submitted</div><div class="kpi-s">Total received</div></div>
-    <div class="kpi-c"><div class="kpi-v ${usablePhotos < 4 ? "r" : usablePhotos < 8 ? "a" : "g"}">${usablePhotos}</div><div class="kpi-l">Confirmed Usable</div><div class="kpi-s">Vehicle damage photos</div></div>
-    <div class="kpi-c"><div class="kpi-v ${totalPhotos - usablePhotos > 5 ? "r" : "a"}">${totalPhotos - usablePhotos}</div><div class="kpi-l">Rejected / Unclear</div><div class="kpi-s">Non-vehicle or low resolution</div></div>
-    <div class="kpi-c"><div class="kpi-v ${photoYield < 40 ? "r" : photoYield < 60 ? "a" : "g"}">${photoYield}%</div><div class="kpi-l">Yield Rate</div><div class="kpi-s">Below 60% threshold</div></div>
+  <div class="cols-3" style="margin-top:10px;">
+    <div class="box"><h4>Documents</h4><table class="kv"><tr><td class="k">Police report</td><td class="v">${hasPolice ? `<span class="pill green">Received</span>` : `<span class="pill amber">Not provided</span>`}</td></tr><tr><td class="k">Quotes</td><td class="v">${quoteArr.length} received</td></tr></table></div>
+    <div class="box"><h4>Data Completeness</h4><table class="kv"><tr><td class="k">Overall</td><td class="v">${Math.round(dataComplete)}%</td></tr><tr><td class="k">Policy number</td><td class="v" ${!policyNum || policyNum === "—" ? `style="color:var(--amber);"` : ""}>${!policyNum || policyNum === "—" ? "Missing" : "Provided"}</td></tr></table></div>
+    <div class="box"><h4>Outstanding Items</h4><ul class="tight small" style="margin-top:0;">${!hasPolice ? "<li>Police report</li>" : ""}${!policyNum || policyNum === "—" ? "<li>Policy number confirmation</li>" : ""}${dayDelay !== null && dayDelay > 90 ? "<li>Written explanation for submission delay</li>" : ""}<li>VIN certificate</li></ul></div>
   </div>
 
   ${photoYield < 40 ? `
-  <div class="fc amber">
-    <div class="fc-head">${chip("Low Yield", "warn")}<span class="fc-title">Photo Evidence Below Assessment Threshold</span></div>
-    <p>Only ${usablePhotos} of ${totalPhotos} submitted images were confirmed as usable vehicle-damage photographs. The usable images may not cover all damage zones — underbody, engine bay, and interior zones may have no photographic coverage. This limits the confidence of any visual damage assessment.</p>
-    <div class="fc-action">Action: Request focused damage photographs from claimant or repairer — underbody, engine bay, and interior zones required</div>
-  </div>` : ""}
-
-  <div class="small">Detailed photo forensics — manipulation detection, EXIF verification, per-component damage-zone mapping, and structural fingerprint analysis — are part of the Forensic Claim Decision Report.</div>
-
-  <div class="bridge">Recommended decision and adjuster action plan &rarr; &sect;5.0</div>
+  <div class="callout amber" style="margin-top:8px;"><b>Photo Evidence Below Assessment Threshold.</b> Only ${usablePhotos} of ${totalPhotos} submitted images were confirmed as usable vehicle-damage photographs. Request focused damage photographs — underbody, engine bay, and interior zones required.</div>` : ""}
+  <p class="small" style="margin-top:8px;">Detailed photo forensics — manipulation detection, EXIF verification, per-component damage-zone mapping, and structural fingerprint analysis — are part of the Forensic Claim Decision Report.</p>
+</div>
+  <div class="footer-strip sans" style="position:static;margin-top:10px;">
+    <div>KINGA AI · Confidential Claims Intelligence Report</div>
+    <div>${docRef} · Page 2 of 2</div>
+  </div>
 </div>`;
 
     // ── §5 DECISION & NEXT STEPS ─────────────────────────────────────────────
@@ -671,47 +636,43 @@ export async function generateClaimsIntelligenceReport(
     if (rtvRatio >= 0.5) upgradeSignals.push(`Repair-to-value ${fmtPct(rtvRatio * 100)}`);
 
     const s5 = `
-<div class="rh"><span class="brand">KINGA</span><span>&sect; 5.0 &mdash; Decision &amp; Next Steps</span></div>
-<div class="page">
-  <div class="sh">
-    <div class="sh-left"><span class="sn">5.0</span><h2>Decision &amp; Next Steps</h2></div>
-    ${badge(actions.some(a => a.priority === "High") ? "Review Required" : "Ready for Settlement", actions.some(a => a.priority === "High") ? "warn" : "ok")}
+<div class="page page-break">
+<div class="section">
+  <div class="section-tab sans"><span class="num">05</span> Decision &amp; Next Steps <span class="flag-right ${actions.some(a => a.priority === "High") ? "high" : "ok"}">${actions.some(a => a.priority === "High") ? "Reject" : "Approve"}</span></div>
+  <div class="cols-2">
+    <div class="box" ${actions.some(a => a.priority === "High") ? `style="border-color:var(--red);"` : ""}>
+      <h4 ${actions.some(a => a.priority === "High") ? `style="color:var(--red);"` : ""}>Verdict — ${actions.some(a => a.priority === "High") ? "Reject" : "Approve"}</h4>
+      <p style="margin:0;">${actions.some(a => a.priority === "High") ? `This claim cannot proceed to automated settlement. <strong>${actions.filter(a => a.priority === "High").length} high-priority item${actions.filter(a => a.priority === "High").length !== 1 ? "s" : ""}</strong> require resolution before a cost decision can be finalised.` : "This claim is ready for settlement subject to adjuster sign-off."} Recommended settlement: <strong>${fmtUSD(recommendedSettlement)}</strong>.</p>
+    </div>
+    <div class="box">
+      <h4>Next Steps</h4>
+      <ul class="tight">${actionRows ? actions.slice(0,4).map(a => `<li>${esc(a.action)}</li>`).join("") : "<li>Approve claim for processing</li><li>Assign repair to selected panel beater</li><li>Issue repair authorisation</li>"}</ul>
+    </div>
   </div>
-
-  <div class="lead">${actions.some(a => a.priority === "High") ? `This claim cannot proceed to automated settlement. <strong>${actions.filter(a => a.priority === "High").length} high-priority item${actions.filter(a => a.priority === "High").length !== 1 ? "s" : ""}</strong> require resolution before a cost decision can be finalised.` : "This claim is ready for settlement subject to adjuster sign-off."} The recommended settlement range — once all actions are completed — is <strong>${fmtUSD(recommendedSettlement)}</strong> (KINGA optimised, less exclusions and policy excess).</div>
-
-  <div class="sub"><h3>Required Actions Before Sign-Off</h3><span class="sm">Prioritised by impact on settlement</span></div>
-  <table>
-    <thead><tr><th>#</th><th>Action Required</th><th>Owner</th><th>Priority</th><th>Ref</th></tr></thead>
-    <tbody>${actionRows || `<tr><td colspan="5" style="text-align:center;color:var(--ink-light);padding:16px">No outstanding actions — claim is ready for settlement</td></tr>`}</tbody>
-  </table>
-
-  <div class="sub"><h3>Sign-Off Workflow</h3><span class="sm">3-stage approval</span></div>
-  <div class="stages">
-    <div class="stage"><div class="stage-n">Claims Processor</div><div class="stage-s pending">Pending</div></div>
-    <div class="stage"><div class="stage-n">Adjuster Review</div><div class="stage-s pending">Pending</div></div>
-    <div class="stage"><div class="stage-n">Settlement Approval</div><div class="stage-s pending">Pending</div></div>
+  <div class="section" style="margin-top:10px;">
+    <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Required Actions</span></div>
+    <table class="grid-t">
+      <tr><th>#</th><th>Action Required</th><th>Owner</th><th>Priority</th><th>Ref</th></tr>
+      ${actionRows || `<tr><td colspan="5" style="text-align:center;padding:16px">No outstanding actions — claim is ready for settlement</td></tr>`}
+    </table>
   </div>
-  <div class="small">Structured reviewer notes — findings, verdict, and action taken — are mandatory at each stage before advancement.</div>
+  <div class="section" style="margin-top:10px;">
+    <div class="section-tab sans" style="background:var(--ink-soft);"><span class="num">Approval Chain</span></div>
+    <table class="grid-t">
+      <tr><th>Stage</th><th>Role</th><th>Status</th><th>Officer</th><th>Date</th></tr>
+      <tr><td>1</td><td>Claims Processor Review</td><td><span class="pill amber">Awaiting</span></td><td>—</td><td>—</td></tr>
+      <tr><td>2</td><td>Adjuster Assessment</td><td><span class="pill grey">Pending</span></td><td>—</td><td>—</td></tr>
+      <tr><td>3</td><td>Claims Manager Approval</td><td><span class="pill grey">Pending</span></td><td>—</td><td>—</td></tr>
+    </table>
+    <p class="caption">Structured reviewer notes are mandatory at every stage before advancement.</p>
+  </div>
 
   ${showUpgrade ? `
-  <div class="upgrade mt12">
-    <div class="upgrade-icon">&#9650;</div>
-    <div class="upgrade-body">
-      <div class="upgrade-title">Forensic Claim Decision Report &mdash; Recommended for This Claim</div>
-      <div class="upgrade-signals">
-        ${upgradeSignals.map(s => `<span class="upgrade-signal">${esc(s)}</span>`).join("")}
-      </div>
-      <div class="upgrade-txt">This claim shows signals that a Forensic Claim Decision Report would materially clarify before settlement. The forensic tier adds full physics reconstruction, crush-depth analysis, damage-zone mapping, photo manipulation detection, copy-quotation fingerprinting, and a 5-stage executive sign-off chain.</div>
-    </div>
-    <div class="upgrade-cta">Upgrade to Forensic Report</div>
-  </div>` : ""}
-
-  <hr class="div">
-  <div class="small" style="text-align:center;line-height:2">
-    KINGA Claims Intelligence Report &nbsp;&middot;&nbsp; For authorised insurer use only &nbsp;&middot;&nbsp; Generated by KINGA Engine<br>
-    Must be reviewed by a qualified human adjuster before any claim decision is finalised &nbsp;&middot;&nbsp; Does not constitute legal advice<br>
-    ${docRef} &nbsp;&middot;&nbsp; Generated ${genDate} &nbsp;&middot;&nbsp; Verdict: ${esc(String(c.recommendation ?? "REVIEW REQUIRED").toUpperCase())}
+  <div class="callout" style="margin-top:10px;border-color:var(--teal);background:#eff8fa;"><b>Forensic Claim Decision Report — Recommended for This Claim.</b> This claim shows signals (${upgradeSignals.join(", ")}) that a Forensic Claim Decision Report would materially clarify before settlement. The forensic tier adds full physics reconstruction, crush-depth analysis, damage-zone mapping, photo manipulation detection, and a 5-stage executive sign-off chain.</div>` : ""}
+</div>
+  <div class="footer-strip sans" style="position:static;margin-top:10px;">
+    <div>CONFIDENTIAL — For authorised insurer use only · Generated by KINGA Intelligence · Requires adjuster sign-off. Not legal advice.</div>
+    <div>${docRef} · Page 2 of 2</div>
   </div>
 </div>`;
 

@@ -253,27 +253,33 @@ async function generateClaimAssessmentReport(
       ? ((fraud as Record<string,unknown>).indicators as Record<string,unknown>[]).slice(0, 5)
       : [];
 
+    const claimRef2 = esc(String(claim.claim_reference ?? claim.id));
+    const genDate2 = new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
+    const insurer2 = esc(String(claim.insurer_name ?? "—"));
+    const decisionLabel = String(claim.recommendation ?? "REVIEW").toUpperCase();
+    const decisionChipCls2 = decisionLabel.includes("APPROVE") || decisionLabel.includes("ACCEPT") ? "approve" : decisionLabel.includes("REJECT") ? "reject" : "review";
+    const decisionIcon2 = decisionChipCls2 === "approve" ? "✓" : decisionChipCls2 === "reject" ? "✗" : "⚠";
+
     const body = `
-<!-- ── COVER HEADER ── -->
-<div style="background:#171717;color:#fff;padding:20px 28px;margin-bottom:0">
-  <table style="width:100%;border-collapse:collapse"><tr>
-    <td style="vertical-align:top">
-      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin-bottom:4px">KINGA INTELLIGENCE PLATFORM</div>
-      <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px">Claims Assessment Report</div>
-      <div style="font-size:11px;color:#ccc;margin-top:4px">Process Tier &middot; Standard Assessment</div>
-    </td>
-    <td style="text-align:right;vertical-align:top">
-      <div style="font-size:9px;color:#aaa">Claim Reference</div>
-      <div style="font-size:14px;font-weight:700;font-family:monospace">${esc(String(claim.claim_reference ?? claim.id))}</div>
-      <div style="font-size:9px;color:#aaa;margin-top:6px">Generated</div>
-      <div style="font-size:10px;color:#ccc">${fmtD(Date.now())}</div>
-    </td>
-  </tr></table>
+<div class="page">
+<!-- ── MASTHEAD ── -->
+<div class="masthead">
+  <div>
+    <div class="brand sans">KINGA<span>·</span>AI <span class="tier sans" style="display:inline-block;font-size:8.5px;font-weight:700;letter-spacing:0.6px;color:#fff;background:var(--ink-soft);padding:2px 7px;border-radius:2px;margin-left:8px;vertical-align:middle">PROCESS TIER</span></div>
+    <div class="doc-title">Claims Report</div>
+    <div class="doc-sub">KINGA Engine · Standard assessment summary · Not legal advice · Requires human adjuster review</div>
+  </div>
+  <div class="meta sans">
+    <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:28px;display:block;margin-bottom:6px;margin-left:auto">
+    <div class="claimno mono">${claimRef2}</div>
+    <div>Generated ${genDate2} &middot; Insurer: ${insurer2}</div>
+    <div class="decision-chip ${decisionChipCls2}">${decisionIcon2} ${decisionLabel}</div>
+  </div>
 </div>
 
 <!-- ── §1 CLAIM OVERVIEW ── -->
-<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
-  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;1 &mdash; Claim Overview</div>
+<div class="section">
+  <div class="section-tab sans"><span class="num">01</span> Claim, Vehicle &amp; Policy</div>
   <table style="width:100%;border-collapse:collapse;font-size:11px">
     <tr>
       <td style="width:16.6%;padding:4px 8px 4px 0;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Claim Ref</div><div style="font-weight:600;font-family:monospace">${esc(String(claim.claim_reference ?? claim.id))}</div></td>
@@ -295,8 +301,8 @@ async function generateClaimAssessmentReport(
 </div>
 
 <!-- ── §2 ASSESSMENT SUMMARY ── -->
-<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
-  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;2 &mdash; Assessment Summary</div>
+<div class="section">
+  <div class="section-tab sans"><span class="num">02</span> Assessment Summary</div>
   <table style="width:100%;border-collapse:collapse">
     <tr>
       ${scoreCell(fraudScore, "Fraud Score")}
@@ -341,8 +347,8 @@ async function generateClaimAssessmentReport(
 
 <!-- ── §3 DAMAGED COMPONENTS ── -->
 ${comps.length > 0 ? `
-<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
-  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;3 &mdash; Damaged Components</div>
+<div class="section">
+  <div class="section-tab sans"><span class="num">03</span> Damage Assessment</div>
   <table style="width:100%;border-collapse:collapse;font-size:11px">
     <thead><tr style="border-bottom:2px solid #d9d9d9">
       <th style="text-align:left;padding:4px 8px;font-size:10px;color:#4a4a4a">Component</th>
@@ -374,8 +380,8 @@ ${comps.length > 0 ? `
 </div>` : ""}
 
 <!-- ── §4 REPAIR vs REPLACE ── -->
-<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
-  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;4 &mdash; Repair vs Replace</div>
+<div class="section">
+  <div class="section-tab sans"><span class="num">04</span> Quotation &amp; Cost Optimisation</div>
   <table style="width:100%;border-collapse:collapse"><tr>
     <td style="padding:10px 14px;border:1px solid ${isTotalLoss ? "#a83232" : "#c8dfc9"};background:${isTotalLoss ? "#fbe9e7" : "#e9f3ea"};border-radius:3px;vertical-align:middle">
       <span style="font-size:13px;font-weight:700;color:${isTotalLoss ? "#a83232" : "#3C7844"}">${isTotalLoss ? "TOTAL LOSS — Replace Vehicle" : "REPAIR RECOMMENDED"}</span>
@@ -385,25 +391,26 @@ ${comps.length > 0 ? `
   </tr></table>
 </div>
 
-<!-- ── §5 PHYSICS INDICATOR ── -->
-<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
-  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;5 &mdash; Physics Screening</div>
+<!-- ── §5 PHYSICS / FRAUD ── -->
+<div class="section">
+  <div class="section-tab sans"><span class="num">05</span> Fraud &amp; Physics</div>
   ${physicsIndicator(physicsAnomalyScore, String(claim.claim_reference ?? claim.id))}
   <div style="font-size:10px;color:#8a8a8a;margin-top:8px">Full physics methodology, impact force analysis, and ΔV calculations are available in the Forensic Report (Prove Tier).</div>
 </div>
 
 <!-- ── §6 DECISION AUTHORITY ── -->
-<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
-  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;6 &mdash; Decision Authority &amp; Next Steps</div>
+<div class="section">
+  <div class="section-tab sans"><span class="num">06</span> Final Recommendation</div>
   <div style="border:1px solid #d9d9d9;background:#fafafa;border-radius:3px;padding:12px 16px;font-size:11px;color:#171717;line-height:1.6">${esc(daText)}</div>
 </div>
 
-<!-- ── DISCLAIMER ── -->
-<div style="padding:16px 28px;background:#fafafa;border-top:1px solid #e8e8e8">
-  <div style="font-size:9px;color:#8a8a8a;line-height:1.5">This report is generated by the KINGA Intelligence Platform and is intended for use by authorised insurer personnel only. It does not constitute legal advice. All findings are subject to human review and final approval by a qualified claims professional. CONFIDENTIAL — not for distribution to the insured party without explicit authorisation.</div>
+  <div class="footer-strip sans" style="position:static;margin-top:10px;">
+    <div>CONFIDENTIAL — For authorised insurer use only · KINGA Intelligence must be reviewed by a qualified human adjuster before any claim decision is finalised. Not legal advice.</div>
+    <div>${claimRef2} · Generated ${genDate2}</div>
+  </div>
 </div>`;
 
-    return buildKingaHtml(`KINGA Claims Assessment Report — ${claim.claim_reference ?? claim.id}`, body);
+    return buildKingaHtml(`KINGA Claims Report — ${claim.claim_reference ?? claim.id}`, body);
   } finally {
     await conn.end();
   }

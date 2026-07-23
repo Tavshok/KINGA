@@ -922,3 +922,14 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Verify both reports against a second claim
 - [ ] Confirm no data integrity contradictions (submitted ≠ KINGA benchmark, fraud indicators real)
 - [ ] Save checkpoint
+
+---
+
+## Report Brand Compliance — July 2026
+
+- [x] Remove all dark cover headers (background:#171717, background:#0f0e0c) from all three report tiers
+- [x] Process tier (reportDefinitions.ts): replace dark cover with white masthead + section-tab green headers + footer-strip
+- [x] Protect tier (claimsIntelligenceReport.ts): replace dark cover-head/cost-snap/meta-grid with white masthead + scorecard + verdict-strip + TOC; replace all .rh/.sh/.lead/.bridge with .section-tab/.box/.callout
+- [x] Forensic tier (forensicDecisionReport.ts): confirmed already uses white masthead; KINGA logo added to masthead meta and all 4 footer-strips
+- [x] Remove dead dark CSS classes (.cover, .cover-head, .cost-snap, .cover-meta, .contents-grid, .tier-ribbon) from kingaDesignSystem.ts
+- [x] All three tiers now comply with KINGA_Claims_Report_Redesign.html and KINGA_Claims_Intelligence_Report_Redesign.html reference designs

@@ -465,6 +465,7 @@ export async function generateForensicDecisionReport(
       <div class="doc-sub">KINGA Engine v4.2 · Automated analysis — not legal advice · Requires human adjuster review before any claim decision is finalised</div>
     </div>
     <div class="meta sans">
+      <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:28px;display:block;margin-bottom:8px;margin-left:auto">
       <div class="claimno mono">${kingaRef}</div>
       <div>Claim <span class="mono">${docRef}</span></div>
       <div>Generated ${genDate}</div>
@@ -630,7 +631,7 @@ export async function generateForensicDecisionReport(
   </div>
 
   <div class="footer-strip sans">
-    <div>KINGA AI v4.2 · Confidential Forensic Audit Report</div>
+    <div><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:14px;vertical-align:middle;margin-right:5px;display:inline-block">KINGA · Confidential Forensic Audit Report</div>
     <div>${docRef} · Page 1 of 4</div>
   </div>
 </div>`;
@@ -754,7 +755,7 @@ export async function generateForensicDecisionReport(
   </div>
 
   <div class="footer-strip sans">
-    <div>KINGA AI v4.2 · Confidential Forensic Audit Report</div>
+    <div><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:14px;vertical-align:middle;margin-right:5px;display:inline-block">KINGA · Confidential Forensic Audit Report</div>
     <div>${docRef} · Page 2 of 4</div>
   </div>
 </div>`;
@@ -896,7 +897,7 @@ export async function generateForensicDecisionReport(
   </div>
 
   <div class="footer-strip sans">
-    <div>KINGA AI v4.2 · Confidential Forensic Audit Report</div>
+    <div><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:14px;vertical-align:middle;margin-right:5px;display:inline-block">KINGA · Confidential Forensic Audit Report</div>
     <div>${docRef} · Page 3 of 4</div>
   </div>
 </div>`;
@@ -1005,7 +1006,7 @@ export async function generateForensicDecisionReport(
   </div>
 
   <div class="footer-strip sans" style="position:static; margin-top:10px;">
-    <div>CONFIDENTIAL — For authorised insurer use only · KINGA Engine v4.2 · Not legal advice · Requires qualified human adjuster review before any claim decision is finalised</div>
+    <div><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:14px;vertical-align:middle;margin-right:5px;display:inline-block">CONFIDENTIAL — For authorised insurer use only · KINGA · Not legal advice · Requires qualified human adjuster review before any claim decision is finalised</div>
     <div>${docRef} · Page 4 of 4</div>
   </div>
 </div>`;
