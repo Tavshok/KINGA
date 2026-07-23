@@ -316,7 +316,118 @@ export async function runCostOptimisationStage(
     // CRITICAL: Exclude parts_supplier quotes (e.g. Sarjazz) from the panel beater
     // optimisation engine. Parts suppliers are not repairers — their quotes are used
     // only for parts price benchmarking, not for L1/L2 composite optimisation.
-    const optimisationInputQuotes: InputQuote[] = (stage3?.inputRecovery?.extracted_quotes ?? [])
+    // resolvedExtractedQuotes: single source of truth for extracted quotes in Stage 9.
+    // Priority 1: stage3.inputRecovery.extracted_quotes (from document extraction).
+    // Priority 2: panel_beater_quotes DB table (written by Stage 8 quote ingestion).
+    // All downstream consumers in Stage 9 MUST use this variable.
+    let resolvedExtractedQuotes: any[] = stage3?.inputRecovery?.extracted_quotes ?? [];
+    if (resolvedExtractedQuotes.length === 0 && ctx.db && claimRecord.claimId) {
+      try {
+        const { panelBeaterQuotes, panelBeaters, quoteLineItems } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        // Step 1: Fetch panel_beater_quotes rows with quote IDs
+        const dbQuoteRows = await ctx.db
+          .select({
+            quoteId: panelBeaterQuotes.id,
+            quotedAmount: panelBeaterQuotes.quotedAmount,
+            laborCost: panelBeaterQuotes.laborCost,
+            partsCost: panelBeaterQuotes.partsCost,
+            currencyCode: panelBeaterQuotes.currencyCode,
+            status: panelBeaterQuotes.status,
+            panelBeaterName: panelBeaters.businessName,
+          })
+          .from(panelBeaterQuotes)
+          .leftJoin(panelBeaters, eq(panelBeaterQuotes.panelBeaterId, panelBeaters.id))
+          .where(eq(panelBeaterQuotes.claimId, claimRecord.claimId));
+        if (dbQuoteRows.length > 0) {
+          ctx.log("Stage 9", `DB fallback: found ${dbQuoteRows.length} quote(s) in panel_beater_quotes for claim ${claimRecord.claimId} (Stage 3 extracted 0)`);
+          // Step 2: Fetch all quote_line_items for these quotes in one query
+          // components_json is always NULL — line items live in quote_line_items (separate table)
+          const quoteIds = dbQuoteRows.map((r: any) => r.quoteId).filter(Boolean);
+          let lineItemsByQuoteId: Map<number, any[]> = new Map();
+          if (quoteIds.length > 0) {
+            try {
+              const { inArray } = await import("drizzle-orm");
+              const allLineItems = await ctx.db
+                .select({
+                  quoteId: quoteLineItems.quoteId,
+                  description: quoteLineItems.description,
+                  category: quoteLineItems.category,
+                  quantity: quoteLineItems.quantity,
+                  unitPrice: quoteLineItems.unitPrice,
+                  lineTotal: quoteLineItems.lineTotal,
+                  currency: quoteLineItems.currency,
+                  isRepair: quoteLineItems.isRepair,
+                  isReplacement: quoteLineItems.isReplacement,
+                })
+                .from(quoteLineItems)
+                .where(inArray(quoteLineItems.quoteId, quoteIds));
+              for (const li of allLineItems) {
+                const qid = li.quoteId;
+                if (!lineItemsByQuoteId.has(qid)) lineItemsByQuoteId.set(qid, []);
+                lineItemsByQuoteId.get(qid)!.push(li);
+              }
+              const totalLineItems = allLineItems.length;
+              ctx.log("Stage 9", `DB fallback: fetched ${totalLineItems} line item(s) across ${quoteIds.length} quote(s) from quote_line_items`);
+            } catch (liErr) {
+              ctx.log("Stage 9", `DB fallback: quote_line_items fetch failed (non-fatal): ${String(liErr)}`);
+            }
+          }
+          // Step 3: Build resolvedExtractedQuotes with real line_items attached
+          resolvedExtractedQuotes = dbQuoteRows
+            .filter((row: any) => (row.quotedAmount ?? 0) > 0)
+            .map((row: any) => {
+              const rawLineItems = lineItemsByQuoteId.get(row.quoteId) ?? [];
+              // Map quote_line_items rows to the line_items shape expected by Stage 9 consumers
+              // (same shape as quoteExtractionEngine output: component, line_total, is_non_part_cost, unit_cost)
+              const line_items = rawLineItems.map((li: any) => ({
+                component: li.description ?? '',
+                description: li.description ?? '',
+                line_total: li.lineTotal ? parseFloat(li.lineTotal) : 0,
+                unit_cost: li.unitPrice ? parseFloat(li.unitPrice) : 0,
+                quantity: li.quantity ? parseFloat(li.quantity) : 1,
+                currency: li.currency ?? (row.currencyCode ?? currency),
+                // is_non_part_cost: true for labour/paint/diagnostic rows
+                // These are excluded from compositePartsUsd and handled via bestLabourUsd
+                is_non_part_cost: li.category === 'labor' || li.category === 'paint' || li.category === 'diagnostic',
+                is_repair: !!(li.isRepair),
+                is_replacement: !!(li.isReplacement),
+              }));
+              // Derive component list from line items (parts only, not labour)
+              const components = line_items
+                .filter((li: any) => !li.is_non_part_cost && li.component)
+                .map((li: any) => li.component as string);
+              // Derive labour_cost from labour line items if not in header
+              const labourFromLineItems = line_items
+                .filter((li: any) => li.is_non_part_cost && /labour|labor/i.test(li.component ?? ''))
+                .reduce((s: number, li: any) => s + (li.line_total ?? 0), 0);
+              const effectiveLabourCost = (row.laborCost && row.laborCost > 0)
+                ? row.laborCost / 100
+                : (labourFromLineItems > 0 ? labourFromLineItems : null);
+              return {
+                panel_beater: row.panelBeaterName ?? "Panel Beater",
+                total_cost: row.quotedAmount / 100,
+                currency: row.currencyCode ?? currency,
+                components,
+                line_items,
+                labour_defined: !!(effectiveLabourCost && effectiveLabourCost > 0),
+                parts_defined: line_items.filter((li: any) => !li.is_non_part_cost).length > 0,
+                labour_cost: effectiveLabourCost,
+                parts_cost: row.partsCost ? row.partsCost / 100 : null,
+                confidence: "medium",
+                quote_type: "repair",
+              };
+            });
+          ctx.log("Stage 9", `DB fallback: loaded ${resolvedExtractedQuotes.length} quote(s). Totals: ${resolvedExtractedQuotes.map((q: any) => `${q.currency} ${q.total_cost?.toFixed(2)} (${(q.line_items ?? []).length} items)`).join(", ")}`);
+        } else {
+          ctx.log("Stage 9", `DB fallback: panel_beater_quotes has 0 rows for claim ${claimRecord.claimId}`);
+        }
+      } catch (dbFallbackErr) {
+        ctx.log("Stage 9", `DB fallback query failed (non-fatal): ${String(dbFallbackErr)}`);
+      }
+    }
+
+    const optimisationInputQuotes: InputQuote[] = resolvedExtractedQuotes
       .filter((q: any) => (q.quote_type ?? 'repair') !== 'parts_supplier')
       .map(q => {
       let components: string[] = q.components ?? [];
@@ -383,7 +494,8 @@ export async function runCostOptimisationStage(
     // ── Step A2: Cross-Quote Gap Analysis + Deviation Matrix ──────────────────
     // R-E-03: stage3.inputRecovery and ctx.damagePhotoUrls/classifiedImages are typed
     // in Stage3Output and PipelineContext respectively — as-any casts removed.
-    const gapAnalysisQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+    // Use resolvedExtractedQuotes (includes DB fallback) for gap analysis
+    const gapAnalysisQuotes = resolvedExtractedQuotes;
     const damagePhotoUrlsForGap: string[] = [
       ...(ctx.damagePhotoUrls ?? []),
       // ClassifiedImage always has url: string (non-optional) — no cast needed.
@@ -573,12 +685,12 @@ export async function runCostOptimisationStage(
 
     // Build parts reconciliation (quoted parts vs AI estimated)
     // Step 1: Run semantic damage-vs-quote reconciliation if quote components are available
-    const quoteComponents: string[] = stage3?.inputRecovery?.extracted_quotes
+    const quoteComponents: string[] = resolvedExtractedQuotes
       ?.flatMap(q => q.components ?? []) ?? [];
 
     // Build a line_items lookup: normalised component name → { line_total, currency }
     // Uses the best available quote (highest confidence, then highest total_cost)
-    const allLineItems = (stage3?.inputRecovery?.extracted_quotes ?? [])
+    const allLineItems = (resolvedExtractedQuotes)
       .slice()
       .sort((a, b) => {
         const confOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
@@ -697,7 +809,7 @@ export async function runCostOptimisationStage(
     } : null;
 
     // Step 3: Generate cost intelligence narrative for decision panel
-    const extractedQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+    const extractedQuotes = resolvedExtractedQuotes;
     const narrativeInput = {
       quotes: extractedQuotes.map((q, i) => ({
         quote_id: `q${i + 1}`,
@@ -783,7 +895,7 @@ export async function runCostOptimisationStage(
             total_structural_gaps: quoteOptimisation.total_structural_gaps,
             median_cost_usd: quoteOptimisation.median_cost_usd,
           } : null,
-          extracted_quotes: (stage3?.inputRecovery?.extracted_quotes ?? []).map(q => ({
+          extracted_quotes: resolvedExtractedQuotes.map(q => ({
             panel_beater: q.panel_beater ?? null,
             total_cost: q.total_cost ?? null,
             currency: q.currency ?? currency,
@@ -959,7 +1071,7 @@ export async function runCostOptimisationStage(
     // vision extraction using the primary PDF URL to recover the actual prices.
     // This guard runs BEFORE documentedLineItems is built so the recovered
     // prices flow through the full cost optimisation pipeline.
-    let allExtractedQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+    let allExtractedQuotes = resolvedExtractedQuotes;
     const totalPricedInExtracted = allExtractedQuotes.reduce((sum: number, eq: any) => {
       const items: any[] = (eq as any).line_items ?? [];
       return sum + items.filter((li: any) => typeof li.line_total === 'number' && li.line_total > 0).length;
@@ -1312,7 +1424,7 @@ export async function runCostOptimisationStage(
         // Tier 2: Statistical IQR benchmark (all 33 components)
         // Tier 3: Legacy DB benchmarks (validated outcomes + training data)
         const perComponentBenchmarks: Record<string, any> = {};
-        const allQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+        const allQuotes = resolvedExtractedQuotes;
         const vehicleMake = claimRecord.vehicle?.make ?? null;
         const vehicleYear = claimRecord.vehicle?.year ?? null;
 
@@ -1414,7 +1526,7 @@ export async function runCostOptimisationStage(
             dbBenchmarks = [...dbBenchmarks, ...trainingBenchmarks];
           }
           for (const b of dbBenchmarks) {
-            const allQuotesInner = stage3?.inputRecovery?.extracted_quotes ?? [];
+            const allQuotesInner = resolvedExtractedQuotes;
             const quoteFlags: Record<string, 'over' | 'fair' | 'under' | 'no_data'> = {};
             for (const q of allQuotesInner) {
               const pbName = (q as any).panel_beater ?? `Quote ${allQuotesInner.indexOf(q) + 1}`;
@@ -1700,7 +1812,7 @@ export async function runCostOptimisationStage(
             //   'other'           → exclude (unknown document type)
             //   undefined         → fall back to quote_type heuristic for backward compatibility
             //     with pre-classification data (claims processed before document_category was added)
-            const allSubmittedTotals = (stage3?.inputRecovery?.extracted_quotes ?? [])
+            const allSubmittedTotals = (resolvedExtractedQuotes)
               .filter((q: any) => {
                 // Primary: use LLM-classified document_category when available
                 if (q.document_category) {

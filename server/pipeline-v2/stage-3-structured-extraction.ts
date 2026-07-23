@@ -1635,7 +1635,22 @@ RULES:
 
     return {
       status: "degraded",
-      data: { perDocumentExtractions: [] },
+      data: {
+        perDocumentExtractions: [],
+        // Always include an empty inputRecovery so downstream consumers
+        // (Stage 9, Stage 7b, etc.) never receive undefined for this field.
+        // An undefined inputRecovery silently resolves to [] for extracted_quotes,
+        // masking the fact that the real data may live in a sibling DB table.
+        inputRecovery: {
+          accident_description: null,
+          recovered_quote: null,
+          extracted_quotes: [],
+          images_present: false,
+          damage_hints: { zones: [], components: [] },
+          failure_flags: ["ocr_failure"] as import('./types').InputRecoveryFailureFlag[],
+          recovered_at: new Date().toISOString(),
+        },
+      },
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,

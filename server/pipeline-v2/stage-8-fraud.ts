@@ -892,7 +892,44 @@ export async function runFraudAnalysisStage(
     let quoteSimilarityResult: QuoteSimilarityResult | null = null;
     try {
       // extracted_quotes is ExtractedQuote[] (canonical type from quoteExtractionEngine)
-      const extractedQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+      // DB fallback: if Stage 3 degraded and produced no quotes, read from panel_beater_quotes
+      // (same pattern as Stage 9 resolvedExtractedQuotes — see stage-9-cost.ts)
+      let extractedQuotes: any[] = stage3?.inputRecovery?.extracted_quotes ?? [];
+      if (extractedQuotes.length === 0 && ctx.db && claimRecord.claimId) {
+        try {
+          const { panelBeaterQuotes, panelBeaters } = await import("../../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          const dbRows = await ctx.db
+            .select({
+              quotedAmount: panelBeaterQuotes.quotedAmount,
+              laborCost: panelBeaterQuotes.laborCost,
+              partsCost: panelBeaterQuotes.partsCost,
+              currencyCode: panelBeaterQuotes.currencyCode,
+              componentsJson: panelBeaterQuotes.componentsJson,
+              panelBeaterName: panelBeaters.businessName,
+            })
+            .from(panelBeaterQuotes)
+            .leftJoin(panelBeaters, eq(panelBeaterQuotes.panelBeaterId, panelBeaters.id))
+            .where(eq(panelBeaterQuotes.claimId, claimRecord.claimId));
+          if (dbRows.length > 0) {
+            extractedQuotes = dbRows
+              .filter((r: any) => (r.quotedAmount ?? 0) > 0)
+              .map((r: any) => ({
+                panel_beater: r.panelBeaterName ?? "Panel Beater",
+                total_cost: r.quotedAmount / 100,
+                currency: r.currencyCode ?? "USD",
+                components: (() => { try { return r.componentsJson ? JSON.parse(r.componentsJson) : []; } catch { return []; } })(),
+                labour_cost: r.laborCost ? r.laborCost / 100 : null,
+                parts_cost: r.partsCost ? r.partsCost / 100 : null,
+                confidence: "medium",
+                quote_type: "repair",
+              }));
+            ctx.log("Stage 8", `DB fallback: loaded ${extractedQuotes.length} quote(s) from panel_beater_quotes for fraud analysis`);
+          }
+        } catch (dbErr) {
+          ctx.log("Stage 8", `DB fallback query failed (non-fatal): ${String(dbErr)}`);
+        }
+      }
       if (extractedQuotes.length >= 2) {
         const damageComponents = damageAnalysis.damagedParts.map((p: any) => p.name ?? p.part ?? String(p));
         quoteSimilarityResult = analyseQuoteSimilarity(extractedQuotes, damageComponents);

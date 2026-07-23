@@ -105,11 +105,16 @@ export async function generateClaimsIntelligenceReport(
     const quoteAmounts = quoteArr.map(q => Number(q.quoted_amount ?? 0) / 100);
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
-    // kingaOptimisedAmount is not a real field — use compositeOptimisedCostCents (÷100) or
-    // totalEstimatedCost (already dollars) or fall back to estimatedCost (already dollars).
+    // KINGA Optimised Estimate — L2 composite (per-component min(lowest credible, model P50))
+    // Primary: compositeOptimisation.l2CompositeOptimisedCostUsd (canonical field from buildCompositeQuote)
     const kingaOptimised: number = (() => {
       const comp = (costIntel?.compositeOptimisation as Record<string, unknown> | null | undefined);
-      if (comp?.compositeOptimisedCostCents) return Number(comp.compositeOptimisedCostCents) / 100;
+      // Primary: l2CompositeOptimisedCostUsd — canonical L2 field written by buildCompositeQuote
+      if (comp?.l2CompositeOptimisedCostUsd && Number(comp.l2CompositeOptimisedCostUsd) > 0)
+        return Number(comp.l2CompositeOptimisedCostUsd);
+      // Top-level backfill (set by Stage 9 after composite is built)
+      if ((costIntel as any)?.kingaSavingsL2OptimisedUsd && Number((costIntel as any).kingaSavingsL2OptimisedUsd) > 0)
+        return Number((costIntel as any).kingaSavingsL2OptimisedUsd);
       if (costIntel?.totalEstimatedCost) return Number(costIntel.totalEstimatedCost);
       if (costIntel?.expectedRepairCostCents) return Number(costIntel.expectedRepairCostCents) / 100;
       return estimatedCost; // already in dollars

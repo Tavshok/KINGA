@@ -1034,9 +1034,11 @@ export function buildCompositeQuote(
     // be calibrated to a different market. In that case, use the lowest
     // submitted price instead to keep the estimate realistic.
     /** Max % the KINGA model can be below the lowest submitted price before
-     *  the submitted price is used as the floor. Engineering-judgment constant.
-     *  Do not change without benchmarking against a labelled cost dataset. */
-    const MAX_MODEL_DISCOUNT_PCT = 0.45; // 45% below lowest submitted = unrealistic
+     *  the submitted price is used as the floor.
+     *  Rule: KINGA model price must not be more than 30% below the lowest
+     *  submitted price. If deviation exceeds 30%, the lowest submitted price
+     *  is used as the floor instead of the model price. */
+    const MAX_MODEL_DISCOUNT_PCT = 0.30; // 30% below lowest submitted = floor threshold
 
     const gatedPrices = prices.filter(p => p.passedGate);
     const lowestSubmittedUsd: number | null = prices.length > 0

@@ -822,3 +822,38 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Test currency formatting against a Zambian (ZMW) claim
 - [ ] Test Wing→Fender normalization against a claim with "Wing" in narrative
 - [ ] Confirm no new badge/verdict contradictions introduced
+
+---
+
+## Pipeline Integration Fixes — Cost Audit Sprint (July 2026)
+
+### CRITICAL
+- [ ] Fix Stage 3 degraded path: all degraded/error returns must include empty inputRecovery structure (not undefined)
+- [ ] Fix Stage 9: fallback to panel_beater_quotes DB table when stage3.inputRecovery.extracted_quotes is empty
+
+### HIGH
+- [ ] Sweep all pipeline stages for silent ?? [] / ?? 0 fallbacks where a sibling DB table holds real data
+- [ ] Fix vehicle_market_value display: divide by 100 (currently rendering raw cents as dollars)
+- [ ] Fix $75,340.91 total-quoted figure: verify whether it was sourced correctly or was coincidentally correct despite Stage 9 reading empty quotes
+
+### MEDIUM
+- [ ] BUG-13: pipeline_jobs 6 stages stuck at running (6.5A/6.5B never call recordStage; degraded stages drain after process exits)
+- [ ] BUG-14: .cover-head-legacy dead CSS not stripped from FDR
+- [ ] BUG-15: Verdict strip label "Market Value" → "Insured Value"
+- [ ] BUG-16: Document register missing from §08 (ingestion_documents data available)
+
+### LOW
+- [ ] BUG-17: Seed data — estimated_value for VOLTRON-001 should be 3,000,000 cents ($30,000)
+
+### Verification
+- [ ] Re-run LIVE-RUN-VOLTRON-001 and confirm Stage 9 surfaces exactly 3 quotes matching panel_beater_quotes
+- [ ] Confirm §06/§07 quote sections and cost table reflect the 3 real quotes
+- [ ] Confirm $75,340.91 total-quoted figure reconciles (or update if incorrect)
+
+---
+
+## L2 Formula Audit & Quote Line Items Fix (July 2026)
+
+- [ ] FIX-L2-FORMULA: Set MAX_MODEL_DISCOUNT_PCT = 0.30 (was 0.45) in quoteOptimisationEngine.ts buildCompositeQuote
+- [ ] FIX-L2-FORMULA: Delete all wrong formula variants in quoteOptimisationEngine.ts and stage-9-cost.ts that contradict the canonical rule
+- [ ] FIX-QUOTE-LINE-ITEMS: Stage 9 DB fallback must join quote_line_items so buildCompositeQuote receives real line items (not empty components[])

@@ -106,11 +106,17 @@ export async function generateForensicDecisionReport(
       "USD"
     ).toUpperCase();
 
-    // Bug #5: KINGA Optimised Estimate — expand fallback chain to include costDecision.true_cost_usd
+    // KINGA Optimised Estimate — L2 composite (per-component min(lowest credible, model P50))
+    // Primary source: compositeOptimisation.l2CompositeOptimisedCostUsd (written by Stage 9 buildCompositeQuote)
+    // Also available as top-level kingaSavingsL2OptimisedUsd for direct access
     const kingaOptimised: number = (() => {
       const comp = (costIntel?.compositeOptimisation as Record<string, unknown> | null | undefined);
-      if (comp?.compositeOptimisedCostCents && Number(comp.compositeOptimisedCostCents) > 0)
-        return Number(comp.compositeOptimisedCostCents) / 100;
+      // Primary: l2CompositeOptimisedCostUsd — the canonical L2 field written by buildCompositeQuote
+      if (comp?.l2CompositeOptimisedCostUsd && Number(comp.l2CompositeOptimisedCostUsd) > 0)
+        return Number(comp.l2CompositeOptimisedCostUsd);
+      // Also available as top-level field (backfilled by Stage 9 after composite is built)
+      if ((costIntel as any)?.kingaSavingsL2OptimisedUsd && Number((costIntel as any).kingaSavingsL2OptimisedUsd) > 0)
+        return Number((costIntel as any).kingaSavingsL2OptimisedUsd);
       if (costIntel?.totalEstimatedCost && Number(costIntel.totalEstimatedCost) > 0)
         return Number(costIntel.totalEstimatedCost);
       if (costIntel?.expectedRepairCostCents && Number(costIntel.expectedRepairCostCents) > 0)
