@@ -13,7 +13,7 @@
 
 import mysql from "mysql2/promise";
 import {
-  buildKingaHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson,
+  buildKingaFdrHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson,
 } from "./templates/kingaDesignSystem";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -131,7 +131,19 @@ export async function generateForensicDecisionReport(
             : (b?.mid ? Number(b.mid) : 0);
           return s + v;
         }, 0);
-        if (benchmarkSum > 0) return benchmarkSum;
+          if (benchmarkSum > 0) {
+          // Bug #5: flag partial estimate when fewer than 50% of components have benchmark data
+          const pricedCount = Object.values(benchmarks).filter(b =>
+            Number(b?.medianUsd ?? b?.p50Usd ?? (b?.midCents ? b.midCents / 100 : b?.mid ?? 0)) > 0
+          ).length;
+          const totalCount = Object.values(benchmarks).length;
+          if (pricedCount < totalCount / 2) {
+            (costIntel as any)._isPartialBenchmark = true;
+            (costIntel as any)._pricedComponentCount = pricedCount;
+            (costIntel as any)._totalComponentCount = totalCount;
+          }
+          return benchmarkSum;
+        }
       }
       return estimatedCost;
     })();
@@ -140,7 +152,10 @@ export async function generateForensicDecisionReport(
     const savings = lowestRef > 0 ? lowestRef - kingaOptimised : 0;
     const savingsPct = lowestRef > 0 ? (savings / lowestRef * 100) : 0;
 
-    const excess = Number(c.policy_excess ?? c.deductible ?? 0);
+    // Bug #10: DB column is excess_amount_cents (integer cents), not policy_excess
+    const excess = c.excess_amount_cents != null
+      ? Number(c.excess_amount_cents) / 100
+      : Number(c.policy_excess ?? c.deductible ?? 0);
     const exclusions: Array<{item: string; amount: number; clause: string}> =
       (repairIntel?.policyExclusions as Array<{item: string; amount: number; clause: string}>) ?? [];
     const totalExclusions = exclusions.reduce((s, e) => s + Number(e.amount ?? 0), 0);
@@ -170,18 +185,23 @@ export async function generateForensicDecisionReport(
       overallConfidence?: string;
       methods?: Array<{method: string; label?: string; speedKmh: number | null; confidence: string; ran: boolean}>;
     } | null | undefined;
-    const speedMethods: Array<{label: string; speed: number; highlight?: boolean; danger?: boolean}> = (() => {
-      // Priority 1: 6-method ensemble (v2 pipeline)
+    // Bug #2: Show ALL 6 methods including non-ran ones (greyed stub bars)
+    type SpeedMethod = {label: string; speed: number; highlight?: boolean; danger?: boolean; notRan?: boolean};
+    const speedMethods: SpeedMethod[] = (() => {
+      // Priority 1: 6-method ensemble (v2 pipeline) — include all methods, grey out non-ran
       const ensembleMethods = speedEnsemble?.methods ?? [];
-      const runnableMethods = ensembleMethods.filter(m => m.ran && m.speedKmh != null && Number(m.speedKmh) > 0);
-      if (runnableMethods.length > 0) {
+      if (ensembleMethods.length > 0) {
         const consensusKmh = speedEnsemble?.consensusSpeedKmh ?? 0;
-        return runnableMethods.map(m => ({
-          label: String(m.label ?? m.method),
-          speed: Number(m.speedKmh),
-          highlight: Math.abs(Number(m.speedKmh) - consensusKmh) < 3,
-          danger: m.method === 'SEVERITY_ANCHORED' && Number(m.speedKmh) > (consensusKmh * 1.5),
-        }));
+        return ensembleMethods.map(m => {
+          const ran = m.ran && m.speedKmh != null && Number(m.speedKmh) > 0;
+          return {
+            label: String(m.label ?? m.method).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            speed: ran ? Number(m.speedKmh) : 0,
+            highlight: ran && Math.abs(Number(m.speedKmh) - consensusKmh) < 3,
+            danger: ran && m.method === 'SEVERITY_ANCHORED' && Number(m.speedKmh) > (consensusKmh * 1.5),
+            notRan: !ran,
+          };
+        });
       }
       // Priority 2: flat fields (legacy / partial runs)
       const arr: Array<{label: string; speed: number; highlight?: boolean; danger?: boolean}> = [];
@@ -195,6 +215,8 @@ export async function generateForensicDecisionReport(
       ];
     })();
     const maxSpeed = Math.max(...speedMethods.map(m => m.speed), 1);
+    const rannedMethodCount = speedMethods.filter(m => !m.notRan).length;
+    const totalMethodCount = speedMethods.length;
     // Use speedInferenceEnsemble.consensusSpeedKmh if available (more accurate than bar highlight)
     const consensusSpeed = speedEnsemble?.consensusSpeedKmh
       ? Number(speedEnsemble.consensusSpeedKmh)
@@ -377,6 +399,13 @@ export async function generateForensicDecisionReport(
     const baselineY = 105;
     const speedBars = speedMethods.map((m, i) => {
       const x = 35 + i * (barWidth + 10);
+      if ((m as SpeedMethod).notRan) {
+        const stubH = 8;
+        const stubY = baselineY - stubH;
+        return `<rect x="${x}" y="${stubY}" width="${barWidth}" height="${stubH}" fill="#e0e0e0" stroke="#c0c0c0" stroke-width="0.5" stroke-dasharray="3,2"/>
+<text x="${x + barWidth/2}" y="${stubY - 3}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#9e9e9e">N/A</text>
+<text x="${x + barWidth/2}" y="120" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="6.5" fill="#9e9e9e">${esc(m.label)}</text>`;
+      }
       const h = Math.max(4, Math.round((m.speed / maxSpeed) * maxBarHeight));
       const y = baselineY - h;
       const fill = m.danger ? "#a83232" : m.highlight ? "#437D87" : "#bdbdbd";
@@ -478,9 +507,11 @@ export async function generateForensicDecisionReport(
       <div class="sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div>
     </div>
     <div class="verdict-cell accent">
-      <div class="label">KINGA Optimised Estimate</div>
+      <div class="label">KINGA Optimised Estimate${(costIntel as any)?._isPartialBenchmark ? ' <span style="font-size:8px;color:var(--amber);font-weight:600;">(PARTIAL)</span>' : ''}</div>
       <div class="value">${fmtCurrency(kingaOptimised, claimCurrency)}</div>
-      <div class="sub">${savings > 0 ? `↓ ${fmtCurrency(savings, claimCurrency)} · ${savingsPct.toFixed(1)}% savings` : "Best-price estimate"}</div>
+      <div class="sub">${(costIntel as any)?._isPartialBenchmark
+        ? `⚠ ${(costIntel as any)._pricedComponentCount}/${(costIntel as any)._totalComponentCount} components priced — partial estimate`
+        : savings > 0 ? `↓ ${fmtCurrency(savings, claimCurrency)} · ${savingsPct.toFixed(1)}% savings` : "Best-price estimate"}</div>
     </div>
     <div class="verdict-cell">
       <div class="label">Settlement Agreed</div>
@@ -621,7 +652,7 @@ export async function generateForensicDecisionReport(
       </div>
       <div class="box">
         <h4>Speed Analysis <span class="small">(${speedEnsemble?.overallConfidence?.toLowerCase() ?? auditGrade.toLowerCase()} confidence)</span></h4>
-        <p style="margin:0 0 4px 0;"><span style="font-size:26px; font-weight:700; font-family:'Helvetica Neue',Arial,sans-serif; color:var(--teal);">${consensusSpeed}</span> <span class="small">km/h consensus · ${speedMethods.length} method${speedMethods.length !== 1 ? 's' : ''}</span></p>
+        <p style="margin:0 0 4px 0;"><span style="font-size:26px; font-weight:700; font-family:'Helvetica Neue',Arial,sans-serif; color:var(--teal);">${consensusSpeed}</span> <span class="small">km/h consensus · ${rannedMethodCount} of ${totalMethodCount} method${totalMethodCount !== 1 ? 's' : ''} produced an estimate</span></p>
         <svg width="100%" height="${chartHeight}" viewBox="0 0 ${chartWidth} ${chartHeight}" xmlns="http://www.w3.org/2000/svg">
           <line x1="20" y1="${baselineY}" x2="${chartWidth - 10}" y2="${baselineY}" stroke="#bdbdbd" stroke-width="1"/>
           ${speedBars}
@@ -974,7 +1005,7 @@ export async function generateForensicDecisionReport(
 </div>`;
 
     const body = page1 + page2 + page3 + page4;
-    return buildKingaHtml(`KINGA Forensic Claim Decision Report — ${claimRef}`, body);
+    return buildKingaFdrHtml(`KINGA Forensic Claim Decision Report — ${claimRef}`, body);
 
   } finally {
     await conn.end();

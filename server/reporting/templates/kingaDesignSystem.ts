@@ -398,6 +398,53 @@ export const KINGA_REPORT_CSS = `
   }
 `;
 
+/**
+ * FDR-only CSS: strips CIR-only classes that are dead weight in every FDR export.
+ * Removed: .score-strip, .ss-c/n/l, .meta-grid, .mg-*, .vbadge, .vbody, .contents, .ct-*, .ci, .ci-n, .ci-t, .cover-head
+ */
+export const KINGA_FDR_CSS = KINGA_REPORT_CSS
+  .replace(/\.score-strip[^{]*\{[^}]*\}/g, '')
+  .replace(/\.ss-c[^{]*\{[^}]*\}/g, '')
+  .replace(/\.ss-n[^{]*\{[^}]*\}/g, '')
+  .replace(/\.ss-l[^{]*\{[^}]*\}/g, '')
+  .replace(/\.meta-grid[^{]*\{[^}]*\}/g, '')
+  .replace(/\.mg-cell[^{]*\{[^}]*\}/g, '')
+  .replace(/\.mg-lbl[^{]*\{[^}]*\}/g, '')
+  .replace(/\.mg-val[^{]*\{[^}]*\}/g, '')
+  .replace(/\.vbadge[^{]*\{[^}]*\}/g, '')
+  .replace(/\.vbody[^{]*\{[^}]*\}/g, '')
+  .replace(/\.contents[^{]*\{[^}]*\}/g, '')
+  .replace(/\.ct-title[^{]*\{[^}]*\}/g, '')
+  .replace(/\.ct-grid[^{]*\{[^}]*\}/g, '')
+  .replace(/\.ci-n[^{]*\{[^}]*\}/g, '')
+  .replace(/\.ci-t[^{]*\{[^}]*\}/g, '')
+  .replace(/\.ci\s*\{[^}]*\}/g, '')
+  .replace(/\.cover-head\s*\{[^}]*\}/g, '');
+
+/** Build FDR HTML using the stripped FDR-only CSS (no dead CIR classes) */
+export function buildKingaFdrHtml(
+  title: string,
+  body: string,
+  extraScripts = ""
+): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>${KINGA_FDR_CSS}</style>
+</head>
+<body>
+<div class="report">
+${body}
+</div>
+${extraScripts}
+</body>
+</html>`;
+}
+
 export function buildKingaHtml(
   title: string,
   body: string,
