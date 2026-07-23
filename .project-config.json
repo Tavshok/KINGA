@@ -12,10 +12,10 @@
   "experiments": null,
   "git_remote": {
     "repo_url": "s3://vida-prod-gitrepo/webdev-git/310419663031527958/YbS42LwGroxbVepAMjk4bS",
-    "access_key_id": "ASIAZV3A2ECZBWJLUL77",
-    "secret_access_key": "vbIkR/JPrE3nhzvW8WmedXiiYpi76grQcGxhigY1",
-    "session_token": "IQoJb3JpZ2luX2VjECAaCXVzLWVhc3QtMSJGMEQCIHVqsTphESbn5nadjbQf5FAnX63flq+/ZNpndy4KxrXdAiBGvkacDjX20OtgoceHxP5kR/XDz+wbjMHuNwm8WeYvqCr/Awjp//////////8BEAQaDDY2NTM4NjA5ODg2NiIMKAPxog8VJTkC0/AvKtMDIg4JyLmWPR4KZmkF9U+KQzqxZnWmGm9oulXLwj7uVANI8nqJEc8AGk16C80PlPuyfJWV5fPztd29SAORYyUeSLSnr55ITA5cmsUjtmqFMH8F8SIL1NTh8Fw+FCwN3lkEUBT//qpdCcctAiAsjkY2MneJ2oC+x0HO93KoyNyup/jZbT7x5NCdklLZsK5SDJUjxKtnhfk85ReWMA04sPId3FydW8A9s40IR9K9y+49tHcmOeed8ORAL4NMjjm/huNjihxb5n41rg+Td6tjV5Gy6y5pva0WyEp02j9NntpZcnz6x/HzJzdiceLi4xRY/oh3HRCDVbx1qkvmwpZhrd8p6GP2SCklamSdoPq13mW87Bw9ToJh363d3GSWJdtYPzKG1uMZ5P+zclYOPt1rac1Z+rvi41l/2vexq1yZqEFKTD3um4ZR0tiwelbgIJTTNKrnVfB6DRqauzmbJfpsTQ6qhf7t2nNvO+LmieTTeiXZEjKfbx3dVxq0yb5QzHq6pxXKXbWmpqMXyTkLEJm1qom5honCHeQyEj6h23wday5M3rasbKxJFuPEbx4fyBlcZpf+ePWumdqrBYylqp0tT3WY3YfFNqKICTXiDW/hPH2hPARfRtQwsZKH0wY6ngE9sogZKOa/BZbT5BK0MCTGfNTJkbPp3thxkWfAhR7LtZQxSB/1Cp4LxBr3xpkHjCUVnPq2An8bjZUPnzMjpk8CuO1xyrikOsfaTvWajCNZIl3YFpnRNYVuRHgdfdO8xvyegfNXYNXrPVlF0vdbPyUHfQ122H2cgDazZt4+K5hHN/XRn8r+ev7FP5ftSCLVLgo5vnLJktKizJ34aqh2HQ==",
-    "expiration": "2026-07-23T19:56:33.000Z",
+    "access_key_id": "ASIAZV3A2ECZLTMDYIAO",
+    "secret_access_key": "lFbnN1tbZSvmwvQ/mKFSPP5JaJzSu7CkEMBQH6q8",
+    "session_token": "IQoJb3JpZ2luX2VjECcaCXVzLWVhc3QtMSJGMEQCIFXtrkhMu9lMwM/RVgk0bcRPMQr5T5iZ8GjwgwkyFxxRAiAgB1g0k3jcyBJAxcBshSzLomhWMfJwYugDBG+82JiZVCr/Awjv//////////8BEAQaDDY2NTM4NjA5ODg2NiIMAjtDKfq4sEmmKH2fKtMDi5oo3yj/ivMNd+M3+KEQtoQ55afRpPC7eoQVTP7SDB9Jc9xqtGior5QMIrW5D601LLKZ+fuP1jbPF9Y25yc3Huxm8rviK9nxwClH5MC96XOPQU7dCEfP9AVMZNTY/wtc3S+cpmVnmeV/KWGnB4v1fysEdvFThqUu3mdXzzD3co27Hal0N/sSahUWiTJWQMUuXTxVKIGrJSJbHN4/kbRZHWz+5e+trWlrLe7WH2l5HJKuGQL7iDuoreHlrePbeeT6rZfmXgFDSw3qUg2HcDQOtz0WIm5IRpEsmd5OqzIW0Hq6cjMbnUgYV9Cdmd9Rghv54Qb3lO3cmdUsoKQRVLTMllNr/M4lwXjyATKPVSShhG2pI7h85qbEdXsI23sqRdMW+elCaMCfFu2g6Gj7lN6x3NmKSzCKe0akp0mQhhfvSrgW4nFACuwatkd+2DtjpP/zqyvR6oymsysbDM8m0Mfgr/uuh4KvzJC99swiu9sYzT75uFnCbyYliQ5yWvLasySltApD2FscWYmHoejHdKVZSAsSSjcWt/ZpJZyiHpHWnM3qWVllOlg3c5v45uWEM2TuDJM9+vlk1Jc9f5nF3XG8+PAbq/ZjIIk17iYOBd4TaXm5OZMw1L+I0wY6ngGtSiTk+m6yhYss8Cg68zne8/s2VI90Ia1Ajxk7YYfTyQx2B3AXiIBx3fJ0vsegV3YN91miWzffTIlKjE8bbWRId6wnjI/ISOtZGz2Vk2MIY+j1oQVWRbEZcB3GXt2klXiblQfgTbr7Qhp9+rBQQsYc38trDVaNHSzCaXogIyAiRetwPt9btXC0CkUc42IJ8J2P9Jw6lL767wYmG9xBzQ==",
+    "expiration": "2026-07-24T02:06:12.000Z",
     "backend": "GIT_BACKEND_S3"
   },
   "name": "kinga-replit",

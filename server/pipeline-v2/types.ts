@@ -1146,7 +1146,7 @@ export interface CompositeLineItem {
   /** Scope of work selected for this component: 'repair' | 'replace' | 'bundled' (labour-inclusive, cannot be decomposed) */
   selectedScope?: 'repair' | 'replace' | 'bundled';
   /** Rule that drove the repair/replace decision */
-  scopeDecisionRule?: 'SAFETY_CRITICAL_REPLACE_ONLY' | 'SEVERITY_REPLACE_ONLY' | 'COST_COMPARISON' | 'SINGLE_SCOPE_AVAILABLE' | 'BUNDLED_NO_DECOMPOSITION';
+  scopeDecisionRule?: 'SAFETY_CRITICAL_REPLACE_ONLY' | 'SEVERITY_REPLACE_ONLY' | 'COST_COMPARISON' | 'SINGLE_SCOPE_AVAILABLE' | 'BUNDLED_NO_DECOMPOSITION' | 'BENCHMARK_WITHIN_30PCT' | 'BENCHMARK_FLOOR_EXCEEDED' | 'BENCHMARK_ABOVE_MARKET';
   /** Confidence in the scope decision: high = safety rule or clear severity; medium = cost comparison with good data; low = ambiguous or missing severity data */
   scopeDecisionConfidence?: 'high' | 'medium' | 'low';
   /** True when KINGA cannot produce a rule-compliant recommendation due to missing required data */

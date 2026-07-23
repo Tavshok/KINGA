@@ -926,18 +926,23 @@ function computeBenchmarkVerdict(
  *      rows per quote — parts + associated repair-ops — to get the all-in cost
  *      for that quote). Labour is already inside each quote's component rows;
  *      it is NOT added separately.
- *   2. L1 = lowest normalised quote total across all repairers (market floor).
- *   3. K  = KINGA benchmark P50 for the full repair (from benchmarks map, summed
- *      across all components present in the winning quote).
- *   4. deviation = |L1 - K| / L1
- *      If K exists and deviation <= 0.30: L2 = min(L1, K)
- *      If K exists and deviation > 0.30:  L2 = L1  (model is outlier; use market floor)
- *      If K does not exist:               L2 = L1
- *   5. savings = L1 - L2  (never negative; L2 <= L1 always)
+ *   2. Build a cross-quote component matrix: for each component, collect all
+ *      normalised prices from all quotes.
+ *   3. Per-component L2 selection:
+ *      lowestSubmitted_c = min price across all quotes for component c
+ *      K_c = KINGA benchmark P50 for component c
+ *      deviation_c = |lowestSubmitted_c - K_c| / lowestSubmitted_c
+ *      If K_c < lowestSubmitted_c AND deviation_c <= 30%: L2_c = K_c
+ *      Else: L2_c = lowestSubmitted_c  (30% floor or no benchmark)
+ *   4. L1 = lowest normalised quote total (best real package deal)
+ *   5. L2_total = sum of L2_c across all components
+ *      L2_total MAY exceed L1 (when 30% floor engages on all components).
+ *      KINGA reports both; insurer can accept L1 as the authorisation amount.
+ *   6. savings = L1 - L2_total (can be negative; always report both)
  *
- * compositeLineItems is the per-component breakdown of the WINNING QUOTE (L1
- * source) — it is the audit trail explaining why that quote is the market floor,
- * NOT a cherry-pick across quotes.
+ * compositeLineItems is the per-component breakdown of the L2 selection —
+ * each item shows which repairer provided the lowest price for that component
+ * and whether the benchmark was applied.
  *
  * @param quotes       All submitted quotes with per-line-item costs
  * @param benchmarks   Per-component benchmark data (P25/P50/P75)
@@ -1101,99 +1106,127 @@ export function buildCompositeQuote(
   const validNormalisedQuotes = normalisedQuotes.filter(q => q.normalisedTotalUsd > 0);
   if (validNormalisedQuotes.length === 0) return { ...EMPTY_RESULT };
 
-  // ── 2. Identify L1 (lowest normalised quote total) ────────────────────────
+  // ── 2. Build cross-quote component matrix ────────────────────────────────────
   //
-  // L1 is the market floor: the lowest all-in cost that a real repairer has
-  // offered to do the complete repair. Use the upstream l1TotalUsd hint from
-  // stage-9 (which already computed the lowest quote total from the DB), but
-  // also verify against our normalised totals. If the upstream hint is zero or
-  // missing, fall back to the minimum of our normalised totals.
-
-  const normalisedL1 = Math.min(...validNormalisedQuotes.map(q => q.normalisedTotalUsd));
-  // Prefer the upstream hint (it uses the authoritative DB total_cost field)
-  // but fall back to our normalised sum if the hint is missing or zero.
-  const l1Usd = (l1TotalUsd > 0) ? l1TotalUsd : normalisedL1;
-
-  // Find the winning quote (the one whose normalised total is closest to l1Usd)
-  const winningQuote = validNormalisedQuotes.reduce((best, q) =>
-    Math.abs(q.normalisedTotalUsd - l1Usd) < Math.abs(best.normalisedTotalUsd - l1Usd) ? q : best
-  );
-
-  // ── 3. Apply 30% benchmark rule to derive L2 ─────────────────────────────
-  //
-  // K = KINGA benchmark P50 for the full repair.
-  // If K exists and |L1 - K| / L1 <= 30%: L2 = min(L1, K)
-  // If K exists and deviation > 30%:       L2 = L1 (model is outlier)
-  // If K does not exist:                   L2 = L1
-  //
-  // L2 <= L1 ALWAYS. KINGA never increases cost burden on insurer.
+  // For each component, collect all normalised prices from all quotes.
+  // This enables per-component comparison across all repairers.
 
   const MAX_MODEL_DISCOUNT_PCT = 0.30;
 
-  // Compute benchmark reference: sum of P50 for all components in the winning quote
+  // componentMatrix[normName] = array of { repairer, costUsd, scope }
+  type ComponentEntry = { repairer: string; costUsd: number; scope: 'repair' | 'replace' | 'bundled' };
+  const componentMatrix = new Map<string, ComponentEntry[]>();
+
+  for (const nq of validNormalisedQuotes) {
+    for (const item of nq.lineItemBreakdown) {
+      if (item.dataGap || item.costUsd <= 0) continue;
+      const existing = componentMatrix.get(item.normName) ?? [];
+      existing.push({ repairer: nq.repairer, costUsd: item.costUsd, scope: item.scope });
+      componentMatrix.set(item.normName, existing);
+    }
+  }
+
+  // ── 3. Per-component L2 selection ──────────────────────────────────────────
+  //
+  // CONFIRMED FORMULA (product owner, July 2026):
+  //   For each component:
+  //     lowestSubmitted = min price across all quotes for this component
+  //     K = benchmark P50 for this component
+  //     deviation = |lowestSubmitted - K| / lowestSubmitted
+  //     If K < lowestSubmitted AND deviation <= 30%: L2_component = K
+  //     Else: L2_component = lowestSubmitted  (30% floor or no benchmark)
+  //
+  // L2_component <= lowestSubmitted for every component.
+  // L2_total = sum of L2_component across all components.
+
+  const compositeLineItems: CompositeLineItem[] = [];
+  let compositeOptimisedCostUsd = 0;
   let benchmarkReferenceUsd = 0;
   let benchmarkCoverageCount = 0;
-  for (const item of winningQuote.lineItemBreakdown) {
-    if (item.dataGap) continue;
-    const bm = benchmarks[item.normName] ?? null;
-    if (bm?.p50Usd != null) {
-      benchmarkReferenceUsd += bm.p50Usd;
-      benchmarkCoverageCount++;
-    }
-  }
 
-  let compositeOptimisedCostUsd: number;
-  let benchmarkUsed = false;
-  if (benchmarkReferenceUsd > 0) {
-    const deviation = Math.abs(l1Usd - benchmarkReferenceUsd) / l1Usd;
-    if (benchmarkReferenceUsd < l1Usd && deviation <= MAX_MODEL_DISCOUNT_PCT) {
-      // Benchmark is cheaper and within 30% of L1 — use benchmark (L2 = K)
-      compositeOptimisedCostUsd = Math.round(benchmarkReferenceUsd * 100) / 100;
-      benchmarkUsed = true;
-    } else {
-      // Benchmark is either above L1, or more than 30% below L1 (outlier) — use L1
-      compositeOptimisedCostUsd = Math.round(l1Usd * 100) / 100;
-    }
-  } else {
-    // No benchmark data — L2 = L1
-    compositeOptimisedCostUsd = Math.round(l1Usd * 100) / 100;
-  }
+  for (const [normName, entries] of componentMatrix.entries()) {
+    if (entries.length === 0) continue;
 
-  // ── 4. Build compositeLineItems from the winning quote (audit trail) ─────────
-  //
-  // compositeLineItems is the per-component breakdown of the WINNING QUOTE.
-  // It is the audit trail explaining why that quote is the market floor.
-  // It is NOT a cherry-pick across quotes.
+    // Find lowest submitted price for this component across all quotes
+    const lowestEntry = entries.reduce((best, e) => e.costUsd < best.costUsd ? e : best);
+    const lowestSubmitted = lowestEntry.costUsd;
 
-  const compositeLineItems: CompositeLineItem[] = winningQuote.lineItemBreakdown.map(item => {
-    const bm = benchmarks[item.normName] ?? null;
+    // Build allQuotedPrices in the typed format expected by CompositeLineItem
+    const allQuotedPrices = entries.map(e => ({
+      quote: e.repairer,
+      costUsd: e.costUsd,
+      passedGate: true,
+    }));
+
+    const bm = benchmarks[normName] ?? null;
     const p25 = bm?.p25Usd ?? null;
     const p50 = bm?.p50Usd ?? null;
     const p75 = bm?.p75Usd ?? null;
-    const { verdict, signal } = computeBenchmarkVerdict(item.costUsd, p25, p75);
-    return {
-      componentName: item.normName,
-      selectedCostUsd: item.costUsd,
-      selectedFromQuote: winningQuote.repairer,
-      isBenchmarkFill: false,
-      kingaOptimisedTier: 'T3' as const,
-      kingaOptimisedTierLabel: `Best Quote · ${winningQuote.repairer}`,
+
+    let l2Component: number;
+    let isBenchmarkFill = false;
+    let tier: CompositeLineItem['kingaOptimisedTier'] = 'T3';
+    let tierLabel: string;
+    let scopeDecisionRule: NonNullable<CompositeLineItem['scopeDecisionRule']> = 'SINGLE_SCOPE_AVAILABLE';
+
+    if (p50 != null) {
+      benchmarkReferenceUsd += p50;
+      benchmarkCoverageCount++;
+      const deviation = Math.abs(lowestSubmitted - p50) / lowestSubmitted;
+      if (p50 < lowestSubmitted && deviation <= MAX_MODEL_DISCOUNT_PCT) {
+        // Benchmark is cheaper and within 30% — use benchmark
+        l2Component = Math.round(p50 * 100) / 100;
+        isBenchmarkFill = true;
+        tier = 'T1';
+        tierLabel = `KINGA Benchmark P50 · ${Math.round(deviation * 100)}% below lowest quote`;
+        scopeDecisionRule = 'BENCHMARK_WITHIN_30PCT';
+      } else {
+        // 30% floor engaged or benchmark above market — use lowest submitted
+        l2Component = Math.round(lowestSubmitted * 100) / 100;
+        tier = 'T3';
+        tierLabel = p50 >= lowestSubmitted
+          ? `Lowest Quote · ${lowestEntry.repairer} (benchmark above market)`
+          : `Lowest Quote · ${lowestEntry.repairer} (deviation ${Math.round(deviation * 100)}% > 30% floor)`;
+        scopeDecisionRule = p50 >= lowestSubmitted ? 'BENCHMARK_ABOVE_MARKET' : 'BENCHMARK_FLOOR_EXCEEDED';
+      }
+    } else {
+      // No benchmark — use lowest submitted
+      l2Component = Math.round(lowestSubmitted * 100) / 100;
+      tier = 'T3';
+      tierLabel = `Lowest Quote · ${lowestEntry.repairer} (no benchmark)`;
+      scopeDecisionRule = 'SINGLE_SCOPE_AVAILABLE';
+    }
+
+    compositeOptimisedCostUsd += l2Component;
+
+    const { verdict, signal } = computeBenchmarkVerdict(l2Component, p25, p75);
+    const rawPrices = entries.map(e => e.costUsd);
+    const cv = coefficientOfVariation(rawPrices);
+    const varianceSignal = buildVarianceSignal(cv, rawPrices.length, !isBenchmarkFill, isBenchmarkFill);
+
+    compositeLineItems.push({
+      componentName: normName,
+      selectedCostUsd: l2Component,
+      selectedFromQuote: isBenchmarkFill ? 'kinga_benchmark' : lowestEntry.repairer,
+      isBenchmarkFill,
+      kingaOptimisedTier: tier,
+      kingaOptimisedTierLabel: tierLabel,
       benchmarkVerdict: verdict,
-      benchmarkSignal: signal,
+      benchmarkSignal: `${signal} ${varianceSignal}`.trim(),
       p25Usd: p25,
       p50Usd: p50,
       p75Usd: p75,
-      allQuotedPrices: [],
-      selectedScope: item.scope,
-      scopeDecisionRule: 'SINGLE_SCOPE_AVAILABLE' as const,
-      scopeDecisionConfidence: 'high' as const,
-      dataGap: item.dataGap,
-      dataGapReason: item.dataGapReason,
-    } satisfies CompositeLineItem;
-  });
+      allQuotedPrices,
+      selectedScope: lowestEntry.scope,
+      scopeDecisionRule,
+      scopeDecisionConfidence: entries.length >= 2 ? 'high' : 'medium',
+      dataGap: false,
+    } satisfies CompositeLineItem);
+  }
 
-  // Also add data gap items from the winning quote
-  for (const gapName of winningQuote.dataGaps) {
+  // Add data gap items from all quotes (safety-critical with no replacement scope)
+  const allDataGapNames = new Set(validNormalisedQuotes.flatMap(q => q.dataGaps));
+  for (const gapName of allDataGapNames) {
     if (compositeLineItems.some(i => i.componentName === gapName)) continue;
     const bm = benchmarks[gapName] ?? null;
     compositeLineItems.push({
@@ -1202,9 +1235,9 @@ export function buildCompositeQuote(
       selectedFromQuote: 'data_gap',
       isBenchmarkFill: false,
       kingaOptimisedTier: 'T4',
-      kingaOptimisedTierLabel: 'Data Gap',
+      kingaOptimisedTierLabel: 'Data Gap — Safety-Critical',
       benchmarkVerdict: 'NO_DATA',
-      benchmarkSignal: `Safety-critical component: no replacement-scope quote available.`,
+      benchmarkSignal: 'Safety-critical component: no replacement-scope quote available from any repairer.',
       p25Usd: bm?.p25Usd ?? null,
       p50Usd: bm?.p50Usd ?? null,
       p75Usd: bm?.p75Usd ?? null,
@@ -1213,28 +1246,38 @@ export function buildCompositeQuote(
       scopeDecisionRule: 'SAFETY_CRITICAL_REPLACE_ONLY',
       scopeDecisionConfidence: 'high',
       dataGap: true,
-      dataGapReason: `Safety-critical component: replacement-scope quote required but only repair scope available from ${winningQuote.repairer}.`,
+      dataGapReason: 'Safety-critical component: replacement-scope quote required but only repair scope available.',
     });
   }
 
-  // ── 5. Savings metrics ──────────────────────────────────────────────────────────────────
-  // negotiationSavingsUsd = L1 - L2 (never negative; L2 <= L1 always)
-  const negotiationSavingsUsd = Math.max(0, Math.round((l1Usd - compositeOptimisedCostUsd) * 100) / 100);
-  // marketOverpriceDeltaUsd = L2 - K (positive = L2 is above benchmark; negative = L2 is below benchmark)
+  compositeOptimisedCostUsd = Math.round(compositeOptimisedCostUsd * 100) / 100;
+
+  // ── 4. L1 for savings calculation ──────────────────────────────────────────
+  // L1 = lowest normalised quote total (best real package deal)
+  const normalisedL1 = Math.min(...validNormalisedQuotes.map(q => q.normalisedTotalUsd));
+  const l1Usd = (l1TotalUsd > 0) ? l1TotalUsd : normalisedL1;
+
+  // ── 5. Savings metrics ──────────────────────────────────────────────────────
+  // negotiationSavingsUsd = L1 - L2_total (can be negative if L2 > L1)
+  // When L2 > L1, the per-component cherry-pick total exceeds the best package
+  // deal. KINGA reports both; insurer can accept L1 as the authorisation amount.
+  const negotiationSavingsUsd = Math.round((l1Usd - compositeOptimisedCostUsd) * 100) / 100;
+  // marketOverpriceDeltaUsd = L2 - benchmark total
   const marketOverpriceDeltaUsd = benchmarkReferenceUsd > 0
     ? Math.round((compositeOptimisedCostUsd - benchmarkReferenceUsd) * 100) / 100
     : 0;
-  // totalSavingsOpportunityUsd = L1 - K (the maximum possible saving if benchmark is achievable)
+  // totalSavingsOpportunityUsd = L1 - benchmark total (max possible saving)
   const totalSavingsOpportunityUsd = benchmarkReferenceUsd > 0
     ? Math.max(0, Math.round((l1Usd - benchmarkReferenceUsd) * 100) / 100)
     : 0;
 
-  // ── 6. Negotiation Feasibility Score ───────────────────────────────────────────────
+  // ── 6. Negotiation Feasibility Score ───────────────────────────────────────
+  // Use the lowest-quote repairer as the NFS reference
+  const l1Repairer = validNormalisedQuotes.reduce((best, q) =>
+    q.normalisedTotalUsd < best.normalisedTotalUsd ? q : best
+  ).repairer;
   const { score: negotiationFeasibilityScore, label: negotiationFeasibilityLabel } =
-    computeNFS(compositeLineItems, winningQuote.repairer);
-
-  // Suppress unused variable warnings for intermediate: scopeAccumulator is no longer used
-  void benchmarkUsed;
+    computeNFS(compositeLineItems, l1Repairer);
 
   return {
     compositeLineItems,
