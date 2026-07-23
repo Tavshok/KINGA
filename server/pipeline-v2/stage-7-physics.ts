@@ -1012,6 +1012,12 @@ export async function runPhysicsStage(
       output.speedInferenceEnsemble = null;
     }
 
+    // ── Attach VGE/VGR geometry calibration results to Stage 7 output ──────────
+    // These are stored on ctx by Stage 6.5A/B and must be forwarded through
+    // Stage7Output so db.ts can persist them in physics_analysis JSON.
+    output.geometryEvidenceBlock = ctx.vgeCalibrationResult ?? null;
+    output.vgrReconciliation = ctx.vgeReconciliationResult ?? null;
+
     return {
       status: "success",
       data: output,

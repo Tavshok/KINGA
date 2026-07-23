@@ -13,7 +13,7 @@
 
 import mysql from "mysql2/promise";
 import {
-  buildKingaFdrHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson,
+  buildKingaFdrHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson, photoZonePanel,
 } from "./templates/kingaDesignSystem";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -852,36 +852,31 @@ export async function generateForensicDecisionReport(
 
     ${totalPhotos > 0 ? `
     <div class="box" style="margin-top:10px;">
-      <h4>${enrichedPhotos.length > 0 ? `Photo Evidence — ${enrichedPhotos.length} images` : `Front Zone — ${frontLabel}`} <span class="pill red" style="margin-left:6px;">${highConfPhotos > 0 ? Math.round(highConfPhotos/totalPhotos*100) : 85}% detection confidence</span></h4>
-      <div class="photo-zone">
-        <div class="photo-grid">
-          ${(enrichedPhotos.length > 0 ? enrichedPhotos : photoDocuments).slice(0, 4).map((d: any, i: number) => {
+      <h4>${enrichedPhotos.length > 0 ? `Photo Evidence — ${enrichedPhotos.length} images · ${highConfPhotos} usable (≥70% confidence)` : `Front Zone — ${frontLabel}`}</h4>
+      ${enrichedPhotos.length > 0
+        ? photoZonePanel(
+            enrichedPhotos.slice(0, 8).map((p: any) => ({
+              url: p.url ?? '',
+              zone: p.impactZone ?? undefined,
+              caption: p.caption ?? undefined,
+              usable: Number(p.confidenceScore ?? 0) >= 70,
+            })),
+            4
+          )
+        : `<div class="photo-zone"><div class="photo-grid">${photoDocuments.slice(0, 4).map((d: any, i: number) => {
             const imgUrl = d.url ?? d.file_url ?? null;
             const caption = d.caption ?? d.file_name ?? `Photo ${i + 1}`;
-            const zone = d.impactZone ?? d.document_category ?? "";
-            const severity = d.severity ?? "";
-            return `
-          <div class="photo-tile">
-            <div class="photo-ph">
-              ${imgUrl
-                ? `<img src="${esc(imgUrl)}" alt="${esc(caption)}" style="width:100%;height:75px;object-fit:cover;"/>`
-                : `<svg viewBox="0 0 100 75" preserveAspectRatio="none"><rect width="100" height="75" fill="#e4e4e4"/><path d="M0 55 L30 30 L50 45 L70 20 L100 50 L100 75 L0 75 Z" fill="#d0d0d0"/><circle cx="80" cy="18" r="7" fill="#dcdcdc"/></svg>`
-              }
-              <span class="tag">${i + 1}</span>
-            </div>
-            <div class="photo-cap">${esc(caption)}${zone ? ` <span class="pill grey" style="font-size:7px;">${esc(zone)}</span>` : ""}${severity ? ` <span class="pill ${severity === 'severe' ? 'red' : severity === 'moderate' ? 'amber' : 'green'}" style="font-size:7px;">${esc(severity)}</span>` : ""}</div>
-          </div>`;
-          }).join("")}
-        </div>
-        <div class="photo-meta">
-          <table class="kv">
-            ${uniqueComponents > 0 ? kvRow("Components identified", String(uniqueComponents)) : ""}
-            ${kvRow("Safety system activation", esc(String(ife?.safetySystemActivation ?? "—")))}
-          </table>
-          ${zonesCovered < totalZones ? co("Single photograph per finding in this zone. Additional angles recommended for full assessment confidence.", "amber") : ""}
-        </div>
+            return `<div class="photo-tile"><div class="photo-ph">${imgUrl ? `<img src="${esc(imgUrl)}" alt="${esc(caption)}" style="width:100%;height:75px;object-fit:cover;"/>` : `<svg viewBox="0 0 100 75" preserveAspectRatio="none"><rect width="100" height="75" fill="#e4e4e4"/></svg>`}<span class="tag">${i + 1}</span></div><div class="photo-cap">${esc(caption)}</div></div>`;
+          }).join('')}</div></div>`
+      }
+      <div style="margin-top:6px;">
+        <table class="kv">
+          ${uniqueComponents > 0 ? kvRow('Components identified', String(uniqueComponents)) : ''}
+          ${kvRow('Safety system activation', esc(String(ife?.safetySystemActivation ?? '—')))}
+        </table>
+        ${zonesCovered < totalZones ? co('Single photograph per finding in this zone. Additional angles recommended for full assessment confidence.', 'amber') : ''}
       </div>
-      <p class="caption">${enrichedPhotos.length > 0 ? `${enrichedPhotos.length} photos from pipeline analysis · showing first 4` : 'Thumbnails illustrate layout only — replace with source images from the claim asset store at export time.'}</p>
+      <p class="caption" style="margin-top:4px;">${enrichedPhotos.length > 0 ? `${enrichedPhotos.length} photos from pipeline analysis · showing up to 8 · zone labels = pipeline-detected impact zone · red border = confidence <70%` : 'Thumbnails illustrate layout only — replace with source images from the claim asset store at export time.'}</p>
     </div>` : ""}
 
     <div class="box" style="margin-top:8px;">

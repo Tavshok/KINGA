@@ -16,7 +16,7 @@
 
 import mysql from "mysql2/promise";
 import {
-  buildKingaHtml, esc, fmtUSD, fmtD, fmtPct, safeJson, scoreColour, chip, badge,
+  buildKingaHtml, esc, fmtUSD, fmtD, fmtPct, safeJson, scoreColour, chip, badge, photoZonePanel,
 } from "./templates/kingaDesignSystem";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -38,6 +38,7 @@ export async function generateClaimsIntelligenceReport(
               a.cost_intelligence_json, a.repair_intelligence_json,
               a.fraud_score_breakdown_json, a.ife_result_json,
               a.narrative_analysis_json, a.physics_analysis,
+              a.enriched_photos_json,
               a.created_at AS assessment_date, a.model_version
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
@@ -138,8 +139,15 @@ export async function generateClaimsIntelligenceReport(
     const missingDocs = (ife?.missingFields as string[]) ?? [];
 
     // Photo stats
-    const totalPhotos = Number(ife?.photoCount ?? docs.filter(d => d.document_category === "damage_photo").length);
-    const usablePhotos = Number(ife?.usablePhotoCount ?? Math.round(totalPhotos * 0.4));
+    const enrichedPhotosRaw = safeJson(c.enriched_photos_json as string);
+    type EnrichedPhoto = { url?: string; impactZone?: string; caption?: string; confidenceScore?: number; severity?: string };
+    const enrichedPhotos: EnrichedPhoto[] = Array.isArray(enrichedPhotosRaw) ? (enrichedPhotosRaw as EnrichedPhoto[]) : [];
+    const totalPhotos = enrichedPhotos.length > 0
+      ? enrichedPhotos.length
+      : Number(ife?.photoCount ?? docs.filter(d => d.document_category === "damage_photo").length);
+    const usablePhotos = enrichedPhotos.length > 0
+      ? enrichedPhotos.filter(p => Number(p.confidenceScore ?? 0) >= 70).length
+      : Number(ife?.usablePhotoCount ?? Math.round(totalPhotos * 0.4));
     const photoYield = totalPhotos > 0 ? Math.round(usablePhotos / totalPhotos * 100) : 0;
 
     // Structural gaps
@@ -600,9 +608,22 @@ ${delayFlag ? `<div class="callout red" style="margin-bottom:14px"><b>Reject —
     <div class="box"><h4>Outstanding Items</h4><ul class="tight small" style="margin-top:0;">${!hasPolice ? "<li>Police report</li>" : ""}${!policyNum || policyNum === "—" ? "<li>Policy number confirmation</li>" : ""}${dayDelay !== null && dayDelay > 90 ? "<li>Written explanation for submission delay</li>" : ""}<li>VIN certificate</li></ul></div>
   </div>
 
-  ${photoYield < 40 ? `
+  ${enrichedPhotos.length > 0 ? `
+  <div class="box" style="margin-top:10px;">
+    <h4>Photo Evidence — ${enrichedPhotos.length} image${enrichedPhotos.length !== 1 ? 's' : ''} · ${usablePhotos} usable (≥70% confidence)</h4>
+    ${photoZonePanel(
+      enrichedPhotos.slice(0, 8).map(p => ({
+        url: p.url ?? '',
+        zone: p.impactZone ?? undefined,
+        caption: p.caption ?? undefined,
+        usable: Number(p.confidenceScore ?? 0) >= 70,
+      })),
+      4
+    )}
+    <p class="caption" style="margin-top:4px;">Zone labels show pipeline-detected impact zone per image. Red border = confidence below 70%. Full EXIF, manipulation detection, and structural fingerprint analysis are in the Forensic Claim Decision Report.</p>
+  </div>` : `<p class="small" style="margin-top:8px;">No photographic evidence was submitted or processed by the pipeline. Detailed photo forensics are part of the Forensic Claim Decision Report.</p>`}
+  ${photoYield < 40 && totalPhotos > 0 ? `
   <div class="callout amber" style="margin-top:8px;"><b>Photo Evidence Below Assessment Threshold.</b> Only ${usablePhotos} of ${totalPhotos} submitted images were confirmed as usable vehicle-damage photographs. Request focused damage photographs — underbody, engine bay, and interior zones required.</div>` : ""}
-  <p class="small" style="margin-top:8px;">Detailed photo forensics — manipulation detection, EXIF verification, per-component damage-zone mapping, and structural fingerprint analysis — are part of the Forensic Claim Decision Report.</p>
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>

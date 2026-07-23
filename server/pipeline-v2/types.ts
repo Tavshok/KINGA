@@ -935,6 +935,18 @@ export interface Stage7Output {
    * Optional — defaults to false when absent.
    */
   hasCriticalInconsistency?: boolean;
+  /**
+   * Geometry Evidence Block from Stage 6.5A VGE — pixel-to-mm scale calibration provenance.
+   * Populated when at least one damage photo produced a usable reference object detection.
+   * Null when VGE was skipped or produced no calibration.
+   */
+  geometryEvidenceBlock?: import('./stage-6-5a-vge').VGECalibrationResult | null;
+  /**
+   * VGR cross-image reconciliation result from Stage 6.5B.
+   * Populated when Stage 6.5A produced at least one calibrated image.
+   * Provides view-angle-weighted consensus crush depth.
+   */
+  vgrReconciliation?: import('./stage-6-5b-vgr').VGRConsensusResult | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

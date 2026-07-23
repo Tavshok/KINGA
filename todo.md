@@ -933,3 +933,17 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Forensic tier (forensicDecisionReport.ts): confirmed already uses white masthead; KINGA logo added to masthead meta and all 4 footer-strips
 - [x] Remove dead dark CSS classes (.cover, .cover-head, .cost-snap, .cover-meta, .contents-grid, .tier-ribbon) from kingaDesignSystem.ts
 - [x] All three tiers now comply with KINGA_Claims_Report_Redesign.html and KINGA_Claims_Intelligence_Report_Redesign.html reference designs
+
+---
+
+## Photo Forensics Zone-Mapping & Physics Precision Engine Audit (Jul 2026)
+
+- [x] Audit photo forensics zone-mapping system — `photoZonePanel` existed in `kingaDesignSystem.ts` but was not imported or called in either report generator
+- [x] Wire `photoZonePanel` into Protect tier §4 Evidence Snapshot — now renders live zone-labelled photo grid from `enriched_photos_json`
+- [x] Wire `photoZonePanel` into Forensic tier §08 Photo & Document Evidence — replaced inline photo grid with canonical helper; shows up to 8 photos with zone labels and confidence-based red border
+- [x] Add `enriched_photos_json` to Protect tier SQL SELECT — was missing, causing photo zone data to be unavailable
+- [x] Audit Vision Geometry Engine (Stage 6.5A) and VGR (Stage 6.5B) — both run correctly in orchestrator; `vehicle_models` has 39 rows, `vehicle_geometry_measurements` has 624 rows
+- [x] Fix VGE/VGR persistence gap — `geometryEvidenceBlock` and `vgrReconciliation` were computed but never forwarded to `Stage7Output` or persisted in `physics_analysis` JSON
+- [x] Add `geometryEvidenceBlock` and `vgrReconciliation` optional fields to `Stage7Output` in `types.ts`
+- [x] Attach VGE/VGR results to Stage 7 output object before return in `stage-7-physics.ts`
+- [x] Persist `geometryEvidenceBlock` and `vgrReconciliation` in `physicsJson` in `db.ts`

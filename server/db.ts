@@ -1484,6 +1484,12 @@ export async function triggerAiAssessment(claimId: number) {
     // speed ensemble. HIGH/MEDIUM = trusted vision input; LOW/NONE = fallback fired, crush depths excluded.
     // Source: Stage6Output.visionSourceReliability passed through the pipeline result.
     visionSourceReliability: (damageAnalysis as any)?.visionSourceReliability ?? null,
+    // VGE/VGR — Vision Geometry Engine calibration and cross-image reconciliation.
+    // Stage 6.5A produces pixel-to-mm scale calibration; Stage 6.5B produces view-angle-weighted
+    // consensus crush depth. Both are attached to Stage7Output and persisted here so the
+    // Forensic report can render the Geometry Evidence Block without re-running the pipeline.
+    geometryEvidenceBlock: (physicsAnalysis as any)?.geometryEvidenceBlock ?? null,
+    vgrReconciliation: (physicsAnalysis as any)?.vgrReconciliation ?? null,
   }) : null;
 
   // Build fraud indicators JSON
