@@ -53,6 +53,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { logger } from './logger';
+import * as dbPipeline from './db-pipeline';
 
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 let _db: MySql2Database<typeof schema> | null = null;
@@ -1275,8 +1276,8 @@ export async function triggerAiAssessment(claimId: number) {
       };
       const _stageInfo = _stageLabelToId[stageLabel];
       if (_stageInfo) {
-        import('./db-pipeline').then(({ recordStageStart }) => {
-          recordStageStart({
+        Promise.resolve().then(() => {
+          dbPipeline.recordStageStart({
             runId: _pipelineRunId,
             claimId,
             stageId: _stageInfo.id,
@@ -1284,7 +1285,7 @@ export async function triggerAiAssessment(claimId: number) {
             stageIndex: _stageInfo.index,
             tenantId: claim.tenantId != null ? String(claim.tenantId) : null,
           }).catch(() => {});
-        }).catch(() => {});
+        });
       }
     },
     // Phase 1 Observability: per-stage completion callback (fire-and-forget)
@@ -1310,13 +1311,13 @@ export async function triggerAiAssessment(claimId: number) {
         ...(stageResult.isTimeout ? { isTimeout: true } : {}),
         ...(stageResult.errorMessage ? { errorMessage: stageResult.errorMessage } : {}),
       });
-      import('./db-pipeline').then(({ recordStageComplete }) => {
-        recordStageComplete({
+      Promise.resolve().then(() => {
+        dbPipeline.recordStageComplete({
           runId: _pipelineRunId,
           stageId,
           ...stageResult,
         }).catch(() => {});
-      }).catch(() => {});
+      });
     },
   } satisfies import('./pipeline-v2/types').PipelineContext;
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
