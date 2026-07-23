@@ -1257,6 +1257,35 @@ export async function triggerAiAssessment(claimId: number) {
       } catch (stageErr: any) {
         console.warn(`[KINGA Assessment] Claim ${claimId}: onStageStart DB write failed (non-fatal): ${stageErr?.message ?? stageErr}`);
       }
+      // Bug #7: insert the pipeline_jobs row so recordStageComplete can UPDATE it.
+      // Derive stageId from stageLabel: "Stage 1 — Ingestion" → "1_ingestion"
+      // Mapping table covers all 10 orchestrator stages (onStageStart calls).
+      const _stageLabelToId: Record<string, { id: string; index: number }> = {
+        "Stage 1 — Ingestion":                     { id: "1_ingestion",           index: 1 },
+        "Stage 2 — Extracting":                    { id: "2_extraction",          index: 2 },
+        "Stage 3 — Extraction":                    { id: "3_structured_extraction", index: 3 },
+        "Stage 4 — Validation":                    { id: "4_validation",          index: 4 },
+        "Stage 5 — Assembly":                      { id: "5_assembly",            index: 5 },
+        "Stage 6 — Damage Analysis":               { id: "6_damage_analysis",     index: 6 },
+        "Stage 6.5A — Vision Geometry Engine":     { id: "6_5a_vision_geo",       index: 7 },
+        "Stage 6.5B — Vision Geometry Reconciliation": { id: "6_5b_vision_reconcile", index: 8 },
+        "Stage 7 — Physics & Causality":           { id: "7_unified",             index: 9 },
+        "Stage 8 — Analysis":                      { id: "8_fraud",               index: 10 },
+        "Stage 10 — Report Generation":            { id: "10_report",             index: 11 },
+      };
+      const _stageInfo = _stageLabelToId[stageLabel];
+      if (_stageInfo) {
+        import('./db-pipeline').then(({ recordStageStart }) => {
+          recordStageStart({
+            runId: _pipelineRunId,
+            claimId,
+            stageId: _stageInfo.id,
+            stageLabel,
+            stageIndex: _stageInfo.index,
+            tenantId: claim.tenantId != null ? String(claim.tenantId) : null,
+          }).catch(() => {});
+        }).catch(() => {});
+      }
     },
     // Phase 1 Observability: per-stage completion callback (fire-and-forget)
     onStageComplete: (stageId: string, stageResult: {

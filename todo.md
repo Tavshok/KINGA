@@ -791,3 +791,34 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] Restore right-column cost stack on cover (individual panel beater quotes listed vertically with amounts and LOWEST badge)
 - [ ] Restore 4-metric score strip on cover (Fraud Risk, Physics, FCDI, Data) matching live-run layout
 - [ ] Restore KINGA DECISION block on cover (REVIEW REQUIRED / APPROVE / REJECT in large bold with sub-text)
+
+---
+
+## Voltron FDR Remediation — 12-Bug Fix Sprint (23 July 2026)
+
+### CRITICAL
+- [ ] Bug #1 — Photo count resolves to 0 (ife.photoCount doesn't exist; claim_documents has 0 rows for claim 8880001)
+- [ ] Bug #2 — Speed bar chart uses 2-bar fallback instead of 6-method ensemble (physics.speedInferenceEnsemble.methods[].speedKmh)
+
+### HIGH
+- [ ] Bug #3 — Physics Consistency and FCDI cells both read forensicAudit.overallScore (should use physics.physicsScore)
+- [ ] Bug #4 — Data Completeness shows hardcoded 75% fallback instead of actual ife.completenessScore (46%)
+- [ ] Bug #5 — KINGA Optimised Estimate shows $0.00 with self-contradictory 100% savings label
+- [ ] Bug #6 — Incident date predates vehicle model year — not flagged in §02 or §09
+
+### MEDIUM
+- [ ] Bug #7 — pipeline_jobs table has 0 rows; stage telemetry not persisted (upsertPipelineJob call path)
+- [ ] Bug #8 — Currency hardcoded to $ (USD) — rename fmtUSD → fmtCurrency(amount, currency)
+- [ ] Bug #9 — Deceleration displayed with 16 significant digits (needs toFixed(2))
+- [ ] Bug #10 — Policy details (policy_number, sum_insured, policy_excess) missing from §02
+
+### LOW
+- [ ] Bug #11 — Dead CIR-only CSS retained in FDR stylesheet (~2 KB) — split fdrStyles/cirStyles
+- [ ] Bug #12 — claim_documents vs ingestion_documents routing gap
+
+### Verification
+- [ ] Re-run LIVE-RUN-VOLTRON-001 end-to-end and verify all 12 fixes field-by-field
+- [ ] Confirm pipeline_jobs has 11 rows with real durations after Bug #7 fix
+- [ ] Test currency formatting against a Zambian (ZMW) claim
+- [ ] Test Wing→Fender normalization against a claim with "Wing" in narrative
+- [ ] Confirm no new badge/verdict contradictions introduced

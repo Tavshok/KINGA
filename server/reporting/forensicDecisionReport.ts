@@ -13,7 +13,7 @@
 
 import mysql from "mysql2/promise";
 import {
-  buildKingaHtml, esc, fmtUSD, fmtD, safeJson,
+  buildKingaHtml, esc, fmtUSD, fmtCurrency, fmtD, safeJson,
 } from "./templates/kingaDesignSystem";
 
 const DB_URL = process.env.DATABASE_URL!;
@@ -36,7 +36,8 @@ export async function generateForensicDecisionReport(
               a.fraud_score_breakdown_json, a.ife_result_json,
               a.narrative_analysis_json, a.physics_analysis,
               a.forensic_audit_validation_json, a.claim_quality_json,
-              a.created_at AS assessment_date, a.model_version
+              a.created_at AS assessment_date, a.model_version,
+              a.enriched_photos_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""}
@@ -58,7 +59,7 @@ export async function generateForensicDecisionReport(
       [claimId]
     ) as [Record<string, unknown>[], unknown];
 
-    // ── 3. Fetch documents ───────────────────────────────────────────────────
+    // ── 3. Fetch documents from claim_documents (adjuster-uploaded)
     const [docs] = await conn.execute(
       `SELECT document_category, file_name, created_at, file_url
        FROM claim_documents
@@ -76,6 +77,15 @@ export async function generateForensicDecisionReport(
     const narrative    = safeJson(c.narrative_analysis_json);
     const forensicAudit = safeJson(c.forensic_audit_validation_json);
     const claimQuality  = safeJson(c.claim_quality_json);
+    // Bug #1/#12: enriched_photos_json is the canonical photo source (14 photos for VOLTRON)
+    // claim_documents may be empty for pipeline-only claims; enriched_photos_json is always populated
+    type EnrichedPhoto = {
+      url: string; index: number; severity: string; impactZone: string;
+      componentCount: number; confidenceScore: number; caption?: string;
+      semanticType?: string; detectedComponents?: string[];
+    };
+    const enrichedPhotosRaw = safeJson(c.enriched_photos_json);
+    const enrichedPhotos: EnrichedPhoto[] = Array.isArray(enrichedPhotosRaw) ? (enrichedPhotosRaw as EnrichedPhoto[]) : [];
 
     // ── 5. Derived values ────────────────────────────────────────────────────
     const fraudScore  = Number(c.fraud_score ?? 0);
@@ -88,11 +98,41 @@ export async function generateForensicDecisionReport(
     const lowestQuote  = quoteAmounts.length ? Math.min(...quoteAmounts) : 0;
     const highestQuote = quoteAmounts.length ? Math.max(...quoteAmounts) : 0;
 
+    // Bug #8: derive currency from cost intel or quotes (not hardcoded USD)
+    const claimCurrency: string = String(
+      costIntel?.currency ??
+      (quoteArr[0]?.currency as string | null | undefined) ??
+      (c.currency_code as string | null | undefined) ??
+      "USD"
+    ).toUpperCase();
+
+    // Bug #5: KINGA Optimised Estimate — expand fallback chain to include costDecision.true_cost_usd
     const kingaOptimised: number = (() => {
       const comp = (costIntel?.compositeOptimisation as Record<string, unknown> | null | undefined);
-      if (comp?.compositeOptimisedCostCents) return Number(comp.compositeOptimisedCostCents) / 100;
-      if (costIntel?.totalEstimatedCost) return Number(costIntel.totalEstimatedCost);
-      if (costIntel?.expectedRepairCostCents) return Number(costIntel.expectedRepairCostCents) / 100;
+      if (comp?.compositeOptimisedCostCents && Number(comp.compositeOptimisedCostCents) > 0)
+        return Number(comp.compositeOptimisedCostCents) / 100;
+      if (costIntel?.totalEstimatedCost && Number(costIntel.totalEstimatedCost) > 0)
+        return Number(costIntel.totalEstimatedCost);
+      if (costIntel?.expectedRepairCostCents && Number(costIntel.expectedRepairCostCents) > 0)
+        return Number(costIntel.expectedRepairCostCents) / 100;
+      // costDecision.true_cost_usd — present when cost model ran but composite is 0
+      const trueCost = (costIntel?.costDecision as any)?.true_cost_usd;
+      if (trueCost && Number(trueCost) > 0) return Number(trueCost);
+      // Per-component benchmark sum as last resort
+      // Field name hierarchy: medianUsd (v2 pipeline) > p50Usd > midCents/100 > mid
+      const benchmarks = costIntel?.perComponentBenchmarks as Record<string, {
+        medianUsd?: number; p50Usd?: number; midCents?: number; mid?: number;
+      }> | null | undefined;
+      if (benchmarks) {
+        const benchmarkSum = Object.values(benchmarks).reduce((s, b) => {
+          const v = b?.medianUsd ? Number(b.medianUsd)
+            : b?.p50Usd ? Number(b.p50Usd)
+            : b?.midCents ? Number(b.midCents) / 100
+            : (b?.mid ? Number(b.mid) : 0);
+          return s + v;
+        }, 0);
+        if (benchmarkSum > 0) return benchmarkSum;
+      }
       return estimatedCost;
     })();
 
@@ -113,18 +153,37 @@ export async function generateForensicDecisionReport(
       : (physics?.kineticEnergy ? Number(physics.kineticEnergy) : 18.0);
     const impactForce  = physics?.impactForceKn ? Number(physics.impactForceKn) : (physics?.impactForce ? Number(physics.impactForce) : 0);
     const vehicleMass  = physics?.vehicleMass ? Number(physics.vehicleMass) : 0;
-    const deceleration = physics?.decelerationG ? Number(physics.decelerationG) : (physics?.deceleration ? Number(physics.deceleration) : 0);
+    // Bug #9: deceleration must be rounded to 2 d.p. before display
+    const decelerationRaw = physics?.decelerationG ? Number(physics.decelerationG) : (physics?.deceleration ? Number(physics.deceleration) : 0);
+    const deceleration = decelerationRaw;
     const preImpactSpeed = physics?.estimatedSpeedKmh ? Number(physics.estimatedSpeedKmh) : (physics?.preImpactSpeed ? Number(physics.preImpactSpeed) : 0);
-    const physicsScore = physics?.damageConsistencyScore ? Number(physics.damageConsistencyScore) : (physics?.anomalyScore ? Number(physics.anomalyScore) : 50);
+    // Bug #3: physicsScore must come from physics.damageConsistencyScore, NOT forensicAudit.overallScore
+    const physicsScore = physics?.damageConsistencyScore ? Number(physics.damageConsistencyScore)
+      : (physics?.physicsScore ? Number(physics.physicsScore) : (physics?.anomalyScore ? Number(physics.anomalyScore) : 50));
     const ebsSeverity  = String(physics?.accidentSeverity ?? physics?.ebsSeverity ?? "Moderate");
     const impactDirection = String((physics?.impactVector as any)?.direction ?? physics?.impactDirection ?? "front").toLowerCase();
 
-    // Speed methods for bar chart
+    // Bug #2: Speed methods must come from speedInferenceEnsemble.methods[].speedKmh (6-method ensemble)
+    // The old physics.speedMethods field does not exist in the v2 pipeline output.
+    const speedEnsemble = physics?.speedInferenceEnsemble as {
+      consensusSpeedKmh?: number;
+      overallConfidence?: string;
+      methods?: Array<{method: string; label?: string; speedKmh: number | null; confidence: string; ran: boolean}>;
+    } | null | undefined;
     const speedMethods: Array<{label: string; speed: number; highlight?: boolean; danger?: boolean}> = (() => {
-      const methods = (physics?.speedMethods as Array<{method: string; speed: number}>) ?? [];
-      if (methods.length > 0) {
-        return methods.map(m => ({ label: String(m.method), speed: Number(m.speed) }));
+      // Priority 1: 6-method ensemble (v2 pipeline)
+      const ensembleMethods = speedEnsemble?.methods ?? [];
+      const runnableMethods = ensembleMethods.filter(m => m.ran && m.speedKmh != null && Number(m.speedKmh) > 0);
+      if (runnableMethods.length > 0) {
+        const consensusKmh = speedEnsemble?.consensusSpeedKmh ?? 0;
+        return runnableMethods.map(m => ({
+          label: String(m.label ?? m.method),
+          speed: Number(m.speedKmh),
+          highlight: Math.abs(Number(m.speedKmh) - consensusKmh) < 3,
+          danger: m.method === 'SEVERITY_ANCHORED' && Number(m.speedKmh) > (consensusKmh * 1.5),
+        }));
       }
+      // Priority 2: flat fields (legacy / partial runs)
       const arr: Array<{label: string; speed: number; highlight?: boolean; danger?: boolean}> = [];
       if (physics?.crushDepthSpeed) arr.push({ label: "Crush-Depth", speed: Number(physics.crushDepthSpeed) });
       if (physics?.safetySystemSpeed) arr.push({ label: "Safety System", speed: Number(physics.safetySystemSpeed), highlight: true });
@@ -136,7 +195,10 @@ export async function generateForensicDecisionReport(
       ];
     })();
     const maxSpeed = Math.max(...speedMethods.map(m => m.speed), 1);
-    const consensusSpeed = speedMethods.find(m => m.highlight)?.speed ?? deltaV;
+    // Use speedInferenceEnsemble.consensusSpeedKmh if available (more accurate than bar highlight)
+    const consensusSpeed = speedEnsemble?.consensusSpeedKmh
+      ? Number(speedEnsemble.consensusSpeedKmh)
+      : (speedMethods.find(m => m.highlight)?.speed ?? deltaV);
 
     // Damage zones
     const rawDamageZones: Array<{zone: string; severity: string}> =
@@ -198,13 +260,26 @@ export async function generateForensicDecisionReport(
     ];
     const completedStages = approvalStages.filter(s => String(s.status).toLowerCase() === "complete").length;
 
-    // Photo evidence
+    // Bug #1: Photo evidence — use enriched_photos_json as primary source (pipeline-populated, always present)
+    // claim_documents is only populated for adjuster-uploaded files; pipeline photos live in enriched_photos_json
     const photoDocuments = (docs as Record<string, unknown>[]).filter(d => d.document_category === "damage_photo");
-    const totalPhotos = Number(ife?.photoCount ?? photoDocuments.length);
-    const highConfPhotos = Number(ife?.usablePhotoCount ?? totalPhotos);
+    // Use enrichedPhotos (from ai_assessments.enriched_photos_json) as the authoritative photo count
+    const totalPhotos = enrichedPhotos.length > 0 ? enrichedPhotos.length : Number(ife?.photoCount ?? photoDocuments.length);
+    // High-confidence photos: those with confidenceScore >= 70
+    const highConfPhotos = enrichedPhotos.length > 0
+      ? enrichedPhotos.filter(p => Number(p.confidenceScore ?? 0) >= 70).length
+      : Number(ife?.usablePhotoCount ?? totalPhotos);
     const uniqueComponents = Number(ife?.uniqueComponents ?? 0);
-    const zonesCovered = Number(ife?.zonesCovered ?? (totalPhotos > 0 ? 1 : 0));
+    // Zones covered: count distinct impactZones in enriched photos
+    const coveredZoneSet = enrichedPhotos.length > 0
+      ? new Set(enrichedPhotos.map(p => String(p.impactZone ?? "").toLowerCase()).filter(Boolean))
+      : new Set<string>();
+    const zonesCovered = coveredZoneSet.size > 0 ? coveredZoneSet.size : Number(ife?.zonesCovered ?? (totalPhotos > 0 ? 1 : 0));
     const totalZones = 4;
+
+    // Bug #4: Data Completeness — use ife.completenessScore (0–100), NOT ife.overallScore
+    // ife.overallScore is a composite IFE score; completenessScore is the actual data completeness %
+    const ifeCompletenessScore = Number(ife?.completenessScore ?? ife?.overallScore ?? 75);
 
     // Document completeness
     const docCompleteness: Record<string, number> = (ife?.documentCompleteness as Record<string, number>) ?? {};
@@ -252,6 +327,12 @@ export async function generateForensicDecisionReport(
     const policeCaseNo = esc(c.police_case_number ?? c.police_reference ?? "—");
     const policeStatus = esc(c.police_status ?? "—");
     const incidentType = esc(c.incident_type ?? "Single vehicle");
+
+    // Bug #6: Date anomaly flag — incident date predates vehicle model year
+    const vehicleYear = Number(c.vehicle_year ?? 0);
+    const incidentDateObj = c.incident_date ? new Date(String(c.incident_date)) : null;
+    const incidentYear = incidentDateObj && !isNaN(incidentDateObj.getTime()) ? incidentDateObj.getFullYear() : 0;
+    const dateAnomalyFlag = vehicleYear > 0 && incidentYear > 0 && incidentYear < vehicleYear;
     const genDate      = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
     const docRef       = `DOC-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${String(claimRef).replace(/[^A-Z0-9]/gi,"").slice(0,8).toUpperCase()}`;
     const kingaRef     = esc(c.kinga_reference ?? `KNG-KINGA-${new Date().getFullYear()}-${String(claimId).padStart(6,"0")}-FR`);
@@ -373,10 +454,10 @@ export async function generateForensicDecisionReport(
       <div class="value">${auditScore}<span style="font-size:12px;">/100</span></div>
       <div class="sub">${auditScore >= 60 ? "Above threshold" : "Below 60 threshold"}</div>
     </div>
-    <div class="score-cell ${(() => { const d = Number(ife?.overallScore ?? 75); return d >= 90 ? "good" : d >= 70 ? "warn" : "bad"; })()}">
+    <div class="score-cell ${ifeCompletenessScore >= 90 ? 'good' : ifeCompletenessScore >= 70 ? 'warn' : 'bad'}">
       <div class="label">Data Completeness</div>
-      <div class="value">${Number(ife?.overallScore ?? 75)}<span style="font-size:12px;">%</span></div>
-      <div class="sub">${Number(ife?.overallScore ?? 75) >= 90 ? "Above threshold" : "Below 90% threshold"}</div>
+      <div class="value">${ifeCompletenessScore}<span style="font-size:12px;">%</span></div>
+      <div class="sub">${ifeCompletenessScore >= 90 ? "Above threshold" : "Below 90% threshold"}</div>
     </div>
     <div class="score-cell ${(() => { const qs = Number(claimQuality?.overallScore ?? auditScore); return qs >= 80 ? 'good' : qs >= 60 ? 'warn' : 'bad'; })()}">
       <div class="label">Quality Score</div>
@@ -389,21 +470,21 @@ export async function generateForensicDecisionReport(
   <div class="verdict-strip sans">
     <div class="verdict-cell">
       <div class="label">Market Value</div>
-      <div class="value">${fmtUSD(marketValue)}</div>
+      <div class="value">${fmtCurrency(marketValue, claimCurrency)}</div>
     </div>
     <div class="verdict-cell">
       <div class="label">Lowest Submitted Quote</div>
-      <div class="value">${fmtUSD(lowestRef)}</div>
+      <div class="value">${fmtCurrency(lowestRef, claimCurrency)}</div>
       <div class="sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div>
     </div>
     <div class="verdict-cell accent">
       <div class="label">KINGA Optimised Estimate</div>
-      <div class="value">${fmtUSD(kingaOptimised)}</div>
-      <div class="sub">${savings > 0 ? `↓ ${fmtUSD(savings)} · ${savingsPct.toFixed(1)}% savings` : "Best-price estimate"}</div>
+      <div class="value">${fmtCurrency(kingaOptimised, claimCurrency)}</div>
+      <div class="sub">${savings > 0 ? `↓ ${fmtCurrency(savings, claimCurrency)} · ${savingsPct.toFixed(1)}% savings` : "Best-price estimate"}</div>
     </div>
     <div class="verdict-cell">
       <div class="label">Settlement Agreed</div>
-      <div class="value">${fmtUSD(recommendedSettlement)}</div>
+      <div class="value">${fmtCurrency(recommendedSettlement, claimCurrency)}</div>
       <div class="sub">${savings > 0 ? `−${savingsPct.toFixed(1)}% vs. original` : "Pending negotiation"}</div>
     </div>
     <div class="verdict-cell">
@@ -440,7 +521,7 @@ export async function generateForensicDecisionReport(
           ${kvRow("Reconstructed speed", `~${preImpactSpeed > 0 ? preImpactSpeed : deltaV} km/h (claimed)`)}
           ${kvRow("Physics consensus speed", `${consensusSpeed} km/h`)}
           ${impactForce > 0 ? kvRow("Impact force", `${impactForce.toLocaleString()} kN`) : ""}
-          ${deceleration > 0 ? kvRow("Deceleration", `${deceleration} g`) : ""}
+          ${deceleration > 0 ? kvRow("Deceleration", `${deceleration.toFixed(2)} g`) : ""}
           ${kineticEnergy > 0 ? kvRow("Kinetic energy", `${kineticEnergy.toFixed(1)} kJ`) : ""}
         </table>
         ${speedDiscrepancy > 20 ? co(`Driver-stated speed is <b>${speedDiscrepancy}% higher</b> than the physics-derived estimate — verify before settlement.`, "amber") : ""}
@@ -468,8 +549,10 @@ export async function generateForensicDecisionReport(
           ${kvRow("Insurer", insurer)}
           ${kvRow("Claim ref.", `<span class="mono">${claimRef}</span>`)}
           ${kvRow("Claimant", claimantName)}
-          ${excess > 0 ? kvRow("Policy excess", fmtUSD(excess)) : ""}
+          ${policyNum !== "—" ? kvRow("Policy no.", `<span class="mono">${policyNum}</span>`) : ""}
+          ${excess > 0 ? kvRow("Policy excess", fmtCurrency(excess, claimCurrency)) : ""}
           ${kvRow("Incident date", fmtD(c.incident_date))}
+          ${dateAnomalyFlag ? `<tr><td class="k" style="color:var(--amber);">⚠ Date anomaly</td><td class="v" style="color:var(--amber);">Incident date (${incidentYear}) predates vehicle model year (${vehicleYear}) — verify before settlement</td></tr>` : ""}
           ${kvRow("Type", incidentType)}
         </table>
       </div>
@@ -537,8 +620,8 @@ export async function generateForensicDecisionReport(
           : ""}
       </div>
       <div class="box">
-        <h4>Speed Analysis <span class="small">(${auditGrade.toLowerCase()} confidence)</span></h4>
-        <p style="margin:0 0 4px 0;"><span style="font-size:26px; font-weight:700; font-family:'Helvetica Neue',Arial,sans-serif; color:var(--teal);">${consensusSpeed}</span> <span class="small">km/h consensus</span></p>
+        <h4>Speed Analysis <span class="small">(${speedEnsemble?.overallConfidence?.toLowerCase() ?? auditGrade.toLowerCase()} confidence)</span></h4>
+        <p style="margin:0 0 4px 0;"><span style="font-size:26px; font-weight:700; font-family:'Helvetica Neue',Arial,sans-serif; color:var(--teal);">${consensusSpeed}</span> <span class="small">km/h consensus · ${speedMethods.length} method${speedMethods.length !== 1 ? 's' : ''}</span></p>
         <svg width="100%" height="${chartHeight}" viewBox="0 0 ${chartWidth} ${chartHeight}" xmlns="http://www.w3.org/2000/svg">
           <line x1="20" y1="${baselineY}" x2="${chartWidth - 10}" y2="${baselineY}" stroke="#bdbdbd" stroke-width="1"/>
           ${speedBars}
@@ -579,7 +662,7 @@ export async function generateForensicDecisionReport(
           ${deltaV > 0 ? `<text x="230" y="70" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#171717">ΔV <tspan font-weight="700">${deltaV.toFixed(1)} km/h</tspan></text>` : ""}
           ${kineticEnergy > 0 ? `<text x="230" y="84" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#171717">KE <tspan font-weight="700">${kineticEnergy.toFixed(1)} kJ</tspan></text>` : ""}
           ${impactForce > 0 ? `<text x="230" y="98" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#171717">F <tspan font-weight="700">${impactForce.toLocaleString()} kN</tspan></text>` : ""}
-          ${deceleration > 0 ? `<text x="230" y="112" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#171717">Decel. <tspan font-weight="700">${deceleration} g</tspan></text>` : ""}
+          ${deceleration > 0 ? `<text x="230" y="112" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#171717">Decel. <tspan font-weight="700">${deceleration.toFixed(2)} g</tspan></text>` : ""}
         </svg>
         <p class="caption">Red = severe damage zone · amber = underbody · impact arrow shows reported direction of force.</p>
       </div>
@@ -731,25 +814,26 @@ export async function generateForensicDecisionReport(
 
     ${totalPhotos > 0 ? `
     <div class="box" style="margin-top:10px;">
-      <h4>Front Zone — ${frontLabel} <span class="pill red" style="margin-left:6px;">${highConfPhotos > 0 ? Math.round(highConfPhotos/totalPhotos*100) : 85}% detection confidence</span></h4>
+      <h4>${enrichedPhotos.length > 0 ? `Photo Evidence — ${enrichedPhotos.length} images` : `Front Zone — ${frontLabel}`} <span class="pill red" style="margin-left:6px;">${highConfPhotos > 0 ? Math.round(highConfPhotos/totalPhotos*100) : 85}% detection confidence</span></h4>
       <div class="photo-zone">
         <div class="photo-grid">
-          ${photoDocuments.slice(0, 4).map((d, i) => `
+          ${(enrichedPhotos.length > 0 ? enrichedPhotos : photoDocuments).slice(0, 4).map((d: any, i: number) => {
+            const imgUrl = d.url ?? d.file_url ?? null;
+            const caption = d.caption ?? d.file_name ?? `Photo ${i + 1}`;
+            const zone = d.impactZone ?? d.document_category ?? "";
+            const severity = d.severity ?? "";
+            return `
           <div class="photo-tile">
             <div class="photo-ph">
-              <svg viewBox="0 0 100 75" preserveAspectRatio="none"><rect width="100" height="75" fill="#e4e4e4"/><path d="M0 55 L30 30 L50 45 L70 20 L100 50 L100 75 L0 75 Z" fill="#d0d0d0"/><circle cx="80" cy="18" r="7" fill="#dcdcdc"/></svg>
+              ${imgUrl
+                ? `<img src="${esc(imgUrl)}" alt="${esc(caption)}" style="width:100%;height:75px;object-fit:cover;"/>`
+                : `<svg viewBox="0 0 100 75" preserveAspectRatio="none"><rect width="100" height="75" fill="#e4e4e4"/><path d="M0 55 L30 30 L50 45 L70 20 L100 50 L100 75 L0 75 Z" fill="#d0d0d0"/><circle cx="80" cy="18" r="7" fill="#dcdcdc"/></svg>`
+              }
               <span class="tag">${i + 1}</span>
             </div>
-            <div class="photo-cap">${esc(String(d.file_name ?? `Photo ${i + 1}`))}</div>
-          </div>`).join("")}
-          ${photoDocuments.length === 0 ? `
-          <div class="photo-tile">
-            <div class="photo-ph">
-              <svg viewBox="0 0 100 75" preserveAspectRatio="none"><rect width="100" height="75" fill="#e4e4e4"/><path d="M0 55 L30 30 L50 45 L70 20 L100 50 L100 75 L0 75 Z" fill="#d0d0d0"/></svg>
-              <span class="tag">1</span>
-            </div>
-            <div class="photo-cap">Front damage</div>
-          </div>` : ""}
+            <div class="photo-cap">${esc(caption)}${zone ? ` <span class="pill grey" style="font-size:7px;">${esc(zone)}</span>` : ""}${severity ? ` <span class="pill ${severity === 'severe' ? 'red' : severity === 'moderate' ? 'amber' : 'green'}" style="font-size:7px;">${esc(severity)}</span>` : ""}</div>
+          </div>`;
+          }).join("")}
         </div>
         <div class="photo-meta">
           <table class="kv">
@@ -759,7 +843,7 @@ export async function generateForensicDecisionReport(
           ${zonesCovered < totalZones ? co("Single photograph per finding in this zone. Additional angles recommended for full assessment confidence.", "amber") : ""}
         </div>
       </div>
-      <p class="caption">Thumbnails illustrate layout only — replace with source images from the claim asset store at export time.</p>
+      <p class="caption">${enrichedPhotos.length > 0 ? `${enrichedPhotos.length} photos from pipeline analysis · showing first 4` : 'Thumbnails illustrate layout only — replace with source images from the claim asset store at export time.'}</p>
     </div>` : ""}
 
     <div class="box" style="margin-top:8px;">

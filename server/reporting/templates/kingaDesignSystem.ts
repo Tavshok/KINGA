@@ -431,14 +431,27 @@ export function esc(s: unknown): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Format currency (USD default) */
-export function fmtUSD(val: unknown): string {
+/** Format currency with dynamic currency code (defaults to USD) */
+export function fmtCurrency(val: unknown, currencyCode?: string | null): string {
   const n = Number(val ?? 0);
   if (isNaN(n)) return "—";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency", currency: "USD",
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
-  }).format(n);
+  const code = (currencyCode && /^[A-Z]{3}$/.test(String(currencyCode).trim().toUpperCase()))
+    ? String(currencyCode).trim().toUpperCase()
+    : "USD";
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency", currency: code,
+      minimumFractionDigits: 2, maximumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    // Fallback for unsupported currency codes
+    return `${code} ${n.toFixed(2)}`;
+  }
+}
+
+/** Format currency (USD default) — kept for backwards compatibility */
+export function fmtUSD(val: unknown): string {
+  return fmtCurrency(val, "USD");
 }
 
 /** Format date from timestamp or string */
