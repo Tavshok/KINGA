@@ -882,3 +882,43 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [ ] REBUILD-L2-9: TypeScript check — 0 errors
 - [ ] REBUILD-L2-10: Recompute verification against claim 8880001 — confirm L2 ≤ L1
 - [ ] REBUILD-L2-11: Update KINGA_FORMULA_REFERENCE.md with the correct architecture
+
+---
+
+## Claims Report (Process) & Claims Intelligence Report (Protect) — Redesign July 2026
+
+### Phase 1: Pipeline Bug Fixes
+- [x] Verify kingaOptimised/benchmark computation is invoked on claim.intelligence path — confirmed display-only bug, pipeline correct
+- [x] Wire real fraud_score_breakdown_json to §3 Risk Indicators — rawIndicators wired with fallback
+- [x] Fix tier badge: claimsIntelligenceReport.ts line 173 — now reads "Protect Tier · Intelligence Assessment"
+- [ ] Fix reportDefinitions.ts line 72 comment: "Claims Intelligence Report (Process tier)" → "Protect Tier"
+
+### Phase 2: Shared Design System Components
+- [x] Add BarTable() helper to kingaDesignSystem.ts — table-based horizontal bar chart (no CSS flex/grid widths)
+- [x] Add PhotoZonePanel() helper — table-based photo thumbnail grid with zone labels
+- [x] Add SectionTab() helper — consistent section header with tier badge
+- [x] Add ScoreCell() helper — score pill with colour coding
+- [x] Add Callout() helper — table-safe callout box (replaces fc/finding-box divs)
+
+### Phase 3: Process Tier (claim.assessment) Redesign
+- [x] Rewrite generateClaimAssessmentReport to use KINGA design system (not legacy base.ts)
+- [ ] §1 Claim Overview — real data, table-based KV grid
+- [ ] §2 Assessment Summary — real fraud score, confidence, recommendation
+- [ ] §3 Damaged Components — real damaged_components table data
+- [ ] §4 Repair vs Replace — real total_loss_indicated + repair_to_value_ratio
+- [x] §5 Physics Indicator — light pass/fail pill only (no ΔV, no methodology), upgrade CTA if anomaly detected
+- [ ] §6 Decision Authority — real decision_authority_json
+- [ ] Upgrade banner — physicsAnomaly-driven CTA to Protect or Forensic
+
+### Phase 4: Protect Tier (claim.intelligence) Redesign
+- [x] §P Policy & Coverage — wire coverageRows from real repairIntel.policyExclusions (not hardcoded static data)
+- [x] §2 Cost Intelligence — wire compositeLineItems.selectedCostUsd as KINGA Benchmark column (not unit_price copy)
+- [x] §3 Risk Indicators — wire real fraud_score_breakdown_json indicators (not canned strings)
+- [ ] §4 Evidence Snapshot — add real photo thumbnails via PhotoZonePanel (enriched_photos_json)
+- [x] Fix tier badge to "Protect Tier · Intelligence Assessment"
+
+### Phase 5: Verification
+- [ ] Verify both reports against Voltron claim (LIVE-RUN-VOLTRON-001)
+- [ ] Verify both reports against a second claim
+- [ ] Confirm no data integrity contradictions (submitted ≠ KINGA benchmark, fraud indicators real)
+- [ ] Save checkpoint

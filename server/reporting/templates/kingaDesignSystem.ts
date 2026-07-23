@@ -557,3 +557,129 @@ export function callout(content: string, variant: "default" | "amber" | "red" | 
   const cls = variant === "default" ? "" : ` ${variant}`;
   return `<div class="callout${cls}">${content}</div>`;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEW SHARED HELPERS — added July 2026
+// All table/SVG-safe (no CSS flex/grid widths that break PDF renderers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * BarTable — renders a multi-column bar comparison as a pure HTML table.
+ * Each row is one component; each column is one repairer or KINGA.
+ * Bars are rendered as a nested table with a fixed-width filled cell (no CSS width%).
+ *
+ * @param rows   Array of { label, values: [{name, amount, isKinga?}] }
+ * @param maxVal The maximum amount across all rows (for bar scaling)
+ * @param barMaxPx The pixel width of a full bar (default 120)
+ */
+export function barTable(
+  rows: Array<{ label: string; values: Array<{ name: string; amount: number; isKinga?: boolean }> }>,
+  maxVal: number,
+  barMaxPx = 120
+): string {
+  if (!rows.length) return "";
+  const allNames = rows[0].values.map(v => v.name);
+  const headerCells = allNames.map(n => `<th style="text-align:right;padding:4px 8px;font-size:10px;color:#4a4a4a">${esc(n)}</th>`).join("");
+  const bodyRows = rows.map(row => {
+    const cells = row.values.map(v => {
+      const barW = maxVal > 0 ? Math.round((v.amount / maxVal) * barMaxPx) : 0;
+      const colour = v.isKinga ? "#3C7844" : "#437D87";
+      const barHtml = `<table cellspacing="0" cellpadding="0" style="display:inline-table;vertical-align:middle"><tr>
+        <td style="width:${barW}px;height:8px;background:${colour};border-radius:2px"></td>
+        <td style="padding-left:4px;font-size:10px;white-space:nowrap;color:${v.isKinga ? "#3C7844" : "#171717"};font-weight:${v.isKinga ? "700" : "400"}">${fmtUSD(v.amount)}</td>
+      </tr></table>`;
+      return `<td style="padding:4px 8px;text-align:right">${barHtml}</td>`;
+    }).join("");
+    return `<tr style="border-bottom:1px solid #e8e8e8">
+      <td style="padding:4px 8px;font-size:11px;color:#171717">${esc(row.label)}</td>
+      ${cells}
+    </tr>`;
+  }).join("");
+  return `<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead><tr style="border-bottom:2px solid #d9d9d9">
+      <th style="text-align:left;padding:4px 8px;font-size:10px;color:#4a4a4a">Component</th>
+      ${headerCells}
+    </tr></thead>
+    <tbody>${bodyRows}</tbody>
+  </table>`;
+}
+
+/**
+ * ScoreCell — renders a score number with colour coding in a table cell.
+ * @param score 0–100
+ * @param label Label below the score
+ * @param invert If true, high score = green (e.g. data completeness)
+ */
+export function scoreCell(score: number, label: string, invert = false): string {
+  const colour = invert
+    ? (score >= 70 ? "#3C7844" : score >= 40 ? "#b8720b" : "#a83232")
+    : (score >= 70 ? "#a83232" : score >= 40 ? "#b8720b" : "#3C7844");
+  return `<td style="text-align:center;padding:8px 12px;border-right:1px solid #e8e8e8">
+    <div style="font-size:22px;font-weight:700;color:${colour};font-family:monospace">${score}</div>
+    <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">${esc(label)}</div>
+  </td>`;
+}
+
+/**
+ * PhotoZonePanel — renders photo thumbnails in a table-based grid.
+ * @param photos Array of { url, zone, caption, usable }
+ * @param cols   Number of columns (default 4)
+ */
+export function photoZonePanel(
+  photos: Array<{ url: string; zone?: string; caption?: string; usable?: boolean }>,
+  cols = 4
+): string {
+  if (!photos.length) return `<p style="color:#8a8a8a;font-size:11px;font-style:italic">No photographs available for this claim.</p>`;
+  const cells = photos.map(p => {
+    const border = p.usable === false ? "2px solid #a83232" : "1px solid #d9d9d9";
+    const zoneLabel = p.zone ? `<div style="font-size:9px;color:#437D87;text-transform:uppercase;letter-spacing:0.4px;margin-top:3px">${esc(p.zone)}</div>` : "";
+    const caption = p.caption ? `<div style="font-size:9px;color:#4a4a4a;margin-top:2px">${esc(p.caption)}</div>` : "";
+    const unusable = p.usable === false ? `<div style="font-size:9px;color:#a83232;font-weight:600;margin-top:2px">Low quality</div>` : "";
+    return `<td style="padding:4px;vertical-align:top">
+      <img src="${esc(p.url)}" style="width:100%;height:70px;object-fit:cover;border:${border};border-radius:2px;display:block" />
+      ${zoneLabel}${caption}${unusable}
+    </td>`;
+  });
+  // Pad to fill last row
+  const remainder = photos.length % cols;
+  if (remainder > 0) {
+    for (let i = 0; i < cols - remainder; i++) cells.push(`<td></td>`);
+  }
+  const rows: string[] = [];
+  for (let i = 0; i < cells.length; i += cols) {
+    rows.push(`<tr>${cells.slice(i, i + cols).join("")}</tr>`);
+  }
+  return `<table style="width:100%;border-collapse:collapse"><tbody>${rows.join("")}</tbody></table>`;
+}
+
+/**
+ * physicsIndicator — light pass/fail pill for Process tier.
+ * Shows only a status signal; no ΔV, no methodology.
+ * Anomaly state includes an active CTA to the Forensic Report.
+ */
+export function physicsIndicator(
+  anomalyScore: number,
+  claimRef: string
+): string {
+  const isAnomaly = anomalyScore > 30;
+  if (isAnomaly) {
+    return `<div style="border:1px solid #b8720b;background:#fbf1de;border-radius:3px;padding:10px 14px;margin:8px 0">
+      <table style="width:100%;border-collapse:collapse"><tr>
+        <td style="vertical-align:middle;width:1%">
+          <span style="display:inline-block;background:#b8720b;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:2px;white-space:nowrap;text-transform:uppercase">Physics Check: Anomaly Detected</span>
+        </td>
+        <td style="padding-left:12px;font-size:11px;color:#4a4a4a">
+          Automated physics screening identified an anomaly requiring further investigation.
+          <strong>Anomaly detected — see full physics validation in the Forensic Report.</strong>
+        </td>
+        <td style="text-align:right;white-space:nowrap;padding-left:12px">
+          <span style="font-size:10px;color:#b8720b;font-weight:600;border:1px solid #b8720b;padding:3px 8px;border-radius:2px;white-space:nowrap">View Forensic Report &rarr;</span>
+        </td>
+      </tr></table>
+    </div>`;
+  }
+  return `<div style="border:1px solid #c8dfc9;background:#e9f3ea;border-radius:3px;padding:8px 14px;margin:8px 0;display:inline-block">
+    <span style="display:inline-block;background:#3C7844;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:2px;text-transform:uppercase">Physics Check: Consistent</span>
+    <span style="font-size:11px;color:#4a4a4a;margin-left:10px">No physics anomalies detected at this assessment tier.</span>
+  </div>`;
+}

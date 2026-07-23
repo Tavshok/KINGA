@@ -38,6 +38,10 @@ import {
 } from "./templates/base";
 import { generateClaimsIntelligenceReport } from "./claimsIntelligenceReport";
 import { generateForensicDecisionReport } from "./forensicDecisionReport";
+import {
+  buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
+  chip, pill, callout, scoreCell, physicsIndicator, safeJson,
+} from "./templates/kingaDesignSystem";
 
 const DB_URL = process.env.DATABASE_URL!;
 async function getConn() { return mysql.createConnection(DB_URL); }
@@ -170,15 +174,18 @@ async function generateClaimAssessmentReport(
   const claimId = params.claimId as number;
   const conn = await getConn();
   try {
-    // All column names verified against live DB 2026-05-04
     const [claims] = await conn.execute(
-      `SELECT c.*,
-              CONCAT(c.vehicle_make, ' ', c.vehicle_model, ' ', c.vehicle_year) AS vehicle_description,
+      `SELECT c.id, c.claim_reference, c.incident_type, c.incident_date, c.incident_location,
+              c.lodger_name, c.policy_number, c.vehicle_make, c.vehicle_model, c.vehicle_year,
+              c.vehicle_registration, c.vehicle_market_value, c.insurer_name, c.status,
+              c.created_at, c.confidence_score,
+              CONCAT(c.vehicle_make,' ',c.vehicle_model,' ',c.vehicle_year) AS vehicle_description,
               a.fraud_score, a.fraud_risk_level, a.recommendation,
               a.estimated_cost, a.parts_cost, a.labor_cost,
               a.damage_description, a.total_loss_indicated, a.repair_to_value_ratio,
               a.model_version, a.created_at AS assessment_date,
-              a.narrative_analysis_json, a.decision_authority_json
+              a.decision_authority_json, a.physics_analysis,
+              a.fraud_score_breakdown_json, a.cost_intelligence_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""} ORDER BY a.created_at DESC LIMIT 1`,
@@ -188,124 +195,215 @@ async function generateClaimAssessmentReport(
     const claim = claims[0];
     if (!claim) throw new Error(`Claim ${claimId} not found`);
 
-    // Fetch damaged components
-    const [components] = await conn.execute(
-      `SELECT component_name, damage_severity, repair_or_replace, estimated_cost, labour_hours
-       FROM damaged_components WHERE claim_id=? ORDER BY estimated_cost DESC`,
+    const physics = safeJson(claim.physics_analysis);
+    const fraud = safeJson(claim.fraud_score_breakdown_json);
+    const costIntel = safeJson(claim.cost_intelligence_json);
+    const decisionAuth = safeJson(claim.decision_authority_json);
+
+    // Damaged components are stored in damaged_components_json on ai_assessments
+    // (JSON array of DamagedComponent objects from Stage 6 / Stage 8)
+    const [damageRows] = await conn.execute(
+      `SELECT a.damaged_components_json FROM ai_assessments a WHERE a.claim_id=? ORDER BY a.created_at DESC LIMIT 1`,
       [claimId]
     ) as [Record<string, unknown>[], unknown];
-
-    const parseJson = (val: unknown) => {
-      if (!val) return null;
-      try { return typeof val === "string" ? JSON.parse(val) : val; } catch { return null; }
-    };
-
-    const decisionAuth = parseJson(claim.decision_authority_json);
-
-    const meta: ReportMeta = {
-      title: "KINGA Assessment Report",
-      subtitle: `Claim Reference: ${claim.claim_reference ?? claim.id}`,
-      reportRef: `RPT-ASSESS-${claimId}-${Date.now()}`,
-      generatedAt: new Date(),
-      generatedBy: "KINGA Intelligence Platform",
-      tenantName: claim.insurer_name as string | undefined,
-      classification: "CONFIDENTIAL",
-    };
+    const rawCompsData = safeJson((damageRows[0] as Record<string,unknown>)?.damaged_components_json);
+    const rawComps: Record<string, unknown>[] = Array.isArray(rawCompsData)
+      ? (rawCompsData as Record<string,unknown>[])
+      : Array.isArray((rawCompsData as Record<string,unknown> | null)?.components)
+        ? ((rawCompsData as Record<string,unknown>).components as Record<string,unknown>[])
+        : [];
+    // Normalise field names — damage_analysis uses various shapes
+    const comps = rawComps.map(c => ({
+      component_name: String(c.name ?? c.component ?? c.componentName ?? c.partName ?? ""),
+      damage_severity: String(c.severity ?? c.damageSeverity ?? c.damage_severity ?? "unknown"),
+      repair_or_replace: String(c.repairOrReplace ?? c.action ?? c.repair_or_replace ?? "repair"),
+      estimated_cost: Number(c.estimatedCost ?? c.estimated_cost ?? c.cost ?? 0),
+      labour_hours: Number(c.labourHours ?? c.labour_hours ?? 0),
+    })).sort((a, b) => b.estimated_cost - a.estimated_cost);
 
     const fraudScore = Number(claim.fraud_score ?? 0);
     const confidenceScore = Number(claim.confidence_score ?? 0);
     const estimatedCost = Number(claim.estimated_cost ?? 0);
-    const repairDecision = claim.total_loss_indicated
-      ? "TOTAL LOSS — Replace Vehicle"
-      : `REPAIR — Repair-to-Value Ratio: ${fmtPct(claim.repair_to_value_ratio as number)}`;
+    const kingaOptimised = Number((costIntel as Record<string,unknown> | null)?.compositeOptimisation
+      ? ((costIntel as Record<string,unknown>).compositeOptimisation as Record<string,unknown>)?.l2CompositeOptimisedCostUsd ?? 0
+      : 0);
+    const repairToValue = Number(claim.repair_to_value_ratio ?? 0);
+    const isTotalLoss = Boolean(claim.total_loss_indicated);
+
+    // Physics anomaly signal for the light indicator
+    const physicsConsistency = Number(physics?.damageConsistencyScore ?? 100);
+    const hasCriticalInconsistency = Boolean(physics?.hasCriticalInconsistency);
+    const physicsAnomalyScore = hasCriticalInconsistency ? 80 : (physicsConsistency < 70 ? 40 : 0);
+
+    // Fraud risk colour
+    const riskLevel = String(claim.fraud_risk_level ?? "low").toLowerCase();
+    const riskColour = riskLevel === "high" ? "#a83232" : riskLevel === "medium" ? "#b8720b" : "#3C7844";
+    const riskBg = riskLevel === "high" ? "#fbe9e7" : riskLevel === "medium" ? "#fbf1de" : "#e9f3ea";
+
+    const compTotal = comps.reduce((s, c) => s + c.estimated_cost, 0);
+    const labourTotal = comps.reduce((s, c) => s + c.labour_hours, 0);
+
+    // Decision authority text
+    const daText = typeof decisionAuth === "object" && decisionAuth !== null
+      ? String((decisionAuth as Record<string,unknown>).summary ?? JSON.stringify(decisionAuth))
+      : String(decisionAuth ?? "Refer to Claims Manager for final approval.");
+
+    // Fraud indicators (top 5)
+    const fraudIndicators = Array.isArray((fraud as Record<string,unknown> | null)?.indicators)
+      ? ((fraud as Record<string,unknown>).indicators as Record<string,unknown>[]).slice(0, 5)
+      : [];
 
     const body = `
-      <!-- Claim Overview -->
-      <div class="section">
-        <div class="section-title">1. Claim Overview</div>
-        <div class="kv-grid cols-3">
-          <div class="kv-item"><div class="kv-label">Claim Reference</div><div class="kv-value mono">${escHtml(String(claim.claim_reference ?? claim.id))}</div></div>
-          <div class="kv-item"><div class="kv-label">Incident Type</div><div class="kv-value">${escHtml(String(claim.incident_type ?? "Motor Vehicle"))}</div></div>
-          <div class="kv-item"><div class="kv-label">Date of Incident</div><div class="kv-value">${fmtDate(claim.incident_date as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Lodged By</div><div class="kv-value">${escHtml(String(claim.lodger_name ?? "—"))}</div></div>
-          <div class="kv-item"><div class="kv-label">Policy Number</div><div class="kv-value mono">${escHtml(String(claim.policy_number ?? "—"))}</div></div>
-          <div class="kv-item"><div class="kv-label">Vehicle</div><div class="kv-value">${escHtml(String(claim.vehicle_description ?? "—"))}</div></div>
-          <div class="kv-item"><div class="kv-label">Submitted</div><div class="kv-value">${fmtDate(claim.created_at as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Assessment Date</div><div class="kv-value">${fmtDateTime(claim.assessment_date as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Pipeline Version</div><div class="kv-value mono">${escHtml(String(claim.model_version ?? "v2"))}</div></div>
-        </div>
-      </div>
+<!-- ── COVER HEADER ── -->
+<div style="background:#171717;color:#fff;padding:20px 28px;margin-bottom:0">
+  <table style="width:100%;border-collapse:collapse"><tr>
+    <td style="vertical-align:top">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin-bottom:4px">KINGA INTELLIGENCE PLATFORM</div>
+      <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px">Claims Assessment Report</div>
+      <div style="font-size:11px;color:#ccc;margin-top:4px">Process Tier &middot; Standard Assessment</div>
+    </td>
+    <td style="text-align:right;vertical-align:top">
+      <div style="font-size:9px;color:#aaa">Claim Reference</div>
+      <div style="font-size:14px;font-weight:700;font-family:monospace">${esc(String(claim.claim_reference ?? claim.id))}</div>
+      <div style="font-size:9px;color:#aaa;margin-top:6px">Generated</div>
+      <div style="font-size:10px;color:#ccc">${fmtD(Date.now())}</div>
+    </td>
+  </tr></table>
+</div>
 
-      <!-- Assessment Summary -->
-      <div class="section">
-        <div class="section-title">2. Assessment Summary</div>
-        <div class="kv-grid cols-4">
-          <div class="kv-item"><div class="kv-label">Fraud Risk</div><div class="kv-value">${riskBadge(String(claim.fraud_risk_level ?? "low"))}</div></div>
-          <div class="kv-item"><div class="kv-label">Fraud Score</div><div class="kv-value">${scoreBar(fraudScore)}</div></div>
-          <div class="kv-item"><div class="kv-label">Confidence Score</div><div class="kv-value">${scoreBar(confidenceScore)}</div></div>
-          <div class="kv-item"><div class="kv-label">Recommendation</div><div class="kv-value bold">${escHtml(String(claim.recommendation ?? "—")).toUpperCase()}</div></div>
-        </div>
-        <div class="kv-grid cols-3">
-          <div class="kv-item"><div class="kv-label">AI Estimated Cost</div><div class="kv-value bold">${fmtCurrency(estimatedCost)}</div></div>
-          <div class="kv-item"><div class="kv-label">Parts Cost</div><div class="kv-value">${fmtCurrency(claim.parts_cost as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Labour Cost</div><div class="kv-value">${fmtCurrency(claim.labor_cost as number)}</div></div>
-        </div>
-      </div>
+<!-- ── §1 CLAIM OVERVIEW ── -->
+<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
+  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;1 &mdash; Claim Overview</div>
+  <table style="width:100%;border-collapse:collapse;font-size:11px">
+    <tr>
+      <td style="width:16.6%;padding:4px 8px 4px 0;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Claim Ref</div><div style="font-weight:600;font-family:monospace">${esc(String(claim.claim_reference ?? claim.id))}</div></td>
+      <td style="width:16.6%;padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Incident Type</div><div style="font-weight:600">${esc(String(claim.incident_type ?? "Motor Vehicle"))}</div></td>
+      <td style="width:16.6%;padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Date of Incident</div><div style="font-weight:600">${fmtD(claim.incident_date)}</div></td>
+      <td style="width:16.6%;padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Lodged By</div><div style="font-weight:600">${esc(String(claim.lodger_name ?? "—"))}</div></td>
+      <td style="width:16.6%;padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Policy Number</div><div style="font-weight:600;font-family:monospace">${esc(String(claim.policy_number ?? "—"))}</div></td>
+      <td style="width:16.6%;padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Vehicle</div><div style="font-weight:600">${esc(String(claim.vehicle_description ?? "—"))}</div></td>
+    </tr>
+    <tr>
+      <td style="padding:4px 8px 4px 0;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Registration</div><div style="font-weight:600;font-family:monospace">${esc(String(claim.vehicle_registration ?? "—"))}</div></td>
+      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Market Value</div><div style="font-weight:600">${fmtUSD(claim.vehicle_market_value)}</div></td>
+      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Submitted</div><div style="font-weight:600">${fmtD(claim.created_at)}</div></td>
+      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Assessment Date</div><div style="font-weight:600">${fmtD(claim.assessment_date)}</div></td>
+      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Location</div><div style="font-weight:600">${esc(String(claim.incident_location ?? "—"))}</div></td>
+      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Pipeline</div><div style="font-weight:600;font-family:monospace">${esc(String(claim.model_version ?? "v2"))}</div></td>
+    </tr>
+  </table>
+</div>
 
-      <!-- Damaged Components -->
-      ${(components as Record<string, unknown>[]).length > 0 ? `
-      <div class="section">
-        <div class="section-title">3. Damaged Components</div>
-        <table>
-          <thead><tr>
-            <th>Component</th><th>Severity</th><th>Decision</th><th class="text-right">Est. Cost</th><th class="text-right">Labour (hrs)</th>
-          </tr></thead>
-          <tbody>
-            ${(components as Record<string, unknown>[]).map((c) => `
-              <tr>
-                <td>${escHtml(String(c.component_name))}</td>
-                <td>${riskBadge(String(c.damage_severity ?? "medium"))}</td>
-                <td>${escHtml(String(c.repair_or_replace ?? "—"))}</td>
-                <td class="text-right">${fmtCurrency(c.estimated_cost as number)}</td>
-                <td class="text-right">${c.labour_hours ?? "—"}</td>
-              </tr>`).join("")}
-          </tbody>
-          <tfoot><tr>
-            <td colspan="3" class="bold">TOTAL</td>
-            <td class="text-right bold">${fmtCurrency((components as Record<string, unknown>[]).reduce((s, c) => s + Number(c.estimated_cost ?? 0), 0))}</td>
-            <td class="text-right bold">${(components as Record<string, unknown>[]).reduce((s, c) => s + Number(c.labour_hours ?? 0), 0).toFixed(1)}</td>
-          </tr></tfoot>
-        </table>
-      </div>` : ""}
+<!-- ── §2 ASSESSMENT SUMMARY ── -->
+<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
+  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;2 &mdash; Assessment Summary</div>
+  <table style="width:100%;border-collapse:collapse">
+    <tr>
+      ${scoreCell(fraudScore, "Fraud Score")}
+      ${scoreCell(confidenceScore, "Confidence", true)}
+      <td style="padding:8px 12px;border-right:1px solid #e8e8e8;vertical-align:top">
+        <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Risk Level</div>
+        <span style="background:${riskBg};color:${riskColour};font-size:10px;font-weight:700;padding:3px 9px;border-radius:2px;text-transform:uppercase">${esc(riskLevel)}</span>
+      </td>
+      <td style="padding:8px 12px;border-right:1px solid #e8e8e8;vertical-align:top">
+        <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Recommendation</div>
+        <div style="font-size:13px;font-weight:700;color:#171717">${esc(String(claim.recommendation ?? "—").toUpperCase())}</div>
+      </td>
+      <td style="padding:8px 12px;border-right:1px solid #e8e8e8;vertical-align:top">
+        <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">KINGA Estimate</div>
+        <div style="font-size:13px;font-weight:700;color:#3C7844">${fmtUSD(kingaOptimised > 0 ? kingaOptimised : estimatedCost)}</div>
+      </td>
+      <td style="padding:8px 12px;vertical-align:top">
+        <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Repair Decision</div>
+        <div style="font-size:11px;font-weight:600;color:#171717">${isTotalLoss ? "TOTAL LOSS" : `REPAIR (${kFmtPct(repairToValue)} R:V)` }</div>
+      </td>
+    </tr>
+  </table>
+  ${fraudIndicators.length > 0 ? `
+  <div style="margin-top:12px">
+    <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Triggered Fraud Indicators</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="border-bottom:2px solid #d9d9d9">
+        <th style="text-align:left;padding:3px 8px;font-size:10px;color:#4a4a4a">Indicator</th>
+        <th style="text-align:left;padding:3px 8px;font-size:10px;color:#4a4a4a">Category</th>
+        <th style="text-align:right;padding:3px 8px;font-size:10px;color:#4a4a4a">Score</th>
+      </tr></thead>
+      <tbody>
+        ${fraudIndicators.map((ind: Record<string,unknown>) => `<tr style="border-bottom:1px solid #e8e8e8">
+          <td style="padding:3px 8px">${esc(String(ind.name ?? ind.indicator ?? ""))}</td>
+          <td style="padding:3px 8px;color:#4a4a4a">${esc(String(ind.category ?? ""))}</td>
+          <td style="padding:3px 8px;text-align:right;font-weight:600">${ind.points ?? ind.score ?? 0}</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>
+  </div>` : ""}
+</div>
 
-      <!-- Repair vs Replace -->
-      <div class="section">
-        <div class="section-title">4. Repair vs Replace Recommendation</div>
-        <div class="finding-box">
-          <strong>Decision:</strong> ${escHtml(repairDecision)}
-        </div>
-      </div>
+<!-- ── §3 DAMAGED COMPONENTS ── -->
+${comps.length > 0 ? `
+<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
+  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;3 &mdash; Damaged Components</div>
+  <table style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead><tr style="border-bottom:2px solid #d9d9d9">
+      <th style="text-align:left;padding:4px 8px;font-size:10px;color:#4a4a4a">Component</th>
+      <th style="text-align:left;padding:4px 8px;font-size:10px;color:#4a4a4a">Severity</th>
+      <th style="text-align:left;padding:4px 8px;font-size:10px;color:#4a4a4a">Decision</th>
+      <th style="text-align:right;padding:4px 8px;font-size:10px;color:#4a4a4a">Est. Cost</th>
+      <th style="text-align:right;padding:4px 8px;font-size:10px;color:#4a4a4a">Labour (hrs)</th>
+    </tr></thead>
+    <tbody>
+      ${comps.map(c => {
+        const sev = String(c.damage_severity ?? "medium").toLowerCase();
+        const sevColour = sev === "severe" ? "#a83232" : sev === "moderate" ? "#b8720b" : "#3C7844";
+        const sevBg = sev === "severe" ? "#fbe9e7" : sev === "moderate" ? "#fbf1de" : "#e9f3ea";
+        return `<tr style="border-bottom:1px solid #e8e8e8">
+          <td style="padding:4px 8px;font-weight:600">${esc(String(c.component_name))}</td>
+          <td style="padding:4px 8px"><span style="background:${sevBg};color:${sevColour};font-size:9px;font-weight:700;padding:2px 6px;border-radius:2px;text-transform:uppercase">${esc(sev)}</span></td>
+          <td style="padding:4px 8px;color:#4a4a4a">${esc(String(c.repair_or_replace ?? "—"))}</td>
+          <td style="padding:4px 8px;text-align:right;font-family:monospace">${fmtUSD(c.estimated_cost)}</td>
+          <td style="padding:4px 8px;text-align:right;font-family:monospace">${c.labour_hours ?? "—"}</td>
+        </tr>`;
+      }).join("")}
+    </tbody>
+    <tfoot><tr style="border-top:2px solid #d9d9d9;background:#fafafa">
+      <td colspan="3" style="padding:4px 8px;font-weight:700;font-size:11px">TOTAL</td>
+      <td style="padding:4px 8px;text-align:right;font-weight:700;font-family:monospace">${fmtUSD(compTotal)}</td>
+      <td style="padding:4px 8px;text-align:right;font-weight:700;font-family:monospace">${labourTotal.toFixed(1)}</td>
+    </tr></tfoot>
+  </table>
+</div>` : ""}
 
-      <!-- Decision Authority -->
-      <div class="section">
-        <div class="section-title">5. Decision Authority &amp; Next Steps</div>
-        <div class="finding-box info">
-          ${escHtml(String(
-            typeof decisionAuth === "object" && decisionAuth !== null
-              ? (decisionAuth as Record<string, unknown>).summary ?? JSON.stringify(decisionAuth)
-              : decisionAuth ?? "Refer to Claims Manager for final approval."
-          ))}
-        </div>
-      </div>
+<!-- ── §4 REPAIR vs REPLACE ── -->
+<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
+  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;4 &mdash; Repair vs Replace</div>
+  <table style="width:100%;border-collapse:collapse"><tr>
+    <td style="padding:10px 14px;border:1px solid ${isTotalLoss ? "#a83232" : "#c8dfc9"};background:${isTotalLoss ? "#fbe9e7" : "#e9f3ea"};border-radius:3px;vertical-align:middle">
+      <span style="font-size:13px;font-weight:700;color:${isTotalLoss ? "#a83232" : "#3C7844"}">${isTotalLoss ? "TOTAL LOSS — Replace Vehicle" : "REPAIR RECOMMENDED"}</span>
+      ${!isTotalLoss && repairToValue > 0 ? `<span style="font-size:11px;color:#4a4a4a;margin-left:12px">Repair-to-Value Ratio: <strong>${kFmtPct(repairToValue)}</strong></span>` : ""}
+      ${isTotalLoss ? `<span style="font-size:11px;color:#a83232;margin-left:12px">Repair cost exceeds vehicle market value threshold.</span>` : ""}
+    </td>
+  </tr></table>
+</div>
 
-      <!-- Disclaimer -->
-      <div class="section">
-        <div class="section-title">Disclaimer</div>
-        <p class="small grey">This report is generated by the KINGA AI Intelligence Platform and is intended for use by authorised insurer personnel only. It does not constitute legal advice. All findings are subject to human review and final approval by a qualified claims professional. This report is classified CONFIDENTIAL and must not be shared with the insured party without explicit authorisation.</p>
-      </div>
-    `;
+<!-- ── §5 PHYSICS INDICATOR ── -->
+<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
+  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;5 &mdash; Physics Screening</div>
+  ${physicsIndicator(physicsAnomalyScore, String(claim.claim_reference ?? claim.id))}
+  <div style="font-size:10px;color:#8a8a8a;margin-top:8px">Full physics methodology, impact force analysis, and ΔV calculations are available in the Forensic Report (Prove Tier).</div>
+</div>
 
-    return buildBaseHtml(meta, body);
+<!-- ── §6 DECISION AUTHORITY ── -->
+<div style="padding:20px 28px;border-bottom:1px solid #e8e8e8">
+  <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#437D87;font-weight:700;margin-bottom:10px">&sect;6 &mdash; Decision Authority &amp; Next Steps</div>
+  <div style="border:1px solid #d9d9d9;background:#fafafa;border-radius:3px;padding:12px 16px;font-size:11px;color:#171717;line-height:1.6">${esc(daText)}</div>
+</div>
+
+<!-- ── DISCLAIMER ── -->
+<div style="padding:16px 28px;background:#fafafa;border-top:1px solid #e8e8e8">
+  <div style="font-size:9px;color:#8a8a8a;line-height:1.5">This report is generated by the KINGA Intelligence Platform and is intended for use by authorised insurer personnel only. It does not constitute legal advice. All findings are subject to human review and final approval by a qualified claims professional. CONFIDENTIAL — not for distribution to the insured party without explicit authorisation.</div>
+</div>`;
+
+    return buildKingaHtml(`KINGA Claims Assessment Report — ${claim.claim_reference ?? claim.id}`, body);
   } finally {
     await conn.end();
   }
