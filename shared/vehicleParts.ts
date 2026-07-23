@@ -142,7 +142,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "radiator",
     name: "Radiator Assembly",
-    aliases: ["coolant radiator", "engine radiator", "radiator assy", "radiator assembly", "cooling radiator", "rad assy"],
+    aliases: ["coolant radiator", "engine radiator", "radiator assy", "radiator assembly", "cooling radiator", "rad assy", "rad"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -157,7 +157,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "front_fender_l",
     name: "Front Fender (Left)",
-    aliases: ["left front wing", "LH front fender", "driver front fender", "front mudguard left", "lh fender", "lh wing", "left fender", "left wing", "driver fender", "driver wing", "lh front wing", "front wing lh", "fender lh", "wing lh", "l/h front fender", "l/h fender", "lh f/fender"],
+    aliases: ["left front wing", "LH front fender", "driver front fender", "front mudguard left", "lh fender", "lh wing", "left fender", "left wing", "driver fender", "driver wing", "lh front wing", "front wing lh", "fender lh", "wing lh", "l/h front fender", "l/h fender", "lh f/fender", "left front guard", "lh front guard", "front guard left", "l/h guard"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -170,7 +170,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "front_fender_r",
     name: "Front Fender (Right)",
-    aliases: ["right front wing", "RH front fender", "passenger front fender", "front mudguard right", "rh fender", "rh wing", "right fender", "right wing", "passenger fender", "passenger wing", "rh front wing", "front wing rh", "fender rh", "wing rh", "r/h front fender", "r/h fender", "rh f/fender"],
+    aliases: ["right front wing", "RH front fender", "passenger front fender", "front mudguard right", "rh fender", "rh wing", "right fender", "right wing", "passenger fender", "passenger wing", "rh front wing", "front wing rh", "fender rh", "wing rh", "r/h front fender", "r/h fender", "rh f/fender", "right front guard", "rh front guard", "front guard right", "r/h guard"],
     zone: "front",
     structural: false,
     costTier: "medium",
@@ -207,7 +207,7 @@ export const VEHICLE_PARTS: VehiclePart[] = [
   {
     id: "bull_bar",
     name: "Bull Bar / Nudge Bar",
-    aliases: ["bull bar", "nudge bar", "roo bar", "push bar", "front guard"],
+    aliases: ["bull bar", "nudge bar", "roo bar", "push bar"],
     zone: "front",
     structural: false,
     costTier: "medium",

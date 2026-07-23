@@ -1434,7 +1434,7 @@ export async function runCostOptimisationStage(
           ctx.log('Stage 9', `Phase 2 benchmark fallback: using ${damagedComponentNames.length} component name(s) from submitted quotes (stage-6 damagedParts was empty).`);
         }
       }
-      if (damagedComponentNames.length > 0) {
+            if (damagedComponentNames.length > 0) {
         // ── HYBRID BENCHMARK LAYER ────────────────────────────────────────────
         // Tier 1: ML quantile regression (engine, boot_lid, roof, dashboard,
         //         left_front_door, right_front_door)
@@ -1444,7 +1444,6 @@ export async function runCostOptimisationStage(
         const allQuotes = resolvedExtractedQuotes;
         const vehicleMake = claimRecord.vehicle?.make ?? null;
         const vehicleYear = claimRecord.vehicle?.year ?? null;
-
         // Build a flat line_items map for quote flag computation
         const allLineItemsFlat = allQuotes.flatMap((q: any) =>
           (q.line_items ?? []).map((li: any) => ({
@@ -1454,19 +1453,50 @@ export async function runCostOptimisationStage(
           }))
         );
 
+        // ── PRE-NORMALISE component names to canonical display names ──────────
+        // This is the single normalisation gate: every component name from every
+        // source (stage-6 damaged parts, quote line items) is resolved through
+        // resolveComponent() before any comparison or benchmark lookup.
+        // This ensures "LH Headlamp", "Left Head Light", "Headlight Assembly (Left)"
+        // all map to the same canonical key "Headlight Assembly (Left)" and are
+        // correctly matched against each other and against benchmarkMap in
+        // buildCompositeQuote. Deduplication by canonical ID prevents double-counting.
+        const seenCanonicalIds = new Set<string>();
+        const normalisedComponentNames: string[] = [];
+        for (const raw of damagedComponentNames) {
+          const resolved = resolveComponent(raw);
+          const canonicalName = resolved ? resolved.name : raw.trim();
+          const dedupeKey = resolved ? resolved.id : canonicalName.toLowerCase();
+          if (!seenCanonicalIds.has(dedupeKey)) {
+            seenCanonicalIds.add(dedupeKey);
+            normalisedComponentNames.push(canonicalName);
+          }
+        }
+        // Replace damagedComponentNames with the normalised, deduplicated list
+        damagedComponentNames = normalisedComponentNames;
+        if (normalisedComponentNames.length < damagedComponentNames.length + normalisedComponentNames.length - normalisedComponentNames.length) {
+          ctx.log('Stage 9', `Phase 2: normalised ${damagedComponentNames.length + normalisedComponentNames.length - normalisedComponentNames.length} raw names → ${normalisedComponentNames.length} canonical components (deduped)`);
+        }
+
         let mlHits = 0;
         let statHits = 0;
         let dbHits = 0;
 
         for (const compName of damagedComponentNames) {
-          // Resolve component name → canonical ID for ML/statistical lookup
+          // compName is now always a canonical display name (e.g. "Headlight Assembly (Left)")
+          // Resolve to VehiclePart for componentId lookup
           const resolved = resolveComponent(compName);
           const componentId = resolved?.id ?? null;
 
-          // Find the quoted amount for this component from line_items
+          // Find the quoted amount for this component from line_items.
+          // Match using canonical ID so "O/S/C Regas" matches "regas" etc.
           const matchedLineItem = allLineItemsFlat.find((li: any) => {
-            const liComp = (li.component ?? li.description ?? '').toLowerCase().trim();
-            const compLower = compName.toLowerCase().trim();
+            const liRaw = (li.component ?? li.description ?? '').trim();
+            const liResolved = resolveComponent(liRaw);
+            if (liResolved && resolved) return liResolved.id === resolved.id;
+            // Fallback: canonical name includes
+            const liComp = liRaw.toLowerCase();
+            const compLower = compName.toLowerCase();
             return liComp.includes(compLower) || compLower.includes(liComp.split(' ')[0]);
           });
           const quotedAmountUsd = matchedLineItem
@@ -1483,13 +1513,17 @@ export async function runCostOptimisationStage(
             });
 
             if (assessment.modelSource !== 'none') {
-              // Build per-quote flags using the ML/statistical band
+              // Build per-quote flags using the ML/statistical band.
+              // Use canonical ID matching so variant names across repairers are unified.
               const quoteFlags: Record<string, 'over' | 'fair' | 'under' | 'no_data'> = {};
               for (const q of allQuotes) {
                 const pbName = (q as any).panel_beater ?? `Quote ${allQuotes.indexOf(q) + 1}`;
                 const qLineItem = ((q as any).line_items ?? []).find((li: any) => {
-                  const liComp = (li.component ?? li.description ?? '').toLowerCase().trim();
-                  const compLower = compName.toLowerCase().trim();
+                  const liRaw = (li.component ?? li.description ?? '').trim();
+                  const liResolved = resolveComponent(liRaw);
+                  if (liResolved && resolved) return liResolved.id === resolved.id;
+                  const liComp = liRaw.toLowerCase();
+                  const compLower = compName.toLowerCase();
                   return liComp.includes(compLower) || compLower.includes(liComp.split(' ')[0]);
                 });
                 if (!qLineItem) {
@@ -1544,13 +1578,17 @@ export async function runCostOptimisationStage(
           }
           for (const b of dbBenchmarks) {
             const allQuotesInner = resolvedExtractedQuotes;
+            const bResolved = resolveComponent(b.component);
             const quoteFlags: Record<string, 'over' | 'fair' | 'under' | 'no_data'> = {};
             for (const q of allQuotesInner) {
               const pbName = (q as any).panel_beater ?? `Quote ${allQuotesInner.indexOf(q) + 1}`;
-              const lineItem = ((q as any).line_items ?? []).find((li: any) =>
-                (li.description ?? '').toLowerCase().includes(b.component.toLowerCase()) ||
-                b.component.toLowerCase().includes((li.description ?? '').toLowerCase().split(' ')[0])
-              );
+              const lineItem = ((q as any).line_items ?? []).find((li: any) => {
+                const liRaw = (li.description ?? li.component ?? '').trim();
+                const liResolved = resolveComponent(liRaw);
+                if (liResolved && bResolved) return liResolved.id === bResolved.id;
+                return liRaw.toLowerCase().includes(b.component.toLowerCase()) ||
+                  b.component.toLowerCase().includes(liRaw.toLowerCase().split(' ')[0]);
+              });
               if (!lineItem) {
                 quoteFlags[pbName] = 'no_data';
               } else {
@@ -1593,10 +1631,14 @@ export async function runCostOptimisationStage(
         for (const compName of damagedComponentNames) {
           const bm = perComponentBenchmarks[compName];
           if (!bm || bm.p25Usd == null || bm.medianUsd == null || bm.p75Usd == null) continue;
-          // Find matching line item in the submitted quote(s)
+          // Find matching line item in the submitted quote(s) using canonical ID
+          const compResolved = resolveComponent(compName);
           const matchedLI = allLineItemsFlat.find((li: any) => {
-            const liComp = (li.component ?? li.description ?? '').toLowerCase().trim();
-            const compLower = compName.toLowerCase().trim();
+            const liRaw = (li.component ?? li.description ?? '').trim();
+            const liResolved = resolveComponent(liRaw);
+            if (liResolved && compResolved) return liResolved.id === compResolved.id;
+            const liComp = liRaw.toLowerCase();
+            const compLower = compName.toLowerCase();
             return liComp.includes(compLower) || compLower.includes(liComp.split(' ')[0]);
           });
           if (!matchedLI) continue;
