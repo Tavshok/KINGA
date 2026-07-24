@@ -89,6 +89,29 @@ export async function generateForensicDecisionReport(
     const ptlGeometry     = pt?.geometry ?? null;
     const ptlEnergy       = pt?.energy ?? null;
     const ptlEvidence     = pt?.evidenceCompleteness ?? null;
+    // Wave 3 — Integrity, Uncertainty, Explainability engines
+    const w3             = pt?.wave3 ?? null;
+    const w3Integrity    = w3?.integrity ?? null;
+    const w3Uncertainty  = w3?.uncertainty ?? null;
+    const w3Explain      = w3?.explainability ?? null;
+    const w3Grade: string        = w3Uncertainty?.overallGrade ?? '';
+    const w3UncertSummary: string = w3Uncertainty?.summary ?? '';
+    const w3KeyFindings: string[] = w3Explain?.keyFindings ?? [];
+    const w3VerdictPara: string   = w3Explain?.verdictParagraph ?? '';
+    const w3AdjusterSummary: string = w3Explain?.adjusterSummary ?? '';
+    const w3IntegrityScore: number  = w3Integrity?.integrityScore ?? 0;
+    const w3IntegrityFlags: any[]   = w3Integrity?.flags ?? [];
+    const w3CriticalCount: number   = w3Integrity?.criticalCount ?? 0;
+    const w3WarningCount: number    = w3Integrity?.warningCount ?? 0;
+    const w3IntegrityClean: boolean = w3Integrity?.clean ?? false;
+    const w3CampbellSpeed: any      = w3Uncertainty?.campbellSpeed ?? null;
+    const w3KineticEnergy: any      = w3Uncertainty?.kineticEnergy ?? null;
+    const w3DeltaV: any             = w3Uncertainty?.deltaV ?? null;
+    const w3DeformEff: any          = w3Uncertainty?.deformationEfficiency ?? null;
+    const w3SpeedChain: any         = w3Explain?.speedChain ?? null;
+    const w3CrushChain: any         = w3Explain?.crushDepthChain ?? null;
+    const w3StructChain: any        = w3Explain?.structuralChain ?? null;
+    const w3Methods: any[]          = w3Explain?.methodologyCitations ?? [];
     // SLPE — Structural Load Path Engine results (Wave 2)
     const ptlSLPE         = pt?.structuralLoadPath ?? null;
     const slpePenetrated: any[]  = ptlSLPE?.penetratedComponents ?? [];
@@ -639,13 +662,14 @@ export async function generateForensicDecisionReport(
       <div class="box">
         <h4>Physics Snapshot</h4>
         <table class="kv">
-          ${kvRow("Reconstructed speed", `~${preImpactSpeed > 0 ? preImpactSpeed : deltaV} km/h (claimed)`)}
-          ${kvRow("Physics consensus speed", `${consensusSpeed} km/h`)}
-          ${impactForce > 0 ? kvRow("Impact force", `${impactForce.toLocaleString()} kN`) : ""}
-          ${deceleration > 0 ? kvRow("Deceleration", `${deceleration.toFixed(2)} g`) : ""}
-          ${kineticEnergy > 0 ? kvRow("Kinetic energy", `${kineticEnergy.toFixed(1)} kJ`) : ""}
+          ${w3CampbellSpeed ? kvRow("Campbell speed (calibrated)", `${w3CampbellSpeed.formatted}`) : kvRow("Physics consensus speed", `${consensusSpeed} km/h`)}
+          ${w3KineticEnergy ? kvRow("Kinetic energy", w3KineticEnergy.formatted) : kineticEnergy > 0 ? kvRow("Kinetic energy", `${kineticEnergy.toFixed(1)} kJ`) : ""}
+          ${w3DeltaV ? kvRow("Delta-V", w3DeltaV.formatted) : impactForce > 0 ? kvRow("Impact force", `${impactForce.toLocaleString()} kN`) : ""}
+          ${w3DeformEff ? kvRow("Deformation efficiency", w3DeformEff.formatted) : deceleration > 0 ? kvRow("Deceleration", `${deceleration.toFixed(2)} g`) : ""}
+          ${w3Grade ? kvRow("Evidence quality", `<b>Grade ${w3Grade}</b> — ${w3Grade === 'A' ? 'tight' : w3Grade === 'B' ? 'moderate' : w3Grade === 'C' ? 'wide' : 'very wide'} uncertainty`) : ""}
         </table>
-        ${speedDiscrepancy > 20 ? co(`Driver-stated speed is <b>${speedDiscrepancy}% higher</b> than the physics-derived estimate — verify before settlement.`, "amber") : ""}
+        ${w3VerdictPara ? `<p style="margin:8px 0 0 0;font-size:7.5pt;color:var(--ink-soft);line-height:1.5;">${esc(w3VerdictPara)}</p>` : speedDiscrepancy > 20 ? co(`Driver-stated speed is <b>${speedDiscrepancy}% higher</b> than the physics-derived estimate — verify before settlement.`, "amber") : ""}
+        ${w3CriticalCount > 0 ? co(`<b>${w3CriticalCount} critical physics contradiction${w3CriticalCount !== 1 ? 's' : ''} detected</b> — review integrity flags before settlement.`, "red") : w3WarningCount > 0 ? co(`${w3WarningCount} physics warning${w3WarningCount !== 1 ? 's' : ''} noted — see §04 integrity flags.`, "amber") : w3IntegrityClean ? co("All physics integrity checks passed.", "green") : ""}
       </div>
     </div>
   </div>
@@ -994,6 +1018,46 @@ export async function generateForensicDecisionReport(
       </div>
     </div>`}
   </div>
+
+  ${w3 ? `
+  <!-- §W3 PHYSICS EVIDENCE CHAIN -->
+  <div class="section">
+    ${sectionTab("W3", "Physics Evidence Chain & Methodology", w3Grade ? `Grade ${w3Grade}` : undefined, w3Grade === 'A' || w3Grade === 'B' ? 'ok' : w3Grade === 'C' ? 'mid' : 'high')}
+    <div class="cols-2">
+      <!-- Left: Key findings + uncertainty summary -->
+      <div>
+        <h4 style="margin:0 0 6pt 0;">Key Physics Findings</h4>
+        <ul class="tight">
+          ${w3KeyFindings.map((f: string) => `<li>${esc(f)}</li>`).join('')}
+        </ul>
+        ${w3UncertSummary ? `<div class="callout" style="margin-top:8pt;border-left:3px solid var(--teal);padding:6pt 8pt;"><b>Uncertainty grade ${w3Grade}:</b> ${esc(w3UncertSummary)}</div>` : ''}
+        ${w3Uncertainty?.keyDrivers?.length > 0 ? `<div style="margin-top:6pt;"><span class="small" style="font-weight:600;">Uncertainty drivers:</span><ul class="tight">${(w3Uncertainty.keyDrivers as string[]).map((d: string) => `<li class="small">${esc(d)}</li>`).join('')}</ul></div>` : ''}
+      </div>
+      <!-- Right: Integrity flags -->
+      <div>
+        <h4 style="margin:0 0 6pt 0;">Physics Integrity — Score ${w3IntegrityScore}/100</h4>
+        ${w3IntegrityClean
+          ? `<div class="callout" style="border-left:3px solid var(--green);padding:6pt 8pt;">All ${w3Integrity?.totalChecks ?? 0} integrity checks passed. No contradictions detected.</div>`
+          : w3IntegrityFlags.slice(0, 8).map((f: any) => `<div style="display:flex;gap:6pt;align-items:flex-start;margin-bottom:4pt;">
+              <span class="pill ${f.severity === 'critical' ? 'red' : f.severity === 'warning' ? 'amber' : 'green'}" style="flex-shrink:0;font-size:6.5pt;">${f.severity?.toUpperCase() ?? 'INFO'}</span>
+              <span class="small">[${esc(f.code ?? '')}] ${esc(f.description ?? '')}</span>
+            </div>`).join('')
+        }
+      </div>
+    </div>
+    ${w3Methods.length > 0 ? `
+    <div style="margin-top:10pt;">
+      <h4 style="margin:0 0 6pt 0;">Methodology Citations</h4>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6pt;">
+        ${w3Methods.slice(0, 4).map((m: any) => `<div class="box" style="padding:6pt 8pt;">
+          <div style="font-weight:600;font-size:7.5pt;color:var(--ink);">${esc(m.fullName ?? m.method ?? '')}</div>
+          <div class="small" style="color:var(--ink-soft);margin-top:3pt;">${esc(m.description ?? '')}</div>
+          <div class="caption" style="margin-top:4pt;color:var(--mid);">Ref: ${esc(m.reference ?? '')}</div>
+          <div class="caption" style="color:var(--amber-dark);">${esc(m.limitations ?? '')}</div>
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+  </div>` : ''}
 
   <div class="footer-strip sans">
     <div><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:14px;vertical-align:middle;margin-right:5px;display:inline-block">KINGA · Confidential Forensic Audit Report</div>

@@ -172,6 +172,9 @@ import {
 } from "../db-pipeline";
 import { runTruthReconciliationEngine, type ClaimTruthObject } from "./truthReconciliationEngine";
 import { buildPhysicsTruth, type PhysicsTruth } from "./physicsTruth";
+import { runIntegrityEngine, type IntegrityEngineResult } from "./stage-integrity";
+import { runUncertaintyPropagation, type UncertaintyPropagationResult } from "./stage-uncertainty";
+import { runExplainabilityEngine, type ExplainabilityResult } from "./stage-explainability";
 
 
 /**
@@ -2824,7 +2827,19 @@ export async function runPipelineV2(
       impactZone: (stage7Data?.impactVector as any)?.zone ?? (stage6Data?.damagedParts?.[0] as any)?.zone ?? null,
       slpeResult: ctx.slpeResult ?? null,
     });
-    ctx.log("PTL", `Physics Truth Layer built: crushDepth=${physicsTruth.geometry.crushDepth.canonical?.value?.toFixed(3) ?? 'N/A'}m, speed=${physicsTruth.speed.canonical?.value?.toFixed(1) ?? 'N/A'}km/h, DQS=${physicsTruth.evidenceCompleteness.dataQualityScore}`);
+      ctx.log("PTL", `Physics Truth Layer built: crushDepth=${physicsTruth.geometry.crushDepth.canonical?.value?.toFixed(3) ?? 'N/A'}m, speed=${physicsTruth.speed.canonical?.value?.toFixed(1) ?? 'N/A'}km/h, DQS=${physicsTruth.evidenceCompleteness.dataQualityScore}`);
+
+    // Wave 3 — Integrity, Uncertainty, Explainability
+    try {
+      const integrityResult = runIntegrityEngine(physicsTruth);
+      const uncertaintyResult = runUncertaintyPropagation(physicsTruth);
+      const explainabilityResult = runExplainabilityEngine(physicsTruth, integrityResult, uncertaintyResult);
+      // Attach Wave 3 results to physicsTruth for persistence
+      (physicsTruth as any).wave3 = { integrity: integrityResult, uncertainty: uncertaintyResult, explainability: explainabilityResult };
+      ctx.log("PTL", `Wave 3 engines complete: integrity=${integrityResult.integrityScore}/100, uncertaintyGrade=${uncertaintyResult.overallGrade}, findings=${explainabilityResult.keyFindings.length}`);
+    } catch (w3Err) {
+      ctx.log("PTL", `Wave 3 engine error (non-fatal): ${w3Err instanceof Error ? w3Err.message : String(w3Err)}`);
+    }
   } catch (ptlErr) {
     ctx.log("PTL", `Physics Truth Layer build error (non-fatal): ${ptlErr instanceof Error ? ptlErr.message : String(ptlErr)}`);
   }

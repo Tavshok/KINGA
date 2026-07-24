@@ -1006,3 +1006,27 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] forensicDecisionReport.ts — §05 Vehicle Structural Intelligence replaced with full SLPE structural cascade table (component/zone/penetration mm/energy kJ/failure mode/inspect flag), hidden damage probability bars (engine/transmission/suspension/frame/electrical), vehicle profile; degrades gracefully to legacy view for pre-Wave-2 claims
 - [x] TypeScript: 0 errors across all modified files
 - [x] Wave 1 regression test: 111/111 tests pass
+
+---
+
+## Wave 3 — Physics Integrity, Uncertainty Propagation & Explainability (Jul 2026)
+
+- [ ] Physics Integrity Engine (server/pipeline-v2/stage-integrity.ts): cross-measurement contradiction detection, severity classification (CRITICAL/WARNING/INFO), adjuster flags
+- [ ] Uncertainty Propagation Engine (server/pipeline-v2/stage-uncertainty.ts): analytical propagation from crush depth → speed → energy with 90% CI at every output
+- [ ] Explainability Engine (server/pipeline-v2/stage-explainability.ts): per-finding evidence chains, methodology citations, confidence rationale, human-readable verdict paragraphs
+- [ ] Wire all three engines into orchestrator and PhysicsTruth
+- [ ] Render Wave 3 outputs in Forensic report: integrity flags panel, uncertainty bands on key metrics, evidence chain section
+- [ ] TypeScript check, full test suite, checkpoint
+
+---
+
+## Wave 3 — Physics Integrity, Uncertainty Propagation, Explainability (Completed July 2026)
+
+- [x] Physics Integrity Engine (stage-integrity.ts): 12 contradiction checks, severity classification (critical/warning/info), integrity score 0-100, clean flag
+- [x] Uncertainty Propagation Engine (stage-uncertainty.ts): analytical propagation from crush depth → Campbell speed → kinetic energy → delta-V, 90% CI at every output, A/B/C/D grade, key drivers
+- [x] Explainability Engine (stage-explainability.ts): per-finding evidence chains (crush, speed, energy, structural), methodology citations (Campbell, CRASH3, NHTSA, IIHS), verdict paragraph, adjuster summary, key findings list
+- [x] All three engines wired into orchestrator after PTL build — attached as pt.wave3 (non-fatal, graceful degradation)
+- [x] Wave 3 accessors added to forensic report variable block (w3Integrity, w3Uncertainty, w3Explain, w3Grade, w3IntegrityScore, etc.)
+- [x] §01 Physics Snapshot enhanced: calibrated Campbell speed with CI, uncertainty grade badge, verdict paragraph, integrity alert (critical/warning/clean)
+- [x] §W3 Physics Evidence Chain section added to page 2: key findings list, integrity flags with severity badges, uncertainty grade + drivers, methodology citations grid (4 methods)
+- [x] 111/111 tests pass, 0 TypeScript/esbuild errors
