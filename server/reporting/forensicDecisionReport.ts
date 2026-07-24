@@ -89,6 +89,13 @@ export async function generateForensicDecisionReport(
     const ptlGeometry     = pt?.geometry ?? null;
     const ptlEnergy       = pt?.energy ?? null;
     const ptlEvidence     = pt?.evidenceCompleteness ?? null;
+    // SLPE — Structural Load Path Engine results (Wave 2)
+    const ptlSLPE         = pt?.structuralLoadPath ?? null;
+    const slpePenetrated: any[]  = ptlSLPE?.penetratedComponents ?? [];
+    const slpeLatent: any        = ptlSLPE?.latentDamageProbability ?? null;
+    const slpeIntegrityRisk: string = ptlSLPE?.structuralIntegrityRisk ?? '';
+    const slpeConfidence: number = ptlSLPE?.confidence ?? 0;
+    const slpeWarnings: string[] = ptlSLPE?.warnings ?? [];
     const narrative    = safeJson(c.narrative_analysis_json);
     const forensicAudit = safeJson(c.forensic_audit_validation_json);
     const claimQuality  = safeJson(c.claim_quality_json);
@@ -903,7 +910,73 @@ export async function generateForensicDecisionReport(
 
   <!-- §05 VEHICLE STRUCTURAL INTELLIGENCE -->
   <div class="section">
-    ${sectionTab("05", "Vehicle Structural Intelligence")}
+    ${sectionTab("05", "Vehicle Structural Intelligence", slpeIntegrityRisk ? slpeIntegrityRisk.toUpperCase() : undefined, slpeIntegrityRisk === 'severe' || slpeIntegrityRisk === 'high' ? 'high' : slpeIntegrityRisk === 'moderate' ? 'mid' : 'ok')}
+
+    ${slpePenetrated.length > 0 ? `
+    <!-- SLPE Structural Cascade -->
+    <div style="margin-bottom:10pt;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6pt;">
+        <span class="small" style="font-weight:600;color:var(--ink);">Load Path Cascade — ${slpePenetrated.length} component${slpePenetrated.length !== 1 ? 's' : ''} penetrated</span>
+        <span class="small" style="color:var(--mid);">Calibration confidence: ${(slpeConfidence * 100).toFixed(0)}%</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:7.5pt;">
+        <thead>
+          <tr style="background:var(--green);color:#fff;">
+            <th style="padding:4pt 6pt;text-align:left;">Component</th>
+            <th style="padding:4pt 6pt;text-align:left;">Zone</th>
+            <th style="padding:4pt 6pt;text-align:right;">Penetration</th>
+            <th style="padding:4pt 6pt;text-align:right;">Energy Absorbed</th>
+            <th style="padding:4pt 6pt;text-align:left;">Failure Mode</th>
+            <th style="padding:4pt 6pt;text-align:center;">Inspect</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${slpePenetrated.map((c: any, i: number) => `
+          <tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fa'};border-bottom:1px solid #e5e7eb;">
+            <td style="padding:3pt 6pt;font-weight:600;">${esc(String(c.name ?? ''))}</td>
+            <td style="padding:3pt 6pt;color:var(--mid);">${esc(String(c.zone ?? ''))}</td>
+            <td style="padding:3pt 6pt;text-align:right;">${c.penetrationDepthM != null ? (c.penetrationDepthM * 1000).toFixed(0) + ' mm' : '—'}</td>
+            <td style="padding:3pt 6pt;text-align:right;">${c.energyAbsorbedJ != null ? (c.energyAbsorbedJ / 1000).toFixed(1) + ' kJ' : '—'}</td>
+            <td style="padding:3pt 6pt;font-size:7pt;color:var(--mid);">${esc(String(c.failureMode ?? ''))}</td>
+            <td style="padding:3pt 6pt;text-align:center;">${c.inspectionRequired ? '<span style="color:#dc2626;font-weight:700;">&#9679;</span>' : '<span style="color:#22c55e;">&#9675;</span>'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Latent Damage Probability + Vehicle Profile -->
+    <div class="cols-2" style="margin-top:8pt;">
+      ${slpeLatent ? `
+      <div class="box">
+        <h4>Hidden Damage Probability</h4>
+        ${(['engine','transmission','suspension','frame','electrical'] as const).map((sys: string) => {
+          const pct: number = (slpeLatent as any)[sys] ?? 0;
+          const colour = pct >= 70 ? '#dc2626' : pct >= 40 ? '#d97706' : '#22c55e';
+          return `<div style="margin-bottom:5pt;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:2pt;">
+              <span class="small" style="text-transform:capitalize;font-weight:600;">${sys}</span>
+              <span class="small" style="color:${colour};font-weight:700;">${pct}%</span>
+            </div>
+            <div style="background:#e5e7eb;border-radius:3pt;height:6pt;"><div style="background:${colour};width:${Math.min(pct,100)}%;height:6pt;border-radius:3pt;"></div></div>
+          </div>`;
+        }).join('')}
+        ${slpeLatent.overallRiskLevel ? `<div style="margin-top:6pt;padding:4pt 6pt;background:${slpeLatent.overallRiskLevel === 'CRITICAL' ? '#fee2e2' : slpeLatent.overallRiskLevel === 'HIGH' ? '#fef3c7' : '#f0fdf4'};border-radius:3pt;"><span class="small" style="font-weight:700;color:${slpeLatent.overallRiskLevel === 'CRITICAL' ? '#dc2626' : slpeLatent.overallRiskLevel === 'HIGH' ? '#d97706' : '#16a34a'};">Overall risk: ${slpeLatent.overallRiskLevel}</span></div>` : ''}
+      </div>` : '<div class="box"><h4>Hidden Damage Probability</h4><p class="small" style="color:var(--mid);">Insufficient calibration data for SLPE analysis.</p></div>'}
+
+      <div class="box">
+        <h4>${vehicleDesc} — ${vehicleClass}</h4>
+        <table class="kv">
+          ${ancapRating !== "—" ? kvRow("ANCAP rating", ancapRating) : ""}
+          ${adultOccupant !== "—" ? kvRow("Adult / Child occupant", `${adultOccupant}% / ${childOccupant}%`) : ""}
+          ${crash3A !== "—" ? kvRow("CRASH3 stiffness A/B", `${crash3A} / ${crash3B} kN/m`) : ""}
+          ${massRange !== "—" ? kvRow("Typical mass range", `${massRange} kg`) : ""}
+          ${kvRow("Safety risk", p(safetyRisk, safetyRisk.toLowerCase() === "low" ? "green" : safetyRisk.toLowerCase() === "medium" ? "amber" : "red"))}
+          ${slpeWarnings.length > 0 ? kvRow("SLPE warnings", slpeWarnings.join('; ')) : ""}
+        </table>
+        ${vehicleNotes !== '—' ? `<p style="margin:6pt 0 0;" class="small">${esc(vehicleNotes)}</p>` : ''}
+      </div>
+    </div>` : `
+    <!-- No SLPE data — show legacy vehicle profile only -->
     <div class="cols-2">
       <div class="box">
         <h4>${vehicleDesc} — ${vehicleClass}</h4>
@@ -919,7 +992,7 @@ export async function generateForensicDecisionReport(
         <h4>Notes</h4>
         <p style="margin:0;" class="small">${esc(vehicleNotes)}</p>
       </div>
-    </div>
+    </div>`}
   </div>
 
   <div class="footer-strip sans">

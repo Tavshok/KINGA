@@ -13,6 +13,8 @@
  * Based on established accident reconstruction principles and crash test data
  */
 
+import { runSLPE, type ImpactZone, type BodyType } from "./pipeline-v2/stage-6-5c-slpe";
+
 // ============================================================================
 // TYPES & INTERFACES
 // ============================================================================
@@ -262,13 +264,22 @@ export async function analyzeAccidentPhysics(
     speedEstimate.value
   );
   
-  // 8. Predict latent damage probability
-  const latentDamageProbability = predictLatentDamage(
-    accident.accidentType,
-    speedEstimate.value,
-    damage,
-    vehicle
-  );
+  // 8. Predict latent damage probability using Structural Load Path Engine
+  const slpeZone = mapAccidentTypeToImpactZone(accident.accidentType, accident.impactPoint);
+  const slpeBodyType = mapVehicleTypeToBodyType(vehicle.vehicleType);
+  const slpeResult = runSLPE({
+    crushDepthM: damage.maxCrushDepth,
+    crushDepthConfidence: 0.55, // accidentPhysics has no VGE calibration — moderate confidence
+    impactZone: slpeZone,
+    overlapPct: 100, // default full overlap when not specified
+    bodyType: slpeBodyType,
+    massKg: vehicle.mass,
+    deltaVKmh: 0, // will be computed in step 5 — use 0 here, SLPE falls back to crush depth
+    vehicleAgeYears: new Date().getFullYear() - vehicle.year,
+    isBodyOnFrame: slpeBodyType === "ute" || slpeBodyType === "4wd",
+    usedDbProfile: false,
+  });
+  const latentDamageProbability = slpeResult.latentDamageProbability;
   
   // 9. Detect fraud indicators
   const fraudIndicators = detectPhysicsBasedFraud(
@@ -855,84 +866,64 @@ function isDamageGeometricallyPlausible(
 }
 
 // ============================================================================
-// LATENT DAMAGE PREDICTION
+// LATENT DAMAGE PREDICTION — SLPE MAPPING HELPERS
+// (predictLatentDamage replaced by runSLPE in analyzeAccidentPhysics)
 // ============================================================================
 
 /**
- * Predict probability of latent (hidden) damage
- * 
- * Based on:
- * - Accident type
- * - Impact speed
- * - Visible damage severity
- * - Vehicle construction
+ * Map AccidentType + ImpactPoint to SLPE ImpactZone.
+ * Used when calling runSLPE from analyzeAccidentPhysics.
  */
-function predictLatentDamage(
-  accidentType: AccidentType,
-  speed: number,
-  damage: DamageAssessment,
-  vehicle: VehicleData
-): {
-  engine: number;
-  transmission: number;
-  suspension: number;
-  frame: number;
-  electrical: number;
-} {
-  
-  const baseProbability = Math.min(speed / 100, 0.8); // Higher speed = higher probability
-  
-  let engineProb = baseProbability * 0.3;
-  let transmissionProb = baseProbability * 0.2;
-  let suspensionProb = baseProbability * 0.5;
-  let frameProb = baseProbability * 0.4;
-  let electricalProb = baseProbability * 0.3;
-  
-  // Rollover-specific adjustments
-  if (accidentType === "rollover") {
-    engineProb += 0.4; // High risk of engine damage (oil starvation, hydrostatic lock)
-    transmissionProb += 0.3;
-    frameProb += 0.5; // Very high risk of frame damage
-    electricalProb += 0.4; // Wiring damage common
-    suspensionProb += 0.3;
-  }
-  
-  // Frontal impact adjustments
+function mapAccidentTypeToImpactZone(accidentType: AccidentType, impactPoint?: ImpactPoint): ImpactZone {
+  if (accidentType === "rollover") return "rollover";
   if (accidentType === "frontal") {
-    engineProb += 0.3;
-    transmissionProb += 0.2;
-    suspensionProb += 0.4;
+    if (impactPoint === "front_left" || impactPoint === "front_right") return "front_offset";
+    return "front_full";
   }
-  
-  // Side impact adjustments
-  if (accidentType.startsWith("side")) {
-    frameProb += 0.4; // Side impacts often damage frame
-    suspensionProb += 0.3;
-    electricalProb += 0.2;
+  if (accidentType === "rear") {
+    if (impactPoint === "rear_left" || impactPoint === "rear_right") return "rear_offset";
+    return "rear_full";
   }
-  
-  // Structural damage indicator
-  if (damage.structuralDamage) {
-    frameProb += 0.3;
-    suspensionProb += 0.2;
-  }
-  
-  // High-speed impact
-  if (speed > 80) {
-    engineProb += 0.2;
-    transmissionProb += 0.2;
-    frameProb += 0.3;
-  }
-  
-  // Cap probabilities at 100%
-  return {
-    engine: Math.min(Math.round(engineProb * 100), 100),
-    transmission: Math.min(Math.round(transmissionProb * 100), 100),
-    suspension: Math.min(Math.round(suspensionProb * 100), 100),
-    frame: Math.min(Math.round(frameProb * 100), 100),
-    electrical: Math.min(Math.round(electricalProb * 100), 100),
-  };
+  if (accidentType === "side_driver" || impactPoint?.startsWith("side_left")) return "side_front";
+  if (accidentType === "side_passenger" || impactPoint?.startsWith("side_right")) return "side_front";
+  return "unknown";
 }
+
+/**
+ * Map VehicleData.vehicleType to SLPE BodyType.
+ */
+function mapVehicleTypeToBodyType(vehicleType: VehicleData["vehicleType"]): BodyType {
+  switch (vehicleType) {
+    case "suv":     return "suv";
+    case "truck":   return "ute";
+    case "van":     return "van";
+    case "sports":  return "coupe";
+    case "compact": return "hatchback";
+    case "sedan":   return "sedan";
+    default:        return "unknown";
+  }
+}
+
+// Legacy stub — kept for reference; actual call is in analyzeAccidentPhysics via runSLPE
+function _predictLatentDamageLegacyStub(
+  _accidentType: AccidentType,
+  _speed: number,
+  _damage: DamageAssessment,
+  _vehicle: VehicleData
+): { engine: number; transmission: number; suspension: number; frame: number; electrical: number; } {
+  // This function is no longer called. runSLPE() in analyzeAccidentPhysics() replaces it.
+  // Kept to avoid breaking any external callers that may reference it by name.
+  return { engine: 0, transmission: 0, suspension: 0, frame: 0, electrical: 0 };
+}
+
+// Alias for any legacy external callers
+const predictLatentDamage = _predictLatentDamageLegacyStub;
+
+// Suppress unused variable warning
+void predictLatentDamage;
+
+// ── Legacy return block (replaced by SLPE above) ──────────────────────────────
+// Removed — no longer needed. runSLPE() produces all latent damage probabilities.
 
 // ============================================================================
 // FRAUD DETECTION

@@ -1742,6 +1742,12 @@ export interface PipelineContext {
    */
   vgeReconciliationResult?: import('./stage-6-5b-vgr').VGRConsensusResult | null;
   /**
+   * Stage 6.5C — Structural Load Path Engine result.
+   * Provides per-component penetration depth, energy absorption, and
+   * geometry-driven latent damage probabilities.
+   */
+  slpeResult?: import('./stage-6-5c-slpe').SLPEResult | null;
+  /**
    * Enriched photo metadata JSON — set by Stage 6 (damage analysis).
    * Injected into the pipeline result by db.ts for the forensic validator.
    */

@@ -379,8 +379,9 @@ describe("forensicDecisionReport.ts — HTML structure", () => {
     expect(fdrSource).toMatch(/§3|Cost Intelligence|Quote.*Comparison/i);
   });
 
-  it("includes Chart.js for quote bar chart or fraud radar", () => {
-    expect(fdrSource).toMatch(/Chart\.js|chart\.js|new Chart|chartjs/i);
+  it("includes SVG speed bar chart or Chart.js visualisation", () => {
+    // The forensic report uses pure SVG for speed charts (no CDN dependency, no render timing issues)
+    expect(fdrSource).toMatch(/Chart\.js|chart\.js|new Chart|chartjs|<svg|viewBox/i);
   });
 
   it("includes §4 Photo Forensics section", () => {

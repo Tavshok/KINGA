@@ -338,6 +338,9 @@ export interface PhysicsTruth {
   // ── Latent damage ────────────────────────────────────────────────────────
   latentDamage: LatentDamageEvidence | null;
 
+  /** Wave 2 — Structural Load Path Engine full result */
+  structuralLoadPath: import('./stage-6-5c-slpe').SLPEResult | null;
+
   // ── Physics integrity ────────────────────────────────────────────────────
   integrityCheck: PhysicsIntegrityCheck;
 
@@ -388,6 +391,7 @@ export function buildPhysicsTruth(input: {
   seatbeltPretensioner: boolean;
   impactDirection: string | null;
   impactZone: string | null;
+  slpeResult?: import('./stage-6-5c-slpe').SLPEResult | null;
 }): PhysicsTruth {
   const now = new Date().toISOString();
 
@@ -663,7 +667,23 @@ export function buildPhysicsTruth(input: {
       deltaVKmh: deltaV,
     },
 
-    latentDamage: null, // populated by Wave 2 Structural Load Path Engine
+    latentDamage: input.slpeResult ? {
+      systems: [
+        { system: 'Engine',       probabilityPct: input.slpeResult.latentDamageProbability.engine,       confidence: input.slpeResult.confidence, reasoning: 'SLPE load path cascade', loadPathBasis: 'Front load path', energyBasis: 'Crush depth energy model', evidenceBasis: [] },
+        { system: 'Transmission', probabilityPct: input.slpeResult.latentDamageProbability.transmission, confidence: input.slpeResult.confidence, reasoning: 'SLPE load path cascade', loadPathBasis: 'Drivetrain path',   energyBasis: 'Crush depth energy model', evidenceBasis: [] },
+        { system: 'Suspension',   probabilityPct: input.slpeResult.latentDamageProbability.suspension,   confidence: input.slpeResult.confidence, reasoning: 'SLPE load path cascade', loadPathBasis: 'Subframe path',    energyBasis: 'Crush depth energy model', evidenceBasis: [] },
+        { system: 'Frame',        probabilityPct: input.slpeResult.latentDamageProbability.frame,        confidence: input.slpeResult.confidence, reasoning: 'SLPE load path cascade', loadPathBasis: 'Chassis rail',     energyBasis: 'Crush depth energy model', evidenceBasis: [] },
+        { system: 'Electrical',   probabilityPct: input.slpeResult.latentDamageProbability.electrical,   confidence: input.slpeResult.confidence, reasoning: 'SLPE load path cascade', loadPathBasis: 'Wiring harness',   energyBasis: 'Crush depth energy model', evidenceBasis: [] },
+      ],
+      overallRiskLevel: input.slpeResult.structuralIntegrityRisk === 'severe' ? 'CRITICAL'
+        : input.slpeResult.structuralIntegrityRisk === 'high' ? 'HIGH'
+        : input.slpeResult.structuralIntegrityRisk === 'moderate' ? 'MODERATE' : 'LOW',
+      recommendedInspections: input.slpeResult.penetratedComponents
+        .filter((c: any) => c.inspectionRequired)
+        .map((c: any) => `Inspect ${c.name} (${c.zone})`),
+    } : null,
+
+    structuralLoadPath: input.slpeResult ?? null,
 
     integrityCheck: {
       passed: integrityFlags.filter(f => f.severity === 'CRITICAL').length === 0,

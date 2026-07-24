@@ -1404,6 +1404,66 @@ export async function runPipelineV2(
     ctx.vgeReconciliationResult = null;
   }
 
+  // ── STAGE 6.5C: STRUCTURAL LOAD PATH ENGINE ─────────────────────────────
+  // Trace the deformation front through the vehicle's structural load path.
+  // Uses calibrated crush depth from VGR (if available) or VGE single-best,
+  // falling back to Stage 6 LLM estimate. Produces per-component penetration
+  // depths, energy absorption, and geometry-driven latent damage probabilities.
+  try {
+    const { runSLPE } = await import('./stage-6-5c-slpe');
+    // Resolve best available crush depth
+    const vgrCrush = ctx.vgeReconciliationResult?.consensusCrushDepthM;
+    const vgeCrush = ctx.vgeCalibrationResult?.calibratedCrushDepthM;
+    const llmCrush = (stage6Data as any)?.maxCrushDepthM ?? null;
+    const crushDepthM = vgrCrush ?? vgeCrush ?? llmCrush ?? 0;
+    const crushConfidence = vgrCrush != null ? (ctx.vgeReconciliationResult?.overallConfidence ?? 0.7)
+      : vgeCrush != null ? (ctx.vgeCalibrationResult?.overallCalibrationConfidence ?? 0.55)
+      : llmCrush != null ? 0.40 : 0.20;
+    // Resolve impact zone from Stage 6 damage analysis
+    const rawZone = (stage6Data?.damagedParts?.[0] as any)?.zone
+      ?? (stage6Data as any)?.impactZone
+      ?? claimRecord?.accidentDetails?.collisionDirection
+      ?? 'unknown';
+    const zoneMap: Record<string, import('./stage-6-5c-slpe').ImpactZone> = {
+      frontal: 'front_full', front: 'front_full', front_full: 'front_full',
+      front_offset: 'front_offset', front_narrow: 'front_narrow',
+      rear: 'rear_full', rear_full: 'rear_full', rear_offset: 'rear_offset',
+      side_driver: 'side_front', side_passenger: 'side_front',
+      side: 'side_front', side_front: 'side_front', side_rear: 'side_rear',
+      rollover: 'rollover',
+    };
+    const impactZone = zoneMap[String(rawZone).toLowerCase()] ?? 'unknown';
+    const veh = claimRecord?.vehicle;
+    const bodyTypeMap: Record<string, import('./stage-6-5c-slpe').BodyType> = {
+      sedan: 'sedan', hatchback: 'hatchback', suv: 'suv', pickup: 'ute',
+      truck: 'ute', van: 'van', sports: 'coupe', compact: 'hatchback',
+      wagon: 'wagon', coupe: 'coupe', convertible: 'convertible',
+    };
+    const bodyType = bodyTypeMap[(veh?.bodyType ?? '').toLowerCase()] ?? 'unknown';
+    const vehicleYear = veh?.year ?? new Date().getFullYear() - 5;
+    const slpeResult = runSLPE({
+      crushDepthM,
+      crushDepthConfidence: crushConfidence,
+      impactZone,
+      overlapPct: (ctx.vgeCalibrationResult as any)?.overlapPct ?? 100,
+      bodyType,
+      massKg: veh?.massKg ?? undefined,
+      deltaVKmh: 0, // Stage 7 not yet run — SLPE uses crush-depth energy fallback
+      vehicleAgeYears: new Date().getFullYear() - vehicleYear,
+      isBodyOnFrame: bodyType === 'ute' || bodyType === '4wd',
+      usedDbProfile: false,
+    });
+    ctx.slpeResult = slpeResult;
+    ctx.log('Stage 6.5C', `SLPE: ${slpeResult.penetratedComponents.length} components penetrated, ` +
+      `integrity risk: ${slpeResult.structuralIntegrityRisk}, ` +
+      `frame: ${slpeResult.latentDamageProbability.frame}%, ` +
+      `engine: ${slpeResult.latentDamageProbability.engine}%, ` +
+      `confidence: ${(slpeResult.confidence * 100).toFixed(0)}%`);
+  } catch (slpeErr) {
+    ctx.log('Stage 6.5C', `SLPE error (non-fatal): ${String(slpeErr)}`);
+    ctx.slpeResult = null;
+  }
+
   // ── SOURCE TRUTH RESOLUTION (Stage 6 → Stage 7) ─────────────────────
   // Resolve direction/zone/severity conflicts across photo and document sources.
   // Physics is not yet available; will re-resolve with full priority after Stage 7.
@@ -2762,6 +2822,7 @@ export async function runPipelineV2(
       seatbeltPretensioner: (claimRecord?.accidentDetails as any)?.seatbeltPretensioner === true,
       impactDirection: stage7Data?.impactVector?.direction ?? null,
       impactZone: (stage7Data?.impactVector as any)?.zone ?? (stage6Data?.damagedParts?.[0] as any)?.zone ?? null,
+      slpeResult: ctx.slpeResult ?? null,
     });
     ctx.log("PTL", `Physics Truth Layer built: crushDepth=${physicsTruth.geometry.crushDepth.canonical?.value?.toFixed(3) ?? 'N/A'}m, speed=${physicsTruth.speed.canonical?.value?.toFixed(1) ?? 'N/A'}km/h, DQS=${physicsTruth.evidenceCompleteness.dataQualityScore}`);
   } catch (ptlErr) {

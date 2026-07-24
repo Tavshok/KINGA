@@ -993,3 +993,16 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] §04 Evidence Quality panel: DQS, geometry calibration presence, multi-image reconciliation, speed methods ran, crush depth source
 - [x] §04 Physics Integrity Flags panel: per-flag severity badges with descriptions
 - [x] TypeScript: 0 errors across all modified files (orchestrator, physicsTruth, forensicDecisionReport, db, types, stage-6-5a-vge, stage-6-5b-vgr, stage-7-physics)
+
+---
+
+## Wave 2 — Structural Load Path Engine (Completed Jul 2026)
+
+- [x] Stage 6.5C (stage-6-5c-slpe.ts) — full Structural Load Path Engine: vehicle-class load path maps (sedan/SUV/pickup/van/sports), crush-depth-to-zone-penetration math, component cascade with energy absorption per component, failure mode classification (elastic/yield/plastic/fracture), inspection flags
+- [x] accidentPhysics.ts — replaced lookup-table latentDamage predictor with SLPE-driven call; mapAccidentTypeToImpactZone and mapVehicleTypeToBodyType helpers added
+- [x] types.ts — slpeResult added to PipelineContext; geometryEvidenceBlock and vgrReconciliation added to Stage7Output
+- [x] orchestrator.ts — Stage 6.5C wired after Stage 6.5B VGR; result stored on ctx.slpeResult; passed to buildPhysicsTruth
+- [x] physicsTruth.ts — structuralLoadPath field added to PhysicsTruth interface; latentDamage populated from SLPE systems cascade with full reasoning chain; risk level mapped from SLPE severity enum
+- [x] forensicDecisionReport.ts — §05 Vehicle Structural Intelligence replaced with full SLPE structural cascade table (component/zone/penetration mm/energy kJ/failure mode/inspect flag), hidden damage probability bars (engine/transmission/suspension/frame/electrical), vehicle profile; degrades gracefully to legacy view for pre-Wave-2 claims
+- [x] TypeScript: 0 errors across all modified files
+- [x] Wave 1 regression test: 111/111 tests pass
