@@ -228,6 +228,43 @@ export async function generateForensicDecisionReport(
       ? Number(speedEnsemble.consensusSpeedKmh)
       : (speedMethods.find(m => m.highlight)?.speed ?? deltaV);
 
+    // ── Geometry Evidence Block (VGE Stage 6.5A + VGR Stage 6.5B) ───────────
+    // Both are persisted in physics_analysis JSON since the Jul 2026 wiring fix.
+    const geb = (physics as any)?.geometryEvidenceBlock as {
+      vehicle?: string;
+      calibrationStatus?: string;
+      calibrationStatusCode?: 'CALIBRATED' | 'NOT_APPLICABLE' | 'FAILED';
+      referenceObjectsSummary?: string[];
+      overallCalibrationConfidencePct?: number;
+      perspectiveCorrectionApplied?: boolean;
+      estimatedDeformationRange?: string | null;
+      measurementBasis?: string;
+      limitations?: string[];
+      referenceDisagreementWarning?: string;
+      sourceQualityAssessment?: { geometryUsability?: string; reason?: string };
+      evidenceAcquisitionRecommendation?: string;
+    } | null | undefined;
+    const vgr = (physics as any)?.vgrReconciliation as {
+      reconciliationAvailable?: boolean;
+      consensusCrushDepthM?: number | null;
+      consensusCrushDepthMinM?: number | null;
+      consensusCrushDepthMaxM?: number | null;
+      overallConfidence?: number;
+      confidenceLevel?: string;
+      frontalImages?: number;
+      angle45Images?: number;
+      sideImages?: number;
+      agreementAssessment?: {
+        contributingImages?: number;
+        spreadMm?: number;
+        spreadPct?: number;
+        agreementLevel?: 'STRONG' | 'MODERATE' | 'WEAK' | 'CONFLICTING';
+        conflictDescription?: string;
+      };
+      failureReason?: string;
+    } | null | undefined;
+    const hasGeb = !!(geb?.calibrationStatusCode);
+
     // Damage zones
     const rawDamageZones: Array<{zone: string; severity: string}> =
       Array.isArray(physics?.damageZones) && (physics.damageZones as unknown[]).length > 0
@@ -731,6 +768,65 @@ export async function generateForensicDecisionReport(
         </table>` : ""}
       </div>
     </div>
+
+    ${hasGeb ? `
+    <!-- Geometry Calibration sub-panel — VGE Stage 6.5A + VGR Stage 6.5B -->
+    <div class="cols-2" style="margin-top:12px;">
+      <div class="box">
+        <h4>Geometry Calibration <span class="small" style="font-weight:400;color:var(--ink-soft);">Vision Geometry Engine</span></h4>
+        <table class="kv">
+          ${kvRow("Vehicle profile", esc(String(geb!.vehicle ?? "—")))}
+          ${kvRow("Calibration status",
+            geb!.calibrationStatusCode === 'CALIBRATED'
+              ? `<span style="color:var(--green);font-weight:600;">&#10003; ${esc(String(geb!.calibrationStatus ?? "Calibrated"))}</span>`
+              : geb!.calibrationStatusCode === 'NOT_APPLICABLE'
+              ? `<span style="color:var(--amber);font-weight:600;">&#9888; ${esc(String(geb!.calibrationStatus ?? "Not applicable"))}</span>`
+              : `<span style="color:var(--red);font-weight:600;">&#10007; ${esc(String(geb!.calibrationStatus ?? "Failed"))}</span>`
+          )}
+          ${kvRow("Calibration confidence", `${geb!.overallCalibrationConfidencePct ?? 0}%`)}
+          ${geb!.estimatedDeformationRange ? kvRow("Deformation range", `<b>${esc(geb!.estimatedDeformationRange)}</b>`) : ""}
+          ${kvRow("Perspective correction", geb!.perspectiveCorrectionApplied ? `<span style="color:var(--green);">Applied</span>` : "Not required")}
+        </table>
+        ${(geb!.referenceObjectsSummary ?? []).length > 0 ? `
+        <h4 style="margin-top:10px;">Reference Objects Detected</h4>
+        <ul class="tight small" style="margin-top:0;">
+          ${(geb!.referenceObjectsSummary ?? []).map(r => `<li>${esc(r)}</li>`).join("")}
+        </ul>` : ""}
+        ${geb!.referenceDisagreementWarning ? `<div class="callout amber" style="margin-top:8px;"><b>Reference disagreement —</b> ${esc(geb!.referenceDisagreementWarning)}</div>` : ""}
+        ${(geb!.limitations ?? []).length > 0 ? `
+        <h4 style="margin-top:10px;">Measurement Limitations</h4>
+        <ul class="tight small" style="margin-top:0;color:var(--ink-soft);">
+          ${(geb!.limitations ?? []).map(l => `<li>${esc(l)}</li>`).join("")}
+        </ul>` : ""}
+        ${geb!.evidenceAcquisitionRecommendation ? `<div class="callout amber" style="margin-top:8px;"><b>Evidence recommendation —</b> ${esc(geb!.evidenceAcquisitionRecommendation)}</div>` : ""}
+      </div>
+      <div class="box">
+        <h4>Cross-Image Reconciliation <span class="small" style="font-weight:400;color:var(--ink-soft);">VGR Stage 6.5B</span></h4>
+        ${vgr?.reconciliationAvailable ? `
+        <table class="kv">
+          ${vgr.consensusCrushDepthM != null ? kvRow("Consensus crush depth",
+            `<b style="font-size:15px;color:var(--teal);">${Math.round(vgr.consensusCrushDepthM * 1000)} mm</b>
+             <span class="small" style="color:var(--ink-soft);"> &nbsp;range ${Math.round((vgr.consensusCrushDepthMinM ?? vgr.consensusCrushDepthM * 0.85) * 1000)}–${Math.round((vgr.consensusCrushDepthMaxM ?? vgr.consensusCrushDepthM * 1.15) * 1000)} mm</span>`) : ""}
+          ${kvRow("VGR confidence", `${Math.round((vgr.overallConfidence ?? 0) * 100)}% — ${esc(String(vgr.confidenceLevel ?? "—"))}`)}
+          ${kvRow("Image agreement",
+            vgr.agreementAssessment?.agreementLevel === 'STRONG' ? `<span style="color:var(--green);font-weight:600;">Strong</span>` :
+            vgr.agreementAssessment?.agreementLevel === 'MODERATE' ? `<span style="color:var(--teal);font-weight:600;">Moderate</span>` :
+            vgr.agreementAssessment?.agreementLevel === 'WEAK' ? `<span style="color:var(--amber);font-weight:600;">Weak</span>` :
+            `<span style="color:var(--red);font-weight:600;">Conflicting</span>`
+          )}
+          ${vgr.agreementAssessment?.spreadMm != null ? kvRow("Depth spread", `${vgr.agreementAssessment.spreadMm.toFixed(0)} mm (${(vgr.agreementAssessment.spreadPct ?? 0).toFixed(0)}%)`) : ""}
+          ${kvRow("Contributing images", String(vgr.agreementAssessment?.contributingImages ?? "—"))}
+          ${kvRow("View angles", [
+            (vgr.frontalImages ?? 0) > 0 ? `${vgr.frontalImages} frontal` : null,
+            (vgr.angle45Images ?? 0) > 0 ? `${vgr.angle45Images} 45°` : null,
+            (vgr.sideImages ?? 0) > 0 ? `${vgr.sideImages} side` : null,
+          ].filter(Boolean).join(" · ") || "—")}
+        </table>
+        ${vgr.agreementAssessment?.conflictDescription ? `<div class="callout red" style="margin-top:8px;"><b>Image conflict —</b> ${esc(vgr.agreementAssessment.conflictDescription)}</div>` : ""}
+        ` : `<p class="small" style="color:var(--ink-soft);margin:0;">${esc(String(vgr?.failureReason ?? "Cross-image reconciliation was not available for this claim — single image or no calibrated images."))}</p>`}
+        <p class="caption" style="margin-top:10px;">Crush depth is derived from photogrammetric scale calibration using detected reference objects (wheel diameter, licence plate, headlamp spacing). The consensus estimate is the view-angle-weighted mean across all contributing images. This measurement informs the speed ensemble and physics plausibility gate.</p>
+      </div>
+    </div>` : ""}
   </div>
 
   <!-- §05 VEHICLE STRUCTURAL INTELLIGENCE -->

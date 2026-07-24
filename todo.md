@@ -947,3 +947,17 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Add `geometryEvidenceBlock` and `vgrReconciliation` optional fields to `Stage7Output` in `types.ts`
 - [x] Attach VGE/VGR results to Stage 7 output object before return in `stage-7-physics.ts`
 - [x] Persist `geometryEvidenceBlock` and `vgrReconciliation` in `physicsJson` in `db.ts`
+
+---
+
+## Geometry Evidence Block Rendering — §04 Forensic Report (Jul 2026)
+
+- [x] Add geometryEvidenceBlock and vgrReconciliation to Stage7Output type (types.ts)
+- [x] Attach VGE/VGR results to Stage 7 output before return (stage-7-physics.ts)
+- [x] Persist geometryEvidenceBlock and vgrReconciliation in physicsJson in db.ts
+- [x] Add Geometry Calibration sub-panel to §04 Technical Forensics (forensicDecisionReport.ts)
+  - [x] VGE panel: vehicle profile, calibration status (CALIBRATED/NOT_APPLICABLE/FAILED with colour-coded icons), confidence %, deformation range, perspective correction, reference objects list, measurement limitations, evidence acquisition recommendation
+  - [x] VGR panel: consensus crush depth (mm) with min–max range, VGR confidence level, image agreement (STRONG/MODERATE/WEAK/CONFLICTING), depth spread mm/%, contributing images, view angle breakdown (frontal/45°/side), conflict description callout (red) when CONFLICTING
+  - [x] Panel is conditional on hasGeb — degrades gracefully when VGE did not run (no empty boxes rendered)
+  - [x] Design conforms to approved KINGA report design system (box/kv/callout primitives, green section-tab, no dark backgrounds)
+  - [x] Caption explains crush depth methodology and its role in the speed ensemble
