@@ -185,13 +185,20 @@ export function computeValidationStats(
   const validated = records.filter(r => r.speedDeviationPct != null);
   const n = validated.length;
 
+  // Grade distribution — computed from ALL records regardless of validation status
+  const gradeDistribution: Record<string, number> = {};
+  for (const r of records) {
+    const g = r.uncertaintyGrade ?? "?";
+    gradeDistribution[g] = (gradeDistribution[g] ?? 0) + 1;
+  }
+
   if (n === 0) {
     return {
       totalValidated: 0,
       speedMAPE: 0,
       costMAPE: 0,
       ciCoverageRate: 0,
-      gradeDistribution: {},
+      gradeDistribution,
       methodAccuracy: {},
       calibrationDrift: 0,
       lastUpdated: new Date().toISOString(),
@@ -210,13 +217,6 @@ export function computeValidationStats(
   const ciCoverageRate = ciRecords.length > 0
     ? ciRecords.filter(r => r.speedWithinCI === 1).length / ciRecords.length * 100
     : 0;
-
-  // Grade distribution
-  const gradeDistribution: Record<string, number> = {};
-  for (const r of records) {
-    const g = r.uncertaintyGrade ?? "?";
-    gradeDistribution[g] = (gradeDistribution[g] ?? 0) + 1;
-  }
 
   // Per-method accuracy from calibration feedback
   const methodAccuracy: Record<string, { sum: number; count: number }> = {};
