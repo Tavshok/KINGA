@@ -1854,6 +1854,10 @@ export async function triggerAiAssessment(claimId: number) {
     claimTruthJson: result.claimTruth ? JSON.stringify(result.claimTruth) : null,
     // TRE: Canonical Claim Truth Object (CTO) — single source of truth for all downstream consumers
     claimTruthObjectJson: result.claimTruthObject ? JSON.stringify(result.claimTruthObject) : null,
+    // Wave 1: Physics Truth Layer — canonical immutable physics object with full provenance
+    // Built by buildPhysicsTruth() after Stage 7. Single authoritative source for all physical
+    // measurements (crush depth, energy, speed, latent damage) with uncertainty bounds.
+    physicsTruthJson: result.physicsTruth ? JSON.stringify(result.physicsTruth) : null,
     // Stage 12.5: Report Readiness Gate — whether the claim can be exported as a report
     reportReadinessJson: reportReadiness ? JSON.stringify(reportReadiness) : null,
     // Stage 13: Forensic Analysis — comprehensive forensic analysis summary from all stages

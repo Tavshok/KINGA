@@ -61,6 +61,13 @@ export interface PerImageCalibrationResult {
   calibratedCrushDepthMm: number | null;
   calibratedCrushDepthMinMm: number | null;
   calibratedCrushDepthMaxMm: number | null;
+  /**
+   * View angle reported by the VGE LLM: "front", "rear", "side",
+   * "45_degree_front", "45_degree_rear", or "unknown".
+   * Populated from the LLM response — used by Stage 6.5B VGR for
+   * view-angle-weighted crush depth consensus.
+   */
+  imageViewAngle?: string;
   failureReason?: string;
 }
 
@@ -466,6 +473,16 @@ async function calibrateImage(
     const perspectiveCorrected = detections.some(d => d.perspectiveCorrectionMethod !== "none");
     const bestPerspMethod = perspectiveCorrected ? "ellipse_analysis" : "none";
 
+    // Normalise the LLM-reported view angle to the VGR canonical set
+    const rawAngle = (parsed.imageViewAngle ?? 'unknown').toLowerCase();
+    const normalisedAngle =
+      rawAngle.includes('front') && rawAngle.includes('45') ? '45_degree_front' :
+      rawAngle.includes('rear')  && rawAngle.includes('45') ? '45_degree_rear'  :
+      rawAngle.includes('front') || rawAngle.includes('head') ? 'front' :
+      rawAngle.includes('rear')  || rawAngle.includes('back') ? 'rear'  :
+      rawAngle.includes('side')  || rawAngle.includes('lateral') ? 'side' :
+      'unknown';
+
     return {
       imageUrl,
       imageIndex,
@@ -478,6 +495,7 @@ async function calibrateImage(
       calibratedCrushDepthMm,
       calibratedCrushDepthMinMm,
       calibratedCrushDepthMaxMm,
+      imageViewAngle: normalisedAngle,
     };
   } catch (err: any) {
     return { ...base, failureReason: `VGE calibration error: ${err?.message ?? String(err)}` };

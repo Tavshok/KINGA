@@ -171,6 +171,7 @@ import {
   loadCompletedStages,
 } from "../db-pipeline";
 import { runTruthReconciliationEngine, type ClaimTruthObject } from "./truthReconciliationEngine";
+import { buildPhysicsTruth, type PhysicsTruth } from "./physicsTruth";
 
 
 /**
@@ -2721,6 +2722,52 @@ export async function runPipelineV2(
     ctx.log("Stage13", `REPLAY_INCOMPLETE: ${_guardResult.exceptionReason}`);
   }
 
+  // ── Wave 1: Physics Truth Layer ───────────────────────────────────────────
+  // Build the canonical immutable physics object from all stage outputs.
+  // This is the single authoritative source for all physical measurements.
+  let physicsTruth: PhysicsTruth | null = null;
+  try {
+    const veh = claimRecord?.vehicle;
+    physicsTruth = buildPhysicsTruth({
+      claimRef: String(ctx.claimId),
+      pipelineRunId: (ctx as any).runId ?? null,
+      vehicle: {
+        make: veh?.make ?? null,
+        model: veh?.model ?? null,
+        year: veh?.year ?? null,
+        massKg: veh?.massKg ?? null,
+        bodyType: veh?.bodyType ?? null,
+        powertrainType: (veh as any)?.powertrain ?? null,
+        bodyOnFrame: (veh as any)?.bodyOnFrame ?? null,
+      },
+      vgeResult: ctx.vgeCalibrationResult ?? null,
+      vgrResult: ctx.vgeReconciliationResult ?? null,
+      stage6Components: (stage6Data?.damagedParts ?? (stage6Data as any)?.damagedComponents ?? []).map((c: any) => ({
+        componentName: c.name ?? c.componentName ?? 'Unknown',
+        zone: c.zone ?? c.location ?? 'unknown',
+        severity: c.severity ?? 'moderate',
+        crushDepthM: c.crushDepthM ?? null,
+        deformationEnergyJ: c.deformationEnergyJ ?? null,
+        structuralDisplacementM: c.structuralDisplacementM ?? null,
+        visionConfidenceScore: c.visionConfidenceScore ?? null,
+        damageFractionEstimate: c.damageFractionEstimate ?? null,
+        isStructural: c.isStructural ?? false,
+      })),
+      stage6LlmCrushDepthM: (stage7Data as any)?.maxCrushDepthM ?? null,
+      speedEnsemble: stage7Data?.speedInferenceEnsemble ?? null,
+      deltaVKmh: stage7Data?.deltaVKmh ?? null,
+      claimedSpeedKmh: claimRecord?.accidentDetails?.estimatedSpeedKmh ?? null,
+      speedLimitKmh: (claimRecord?.accidentDetails as any)?.speedLimitKmh ?? null,
+      airbagDeployment: claimRecord?.accidentDetails?.airbagDeployment === true,
+      seatbeltPretensioner: (claimRecord?.accidentDetails as any)?.seatbeltPretensioner === true,
+      impactDirection: stage7Data?.impactVector?.direction ?? null,
+      impactZone: (stage7Data?.impactVector as any)?.zone ?? (stage6Data?.damagedParts?.[0] as any)?.zone ?? null,
+    });
+    ctx.log("PTL", `Physics Truth Layer built: crushDepth=${physicsTruth.geometry.crushDepth.canonical?.value?.toFixed(3) ?? 'N/A'}m, speed=${physicsTruth.speed.canonical?.value?.toFixed(1) ?? 'N/A'}km/h, DQS=${physicsTruth.evidenceCompleteness.dataQualityScore}`);
+  } catch (ptlErr) {
+    ctx.log("PTL", `Physics Truth Layer build error (non-fatal): ${ptlErr instanceof Error ? ptlErr.message : String(ptlErr)}`);
+  }
+
   return buildResult(
     stages, pipelineStart, ctx.claimId,
     claimRecord, stage10Data,
@@ -2739,7 +2786,8 @@ export async function runPipelineV2(
     contradictionGateResult,
     physicsDeviationScoreValue,
     claimTruth,
-    claimTruthObject
+    claimTruthObject,
+    physicsTruth
   );
 }
 
@@ -2777,7 +2825,8 @@ function buildResult(
   contradictionGateResult: import('./contradictionDetectionEngine').ContradictionResult | null = null,
   physicsDeviationScoreValue: number | null = null,
   claimTruthResult: ClaimTruth | null = null,
-  claimTruthObject: import("./truthReconciliationEngine").ClaimTruthObject | null = null
+  claimTruthObject: import("./truthReconciliationEngine").ClaimTruthObject | null = null,
+  physicsTruth: PhysicsTruth | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
 
@@ -2880,6 +2929,7 @@ function buildResult(
     physicsDeviationScoreValue,
     claimTruth: claimTruthResult,
     claimTruthObject: claimTruthObject,
+    physicsTruth,
   };
 }
 

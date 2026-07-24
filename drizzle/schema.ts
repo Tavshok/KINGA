@@ -203,6 +203,12 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // TRE: Canonical Claim Truth Object (CTO) produced by the Truth Reconciliation Engine.
   // All downstream consumers (reports, API, dashboard) should read from this.
   claimTruthObjectJson: longtext("claim_truth_object_json"),
+  // Wave 1 Physics Truth Layer — canonical immutable physics object.
+  // Single authoritative source for all physical measurements (crush depth, energy, speed,
+  // latent damage) with full provenance, uncertainty bounds, and confidence at every field.
+  // Built by buildPhysicsTruth() after Stage 7 completes. Supersedes the legacy
+  // physics_analysis column for all downstream consumers (reports, fraud scoring, latent damage).
+  physicsTruthJson: longtext("physics_truth_json"),
   // R-F-01/04/05 fix: Stage 10 report signals — persists three signals from fullReport.sections
   // that were previously lost when the pipeline run completed (fullReport.sections was never saved).
   // Schema: {

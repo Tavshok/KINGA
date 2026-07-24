@@ -1893,6 +1893,17 @@ export interface PipelineResult {
    */
   claimTruthObject: import('./truthReconciliationEngine').ClaimTruthObject | null;
 
+  // ── Physics Truth Layer (Wave 1) ────────────────────────────────────────────
+  /**
+   * Canonical Physics Truth object — the single authoritative source for all
+   * physical measurements (crush depth, energy, speed, latent damage) with full
+   * provenance, uncertainty bounds, and confidence at every field.
+   * Built by buildPhysicsTruth() after Stage 7 completes.
+   * Every downstream engine (reports, fraud scoring, latent damage) MUST read
+   * from this object, not from the raw stage outputs.
+   */
+  physicsTruth: import('./physicsTruth').PhysicsTruth | null;
+
   // ── System intervention tracking (audit trail) ───────────────────────────
   /**
    * Count of deterministic corrections applied by the pipeline during this run.

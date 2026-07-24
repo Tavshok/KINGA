@@ -961,3 +961,35 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
   - [x] Panel is conditional on hasGeb — degrades gracefully when VGE did not run (no empty boxes rendered)
   - [x] Design conforms to approved KINGA report design system (box/kv/callout primitives, green section-tab, no dark backgrounds)
   - [x] Caption explains crush depth methodology and its role in the speed ensemble
+
+---
+
+## Wave 1 — Physics Truth Layer & Evidence Preservation (Jul 2026)
+
+- [ ] Design and write PhysicsTruth canonical data structure (server/pipeline-v2/physicsTruth.ts)
+- [ ] Wire Stage 6 vision outputs into PhysicsTruth (per-component crush depth, deformation energy, structural displacement, vision confidence)
+- [ ] Wire Stage 6.5A VGE calibrated geometry into PhysicsTruth (replace raw LLM estimates with calibrated measurements)
+- [ ] Wire Stage 6.5B VGR consensus into PhysicsTruth (view-angle-weighted consensus crush depth, agreement assessment)
+- [ ] Fix view-angle propagation: store LLM-reported imageViewAngle in PerImageCalibrationResult; use in VGR inferViewAngle() instead of filename heuristics
+- [ ] Wire Stage 7 speed ensemble into PhysicsTruth (all method results, consensus speed, CI, delta-V, divergence flags)
+- [ ] Persist PhysicsTruth to DB as physics_truth_json column in ai_assessments
+- [ ] Update Forensic report §04 to render from PhysicsTruth (calibrated geometry, speed ensemble, evidence provenance chain)
+- [ ] TypeScript check passes with 0 errors after all wiring
+
+---
+
+## Wave 1 — Physics Truth Layer (Completed July 2026)
+
+- [x] Design PhysicsTruth canonical data structure (physicsTruth.ts) — all measurement fields, uncertainty bounds, confidence, provenance, timestamps
+- [x] Wire Stage 6 vision analysis components into PhysicsTruth (per-component crush depth, deformation energy, structural displacement, vision confidence)
+- [x] Wire Stage 6.5A VGE calibrated geometry into PhysicsTruth — LLM-reported view angle now stored and propagated (was silently discarded, causing all images to get UNKNOWN weight 0.50)
+- [x] Wire Stage 6.5B VGR cross-image reconciliation into PhysicsTruth — consensus crush depth with uncertainty bounds
+- [x] Wire Stage 7 speed ensemble into PhysicsTruth — all method results, consensus speed, CI, divergence flags, delta-V with uncertainty bounds
+- [x] Add physics_truth_json column to ai_assessments table (SQL ALTER TABLE — drizzle migration journal was out of sync)
+- [x] Persist PhysicsTruth to database in db.ts serialisation block
+- [x] Add buildPhysicsTruth call to orchestrator after Stage 13 (PTL log: crush depth, speed, DQS)
+- [x] Update forensicDecisionReport.ts: read physics_truth_json as canonical source with legacy fallback
+- [x] §04 Impact Overview: PTL delta-V with uncertainty range, crush depth with source label, DQS badge
+- [x] §04 Evidence Quality panel: DQS, geometry calibration presence, multi-image reconciliation, speed methods ran, crush depth source
+- [x] §04 Physics Integrity Flags panel: per-flag severity badges with descriptions
+- [x] TypeScript: 0 errors across all modified files (orchestrator, physicsTruth, forensicDecisionReport, db, types, stage-6-5a-vge, stage-6-5b-vgr, stage-7-physics)

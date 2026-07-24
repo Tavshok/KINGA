@@ -34,7 +34,7 @@ export async function generateForensicDecisionReport(
               a.estimated_cost, a.total_loss_indicated, a.repair_to_value_ratio,
               a.cost_intelligence_json, a.repair_intelligence_json,
               a.fraud_score_breakdown_json, a.ife_result_json,
-              a.narrative_analysis_json, a.physics_analysis,
+              a.narrative_analysis_json, a.physics_analysis, a.physics_truth_json,
               a.forensic_audit_validation_json, a.claim_quality_json,
               a.created_at AS assessment_date, a.model_version,
               a.enriched_photos_json
@@ -73,7 +73,22 @@ export async function generateForensicDecisionReport(
     const repairIntel  = safeJson(c.repair_intelligence_json);
     const fraudBreak   = safeJson(c.fraud_score_breakdown_json);
     const ife          = safeJson(c.ife_result_json);
+    // Wave 1: Physics Truth Layer — canonical source. Falls back to legacy physics_analysis
+    // for historical claims that pre-date the PTL implementation.
+    const physicsTruth = safeJson(c.physics_truth_json);
     const physics      = safeJson(c.physics_analysis);
+    // Convenience accessors — prefer PTL, fall back to legacy physics fields
+    const pt = physicsTruth as any;
+    const ptlCrushDepth   = pt?.geometry?.crushDepth?.canonical ?? null;
+    const ptlSpeed        = pt?.speed?.canonical ?? null;
+    const ptlDeltaV       = pt?.speed?.deltaVKmh ?? null;
+    const ptlKE           = pt?.energy?.kineticEnergyJ ?? null;
+    const ptlDQS          = pt?.evidenceCompleteness?.dataQualityScore ?? null;
+    const ptlIntegrity    = pt?.integrityCheck ?? null;
+    const ptlSpeedMethods: any[] = pt?.speed?.methods ?? [];
+    const ptlGeometry     = pt?.geometry ?? null;
+    const ptlEnergy       = pt?.energy ?? null;
+    const ptlEvidence     = pt?.evidenceCompleteness ?? null;
     const narrative    = safeJson(c.narrative_analysis_json);
     const forensicAudit = safeJson(c.forensic_audit_validation_json);
     const claimQuality  = safeJson(c.claim_quality_json);
@@ -167,17 +182,41 @@ export async function generateForensicDecisionReport(
     const totalExclusions = exclusions.reduce((s, e) => s + Number(e.amount ?? 0), 0);
     const recommendedSettlement = Math.max(0, kingaOptimised - totalExclusions - excess);
 
-    // Physics values
-    const deltaV       = physics?.deltaVKmh ? Number(physics.deltaVKmh) : (physics?.deltaV ? Number(physics.deltaV) : 15.0);
-    const kineticEnergy = (physics?.energyDistribution as any)?.kineticEnergyJ
-      ? Number((physics?.energyDistribution as any).kineticEnergyJ) / 1000
-      : (physics?.kineticEnergy ? Number(physics.kineticEnergy) : 18.0);
+    // Physics values — PTL-first with legacy fallback
+    // PTL canonical delta-V (with uncertainty bounds) supersedes legacy scalar
+    const deltaV = ptlDeltaV?.value != null ? Number(ptlDeltaV.value)
+      : (physics?.deltaVKmh ? Number(physics.deltaVKmh) : (physics?.deltaV ? Number(physics.deltaV) : 15.0));
+    const deltaVMin = ptlDeltaV?.min ?? null;
+    const deltaVMax = ptlDeltaV?.max ?? null;
+    // PTL canonical kinetic energy (J → kJ)
+    const kineticEnergy = ptlKE?.value != null ? Number(ptlKE.value) / 1000
+      : ((physics?.energyDistribution as any)?.kineticEnergyJ
+        ? Number((physics?.energyDistribution as any).kineticEnergyJ) / 1000
+        : (physics?.kineticEnergy ? Number(physics.kineticEnergy) : 18.0));
     const impactForce  = physics?.impactForceKn ? Number(physics.impactForceKn) : (physics?.impactForce ? Number(physics.impactForce) : 0);
     const vehicleMass  = physics?.vehicleMass ? Number(physics.vehicleMass) : 0;
     // Bug #9: deceleration must be rounded to 2 d.p. before display
     const decelerationRaw = physics?.decelerationG ? Number(physics.decelerationG) : (physics?.deceleration ? Number(physics.deceleration) : 0);
     const deceleration = decelerationRaw;
-    const preImpactSpeed = physics?.estimatedSpeedKmh ? Number(physics.estimatedSpeedKmh) : (physics?.preImpactSpeed ? Number(physics.preImpactSpeed) : 0);
+    // PTL canonical pre-impact speed (with uncertainty bounds)
+    const preImpactSpeed = ptlSpeed?.value != null ? Number(ptlSpeed.value)
+      : (physics?.estimatedSpeedKmh ? Number(physics.estimatedSpeedKmh) : (physics?.preImpactSpeed ? Number(physics.preImpactSpeed) : 0));
+    const preImpactSpeedMin = ptlSpeed?.min ?? null;
+    const preImpactSpeedMax = ptlSpeed?.max ?? null;
+    const preImpactSpeedConf = ptlSpeed?.confidence ?? null;
+    const preImpactSpeedSource = ptlSpeed?.source ?? null;
+    const preImpactSpeedNote = ptlSpeed?.provenanceNote ?? null;
+    // PTL crush depth canonical
+    const crushDepthMm = ptlCrushDepth?.value != null ? Number(ptlCrushDepth.value) * 1000 : null;
+    const crushDepthMinMm = ptlCrushDepth?.min != null ? Number(ptlCrushDepth.min) * 1000 : null;
+    const crushDepthMaxMm = ptlCrushDepth?.max != null ? Number(ptlCrushDepth.max) * 1000 : null;
+    const crushDepthConf = ptlCrushDepth?.confidence ?? null;
+    const crushDepthSource = ptlCrushDepth?.source ?? null;
+    const crushDepthNote = ptlCrushDepth?.provenanceNote ?? null;
+    // PTL data quality score
+    const dataQualityScore = ptlDQS ?? null;
+    // PTL integrity flags
+    const integrityFlags: any[] = ptlIntegrity?.flags ?? [];
     // Bug #3: physicsScore must come from physics.damageConsistencyScore, NOT forensicAudit.overallScore
     const physicsScore = physics?.damageConsistencyScore ? Number(physics.damageConsistencyScore)
       : (physics?.physicsScore ? Number(physics.physicsScore) : (physics?.anomalyScore ? Number(physics.anomalyScore) : 50));
@@ -681,12 +720,21 @@ export async function generateForensicDecisionReport(
     ${sectionTab("04", "Technical Forensics — Physics & Speed", physicsScore < 70 ? "Minor anomaly" : "Consistent", physicsScore < 70 ? "mid" : "ok")}
     <div class="cols-2">
       <div class="box">
-        <h4>Impact Overview</h4>
+        <h4>Impact Overview
+          ${dataQualityScore != null ? `<span class="small" style="float:right;font-weight:400;color:${dataQualityScore >= 70 ? 'var(--green)' : dataQualityScore >= 40 ? 'var(--amber)' : 'var(--red)'};">DQS ${dataQualityScore}/100</span>` : ""}
+        </h4>
         <table class="kv">
-          ${kvRow("Delta-V", `${deltaV.toFixed(1)} km/h`)}
+          ${kvRow("Delta-V",
+            deltaVMin != null && deltaVMax != null
+              ? `<b>${deltaV.toFixed(1)} km/h</b> <span class="small" style="color:var(--ink-soft);">range ${deltaVMin.toFixed(1)}–${deltaVMax.toFixed(1)} km/h</span>`
+              : `${deltaV.toFixed(1)} km/h`)}
           ${kvRow("Kinetic energy", `${kineticEnergy.toFixed(1)} kJ`)}
           ${impactForce > 0 ? kvRow("Impact force", `${impactForce.toLocaleString()} kN`) : ""}
           ${vehicleMass > 0 ? kvRow("Vehicle mass (used)", `${vehicleMass.toLocaleString()} kg`) : ""}
+          ${crushDepthMm != null ? kvRow("Crush depth",
+            crushDepthMinMm != null && crushDepthMaxMm != null
+              ? `<b>${crushDepthMm.toFixed(0)} mm</b> <span class="small" style="color:var(--ink-soft);">range ${crushDepthMinMm.toFixed(0)}–${crushDepthMaxMm.toFixed(0)} mm · ${esc(String(crushDepthSource ?? ''))}</span>`
+              : `${crushDepthMm.toFixed(0)} mm`) : ""}
           ${kvRow("Impact severity", ebsSeverity)}
           ${kvRow("Damage consistency", `${physicsScore}/100 — ${physicsScore >= 70 ? "Good" : physicsScore >= 40 ? "Moderate" : "Low"}`)}
         </table>
@@ -768,6 +816,30 @@ export async function generateForensicDecisionReport(
         </table>` : ""}
       </div>
     </div>
+
+    ${physicsTruth && (integrityFlags.length > 0 || ptlEvidence) ? `
+    <!-- PTL Evidence Quality & Integrity panel -->
+    <div class="cols-2" style="margin-top:12px;">
+      <div class="box">
+        <h4>Evidence Quality <span class="small" style="font-weight:400;color:var(--ink-soft);">Physics Truth Layer</span></h4>
+        <table class="kv">
+          ${ptlEvidence?.dataQualityScore != null ? kvRow("Data Quality Score",
+            `<b style="color:${ptlEvidence.dataQualityScore >= 70 ? 'var(--green)' : ptlEvidence.dataQualityScore >= 40 ? 'var(--amber)' : 'var(--red)'}">${ptlEvidence.dataQualityScore}/100</b>`) : ""}
+          ${ptlEvidence?.hasGeometryCalibration != null ? kvRow("Geometry calibration", ptlEvidence.hasGeometryCalibration ? '<span style="color:var(--green);">&#10003; Present</span>' : '<span style="color:var(--ink-soft);">Not available</span>') : ""}
+          ${ptlEvidence?.hasMultiImageReconciliation != null ? kvRow("Multi-image reconciliation", ptlEvidence.hasMultiImageReconciliation ? '<span style="color:var(--green);">&#10003; Present</span>' : '<span style="color:var(--ink-soft);">Not available</span>') : ""}
+          ${ptlEvidence?.speedMethodsRan != null ? kvRow("Speed methods ran", `${ptlEvidence.speedMethodsRan} of ${ptlEvidence.speedMethodsTotal ?? '—'}`) : ""}
+          ${ptlEvidence?.crushDepthSource != null ? kvRow("Crush depth source", esc(String(ptlEvidence.crushDepthSource))) : ""}
+        </table>
+      </div>
+      <div class="box">
+        <h4>Physics Integrity Flags</h4>
+        ${integrityFlags.length > 0 ? `
+        <ul class="tight small" style="margin-top:0;">
+          ${integrityFlags.map((f: any) => `<li><span style="color:${f.severity === 'HIGH' ? 'var(--red)' : f.severity === 'MEDIUM' ? 'var(--amber)' : 'var(--ink-soft)'};"><b>[${esc(String(f.severity ?? 'INFO'))}]</b> ${esc(String(f.description ?? f.type ?? ''))}</span></li>`).join("")}
+        </ul>` : `<p class="small" style="color:var(--green);margin:0;">&#10003; No integrity flags — physics measurements are internally consistent.</p>`}
+        <p class="caption" style="margin-top:8px;">Integrity flags are raised when physics measurements contradict each other (e.g. claimed speed inconsistent with crush depth, or airbag deployment threshold not met at stated delta-V).</p>
+      </div>
+    </div>` : ""}
 
     ${hasGeb ? `
     <!-- Geometry Calibration sub-panel — VGE Stage 6.5A + VGR Stage 6.5B -->

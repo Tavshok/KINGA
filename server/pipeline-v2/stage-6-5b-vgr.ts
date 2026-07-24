@@ -100,26 +100,36 @@ const VIEW_ANGLE_WEIGHTS: Record<ViewAngle, number> = {
 // ── View angle inference from LLM-provided image metadata ────────────────────
 
 /**
- * Infer the view angle from the image URL and any available metadata.
- * The Stage 6.5A LLM prompt asks the model to report imageViewAngle, which is
- * stored in the raw parsed response but not currently in PerImageCalibrationResult.
- * Until that field is propagated, we use URL/filename heuristics as a fallback.
+ * Resolve the view angle for a calibrated image.
+ *
+ * Priority order:
+ *   1. LLM-reported imageViewAngle from Stage 6.5A (most accurate — the model
+ *      directly observed the photo and classified the angle).
+ *   2. URL/filename heuristics (fallback for older results or failed VGE runs).
+ *
+ * The imageViewAngle field was added to PerImageCalibrationResult in the
+ * Jul 2026 physics accuracy upgrade. Results from before that date will have
+ * imageViewAngle=undefined and will fall through to the filename heuristic.
  */
-function inferViewAngle(imageUrl: string): ViewAngle {
+function inferViewAngle(imageUrl: string, llmReportedAngle?: string): ViewAngle {
+  // 1. Use LLM-reported angle when available
+  if (llmReportedAngle && llmReportedAngle !== 'unknown') {
+    const a = llmReportedAngle.toLowerCase();
+    if (a === 'front' || a === 'frontal' || a === 'head_on') return 'FRONTAL';
+    if (a === 'rear'  || a === 'back')                       return 'FRONTAL'; // rear crush = frontal geometry plane
+    if (a === '45_degree_front' || a === '45_degree_rear')   return 'ANGLE_45';
+    if (a === 'side'  || a === 'lateral')                    return 'SIDE';
+  }
+
+  // 2. Filename heuristics (fallback)
   const lower = imageUrl.toLowerCase();
   const filename = lower.split('/').pop() ?? lower;
+  if (/front|frontal|head.?on|forward/.test(filename)) return 'FRONTAL';
+  if (/side|lateral|profile/.test(filename))           return 'SIDE';
+  if (/angle|45|quarter|three.?quarter/.test(filename)) return 'ANGLE_45';
+  if (/page-\d{3,}/.test(filename))                    return 'UNKNOWN';
 
-  // Explicit angle keywords in filename
-  if (/front|frontal|head.?on|forward/.test(filename)) return "FRONTAL";
-  if (/side|lateral|profile/.test(filename)) return "SIDE";
-  if (/angle|45|quarter|three.?quarter/.test(filename)) return "ANGLE_45";
-
-  // For PDF page renders (page-NNN), we cannot infer angle — return UNKNOWN
-  // (these should have been filtered by the Source Quality Gate, but be safe)
-  if (/page-\d{3,}/.test(filename)) return "UNKNOWN";
-
-  // Default: treat as UNKNOWN (conservative)
-  return "UNKNOWN";
+  return 'UNKNOWN';
 }
 
 // ── Confidence level classification ──────────────────────────────────────────
