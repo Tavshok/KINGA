@@ -478,9 +478,14 @@ export function runSLPE(input: SLPEInput): SLPEResult {
   const crushDepthMm = input.crushDepthM * 1000;
 
   // ── Total energy ───────────────────────────────────────────────────────────
+  // Campbell formula fallback when delta-V is not available:
+  // v = C × √(B/m) where B = 1,200,000 N/m (CRASH3 stiffness, typical passenger car)
+  // Dimensional check: [m] × √([N/m]/[kg]) = [m] × [1/s] = [m/s] ✓  then ×3.6 → km/h
+  const CAMPBELL_B_SLPE = 1_200_000; // N/m
+  const campbellFallbackKmh = (crushDepthMm / 1000) * Math.sqrt(CAMPBELL_B_SLPE / massKg) * 3.6;
   const totalEnergyJ = deltaVKmh > 0
     ? estimateTotalEnergy(massKg, deltaVKmh)
-    : estimateTotalEnergy(massKg, Math.sqrt(2 * 9.81 * crushDepthMm / 1000) * 3.6); // fallback from crush depth
+    : estimateTotalEnergy(massKg, campbellFallbackKmh); // Campbell formula fallback from crush depth
 
   // ── Trace deformation front through load path ──────────────────────────────
   const penetratedComponents: ComponentResult[] = [];

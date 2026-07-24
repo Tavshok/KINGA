@@ -80,8 +80,9 @@ export interface IntegrityEngineResult {
 
 /** Campbell stiffness coefficient A (N/m) — typical passenger car */
 const CAMPBELL_A = 0;
-/** Campbell stiffness coefficient B (N/m²) — typical passenger car */
-const CAMPBELL_B = 1_200_000;
+/** Campbell stiffness coefficient B (N/m) — typical passenger car front-end stiffness.
+ * Dimensional check for v = C × √(B/m): [m] × √([N/m]/[kg]) = [m/s] ✓ */
+const CAMPBELL_B = 1_200_000; // N/m
 /** Minimum speed for airbag deployment (km/h) — frontal */
 const AIRBAG_DEPLOY_MIN_KMH = 20;
 /** Maximum speed for airbag deployment without severe injury (km/h) */

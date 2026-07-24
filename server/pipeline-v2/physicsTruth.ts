@@ -367,8 +367,15 @@ export interface PhysicsTruth {
   };
 }
 
-// ── Builder ───────────────────────────────────────────────────────────────────
+// ── Physics constants ────────────────────────────────────────────────────────
+/**
+ * Campbell stiffness coefficient B (N/m) — typical passenger car front-end.
+ * Used in v = C × √(B/m) where C is crush depth (m) and m is vehicle mass (kg).
+ * Dimensional check: [m] × √([N/m]/[kg]) = [m] × √([kg·m/s²/m]/[kg]) = [m] × [1/s] = [m/s] ✓
+ */
+const CAMPBELL_B_NM = 1_200_000; // N/m
 
+// ── Builder ───────────────────────────────────────────────────────────────────
 /**
  * Build a PhysicsTruth object from the outputs of all pipeline stages.
  * This is the ONLY function that should create a PhysicsTruth.
@@ -537,7 +544,8 @@ export function buildPhysicsTruth(input: {
 
   // Check: large crush depth but low energy
   if (canonicalCrushDepth && totalDeformationEnergyJ > 0) {
-    const impliedEnergyJ = 0.5 * 1_000_000 * Math.pow(canonicalCrushDepth.value, 2);
+    // E = ½kC²  [N/m × m² = N·m = J] ✓  — use CAMPBELL_B_NM for consistency with all other engines
+    const impliedEnergyJ = 0.5 * CAMPBELL_B_NM * Math.pow(canonicalCrushDepth.value, 2);
     if (totalDeformationEnergyJ < impliedEnergyJ * 0.15) {
       integrityFlags.push({
         severity: 'WARNING',
@@ -551,7 +559,12 @@ export function buildPhysicsTruth(input: {
 
   // Check: high speed but tiny deformation
   if (canonicalSpeed && canonicalCrushDepth) {
-    const minExpectedCrushM = Math.pow((canonicalSpeed.value / 3.6), 2) * (input.vehicle.massKg ?? 1200) / (2 * 1_000_000 * 1.5);
+    // From KE = ½kC² → C = v × √(m/k)
+    // Dimensional check: [m/s] × √([kg]/[N/m]) = [m/s] × √([kg·m/N]) = [m/s] × √([s²]) = [m] ✓
+    // 1.5× factor: energy shared with second vehicle / road surface
+    const v_ms_chk = canonicalSpeed.value / 3.6;
+    const massKgEst = input.vehicle.massKg ?? 1200;
+    const minExpectedCrushM = v_ms_chk * Math.sqrt(massKgEst / (CAMPBELL_B_NM * 1.5));
     if (canonicalCrushDepth.value < minExpectedCrushM * 0.3) {
       integrityFlags.push({
         severity: 'WARNING',

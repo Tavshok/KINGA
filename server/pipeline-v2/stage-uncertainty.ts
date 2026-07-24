@@ -39,8 +39,9 @@ import type { PhysicsTruth, PhysicsMeasurement, OptionalMeasurement } from './ph
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** Campbell stiffness B coefficient (N/m²) — typical passenger car */
-const CAMPBELL_B = 1_200_000;
+/** Campbell stiffness B coefficient (N/m) — typical passenger car front-end stiffness.
+ * Dimensional check for v = C × √(B/m): [m] × √([N/m]/[kg]) = [m/s] ✓ */
+const CAMPBELL_B = 1_200_000; // N/m
 
 /** Z-score for 90% confidence interval (one-sided 95%) */
 const Z_90 = 1.645;

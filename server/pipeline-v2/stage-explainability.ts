@@ -306,24 +306,28 @@ export function runExplainabilityEngine(
   const deformJ = pt.energy.totalDeformationEnergyJ;
   const kineticJ = pt.energy.kineticEnergyJ;
 
+  // NOTE: pt.energy.kineticEnergyJ.value is in Joules (J); pt.energy.totalDeformationEnergyJ.value is also in Joules.
+  // Divide by 1000 for kJ display throughout this block.
   if (deformJ && kineticJ) {
+    const kineticKJ = kineticJ.value / 1000;
+    const deformKJ  = deformJ.value  / 1000;
     energyChain = {
       finding: 'Energy balance',
-      conclusion: `The impact involved ${kineticJ.value.toFixed(1)} kJ of kinetic energy, of which ${deformJ.value.toFixed(1)} kJ (${((deformJ.value / kineticJ.value) * 100).toFixed(0)}%) was absorbed as permanent deformation.`,
+      conclusion: `The impact involved ${kineticKJ.toFixed(1)} kJ of kinetic energy, of which ${deformKJ.toFixed(1)} kJ (${((deformKJ / kineticKJ) * 100).toFixed(0)}%) was absorbed as permanent deformation.`,
       steps: [
         {
           step: 1,
           type: 'calculation',
           description: 'Kinetic energy calculated from ensemble speed and vehicle mass',
-          result: `KE = ½ × ${pt.vehicle.massKg ?? 1400} kg × (${(speed?.value ?? 0) / 3.6 | 0} m/s)² = ${kineticJ.value.toFixed(1)} kJ`,
+          result: `KE = ½ × ${pt.vehicle.massKg ?? 1400} kg × (${((speed?.value ?? 0) / 3.6).toFixed(1)} m/s)² = ${kineticKJ.toFixed(1)} kJ`,
           confidence: speed?.confidence ?? 0.5,
-          methodology: 'Classical mechanics — KE = ½mv²',
+          methodology: 'Classical mechanics — KE = ½mv²  [kg × (m/s)² = J → ÷1000 = kJ]',
         },
         {
           step: 2,
           type: 'measurement',
           description: 'Per-component deformation energy estimated from damage photographs',
-          result: `Total deformation energy: ${deformJ.value.toFixed(1)} kJ across ${pt.energy.componentEnergies.length} components`,
+          result: `Total deformation energy: ${deformKJ.toFixed(1)} kJ across ${pt.energy.componentEnergies.length} components`,
           confidence: 0.55,
           methodology: 'DEFORMATION_ENERGY — AI vision analysis of component damage severity',
         },
@@ -333,7 +337,7 @@ export function runExplainabilityEngine(
           description: 'Energy balance validated',
           result: integrity.flags.some(f => f.code.startsWith('INT-02'))
             ? `⚠ Energy balance anomaly — see integrity flags`
-            : `✓ Deformation energy is ${((deformJ.value / kineticJ.value) * 100).toFixed(0)}% of kinetic energy — within expected range`,
+            : `✓ Deformation energy is ${((deformKJ / kineticKJ) * 100).toFixed(0)}% of kinetic energy — within expected range`,
           confidence: 0.75,
           methodology: 'Conservation of energy — deformation energy cannot exceed kinetic energy input',
         },
@@ -442,7 +446,8 @@ export function runExplainabilityEngine(
     keyFindings.push(`Primary crush depth: ${(crush.value * 1000).toFixed(0)} mm [${(crush.min * 1000).toFixed(0)}–${(crush.max * 1000).toFixed(0)} mm] via ${crush.source === 'VGR_CONSENSUS' ? 'multi-image photogrammetry' : crush.source === 'VGE_CALIBRATED' ? 'single-image photogrammetry' : 'severity inference'}`);
   }
   if (kineticJ) {
-    keyFindings.push(`Kinetic energy at impact: ${kineticJ.value.toFixed(1)} kJ`);
+    // kineticEnergyJ.value is stored in Joules — divide by 1000 for kJ display
+    keyFindings.push(`Kinetic energy at impact: ${(kineticJ.value / 1000).toFixed(1)} kJ`);
   }
   if (slpe) {
     const pen = slpe.penetratedComponents.length;
