@@ -348,6 +348,83 @@ export const appRouter = router({
   reportingEngine: reportingRouter,
   integrity: integrityRouter,
   photoReextraction: photoReextractionRouter,
+  validationLoop: router({
+    /**
+     * Wave 4A: Get physics accuracy statistics from the historical validation loop.
+     * Returns aggregated MAPE, CI coverage, grade distribution, and per-method accuracy.
+     * Accessible to admin and platform_super_admin roles.
+     */
+    getStats: protectedProcedure
+      .input(z.object({
+        days: z.number().default(90),
+        limit: z.number().default(200),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'platform_super_admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required.' });
+        }
+        const { getValidationRecords } = await import('./db-validation');
+        const { computeValidationStats } = await import('./pipeline-v2/stage-validation-loop');
+        const { evidencePluginRegistry } = await import('./pipeline-v2/evidencePluginRegistry');
+
+        const allRecords = await getValidationRecords({ limit: input.limit });
+
+        // Filter by days
+        const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+        const recentRecords = allRecords.filter(r =>
+          r.createdAt ? new Date(r.createdAt) >= since : true
+        );
+
+        // Compute aggregate stats
+        const stats = computeValidationStats(
+          recentRecords.map(r => ({
+            speedDeviationPct: r.speedDeviationPct != null ? parseFloat(r.speedDeviationPct) : null,
+            costDeviationPct: r.costDeviationPct != null ? parseFloat(r.costDeviationPct) : null,
+            speedWithinCI: r.speedWithinCI,
+            calibrationFeedbackJson: null,
+            uncertaintyGrade: r.uncertaintyGrade,
+            createdAt: r.createdAt ?? new Date(),
+          }))
+        );
+
+        // Plugin registry status (stub summary — no live claim context needed)
+        const pluginSummary = evidencePluginRegistry.getAll().map(p => ({
+          pluginId: p.pluginId,
+          pluginName: p.pluginName,
+          category: p.category,
+          version: p.version,
+          status: 'UNAVAILABLE' as const,
+        }));
+
+        // Recent records for the table view (last 50)
+        const recentTable = recentRecords.slice(0, 50).map(r => ({
+          id: r.id,
+          claimId: r.claimId,
+          predictedSpeedKmh: r.predictedSpeedKmh ? parseFloat(r.predictedSpeedKmh) : null,
+          predictedSpeedLowKmh: r.predictedSpeedLowKmh ? parseFloat(r.predictedSpeedLowKmh) : null,
+          predictedSpeedHighKmh: r.predictedSpeedHighKmh ? parseFloat(r.predictedSpeedHighKmh) : null,
+          predictedCrushDepthMm: r.predictedCrushDepthMm ? parseFloat(r.predictedCrushDepthMm) : null,
+          uncertaintyGrade: r.uncertaintyGrade,
+          integrityScore: r.integrityScore,
+          actualSpeedKmh: r.actualSpeedKmh ? parseFloat(r.actualSpeedKmh) : null,
+          speedDeviationPct: r.speedDeviationPct ? parseFloat(r.speedDeviationPct) : null,
+          speedWithinCI: r.speedWithinCI,
+          validationStatus: r.validationStatus,
+          createdAt: r.createdAt?.toISOString() ?? null,
+        }));
+
+        return {
+          period: { days: input.days, since: since.toISOString() },
+          totalRecords: recentRecords.length,
+          pendingValidation: recentRecords.filter(r => r.validationStatus === 'pending').length,
+          validated: recentRecords.filter(r => r.validationStatus === 'validated').length,
+          stats,
+          pluginRegistry: pluginSummary,
+          recentRecords: recentTable,
+        };
+      }),
+  }),
   // ── Assessor Subscription (Free / Pro Tier) ────────────────────────────
   assessorSubscription: router({
     /**

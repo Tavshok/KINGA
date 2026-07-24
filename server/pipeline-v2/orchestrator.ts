@@ -175,6 +175,8 @@ import { buildPhysicsTruth, type PhysicsTruth } from "./physicsTruth";
 import { runIntegrityEngine, type IntegrityEngineResult } from "./stage-integrity";
 import { runUncertaintyPropagation, type UncertaintyPropagationResult } from "./stage-uncertainty";
 import { runExplainabilityEngine, type ExplainabilityResult } from "./stage-explainability";
+import { buildValidationPrediction } from "./stage-validation-loop";
+import { evidencePluginRegistry } from "./evidencePluginRegistry";
 
 
 /**
@@ -2836,9 +2838,44 @@ export async function runPipelineV2(
       const explainabilityResult = runExplainabilityEngine(physicsTruth, integrityResult, uncertaintyResult);
       // Attach Wave 3 results to physicsTruth for persistence
       (physicsTruth as any).wave3 = { integrity: integrityResult, uncertainty: uncertaintyResult, explainability: explainabilityResult };
+      // Attach uncertainty grade to PTL root for validation loop
+      (physicsTruth as any).uncertaintyGrade = uncertaintyResult.overallGrade;
       ctx.log("PTL", `Wave 3 engines complete: integrity=${integrityResult.integrityScore}/100, uncertaintyGrade=${uncertaintyResult.overallGrade}, findings=${explainabilityResult.keyFindings.length}`);
     } catch (w3Err) {
       ctx.log("PTL", `Wave 3 engine error (non-fatal): ${w3Err instanceof Error ? w3Err.message : String(w3Err)}`);
+    }
+
+    // ── Wave 4A: Historical Validation Loop ──────────────────────────────────
+    // Write a physics_validation_records row with predicted values.
+    // Non-fatal — errors are caught and logged.
+    try {
+      const { saveValidationPrediction } = await import("../db-validation");
+      const predictionRow = buildValidationPrediction({
+        claimId: String(ctx.claimId),
+        assessmentId: 0, // will be resolved by saveValidationPrediction from latest assessment
+        physicsTruth,
+      });
+      await saveValidationPrediction(ctx.claimId, predictionRow);
+      ctx.log("PTL", `Wave 4A: Validation prediction persisted for claim ${ctx.claimId}`);
+    } catch (w4aErr) {
+      ctx.log("PTL", `Wave 4A: Validation prediction error (non-fatal): ${w4aErr instanceof Error ? w4aErr.message : String(w4aErr)}`);
+    }
+
+    // ── Wave 4B: Evidence Plugin Registry ────────────────────────────────────
+    // Run all registered evidence plugins and attach contributions to PTL.
+    // Non-fatal — plugin errors are isolated and do not affect the main result.
+    try {
+      const pluginContributions = await evidencePluginRegistry.runAll(String(ctx.claimId), 0);
+      const activeContributions = pluginContributions.filter(c => c.status !== 'UNAVAILABLE');
+      (physicsTruth as any).wave4 = {
+        pluginContributions: activeContributions,
+        pluginStatusSummary: pluginContributions.map(c => ({ pluginId: c.pluginId, status: c.status })),
+        pluginsRan: pluginContributions.length,
+        pluginsActive: activeContributions.length,
+      };
+      ctx.log("PTL", `Wave 4B: ${pluginContributions.length} evidence plugins ran, ${activeContributions.length} active`);
+    } catch (w4bErr) {
+      ctx.log("PTL", `Wave 4B: Evidence plugin registry error (non-fatal): ${w4bErr instanceof Error ? w4bErr.message : String(w4bErr)}`);
     }
   } catch (ptlErr) {
     ctx.log("PTL", `Physics Truth Layer build error (non-fatal): ${ptlErr instanceof Error ? ptlErr.message : String(ptlErr)}`);

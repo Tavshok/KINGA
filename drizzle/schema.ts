@@ -5335,3 +5335,39 @@ export type InsertVehicleGeometryMeasurement = typeof vehicleGeometryMeasurement
 export type InsertVehicleLandmark = typeof vehicleLandmarks.$inferInsert;
 export type InsertGeometrySource = typeof geometrySources.$inferInsert;
 export type InsertVisionCalibrationResult = typeof visionCalibrationResults.$inferInsert;
+
+// ─── Wave 4A: Historical Validation Loop ─────────────────────────────────────
+// Stores predicted vs actual outcomes per claim for continuous accuracy tracking
+export const physicsValidationRecords = mysqlTable("physics_validation_records", {
+  id:                         int("id").autoincrement().primaryKey(),
+  claimId:                    varchar("claim_id", { length: 50 }).notNull(),
+  assessmentId:               int("assessment_id"),
+  // Predicted values (from PhysicsTruth at time of assessment)
+  predictedSpeedKmh:          decimal("predicted_speed_kmh", { precision: 6, scale: 2 }),
+  predictedSpeedLowKmh:       decimal("predicted_speed_low_kmh", { precision: 6, scale: 2 }),
+  predictedSpeedHighKmh:      decimal("predicted_speed_high_kmh", { precision: 6, scale: 2 }),
+  predictedCrushDepthMm:      decimal("predicted_crush_depth_mm", { precision: 7, scale: 2 }),
+  predictedRepairCostLocal:   decimal("predicted_repair_cost_local", { precision: 12, scale: 2 }),
+  predictedDeltaVKmh:         decimal("predicted_delta_v_kmh", { precision: 6, scale: 2 }),
+  uncertaintyGrade:           varchar("uncertainty_grade", { length: 1 }),
+  integrityScore:             int("integrity_score"),
+  // Actual values (populated when adjuster closes/settles the claim)
+  actualSpeedKmh:             decimal("actual_speed_kmh", { precision: 6, scale: 2 }),
+  actualRepairCostLocal:      decimal("actual_repair_cost_local", { precision: 12, scale: 2 }),
+  actualDamageZone:           varchar("actual_damage_zone", { length: 50 }),
+  actualSettlementAmount:     decimal("actual_settlement_amount", { precision: 12, scale: 2 }),
+  adjusterOverrideReason:     text("adjuster_override_reason"),
+  // Deviation metrics (computed when actual values are recorded)
+  speedDeviationPct:          decimal("speed_deviation_pct", { precision: 7, scale: 3 }),
+  costDeviationPct:           decimal("cost_deviation_pct", { precision: 7, scale: 3 }),
+  speedWithinCI:              tinyint("speed_within_ci"),
+  // Calibration feedback — per-method accuracy breakdown
+  calibrationFeedbackJson:    json("calibration_feedback_json"),
+  validationStatus:           varchar("validation_status", { length: 30 }).notNull().default("pending"),
+  validatedAt:                timestamp("validated_at"),
+  createdAt:                  timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt:                  timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+});
+
+export type InsertPhysicsValidationRecord = typeof physicsValidationRecords.$inferInsert;
+export type SelectPhysicsValidationRecord = typeof physicsValidationRecords.$inferSelect;

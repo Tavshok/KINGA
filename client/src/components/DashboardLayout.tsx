@@ -51,6 +51,7 @@ function getMenuItems(
       { icon: Activity,        label: "Pipeline Health",    path: "/admin/pipeline-health" },
       { icon: ShieldAlert,     label: "Escalation Queue",   path: "/admin/escalation" },
       { icon: BarChart3,       label: "Integrity Metrics",  path: "/admin/integrity-metrics" },
+      { icon: Activity,        label: "Physics Accuracy",   path: "/admin/physics-accuracy" },
       { icon: GitBranch,       label: "Workflows",          path: "/admin/workflows" },
     ];
   }

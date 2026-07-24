@@ -1030,3 +1030,17 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] §01 Physics Snapshot enhanced: calibrated Campbell speed with CI, uncertainty grade badge, verdict paragraph, integrity alert (critical/warning/clean)
 - [x] §W3 Physics Evidence Chain section added to page 2: key findings list, integrity flags with severity badges, uncertainty grade + drivers, methodology citations grid (4 methods)
 - [x] 111/111 tests pass, 0 TypeScript/esbuild errors
+
+---
+
+## Wave 4 — Historical Validation Loop + Architecture Extensibility (COMPLETE July 2026)
+
+- [x] Wave 4A: physics_validation_records table — stores predicted vs actual speed/cost/damage per claim
+- [x] Wave 4A: ValidationLoop engine (stage-validation-loop.ts) — computes deviation scores, MAPE, calibration drift
+- [x] Wave 4A: db-validation.ts — saveValidationPrediction() + getValidationRecords() helpers
+- [x] Wave 4A: validationLoop.getStats tRPC procedure — returns MAPE, CI coverage, grade distribution, per-method accuracy
+- [x] Wave 4A: Accuracy dashboard panel in admin UI (/admin/physics-accuracy) — MAPE trend, method accuracy breakdown, calibration status, CI coverage, drift indicator
+- [x] Wave 4B: EvidencePlugin registry (evidencePluginRegistry.ts) — typed plugin interface for telematics, LiDAR, EDR, 3D scan
+- [x] Wave 4B: Wire plugin registry into orchestrator after Wave 3 block — contributions attached to PTL wave4 field
+- [x] Wave 4B: Admin UI: Evidence Plugin Status panel — shows registered plugins, data availability per claim (in PhysicsAccuracyDashboard)
+- [x] End-to-end verification: 111/111 tests pass, 152/152 physics tests pass, TypeScript 0 errors, dev server clean restart
