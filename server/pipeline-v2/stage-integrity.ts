@@ -325,6 +325,15 @@ export function runIntegrityEngine(pt: PhysicsTruth): IntegrityEngineResult {
         recommendation: 'Review component deformation energy estimates for overestimation.',
         evidence: { eta: +eta.toFixed(3), etaMax: ETA_MAX },
       });
+    } else if (eta < ETA_MIN) {
+      flags.push({
+        code: 'INT-10-ETA_TOO_LOW',
+        severity: 'INFO',
+        description: `Deformation efficiency factor η = ${(eta * 100).toFixed(0)}% is below the physical minimum (~${(ETA_MIN * 100).toFixed(0)}%). Structural deformation always absorbs some kinetic energy. This may indicate the deformation energy is underestimated or the speed is overestimated.`,
+        affectedMeasurements: ['energy.deformationEfficiencyFactor'],
+        recommendation: 'Review component deformation energy estimates for underestimation. Verify speed ensemble inputs.',
+        evidence: { eta: +eta.toFixed(3), etaMin: ETA_MIN },
+      });
     }
   }
 
