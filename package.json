@@ -17,7 +17,7 @@
     "lint": "eslint server/**/*.ts",
     "lint:governance": "eslint --config .eslintrc.json server/**/*.ts",
     "governance:check": "bash scripts/governance-check.sh",
-    "test:integration": "vitest run server/pipeline-v2/regression.CI-024NATPHARM.test.ts server/workflow-integration.test.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
