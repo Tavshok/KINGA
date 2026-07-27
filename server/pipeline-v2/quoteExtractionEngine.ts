@@ -872,23 +872,9 @@ function validateLineItems(
             warnings.push(`line_item_rejected: "${rawComponentName}" failed semantic plausibility check`);
             continue;
           }
-          console.warn(`\u26a0\ufe0f  Hallucination guard (quote line_items): unresolved "${_normalisedComponent}" (raw: "${rawComponentName}") \u2014 plausibility=${plausibility}, keeping with is_unresolved=true`);
-          warnings.push(`line_item_unresolved: "${rawComponentName}" not in vehicle parts catalogue \u2014 verify manually`);
-          resolvedName = rawComponentName.trim();
-          const validOriginsUnresolved = ['oem', 'aftermarket', 'reconditioned', 'used', 'unknown'];
-          const partOriginUnresolved = validOriginsUnresolved.includes(item.part_origin as string)
-            ? (item.part_origin as 'oem' | 'aftermarket' | 'reconditioned' | 'used' | 'unknown')
-            : 'unknown';
-          line_items.push({
-            component: resolvedName,
-            unit_cost: unitCost,
-            quantity: qty,
-            line_total: lineTotal,
-            action: typeof item.action === 'string' ? item.action : null,
-            part_origin: partOriginUnresolved,
-            is_unresolved: true,
-            canonicalPartId: null,
-          });
+          console.warn(`⚠️  Hallucination guard (quote line_items): rejected "${_normalisedComponent}" (raw: "${rawComponentName}") — plausibility=${plausibility}, not in vehicle parts catalogue`);
+          warnings.push(`line_item_rejected: "${rawComponentName}" not in vehicle parts catalogue`);
+          rejected_line_items.push({ raw_name: rawComponentName, raw_cost: lineTotal });
           continue;
         }
         resolvedName = _resolvedComponent.name;
@@ -1038,7 +1024,7 @@ function validateDocumentCategory(raw: Record<string, unknown>): ExtractedQuote[
   const rawDocCategory = raw.document_category;
   return (typeof rawDocCategory === 'string' && VALID_DOC_CATEGORIES.has(rawDocCategory))
     ? rawDocCategory as ExtractedQuote['document_category']
-    : 'other';
+    : 'other'; // R-A-22: unrecognised or missing
 }
 
 /**
@@ -1074,8 +1060,8 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
           if (isNonPartLineItem(normalised) || isNonPartLineItem(rawC)) return rawC.trim();
           const resolved = resolveComponent(normalised);
           if (!resolved) {
-            console.warn(`\u26a0\ufe0f  Hallucination guard (quote components): could not resolve "${normalised}" (raw: "${rawC}") \u2014 keeping raw name`);
-            return rawC.trim();
+            console.warn(`\u26a0\ufe0f  Hallucination guard (quote components): could not resolve "${normalised}" (raw: "${rawC}") \u2014 stripping from components`);
+            return null as unknown as string;
           }
           return resolved.name;
         })

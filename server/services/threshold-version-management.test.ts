@@ -158,7 +158,7 @@ describe("Threshold Version Management", () => {
       // Verify v1.0 is inactive
       const history = await getThresholdVersionHistory(testTenantId);
       const v1_0 = history.find(h => h.version === "v1.0");
-      expect(v1_0?.isActive).toBe(false);
+      expect(v1_0?.isActive).toBeFalsy(); // MySQL returns 0 for false
     });
     
     it("should enforce only one active version per tenant", async () => {
@@ -301,8 +301,8 @@ describe("Threshold Version Management", () => {
       expect(history).toHaveLength(2);
       expect(history[0].version).toBe("v1.0");
       expect(history[1].version).toBe("v1.1");
-      expect(history[0].isActive).toBe(false);
-      expect(history[1].isActive).toBe(true);
+      expect(history[0].isActive).toBeFalsy(); // MySQL returns 0 for false
+      expect(history[1].isActive).toBeTruthy(); // MySQL returns 1 for true
     });
   });
   

@@ -93,12 +93,13 @@ describe('M1 Campbell — crush depth source priority', () => {
 });
 
 describe('M5 Vision Deformation', () => {
-  it('runs when visionCrushDepthM is available', () => {
+  it('runs when totalDeformationEnergyJ is available', () => {
     const result = runSpeedInferenceEnsemble({
       ...BASE_INPUT,
       documentCrushDepthM: null,
       visionCrushDepthM: 0.18,
       visionConfidenceScore: 80,
+      totalDeformationEnergyJ: 50000, // 50 kJ — required for M5 to run
     });
     const m5 = result.methods.find(m => m.method === 'VISION_DEFORMATION')!;
     expect(m5).toBeDefined();
@@ -119,7 +120,7 @@ describe('M5 Vision Deformation', () => {
 });
 
 describe('M4 Deployment Threshold', () => {
-  it('runs and produces a lower bound when airbag deployed', () => {
+  it('runs and produces a point estimate when airbag deployed', () => {
     const result = runSpeedInferenceEnsemble({
       ...BASE_INPUT,
       documentCrushDepthM: null,
@@ -129,9 +130,9 @@ describe('M4 Deployment Threshold', () => {
     const m4 = result.methods.find(m => m.method === 'DEPLOYMENT_THRESHOLD')!;
     expect(m4).toBeDefined();
     expect(m4.ran).toBe(true);
-    expect(m4.isLowerBoundOnly).toBe(true);
+    // M4 is now a weighted evidence contributor (not a lower bound)
+    expect(m4.isLowerBoundOnly).toBe(false);
     expect(m4.speedKmh).not.toBeNull();
-    expect(result.lowerBoundKmh).not.toBeNull();
   });
 
   it('does not run when no safety system deployed', () => {
@@ -162,12 +163,13 @@ describe('Consensus with vision-only inputs', () => {
     expect(['MEDIUM', 'HIGH']).toContain(result.overallConfidence);
   });
 
-  it('M1 and M5 both use vision depth — two methods contribute to consensus', () => {
+  it('M1 and M5 both run when vision depth and deformation energy are available', () => {
     const result = runSpeedInferenceEnsemble({
       ...BASE_INPUT,
       documentCrushDepthM: null,
       visionCrushDepthM: 0.20,
       visionConfidenceScore: 72,
+      totalDeformationEnergyJ: 60000, // 60 kJ — required for M5 to run
     });
     const ranMethods = result.methods.filter(m => m.ran && !m.isLowerBoundOnly);
     expect(ranMethods.length).toBeGreaterThanOrEqual(2); // M1 + M5

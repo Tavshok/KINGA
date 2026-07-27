@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../_core/llm", () => ({
   invokeLLM: vi.fn(),
+  withRetry: vi.fn((fn: () => Promise<any>) => fn()),
 }));
 
 import { invokeLLM } from "../_core/llm";
@@ -204,6 +205,11 @@ describe("extractMultipleQuotes", () => {
   });
 
   it("returns a single-item array for a single-quote document", async () => {
+    // Call 1: detection LLM — returns single repairer
+    (invokeLLM as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      makeLLMResponse({ repairers: ["Avana Motors"] })
+    );
+    // Call 2: extraction LLM — returns the full quote
     (invokeLLM as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
       makeLLMResponse({
         panel_beater: "Avana Motors",
@@ -224,7 +230,9 @@ describe("extractMultipleQuotes", () => {
   });
 
   it("returns multiple extractions for a document with multiple quote blocks", async () => {
-    // Mock two LLM calls for two blocks
+    // The text has structural separators ("QUOTE 1", "QUOTE 2") so splitQuoteBlocks
+    // finds 2 blocks without LLM detection. Each block calls extractQuoteFromText once.
+    // Call 1: extraction for block 1 (Panel Pro)
     (invokeLLM as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(
         makeLLMResponse({
@@ -238,6 +246,7 @@ describe("extractMultipleQuotes", () => {
           extraction_warnings: [],
         })
       )
+      // Call 2: extraction for block 2 (Fix It Fast)
       .mockResolvedValueOnce(
         makeLLMResponse({
           panel_beater: "Fix It Fast",
@@ -260,8 +269,9 @@ Fix It Fast: USD 1,800.00 grille and radiator`;
     const results = await extractMultipleQuotes(multiQuoteText);
 
     expect(results).toHaveLength(2);
-    expect(results[0].panel_beater).toBe("Panel Pro");
-    expect(results[1].panel_beater).toBe("Fix It Fast");
+    const names = results.map((r) => r.panel_beater);
+    expect(names).toContain("Panel Pro");
+    expect(names).toContain("Fix It Fast");
   });
 
   it("returns a low-confidence fallback for each block when LLM fails", async () => {

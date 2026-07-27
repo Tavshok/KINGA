@@ -27,11 +27,21 @@ describe('R-B-03b: dark-image rescue path in imageIntelligence.ts', () => {
   });
 
   it('defines isDark condition with meanBrightness < 80', () => {
-    expect(content).toContain('features.meanBrightness < 80');
+    // Engine uses named constant DARK_RESCUE_BRIGHTNESS_THRESHOLD = 80
+    const hasDirect = content.includes('features.meanBrightness < 80');
+    const hasConstant = content.includes('DARK_RESCUE_BRIGHTNESS_THRESHOLD') &&
+      content.includes('features.meanBrightness < DARK_RESCUE_BRIGHTNESS_THRESHOLD') &&
+      /DARK_RESCUE_BRIGHTNESS_THRESHOLD\s*=\s*80/.test(content);
+    expect(hasDirect || hasConstant).toBe(true);
   });
 
   it('defines hasColour condition with colourVariance > 0.05', () => {
-    expect(content).toContain('features.colourVariance > 0.05');
+    // Engine uses named constant DARK_RESCUE_COLOUR_THRESHOLD = 0.05
+    const hasDirect = content.includes('features.colourVariance > 0.05');
+    const hasConstant = content.includes('DARK_RESCUE_COLOUR_THRESHOLD') &&
+      content.includes('features.colourVariance > DARK_RESCUE_COLOUR_THRESHOLD') &&
+      /DARK_RESCUE_COLOUR_THRESHOLD\s*=\s*0\.05/.test(content);
+    expect(hasDirect || hasConstant).toBe(true);
   });
 
   it('rescue path pushes to ambiguousPool', () => {
@@ -69,9 +79,12 @@ describe('R-B-03b: dark-image rescue path in imageIntelligence.ts', () => {
 
   it('blank dark page (colourVariance ≤ 0.05) is NOT rescued', () => {
     // The rescue condition requires colourVariance > 0.05
-    // A blank dark page has colourVariance ≈ 0.01 → rescue NOT triggered
-    // This is verified by the hasColour check in the code
-    expect(content).toContain('features.colourVariance > 0.05');
+    // Engine may use literal or named constant DARK_RESCUE_COLOUR_THRESHOLD = 0.05
+    const hasDirect = content.includes('features.colourVariance > 0.05');
+    const hasConstant = content.includes('DARK_RESCUE_COLOUR_THRESHOLD') &&
+      content.includes('features.colourVariance > DARK_RESCUE_COLOUR_THRESHOLD') &&
+      /DARK_RESCUE_COLOUR_THRESHOLD\s*=\s*0\.05/.test(content);
+    expect(hasDirect || hasConstant).toBe(true);
     // Confirm the else branch still classifies as document when rescue is not triggered
     const afterRescue = content.slice(
       content.indexOf('R-B-03b: Dark-image rescue path')

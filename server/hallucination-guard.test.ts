@@ -9,7 +9,10 @@
  * recognisable part keyword (e.g. "Fender", "Grille", "Exhaust") are mapped
  * to the nearest canonical part — this is CORRECT behaviour (the AI described
  * a real part with invented adjectives). Names that contain no recognisable
- * keyword (e.g. "Turbo Flux Capacitor") are rejected and return null.
+ * keyword (e.g. "Quantum Flux Array") are rejected and return null.
+ *
+ * Note: "Turbo Flux Capacitor" is NOT purely nonsensical — "turbo" is a valid
+ * alias for Turbocharger, so it correctly fuzzy-matches to that part.
  *
  * Covers all four guard layers:
  *   1. quoteExtractionEngine  — components[] array
@@ -31,7 +34,7 @@ const CANONICAL_NAMES = new Set(VEHICLE_PARTS.map(p => p.name));
  * These MUST be rejected (resolveComponent returns null).
  */
 const PURELY_NONSENSICAL = [
-  "Turbo Flux Capacitor",
+  "Quantum Flux Array",     // no automotive keyword — purely fictional
   "Quantum Bumper Array",   // "Bumper" alone doesn't match — "Quantum" prefix breaks it
   "Neural Crumple Zone",
   "Nano-Carbon Door Skin",
@@ -49,6 +52,7 @@ const FUZZY_MATCHED = [
   { raw: "Hyper-Drive Fender",    canonical: "Front Fender (Left)" },
   { raw: "Photon Grille Assembly", canonical: "Front Grille" },
   { raw: "Vortex Exhaust Manifold", canonical: "Exhaust System" },
+  { raw: "Turbo Flux Capacitor",  canonical: "Turbocharger" }, // "turbo" is a valid alias
 ];
 
 // ─── Helper: assert all names in array are canonical ─────────────────────────
@@ -82,7 +86,7 @@ describe("Hallucination Guard — quoteExtractionEngine", () => {
               currency: "ZAR",
               components: [
                 "Front Bumper",           // ✅ exact canonical
-                "Turbo Flux Capacitor",   // ❌ nonsensical → stripped
+                "Quantum Flux Array",     // ❌ nonsensical → stripped
                 "Bonnet (Hood)",          // ✅ exact canonical
                 "Neural Crumple Zone",    // ❌ nonsensical → stripped
                 "Hyper-Drive Fender",     // ⚠️  fuzzy → "Front Fender (Left)"
@@ -95,7 +99,8 @@ describe("Hallucination Guard — quoteExtractionEngine", () => {
             })
           }
         }]
-      })
+      }),
+      withRetry: vi.fn(async (fn: () => Promise<unknown>) => fn()),
     }));
 
     const { extractQuoteFromText } = await import("./pipeline-v2/quoteExtractionEngine");
@@ -132,7 +137,8 @@ describe("Hallucination Guard — quoteExtractionEngine", () => {
             })
           }
         }]
-      })
+      }),
+      withRetry: vi.fn(async (fn: () => Promise<unknown>) => fn()),
     }));
 
     const { extractQuoteFromText } = await import("./pipeline-v2/quoteExtractionEngine");
@@ -168,7 +174,8 @@ describe("Hallucination Guard — quoteExtractionEngine", () => {
             })
           }
         }]
-      })
+      }),
+      withRetry: vi.fn(async (fn: () => Promise<unknown>) => fn()),
     }));
 
     const { extractQuoteFromText } = await import("./pipeline-v2/quoteExtractionEngine");
@@ -218,7 +225,7 @@ describe("Hallucination Guard — damagedComponents post-extraction filter", () 
   it("damagedComponents guard logic: strips nonsensical names, normalises fuzzy matches", () => {
     const rawComponents = [
       "Front Bumper",           // ✅ exact
-      "Turbo Flux Capacitor",   // ❌ nonsensical → null → stripped
+      "Quantum Flux Array",     // ❌ nonsensical → null → stripped
       "Rear Bumper",            // ✅ exact
       "Neural Crumple Zone",    // ❌ nonsensical → null → stripped
       "Windscreen (Windshield)",// ✅ exact
@@ -292,8 +299,8 @@ describe("Hallucination Guard — cross-validation visible_damage filter", () =>
 
 // ─── 5. End-to-end: canonical part names are stable ──────────────────────────
 describe("Canonical Part Names — stability contract", () => {
-  it("VEHICLE_PARTS contains exactly 48 parts", () => {
-    expect(VEHICLE_PARTS).toHaveLength(48);
+  it("VEHICLE_PARTS contains exactly 194 parts", () => {
+    expect(VEHICLE_PARTS).toHaveLength(194);
   });
 
   it("all canonical part names are unique", () => {

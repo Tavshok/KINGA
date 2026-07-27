@@ -76,7 +76,14 @@ export const workflowQueriesRouter = router({
   getClaimsByState: insurerDomainProcedure
     .input(
       z.object({
-        state: z.enum(['intake_queue','created','intake_verified','assigned','under_assessment','internal_review','technical_approval','financial_decision','payment_authorized','closed','disputed','ai_assessment_pending','ai_assessment_completed','manual_review']),
+        state: z.enum([
+          'intake_queue','created','intake_verified','assigned','under_assessment',
+          'internal_review','technical_approval','financial_decision',
+          'payment_authorized','payment_processing','closed','disputed',
+          'ai_assessment_pending','ai_assessment_completed','manual_review',
+          'quotes_pending','quotes_received','comparison',
+          'approved','rejected','completed','cancelled'
+        ]),
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
       })

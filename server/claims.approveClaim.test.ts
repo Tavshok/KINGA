@@ -70,6 +70,19 @@ describe("Claims - Approve Claim Workflow", () => {
       status: "submitted",
     });
     testQuoteId = Number(quoteResult[0].insertId);
+
+    // Create a minimal AI assessment record so workflow engine allows financial_decision transition
+    // (workflow-engine.ts requires an aiAssessments record before advancing past technical_approval)
+    const db = await getDb();
+    const { aiAssessments } = await import('../drizzle/schema');
+    await db.insert(aiAssessments).values({
+      claimId: testClaimId,
+      estimatedCost: 150000,
+      confidenceScore: 85,
+      fraudRiskLevel: 'low',
+      fraudScore: 10,
+      recommendation: 'APPROVE',
+    });
   });
 
   it("should approve claim and update status to repair_assigned", async () => {

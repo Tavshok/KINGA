@@ -32,7 +32,15 @@ describe("Workflow Validator", () => {
         "repair_in_progress",
         "completed",
         "closed",
-        "rejected"
+        "rejected",
+        // DRA states (Document Reliability Architecture)
+        "document_validating",
+        "document_ready",
+        "analysis_running",
+        "analysis_complete",
+        "document_failed",
+        "recovery_attempted",
+        "human_review_required"
       ];
       
       const definedStatuses = Object.keys(ALLOWED_TRANSITIONS);
@@ -230,7 +238,8 @@ describe("Workflow Validator", () => {
       expect(nextStates).toContain("triage");
       expect(nextStates).toContain("assessment_pending");
       expect(nextStates).toContain("rejected");
-      expect(nextStates.length).toBe(3);
+      // submitted also allows document_validating (DRA path)
+      expect(nextStates.length).toBe(4);
     });
     
     it("should return valid next states for comparison", () => {

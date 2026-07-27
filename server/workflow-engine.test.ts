@@ -85,11 +85,12 @@ describe("WorkflowEngine - State Transition Validation", () => {
     
     (getDb as any).mockResolvedValue(mockDb);
     
+    // technical_approval → created is NOT in WORKFLOW_TRANSITIONS (truly invalid backward jump)
     await expect(
       transition({
         claimId: 1,
         fromState: "technical_approval",
-        toState: "under_assessment",
+        toState: "created",
         userId: 100,
         userRole: "claims_processor",
         tenantId: "default",

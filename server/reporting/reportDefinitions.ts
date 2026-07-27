@@ -105,9 +105,9 @@ export const REPORT_ACCESS: Record<string, string[]> = {
   // ── Governance / Compliance Reports ──────────────────────────────────────
   // Claims manager owns compliance/governance reporting within the insurer
   // SAR and data retention are compliance/admin functions — not claims management
-  "governance.sar":                    ["insurer_admin"],
-  "governance.regulatory_compliance":  ["insurer_admin", "executive"],
-  "governance.data_retention":         ["insurer_admin"],
+  "governance.sar":                    ["insurer_admin", "claims_manager"],
+  "governance.regulatory_compliance":  ["insurer_admin", "executive", "claims_manager"],
+  "governance.data_retention":         ["insurer_admin", "claims_manager"],
 
   // ── Assessor Reports ──────────────────────────────────────────────────────
   // Assessors see only their own assignment list and personal performance

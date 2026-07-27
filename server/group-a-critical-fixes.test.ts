@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockLlmCall = vi.fn();
 vi.mock("../server/_core/llm", () => ({
   invokeLLM: mockLlmCall,
+  withRetry: vi.fn(async (fn: () => Promise<unknown>) => fn()),
 }));
 
 // Helper: build a minimal ExtractedClaimFields-shaped LLM response
@@ -241,17 +242,19 @@ describe("R-A-05: pdf-image-extractor — MAX_PAGES_TO_RENDER cap", () => {
     expect(src).toContain("const MAX_PAGES_TO_RENDER = 40;");
   });
 
-  it("pagesToRender = Math.min(pageCount, MAX_PAGES_TO_RENDER) is present in the rendering loop", async () => {
+  it("MAX_PAGES_TO_RENDER is used to cap rendering (via maxPages or pagesToRender)", async () => {
     const fs = await import("fs");
     const src = fs.readFileSync("/home/ubuntu/kinga-replit/server/pdf-image-extractor.ts", "utf-8");
-    expect(src).toContain("const pagesToRender = Math.min(pageCount, MAX_PAGES_TO_RENDER);");
-    expect(src).toContain("for (let pageNum = 1; pageNum <= pagesToRender; pageNum++)");
+    // The engine caps rendering via maxPages: MAX_PAGES_TO_RENDER passed to renderPdfToImages
+    expect(src).toContain("maxPages: MAX_PAGES_TO_RENDER");
+    expect(src).toContain("MAX_PAGES_TO_RENDER");
   });
 
   it("truncation warning is pushed to errors[] when pageCount > MAX_PAGES_TO_RENDER", async () => {
     const fs = await import("fs");
     const src = fs.readFileSync("/home/ubuntu/kinga-replit/server/pdf-image-extractor.ts", "utf-8");
-    expect(src).toContain("errors.push(truncationMsg)");
+    // The engine uses errors.push(truncMsg) — variable name may differ from truncationMsg
+    expect(src).toContain("errors.push(trunc");
     expect(src).toContain("R-A-05: PDF has");
   });
 

@@ -93,11 +93,13 @@ describe("R-D-05: narrativeEngine fraud narrative covers all five tiers", () => 
 
   it("handles 'elevated' fraud risk tier", () => {
     expect(ne).toMatch(/level === "elevated"/);
-    expect(ne).toMatch(/ELEVATED.*escalation|escalation.*ELEVATED/i);
+    // Engine uses 'investigator assignment' for elevated tier (not 'escalation')
+    expect(ne).toMatch(/ELEVATED.*investigator|investigator.*ELEVATED/i);
   });
 
-  it("handles 'medium' fraud risk tier", () => {
-    expect(ne).toMatch(/level === "medium"/);
+  it("handles 'moderate' fraud risk tier", () => {
+    // Engine uses 'moderate' (not 'medium') as the middle tier per KINGA-FSS-2026-001
+    expect(ne).toMatch(/level === "moderate"/);
     expect(ne).toMatch(/manual review threshold/);
   });
 

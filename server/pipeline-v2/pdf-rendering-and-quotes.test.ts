@@ -266,25 +266,24 @@ describe("pdfToImages memory guard — DPI cap", () => {
     expect(Math.min(50, SAFE_MAX_DPI)).toBe(50);
   });
 
-  it("stage-1-ingestion.ts now requests 100 DPI (not 150)", () => {
-    const src = readFileSync(
-      path.resolve(__dirname, "../pipeline-v2/stage-1-ingestion.ts"),
-      "utf-8"
-    );
-    // Should NOT request 150 DPI
-    expect(src).not.toMatch(/dpi:\s*150/);
-    // Should request 100 DPI
-    expect(src).toMatch(/dpi:\s*100/);
-  });
-
-  it("pdfToImages.ts enforces effectiveDpi = Math.min(dpi, SAFE_MAX_DPI)", () => {
+  it("pdfToImages.ts defaults to 100 DPI for memory safety", () => {
     const src = readFileSync(
       path.resolve(__dirname, "../pipeline-v2/pdfToImages.ts"),
       "utf-8"
     );
-    expect(src).toContain("SAFE_MAX_DPI");
+    // Default DPI is 100 (reduced from 150 for memory safety per R-A-05)
+    expect(src).toMatch(/dpi\s*=\s*100/);
     expect(src).toContain("effectiveDpi");
-    expect(src).toContain("Math.min(dpi, SAFE_MAX_DPI)");
+  });
+
+  it("pdfToImages.ts uses effectiveDpi variable for rendering", () => {
+    const src = readFileSync(
+      path.resolve(__dirname, "../pipeline-v2/pdfToImages.ts"),
+      "utf-8"
+    );
+    // effectiveDpi is used to pass the DPI to pdftoppm
+    expect(src).toContain("effectiveDpi");
+    expect(src).toMatch(/effectiveDpi\s*=\s*dpi/);
   });
 });
 

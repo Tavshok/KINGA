@@ -144,7 +144,7 @@ describe("REPORT_ACCESS catalogue completeness", () => {
     const KNOWN_ROLES = [
       "admin", "insurer_admin", "claims_manager", "fraud_manager",
       "claims_processor", "assessor", "assessor_internal", "assessor_external",
-      "panel_beater", "risk_manager", "executive",
+      "panel_beater", "risk_manager", "executive", "recovery_officer",
     ];
     for (const [key, roles] of Object.entries(REPORT_ACCESS)) {
       for (const role of roles) {
