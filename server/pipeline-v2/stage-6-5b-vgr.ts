@@ -338,6 +338,8 @@ export function runVGRReconciliation(
     };
 
   } catch (err: any) {
+    // KINGA defect policy: silent error swallowing is a defect — always log VGR exceptions.
+    console.error('[VGR] runVGRReconciliation threw an exception (non-fatal, Stage 7 falls back to Stage 6.5A estimate):', err);
     return {
       reconciliationAvailable: false,
       consensusCrushDepthM: null,

@@ -306,6 +306,7 @@ export interface ExtractedClaimFields {
   damagedComponents: DamagedComponentExtracted[];
   structuralDamage: boolean | null;
   airbagDeployment: boolean | null;
+  seatbeltPretensioner: boolean | null;
   maxCrushDepthM: number | null;
   totalDamageAreaM2: number | null;
   // Third party
