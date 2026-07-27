@@ -137,8 +137,8 @@ describe("exported constants", () => {
     expect(ESCALATION_FRAUD_LEVELS.has("high")).toBe(true);
     expect(ESCALATION_FRAUD_LEVELS.has("elevated")).toBe(true);
   });
-  it("MANUAL_REVIEW_FRAUD_LEVELS contains 'medium'", () => {
-    expect(MANUAL_REVIEW_FRAUD_LEVELS.has("medium")).toBe(true);
+  it("MANUAL_REVIEW_FRAUD_LEVELS contains 'moderate'", () => {
+    expect(MANUAL_REVIEW_FRAUD_LEVELS.has("moderate")).toBe(true);
   });
   it("MIN_CONFIDENCE_FOR_DECISION is between 10 and 40", () => {
     expect(MIN_CONFIDENCE_FOR_DECISION).toBeGreaterThanOrEqual(10);
@@ -279,7 +279,7 @@ describe("fraud steps", () => {
     expect(r.causal_chain.find((x) => x.key === "fraud_score_computed")!.severity).toBe("info");
   });
   it("fraud step is 'warning' when score >= warning threshold", () => {
-    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(FRAUD_SCORE_WARNING_THRESHOLD, "medium"), null, 80);
+    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(FRAUD_SCORE_WARNING_THRESHOLD, "moderate"), null, 80);
     expect(r.causal_chain.find((x) => x.key === "fraud_score_computed")!.severity).toBe("warning");
   });
   it("fraud step is 'critical' when score >= critical threshold", () => {
@@ -295,15 +295,15 @@ describe("fraud steps", () => {
     expect(r.causal_chain.find((x) => x.key === "damage_consistency_low")).toBeUndefined();
   });
   it("generates 'repairer_history_flagged' when repairer is flagged", () => {
-    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(30, "medium", { repairerHistory: { flagged: true, notes: "Suspicious" } }), null, 80);
+    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(30, "moderate", { repairerHistory: { flagged: true, notes: "Suspicious" } }), null, 80);
     expect(r.causal_chain.find((x) => x.key === "repairer_history_flagged")).toBeDefined();
   });
   it("generates 'claimant_frequency_flagged' when frequency is flagged", () => {
-    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(30, "medium", { claimantClaimFrequency: { flagged: true, notes: "High" } }), null, 80);
+    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(30, "moderate", { claimantClaimFrequency: { flagged: true, notes: "High" } }), null, 80);
     expect(r.causal_chain.find((x) => x.key === "claimant_frequency_flagged")).toBeDefined();
   });
   it("generates 'vehicle_history_flagged' when vehicle history is flagged", () => {
-    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(30, "medium", { vehicleClaimHistory: { flagged: true, notes: "Repeated" } }), null, 80);
+    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(30, "moderate", { vehicleClaimHistory: { flagged: true, notes: "Repeated" } }), null, 80);
     expect(r.causal_chain.find((x) => x.key === "vehicle_history_flagged")).toBeDefined();
   });
   it("generates 'fraud_escalation_triggered' for high fraud level", () => {
@@ -317,8 +317,8 @@ describe("fraud steps", () => {
     const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(85, "elevated"), null, 80);
     expect(r.causal_chain.find((x) => x.key === "fraud_escalation_triggered")).toBeDefined();
   });
-  it("generates 'fraud_manual_review_triggered' for medium fraud level", () => {
-    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(50, "medium"), null, 80);
+  it("generates 'fraud_manual_review_triggered' for moderate fraud level", () => {
+    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(50, "moderate"), null, 80);
     const s = r.causal_chain.find((x) => x.key === "fraud_manual_review_triggered");
     expect(s).toBeDefined();
     expect(s!.severity).toBe("warning");
@@ -418,7 +418,7 @@ describe("decision outcome derivation", () => {
     expect(r.decision_outcome).toBe("insufficient_data");
   });
   it("returns 'manual_review' or 'approve_with_notes' for medium fraud", () => {
-    const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7("frontal"), makeStage8(50, "medium"), makeStage9(), 80);
+    const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7("frontal"), makeStage8(50, "moderate"), makeStage9(), 80);
     expect(["manual_review", "approve_with_notes"]).toContain(r.decision_outcome);
   });
   it("escalates when physics mismatch alone", () => {
@@ -451,7 +451,7 @@ describe("output contract", () => {
     expect(r.critical_step_count).toBe(r.causal_chain.filter((s) => s.severity === "critical").length);
   });
   it("warning_step_count matches count of warning steps", () => {
-    const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7(), makeStage8(50, "medium"), makeStage9(), 80);
+    const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7(), makeStage8(50, "moderate"), makeStage9(), 80);
     expect(r.warning_step_count).toBe(r.causal_chain.filter((s) => s.severity === "warning").length);
   });
   it("confidence_score matches the input confidence", () => {
@@ -491,7 +491,7 @@ describe("escalation_required flag", () => {
     if (r.decision_outcome === "reject_pending") expect(r.escalation_required).toBe(true);
   });
   it("is false when decision is 'manual_review'", () => {
-    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(50, "medium"), null, 80);
+    const r = buildCausalChain(makeClaimRecord(), null, null, makeStage8(50, "moderate"), null, 80);
     if (r.decision_outcome === "manual_review") expect(r.escalation_required).toBe(false);
   });
 });
@@ -561,7 +561,7 @@ describe("chain summary generation", () => {
     expect(r.chain_summary.toLowerCase()).toContain("decision");
   });
   it("summary contains arrow or decision keyword", () => {
-    const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7(), makeStage8(50, "medium"), makeStage9(), 80);
+    const r = buildCausalChain(makeClaimRecord(), makeStage6(), makeStage7(), makeStage8(50, "moderate"), makeStage9(), 80);
     expect(r.chain_summary).toMatch(/→|decision/);
   });
   it("summary for approve outcome contains 'APPROVE'", () => {

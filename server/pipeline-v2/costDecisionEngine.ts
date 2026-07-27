@@ -601,7 +601,7 @@ function buildReasoning(
       );
     } else {
       parts.push(
-        `No assessor-agreed cost was available. The true cost basis of ${currency} ${trueCostUsd.toFixed(2)} is the lowest credible submitted quote.`
+        `No assessor-agreed cost was available. The true cost basis of ${currency} ${trueCostUsd.toFixed(2)} is the lowest credible submitted quote (system-optimised baseline).`
       );
     }
   }
@@ -748,14 +748,14 @@ export function runCostDecision(input: CostDecisionInput): CostDecisionOutput {
     trueCostUsd = round2(optimisedCost);
     costBasis = "system_optimised";
     if (mode === "PRE_ASSESSMENT") {
-      trace.push(`PRE_ASSESSMENT mode: TRUE_COST set to lowest credible submitted quote of ${currency} ${trueCostUsd.toFixed(2)}.`);
+      trace.push(`PRE_ASSESSMENT mode: TRUE_COST set to lowest credible submitted quote of ${currency} ${trueCostUsd.toFixed(2)} (system_optimised).`);
     } else {
-      trace.push(`No agreed cost present. TRUE_COST resolved to ${currency} ${trueCostUsd.toFixed(2)} from lowest credible submitted quote.`);
+      trace.push(`No agreed cost present. TRUE_COST resolved to ${currency} ${trueCostUsd.toFixed(2)} from lowest credible submitted quote (system_optimised).`);
     }
   } else {
     trueCostUsd = 0;
     costBasis = "system_optimised";
-    trace.push("No agreed cost and no optimised cost available. TRUE_COST set to 0. Flagging for manual review.");
+    trace.push("No agreed cost and no optimised cost available. TRUE_COST set to 0 (system_optimised). Flagging for manual review.");
   }
 
   // ── Step 2: Deviation Analysis ─────────────────────────────────────────────

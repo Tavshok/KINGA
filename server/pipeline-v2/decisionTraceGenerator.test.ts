@@ -186,7 +186,7 @@ const fullReviewInput: DecisionTraceInput = {
     summary: "Physics analysis inconclusive for theft scenario.",
   },
   fraud: {
-    fraud_risk_level: "medium",
+    fraud_risk_level: "moderate",
     fraud_risk_score: 52,
     critical_flag_count: 1,
     top_indicators: ["suspicious_timing"],

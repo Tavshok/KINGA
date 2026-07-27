@@ -8,7 +8,7 @@
  * - DamageImagesPanel data parsing helpers
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { DamagePhoto, DetectedComponent } from "../shared/damage-photo-types";
 
 // ─── Type validation tests ────────────────────────────────────────────────────
@@ -438,6 +438,11 @@ describe("Stage 1b — LLM classification to DamagePhoto conversion", () => {
 
 // ─── extractImagesFromPDFUrl retry logic ─────────────────────────────────────────────
 describe("extractImagesFromPDFUrl retry logic", () => {
+  // Ensure fetch and timers are always restored after each test
+  let _savedFetch: typeof fetch;
+  beforeEach(() => { _savedFetch = global.fetch; });
+  afterEach(() => { global.fetch = _savedFetch; vi.useRealTimers(); vi.resetModules(); });
+
   it("returns empty array when fetch fails", async () => {
     // Use fake timers to skip the 5s+10s retry backoff delays instantly
     vi.useFakeTimers();

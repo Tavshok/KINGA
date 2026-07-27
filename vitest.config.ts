@@ -15,6 +15,11 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["server/**/*.test.ts", "server/**/*.spec.ts", "shared/**/*.test.ts", "shared/**/*.spec.ts"],
+    exclude: [
+      // Integration tests that make real LLM calls — run separately with: pnpm test:integration
+      "server/pipeline-v2/regression.CI-024NATPHARM.test.ts",
+      "server/workflow-integration.test.ts",
+    ],
     pool: "forks",
     poolOptions: {
       forks: {
@@ -23,5 +28,6 @@ export default defineConfig({
     },
     clearMocks: true,
     restoreMocks: true,
+    testTimeout: 180_000, // 3 minutes for LLM-heavy integration tests
   },
 });

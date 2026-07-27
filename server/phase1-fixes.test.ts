@@ -94,7 +94,7 @@ describe("Contract Registry (S1)", () => {
   it("returns correct timeout budget for each stage type", () => {
     // LLM stages get TIMEOUT_LLM_MS (60s)
     expect(getStageTimeout("6_damage_analysis")).toBe(200_000); // TIMEOUT_VISION_MS 2014 processes up to 20 photos sequentially
-    expect(getStageTimeout("8_fraud")).toBe(60_000);
+    expect(getStageTimeout("8_fraud")).toBe(180_000); // TIMEOUT_MULTI_LLM_MS — 3+ sequential LLM calls
     expect(getStageTimeout("10_report")).toBe(60_000);
     // Deterministic stages get TIMEOUT_DETERMINISTIC_MS (10s)
     expect(getStageTimeout("5_assembly")).toBe(10_000);

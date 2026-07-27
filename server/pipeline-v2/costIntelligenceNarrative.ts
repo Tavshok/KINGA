@@ -134,7 +134,7 @@ function repairToValueComment(
   const ratio = (agreedCost / marketValue) * 100;
   // R-E-01: thresholds aligned with ECONOMIC_WRITE_OFF_THRESHOLD (shared constant)
   if (ratio >= ECONOMIC_WRITE_OFF_THRESHOLD * 100) {
-    return `The repair-to-value ratio of ${ratio.toFixed(1)}% meets or exceeds the write-off threshold (${(ECONOMIC_WRITE_OFF_THRESHOLD * 100).toFixed(0)}%); a write-off assessment is recommended before authorising repairs.`;
+    return `The repair-to-value ratio of ${ratio.toFixed(1)}% meets or exceeds the write-off threshold (${(ECONOMIC_WRITE_OFF_THRESHOLD * 100).toFixed(0)}%); a write-off assessment is recommended before authorising repairs. Consider total-loss settlement.`;
   }
   if (ratio >= RTV_ELEVATED_THRESHOLD * 100) {
     return `The repair-to-value ratio of ${ratio.toFixed(1)}% is elevated; the insurer should confirm the vehicle's current market value before proceeding.`;

@@ -140,8 +140,8 @@ describe("Rule 3: REVIEW + fraud indicators → FRAUD_TEAM / HIGH", () => {
     expect(result.priority).toBe("HIGH");
   });
 
-  it("routes REVIEW + fraud_risk_level=medium to FRAUD_TEAM", () => {
-    const result = routeClaim({ ...baseReview, fraud_risk_level: "medium" });
+  it("routes REVIEW + fraud_risk_level=moderate to FRAUD_TEAM", () => {
+    const result = routeClaim({ ...baseReview, fraud_risk_level: "moderate" });
     expect(result.route_to).toBe("FRAUD_TEAM");
     expect(result.priority).toBe("HIGH");
   });
@@ -157,9 +157,9 @@ describe("Rule 3: REVIEW + fraud indicators → FRAUD_TEAM / HIGH", () => {
     expect(result.reason.toLowerCase()).toContain("elevated");
   });
 
-  it("uses 'medium' language for medium fraud", () => {
-    const result = routeClaim({ ...baseReview, fraud_risk_level: "medium" });
-    expect(result.reason.toLowerCase()).toContain("medium");
+  it("uses 'moderate' language for moderate fraud", () => {
+    const result = routeClaim({ ...baseReview, fraud_risk_level: "moderate" });
+    expect(result.reason.toLowerCase()).toContain("moderate");
   });
 });
 
