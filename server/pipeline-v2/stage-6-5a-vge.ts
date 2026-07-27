@@ -134,12 +134,23 @@ export interface GeometrySourceAssessment {
 // ── Reference object reliability weights ─────────────────────────────────────
 
 const REFERENCE_RELIABILITY: Record<string, { tier: 1 | 2 | 3; baseReliability: number }> = {
+  // ── Tier 1: universal (visible from any angle) ────────────────────────────
   wheel:             { tier: 1, baseReliability: 0.95 },
   licence_plate:     { tier: 1, baseReliability: 0.85 },
+  // ── Tier 2: front-view specific ──────────────────────────────────────────
   headlamp_spacing:  { tier: 2, baseReliability: 0.75 },
   grille_width:      { tier: 2, baseReliability: 0.72 },
   bonnet_width:      { tier: 2, baseReliability: 0.80 },
   windscreen_width:  { tier: 2, baseReliability: 0.78 },
+  // ── Tier 2: rear-view specific ───────────────────────────────────────────
+  // rear_track_width: centre-to-centre rear wheel spacing — reliable for rear photos
+  rear_track_width:  { tier: 2, baseReliability: 0.78 },
+  // overall_width: outer body width — visible from rear or front
+  overall_width:     { tier: 2, baseReliability: 0.70 },
+  // ── Tier 2: side-view specific ───────────────────────────────────────────
+  // overall_height: ground to roof — reliable for side photos
+  overall_height:    { tier: 2, baseReliability: 0.72 },
+  // ── Tier 3: supporting only ───────────────────────────────────────────────
   badge:             { tier: 3, baseReliability: 0.40 },
   door_handle:       { tier: 3, baseReliability: 0.35 },
 };
@@ -306,33 +317,66 @@ async function getVehicleProfile(
 
 // ── LLM vision prompt for reference object detection ─────────────────────────
 
+/**
+ * Build a direction-aware calibration prompt.
+ *
+ * Reference objects are zone-indexed:
+ *   FRONT view: wheel, licence_plate, headlamp_spacing, grille_width, bonnet_width
+ *   REAR view:  wheel, licence_plate, rear_track_width, overall_width, bumper_width
+ *   SIDE view:  wheel, licence_plate, overall_height, wheelbase (if both axles visible)
+ *   UNKNOWN:    all of the above — LLM picks what is visible
+ *
+ * Crush depth language is direction-neutral:
+ *   "maximum visible deformation depth from the undamaged panel face to the deepest
+ *    point of crush, measured perpendicular to the original panel surface"
+ */
 function buildCalibrationPrompt(profile: { label: string; measurements: Record<string, number> } | null): string {
+  // All available profile dimensions, grouped by which view they are useful for
+  const FRONT_KEYS  = ['wheel_diameter_mm', 'wheel_diameter_alt_mm', 'licence_plate_width_mm', 'licence_plate_height_mm', 'headlamp_spacing_mm', 'grille_width_mm', 'bonnet_width_mm', 'bumper_width_mm', 'front_track_mm', 'overall_width_mm'];
+  const REAR_KEYS   = ['wheel_diameter_mm', 'wheel_diameter_alt_mm', 'licence_plate_width_mm', 'licence_plate_height_mm', 'rear_track_mm', 'overall_width_mm', 'bumper_width_mm', 'overall_height_mm'];
+  const SIDE_KEYS   = ['wheel_diameter_mm', 'wheel_diameter_alt_mm', 'licence_plate_width_mm', 'licence_plate_height_mm', 'overall_height_mm', 'wheelbase_mm', 'front_bumper_height_mm'];
+  const ALL_KEYS    = Array.from(new Set([...FRONT_KEYS, ...REAR_KEYS, ...SIDE_KEYS]));
+
   const profileSection = profile
     ? `Vehicle reference profile: ${profile.label}
-Known dimensions:
+Known dimensions (use these as ground-truth physical measurements):
 ${Object.entries(profile.measurements)
-  .filter(([k]) => ['wheel_diameter_mm', 'wheel_diameter_alt_mm', 'licence_plate_width_mm', 'headlamp_spacing_mm', 'grille_width_mm', 'bumper_width_mm', 'overall_width_mm'].includes(k))
+  .filter(([k]) => ALL_KEYS.includes(k))
   .map(([k, v]) => `  - ${k}: ${v} mm`)
   .join('\n')}`
-    : `No vehicle profile available. Use standard Zimbabwe licence plate (520 × 110 mm) if visible.`;
+    : `No vehicle profile available. Use standard Zimbabwe licence plate (520 × 110 mm wide, 110 mm tall) if visible.`;
 
   return `You are a vehicle accident reconstruction specialist performing photogrammetric scale calibration.
 
 ${profileSection}
 
-Analyse this damage photograph and detect ALL visible reference objects that can be used to establish a physical scale (mm per pixel).
+STEP 1 — Determine the view angle:
+First, identify whether this image shows the FRONT, REAR, SIDE, or a 45-degree angle of the vehicle.
+This determines which reference objects are visible and which profile dimensions to use.
 
+STEP 2 — Detect ALL visible reference objects:
 For each reference object detected, return:
-1. type: one of "wheel", "licence_plate", "headlamp_spacing", "grille_width", "bonnet_width"
-2. pixelMeasurementPx: the measured dimension in pixels (diameter for wheel, width for others)
+1. type: one of:
+   - "wheel"              (Tier 1 — visible from any angle; use wheel_diameter_mm)
+   - "licence_plate"      (Tier 1 — visible from front or rear; use licence_plate_width_mm)
+   - "headlamp_spacing"   (Tier 2 — FRONT view only; centre-to-centre distance between headlamps; use headlamp_spacing_mm)
+   - "grille_width"       (Tier 2 — FRONT view only; use grille_width_mm)
+   - "bonnet_width"       (Tier 2 — FRONT view only; use bonnet_width_mm)
+   - "rear_track_width"   (Tier 2 — REAR view only; centre-to-centre distance between rear wheels; use rear_track_mm)
+   - "overall_width"      (Tier 2 — REAR or FRONT view; outer edge to outer edge of body; use overall_width_mm)
+   - "overall_height"     (Tier 2 — SIDE view only; ground to roof; use overall_height_mm)
+   - "windscreen_width"   (Tier 2 — FRONT or SIDE view; use windscreen_width_mm)
+   DO NOT use headlamp_spacing, grille_width, or bonnet_width for REAR or SIDE photos — these features are not visible.
+   DO NOT use rear_track_width for FRONT photos.
+2. pixelMeasurementPx: the measured dimension in pixels (diameter for wheel, width/height for others)
 3. physicalMeasurementMm: the known physical dimension in mm (use profile values above, or standard plate 520mm)
 4. wheelEllipseAspectRatio: ONLY for wheels — ratio of minor to major axis (1.0 = perfect circle, <0.4 = extreme perspective)
 5. perspectiveCorrectionApplicable: true if wheel aspect ratio is 0.4–0.95 (moderate perspective, correctable)
 6. notes: any relevant observation (occlusion, damage to reference object, etc.)
 
-Also estimate:
-7. rawCrushDepthPx: the maximum visible crush/deformation depth in pixels (frontal compression from bumper face to deepest point), or null if not measurable from this view
-8. collisionDirection: "frontal", "rear", "side", or "unknown"
+STEP 3 — Estimate crush depth:
+7. rawCrushDepthPx: the maximum visible deformation depth in pixels — measured from the undamaged panel face (or its projected continuation) to the deepest point of crush, perpendicular to the original panel surface. This applies equally to frontal, rear, and side impacts. Return null if the deformation is not measurable from this view angle.
+8. collisionDirection: "frontal", "rear", "side", or "unknown" — based on where the damage is located
 9. imageViewAngle: "front", "rear", "side", "45_degree_front", "45_degree_rear", or "unknown"
 
 Return ONLY valid JSON in this exact format:

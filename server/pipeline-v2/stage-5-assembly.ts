@@ -349,8 +349,12 @@ export async function runAssemblyStage(
       maxCrushDepthM: v.maxCrushDepthM || null,
       totalDamageAreaM2: v.totalDamageAreaM2 || null,
       structuralDamage: v.structuralDamage ?? false,
-      airbagDeployment: v.airbagDeployment ?? false,
-      seatbeltPretensioner: v.seatbeltPretensioner ?? false,
+      // Preserve null (= not mentioned in documents) vs false (= explicitly not deployed).
+      // The old ?? false coercion was silently disabling M4 for every claim where
+      // airbag/seatbelt was not mentioned. Stage 7 already handles null correctly
+      // via the === true guard (airbagDeployed = claimRecord.accidentDetails.airbagDeployment === true).
+      airbagDeployment: v.airbagDeployment ?? null,
+      seatbeltPretensioner: v.seatbeltPretensioner ?? null,
       // Only preserve animalType when the incident is actually an animal strike.
       // For non-animal incidents, the LLM sometimes picks up OCR artifacts from
       // phrases like "HIT FROM THE BACK" and misreads them as animal names.

@@ -116,11 +116,11 @@ function inferCrushDepth(damageAnalysis: Stage6Output, claimRecord: ClaimRecord)
       0,
       ...parts.map(p => p.structuralDisplacementM ?? 0)
     );
-    const airbagFloor = claimRecord.accidentDetails.airbagDeployment ? 0.15 : 0;
+        // Use === true to distinguish null (not mentioned) from false (not deployed)
+    const airbagFloor = claimRecord.accidentDetails.airbagDeployment === true ? 0.15 : 0;
     const combined = maxVision + maxStructuralDisp;
     return Math.min(0.55, Math.max(0.04, Math.max(combined, airbagFloor)));
   }
-
   // 3. Fallback path: energy-derived crush depth from deformationEnergyJ.
   //    E = 0.5 × k × C²  →  C = √(2E/k)  where k = 1,000,000 N/m (body panel stiffness)
   const totalEnergyJ = parts
@@ -129,58 +129,91 @@ function inferCrushDepth(damageAnalysis: Stage6Output, claimRecord: ClaimRecord)
   if (totalEnergyJ > 0) {
     const k = 1_000_000; // N/m — typical body panel stiffness
     const energyDerived = Math.sqrt((2 * totalEnergyJ) / k);
-    const airbagFloor = claimRecord.accidentDetails.airbagDeployment ? 0.15 : 0;
+    // Use === true to distinguish null (not mentioned) from false (not deployed)
+    const airbagFloor = claimRecord.accidentDetails.airbagDeployment === true ? 0.15 : 0;
     return Math.min(0.55, Math.max(0.04, Math.max(energyDerived, airbagFloor)));
   }
 
-  // 4. Last-resort fallback: severity-based baseline ONLY.
+  // 4. Last-resort fallback: severity-based baseline with direction adjustment.
   //    Total damage area is NOT used here — it represents the total vehicle
   //    damage footprint, not the primary impact crush depth. Using area as a
   //    crush proxy produces wildly inflated speed estimates for multi-zone
   //    damage (rollover, pothole + rollover, multi-impact) and cannot be
   //    defended in court.
   //
-  //    Severity baseline (from damage classification, not area):
+  //    Severity baseline (from damage classification, not area) — FRONTAL reference:
   //      cosmetic / minor  → 0.05 m  (~5 km/h)
   //      moderate          → 0.12 m  (~20 km/h)
   //      severe            → 0.19 m  (~30 km/h)
   //      catastrophic      → 0.28 m  (~45 km/h)
   //
+  //    Direction adjustment factors (applied to frontal baseline):
+  //      frontal:         1.00 (reference)
+  //      rear:            0.85 — rear structures are typically stiffer (tow-hitch, spare wheel)
+  //                              and produce less visible crush for the same severity score
+  //      side_driver /
+  //      side_passenger:  0.70 — door panels are thin sheet metal; the structural
+  //                              energy is absorbed by the B-pillar and sill, not the
+  //                              outer skin. Visible crush depth understates energy.
+  //      rollover:        0.60 — roof crush is constrained by pillar geometry
+  //      multi_impact:    0.90 — conservative; primary impact direction unknown
+  //      unknown:         0.90 — conservative default
+  //
   //    Structural damage adds 0.04 m (chassis/frame deformation = higher energy).
   //    Airbag floor: 0.15 m minimum (airbags deploy at ≥ 20 km/h equivalent).
   //    Result is flagged as LOW confidence — excluded from consensus by M1.
-  // CALIBRATION: Deformation ratio bands (0.28/0.19/0.12/0.05) and severity score
+  //
+  // CALIBRATION: Frontal baseline bands (0.28/0.19/0.12/0.05) and severity score
   // thresholds (85/65/35) are derived from NHTSA barrier test data for typical
-  // passenger vehicles. They are NOT calibrated for the Southern African fleet.
-  // Structural bonus (0.04 m) and airbag floor (0.15 m) are engineering-judgment.
-  // Do not change without benchmarking against a labelled crash dataset.
+  // passenger vehicles. Direction factors are engineering-judgment from SAE 2002-01-0547
+  // (Varat & Husher, 2002) stiffness ratios. Neither set is calibrated for the
+  // Southern African fleet. Do not change without benchmarking against a labelled dataset.
   /** Severity score threshold for catastrophic deformation band */
   const SEV_CATASTROPHIC_THRESHOLD = 85;
   /** Severity score threshold for severe deformation band */
   const SEV_SEVERE_THRESHOLD = 65;
   /** Severity score threshold for moderate deformation band */
   const SEV_MODERATE_THRESHOLD = 35;
-  /** Deformation baseline for catastrophic severity (metres) */
+  /** Frontal deformation baseline for catastrophic severity (metres) */
   const DEFORM_CATASTROPHIC_M = 0.28;
-  /** Deformation baseline for severe severity (metres) */
+  /** Frontal deformation baseline for severe severity (metres) */
   const DEFORM_SEVERE_M = 0.19;
-  /** Deformation baseline for moderate severity (metres) */
+  /** Frontal deformation baseline for moderate severity (metres) */
   const DEFORM_MODERATE_M = 0.12;
-  /** Deformation baseline for minor/cosmetic severity (metres) */
+  /** Frontal deformation baseline for minor/cosmetic severity (metres) */
   const DEFORM_MINOR_M = 0.05;
   /** Structural damage bonus added to deformation estimate (metres) */
   const DEFORM_STRUCTURAL_BONUS_M = 0.04;
   /** Airbag deployment floor for deformation estimate (metres) — airbags deploy at ≥20 km/h equivalent */
   const DEFORM_AIRBAG_FLOOR_M = 0.15;
+  /**
+   * Direction-specific crush depth adjustment factors.
+   * Applied to the frontal severity baseline to account for structural differences.
+   * Source: SAE 2002-01-0547 (Varat & Husher, 2002) stiffness ratios.
+   * CALIBRATION: These are engineering-judgment values. Do not change without
+   * benchmarking against a labelled crash dataset.
+   */
+  const DIRECTION_CRUSH_FACTOR: Record<string, number> = {
+    frontal:          1.00,
+    rear:             0.85,
+    side_driver:      0.70,
+    side_passenger:   0.70,
+    rollover:         0.60,
+    multi_impact:     0.90,
+    unknown:          0.90,
+  };
+  const direction = claimRecord.accidentDetails.collisionDirection ?? 'unknown';
+  const directionFactor = DIRECTION_CRUSH_FACTOR[direction] ?? 0.90;
 
   const severityScore = damageAnalysis.overallSeverityScore ?? 50;
-  const severityBaseline =
+  const frontalBaseline =
     severityScore >= SEV_CATASTROPHIC_THRESHOLD ? DEFORM_CATASTROPHIC_M :
     severityScore >= SEV_SEVERE_THRESHOLD       ? DEFORM_SEVERE_M :
     severityScore >= SEV_MODERATE_THRESHOLD     ? DEFORM_MODERATE_M :
     DEFORM_MINOR_M;
+  const severityBaseline = frontalBaseline * directionFactor;
   const structuralBonus = damageAnalysis.structuralDamageDetected ? DEFORM_STRUCTURAL_BONUS_M : 0;
-  const airbagFloor = claimRecord.accidentDetails.airbagDeployment ? DEFORM_AIRBAG_FLOOR_M : 0;
+  const airbagFloor = claimRecord.accidentDetails.airbagDeployment === true ? DEFORM_AIRBAG_FLOOR_M : 0;
   const estimated = severityBaseline + structuralBonus;
   return Math.min(0.55, Math.max(0.04, Math.max(estimated, airbagFloor)));
 }
@@ -970,8 +1003,12 @@ export async function runPhysicsStage(
         // Damage severity context for crush-depth plausibility check
         damageSeverity: output.accidentSeverity ?? null,
         totalLossIndicated: !!(claimRecord.valuation?.repairToValueRatio && claimRecord.valuation.repairToValueRatio > 0.75),
+        // M7: Claimant-stated speed from claim documents.
+        // estimatedSpeedKmh in accidentDetails is the driver's stated speed extracted
+        // by Stage 3. Null if not mentioned in documents.
+        claimedSpeedKmh: claimRecord.accidentDetails.estimatedSpeedKmh ?? null,
       });
-      ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², airbag=${airbagDeployed}, seatbelt=${seatbeltFired}, visionDepth=${visionCrushDepthM}, deformEnergy=${totalDeformationEnergyJ?.toFixed(0)}J, visionConf=${avgVisionConfidenceScore?.toFixed(1)}`);
+      ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², airbag=${airbagDeployed}, seatbelt=${seatbeltFired}, visionDepth=${visionCrushDepthM}, deformEnergy=${totalDeformationEnergyJ?.toFixed(0)}J, visionConf=${avgVisionConfidenceScore?.toFixed(1)}, claimedSpeed=${claimRecord.accidentDetails.estimatedSpeedKmh ?? 'null'}`);
       output.speedInferenceEnsemble = ensembleResult;
       ctx.log('Stage 7', `Speed ensemble: consensus=${ensembleResult.consensusSpeedKmh} km/h, methods=${ensembleResult.methodsRan}, confidence=${ensembleResult.overallConfidence}${ensembleResult.highDivergence ? ' [HIGH_DIVERGENCE]' : ''}`);
 
@@ -997,14 +1034,15 @@ export async function runPhysicsStage(
         const crushDepthForRecompute = inferCrushDepth(damageAnalysis, claimRecord);
         // KE = ½mv²
         const recomputedKEJ = 0.5 * massKgForRecompute * ensembleSpeedMs * ensembleSpeedMs;
-        // F = mv²/(2d), in kN
+        // F = mv²/(2d), in kN — use same 0.1 m floor as the pre-ensemble path (line ~258)
+        const crushFloor = Math.max(crushDepthForRecompute, 0.1);
         const recomputedForceKn = (massKgForRecompute * ensembleSpeedMs * ensembleSpeedMs)
-          / (2 * Math.max(crushDepthForRecompute, 0.05) * 1000);
+          / (2 * crushFloor * 1000);
         // ΔV = √(2KE/m), back to km/h
         const recomputedDeltaVKmh = Math.sqrt(2 * recomputedKEJ / massKgForRecompute) * 3.6;
         // a = v²/(2d), in g
         const recomputedDecelMs2 = (ensembleSpeedMs * ensembleSpeedMs)
-          / (2 * Math.max(crushDepthForRecompute, 0.05));
+          / (2 * crushFloor);
         const recomputedDecelerationG = Math.min(50, Math.max(0.1, recomputedDecelMs2 / 9.81));
         // Apply sideswipe coefficient to force/energy (same as the pre-ensemble path)
         const recomputedForceKnFinal = recomputedForceKn * sideswipeCoefficient;
@@ -1051,9 +1089,48 @@ export async function runPhysicsStage(
         output.speedForensics = enriched;
         ctx.log('Stage 7', `Speed forensics: claimed=${enriched.claimedSpeedKmh ?? 'N/A'} km/h, physics=${enriched.physicsSpeedKmh} km/h, deviation=${enriched.deviationPct ?? 'N/A'}% [${enriched.deviationClass}]${enriched.requiresVerification ? ' ⚠️ REQUIRES_VERIFICATION' : ''}`);
       }
+      // ── Damage classification: Possible / Impossible / Unexplained ──────────────
+      // Run after the ensemble so we use the final consensus speed.
+      // This classifies each observed damage component and image zone against
+      // the expected damage profile for the stated speed and direction.
+      try {
+        const { classifyDamage } = await import('./damageClassificationEngine');
+        const observedComponents: string[] = [
+          ...(damageAnalysis.damagedComponents ?? []).map((c: { name: string }) => c.name),
+          ...(damageAnalysis.damagedParts ?? []).map((c: { name: string }) => c.name),
+        ].filter(Boolean);
+        const imageDetectedZones: string[] = [
+          ...(damageAnalysis.damageZones ?? []).map((z: { zone: string }) => z.zone),
+        ].filter(Boolean);
+        const finalSpeedForClassification = ensembleResult.consensusSpeedKmh ?? output.estimatedSpeedKmh ?? 0;
+        const crushDepthForClassification = claimRecord.accidentDetails.maxCrushDepthM
+          ?? visionCrushDepthM
+          ?? null;
+        output.damageClassification = classifyDamage({
+          consensusSpeedKmh: finalSpeedForClassification,
+          collisionDirection: claimRecord.accidentDetails.collisionDirection,
+          observedComponents,
+          imageDetectedZones,
+          airbagDeploymentObserved: airbagDeployed === true ? true : airbagDeployed === false ? false : null,
+          pretensionerObserved: seatbeltFired === true ? true : seatbeltFired === false ? false : null,
+          structuralDamageDetected: damageAnalysis.structuralDamageDetected ?? false,
+          crushDepthM: crushDepthForClassification,
+          damageSeverity: output.accidentSeverity ?? null,
+        });
+        ctx.log('Stage 7',
+          `Damage classification: ${output.damageClassification.overallClassification} ` +
+          `(possible=${output.damageClassification.counts.possible}, ` +
+          `impossible=${output.damageClassification.counts.impossible}, ` +
+          `unexplained=${output.damageClassification.counts.unexplained})`
+        );
+      } catch (classErr) {
+        ctx.log('Stage 7', `Damage classification failed (non-fatal): ${String(classErr)}`);
+        output.damageClassification = null;
+      }
     } catch (ensembleErr) {
       ctx.log('Stage 7', `Speed ensemble failed (non-fatal): ${String(ensembleErr)}`);
       output.speedInferenceEnsemble = null;
+      output.damageClassification = null;
     }
 
     // ── Attach VGE/VGR geometry calibration results to Stage 7 output ──────────

@@ -559,7 +559,8 @@ export interface AccidentDetails {
   maxCrushDepthM: number | null;
   totalDamageAreaM2: number | null;
   structuralDamage: boolean;
-  airbagDeployment: boolean;
+  /** null = not mentioned in documents (unknown); true = confirmed deployed; false = explicitly stated not deployed */
+  airbagDeployment: boolean | null;
   animalType: string | null;       // Type of animal struck (e.g. cow, kudu)
   weatherConditions: string | null;
   visibilityConditions: string | null; // Visibility at time of accident (DARK, DUSK, DAWN, DAYLIGHT)
@@ -917,6 +918,13 @@ export interface Stage7Output {
   speedInferenceEnsemble?: import('./speedInferenceEnsemble').SpeedInferenceResult | null;
   /** Dual-speed forensics — claimed vs physics-inferred speed comparison */
   speedForensics?: import('../accidentPhysics').SpeedForensics | null;
+  /**
+   * Possible/Impossible/Unexplained damage classification result.
+   * Populated by Stage 7 after the speed ensemble runs.
+   * Classifies each observed damage component and image zone against the
+   * expected damage profile for the stated speed and direction.
+   */
+  damageClassification?: import('./damageClassificationEngine').DamageClassificationResult | null;
   /** Occupant injury risk assessment */
   occupantInjuryRisk?: 'low' | 'medium' | 'high' | 'critical' | null;
   /**

@@ -71,10 +71,12 @@
  *
  * M5 — Vision Deformation Energy (component-level energy sum from Stage 6)
  *      V = √(2 × E_total / (m × η))
- *      Single-zone only (damagedZoneCount ≤ 2). Weight: 0.45–0.65.
+ *      Single-zone only (damagedZoneCount ≤ 2). Weight: 0.10 (KINGA-AUDIT-2026-07
+ *      Option A — reduced from 0.45/0.65 to correct M1/M5 crush-depth correlation).
  *
  * M6 — Severity-Anchored Inference (crash energy signature data)
- *      Midpoint of published speed range for damage severity tier. Weight: 0.35.
+ *      Midpoint of published speed range for damage severity tier. Weight: 0.20
+ *      (KINGA-AUDIT-2026-07 Option A — reduced from 0.35).
  *      Source: SAE 2002-01-0547, NHTSA NCAP barrier test data.
  *
  * CONSENSUS ALGORITHM
@@ -95,7 +97,7 @@
 export type MethodConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface MethodEstimate {
-  method: 'CAMPBELL' | 'ENERGY_MOMENTUM' | 'IMPULSE' | 'DEPLOYMENT_THRESHOLD' | 'VISION_DEFORMATION' | 'SEVERITY_ANCHORED';
+  method: 'CAMPBELL' | 'ENERGY_MOMENTUM' | 'IMPULSE' | 'DEPLOYMENT_THRESHOLD' | 'VISION_DEFORMATION' | 'SEVERITY_ANCHORED' | 'CLAIMANT_STATED';
   label: string;
   speedKmh: number | null;
   /** Kept for schema compatibility. No active method uses lower-bound-only mode. */
@@ -186,6 +188,29 @@ export interface SpeedInferenceResult {
     clampedTo: number;
     reason: string;
     possibleExplanations: string[];
+  };
+  /**
+   * Claimant-stated speed deviation flag (M7).
+   * Compares the driver's stated speed (from claim documents) against the
+   * physics-derived consensus. Raised when the deviation is material.
+   *
+   * deviationClass:
+   *   'consistent'   — deviation < 20% or < 10 km/h
+   *   'moderate'     — deviation 20–35% or 10–20 km/h
+   *   'significant'  — deviation 36–60% or 20–40 km/h
+   *   'critical'     — deviation > 60% or > 40 km/h
+   *   'no_claim'     — no stated speed available
+   *   'implausible'  — stated speed failed plausibility gate (< 5 or > 200 km/h)
+   */
+  claimedSpeedDeviationFlag?: {
+    claimedSpeedKmh: number | null;
+    consensusSpeedKmh: number | null;
+    deviationKmh: number | null;       // physics - claimed (signed: positive = physics > claimed)
+    deviationPct: number | null;       // |physics - claimed| / max(physics, claimed) * 100
+    deviationClass: 'consistent' | 'moderate' | 'significant' | 'critical' | 'no_claim' | 'implausible';
+    plausibilityRejected: boolean;     // true if stated speed failed plausibility gate
+    requiresVerification: boolean;     // true if deviationClass is 'significant' or 'critical'
+    interpretation: string;            // plain-language forensic interpretation
   };
 }
 
@@ -482,8 +507,12 @@ function runVisionDeformationEnergy(
   const eta = getDeformEfficiency(collisionDirection);
   const totalKEJ = totalDeformationEnergyJ / eta;
   const speedKmh = Math.round(Math.sqrt((2 * totalKEJ) / massKg) * 3.6);
-  const baseWeight = (visionConfidenceScore != null && visionConfidenceScore >= 70) ? 0.65 : 0.45;
-  const confidence: MethodConfidence = baseWeight >= 0.60 ? 'MEDIUM' : 'LOW';
+  // KINGA-AUDIT-2026-07 Option A: M5 weight fixed at 0.10 (was 0.45/0.65).
+  // M1 (Campbell) and M5 (Deformation Energy) share the same crushDepthM input;
+  // the prior 0.45/0.65 weight overstated independence. M5 is retained as a
+  // cross-check but no longer dominates the consensus.
+  const baseWeight = 0.10;
+  const confidence: MethodConfidence = 'LOW';
   return {
     method: 'VISION_DEFORMATION',
     label: 'M5 Vision Deformation Energy (component-level)',
@@ -550,9 +579,167 @@ function runSeverityAnchored(
     method: 'SEVERITY_ANCHORED',
     label: 'M6 Severity-anchored inference (crash energy signature)',
     speedKmh: midpointKmh, isLowerBoundOnly: false,
-    confidenceWeight: 0.35, confidence: 'LOW',
+    // KINGA-AUDIT-2026-07 Option A: M6 weight reduced from 0.35 to 0.20.
+    confidenceWeight: 0.20, confidence: 'LOW',
     basis: `Severity-anchored estimate based on comparable crash energy signatures and observed ${range.label} → energy-equivalent speed range ${minKmh}–${maxKmh} km/h, midpoint ${midpointKmh} km/h (direction: ${collisionDirection ?? 'unknown'}).${adjustNote} Source: SAE 2002-01-0547, NHTSA NCAP barrier test data.`,
     ran: true,
+  };
+}
+
+// ── M7: Claimant-Stated Speed ────────────────────────────────────────────────
+//
+// The driver's stated speed from claim documents (e.g. "I was travelling at 60 km/h").
+// This is a first-person account, not a physical measurement. It is included in the
+// ensemble with moderate weight when plausible, so that a consistent stated speed
+// corroborates the physics estimate, and a significantly different stated speed is
+// surfaced as a deviation flag rather than silently ignored.
+//
+// Plausibility gate:
+//   < 5 km/h  → implausible (parked vehicle claim)
+//   > 200 km/h → implausible (exceeds normal road operating range)
+//   null/undefined → method skipped
+//
+// Weight: 0.30 (MEDIUM confidence) when plausible.
+//   This is intentionally lower than M1 (0.80 document) and M4 (0.40) because
+//   stated speeds are self-reported and may be influenced by the claim outcome.
+//   The weight is sufficient to move the consensus toward the stated speed when
+//   physics methods are low-confidence, but not enough to override strong physics.
+//
+// IMPORTANT: M7 is NOT a fraud detector. A deviation between stated and physics
+// speed does not imply dishonesty. It may reflect:
+//   - Speed estimation error (humans are poor at estimating speed)
+//   - Speed at different point (e.g. speed before braking, not at impact)
+//   - Speedometer inaccuracy
+//   - Genuine underestimation of impact severity
+// The deviation flag is for adjuster awareness, not automated fraud scoring.
+function runClaimantStated(
+  claimedSpeedKmh: number | null | undefined,
+): MethodEstimate {
+  if (claimedSpeedKmh == null) {
+    return {
+      method: 'CLAIMANT_STATED', label: 'M7 Claimant-stated speed (driver statement)',
+      speedKmh: null, isLowerBoundOnly: false,
+      confidenceWeight: 0, confidence: 'LOW',
+      basis: 'No claimant-stated speed available in claim documents',
+      ran: false,
+    };
+  }
+  // Plausibility gate
+  const PLAUSIBILITY_MIN_KMH = 5;
+  const PLAUSIBILITY_MAX_KMH = 200;
+  if (claimedSpeedKmh < PLAUSIBILITY_MIN_KMH || claimedSpeedKmh > PLAUSIBILITY_MAX_KMH) {
+    return {
+      method: 'CLAIMANT_STATED', label: 'M7 Claimant-stated speed (driver statement)',
+      speedKmh: null, isLowerBoundOnly: false,
+      confidenceWeight: 0, confidence: 'LOW',
+      basis: `Claimant-stated speed (${claimedSpeedKmh} km/h) failed plausibility gate ` +
+        `(valid range: ${PLAUSIBILITY_MIN_KMH}–${PLAUSIBILITY_MAX_KMH} km/h). Method excluded from consensus.`,
+      ran: false,
+    };
+  }
+  return {
+    method: 'CLAIMANT_STATED',
+    label: 'M7 Claimant-stated speed (driver statement)',
+    speedKmh: claimedSpeedKmh,
+    isLowerBoundOnly: false,
+    confidenceWeight: 0.30,
+    confidence: 'MEDIUM',
+    basis: `Driver stated impact speed: ${claimedSpeedKmh} km/h (from claim documents). ` +
+      `Included as corroborating evidence with weight 0.30. ` +
+      `Deviation from physics consensus will be reported in claimedSpeedDeviationFlag. ` +
+      `Note: stated speeds are self-reported and may differ from actual impact speed due to ` +
+      `estimation error, pre-braking speed, or speedometer inaccuracy.`,
+    ran: true,
+  };
+}
+
+// ── Claimant-speed deviation analysis ────────────────────────────────────────
+//
+// Computes the deviation between the claimant-stated speed and the physics
+// consensus BEFORE M7 is added to the ensemble (i.e., the pure physics consensus).
+// This gives an unbiased comparison: how far does the stated speed deviate from
+// what the physical evidence independently implies?
+//
+// Deviation thresholds (matching SpeedForensics taxonomy in accidentPhysics.ts):
+//   consistent:   |deviation| < 20% AND |deviation| < 10 km/h
+//   moderate:     |deviation| 20–35% OR 10–20 km/h
+//   significant:  |deviation| 36–60% OR 20–40 km/h
+//   critical:     |deviation| > 60% OR > 40 km/h
+function computeClaimedSpeedDeviation(
+  claimedSpeedKmh: number | null | undefined,
+  physicsConsensusKmh: number | null,
+  plausibilityRejected: boolean,
+): SpeedInferenceResult['claimedSpeedDeviationFlag'] {
+  if (claimedSpeedKmh == null) {
+    return {
+      claimedSpeedKmh: null, consensusSpeedKmh: physicsConsensusKmh,
+      deviationKmh: null, deviationPct: null,
+      deviationClass: 'no_claim',
+      plausibilityRejected: false,
+      requiresVerification: false,
+      interpretation: 'No claimant-stated speed available in claim documents.',
+    };
+  }
+  if (plausibilityRejected) {
+    return {
+      claimedSpeedKmh, consensusSpeedKmh: physicsConsensusKmh,
+      deviationKmh: null, deviationPct: null,
+      deviationClass: 'implausible',
+      plausibilityRejected: true,
+      requiresVerification: true,
+      interpretation: `Claimant-stated speed (${claimedSpeedKmh} km/h) is outside the plausible range (5–200 km/h). ` +
+        `This value was excluded from the physics consensus. Verify the stated speed with the driver.`,
+    };
+  }
+  if (physicsConsensusKmh == null || physicsConsensusKmh === 0) {
+    return {
+      claimedSpeedKmh, consensusSpeedKmh: physicsConsensusKmh,
+      deviationKmh: null, deviationPct: null,
+      deviationClass: 'no_claim',
+      plausibilityRejected: false,
+      requiresVerification: false,
+      interpretation: 'Physics consensus not available — cannot compute deviation.',
+    };
+  }
+  const deviationKmh = physicsConsensusKmh - claimedSpeedKmh; // positive = physics > claimed
+  const maxSpeed = Math.max(Math.abs(physicsConsensusKmh), Math.abs(claimedSpeedKmh));
+  const deviationPct = maxSpeed > 0 ? Math.round((Math.abs(deviationKmh) / maxSpeed) * 100) : 0;
+  const absDevKmh = Math.abs(deviationKmh);
+
+  let deviationClass: SpeedInferenceResult['claimedSpeedDeviationFlag']['deviationClass'];
+  if (deviationPct < 20 && absDevKmh < 10) {
+    deviationClass = 'consistent';
+  } else if (deviationPct <= 35 || absDevKmh <= 20) {
+    deviationClass = 'moderate';
+  } else if (deviationPct <= 60 || absDevKmh <= 40) {
+    deviationClass = 'significant';
+  } else {
+    deviationClass = 'critical';
+  }
+
+  const requiresVerification = deviationClass === 'significant' || deviationClass === 'critical';
+
+  const directionNote = deviationKmh > 0
+    ? `Physics implies a higher speed (${physicsConsensusKmh} km/h) than the driver stated (${claimedSpeedKmh} km/h).`
+    : deviationKmh < 0
+    ? `Physics implies a lower speed (${physicsConsensusKmh} km/h) than the driver stated (${claimedSpeedKmh} km/h).`
+    : 'Physics consensus and stated speed are identical.';
+
+  const classNote: Record<string, string> = {
+    consistent:  'Stated speed is consistent with physical evidence.',
+    moderate:    'Moderate deviation between stated and physics-derived speed. May reflect speed estimation error or pre-braking speed. No immediate concern.',
+    significant: 'Significant deviation between stated and physics-derived speed. Adjuster should verify stated speed against other evidence (witnesses, CCTV, road speed limit).',
+    critical:    'Critical deviation between stated and physics-derived speed. Physical evidence is materially inconsistent with the stated speed. Independent reconstruction specialist review recommended.',
+  };
+
+  return {
+    claimedSpeedKmh, consensusSpeedKmh: physicsConsensusKmh,
+    deviationKmh: Math.round(deviationKmh),
+    deviationPct,
+    deviationClass,
+    plausibilityRejected: false,
+    requiresVerification,
+    interpretation: `${directionNote} ${classNote[deviationClass] ?? ''} Deviation: ${absDevKmh} km/h (${deviationPct}%).`,
   };
 }
 
@@ -638,6 +825,12 @@ export interface EnsembleInput {
   damagedZoneCount?: number | null;
   damageSeverity?: string | null;
   totalLossIndicated?: boolean;
+  /**
+   * M7: Claimant-stated speed from claim documents (km/h).
+   * Sourced from claimRecord.accidentDetails.estimatedSpeedKmh.
+   * Null if not stated in documents.
+   */
+  claimedSpeedKmh?: number | null;
 }
 
 export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceResult {
@@ -668,10 +861,11 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
     input.damageSeverity, structuralDamage, airbagDeployment,
     input.totalLossIndicated ?? false, collisionDirection,
   );
+  const m7 = runClaimantStated(input.claimedSpeedKmh);
 
-  const methods: MethodEstimate[] = [m1, m2, m3, m4, m5, m6];
+  const methods: MethodEstimate[] = [m1, m2, m3, m4, m5, m6, m7];
 
-  // All point estimates with weight > 0 join the weighted mean (including M4)
+  // All point estimates with weight > 0 join the weighted mean (including M4 and M7)
   const pointEstimates = methods.filter(
     m => m.ran && m.speedKmh !== null && !m.isLowerBoundOnly && m.confidenceWeight > 0
   ) as Array<MethodEstimate & { speedKmh: number }>;
@@ -679,7 +873,14 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
   // Hard lower bound: applied post-consensus only
   const hardLowerBoundKmh = airbagDeployment ? 20 : seatbeltPretensioner ? 15 : null;
 
+  // M7 plausibility rejection flag (used for deviation analysis)
+  const m7PlausibilityRejected = m7.ran === false && input.claimedSpeedKmh != null;
+
   if (pointEstimates.length === 0) {
+    // Even with no physics methods, compute deviation if claimed speed available
+    const claimedSpeedDeviation = computeClaimedSpeedDeviation(
+      input.claimedSpeedKmh, hardLowerBoundKmh, m7PlausibilityRejected,
+    );
     return {
       consensusSpeedKmh: hardLowerBoundKmh,
       confidenceInterval: hardLowerBoundKmh ? [hardLowerBoundKmh, Math.round(hardLowerBoundKmh * 1.5)] : null,
@@ -693,6 +894,7 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
         ? `Insufficient data for a point estimate. Deployment evidence confirms impact speed ≥ ${hardLowerBoundKmh} km/h. Document-stated crush depth or vehicle photos required for a defensible speed estimate.`
         : 'Insufficient data to estimate impact speed from available evidence.',
       methodsRan: 0,
+      claimedSpeedDeviationFlag: claimedSpeedDeviation,
     };
   }
 
@@ -883,11 +1085,21 @@ export function runSpeedInferenceEnsemble(input: EnsembleInput): SpeedInferenceR
     return { triggered, severity: flagSeverity, impliedMinSpeedKmh, visionDerivedMaxSpeedKmh, gapKmh, flagMessage, recommendedAction, evidenceBasis };
   })();
 
+  // M7: Claimant-speed deviation analysis.
+  // Computed against the FINAL consensus (post-M7 inclusion) so the deviation
+  // reflects how the stated speed compares to the full evidence picture.
+  // Note: if M7 ran with weight 0.30, the consensus already incorporates the
+  // stated speed. The deviation flag shows the residual gap.
+  const claimedSpeedDeviationFlag = computeClaimedSpeedDeviation(
+    input.claimedSpeedKmh, consensusSpeedKmh, m7PlausibilityRejected,
+  );
+
   return {
     consensusSpeedKmh, confidenceInterval, lowerBoundKmh: hardLowerBoundKmh,
     methods, overallConfidence, evidenceAgreementPct, evidenceAgreementNote,
     highDivergence, summary, methodsRan: pointEstimates.length,
     divergenceExplanation: divergenceExplanation.length > 0 ? divergenceExplanation : undefined,
     crossValidation, crushDepthPlausibilityCheck, physicalImpossibilityFlag,
+    claimedSpeedDeviationFlag,
   };
 }

@@ -1490,6 +1490,11 @@ export async function triggerAiAssessment(claimId: number) {
     // Forensic report can render the Geometry Evidence Block without re-running the pipeline.
     geometryEvidenceBlock: (physicsAnalysis as any)?.geometryEvidenceBlock ?? null,
     vgrReconciliation: (physicsAnalysis as any)?.vgrReconciliation ?? null,
+    // Damage classification — Possible/Impossible/Unexplained per-component classification.
+    // Produced by Stage 7 after the speed ensemble runs. Classifies each observed damage
+    // component and image zone against the expected damage profile for the stated speed
+    // and direction. Used by the Forensic report and fraud engine.
+    damageClassification: (physicsAnalysis as any)?.damageClassification ?? null,
   }) : null;
 
   // Build fraud indicators JSON
