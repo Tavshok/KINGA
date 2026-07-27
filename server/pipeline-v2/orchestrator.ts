@@ -1535,6 +1535,7 @@ export async function runPipelineV2(
         physicsAnalysis: ensurePhysicsContract({}, reason),
         causalVerdict: null,
         narrativeAnalysis: null,
+        directionContradictionFlag: null,
       },
       error: err.message,
       durationMs: isTimeout ? err.budgetMs : 0,
@@ -1560,6 +1561,7 @@ export async function runPipelineV2(
   recordStage("7_unified", s7Unified);
   stage7Data = s7Unified.data?.physicsAnalysis ?? null;
   causalVerdict = s7Unified.data?.causalVerdict ?? null;
+  const directionContradictionFlag = s7Unified.data?.directionContradictionFlag ?? null;
   // Partial resume: persist result for potential retry (fire-and-forget).
   // QUALITY GATE: only cache clean successful runs — never cache degraded/fallback output.
   if (ctx.runId && s7Unified.status === "success" && !s7Unified.degraded && !_s7Cached) {
@@ -1794,6 +1796,111 @@ export async function runPipelineV2(
     saveStageResult(ctx.runId, "9_cost", stage9Data).catch(() => {});
   }
   ctx.log("Pipeline", `S8 fraud: ${stage8Data?.fraudRiskLevel ?? "N/A"} (score=${stage8Data?.fraudRiskScore ?? "N/A"}). S9 cost: deviation=${stage9Data?.quoteDeviationPct?.toFixed(1) ?? "N/A"}%.`);
+
+  // ── Signal 3: EXIF Vision Trust Downgrade ────────────────────────────────
+  // If visionSourceReliability is HIGH but ALL damage photos have no EXIF data
+  // (e.g. WhatsApp-stripped), downgrade to MEDIUM. This reflects reduced
+  // authenticity confidence — not a fraud flag, but a data quality signal.
+  // NOTE: EXIF absence alone is NOT a fraud signal (photos are routinely taken
+  // at the workshop, not the accident scene). Only pre-incident timestamps are
+  // a hard fraud signal (handled separately in accidentDateCrossCheckEngine).
+  if (stage7Data && stage6Data?.visionSourceReliability === 'HIGH') {
+    const photoForensics = stage8Data?.photoForensics;
+    if (photoForensics?.photos && photoForensics.photos.length > 0) {
+      const photosWithExif = photoForensics.photos.filter(
+        (p: any) => p.capture_datetime || p.gps_lat || p.gps_lng || p.make || p.model
+      );
+      if (photosWithExif.length === 0) {
+        // All photos have no EXIF — downgrade vision trust tier
+        (stage7Data as any).visionSourceReliabilityAdjusted = 'MEDIUM';
+        (stage7Data as any).visionSourceReliabilityAdjustmentReason =
+          `All ${photoForensics.photos.length} damage photo(s) have no EXIF metadata ` +
+          `(likely WhatsApp-compressed or screenshot). Vision crush depths are accepted ` +
+          `at MEDIUM confidence. This is a data quality signal, not a fraud indicator.`;
+        ctx.log('Signal-3', `EXIF downgrade: visionSourceReliability HIGH→MEDIUM (${photoForensics.photos.length} photos, 0 with EXIF)`);
+      }
+    }
+  }
+
+  // ── SIGNAL 5: Evidence Confidence Tier Tagging ──────────────────────────────
+  let evidenceTierResult: import('./evidenceConfidenceTierEngine').EvidenceConfidenceTierResult | null = null;
+  if (claimRecord) {
+    try {
+      const { runEvidenceConfidenceTierEngine } = await import('./evidenceConfidenceTierEngine');
+      evidenceTierResult = runEvidenceConfidenceTierEngine(claimRecord);
+      ctx.log('Signal-5', `Evidence independence: ${evidenceTierResult.independenceLevel} (T1=${evidenceTierResult.tierSummary.presentTier1Count}, T2=${evidenceTierResult.tierSummary.presentTier2Count}, T3=${evidenceTierResult.tierSummary.presentTier3Count})`);
+    } catch (err) {
+      ctx.log('Signal-5', `Evidence tier engine failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // ── MULTI-SIGNAL CROSS-VALIDATION ────────────────────────────────────────────
+  let crossValidationResult: import('./multiSignalCrossValidation').MultiSignalCrossValidationResult | null = null;
+  if (claimRecord) {
+    try {
+      const { runMultiSignalCrossValidation } = await import('./multiSignalCrossValidation');
+      const physicsEnsemble = (stage7Data as any)?.speedInferenceEnsemble ?? null;
+      const damageClass = (stage7Data as any)?.damageClassification ?? null;
+      crossValidationResult = runMultiSignalCrossValidation({
+        claimRecord,
+        speedEnsemble: physicsEnsemble ? {
+          consensusSpeedKmh: physicsEnsemble.consensusSpeedKmh ?? null,
+          claimedSpeedDeviationFlag: physicsEnsemble.claimedSpeedDeviationFlag ?? null,
+        } : null,
+        damageClassification: damageClass ? {
+          // DamageClassificationResult uses overallClassification (not overallVerdict)
+          // and counts.possible/impossible/unexplained (not flat possibleCount etc.)
+          overallVerdict: (damageClass.overallClassification ?? damageClass.overallVerdict ?? 'CONSISTENT') as 'CONSISTENT' | 'ANOMALOUS' | 'CONTRADICTORY',
+          possibleCount: damageClass.counts?.possible ?? damageClass.possibleCount ?? 0,
+          impossibleCount: damageClass.counts?.impossible ?? damageClass.impossibleCount ?? 0,
+          unexplainedCount: damageClass.counts?.unexplained ?? damageClass.unexplainedCount ?? 0,
+          summary: damageClass.summary ?? '',
+        } : null,
+        directionContradiction: directionContradictionFlag ? {
+          contradicts: directionContradictionFlag.contradicts,
+          narrativeDirection: directionContradictionFlag.narrativeDirection,
+          physicsDirection: directionContradictionFlag.physicsDirection,
+          explanation: directionContradictionFlag.explanation,
+          severity: (directionContradictionFlag as any).severity ?? 'MODERATE',
+        } : null,
+        visionTrustAdjusted: (stage7Data as any)?.visionSourceReliabilityAdjusted ? {
+          adjusted: true,
+          originalTier: stage6Data?.visionSourceReliability ?? 'HIGH',
+          adjustedTier: (stage7Data as any).visionSourceReliabilityAdjusted,
+          reason: (stage7Data as any).visionSourceReliabilityAdjustmentReason ?? null,
+        } : null,
+        weatherCrossCheck: null, // S4: PENDING_DEPENDENCY — enable via WEATHER_API_ENABLED=true
+        evidenceTiers: evidenceTierResult,
+        quotePhotoAgreement: stage9Data?.quotePhotoAgreement ? {
+          agreementScore: (stage9Data.quotePhotoAgreement as any).agreementScore ?? 0,
+          quotedNotVisible: (stage9Data.quotePhotoAgreement as any).quotedNotVisible ?? [],
+          visibleNotQuoted: (stage9Data.quotePhotoAgreement as any).visibleNotQuoted ?? [],
+          structuralGapsInQuotes: (stage9Data.quotePhotoAgreement as any).structuralGapsInQuotes ?? [],
+          quotesAnalysed: (stage9Data.quotePhotoAgreement as any).quotesAnalysed ?? 0,
+          summary: (stage9Data.quotePhotoAgreement as any).summary ?? '',
+        } : null,
+      });
+      ctx.log('Signal-XV', `Cross-validation: risk=${crossValidationResult.overallRisk}, findings=${crossValidationResult.findings.length}, flags=${crossValidationResult.severitySummary.flag}, concerns=${crossValidationResult.severitySummary.concern}`);
+      // Inject cross-validation flags into fraud scoring as a distinct indicator category
+      if (stage8Data && crossValidationResult.hasMaterialContradictions) {
+        const xvIndicators = crossValidationResult.findings
+          .filter(f => f.severity === 'FLAG' || f.severity === 'CONCERN')
+          .map(f => ({
+            indicator: `[CROSS-VALIDATION] ${f.fact}: ${f.verdict}`,
+            category: 'cross_validation',
+            score: f.severity === 'FLAG' ? 25 : 15,
+            description: f.explanation,
+            severity: (f.severity === 'FLAG' ? 'high' : 'medium') as 'high' | 'medium',
+            evidence: f.recommendedAction ? [f.recommendedAction] : [],
+          }));
+        if (!stage8Data.indicators) stage8Data.indicators = [];
+        stage8Data.indicators.push(...xvIndicators);
+        ctx.log('Signal-XV', `Injected ${xvIndicators.length} cross-validation indicator(s) into fraud scoring`);
+      }
+    } catch (err) {
+      ctx.log('Signal-XV', `Cross-validation failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 
   // ── GC HINT: Release memory from parallel S8+S9 before final aggregation ──
   if (typeof globalThis.gc === 'function') { globalThis.gc(); }
@@ -2900,10 +3007,11 @@ export async function runPipelineV2(
     physicsDeviationScoreValue,
     claimTruth,
     claimTruthObject,
-    physicsTruth
+    physicsTruth,
+        directionContradictionFlag,
+    crossValidationResult
   );
 }
-
 function buildResult(
   stages: Record<string, PipelineStageSummary>,
   pipelineStart: number,
@@ -2939,7 +3047,14 @@ function buildResult(
   physicsDeviationScoreValue: number | null = null,
   claimTruthResult: ClaimTruth | null = null,
   claimTruthObject: import("./truthReconciliationEngine").ClaimTruthObject | null = null,
-  physicsTruth: PhysicsTruth | null = null
+  physicsTruth: PhysicsTruth | null = null,
+  directionContradictionFlag: {
+    narrativeDirection: string | null;
+    physicsDirection: string | null;
+    contradicts: boolean;
+    explanation: string;
+  } | null = null,
+  crossValidationResult: import('./multiSignalCrossValidation').MultiSignalCrossValidationResult | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
 
@@ -3043,9 +3158,10 @@ function buildResult(
     claimTruth: claimTruthResult,
     claimTruthObject: claimTruthObject,
     physicsTruth,
+        directionContradictionFlag,
+    crossValidationResult,
   };
 }
-
 /**
  * Build minimal Stage4Output from DB claim data when extraction pipeline fails.
  */

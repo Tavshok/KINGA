@@ -1472,6 +1472,14 @@ export interface Stage9Output {
    */
   crossQuoteGapAnalysis?: import('./crossQuoteGapAnalysis').CrossQuoteGapAnalysisResult;
   /**
+   * Quote-photo agreement — cross-check quote line items against photo-detected components.
+   * agreementScore: fraction of photo components covered by ≥1 quote.
+   * visibleNotQuoted: components in photos but absent from all quotes.
+   * structuralGapsInQuotes: structural components visible but unquoted (strongest signal).
+   * quotedNotVisible: components priced but not in photos (normal — photos taken post-incident).
+   */
+  quotePhotoAgreement?: import('./quotePhotoAgreementEngine').QuotePhotoAgreementResult;
+  /**
    * KINGA Savings [quote optimisation dimension] — difference between the highest
    * valid quote and the KINGA-recommended best quote (USD).
    */
@@ -1943,4 +1951,23 @@ export interface PipelineResult {
    * Previously computed in buildResult() but never persisted — R-GH-04.
    */
   interventionSummary: string[];
+
+  // ── Signal 2: Direction Contradiction Flag ───────────────────────────────
+  /**
+   * Cross-signal comparison between narrative-implied collision direction
+   * and physics-classified direction. Advisory data-quality signal.
+   * null when either direction is unavailable.
+   */
+  directionContradictionFlag: {
+    narrativeDirection: string | null;
+    physicsDirection: string | null;
+    contradicts: boolean;
+    explanation: string;
+  } | null;
+  /**
+   * Multi-signal cross-validation result — per-fact agreement/disagreement
+   * across all 5 signal types (quote-photo, narrative direction, EXIF trust,
+   * weather, evidence tiers). null when cross-validation could not run.
+   */
+  crossValidationResult: import('./multiSignalCrossValidation').MultiSignalCrossValidationResult | null;
 }

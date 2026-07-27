@@ -55,6 +55,12 @@ export interface UnifiedStage7Output {
   physicsAnalysis: Stage7Output;
   causalVerdict: CausalVerdict;
   narrativeAnalysis: NarrativeAnalysis;
+  directionContradictionFlag: {
+    narrativeDirection: string | null;
+    physicsDirection: string | null;
+    contradicts: boolean;
+    explanation: string;
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -267,12 +273,67 @@ export async function runUnifiedStage7(
     narrativeTask(),
   ]);
 
+  // -- Signal 2: Direction Contradiction Flag --
+  // Compare narrative-implied direction against physics-classified direction.
+  // This is a data-quality signal, not a fraud flag on its own.
+  let directionContradictionFlag: {
+    narrativeDirection: string | null;
+    physicsDirection: string | null;
+    contradicts: boolean;
+    explanation: string;
+  } | null = null;
+
+  try {
+    const narrativeDir: string | null =
+      (narrativeAnalysis as any)?.extracted_facts?.implied_direction ?? null;
+    const physicsDir: string | null =
+      (physicsResult as any)?.data?.impactVector?.direction ?? null;
+
+    if (narrativeDir && physicsDir) {
+      // Normalise to lowercase tokens for comparison
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
+      const nDir = norm(narrativeDir);
+      const pDir = norm(physicsDir);
+
+      // Direction families: front, rear, side (left/right), rollover, unknown
+      const family = (d: string): string => {
+        if (d.includes('front') || d.includes('head')) return 'front';
+        if (d.includes('rear') || d.includes('back')) return 'rear';
+        if (d.includes('side') || d.includes('left') || d.includes('right') || d.includes('lateral')) return 'side';
+        if (d.includes('roll')) return 'rollover';
+        return 'unknown';
+      };
+
+      const nFamily = family(nDir);
+      const pFamily = family(pDir);
+
+      const contradicts =
+        nFamily !== 'unknown' &&
+        pFamily !== 'unknown' &&
+        nFamily !== pFamily;
+
+      directionContradictionFlag = {
+        narrativeDirection: narrativeDir,
+        physicsDirection: physicsDir,
+        contradicts,
+        explanation: contradicts
+          ? `Narrative implies ${narrativeDir} impact but physics engine classified ${physicsDir}. ` +
+            `This may indicate a multi-impact event, misidentified impact zone, or narrative inaccuracy. ` +
+            `Manual review recommended.`
+          : `Narrative direction (${narrativeDir}) is consistent with physics classification (${physicsDir}).`,
+      };
+    }
+  } catch (err) {
+    // Non-fatal: direction contradiction check is advisory only
+  }
+
   return {
     status: physicsResult.status === "failed" ? "degraded" : physicsResult.status,
     data: {
       physicsAnalysis,
       causalVerdict,
       narrativeAnalysis,
+      directionContradictionFlag,
     },
     durationMs: Date.now() - start,
     savedToDb: false,
@@ -282,31 +343,27 @@ export async function runUnifiedStage7(
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback builders — used when LLM calls fail
-// ─────────────────────────────────────────────────────────────────────────────
-
 function buildDefaultCausalVerdict(claimRecord: ClaimRecord): CausalVerdict {
   return {
-    inferredCause: "Unable to determine — causal reasoning engine failed",
+    inferredCause: 'Causal reasoning unavailable — engine failed or timed out.',
     plausibilityScore: 50,
-    plausibilityBand: "moderate",
-    inferredCollisionDirection: claimRecord.accidentDetails?.collisionDirection ?? "unknown",
-    physicsAlignment: "not_applicable",
-    imageAlignment: "no_photos",
+    plausibilityBand: 'moderate',
+    inferredCollisionDirection: (claimRecord.accidentDetails?.collisionDirection ?? 'unknown') as any,
+    physicsAlignment: 'not_applicable',
+    imageAlignment: 'no_photos',
     supportingEvidence: [],
     contradictions: [],
     alternativeCauses: [],
-    narrativeVerdict: "Causal reasoning engine encountered an error. Manual review required.",
+    narrativeVerdict: 'Causal reasoning engine failed. Manual review required.',
     flagForFraud: false,
     fraudFlagReason: null,
-    reasoningTrace: "Engine failure — fallback verdict applied",
+    wrongedParty: 'unknown',
+    thirdPartyLiabilityPct: 0,
+    reasoningTrace: 'Engine failure — fallback applied.',
     llmUsed: false,
     constraintValidation: null,
     constraintNarrative: null,
     generatedAt: new Date().toISOString(),
-    wrongedParty: 'unknown' as const,
-    thirdPartyLiabilityPct: 0,
   };
 }
 

@@ -1495,6 +1495,10 @@ export async function triggerAiAssessment(claimId: number) {
     // component and image zone against the expected damage profile for the stated speed
     // and direction. Used by the Forensic report and fraud engine.
     damageClassification: (physicsAnalysis as any)?.damageClassification ?? null,
+    // Signal 3: EXIF Vision Trust Downgrade — if all photos lack EXIF, visionSourceReliability
+    // is downgraded from HIGH to MEDIUM post-Stage-8. Advisory data quality signal only.
+    visionSourceReliabilityAdjusted: (physicsAnalysis as any)?.visionSourceReliabilityAdjusted ?? null,
+    visionSourceReliabilityAdjustmentReason: (physicsAnalysis as any)?.visionSourceReliabilityAdjustmentReason ?? null,
   }) : null;
 
   // Build fraud indicators JSON
@@ -1853,6 +1857,15 @@ export async function triggerAiAssessment(claimId: number) {
     // (also embedded in claimRecordJson.accidentDetails.narrativeAnalysis, but stored here
     //  so the ForensicAuditReport can load it without parsing the full ClaimRecord)
     narrativeAnalysisJson: narrativeAnalysis ? JSON.stringify(narrativeAnalysis) : null,
+    // Signal 2: Direction Contradiction Flag — cross-signal comparison between narrative-implied
+    // collision direction and physics-classified direction. Advisory data-quality signal.
+    directionContradictionFlagJson: result.directionContradictionFlag
+      ? JSON.stringify(result.directionContradictionFlag)
+      : null,
+    // Multi-Signal Cross-Validation — per-fact agreement/disagreement across all 5 signal types.
+    crossValidationJson: result.crossValidationResult
+      ? JSON.stringify(result.crossValidationResult)
+      : null,
     // Stage 12: Claims Decision Authority — single non-contradictory recommendation
     decisionAuthorityJson: decisionAuthority ? JSON.stringify(decisionAuthority) : null,
     // Claim Truth Layer: unified resolution of all extraction/decision data

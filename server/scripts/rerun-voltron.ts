@@ -54,7 +54,7 @@ async function main() {
     
     // Check how many quotes were extracted
     const quoteCheck = await db.execute(sql`
-      SELECT COUNT(*) as quote_count, GROUP_CONCAT(panel_beater_name SEPARATOR ', ') as panel_beaters
+      SELECT COUNT(*) as quote_count, GROUP_CONCAT(panel_beater_id SEPARATOR ', ') as panel_beater_ids
       FROM panel_beater_quotes
       WHERE claim_id = ${targetClaim.id}
     `);
@@ -62,7 +62,7 @@ async function main() {
     const qRow = Array.isArray(qRows) ? qRows[0] : qRows;
     console.log(`\n=== Quote Extraction Result ===`);
     console.log(`Quotes extracted: ${qRow?.quote_count}`);
-    console.log(`Panel beaters: ${qRow?.panel_beaters}`);
+    console.log(`Panel beater IDs: ${qRow?.panel_beater_ids}`);
   } catch (err) {
     console.error("Assessment failed:", err);
     process.exit(1);

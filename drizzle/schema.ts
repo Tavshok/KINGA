@@ -128,6 +128,12 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Persisted so the ForensicAuditReport renders correctly for historical assessments
   // without requiring a live pipeline re-run.
   narrativeAnalysisJson: longtext("narrative_analysis_json"),
+  // Signal 2: Direction Contradiction Flag — cross-signal comparison between narrative-implied
+  // collision direction and physics-classified direction. Advisory data-quality signal.
+  directionContradictionFlagJson: longtext("direction_contradiction_flag_json"),
+  // Multi-Signal Cross-Validation — per-fact agreement/disagreement across all 5 signal types.
+  // Includes quote-photo agreement, narrative direction, EXIF trust, weather (pending), evidence tiers.
+  crossValidationJson: longtext("cross_validation_json"),
   // Image analysis monitoring — tracks vision success rate per assessment run
   // Used to detect systemic failures and alert the team when success rate drops below threshold.
   imageAnalysisTotalCount: int("image_analysis_total_count").default(0),

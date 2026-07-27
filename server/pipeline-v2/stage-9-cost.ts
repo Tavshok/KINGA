@@ -20,6 +20,7 @@ import { sql as drizzleSql } from "drizzle-orm";
 import { optimiseRepairCost, type InputQuote, buildCompositeQuote, classifyComponents, computeProbableHiddenDamage, type InputQuoteWithLineItems, type BenchmarkMap } from "./quoteOptimisationEngine";
 import { runCostDecision } from "./costDecisionEngine";
 import { runCrossQuoteGapAnalysis, type CrossQuoteGapAnalysisResult } from "./crossQuoteGapAnalysis";
+import { runQuotePhotoAgreement, type QuotePhotoAgreementResult } from "./quotePhotoAgreementEngine";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
 import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
 import { generateCostIntelligenceNarrative } from "./costIntelligenceNarrative";
@@ -521,11 +522,35 @@ export async function runCostOptimisationStage(
         if (crossQuoteGapAnalysis.copy_quotation_flags.some((f: any) => f.verdict === "likely_copy")) {
           ctx.log("Stage 9", `FRAUD SIGNAL [copy quotation]: high-severity copy quotation detected`);
         }
-      } catch (gapErr) {
+            } catch (gapErr) {
         ctx.log("Stage 9", `Cross-quote gap analysis failed (non-fatal): ${String(gapErr)}`);
       }
     }
-
+    // ── Step A2b: Quote-Photo Agreement ─────────────────────────────────────
+    // Cross-check quote line items against photo-detected components.
+    // Flags: components visible in photos but absent from quotes (VISIBLE_NOT_QUOTED)
+    // and components in quotes but not detected in photos (QUOTED_NOT_VISIBLE).
+    // Note: photos are often taken post-incident at a workshop or home, so
+    // QUOTED_NOT_VISIBLE is NOT a fraud signal by itself.
+    let quotePhotoAgreement: QuotePhotoAgreementResult | null = null;
+    if (resolvedExtractedQuotes.length > 0 && damageAnalysis.damagedParts.length > 0) {
+      try {
+        quotePhotoAgreement = runQuotePhotoAgreement(
+          damageAnalysis.damagedParts,
+          resolvedExtractedQuotes.map((q: any) => ({
+            panel_beater: q.panel_beater ?? 'Unknown',
+            components: q.components ?? [],
+            line_items: q.line_items ?? [],
+          }))
+        );
+        ctx.log('Stage 9', `Quote-photo agreement: score=${(quotePhotoAgreement.agreementScore * 100).toFixed(0)}%, visibleNotQuoted=${quotePhotoAgreement.visibleNotQuoted.length}, quotedNotVisible=${quotePhotoAgreement.quotedNotVisible.length}, structuralGaps=${quotePhotoAgreement.structuralGapsInQuotes.length}`);
+        if (quotePhotoAgreement.structuralGapsInQuotes.length > 0) {
+          ctx.log('Stage 9', `STRUCTURAL QUOTE GAP: ${quotePhotoAgreement.structuralGapsInQuotes.join(', ')} — structural components visible in photos but absent from all quotes`);
+        }
+      } catch (qpaErr) {
+        ctx.log('Stage 9', `Quote-photo agreement failed (non-fatal): ${String(qpaErr)}`);
+      }
+    }
     // ── Step A3: Quote Deviation Matrix ──────────────────────────────────────
     // % deviation of each panel beater vs (a) lowest submitted and (b) KINGA L2 per-component benchmark.
     // NOTE: kingaL2BenchmarkUsd is populated later (after perComponentBenchmarks are built).
@@ -1398,6 +1423,10 @@ export async function runCostOptimisationStage(
       overallLineItemCompletenessScore,
       // Cross-quote gap analysis — component union, per-quote gaps, latent damage, copy detection
       crossQuoteGapAnalysis: crossQuoteGapAnalysis ?? undefined,
+      // Quote-photo agreement — cross-check quote components against photo-detected components
+      // QUOTED_NOT_VISIBLE is normal (photos taken post-incident). VISIBLE_NOT_QUOTED on structural
+      // components is the strongest signal here.
+      quotePhotoAgreement: quotePhotoAgreement ?? undefined,
       // KINGA Savings — quote optimisation dimension
       kingaSavingsQuoteOptimisation: quoteOptimisation?.savings_vs_highest_usd ?? 0,
       kingaRecommendedQuote: quoteOptimisation?.best_quote_by_cost
