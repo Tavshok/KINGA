@@ -254,7 +254,7 @@ export function runVGRReconciliation(
     let frontalCount = 0, angle45Count = 0, sideCount = 0, unknownCount = 0;
 
     for (const img of calibratedImages) {
-      const viewAngle = inferViewAngle(img.imageUrl);
+      const viewAngle = inferViewAngle(img.imageUrl, img.imageViewAngle);
       const viewAngleWeight = VIEW_ANGLE_WEIGHTS[viewAngle];
       const effectiveWeight = viewAngleWeight * img.overallCalibrationConfidence;
 

@@ -947,6 +947,18 @@ export interface Stage7Output {
    * Provides view-angle-weighted consensus crush depth.
    */
   vgrReconciliation?: import('./stage-6-5b-vgr').VGRConsensusResult | null;
+  /**
+   * Pre-impact braking distance in metres.
+   * Computed from ensemble consensus speed using d = v² / (2 * μ * g).
+   * μ defaults to 0.7 (dry asphalt) when road surface is unknown.
+   * Null when speed is zero or physics was skipped.
+   */
+  brakingDistanceM?: number | null;
+  /**
+   * Friction coefficient used to compute brakingDistanceM.
+   * 0.7 = dry asphalt, 0.4 = wet asphalt, 0.3 = gravel/dirt.
+   */
+  brakingFrictionCoefficient?: number | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

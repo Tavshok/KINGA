@@ -987,6 +987,50 @@ export async function runPhysicsStage(
         ctx.log('Stage 7',
           `[ENSEMBLE_OVERRIDE] estimatedSpeedKmh: ${legacySpeed} km/h (legacy) → ${ensembleResult.consensusSpeedKmh} km/h (ensemble consensus, ${ensembleResult.overallConfidence} confidence)`
         );
+        // ── Recompute derived physics values from the ensemble consensus speed ──
+        // The pre-ensemble values (impactForceKn, deltaVKmh, kineticEnergyJ,
+        // decelerationG) were computed from the legacy speed. Now that the
+        // ensemble has produced a consensus, recompute all four so the output
+        // is internally consistent with the reported estimatedSpeedKmh.
+        const ensembleSpeedMs = ensembleResult.consensusSpeedKmh / 3.6;
+        const massKgForRecompute = claimRecord.vehicle.massKg ?? 1500;
+        const crushDepthForRecompute = inferCrushDepth(damageAnalysis, claimRecord);
+        // KE = ½mv²
+        const recomputedKEJ = 0.5 * massKgForRecompute * ensembleSpeedMs * ensembleSpeedMs;
+        // F = mv²/(2d), in kN
+        const recomputedForceKn = (massKgForRecompute * ensembleSpeedMs * ensembleSpeedMs)
+          / (2 * Math.max(crushDepthForRecompute, 0.05) * 1000);
+        // ΔV = √(2KE/m), back to km/h
+        const recomputedDeltaVKmh = Math.sqrt(2 * recomputedKEJ / massKgForRecompute) * 3.6;
+        // a = v²/(2d), in g
+        const recomputedDecelMs2 = (ensembleSpeedMs * ensembleSpeedMs)
+          / (2 * Math.max(crushDepthForRecompute, 0.05));
+        const recomputedDecelerationG = Math.min(50, Math.max(0.1, recomputedDecelMs2 / 9.81));
+        // Apply sideswipe coefficient to force/energy (same as the pre-ensemble path)
+        const recomputedForceKnFinal = recomputedForceKn * sideswipeCoefficient;
+        const recomputedKEJFinal     = recomputedKEJ * sideswipeCoefficient;
+        output.impactForceKn = recomputedForceKnFinal;
+        output.impactVector  = { ...output.impactVector, magnitude: recomputedForceKnFinal * 1000 };
+        output.energyDistribution = {
+          kineticEnergyJ:     recomputedKEJFinal,
+          energyDissipatedJ:  recomputedKEJFinal,
+          energyDissipatedKj: recomputedKEJFinal / 1000,
+        };
+        output.deltaVKmh     = recomputedDeltaVKmh;
+        output.decelerationG = recomputedDecelerationG;
+        // ── Braking distance: d = v²/(2μg) ──────────────────────────────────────
+        // μ is selected from road surface; defaults to 0.7 (dry asphalt).
+        const roadSurface = claimRecord.accidentDetails.roadSurface?.toLowerCase() ?? '';
+        const mu = roadSurface.includes('wet') || roadSurface.includes('rain') ? 0.4
+          : roadSurface.includes('gravel') || roadSurface.includes('dirt') || roadSurface.includes('sand') ? 0.3
+          : 0.7; // dry asphalt default
+        output.brakingDistanceM = ensembleSpeedMs > 0
+          ? Math.round((ensembleSpeedMs * ensembleSpeedMs) / (2 * mu * 9.81) * 100) / 100
+          : null;
+        output.brakingFrictionCoefficient = mu;
+        ctx.log('Stage 7',
+          `[ENSEMBLE_RECOMPUTE] impactForceKn=${recomputedForceKnFinal.toFixed(3)} kN, deltaVKmh=${recomputedDeltaVKmh.toFixed(1)} km/h, decelerationG=${recomputedDecelerationG.toFixed(3)} g, brakingDistanceM=${output.brakingDistanceM} m (μ=${mu})`
+        );
       }
 
       // ── Enrich speedForensics with ensemble consensus and speed limit ───────────

@@ -267,6 +267,9 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
   const impactForceKn    = Number(physics?.impactForceKn ?? physics?.impactVector?.magnitude ?? 0) / (physics?.impactVector?.magnitude > 1000 ? 1000 : 1);
   const energyKj         = Number(physics?.energyDistribution?.energyDissipatedKj ?? physics?.energyKj ?? 0);
   const kineticEnergyJ   = Number(physics?.energyDistribution?.kineticEnergyJ ?? 0);
+  const decelerationG    = Number(physics?.decelerationG ?? 0);
+  const brakingDistanceM = physics?.brakingDistanceM != null ? Number(physics.brakingDistanceM) : null;
+  const brakingMu        = physics?.brakingFrictionCoefficient ?? 0.7;
   const impactDirection  = (physics?.impactVector?.direction ?? physics?.impactDirection ?? "unknown").toUpperCase();
   const severity         = aiAssessment?.structuralDamageSeverity ?? "unknown";
   const severityInfo     = severityBand(estimatedSpeedKmh);
@@ -1186,6 +1189,24 @@ export default function ForensicDecisionPanel({ aiAssessment, claim, quotes = []
                       <span>{((energyKj * 1000 / kineticEnergyJ) * 100).toFixed(0)}%</span>
                     </div>
                     <Bar value={(energyKj * 1000 / kineticEnergyJ) * 100} colorCls="bg-orange-500" />
+                  </div>
+                )}
+                {(decelerationG > 0 || brakingDistanceM != null) && (
+                  <div className="mt-4 pt-3 border-t border-border grid grid-cols-2 gap-3">
+                    {decelerationG > 0 && (
+                      <div className="rounded-lg border border-border bg-muted/20 p-2.5">
+                        <p className="text-xs text-muted-foreground">Peak Deceleration</p>
+                        <p className="text-lg font-black tabular-nums text-foreground">{decelerationG.toFixed(1)} g</p>
+                        <p className="text-xs text-muted-foreground">{(decelerationG * 9.81).toFixed(1)} m/s²</p>
+                      </div>
+                    )}
+                    {brakingDistanceM != null && (
+                      <div className="rounded-lg border border-border bg-muted/20 p-2.5">
+                        <p className="text-xs text-muted-foreground">Pre-impact Braking Dist.</p>
+                        <p className="text-lg font-black tabular-nums text-foreground">{brakingDistanceM.toFixed(1)} m</p>
+                        <p className="text-xs text-muted-foreground">μ = {brakingMu} ({brakingMu >= 0.65 ? 'dry' : brakingMu >= 0.35 ? 'wet' : 'loose'} surface)</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </>

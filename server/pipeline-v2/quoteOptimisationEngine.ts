@@ -1471,6 +1471,10 @@ export function classifyComponents(
   // Note: also check if the component is covered by a quoted assembly
   // (e.g. "Radiator" is covered by "Cooling Pack Assembly").
   const damagedNotQuoted: DamagedNotQuotedFlag[] = [];
+  // Deduplicate: multiple raw damage part strings may resolve to the same
+  // canonical component name (e.g. "F/Bumper" and "Front Bumper" both → "Front Bumper").
+  // Track seen canonical names so each component appears at most once.
+  const damagedNotQuotedSeen = new Set<string>();
   for (const dc of normDamaged) {
     const isQuoted = normQuoted.some(qc =>
       isComponentMatched(dc, [qc]) || isComponentMatched(qc, [dc])
@@ -1478,7 +1482,8 @@ export function classifyComponents(
     // Assembly containment check: if the raw (pre-normalised) quoted components
     // include an assembly that contains this part, treat it as quoted.
     const isCoveredByAssembly = isComponentCoveredByAssembly(dc, allQuotedComponents);
-    if (!isQuoted && !isCoveredByAssembly) {
+    if (!isQuoted && !isCoveredByAssembly && !damagedNotQuotedSeen.has(dc)) {
+      damagedNotQuotedSeen.add(dc);
       const bm = benchmarks[dc] ?? null;
       const p50 = bm?.p50Usd ?? null;
       const reportSignal = p50 !== null
