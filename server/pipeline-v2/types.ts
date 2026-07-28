@@ -1186,6 +1186,12 @@ export interface CompositeLineItem {
   dataGap?: boolean;
   /** Human-readable explanation of the data gap, surfaced in the report */
   dataGapReason?: string;
+  /** Source of the benchmark data: 'ml' = ML quantile regression, 'statistical' = Statistical IQR, 'db_legacy' = legacy DB, 'none' = no data */
+  benchmarkModelSource?: 'ml' | 'statistical' | 'db_legacy' | 'none' | null;
+  /** True when the benchmark is filtered to this vehicle make (more accurate); false/null = global benchmark */
+  benchmarkVehicleMakeFiltered?: boolean | null;
+  /** Number of historical observations used to build the benchmark */
+  benchmarkSampleSize?: number | null;
 }
 
 export interface QuotedNotDamagedFlag {

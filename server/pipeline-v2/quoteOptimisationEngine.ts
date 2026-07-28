@@ -804,6 +804,8 @@ export interface BenchmarkMap {
     p50Usd: number | null;
     p75Usd: number | null;
     sampleSize: number;
+    modelSource?: 'ml' | 'statistical' | 'db_legacy' | 'none' | null;
+    vehicleMakeFiltered?: boolean | null;
   } | null;
 }
 
@@ -1221,6 +1223,9 @@ export function buildCompositeQuote(
       scopeDecisionRule,
       scopeDecisionConfidence: entries.length >= 2 ? 'high' : 'medium',
       dataGap: false,
+      benchmarkModelSource: bm?.modelSource ?? null,
+      benchmarkVehicleMakeFiltered: bm?.vehicleMakeFiltered ?? null,
+      benchmarkSampleSize: bm?.sampleSize ?? null,
     } satisfies CompositeLineItem);
   }
 

@@ -156,7 +156,12 @@ const CATEGORY_BUDGET: Record<string, number> = {
  */
 const CATEGORY_RAW_CAP: Record<string, number> = {
   // direction_mismatch(25) + severity_mismatch(30) + pattern_none(55) + 2×cross_engine_CRITICAL(40)
-  physical_consistency: 130,
+  physical_consistency: 75,  // CALIBRATED 2026-07-28: reduced from 130 → 75. The original cap of 130 assumed
+  // every possible C1 violation fires simultaneously (direction mismatch + severity mismatch +
+  // cross-engine conflicts + excessive damage + unexplained pattern). In practice a single claim
+  // generates 50–90 raw pts in C1. A cap of 75 ensures a claim with CRITICAL XV risk (3 XV
+  // indicators = 55 pts) + excessive damage (15) + unexplained pattern (20) = 90 pts reaches
+  // the full C1 budget (28/28), producing a moderate-tier fraud score as intended.
   // Scenario engine internal score is already 0-100; narrative signals capped at 25 each
   scenario_intelligence: 100,
   // quote_similarity(40) + cost_deviation_extreme(20) + financed_vehicle(15)
@@ -182,8 +187,12 @@ function mapIndicatorCategory(indicator: FraudIndicator): string {
     return 'photo_forensics';
   }
   // C1: Physical Consistency
-  if (cat === 'consistency' || code.startsWith('damage_direction') || code.startsWith('severity_physics') ||
-      code.startsWith('damage_pattern') || code.startsWith('damage_image') || code.startsWith('cross_engine_')) {
+  // cross_validation indicators (speed contradiction, damage pattern mismatch from XV engine)
+  // are physical consistency signals — they belong in C1, not C2.
+  if (cat === 'consistency' || cat === 'cross_validation' ||
+      code.startsWith('damage_direction') || code.startsWith('severity_physics') ||
+      code.startsWith('damage_pattern') || code.startsWith('damage_image') || code.startsWith('cross_engine_') ||
+      code.startsWith('[cross-validation]') || code.includes('cross-validation')) {
     return 'physical_consistency';
   }
   // C3: Financial Anomaly
@@ -334,7 +343,7 @@ function analyseDamageConsistency(
   if (damageAnalysis.damagedParts.length > 20) {
     indicators.push({
       indicator: "excessive_damage_count",
-      category: "pattern",
+      category: "consistency", // C1: Physical Consistency — high component count is a physical pattern signal
       score: 15,
       description: `Unusually high number of damaged components (${damageAnalysis.damagedParts.length}).`,
     });
@@ -593,6 +602,24 @@ export async function runFraudAnalysisStage(
     try {
       consistency = analyseDamageConsistency(claimRecord, damageAnalysis, physicsAnalysis);
       allIndicators.push(...consistency.indicators);
+      // C1 Physical Consistency: inject a scored indicator for the damage consistency score itself.
+      // The consistency score represents how well the observed damage is explained by the stated
+      // incident. A score below 70 means >30% of damage is unexplained — this is a physical
+      // consistency signal and must contribute to C1, not just be stored as metadata.
+      // Score mapping (calibrated against CATEGORY_RAW_CAP.physical_consistency = 75):
+      //   score 50–69 (30–50% unexplained) → indicator score 20 (moderate concern)
+      //   score 30–49 (50–70% unexplained) → indicator score 40 (significant concern)
+      //   score  0–29 (>70% unexplained)   → indicator score 60 (critical concern)
+      if (consistency.score < 70) {
+        const unexplainedFraction = (100 - consistency.score) / 100;
+        const indicatorScore = consistency.score < 30 ? 60 : consistency.score < 50 ? 40 : 20;
+        allIndicators.push({
+          indicator: 'damage_pattern_unexplained',
+          category: 'consistency',
+          score: indicatorScore,
+          description: `Damage consistency score: ${consistency.score}/100 (${Math.round(unexplainedFraction * 100)}% of observed damage unexplained by stated incident). ${consistency.notes}`,
+        });
+      }
     } catch (e) {
       isDegraded = true;
       consistency = { score: 50, notes: "Consistency analysis failed.", indicators: [] };

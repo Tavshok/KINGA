@@ -1716,6 +1716,8 @@ export async function runCostOptimisationStage(
                 p50Usd: (bm as any).medianUsd ?? null,
                 p75Usd: (bm as any).p75Usd,
                 sampleSize: (bm as any).sampleSize ?? 0,
+                modelSource: (bm as any).modelSource ?? null,
+                vehicleMakeFiltered: (bm as any).vehicleMakeFiltered ?? null,
               };
             }
           }
