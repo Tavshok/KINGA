@@ -38,7 +38,7 @@ import { applyAutomotiveDomainCorrections } from "./automotiveDomainCorrector";
 import { runDamageAnalysisStage } from "./stage-6-damage-analysis";
 import { runUnifiedStage7 } from "./stage-7-unified";
 import { scoreClaimComplexity, type ComplexityScore } from "./claimComplexityScorer";
-import { runFraudAnalysisStage } from "./stage-8-fraud";
+import { runFraudAnalysisStage, recomputeFraudScore } from "./stage-8-fraud";
 import { aggregateConfidence, buildConfidenceAggregationInput } from "./confidenceAggregationEngine";
 import { runCostOptimisationStage } from "./stage-9-cost";
 import { runTurnaroundTimeStage } from "./stage-9b-turnaround";
@@ -1898,6 +1898,19 @@ export async function runPipelineV2(
         if (!stage8Data.indicators) stage8Data.indicators = [];
         stage8Data.indicators.push(...xvIndicators);
         ctx.log('Signal-XV', `Injected ${xvIndicators.length} cross-validation indicator(s) into fraud scoring`);
+        // ── Recompute fraud score after XV injection ──────────────────────────
+        // The XV indicators are now in stage8Data.indicators but the stored
+        // fraudRiskScore is still the pre-injection value from Stage 8.
+        // Recompute using the exported weighted scoring function so the final
+        // DB-stored score reflects ALL signals including cross-validation.
+        const scenarioScoreForRecompute = stage8Data.scenarioFraudResult?.fraudScore ?? null;
+        const { score: xvAdjustedScore, riskLevel: xvAdjustedLevel } =
+          recomputeFraudScore(stage8Data.indicators, scenarioScoreForRecompute);
+        if (xvAdjustedScore !== stage8Data.fraudRiskScore) {
+          ctx.log('Signal-XV', `Fraud score updated after XV injection: ${stage8Data.fraudRiskScore} → ${xvAdjustedScore}/100 (${xvAdjustedLevel})`);
+          stage8Data.fraudRiskScore = xvAdjustedScore;
+          stage8Data.fraudRiskLevel = xvAdjustedLevel;
+        }
       }
     } catch (err) {
       ctx.log('Signal-XV', `Cross-validation failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);

@@ -942,14 +942,36 @@ export async function runPhysicsStage(
           `vehicle: ${vgeResult.vehicleProfileUsed ?? 'no profile'})`
         );
       } else {
-        // Fall back to raw LLM per-component crush depths
-        visionCrushDepthM = visionDepthsFromParts.length > 0
+        // Fall back to raw LLM per-component crush depths.
+        // NOTE: LLM sometimes reports component depth (e.g. radiator depth ~450 mm) instead of
+        // panel deformation crush depth. Apply a direction-adjusted plausibility cap to prevent
+        // component-depth confusion from propagating into the physics ensemble.
+        // Caps by direction (physically plausible max panel deformation for insurance-relevant impacts):
+        //   frontal / front / rear: 0.30 m (300 mm) — bonnet/boot crush, not full-width barrier
+        //   side / side_passenger / side_driver: 0.20 m (200 mm) — door panel deformation
+        //   rollover / unknown: 0.35 m (350 mm) — conservative upper bound
+        const _rawLlmMax = visionDepthsFromParts.length > 0
           ? Math.max(...visionDepthsFromParts)
           : (visionInputTrusted ? (claimRecord._forensicAnalysis?.visionCrushDepthM ?? null) : null);
+        const _capDir = claimRecord.accidentDetails.collisionDirection ?? 'unknown';
+        const _plausibilityCap = (['frontal', 'front', 'rear'].includes(_capDir)) ? 0.30
+          : (['side', 'side_passenger', 'side_driver'].includes(_capDir)) ? 0.20
+          : 0.35;
+        if (_rawLlmMax != null && _rawLlmMax > _plausibilityCap) {
+          visionCrushDepthM = _plausibilityCap;
+          ctx.log('Stage 7',
+            `[VGE-CAP] Raw LLM crush depth ${(_rawLlmMax * 1000).toFixed(0)} mm exceeds plausibility cap ` +
+            `for direction '${_capDir}' (${(_plausibilityCap * 1000).toFixed(0)} mm). ` +
+            `Capped to prevent component-depth confusion. VGE confidence: ${vgeResult?.confidenceLevel ?? 'NONE'}.`
+          );
+        } else {
+          visionCrushDepthM = _rawLlmMax;
+        }
         if (vgeResult != null) {
           ctx.log('Stage 7',
             `[VGE] Falling back to raw LLM crush depth (VGE confidence: ${vgeResult.confidenceLevel ?? 'NONE'}) — ` +
-            `raw value: ${visionCrushDepthM != null ? (visionCrushDepthM * 1000).toFixed(0) + ' mm' : 'null'}`
+            `raw value: ${_rawLlmMax != null ? (_rawLlmMax * 1000).toFixed(0) + ' mm' : 'null'}, ` +
+            `used value: ${visionCrushDepthM != null ? (visionCrushDepthM * 1000).toFixed(0) + ' mm' : 'null'}`
           );
         }
       }

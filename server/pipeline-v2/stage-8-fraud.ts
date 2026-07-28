@@ -1246,3 +1246,20 @@ export async function runFraudAnalysisStage(
     };
   }
 }
+
+/**
+ * Exported helper: recompute the weighted fraud score from a full indicator list.
+ * Used by the orchestrator after Signal-XV injects cross-validation indicators
+ * into stage8Data.indicators, so the final stored score reflects all signals.
+ *
+ * @param indicators - Full indicator list (original Stage 8 + XV-injected)
+ * @param scenarioFraudScore - The scenario engine's own 0-100 score
+ * @returns { score, riskLevel }
+ */
+export function recomputeFraudScore(
+  indicators: FraudIndicator[],
+  scenarioFraudScore: number | null
+): { score: number; riskLevel: FraudRiskLevel } {
+  const { score } = computeWeightedFraudScore(indicators, scenarioFraudScore);
+  return { score, riskLevel: scoreToLevel(score) };
+}

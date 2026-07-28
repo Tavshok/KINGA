@@ -1034,6 +1034,7 @@ async function inferIncidentFromDescriptionLLM(description: string): Promise<{
    - "multi_impact": multiple distinct impact zones
    - "unknown": genuinely cannot determine from the description
    CRITICAL RULE: When a driver swerves to AVOID an animal and then hits a tree/wall/hill/embankment, the incidentType is STILL "animal_strike" and collisionDirection is "frontal" (the animal caused the evasive action; the frontal impact with the secondary object is the primary damage event). Do NOT classify as "rollover" just because the vehicle lost control after avoiding an animal.
+   CRITICAL RULE: When a vehicle hits a ROAD DEPRESSION, POTHOLE, DONGA, WASH-AWAY, SPEED HUMP, or similar road surface feature and the front airbags deploy, the collisionDirection is "frontal" (the vehicle's front axle/bumper struck the road surface head-on). Do NOT classify as "rollover" for road surface impacts — rollover requires the vehicle to have physically tipped over onto its side or roof. A rear tyre puncture as a secondary consequence of a road depression impact does NOT make it a rollover.
 3. isCollision: true if physics engine should run (any impact event), false for theft/vandalism/fire/flood
 4. reasoning: one sentence explaining your classification
 5. confidence: integer 0-100

@@ -218,6 +218,36 @@ const ZONE_DIRECTION_AFFINITY: Record<string, CollisionDirection[]> = {
 };
 
 /**
+ * Components that can be damaged by secondary mechanisms regardless of primary
+ * impact direction. These are classified as UNEXPLAINED (not IMPOSSIBLE) because
+ * they can result from road debris, rim impact, suspension loading, or secondary
+ * contact in any primary collision direction.
+ *
+ * Examples:
+ *   - Tyre puncture: road debris or rim impact during any collision
+ *   - Wheel / rim: kerb contact, road debris, secondary impact
+ *   - Suspension: secondary loading from road surface contact
+ *   - Underbody: road depression, pothole, debris
+ *   - Exhaust: road contact during any impact
+ */
+const MECHANISM_EXCEPTION_ZONES: string[] = [
+  // Tyre/wheel/suspension: can be damaged by road debris, rim impact, or
+  // secondary loading in any primary impact direction.
+  'tyre', 'tire', 'wheel', 'rim', 'alloy wheel', 'spare wheel',
+  'suspension', 'shock absorber', 'strut', 'control arm', 'wishbone',
+  // Underbody/exhaust: road surface contact in any impact direction.
+  'underbody', 'undercarriage', 'floor pan', 'chassis underbody',
+  'exhaust', 'catalytic converter', 'muffler',
+  'puncture', 'blowout',
+  // Coarse image-zone labels from Stage 6 vision (e.g. 'rear', 'left_side'):
+  // These are too coarse to assert a specific primary impact direction.
+  // Only specific named components (e.g. 'rear bumper', 'boot lid') should
+  // be eligible for IMPOSSIBLE classification — not bare directional labels.
+  // A bare 'rear' zone may represent a tyre, wheel, or secondary contact.
+  'rear', 'left_side', 'right_side', 'general',
+];
+
+/**
  * Determine if an observed zone is directionally inconsistent with the
  * stated collision direction.
  *
@@ -238,8 +268,15 @@ function checkDirectionConsistency(
   ];
   if (matchesAnyZone(zone, allExpected)) return 'possible';
 
-  // Check if this zone is the primary zone for a conflicting direction
+  // Mechanism-exception check: components that can be damaged by secondary
+  // mechanisms (road debris, rim impact, suspension loading) regardless of
+  // primary impact direction. Always classify as UNEXPLAINED, never IMPOSSIBLE.
   const normZone = normalise(zone);
+  if (MECHANISM_EXCEPTION_ZONES.some(exc => normZone.includes(normalise(exc)) || normalise(exc).includes(normZone))) {
+    return 'unexplained';
+  }
+
+  // Check if this zone is the primary zone for a conflicting direction
   for (const [affinityZone, affinityDirs] of Object.entries(ZONE_DIRECTION_AFFINITY)) {
     if (normZone.includes(normalise(affinityZone)) || normalise(affinityZone).includes(normZone)) {
       // This zone has a direction affinity
