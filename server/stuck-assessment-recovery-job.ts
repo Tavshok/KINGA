@@ -41,11 +41,12 @@
  *     handles this on server restart, but if the server stays up the claim is stuck forever.
  *     Action: Reset to pending and re-trigger.
  *
- *   CASE 7 — assessment_in_progress, any dps, >30 min
- *     Hard wall-clock guard. No matter what state the claim is in, if it has been in
- *     assessment_in_progress for more than 30 minutes without completing, something is
- *     fundamentally wrong. Reset to failed — do NOT auto-re-trigger (requires manual action).
- *     Action: Reset to intake_pending with dps=failed. Manual re-trigger required.
+ *   CASE 7 — ANY pipeline-running status, any dps, >30 min
+ *     Hard wall-clock guard. Any claim in a pipeline-running status
+ *     (assessment_in_progress, analysis_running, document_validating, document_ready,
+ *     analysis_running, recovery_attempted) for more than 30 minutes without completing
+ *     is fundamentally stuck. Reset to document_failed so Case 11 can auto-retry it.
+ *     Action: Reset to document_failed. Case 11 will auto-retry after 5 min.
  *
  *   CASE 11 — document_failed + sourceDocumentId IS NOT NULL + >5 min
  *     Claims that reached document_failed because the watchdog fired (server restart killed
@@ -574,20 +575,26 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
-    // ── CASE 7: assessment_in_progress + any dps + >30 min (hard wall-clock guard) ──────────
-    // Hard wall-clock guard. Claims stuck >30 min are reset to failed.
-    // IMPORTANT: This case does NOT auto-re-trigger. The claim must be manually re-queued
-    // via the "Reset if Stuck" button in the UI. This prevents infinite loops where
-    // CASE 7 resets to intake_pending and CASE 4 immediately re-triggers it.
+        // ── CASE 7: ANY pipeline-running status + >30 min (hard wall-clock guard) ──────────
+    // Covers ALL pipeline-running statuses: assessment_in_progress, analysis_running,
+    // document_validating, document_ready, recovery_attempted.
+    // Claims stuck >30 min are reset to document_failed so Case 11 auto-retries them.
+    const PIPELINE_RUNNING_STATUSES = [
+      "assessment_in_progress",
+      "analysis_running",
+      "document_validating",
+      "document_ready",
+      "recovery_attempted",
+    ] as const;
     const hardWallClock = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
       return db
-        .select({ id: claims.id, claimNumber: claims.claimNumber, documentProcessingStatus: claims.documentProcessingStatus })
+        .select({ id: claims.id, claimNumber: claims.claimNumber, status: claims.status, documentProcessingStatus: claims.documentProcessingStatus, sourceDocumentId: claims.sourceDocumentId })
         .from(claims)
         .where(
           and(
-            eq(claims.status, "assessment_in_progress"),
+            inArray(claims.status, PIPELINE_RUNNING_STATUSES as unknown as string[]),
             eq(claims.aiAssessmentCompleted, 0),
             // Use aiAssessmentStartedAt if available, otherwise fall back to updatedAt.
             // This prevents onStageStart updatedAt refreshes from resetting the clock.
@@ -596,11 +603,10 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         )
         .limit(20);
     }, 3, 2000, 'StuckRecovery case-7 query');
-
     if (hardWallClock.length > 0) {
       console.log(
-        `[StuckRecovery] CASE 7: Found ${hardWallClock.length} claim(s) stuck in assessment_in_progress ` +
-        `for >30 minutes — hard reset to failed (manual re-trigger required)`
+        `[StuckRecovery] CASE 7: Found ${hardWallClock.length} claim(s) stuck in a pipeline-running status ` +
+        `for >30 minutes — resetting to document_failed for Case 11 auto-retry`
       );
       for (const claim of hardWallClock) {
         try {
@@ -608,19 +614,21 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             const db = await getDb();
             if (!db) return;
             return db.update(claims).set({
-              status: "intake_pending",
+              // Reset to document_failed so Case 11 picks it up and auto-retries
+              // (Case 11 checks sourceDocumentId IS NOT NULL, so claims without a
+              // source doc will stay in document_failed and require manual action)
+              status: "document_failed" as any,
               workflowState: "intake_queue",
-              // Use 'failed' so it surfaces in the UI as needing attention
-              // but set aiAssessmentTriggered=0 so CASE 4 does NOT re-trigger it
-              documentProcessingStatus: "failed",
+              documentProcessingStatus: "DOCUMENT_FAILED",
               aiAssessmentTriggered: 0,
               aiAssessmentCompleted: 0,
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-7 reset claim ${claim.id}`);
+          const hasDoc = claim.sourceDocumentId ? '(has source doc — Case 11 will auto-retry)' : '(no source doc — manual re-trigger required)';
           console.log(
             `[StuckRecovery] CASE 7: Hard-reset claim ${claim.claimNumber} (id=${claim.id}) ` +
-            `[stuck >30min in ${claim.documentProcessingStatus}] → intake_pending/failed. Manual re-trigger required.`
+            `[stuck >30min in ${claim.status}/${claim.documentProcessingStatus}] → document_failed ${hasDoc}`
           );
           totalFixed++;
         } catch (err) {

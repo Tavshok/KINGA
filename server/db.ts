@@ -628,9 +628,52 @@ function encodeS3Filename(url: string): string {
   return base + encodedFilename;
 }
 
+// ── PIPELINE CONCURRENCY SEMAPHORE ─────────────────────────────────────────────────────────
+// Limits the number of KINGA pipelines running concurrently in this process.
+// Running multiple pipelines simultaneously causes LLM rate-limit errors, OOM, and
+// watchdog timeouts. The semaphore queues excess triggers and runs them serially.
+// MAX_CONCURRENT_PIPELINES=1 means only one pipeline runs at a time.
+const MAX_CONCURRENT_PIPELINES = 1;
+let _activePipelineCount = 0;
+const _pipelineQueue: Array<() => void> = [];
+
+function acquirePipelineSlot(): Promise<void> {
+  return new Promise((resolve) => {
+    if (_activePipelineCount < MAX_CONCURRENT_PIPELINES) {
+      _activePipelineCount++;
+      resolve();
+    } else {
+      _pipelineQueue.push(() => { _activePipelineCount++; resolve(); });
+      console.log(`[PipelineSemaphore] Claim queued — ${_pipelineQueue.length} waiting, ${_activePipelineCount} active`);
+    }
+  });
+}
+
+function releasePipelineSlot(): void {
+  _activePipelineCount = Math.max(0, _activePipelineCount - 1);
+  const next = _pipelineQueue.shift();
+  if (next) {
+    console.log(`[PipelineSemaphore] Slot released — starting next queued claim (${_pipelineQueue.length} still waiting)`);
+    next();
+  }
+}
+
+export function getActivePipelineCount(): number { return _activePipelineCount; }
+export function getPipelineQueueLength(): number { return _pipelineQueue.length; }
+// ────────────────────────────────────────────────────────────────────────────────────────────
+
 export async function triggerAiAssessment(claimId: number) {
+  // Acquire a pipeline slot — if MAX_CONCURRENT_PIPELINES are already running,
+  // this awaits in a queue until a slot is available. This prevents thundering-herd
+  // on startup when many claims are triggered simultaneously.
+  await acquirePipelineSlot();
+  console.log(`[PipelineSemaphore] Claim ${claimId} acquired pipeline slot (active: ${_activePipelineCount}, queued: ${_pipelineQueue.length})`);
+
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) {
+    releasePipelineSlot();
+    throw new Error("Database not available");
+  }
 
   const { runPipelineV2, PipelineIncompleteError } = await import("./pipeline-v2/orchestrator");
 
@@ -2827,17 +2870,18 @@ export async function triggerAiAssessment(claimId: number) {
               updatedAt: new Date().toISOString(),
             }).where(eq(claims.id, claimId));
           }
-        }
-      } catch (finallyErr) {
+        }      } catch (finallyErr) {
         console.error(`[KINGA Assessment] SAFETY NET DB update failed for claim ${claimId}:`, finallyErr);
       }
     }
+    // Always release the pipeline semaphore slot so the next queued claim can start.
+    releasePipelineSlot();
+    console.log(`[PipelineSemaphore] Claim ${claimId} released pipeline slot (active: ${_activePipelineCount}, queued: ${_pipelineQueue.length})`);
   }
 }
-
 // ============================================================================
 // AI ASSESSMENT OPERATIONS
-// ============================================================================
+// =============================================================================
 
 export async function createAiAssessment(data: InsertAiAssessment) {
   const db = await getDb();
