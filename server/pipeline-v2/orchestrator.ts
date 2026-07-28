@@ -1871,6 +1871,8 @@ export async function runPipelineV2(
         } : null,
         weatherCrossCheck: null, // S4: PENDING_DEPENDENCY — enable via WEATHER_API_ENABLED=true
         evidenceTiers: evidenceTierResult,
+        // Stage 6 severity — used as the anchor for crush depth check and three-way speed comparison
+        damageSeverity: (stage7Data as any)?.accidentSeverity ?? null,
         quotePhotoAgreement: stage9Data?.quotePhotoAgreement ? {
           agreementScore: (stage9Data.quotePhotoAgreement as any).agreementScore ?? 0,
           quotedNotVisible: (stage9Data.quotePhotoAgreement as any).quotedNotVisible ?? [],

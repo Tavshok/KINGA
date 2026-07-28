@@ -95,6 +95,23 @@ export interface MultiSignalCrossValidationResult {
 
   /** Whether any material contradictions were found */
   hasMaterialContradictions: boolean;
+
+  /**
+   * Three-way speed comparison: claimed vs consensus vs severity-implied.
+   * Null if fewer than two of the three values are available.
+   */
+  threeWaySpeedComparison: {
+    claimedSpeedKmh: number | null;
+    consensusSpeedKmh: number | null;
+    severityImpliedBand: string | null;       // e.g. 'MODERATE (25–45 km/h)'
+    severityImpliedMidpointKmh: number | null;
+    claimedVsConsensus: string | null;        // e.g. 'CONSISTENT' | 'DIVERGENT' | 'N/A'
+    claimedVsSeverity: string | null;
+    consensusVsSeverity: string | null;
+    overallAgreement: 'ALL_AGREE' | 'TWO_AGREE' | 'ALL_DIVERGE' | 'INSUFFICIENT_DATA';
+    note: string;
+  } | null;
+
   /** Echoed signal inputs — persisted in cross_validation_json for downstream consumers */
   quotePhotoAgreement?: CrossValidationInput['quotePhotoAgreement'] | null;
   evidenceTiers?: CrossValidationInput['evidenceTiers'] | null;
@@ -149,6 +166,13 @@ export interface CrossValidationInput {
 
   /** From evidenceConfidenceTierEngine */
   evidenceTiers: EvidenceConfidenceTierResult | null;
+
+  /**
+   * Stage 6 severity/structural rating — used to derive the severity-implied speed band
+   * for the three-way speed comparison (claimed vs consensus vs severity-implied).
+   * This is the same severity used as the crush depth check anchor.
+   */
+  damageSeverity: string | null;
 
   /**
    * From quotePhotoAgreementEngine — uses actual field names from QuotePhotoAgreementResult:
@@ -384,6 +408,152 @@ export function runMultiSignalCrossValidation(
     });
   }
 
+  // ── FACT 7: Three-Way Speed Comparison ─────────────────────────────────────
+  // Compare claimed speed, consensus speed, and severity-implied speed band.
+  // This is an independent XV line item — not collapsed into M7's claimedSpeedDeviationFlag.
+  const SEVERITY_SPEED_BANDS: Record<string, { label: string; min: number; max: number; midpoint: number }> = {
+    minor:    { label: 'LOW (10–25 km/h)',      min: 10,  max: 25,  midpoint: 17 },
+    moderate: { label: 'MODERATE (25–45 km/h)', min: 25,  max: 45,  midpoint: 35 },
+    severe:   { label: 'HIGH (40–70 km/h)',     min: 40,  max: 70,  midpoint: 55 },
+    critical: { label: 'SEVERE (55–90 km/h)',   min: 55,  max: 90,  midpoint: 72 },
+  };
+
+  const severityBandData = SEVERITY_SPEED_BANDS[(input.damageSeverity ?? '').toLowerCase()] ?? null;
+  const claimedKmh = input.speedEnsemble?.claimedSpeedDeviationFlag?.claimedSpeedKmh ?? null;
+  const consensusKmh = input.speedEnsemble?.consensusSpeedKmh ?? null;
+
+  // Helper: check if a speed falls within a band (with 20% tolerance on each side)
+  const inBand = (speed: number, band: { min: number; max: number }): boolean => {
+    const tol = (band.max - band.min) * 0.20;
+    return speed >= band.min - tol && speed <= band.max + tol;
+  };
+  // Helper: check if two speed values are within 20% of each other
+  const speedsAgree = (a: number, b: number): boolean => {
+    const avg = (a + b) / 2;
+    return Math.abs(a - b) / avg <= 0.20;
+  };
+
+  let threeWaySpeedComparison: MultiSignalCrossValidationResult['threeWaySpeedComparison'] = null;
+
+  const availablePoints = [claimedKmh, consensusKmh, severityBandData?.midpoint ?? null].filter(v => v != null).length;
+  if (availablePoints >= 2) {
+    const cvC = (claimedKmh != null && consensusKmh != null)
+      ? (speedsAgree(claimedKmh, consensusKmh) ? 'CONSISTENT' : 'DIVERGENT')
+      : 'N/A';
+    const cvS = (claimedKmh != null && severityBandData != null)
+      ? (inBand(claimedKmh, severityBandData) ? 'CONSISTENT' : 'DIVERGENT')
+      : 'N/A';
+    const coS = (consensusKmh != null && severityBandData != null)
+      ? (inBand(consensusKmh, severityBandData) ? 'CONSISTENT' : 'DIVERGENT')
+      : 'N/A';
+
+    const agreementCount = [cvC, cvS, coS].filter(v => v === 'CONSISTENT').length;
+    const divergeCount   = [cvC, cvS, coS].filter(v => v === 'DIVERGENT').length;
+    const naCount        = [cvC, cvS, coS].filter(v => v === 'N/A').length;
+
+    let overallAgreement: MultiSignalCrossValidationResult['threeWaySpeedComparison'] extends null ? never : NonNullable<MultiSignalCrossValidationResult['threeWaySpeedComparison']>['overallAgreement'];
+    if (naCount >= 2) {
+      overallAgreement = 'INSUFFICIENT_DATA';
+    } else if (divergeCount === 0) {
+      overallAgreement = 'ALL_AGREE';
+    } else if (agreementCount >= 1 && divergeCount <= 1 && naCount <= 1) {
+      overallAgreement = 'TWO_AGREE';
+    } else {
+      overallAgreement = 'ALL_DIVERGE';
+    }
+
+    const parts: string[] = [];
+    if (claimedKmh != null) parts.push(`claimed=${claimedKmh} km/h`);
+    if (consensusKmh != null) parts.push(`consensus=${consensusKmh} km/h`);
+    if (severityBandData) parts.push(`severity-implied=${severityBandData.label}`);
+    const note = `Three-way speed comparison: ${parts.join(', ')}. ` +
+      `Claimed vs Consensus: ${cvC}. Claimed vs Severity-Implied: ${cvS}. Consensus vs Severity-Implied: ${coS}. ` +
+      `Overall: ${overallAgreement}. ` +
+      (overallAgreement === 'ALL_AGREE' ? 'All available speed signals agree — strong internal consistency.' :
+       overallAgreement === 'TWO_AGREE' ? 'Two of three speed signals agree. Minor inconsistency warrants review.' :
+       overallAgreement === 'ALL_DIVERGE' ? 'All three speed signals diverge — material inconsistency. Specialist review recommended.' :
+       'Insufficient data for full three-way comparison.');
+
+    threeWaySpeedComparison = {
+      claimedSpeedKmh: claimedKmh,
+      consensusSpeedKmh: consensusKmh,
+      severityImpliedBand: severityBandData?.label ?? null,
+      severityImpliedMidpointKmh: severityBandData?.midpoint ?? null,
+      claimedVsConsensus: cvC,
+      claimedVsSeverity: cvS,
+      consensusVsSeverity: coS,
+      overallAgreement,
+      note,
+    };
+
+    // ── Asymmetric braking-aware finding logic ──────────────────────────────
+    // Braking applies ONLY to claimed-speed comparisons (claimed vs consensus,
+    // claimed vs severity-implied). It does NOT apply to consensus vs severity
+    // (both are physics/evidence derived, braking is irrelevant).
+    //
+    // Asymmetric rules for claimed-speed comparisons:
+    //   claimed < expected (shallow):  ADVISORY  — braking is a plausible explanation
+    //   claimed > expected (excess):   CONCERN/FLAG — harder to explain innocently
+    //   claimed << expected (extreme): FLAG — strong fraud signal
+    //
+    // Consensus vs severity is symmetric (same-source consistency check).
+
+    // Determine if claimed speed is below or above the consensus/severity band
+    const claimedBelowConsensus = claimedKmh != null && consensusKmh != null && claimedKmh < consensusKmh * 0.80;
+    const claimedAboveConsensus = claimedKmh != null && consensusKmh != null && claimedKmh > consensusKmh * 1.20;
+    const claimedBelowSeverity  = claimedKmh != null && severityBandData != null && claimedKmh < severityBandData.min * 0.80;
+    const claimedAboveSeverity  = claimedKmh != null && severityBandData != null && claimedKmh > severityBandData.max * 1.20;
+
+    // Determine severity for the finding
+    let findingSeverity: CrossValidationSeverity;
+    let findingVerdict: CrossValidationVerdict;
+    let recommendedAction: string | null;
+
+    if (overallAgreement === 'ALL_AGREE' || overallAgreement === 'INSUFFICIENT_DATA') {
+      findingSeverity = overallAgreement === 'ALL_AGREE' ? 'INFO' : 'ADVISORY';
+      findingVerdict = overallAgreement === 'ALL_AGREE' ? 'CORROBORATED' : 'UNVERIFIABLE';
+      recommendedAction = null;
+    } else if (claimedAboveConsensus || claimedAboveSeverity) {
+      // Claimed speed exceeds physics/severity evidence — strong fraud signal
+      // (claimant overstated speed relative to observed damage)
+      findingSeverity = 'FLAG';
+      findingVerdict = 'CONTRADICTED';
+      recommendedAction = 'Claimed speed exceeds both physics-derived and severity-implied estimates. ' +
+        'Claimant may have overstated impact speed. Obtain independent speed evidence (CCTV, witness, EDR).';
+    } else if (claimedBelowConsensus || claimedBelowSeverity) {
+      // Claimed speed is lower than physics/severity evidence.
+      // Braking is a plausible explanation — downgrade to ADVISORY.
+      // Note: this is the case where crush depth > expected for claimed speed.
+      findingSeverity = 'ADVISORY';
+      findingVerdict = 'CORROBORATED'; // Not a contradiction — braking explains the gap
+      recommendedAction = 'Claimed speed is lower than physics-derived and/or severity-implied estimates. ' +
+        'Pre-impact braking may explain the gap. Request driver statement on braking before impact.';
+    } else if (coS === 'DIVERGENT') {
+      // Consensus vs severity diverges (same-source consistency) — symmetric, no braking excuse
+      findingSeverity = 'CONCERN';
+      findingVerdict = 'CONTRADICTED';
+      recommendedAction = 'Physics consensus speed and severity-implied speed disagree. ' +
+        'This may indicate a measurement inconsistency in the crush depth or severity extraction. ' +
+        'Review Stage 6 and Stage 7 outputs for this claim.';
+    } else {
+      findingSeverity = 'ADVISORY';
+      findingVerdict = 'CORROBORATED';
+      recommendedAction = 'Minor speed signal inconsistency. Review the diverging pair for data quality issues.';
+    }
+
+    findings.push({
+      fact: `Three-way speed consistency: ${parts.join(' / ')}`,
+      category: 'SPEED',
+      verdict: findingVerdict,
+      severity: findingSeverity,
+      agreeingSignals: [cvC === 'CONSISTENT' ? 'Claimed vs Consensus' : '', cvS === 'CONSISTENT' ? 'Claimed vs Severity' : '', coS === 'CONSISTENT' ? 'Consensus vs Severity' : ''].filter(Boolean),
+      contradictingSignals: [cvC === 'DIVERGENT' ? 'Claimed vs Consensus' : '', cvS === 'DIVERGENT' ? 'Claimed vs Severity' : '', coS === 'DIVERGENT' ? 'Consensus vs Severity' : ''].filter(Boolean),
+      unavailableSignals: [claimedKmh == null ? 'Claimed Speed (M7)' : '', severityBandData == null ? 'Severity-Implied Speed' : ''].filter(Boolean),
+      explanation: note,
+      recommendedAction,
+    });
+  }
+
   // ── Compute summary ────────────────────────────────────────────────────────
   const verdictSummary = {
     corroborated: findings.filter(f => f.verdict === 'CORROBORATED').length,
@@ -421,6 +591,7 @@ export function runMultiSignalCrossValidation(
     overallRisk,
     summary,
     hasMaterialContradictions,
+    threeWaySpeedComparison,
     // Echo back signal inputs so they are persisted in cross_validation_json
     quotePhotoAgreement: input.quotePhotoAgreement ?? null,
     evidenceTiers: input.evidenceTiers ?? null,

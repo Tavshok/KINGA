@@ -97,7 +97,7 @@ export const STAGE_CONTRACTS: Record<string, StageContract> = {
     id: "1_ingestion",
     label: "Stage 1 — Document Ingestion",
     type: "llm",
-    timeoutMs: TIMEOUT_LLM_MS,
+    timeoutMs: TIMEOUT_LLM_EXTRACTION_MS, // 240s — PDF download + render (all pages) + LLM call; 60s was too tight for 25-page PDFs
     required: [],  // No upstream dependencies — first stage
     optional: [],
     outputGuarantees: ["stage1Data"],

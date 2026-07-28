@@ -37,8 +37,9 @@ async function main() {
     console.log(`ID: ${row.id} | Claim: ${row.claim_number} | Status: ${row.status} | Quotes: ${row.quote_count} | Created: ${row.created_at}`);
   }
 
-  // Target the most recent Voltron claim (6570001 = DOC-20260520-A14CC1A7)
-  const targetClaim = claimList.find((r: any) => r.id === 6570001) || claimList.find((r: any) => parseInt(r.quote_count) === 1) || claimList[0];
+  // Target claim 8400001 = VOLTRON MINE COR 6002812 (correct claim, source_document_id=4140001, estimated_speed_kmh=70)
+  // NOTE: claim 10719902 was incorrectly linked to the Nharingo/Action Aid PDF — do NOT use it.
+  const targetClaim = claimList.find((r: any) => r.id === 8400001) || claimList[0];
   
   if (!targetClaim) {
     console.log("No claims found to re-run");

@@ -103,6 +103,14 @@ export interface DamageClassificationInput {
   crushDepthM: number | null;
   /** Damage severity from Stage 6 */
   damageSeverity: string | null | undefined;
+  /**
+   * Claimant-stated speed from claim documents (km/h).
+   * COMPARISON INPUT ONLY — never used as an anchor or ground-truth input for
+   * any evidence-based check. It is only ever compared against other signals
+   * (consensus speed, severity-implied speed) as a cross-validation input.
+   * The crush depth check uses Stage 6 severity/structural as its anchor, not this.
+   */
+  claimedSpeedKmh?: number | null;
 }
 
 export interface DamageClassificationResult {
@@ -138,6 +146,12 @@ export interface DamageClassificationResult {
     expectedMinM: number;
     expectedMaxM: number;
     note: string;
+    /** Speed used as the primary anchor for the expected range (severity-derived midpoint or consensus fallback) */
+    primaryAnchorSpeedKmh: number;
+    /** Source of the primary anchor */
+    primaryAnchorSource: 'SEVERITY_DERIVED' | 'CONSENSUS_FALLBACK';
+    /** Secondary internal-consistency check against consensus speed */
+    internalConsistencyNote: string | null;
   };
   /** Plain-language summary for the adjuster */
   summary: string;
@@ -252,12 +266,50 @@ export function classifyDamage(input: DamageClassificationInput): DamageClassifi
     observedComponents, imageDetectedZones,
     airbagDeploymentObserved, pretensionerObserved,
     structuralDamageDetected, crushDepthM, damageSeverity,
+    claimedSpeedKmh,
   } = input;
 
   const normDir = normaliseDirection(collisionDirection);
   const speedKmh = consensusSpeedKmh ?? 0;
   const speedBand = classifySpeedBand(speedKmh);
   const expectedProfile = estimateExpectedDamage(speedKmh, collisionDirection);
+
+  // ── Independent crush depth anchor (anti-circularity) ─────────────────────
+  // PRIMARY anchor for the crush depth check = Stage 6 severity/structural rating.
+  // Rationale:
+  //   - Consensus speed (M1–M6) is derived substantially from crush depth via M1/M5,
+  //     so comparing crush depth against consensus-derived expected range is circular.
+  //   - Claimed speed is claimant-controlled and is exactly what M7 exists to validate;
+  //     using it as a grading anchor would allow a claimant to satisfy the check by
+  //     simply stating a speed convenient for their damage story.
+  //   - Stage 6 severity/structural is an independent holistic judgment from vision
+  //     analysis of damage photographs — distinct from the specific crush-depth
+  //     measurement and not derived from any claimant input.
+  // Fallback: consensus speed, labeled 'CONSENSUS_FALLBACK' so the report cannot
+  //   present it as an independent check.
+  // Claimed speed (claimedSpeedKmh) is NEVER used as an anchor here — it is
+  //   a comparison input only and must not flow into any evidence-grading calculation.
+  const SEVERITY_MIDPOINTS: Record<string, number> = {
+    minor: 17,    // midpoint of 10–25 km/h
+    moderate: 35, // midpoint of 25–45 km/h
+    severe: 55,   // midpoint of 40–70 km/h
+    critical: 72, // midpoint of 55–90 km/h
+  };
+  let primaryAnchorSpeedKmh: number;
+  let primaryAnchorSource: 'SEVERITY_DERIVED' | 'CONSENSUS_FALLBACK';
+  // NOTE: 'CLAIMED_SPEED' is intentionally absent — claimed speed must never anchor
+  // an evidence-based check. It is a comparison input only (see M7).
+  const severityMidpoint = SEVERITY_MIDPOINTS[(damageSeverity ?? '').toLowerCase()];
+  if (severityMidpoint != null) {
+    primaryAnchorSpeedKmh = severityMidpoint;
+    primaryAnchorSource = 'SEVERITY_DERIVED';
+  } else {
+    // Fallback: consensus speed. Labeled explicitly so reports cannot misrepresent
+    // this as an independent check.
+    primaryAnchorSpeedKmh = speedKmh;
+    primaryAnchorSource = 'CONSENSUS_FALLBACK';
+  }
+  const primaryExpectedProfile = estimateExpectedDamage(primaryAnchorSpeedKmh, collisionDirection);
 
   // ── Component classifications ─────────────────────────────────────────────
 
@@ -391,23 +443,53 @@ export function classifyDamage(input: DamageClassificationInput): DamageClassifi
     pretensionerNote = 'No pretensioner activation — consistent with any speed.';
   }
 
-  // ── Crush depth consistency check ────────────────────────────────────────
+  // ── Crush depth consistency check (anti-circular dual-anchor) ───────────
+  // PRIMARY check: uses primaryExpectedProfile (anchored to claimedSpeedKmh or
+  //   severity-derived speed — NOT consensus speed, which is partly derived from
+  //   crush depth via M1/M5 and would make this check circular).
+  // SECONDARY check: internal consistency against consensus speed, clearly labeled.
+  // Tolerance: min(1.5 cm, 15% of range width) — small enough to catch implausibly
+  //   shallow crush depths, unlike the old 5 cm flat tolerance which disabled the floor.
 
   let crushDepthConsistent: boolean | null = null;
   let crushDepthNote = 'No crush depth measurement available.';
+  let internalConsistencyNote: string | null = null;
 
   if (crushDepthM != null && crushDepthM > 0) {
-    const { minCrushDepthM, maxCrushDepthM } = expectedProfile;
-    const TOLERANCE = 0.05; // 5 cm tolerance for measurement uncertainty
-    if (crushDepthM < minCrushDepthM - TOLERANCE) {
+    const { minCrushDepthM: primaryMin, maxCrushDepthM: primaryMax } = primaryExpectedProfile;
+    const primarySpeedBand = classifySpeedBand(primaryAnchorSpeedKmh);
+    const primaryNormDir = normaliseDirection(collisionDirection);
+    // Tolerance: 15% of range width, capped at 1.5 cm, minimum 0.5 cm
+    const rangeWidth = primaryMax - primaryMin;
+    const TOLERANCE = Math.min(0.015, Math.max(0.005, rangeWidth * 0.15));
+
+    const anchorLabel = primaryAnchorSource === 'SEVERITY_DERIVED'
+      ? `Stage 6 severity-derived ${primaryAnchorSpeedKmh} km/h`
+      : `consensus fallback ${primaryAnchorSpeedKmh} km/h (non-independent)`;
+
+    if (crushDepthM < primaryMin - TOLERANCE) {
       crushDepthConsistent = false;
-      crushDepthNote = `Observed crush depth (${(crushDepthM * 100).toFixed(0)} cm) is below the expected minimum (${(minCrushDepthM * 100).toFixed(0)} cm) for a ${speedBand.toLowerCase()} ${normDir} impact at ${speedKmh} km/h. The crush depth measurement may be underestimated, or the impact speed may be lower than the consensus estimate.`;
-    } else if (crushDepthM > maxCrushDepthM + TOLERANCE) {
+      crushDepthNote = `FAIL (primary check — ${anchorLabel}): Observed crush depth (${(crushDepthM * 100).toFixed(0)} cm) is below the expected minimum (${(primaryMin * 100).toFixed(0)} cm, tolerance ±${(TOLERANCE * 100).toFixed(1)} cm) for a ${primarySpeedBand.toLowerCase()} ${primaryNormDir} impact. The crush depth is implausibly shallow — measurement may be underestimated or the actual impact speed is lower than the severity rating implies. Source: SAE 2002-01-0547.`;
+    } else if (crushDepthM > primaryMax + TOLERANCE) {
       crushDepthConsistent = false;
-      crushDepthNote = `Observed crush depth (${(crushDepthM * 100).toFixed(0)} cm) exceeds the expected maximum (${(maxCrushDepthM * 100).toFixed(0)} cm) for a ${speedBand.toLowerCase()} ${normDir} impact at ${speedKmh} km/h. The impact speed may be higher than the consensus estimate, or the vehicle struck a rigid barrier.`;
+      crushDepthNote = `FAIL (primary check — ${anchorLabel}): Observed crush depth (${(crushDepthM * 100).toFixed(0)} cm) exceeds the expected maximum (${(primaryMax * 100).toFixed(0)} cm, tolerance ±${(TOLERANCE * 100).toFixed(1)} cm) for a ${primarySpeedBand.toLowerCase()} ${primaryNormDir} impact. The crush depth exceeds what is expected for the observed damage severity — the actual impact speed may be higher than the severity rating implies, or the vehicle struck a rigid barrier. Source: SAE 2002-01-0547.`;
     } else {
       crushDepthConsistent = true;
-      crushDepthNote = `Observed crush depth (${(crushDepthM * 100).toFixed(0)} cm) is within the expected range (${(minCrushDepthM * 100).toFixed(0)}–${(maxCrushDepthM * 100).toFixed(0)} cm) for a ${speedBand.toLowerCase()} ${normDir} impact at ${speedKmh} km/h. Source: SAE 2002-01-0547.`;
+      crushDepthNote = `PASS (primary check — ${anchorLabel}): Observed crush depth (${(crushDepthM * 100).toFixed(0)} cm) is within the expected range (${(primaryMin * 100).toFixed(0)}–${(primaryMax * 100).toFixed(0)} cm, tolerance ±${(TOLERANCE * 100).toFixed(1)} cm) for a ${primarySpeedBand.toLowerCase()} ${primaryNormDir} impact. Source: SAE 2002-01-0547.`;
+    }
+
+    // Secondary: internal consistency against consensus speed (labeled as such)
+    if (primaryAnchorSource !== 'CONSENSUS_FALLBACK') {
+      const { minCrushDepthM: consMin, maxCrushDepthM: consMax } = expectedProfile;
+      const consRangeWidth = consMax - consMin;
+      const consTolerance = Math.min(0.015, Math.max(0.005, consRangeWidth * 0.15));
+      if (crushDepthM < consMin - consTolerance) {
+        internalConsistencyNote = `INTERNAL CONSISTENCY (consensus ${speedKmh} km/h): crush depth (${(crushDepthM * 100).toFixed(0)} cm) is below the consensus-derived floor (${(consMin * 100).toFixed(0)} cm). Note: consensus speed is partly derived from crush depth via M1/M5 — this is not an independent check.`;
+      } else if (crushDepthM > consMax + consTolerance) {
+        internalConsistencyNote = `INTERNAL CONSISTENCY (consensus ${speedKmh} km/h): crush depth (${(crushDepthM * 100).toFixed(0)} cm) exceeds the consensus-derived ceiling (${(consMax * 100).toFixed(0)} cm). Note: consensus speed is partly derived from crush depth via M1/M5 — this is not an independent check.`;
+      } else {
+        internalConsistencyNote = `INTERNAL CONSISTENCY (consensus ${speedKmh} km/h): crush depth (${(crushDepthM * 100).toFixed(0)} cm) is within the consensus-derived range (${(consMin * 100).toFixed(0)}–${(consMax * 100).toFixed(0)} cm). Note: consensus speed is partly derived from crush depth via M1/M5 — this is not an independent check.`;
+      }
     }
   }
 
@@ -515,9 +597,12 @@ export function classifyDamage(input: DamageClassificationInput): DamageClassifi
     crushDepthConsistencyCheck: {
       consistent: crushDepthConsistent,
       observedCrushDepthM: crushDepthM,
-      expectedMinM: expectedProfile.minCrushDepthM,
-      expectedMaxM: expectedProfile.maxCrushDepthM,
+      expectedMinM: primaryExpectedProfile.minCrushDepthM,
+      expectedMaxM: primaryExpectedProfile.maxCrushDepthM,
       note: crushDepthNote,
+      primaryAnchorSpeedKmh,
+      primaryAnchorSource,
+      internalConsistencyNote,
     },
     summary,
     recommendedAction,
