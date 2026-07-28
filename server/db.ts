@@ -2467,6 +2467,18 @@ export async function triggerAiAssessment(claimId: number) {
     // decimal(6,1) max = 99999.9 — clamp to avoid truncation
     claimUpdate.estimatedSpeedKmh = Math.min(Number(resolvedSpeed), 99999.9);
   }
+  // IMMUTABLE: Write claimantStatedSpeedKmh only when the DB column is currently NULL.
+  // This preserves the original Stage 3 extraction across all subsequent re-runs.
+  // pipelineCtx.claimantStatedSpeedKmh is set once after Stage 5 and never overwritten.
+  // pipelineCtx is mutated in-place by the orchestrator, so this value is available here.
+  if ((pipelineCtx as any).claimantStatedSpeedKmh != null && (pipelineCtx as any).claimantStatedSpeedKmh > 0) {
+    // Only write if the DB column is NULL (first run) — never overwrite on re-runs.
+    // We check the original pipelineCtx.claim value (loaded before the pipeline ran).
+    const existingStatedSpeed = (pipelineCtx as any).claim?.claimantStatedSpeedKmh;
+    if (existingStatedSpeed == null) {
+      claimUpdate.claimantStatedSpeedKmh = Math.min(Number((pipelineCtx as any).claimantStatedSpeedKmh), 99999.9);
+    }
+  }
   // incidentType lives in accidentDetails (DamageRecord has no incidentType field)
   if (claimRecord?.accidentDetails) {
     const a = claimRecord.accidentDetails;

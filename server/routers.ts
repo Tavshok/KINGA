@@ -5667,6 +5667,26 @@ Return JSON: { "lineItemReviews": [{"index": 1, "review": "Consistent"}, ...], "
             } catch { /* non-fatal */ }
             return null;
           })(),
+          // XV Cross-Validation Risk — physics/cost/narrative multi-engine risk from pipeline
+          // Surfaced separately from fraud score so CRITICAL XV risk is never hidden behind a 'low' fraud label
+          _xvRisk: (() => {
+            try {
+              const xv = (assessment as any).crossValidationJson
+                ? (typeof (assessment as any).crossValidationJson === 'string'
+                    ? JSON.parse((assessment as any).crossValidationJson)
+                    : (assessment as any).crossValidationJson)
+                : null;
+              if (!xv) return null;
+              return {
+                overallRisk: xv.overallRisk ?? xv.overall_risk ?? null,
+                overallRiskScore: xv.overallRiskScore ?? xv.overall_risk_score ?? null,
+                speedDeviation: xv.speedDeviation ?? xv.speed_deviation ?? null,
+                costDeviation: xv.costDeviation ?? xv.cost_deviation ?? null,
+                findings: Array.isArray(xv.findings) ? xv.findings : [],
+              };
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
         };
       }),
     historicalBenchmarks: protectedProcedure

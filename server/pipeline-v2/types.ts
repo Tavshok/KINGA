@@ -1836,6 +1836,14 @@ export interface PipelineContext {
    * and prepend it to their LLM system prompt to flag data gaps.
    */
   stageInputReports?: Record<string, import('./stageInputGuards').StageInputReport>;
+  /**
+   * IMMUTABLE: The claimant-stated speed extracted from claim documents by Stage 3.
+   * Set once after Stage 5 assembly from the original Stage 3 extraction output.
+   * NEVER overwritten by Stage 7 physics or any later pipeline stage.
+   * M7 (CLAIMANT_STATED method in stage-7-physics.ts) reads from this field.
+   * The DB write (db.ts) writes this to claims.claimant_stated_speed_kmh only when NULL.
+   */
+  claimantStatedSpeedKmh?: number | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1026,11 +1026,14 @@ export async function runPhysicsStage(
         damageSeverity: output.accidentSeverity ?? null,
         totalLossIndicated: !!(claimRecord.valuation?.repairToValueRatio && claimRecord.valuation.repairToValueRatio > 0.75),
         // M7: Claimant-stated speed from claim documents.
-        // estimatedSpeedKmh in accidentDetails is the driver's stated speed extracted
-        // by Stage 3. Null if not mentioned in documents.
-        claimedSpeedKmh: claimRecord.accidentDetails.estimatedSpeedKmh ?? null,
+        // MUST read from ctx.claimantStatedSpeedKmh — the IMMUTABLE field set once
+        // after Stage 5 from the original Stage 3 extraction. DO NOT use
+        // claimRecord.accidentDetails.estimatedSpeedKmh here — that field is
+        // overwritten by Stage 7 consensus on every pipeline run, causing M7 to
+        // receive the previous run's consensus instead of the claimant's stated speed.
+        claimedSpeedKmh: ctx.claimantStatedSpeedKmh ?? null,
       });
-      ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², airbag=${airbagDeployed}, seatbelt=${seatbeltFired}, visionDepth=${visionCrushDepthM}, deformEnergy=${totalDeformationEnergyJ?.toFixed(0)}J, visionConf=${avgVisionConfidenceScore?.toFixed(1)}, claimedSpeed=${claimRecord.accidentDetails.estimatedSpeedKmh ?? 'null'}`);
+      ctx.log('Stage 7', `Ensemble inputs: mass=${claimRecord.vehicle.massKg}kg, area=${resolvedDamageAreaM2?.toFixed(3)}m², airbag=${airbagDeployed}, seatbelt=${seatbeltFired}, visionDepth=${visionCrushDepthM}, deformEnergy=${totalDeformationEnergyJ?.toFixed(0)}J, visionConf=${avgVisionConfidenceScore?.toFixed(1)}, claimedSpeed=${ctx.claimantStatedSpeedKmh ?? 'null'} [immutable]`);
       output.speedInferenceEnsemble = ensembleResult;
       ctx.log('Stage 7', `Speed ensemble: consensus=${ensembleResult.consensusSpeedKmh} km/h, methods=${ensembleResult.methodsRan}, confidence=${ensembleResult.overallConfidence}${ensembleResult.highDivergence ? ' [HIGH_DIVERGENCE]' : ''}`);
 

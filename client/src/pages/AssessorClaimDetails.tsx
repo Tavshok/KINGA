@@ -315,6 +315,56 @@ export default function AssessorClaimDetails() {
                     </div>
                   </div>
 
+                  {/* XV Cross-Validation Risk Banner — shown independently of fraud score label */}
+                  {(() => {
+                    const xv = (aiAssessment as any)._xvRisk;
+                    if (!xv || !xv.overallRisk) return null;
+                    const risk = (xv.overallRisk as string).toUpperCase();
+                    const isCritical = risk === 'CRITICAL';
+                    const isHigh = risk === 'HIGH';
+                    if (!isCritical && !isHigh) return null;
+                    return (
+                      <div className={`rounded-lg p-4 border-2 ${
+                        isCritical
+                          ? 'bg-red-50 dark:bg-red-950/40 border-red-500 dark:border-red-600'
+                          : 'bg-orange-50 dark:bg-orange-950/30 border-orange-400 dark:border-orange-600'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <svg className={`h-5 w-5 flex-shrink-0 ${isCritical ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          <span className={`font-bold text-sm uppercase tracking-wide ${isCritical ? 'text-red-700 dark:text-red-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                            XV Risk: {risk}
+                          </span>
+                          <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
+                            isCritical ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300' : 'bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300'
+                          }`}>
+                            Physics · Cost · Narrative
+                          </span>
+                        </div>
+                        <p className={`text-xs mb-2 ${isCritical ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                          Cross-engine validation flagged this claim. This signal is independent of the fraud score label.
+                        </p>
+                        <div className="flex flex-wrap gap-3 text-xs">
+                          {xv.speedDeviation != null && (
+                            <span className={`font-medium ${isCritical ? 'text-red-700 dark:text-red-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                              Speed deviation: {typeof xv.speedDeviation === 'number' ? `${Math.round(xv.speedDeviation)}%` : xv.speedDeviation}
+                            </span>
+                          )}
+                          {xv.costDeviation != null && (
+                            <span className={`font-medium ${isCritical ? 'text-red-700 dark:text-red-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                              Cost deviation: {typeof xv.costDeviation === 'number' ? `${Math.round(xv.costDeviation)}%` : xv.costDeviation}
+                            </span>
+                          )}
+                          {xv.overallRiskScore != null && (
+                            <span className={`font-medium ${isCritical ? 'text-red-700 dark:text-red-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                              XV score: {xv.overallRiskScore}/100
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {/* Fraud Detection Alerts */}
                   {aiAssessment.fraudRiskLevel && aiAssessment.fraudRiskLevel !== "low" && (
                     <div className={`rounded-lg p-4 ${

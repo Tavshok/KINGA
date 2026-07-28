@@ -37,6 +37,11 @@ export interface MatrixRow {
   kingaAmount?: number | null;
   kingaSource?: string | null;  // clean source label, e.g. "Swiss Motors" or "ML Benchmark"
   photoCount?: number | null;   // P5: number of photos in which this component was detected
+  // Benchmark source metadata (from Stage 9 compositeLineItems)
+  benchmarkModelSource?: string | null;       // 'statistical' | 'ml' | 'db_legacy' | null
+  benchmarkVehicleMakeFiltered?: boolean | null; // true = vehicle-make-specific benchmark
+  benchmarkSampleSize?: number | null;        // number of observations in benchmark
+  benchmarkP50Usd?: number | null;            // P50 benchmark value for this component
 }
 
 export interface AdvisoryFlag {
@@ -307,9 +312,28 @@ export function ComponentCostMatrix({
                   </td>
                   {/* KINGA Comment cell */}
                   <td style={{ ...tdKingaComment, background: rowBg === "#fafafa" ? "#edf2f7" : KINGA_BG }}>
-                    {row.kingaSource
-                      ? <span style={{ fontSize: 10, color: "#475569" }}>{truncateName(row.kingaSource, 3)}</span>
-                      : <span style={{ color: "#cbd5e1" }}>—</span>}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {row.kingaSource
+                        ? <span style={{ fontSize: 10, color: "#475569" }}>{truncateName(row.kingaSource, 3)}</span>
+                        : <span style={{ color: "#cbd5e1" }}>—</span>}
+                      {/* Benchmark source confidence indicator */}
+                      {row.benchmarkModelSource && (() => {
+                        const src = row.benchmarkModelSource;
+                        const isMl = src === 'ml';
+                        const isStat = src === 'statistical';
+                        const isLegacy = src === 'db_legacy';
+                        const vehFiltered = row.benchmarkVehicleMakeFiltered;
+                        const n = row.benchmarkSampleSize;
+                        const label = isMl ? 'ML' : isStat ? 'Stat' : isLegacy ? 'Legacy' : src;
+                        const color = isMl ? '#7c3aed' : isStat && vehFiltered ? '#0369a1' : isStat ? '#0284c7' : '#94a3b8';
+                        const title = `Benchmark: ${src}${vehFiltered ? ' (vehicle-make filtered)' : ''}${n ? ` · n=${n}` : ''}`;
+                        return (
+                          <span title={title} style={{ fontSize: 9, color, fontWeight: 600, letterSpacing: '0.02em' }}>
+                            {label}{vehFiltered ? '★' : ''}{n ? ` n=${n}` : ''}
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </td>
                 </tr>
               );
@@ -561,6 +585,11 @@ export function buildRowsFromComposite(
       cells,
       kingaAmount: item.selectedCostUsd ?? item.kingaOptimisedUsd ?? null,
       kingaSource,
+      // Benchmark source metadata — propagated from Stage 9 compositeLineItems
+      benchmarkModelSource: item.benchmarkModelSource ?? null,
+      benchmarkVehicleMakeFiltered: item.benchmarkVehicleMakeFiltered ?? null,
+      benchmarkSampleSize: item.benchmarkSampleSize ?? null,
+      benchmarkP50Usd: item.p50Usd ?? null,
     };
   });
 }

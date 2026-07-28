@@ -834,6 +834,31 @@ export async function runPipelineV2(
     });
    } // end if (!claimRecord)
 
+  // ── IMMUTABLE CLAIMANT-STATED SPEED ─────────────────────────────────────────
+  // Capture the claimant-stated speed ONCE from Stage 3 extraction output.
+  // This is the only place this field is ever set on ctx — never overwritten.
+  // If the DB already has a value (re-run), prefer the DB value to preserve
+  // the original first-run extraction. If DB is null, use Stage 3 output.
+  {
+    const dbStatedSpeed = ctx.claim.claimantStatedSpeedKmh
+      ? parseFloat(ctx.claim.claimantStatedSpeedKmh as string)
+      : null;
+    const stage3Speed = claimRecord?.accidentDetails?.estimatedSpeedKmh ?? null;
+    // Only use stage3Speed if it is NOT a heuristic value (30, 45, 60)
+    const HEURISTIC_SPEEDS = [30, 45, 60];
+    const isHeuristic = stage3Speed !== null && HEURISTIC_SPEEDS.includes(stage3Speed);
+    if (dbStatedSpeed !== null && !isNaN(dbStatedSpeed)) {
+      ctx.claimantStatedSpeedKmh = dbStatedSpeed;
+    } else if (stage3Speed !== null && !isHeuristic) {
+      ctx.claimantStatedSpeedKmh = stage3Speed;
+    } else {
+      ctx.claimantStatedSpeedKmh = null;
+    }
+    if (ctx.claimantStatedSpeedKmh !== null) {
+      ctx.log('Stage 5', `Immutable claimant-stated speed locked: ${ctx.claimantStatedSpeedKmh} km/h (source: ${dbStatedSpeed !== null && !isNaN(dbStatedSpeed) ? 'DB' : 'Stage 3'})`);
+    }
+  }
+
   // ── STAGE 0.5: Scenario-Conditional Evidence Notes ──────────────────────────
   // Now that claimRecord is available, enrich the Evidence Registry with
   // scenario-specific notes about missing third-party claims, hit-and-run

@@ -963,6 +963,11 @@ export const claims = mysqlTable("claims", {
 	estimatedCost: int("estimated_cost"),
 	// Pipeline backfill: estimated vehicle speed at time of incident (km/h), from Stage 7 physics
 	estimatedSpeedKmh: decimal("estimated_speed_kmh", { precision: 6, scale: 1 }),
+	// IMMUTABLE: claimant-stated speed extracted from claim documents by Stage 3 (km/h).
+	// Populated once on first pipeline run and NEVER overwritten by any later stage.
+	// M7 (CLAIMANT_STATED method in speedInferenceEnsemble.ts) reads from this field.
+	// estimatedSpeedKmh is the mutable consensus output — these two fields must never be conflated.
+	claimantStatedSpeedKmh: decimal("claimant_stated_speed_kmh", { precision: 6, scale: 1 }),
 	// Pipeline backfill: data completeness score from Stage 3 IFE extraction (0–100)
 	dataCompletenessScore: decimal("data_completeness_score", { precision: 5, scale: 2 }),
 	// Pipeline backfill: insurer name extracted from the claim document (Stage 3)
