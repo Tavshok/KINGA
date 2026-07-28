@@ -1844,6 +1844,12 @@ export interface PipelineContext {
    * The DB write (db.ts) writes this to claims.claimant_stated_speed_kmh only when NULL.
    */
   claimantStatedSpeedKmh?: number | null;
+  /**
+   * Defensive guard flag: set to true when a re-run detects that claimant_stated_speed_kmh
+   * is NULL but estimated_speed_kmh has already been overwritten by a prior consensus run.
+   * When true, M7 receives null and falls back to no_claim method.
+   */
+  claimantSpeedNeedsVerification?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

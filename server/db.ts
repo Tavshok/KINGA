@@ -2479,6 +2479,11 @@ export async function triggerAiAssessment(claimId: number) {
       claimUpdate.claimantStatedSpeedKmh = Math.min(Number((pipelineCtx as any).claimantStatedSpeedKmh), 99999.9);
     }
   }
+  // DEFENSIVE GUARD: Write needs_verification flag when the guard triggered.
+  // This persists the flag so the UI can surface it to adjusters.
+  if ((pipelineCtx as any).claimantSpeedNeedsVerification === true) {
+    (claimUpdate as any).claimantSpeedNeedsVerification = 1;
+  }
   // incidentType lives in accidentDetails (DamageRecord has no incidentType field)
   if (claimRecord?.accidentDetails) {
     const a = claimRecord.accidentDetails;

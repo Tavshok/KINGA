@@ -839,20 +839,46 @@ export async function runPipelineV2(
   // This is the only place this field is ever set on ctx — never overwritten.
   // If the DB already has a value (re-run), prefer the DB value to preserve
   // the original first-run extraction. If DB is null, use Stage 3 output.
+  //
+  // DEFENSIVE GUARD: If the DB lock column is NULL but estimated_speed_kmh is
+  // already set (meaning a prior run overwrote it with the consensus value),
+  // the original claimant-stated speed has been silently corrupted. In this
+  // case, do NOT auto-lock stage3Speed (which may itself be the consensus).
+  // Instead, set claimantSpeedNeedsVerification = true and leave the lock NULL.
+  // M7 will receive null → falls back to no_claim method (correct, low-confidence).
   {
     const dbStatedSpeed = ctx.claim.claimantStatedSpeedKmh
       ? parseFloat(ctx.claim.claimantStatedSpeedKmh as string)
+      : null;
+    const dbConsensusSpeed = ctx.claim.estimatedSpeedKmh
+      ? parseFloat(ctx.claim.estimatedSpeedKmh as string)
       : null;
     const stage3Speed = claimRecord?.accidentDetails?.estimatedSpeedKmh ?? null;
     // Only use stage3Speed if it is NOT a heuristic value (30, 45, 60)
     const HEURISTIC_SPEEDS = [30, 45, 60];
     const isHeuristic = stage3Speed !== null && HEURISTIC_SPEEDS.includes(stage3Speed);
+
+    // Defensive guard: detect silent-corruption case
+    // (lock NULL + consensus already written = prior run overwrote the original value)
+    const isCorrupted = dbStatedSpeed === null && dbConsensusSpeed !== null;
+
     if (dbStatedSpeed !== null && !isNaN(dbStatedSpeed)) {
+      // DB lock already set (immutable) — use it
       ctx.claimantStatedSpeedKmh = dbStatedSpeed;
+      ctx.claimantSpeedNeedsVerification = false;
+    } else if (isCorrupted) {
+      // Prior run overwrote estimated_speed_kmh — cannot trust stage3Speed.
+      // Flag for manual verification; M7 will skip CLAIMANT_STATED method.
+      ctx.claimantStatedSpeedKmh = null;
+      ctx.claimantSpeedNeedsVerification = true;
+      ctx.log('Stage 5', `[GUARD] claimant_stated_speed_kmh is NULL but estimated_speed_kmh=${dbConsensusSpeed} already set — prior run may have corrupted the original value. Setting needs_verification flag. M7 will skip CLAIMANT_STATED.`);
     } else if (stage3Speed !== null && !isHeuristic) {
+      // First run (or re-run with no prior consensus) — safe to auto-capture
       ctx.claimantStatedSpeedKmh = stage3Speed;
+      ctx.claimantSpeedNeedsVerification = false;
     } else {
       ctx.claimantStatedSpeedKmh = null;
+      ctx.claimantSpeedNeedsVerification = false;
     }
     if (ctx.claimantStatedSpeedKmh !== null) {
       ctx.log('Stage 5', `Immutable claimant-stated speed locked: ${ctx.claimantStatedSpeedKmh} km/h (source: ${dbStatedSpeed !== null && !isNaN(dbStatedSpeed) ? 'DB' : 'Stage 3'})`);

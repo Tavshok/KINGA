@@ -968,6 +968,10 @@ export const claims = mysqlTable("claims", {
 	// M7 (CLAIMANT_STATED method in speedInferenceEnsemble.ts) reads from this field.
 	// estimatedSpeedKmh is the mutable consensus output — these two fields must never be conflated.
 	claimantStatedSpeedKmh: decimal("claimant_stated_speed_kmh", { precision: 6, scale: 1 }),
+	// Defensive guard: set to true when a re-run detects that claimant_stated_speed_kmh is NULL but
+	// estimated_speed_kmh has already been overwritten by a prior consensus run. M7 skips CLAIMANT_STATED
+	// and reports no_claim until the value is manually verified and the lock column is populated.
+	claimantSpeedNeedsVerification: tinyint("claimant_speed_needs_verification").default(0),
 	// Pipeline backfill: data completeness score from Stage 3 IFE extraction (0–100)
 	dataCompletenessScore: decimal("data_completeness_score", { precision: 5, scale: 2 }),
 	// Pipeline backfill: insurer name extracted from the claim document (Stage 3)
