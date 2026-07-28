@@ -215,8 +215,10 @@ export const platformRouter = router({
         incidentDate: incidentDate.toISOString().slice(0, 19).replace("T", " "),
         incidentDescription: `[SIMULATED] ${input.estimatedSeverity} ${input.damageType.replace(/_/g, " ")} on a ${input.vehicleYear} ${input.vehicleMake} ${input.vehicleModel}.`,
         incidentLocation: "Simulation Test Environment, Johannesburg",
-        status: "submitted",
-        workflowState: "created",
+        // Canonical intake state: simulator claims go through the same pipeline
+        // as all other sources so they appear in the pending queue and are auto-processed.
+        status: "intake_pending" as any,
+        workflowState: "intake_queue",
         claimSource: "simulator",
         isSimulated: 1,
         documentProcessingStatus: "pending",

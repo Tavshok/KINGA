@@ -47,6 +47,18 @@
  *     fundamentally wrong. Reset to failed — do NOT auto-re-trigger (requires manual action).
  *     Action: Reset to intake_pending with dps=failed. Manual re-trigger required.
  *
+ *   CASE 11 — document_failed + sourceDocumentId IS NOT NULL + >5 min
+ *     Claims that reached document_failed because the watchdog fired (server restart killed
+ *     the setImmediate trigger) or a transient error occurred during pipeline startup.
+ *     These claims have a source document and CAN be re-processed.
+ *     Action: Reset to intake_pending and re-trigger. Auto-retry up to MAX_RECOVERY_RETRIES.
+ *
+ *   CASE 12 — intake_pending + ai_assessment_triggered=0 + sourceDocumentId IS NOT NULL + >3 min
+ *     PRIMARY FIX for the 'upload and disappear' bug.
+ *     Claims created with intake_pending but the setImmediate trigger was lost (server restart,
+ *     tsx watch reload, or any in-process crash before the trigger fired).
+ *     Action: Fire the pipeline immediately. No pre-reset needed.
+ *
  * PERSISTENT RETRY COUNTER:
  *   Each claim has a recoveryRetryCount column in the DB. Every time the recovery job
  *   re-triggers a claim, it increments this counter. When the counter reaches
@@ -203,6 +215,9 @@ export async function runStartupCleanup(): Promise<void> {
   try {
     const db = await getDb();
     if (!db) return;
+
+    // ── Part A: Reset orphaned pipeline claims (active transient states) ──────────────────
+    // Any claim still in extracting/analysing/parsing from a previous server run is dead.
     const orphaned = await db
       .select({ id: claims.id, claimNumber: claims.claimNumber, documentProcessingStatus: claims.documentProcessingStatus })
       .from(claims)
@@ -216,29 +231,73 @@ export async function runStartupCleanup(): Promise<void> {
         )
       )
       .limit(50);
-    if (orphaned.length === 0) {
-      console.log("[StartupCleanup] No orphaned pipeline claims found.");
-      return;
-    }
-    console.log(`[StartupCleanup] Found ${orphaned.length} orphaned claim(s) in active transient state — resetting to pending.`);
-    for (const claim of orphaned) {
-      // Only reset if under retry limit — don't loop forever on persistently broken claims
-      const ok = await canRetrigger(claim.id);
-      if (!ok) {
-        console.warn(`[StartupCleanup] Claim ${claim.claimNumber} (id=${claim.id}) has reached max retries — skipping reset.`);
+    if (orphaned.length > 0) {
+      console.log(`[StartupCleanup] Found ${orphaned.length} orphaned claim(s) in active transient state — resetting to pending.`);
+      for (const claim of orphaned) {
+        const ok = await canRetrigger(claim.id);
+        if (!ok) {
+          console.warn(`[StartupCleanup] Claim ${claim.claimNumber} (id=${claim.id}) has reached max retries — skipping reset.`);
+          await db.update(claims).set({
+            documentProcessingStatus: "failed",
+            aiAssessmentTriggered: 0,
+            updatedAt: new Date().toISOString() as any,
+          }).where(eq(claims.id, claim.id));
+          continue;
+        }
         await db.update(claims).set({
-          documentProcessingStatus: "failed",
+          documentProcessingStatus: "pending",
           aiAssessmentTriggered: 0,
           updatedAt: new Date().toISOString() as any,
         }).where(eq(claims.id, claim.id));
-        continue;
+        console.log(`[StartupCleanup] Reset claim ${claim.claimNumber} (id=${claim.id}) from '${claim.documentProcessingStatus}' → 'pending'`);
       }
-      await db.update(claims).set({
-        documentProcessingStatus: "pending",
-        aiAssessmentTriggered: 0,
-        updatedAt: new Date().toISOString() as any,
-      }).where(eq(claims.id, claim.id));
-      console.log(`[StartupCleanup] Reset claim ${claim.claimNumber} (id=${claim.id}) from '${claim.documentProcessingStatus}' → 'pending'`);
+    } else {
+      console.log("[StartupCleanup] No orphaned pipeline claims found.");
+    }
+
+    // ── Part B: Trigger intake_pending claims whose setImmediate was lost on restart ────────
+    // On every server start, find all intake_pending claims with a source document
+    // that have NOT been triggered yet. These are claims where the upload succeeded
+    // but the in-process setImmediate trigger was killed when the server restarted.
+    // This is the permanent fix for the 'upload and disappear' bug.
+    const untriggered = await db
+      .select({ id: claims.id, claimNumber: claims.claimNumber })
+      .from(claims)
+      .innerJoin(ingestionDocuments, eq(claims.sourceDocumentId, ingestionDocuments.id))
+      .where(
+        and(
+          eq(claims.status, "intake_pending" as any),
+          eq(claims.aiAssessmentTriggered, 0),
+          eq(claims.aiAssessmentCompleted, 0),
+          isNotNull(ingestionDocuments.s3Url)
+        )
+      )
+      .limit(20);
+    if (untriggered.length > 0) {
+      console.log(`[StartupCleanup] Found ${untriggered.length} intake_pending claim(s) with untriggered pipeline — firing now.`);
+      for (const claim of untriggered) {
+        const ok = await canRetrigger(claim.id);
+        if (!ok) {
+          console.warn(`[StartupCleanup] Claim ${claim.claimNumber} (id=${claim.id}) has reached max retries — routing to document_failed.`);
+          await db.update(claims).set({
+            status: "document_failed" as any,
+            documentProcessingStatus: "DOCUMENT_FAILED",
+            workflowState: "intake_queue",
+            aiAssessmentTriggered: 0,
+            updatedAt: new Date().toISOString() as any,
+          }).where(eq(claims.id, claim.id));
+          continue;
+        }
+        // Fire-and-forget: trigger the pipeline immediately on startup
+        // Use a short stagger (500ms per claim) to avoid thundering herd on restart
+        const staggerMs = untriggered.indexOf(claim) * 500;
+        setTimeout(() => {
+          triggerAiAssessment(claim.id).catch((err: unknown) => {
+            console.error(`[StartupCleanup] Pipeline trigger failed for claim ${claim.id}:`, err);
+          });
+        }, staggerMs);
+        console.log(`[StartupCleanup] Queued pipeline trigger for intake_pending claim ${claim.claimNumber} (id=${claim.id}) in ${staggerMs}ms`);
+      }
     }
   } catch (err) {
     console.error("[StartupCleanup] Failed:", err);
@@ -714,6 +773,105 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         console.log(
           `[StuckRecovery] CASE 10: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
           `from assessment_pending → intake_pending for AI pipeline re-trigger`
+        );
+      }
+    }
+
+    // ── CASE 11: status='document_failed' + sourceDocumentId IS NOT NULL + >5 min ──────────────────────
+    // Claims that reached document_failed because:
+    //   a) The watchdog timer fired (server restart killed the setImmediate trigger)
+    //   b) A transient error occurred during pipeline startup
+    // These claims have a source document (PDF/photos) and CAN be re-processed.
+    // Auto-retry once; after MAX_RECOVERY_RETRIES, leave as document_failed for manual action.
+    const stuckDocumentFailed = await withDbRetry(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db
+        .select({ id: claims.id, claimNumber: claims.claimNumber })
+        .from(claims)
+        .innerJoin(ingestionDocuments, eq(claims.sourceDocumentId, ingestionDocuments.id))
+        .where(
+          and(
+            eq(claims.status, "document_failed" as any),
+            eq(claims.aiAssessmentCompleted, 0),
+            isNotNull(ingestionDocuments.s3Url),
+            olderThanMinutes(claims.updatedAt, 5)
+          )
+        )
+        .limit(10);
+    }, 3, 2000, 'StuckRecovery case-11 query');
+    if (stuckDocumentFailed.length > 0) {
+      console.log(
+        `[StuckRecovery] CASE 11: Found ${stuckDocumentFailed.length} claim(s) in 'document_failed' ` +
+        `with source document — auto-retrying pipeline`
+      );
+      for (const claim of stuckDocumentFailed) {
+        const triggered = await retriggerWithTracking(
+          claim.id, claim.claimNumber, 'Case11',
+          async () => {
+            const db = await getDb();
+            if (!db) return;
+            // Reset to intake_pending so the standard pipeline trigger path picks it up
+            await db.update(claims).set({
+              status: "intake_pending" as any,
+              workflowState: "intake_queue",
+              documentProcessingStatus: "pending",
+              aiAssessmentTriggered: 0,
+              aiAssessmentCompleted: 0,
+              updatedAt: new Date().toISOString() as any,
+            }).where(eq(claims.id, claim.id));
+          }
+        );
+        if (triggered) totalFixed++;
+        else totalFixed++;
+        console.log(
+          `[StuckRecovery] CASE 11: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
+          `from document_failed → intake_pending for AI pipeline re-trigger`
+        );
+      }
+    }
+
+    // ── CASE 12: status='intake_pending' + ai_assessment_triggered=0 + sourceDocumentId IS NOT NULL + >3 min ──
+    // Claims that were created with intake_pending but the setImmediate trigger was lost
+    // (server restart, tsx watch reload, or any in-process crash before the trigger fired).
+    // These claims have a source document and are ready to be processed immediately.
+    // This is the PRIMARY fix for the 'upload and disappear' bug.
+    const untriggeredIntakePending = await withDbRetry(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db
+        .select({ id: claims.id, claimNumber: claims.claimNumber })
+        .from(claims)
+        .innerJoin(ingestionDocuments, eq(claims.sourceDocumentId, ingestionDocuments.id))
+        .where(
+          and(
+            eq(claims.status, "intake_pending" as any),
+            eq(claims.aiAssessmentTriggered, 0),
+            eq(claims.aiAssessmentCompleted, 0),
+            isNotNull(ingestionDocuments.s3Url),
+            olderThanMinutes(claims.updatedAt, 3)
+          )
+        )
+        .limit(10);
+    }, 3, 2000, 'StuckRecovery case-12 query');
+    if (untriggeredIntakePending.length > 0) {
+      console.log(
+        `[StuckRecovery] CASE 12: Found ${untriggeredIntakePending.length} intake_pending claim(s) ` +
+        `with source document but no trigger — firing pipeline now`
+      );
+      for (const claim of untriggeredIntakePending) {
+        const triggered = await retriggerWithTracking(
+          claim.id, claim.claimNumber, 'Case12',
+          async () => {
+            // No pre-reset needed — claim is already in intake_pending with triggered=0
+            // Just increment the retry counter and fire
+          }
+        );
+        if (triggered) totalFixed++;
+        else totalFixed++;
+        console.log(
+          `[StuckRecovery] CASE 12: Triggered pipeline for intake_pending claim ` +
+          `${claim.claimNumber} (id=${claim.id}) — trigger was lost on previous server start`
         );
       }
     }

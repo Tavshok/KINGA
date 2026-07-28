@@ -1277,7 +1277,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           damagePhotos: JSON.stringify(input.damagePhotos),
           policyNumber: input.policyNumber,
           selectedPanelBeaterIds: JSON.stringify([]),
-          status: "submitted",
+          // Canonical intake state: all claim sources use intake_pending + intake_queue
+          // so the pipeline trigger, recovery job, and dashboard all work consistently.
+          status: "intake_pending" as any,
+          workflowState: "intake_queue",
+          claimSource: "processor_form",
         });
         
         const newClaim = await getClaimByNumber(claimNumber);
@@ -1456,7 +1460,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           claimantCompanyReg: input.companyRegistration ?? null,
           claimantDepartment: input.claimantDepartment ?? null,
           fleetAccountId: input.fleetAccountId ?? null,
-          status: "submitted",
+          // Canonical intake state: all claim sources use intake_pending + intake_queue
+          // so the pipeline trigger, recovery job, and dashboard all work consistently.
+          status: "intake_pending" as any,
+          workflowState: "intake_queue",
+          claimSource: "claimant_portal",
         });
 
         // Get the newly created claim to retrieve its ID
@@ -3014,9 +3022,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Progress through required intermediate states to reach assessment_in_progress
         const claimTenantId = currentClaim.tenantId || "default";
         const currentStatus = currentClaim.status;
-        if (currentStatus === "intake_pending" || currentStatus === "document_validating") {
-          // Document-ingestion claims: intake_pending/document_validating → assessment_in_progress
-          // document_validating is the initial state set by upload-documents.ts when triggerAiAssessment fires automatically
+        if (currentStatus === "intake_pending" || currentStatus === "document_validating" || (currentStatus as string) === "document_failed") {
+          // Document-ingestion claims: intake_pending/document_validating/document_failed → assessment_in_progress
+          // document_failed: pipeline previously failed (e.g. server restart); manual re-trigger resets it.
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
         } else if (currentStatus === "submitted") {
           await updateClaimStatus(input.claimId, "triage", ctx.user.id, "claims_processor", claimTenantId);

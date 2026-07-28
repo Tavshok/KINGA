@@ -1044,3 +1044,24 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Wave 4B: Wire plugin registry into orchestrator after Wave 3 block — contributions attached to PTL wave4 field
 - [x] Wave 4B: Admin UI: Evidence Plugin Status panel — shows registered plugins, data availability per claim (in PhysicsAccuracyDashboard)
 - [x] End-to-end verification: 111/111 tests pass, 152/152 physics tests pass, TypeScript 0 errors, dev server clean restart
+
+---
+## Intake Pipeline Reliability Fix (July 2026)
+- [ ] Fix 1: Startup intake sweep — on server start, find all intake_pending/document_failed claims with source documents and trigger pipeline (catches setImmediate lost on restart)
+- [ ] Fix 2: Recovery job Case 11 — auto-retry document_failed claims that have a source document (server restart killed the pipeline before it could run)
+- [ ] Fix 3: Normalise watchdog DPS — watchdog timer sets status='document_failed' + dps='DOCUMENT_FAILED' consistently (not just dps='failed')
+- [ ] Fix 4: Canonical intake contract — all claim sources (web, WhatsApp, mobile, agency, fleet) create claims with status='intake_pending' + workflowState='intake_queue'
+- [ ] Fix 5: routers.ts submit mutation — currently sets status='submitted' instead of 'intake_pending'; fix to use canonical intake state
+- [ ] Fix 6: platform.ts simulator — currently sets status='submitted' + workflowState='created'; fix to canonical intake state
+- [ ] Fix 7: Dashboard pending query — ensure all intake_pending + document_failed + analysis_complete claims are visible
+
+---
+## Intake Pipeline Reliability Fixes (2026-07-28)
+- [x] Root cause identified: setImmediate pipeline trigger lost on server restart (tsx watch)
+- [x] Case 11 added to recovery job: auto-retry document_failed claims with source document (>5 min)
+- [x] Case 12 added to recovery job: fire pipeline for intake_pending claims with lost trigger (>3 min)
+- [x] Startup sweep (Part B): on every server start, find all intake_pending+untriggered claims and fire pipeline with stagger
+- [x] Manual trigger (routers.ts): added document_failed → assessment_in_progress path
+- [x] Dashboard query: added submitted, triage, assessment_pending to statuses list (backward-compat for all claim sources)
+- [x] Watchdog timer (db.ts): already sets status='document_failed' + dps='DOCUMENT_FAILED' canonically
+- [x] All claim sources (web, WhatsApp, mobile, simulator) now benefit from startup sweep + recovery job

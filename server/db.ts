@@ -674,13 +674,17 @@ export async function triggerAiAssessment(claimId: number) {
   let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
   watchdogTimer = setTimeout(async () => {
     if (!pipelineSucceeded) {
-      console.error(`[KINGA Assessment] Claim ${claimId}: WATCHDOG TIMEOUT — pipeline hung for ${WATCHDOG_TIMEOUT_MS / 1000}s. Resetting to intake_pending.`);
+      console.error(`[KINGA Assessment] Claim ${claimId}: WATCHDOG TIMEOUT — pipeline hung for ${WATCHDOG_TIMEOUT_MS / 1000}s. Routing to document_failed for recovery.`);
       try {
         const dbInner = await getDb();
         if (dbInner) {
+          // Use canonical document_failed status so the recovery job (Case 11)
+          // and the dashboard both surface this claim correctly for manual/auto retry.
           await dbInner.update(claims).set({
             aiAssessmentTriggered: 0,
-            documentProcessingStatus: 'failed',
+            status: 'document_failed' as any,
+            documentProcessingStatus: 'DOCUMENT_FAILED',
+            workflowState: 'intake_queue',
             pipelineCurrentStage: null,
             updatedAt: new Date().toISOString(),
           }).where(eq(claims.id, claimId));

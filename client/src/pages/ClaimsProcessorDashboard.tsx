@@ -141,6 +141,9 @@ export default function ClaimsProcessorDashboard() {
       {
         statuses: [
           "intake_pending",
+          "submitted",          // backward-compat: older claims + WhatsApp/mobile sources
+          "triage",             // backward-compat: claimant-submitted claims in triage
+          "assessment_pending", // backward-compat
           "assessment_in_progress",
           "quotes_pending",
           "assessment_complete",
