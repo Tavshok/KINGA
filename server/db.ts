@@ -4564,3 +4564,67 @@ export async function getComponentBenchmarksFromTrainingData(
 
   return results;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T4: Cross-submission duplicate detection via perceptual hash
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * T4: Find ingestion documents whose perceptual hash is within `maxHammingDistance`
+ * bits of the supplied `queryHash`.
+ *
+ * MySQL does not support a native Hamming distance function, so we fetch all
+ * rows with a non-null p_hash and compute the distance in application code.
+ * Acceptable because: the table is bounded (one row per uploaded file), the
+ * query is only called during fraud analysis, and the 64-char comparison is O(64).
+ *
+ * @param queryHash          64-char binary string (output of computeThumbnailHash).
+ * @param maxHammingDistance Maximum bit-distance to consider a match (default: 10).
+ * @param excludeDocumentId  Document ID to exclude (the source document itself).
+ */
+export async function findSimilarImagesByPHash(
+  queryHash: string,
+  maxHammingDistance = 10,
+  excludeDocumentId?: string
+): Promise<Array<{ documentId: string; tenantId: string; s3Url: string; hammingDistance: number }>> {
+  if (!queryHash || queryHash.length !== 64) return [];
+
+  const db = await getDb();
+  if (!db) return [];
+
+  const rows = await db
+    .select({
+      documentId: ingestionDocuments.documentId,
+      tenantId: ingestionDocuments.tenantId,
+      s3Url: ingestionDocuments.s3Url,
+      pHash: ingestionDocuments.pHash,
+    })
+    .from(ingestionDocuments)
+    .where(
+      and(
+        sql`${ingestionDocuments.pHash} IS NOT NULL`,
+        excludeDocumentId
+          ? sql`${ingestionDocuments.documentId} != ${excludeDocumentId}`
+          : sql`1=1`
+      )
+    );
+
+  const results: Array<{ documentId: string; tenantId: string; s3Url: string; hammingDistance: number }> = [];
+  for (const row of rows) {
+    if (!row.pHash || row.pHash.length !== 64) continue;
+    let dist = 0;
+    for (let i = 0; i < 64; i++) {
+      if (queryHash[i] !== row.pHash[i]) dist++;
+    }
+    if (dist <= maxHammingDistance) {
+      results.push({
+        documentId: row.documentId,
+        tenantId: row.tenantId,
+        s3Url: row.s3Url,
+        hammingDistance: dist,
+      });
+    }
+  }
+
+  return results.sort((a, b) => a.hammingDistance - b.hammingDistance);
+}
