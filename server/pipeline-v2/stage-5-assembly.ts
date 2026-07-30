@@ -25,6 +25,7 @@ import type {
   CanonicalIncidentType,
   CollisionDirection,
   CollisionScenario,
+  ImpactCausation,
   Assumption,
   RecoveryAction,
 } from "./types";
@@ -805,6 +806,9 @@ function detectCollisionScenario(params: {
   isParkingLotDamage: boolean;
   scenarioConfidence: number; // 0.0–1.0 — how many independent signals corroborate the scenario
   thirdPartyConfidence: number; // 0.0–1.0 — how much third-party evidence is available
+  impactCausation: ImpactCausation;
+  causationSpeedCeilingKmh: number | null;
+  reversingNarrativeContradiction: boolean;
 } {
   const d = (params.description || "").toLowerCase();
   const dir = params.collisionDirection;
@@ -984,8 +988,8 @@ function detectCollisionScenario(params: {
   // ── Impact causation classification (rear-impact scenarios only) ─────────────
   // Determines WHO was in motion in reverse, which drives different physics speed
   // ceilings, damage pattern expectations, and fraud risk profiles.
-  let impactCausation: import('./types').ImpactCausation | null = null;
-  let reversingNarrativeContradiction: boolean | null = null;
+  let impactCausation: ImpactCausation = 'UNKNOWN';
+  let reversingNarrativeContradiction: boolean = false;
   let causationSpeedCeilingKmh: number | null = null;
 
   const isRearImpact = collisionScenario === 'rear_end_struck' || collisionScenario === 'rear_end_striking';

@@ -1078,3 +1078,11 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] §04 report redesign: new Impact Causation Classification panel + Forensic Findings Summary panel
 - [x] Plain-language verdict paragraph in Forensic Findings Summary
 - [x] Causation fields wired through Stage 5 → orchestrator → PhysicsTruth → report
+
+---
+## §04 Panel Restyle (Jul 2026)
+- [x] §04 Impact Causation Classification panel: restyled to white-card/status-pill/border-bar pattern using sectionTab(), co(), p(), kvRow() helpers — removed full-card colour fills
+- [x] §04b Forensic Findings Summary panel: restyled to match native report CSS system (white-card, status pills, callout boxes)
+- [x] stage-5-assembly.ts TypeScript errors fixed: ImpactCausation import added, return type updated, nullable declarations corrected
+- [x] Preview HTML v2 (forensic-panel-preview-v2.html): all 3 states rendered (clean/speed-breach/contradiction), Scenario C speed ceiling copy-paste error fixed
+- [x] Screenshot rendered: kinga-screenshots/forensic-panels-v2-restyled.png

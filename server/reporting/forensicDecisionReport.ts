@@ -864,10 +864,10 @@ export async function generateForensicDecisionReport(
     <!-- Impact Causation & Forensic Findings panel -->
     <div class="cols-2" style="margin-top:12px;">
       <div class="box">
-        <h4>Impact Causation Classification
-          ${ptlCausationBreached ? `<span style="float:right;font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg,#fef2f2);padding:2px 6px;border-radius:3px;">SPEED CEILING BREACH</span>` : ""}
-          ${ptlReversingContradiction ? `<span style="float:right;font-size:10px;font-weight:700;color:var(--amber);background:#fffbeb;padding:2px 6px;border-radius:3px;margin-right:4px;">NARRATIVE CONTRADICTION</span>` : ""}
-        </h4>
+        ${sectionTab("04a", "Impact Causation Classification",
+          ptlCausationBreached ? "Speed Ceiling Breach" : ptlReversingContradiction ? "Narrative Contradiction" : "Consistent",
+          ptlCausationBreached ? "high" : ptlReversingContradiction ? "mid" : "ok"
+        )}
         <table class="kv">
           ${kvRow("Causation type",
             (() => {
@@ -880,46 +880,56 @@ export async function generateForensicDecisionReport(
                 FORWARD_IMPACT: 'Forward impact — no reversing involved',
                 UNKNOWN: 'Not determined from available narrative',
               };
-              const label = labels[ptlImpactCausation!] ?? esc(ptlImpactCausation!);
-              const color = ptlCausationBreached ? 'var(--red)' : ptlReversingContradiction ? 'var(--amber)' : 'var(--green)';
-              return `<b style="color:${color};">${label}</b>`;
+              return esc(labels[ptlImpactCausation!] ?? ptlImpactCausation!);
             })()
           )}
           ${ptlCausationCeiling !== null ? kvRow("Speed ceiling",
             ptlCausationBreached
-              ? `<b style="color:var(--red);">${ptlCausationCeiling} km/h max (BREACHED — consensus ${consensusSpeed} km/h exceeds physical limit)</b>`
-              : `${ptlCausationCeiling} km/h max <span class="small" style="color:var(--green);">&#10003; consensus speed within ceiling</span>`
+              ? `<span style="color:var(--red);font-weight:600;">&#9888; Breach — ${ptlCausationCeiling} km/h max, consensus ${consensusSpeed} km/h exceeds physical limit</span>`
+              : `${ptlCausationCeiling} km/h max <span style="color:var(--green);">&#10003; Within ceiling</span>`
           ) : ""}
           ${ptlBrakingDistanceM !== null ? kvRow(
             "Braking distance",
-            `<b>${ptlBrakingDistanceM.toFixed(1)} m</b> <span class="small" style="color:var(--ink-soft);">required to stop from ${consensusSpeed} km/h on ${ptlBrakingMu === 0.4 ? 'wet' : ptlBrakingMu === 0.3 ? 'gravel/dirt' : 'dry tarmac'} (μ=${ptlBrakingMu ?? 0.7})</span>`
+            `${ptlBrakingDistanceM.toFixed(1)} m <span class="small" style="color:var(--ink-soft);">to stop from ${consensusSpeed} km/h on ${ptlBrakingMu === 0.4 ? 'wet road' : ptlBrakingMu === 0.3 ? 'gravel/dirt' : 'dry tarmac'} (μ=${ptlBrakingMu ?? 0.7})</span>`
           ) : ""}
+          ${kvRow("Contradiction flag",
+            ptlReversingContradiction
+              ? `<span style="color:var(--amber);font-weight:600;">&#9888; Active third party also described — causation may require reclassification</span>`
+              : `<span style="color:var(--green);">&#10003; Suppressed — no active third-party conflict</span>`
+          )}
         </table>
         ${ptlCausationBreached ? co(`<b>Physical impossibility —</b> A reversing vehicle cannot exceed ~20 km/h. The consensus speed of ${consensusSpeed} km/h is physically impossible for the stated causation. Adjuster review required before settlement.`, "red") : ""}
-        ${ptlReversingContradiction ? co(`<b>Narrative contradiction —</b> The claimant states they were reversing, but a named third party and/or police report is also present. Causation classification may need to be revised to THIRD_PARTY_REAR_STRIKE. Request clarification.`, "amber") : ""}
+        ${ptlReversingContradiction ? co(`<b>Narrative contradiction —</b> The claimant states they were reversing, but an active third party is also described. Causation may need to be revised to THIRD_PARTY_REAR_STRIKE. Request clarification.`, "amber") : ""}
         <p class="caption" style="margin-top:8px;">Causation is classified from the driver narrative and supporting documents. It determines who was in motion in reverse at the time of impact and imposes physical speed ceilings where applicable.</p>
       </div>
       <div class="box">
-        <h4>Forensic Findings Summary</h4>
-        ${ptlCausationBreached || ptlReversingContradiction ? `
-        <div style="background:var(--red-bg,#fef2f2);border-left:3px solid var(--red);padding:8px 10px;margin-bottom:8px;border-radius:0 4px 4px 0;">
-          <b style="color:var(--red);">Attention Required</b>
-          <ul class="tight small" style="margin-top:4px;">
-            ${ptlCausationBreached ? `<li>Consensus speed exceeds the physical ceiling for the stated causation type. This is a critical integrity flag.</li>` : ""}
-            ${ptlReversingContradiction ? `<li>Reversing narrative contradicts named third-party evidence. Causation type requires adjuster review.</li>` : ""}
-          </ul>
-        </div>` : `<p class="small" style="color:var(--green);margin:0 0 8px 0;">&#10003; No causation anomalies detected. Narrative is consistent with physics evidence.</p>`}
+        ${sectionTab("04b", "Forensic Findings Summary",
+          ptlCausationBreached ? "Attention Required" : ptlReversingContradiction ? "Review" : "Clean",
+          ptlCausationBreached ? "high" : ptlReversingContradiction ? "mid" : "ok"
+        )}
         <table class="kv">
           ${kvRow("Narrative vs. physics", p(physicsVsNarrative ?? "Consistent", (physicsVsNarrative ?? "Consistent") === "Consistent" ? "green" : (physicsVsNarrative ?? "") === "Partial" ? "amber" : "red"))}
-          ${kvRow("Causation integrity", p(ptlCausationBreached ? "CRITICAL — speed ceiling breach" : ptlReversingContradiction ? "WARNING — narrative contradiction" : "Pass", ptlCausationBreached ? "red" : ptlReversingContradiction ? "amber" : "green"))}
-          ${ptlBrakingDistanceM !== null ? kvRow("Braking plausibility", p(
-            ptlBrakingDistanceM > 100 ? `${ptlBrakingDistanceM.toFixed(0)} m — high speed impact` :
-            ptlBrakingDistanceM > 40 ? `${ptlBrakingDistanceM.toFixed(0)} m — moderate speed` :
-            `${ptlBrakingDistanceM.toFixed(0)} m — low speed impact`,
-            ptlBrakingDistanceM > 100 ? "red" : ptlBrakingDistanceM > 40 ? "amber" : "green"
-          )) : ""}
+          ${kvRow("Causation integrity",
+            ptlCausationBreached
+              ? `<span style="color:var(--red);font-weight:600;">&#9888; CRITICAL — speed ceiling breach</span>`
+              : ptlReversingContradiction
+              ? `<span style="color:var(--amber);font-weight:600;">&#9888; WARNING — narrative contradiction</span>`
+              : `<span style="color:var(--green);">&#10003; Pass</span>`
+          )}
+          ${ptlBrakingDistanceM !== null ? kvRow("Braking plausibility",
+            ptlBrakingDistanceM > 100
+              ? `<span style="color:var(--red);">${ptlBrakingDistanceM.toFixed(0)} m — high-speed impact</span>`
+              : ptlBrakingDistanceM > 40
+              ? `<span style="color:var(--amber);">${ptlBrakingDistanceM.toFixed(0)} m — moderate speed</span>`
+              : `<span style="color:var(--green);">${ptlBrakingDistanceM.toFixed(0)} m — low-speed impact</span>`
+          ) : ""}
         </table>
-        <p class="caption" style="margin-top:8px;">Plain-language summary: ${ptlCausationBreached ? `The physics evidence is inconsistent with the stated scenario. A vehicle in reverse gear cannot reach ${consensusSpeed} km/h. This claim requires adjuster investigation before settlement.` : ptlReversingContradiction ? `The narrative states the claimant was reversing, but a third party is also named. This is unusual — typically one party is at fault. Clarify whether the third party was also moving.` : `The physics evidence is consistent with the stated scenario. No causation anomalies were detected by the automated forensic engine.`}</p>
+        ${ptlCausationBreached
+          ? co(`<b>Physics inconsistency —</b> The physics evidence is inconsistent with the stated scenario. A vehicle in reverse gear cannot reach ${consensusSpeed} km/h. This claim requires adjuster investigation before settlement.`, "red")
+          : ptlReversingContradiction
+          ? co(`<b>Narrative review required —</b> The narrative states the claimant was reversing, but a third party is also named. Clarify whether the third party was also in motion and whether the causation should be reclassified.`, "amber")
+          : co("The physics evidence is consistent with the stated scenario. No causation anomalies were detected by the automated forensic engine.", "green")
+        }
       </div>
     </div>` : ""}
 

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>§04 Impact Causation — Restyled Panels</title>
+<style>
+  /* ── Exact CSS variables from forensicDecisionReport.ts ── */
+  :root {
+    --ink: #1a1a2e;
+    --ink-soft: #6b7280;
+    --ink-muted: #9ca3af;
+    --border: #e5e7eb;
+    --bg: #f8f9fb;
+    --card: #ffffff;
+    --green: #16a34a;
+    --amber: #d97706;
+    --red: #dc2626;
+    --blue: #2563eb;
+    --green-bg: #f0fdf4;
+    --amber-bg: #fffbeb;
+    --red-bg: #fef2f2;
+    --blue-bg: #eff6ff;
+    --radius: 6px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--bg);
+  }
+  body { margin: 0; padding: 24px; }
+  h2 { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin: 32px 0 8px; }
+  h2:first-child { margin-top: 0; }
+
+  /* ── Section tab (sectionTab helper) ── */
+  .section-tab {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px 8px 14px;
+    border-bottom: 1px solid var(--border);
+    margin: -12px -12px 10px -12px;
+    background: #fafafa;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .section-tab .num { font-size: 10px; font-weight: 700; color: var(--ink-muted); min-width: 28px; }
+  .section-tab .title { font-size: 12px; font-weight: 600; color: var(--ink); flex: 1; }
+  .section-tab .flag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 3px; }
+  .section-tab .flag.ok    { color: var(--green); background: var(--green-bg); }
+  .section-tab .flag.mid   { color: var(--amber); background: var(--amber-bg); }
+  .section-tab .flag.high  { color: var(--red);   background: var(--red-bg); }
+
+  /* ── Box / card ── */
+  .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+
+  /* ── kv table ── */
+  table.kv { width: 100%; border-collapse: collapse; margin: 0; }
+  table.kv tr { border-bottom: 1px solid var(--border); }
+  table.kv tr:last-child { border-bottom: none; }
+  table.kv td { padding: 5px 0; vertical-align: top; }
+  table.kv td:first-child { color: var(--ink-soft); width: 42%; font-size: 11.5px; padding-right: 8px; }
+  table.kv td:last-child { font-size: 12px; }
+
+  /* ── Callout box (co helper) ── */
+  .callout {
+    margin-top: 8px; padding: 8px 10px;
+    border-radius: 0 4px 4px 0;
+    font-size: 11.5px; line-height: 1.5;
+  }
+  .callout.red    { border-left: 3px solid var(--red);   background: var(--red-bg);   color: var(--ink); }
+  .callout.amber  { border-left: 3px solid var(--amber); background: var(--amber-bg); color: var(--ink); }
+  .callout.green  { border-left: 3px solid var(--green); background: var(--green-bg); color: var(--ink); }
+
+  /* ── Pill (p helper) ── */
+  .pill { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+  .pill.green { color: var(--green); background: var(--green-bg); }
+  .pill.amber { color: var(--amber); background: var(--amber-bg); }
+  .pill.red   { color: var(--red);   background: var(--red-bg); }
+
+  .caption { font-size: 10.5px; color: var(--ink-muted); margin: 8px 0 0; line-height: 1.4; }
+  .small { font-size: 11px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Scenario A — THIRD_PARTY_REAR_STRIKE · 60 km/h · No flags (Clean)</h2>
+<div class="cols-2">
+  <div class="box">
+    <div class="section-tab">
+      <span class="num">04a</span>
+      <span class="title">Impact Causation Classification</span>
+      <span class="flag ok">Consistent</span>
+    </div>
+    <table class="kv">
+      <tr><td>Causation type</td><td>Third-party rear strike — third party struck stationary/moving claimant from behind</td></tr>
+      <tr><td>Speed ceiling</td><td>No ceiling — forward-motion scenario <span style="color:var(--green)">&#10003; No restriction</span></td></tr>
+      <tr><td>Braking distance</td><td>71.4 m <span class="small" style="color:var(--ink-soft)">to stop from 60 km/h on dry tarmac (μ=0.7)</span></td></tr>
+      <tr><td>Contradiction flag</td><td><span style="color:var(--green)">&#10003; Suppressed — no active third-party conflict</span></td></tr>
+    </table>
+    <p class="caption">Causation is classified from the driver narrative and supporting documents. It determines who was in motion in reverse at the time of impact and imposes physical speed ceilings where applicable.</p>
+  </div>
+  <div class="box">
+    <div class="section-tab">
+      <span class="num">04b</span>
+      <span class="title">Forensic Findings Summary</span>
+      <span class="flag ok">Clean</span>
+    </div>
+    <table class="kv">
+      <tr><td>Narrative vs. physics</td><td><span class="pill green">Consistent</span></td></tr>
+      <tr><td>Causation integrity</td><td><span style="color:var(--green)">&#10003; Pass</span></td></tr>
+      <tr><td>Braking plausibility</td><td><span style="color:var(--amber)">71 m — moderate speed</span></td></tr>
+    </table>
+    <div class="callout green">The physics evidence is consistent with the stated scenario. No causation anomalies were detected by the automated forensic engine.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Scenario B — SELF_REVERSING · 45 km/h · Speed Ceiling Breach (Critical)</h2>
+<div class="cols-2">
+  <div class="box">
+    <div class="section-tab">
+      <span class="num">04a</span>
+      <span class="title">Impact Causation Classification</span>
+      <span class="flag high">Speed Ceiling Breach</span>
+    </div>
+    <table class="kv">
+      <tr><td>Causation type</td><td>Self-reversing — claimant's vehicle was reversing at impact</td></tr>
+      <tr><td>Speed ceiling</td><td><span style="color:var(--red);font-weight:600">&#9888; Breach — 20 km/h max, consensus 45 km/h exceeds physical limit</span></td></tr>
+      <tr><td>Braking distance</td><td>40.2 m <span class="small" style="color:var(--ink-soft)">to stop from 45 km/h on dry tarmac (μ=0.7)</span></td></tr>
+      <tr><td>Contradiction flag</td><td><span style="color:var(--green)">&#10003; Suppressed — no active third-party conflict</span></td></tr>
+    </table>
+    <div class="callout red"><b>Physical impossibility —</b> A reversing vehicle cannot exceed ~20 km/h. The consensus speed of 45 km/h is physically impossible for the stated causation. Adjuster review required before settlement.</div>
+    <p class="caption">Causation is classified from the driver narrative and supporting documents. It determines who was in motion in reverse at the time of impact and imposes physical speed ceilings where applicable.</p>
+  </div>
+  <div class="box">
+    <div class="section-tab">
+      <span class="num">04b</span>
+      <span class="title">Forensic Findings Summary</span>
+      <span class="flag high">Attention Required</span>
+    </div>
+    <table class="kv">
+      <tr><td>Narrative vs. physics</td><td><span class="pill red">Inconsistent</span></td></tr>
+      <tr><td>Causation integrity</td><td><span style="color:var(--red);font-weight:600">&#9888; CRITICAL — speed ceiling breach</span></td></tr>
+      <tr><td>Braking plausibility</td><td><span style="color:var(--amber)">40 m — moderate speed</span></td></tr>
+    </table>
+    <div class="callout red"><b>Physics inconsistency —</b> The physics evidence is inconsistent with the stated scenario. A vehicle in reverse gear cannot reach 45 km/h. This claim requires adjuster investigation before settlement.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Scenario C — SELF_REVERSING · 30 km/h · Narrative Contradiction (Warning)</h2>
+<div class="cols-2">
+  <div class="box">
+    <div class="section-tab">
+      <span class="num">04a</span>
+      <span class="title">Impact Causation Classification</span>
+      <span class="flag mid">Narrative Contradiction</span>
+    </div>
+    <table class="kv">
+      <tr><td>Causation type</td><td>Self-reversing — claimant's vehicle was reversing at impact</td></tr>
+      <tr><td>Speed ceiling</td><td>20 km/h max — <span style="color:var(--amber);font-weight:600">&#9888; 30 km/h exceeds ceiling</span></td></tr>
+      <tr><td>Braking distance</td><td>17.9 m <span class="small" style="color:var(--ink-soft)">to stop from 30 km/h on dry tarmac (μ=0.7)</span></td></tr>
+      <tr><td>Contradiction flag</td><td><span style="color:var(--amber);font-weight:600">&#9888; Active third party also described — causation may require reclassification</span></td></tr>
+    </table>
+    <div class="callout amber"><b>Narrative contradiction —</b> The claimant states they were reversing, but an active third party is also described. Causation may need to be revised to THIRD_PARTY_REAR_STRIKE. Request clarification.</div>
+    <p class="caption">Causation is classified from the driver narrative and supporting documents. It determines who was in motion in reverse at the time of impact and imposes physical speed ceilings where applicable.</p>
+  </div>
+  <div class="box">
+    <div class="section-tab">
+      <span class="num">04b</span>
+      <span class="title">Forensic Findings Summary</span>
+      <span class="flag mid">Review</span>
+    </div>
+    <table class="kv">
+      <tr><td>Narrative vs. physics</td><td><span class="pill amber">Partial</span></td></tr>
+      <tr><td>Causation integrity</td><td><span style="color:var(--amber);font-weight:600">&#9888; WARNING — narrative contradiction</span></td></tr>
+      <tr><td>Braking plausibility</td><td><span style="color:var(--green)">18 m — low-speed impact</span></td></tr>
+    </table>
+    <div class="callout amber"><b>Narrative review required —</b> The narrative states the claimant was reversing, but a third party is also named. Clarify whether the third party was also in motion and whether the causation should be reclassified.</div>
+  </div>
+</div>
+
+</body>
+</html>
