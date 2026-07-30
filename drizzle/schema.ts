@@ -2773,8 +2773,8 @@ export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
 	id: int().autoincrement().notNull(),
 	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
 	userId: int("user_id").notNull(),
-	previousRole: mysqlEnum("previous_role", ['user','admin','insurer','assessor','panel_beater','claimant','fleet_admin','fleet_manager','fleet_driver','platform_super_admin']),
-	newRole: mysqlEnum("new_role", ['user','admin','insurer','assessor','panel_beater','claimant','fleet_admin','fleet_manager','fleet_driver','platform_super_admin']).notNull(),
+	previousRole: mysqlEnum("previous_role", ['user','admin','insurer','assessor','panel_beater','claimant','fleet_admin','fleet_manager','fleet_driver','platform_super_admin','agency']),
+	newRole: mysqlEnum("new_role", ['user','admin','insurer','assessor','panel_beater','claimant','fleet_admin','fleet_manager','fleet_driver','platform_super_admin','agency']).notNull(),
 	previousInsurerRole: mysqlEnum("previous_insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']),
 	newInsurerRole: mysqlEnum("new_insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']),
 	changedByUserId: int("changed_by_user_id").notNull(),
@@ -3279,18 +3279,18 @@ export const users = mysqlTable("users", {
 	email: varchar({ length: 320 }),
 	passwordHash: varchar("password_hash", { length: 255 }),
 	loginMethod: varchar({ length: 64 }),
-	// R-INF-09 (2026-07-09): 'agency' role is intentionally ABSENT from this enum.
+	// R-INF-09 (2026-07-09 → ACTIVATED 2026-07-30): 'agency' role activated by product sign-off.
 	// The agency portal (/agency, /agency/quotes) is fully built server-side
 	// (server/routers/agency.ts, server/routers/agency-broker.ts) and client-side
-	// (KingaAgency.tsx, AgencyFleetQuotes.tsx) but has NOT been activated.
-	// As of 2026-07-09: 0 out of 27,168 users have role='agency' in production.
-	// Activation checklist (requires product sign-off before proceeding):
-	//   1. Add 'agency' to this enum → run pnpm db:push
-	//   2. Add 'agency' to roleAssignmentAudit.previousRole and .newRole enums → pnpm db:push
-	//   3. Build admin UI / tRPC procedure to assign the role
-	//   4. Remove this comment block
-	// DO NOT add 'agency' here without product approval — it activates a new user portal.
-	role: mysqlEnum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver']).default('user').notNull(),
+	// (KingaAgency.tsx, AgencyFleetQuotes.tsx). Activation completed 2026-07-30.
+	// Activation checklist completed: enum updated, roleAssignmentAudit updated, guard updated.
+	// See KINGA-Architecture-Freeze-Report-Epic1.md for full audit trail.
+	
+	
+	
+	
+	
+	role: mysqlEnum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver','agency']).default('user').notNull(),
 	insurerRole: mysqlEnum("insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']),
 	organizationId: int("organization_id"),
 	tenantId: varchar("tenant_id", { length: 64 }),

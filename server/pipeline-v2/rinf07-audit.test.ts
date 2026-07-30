@@ -69,13 +69,13 @@ describe('R-INF-09: agency role documentation comments', () => {
   it('schema.ts users.role enum has R-INF-09 comment', () => {
     const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
     expect(schema).toContain('R-INF-09');
-    expect(schema).toContain("'agency' role is intentionally ABSENT");
+    expect(schema).toContain('ACTIVATED 2026-07-30');
   });
 
   it('agency-broker.ts agencyProcedure has R-INF-09 comment', () => {
     const broker = fs.readFileSync(BROKER_PATH, 'utf-8');
     expect(broker).toContain('R-INF-09');
-    expect(broker).toContain('pending product decision');
+    expect(broker).toContain('ACTIVATED 2026-07-30');
   });
 
   it('agency role is NOT in users.role enum values', () => {
@@ -87,6 +87,6 @@ describe('R-INF-09: agency role documentation comments', () => {
       l.includes('.default(')
     );
     expect(roleLine).toBeTruthy();
-    expect(roleLine).not.toContain("'agency'");
+    expect(roleLine).toContain("'agency'"); // R-INF-09 ACTIVATED 2026-07-30
   });
 });

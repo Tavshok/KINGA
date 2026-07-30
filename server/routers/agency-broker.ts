@@ -27,15 +27,13 @@ import { randomUUID } from "crypto";
 
 // ─── Agency Guard Middleware ──────────────────────────────────────────────────
 
-// R-INF-09 (2026-07-09): This guard currently only allows 'admin' and 'platform_super_admin'
-// because 'agency' is not yet in the users.role mysqlEnum (intentional — pending product decision).
-// When the agency portal is activated, change the check to:
-//   if (role !== 'agency' && role !== 'admin' && role !== 'platform_super_admin')
-// AND add 'agency' to the users.role enum in drizzle/schema.ts (see R-INF-09 comment there).
+// R-INF-09 (ACTIVATED 2026-07-30): 'agency' role is now active in users.role enum.
+// Guard updated to permit role='agency' in addition to 'admin' and 'platform_super_admin'.
+// See KINGA-Architecture-Freeze-Report-Epic1.md for full audit trail.
 // See also: server/_core/domain-middleware.ts AGENCY_ROLES constant.
 const agencyProcedure = protectedProcedure.use(({ ctx, next }) => {
   const role = ctx.user?.role;
-  if (role !== "admin" && role !== "platform_super_admin") {
+  if (role !== "agency" && role !== "admin" && role !== "platform_super_admin") {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Access restricted to agency users only. Platform routes are not accessible from this domain.",
