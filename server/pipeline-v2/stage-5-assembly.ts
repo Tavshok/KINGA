@@ -1030,12 +1030,50 @@ function detectCollisionScenario(params: {
       causationSpeedCeilingKmh = null;
     }
 
-    // Plausibility gate: SELF_REVERSING with a named third party is a structural
-    // contradiction. Either the narrative is incomplete (claimant omitted the third
-    // party's forward strike) or the causation is wrong. Flag for adjuster review.
-    if (impactCausation === "SELF_REVERSING" && (hasThirdPartyName || hasThirdPartyVehicle || hasPoliceReport)) {
+    // Plausibility gate: SELF_REVERSING with an ACTIVE third party is a structural
+    // contradiction. An active third party is one described as moving, driving, or
+    // causally involved in the collision — not merely the owner of a stationary object
+    // that was struck (e.g. claimant reversed into a parked car).
+    //
+    // ACTIVE signals (fire the contradiction flag):
+    //   - Narrative describes the third party as driving/moving at impact
+    //   - Police report present AND no passive-object keywords (implies chargeable collision)
+    //   - Third-party forward strike keywords detected
+    //
+    // PASSIVE signals (suppress the contradiction flag — innocent scenario):
+    //   - Narrative contains parked/stationary/unattended keywords
+    //   - isParkingLotDamage flag already set (covers most passive scenarios)
+    //   - No motion verb attributed to the third party
+    //
+    // Extraction approach: narrative keyword analysis only (no new structured field needed).
+    // The isParkingLotDamage flag captures most passive scenarios already.
+    // isThirdPartyForwardStrike captures active third-party motion.
+    // activeThirdPartyMotionKeywords catches remaining motion verbs.
+    const passiveObjectKeywords = [
+      "parked", "was parked", "stationary", "unattended", "standing",
+      "parked car", "parked vehicle", "parked truck", "parked bakkie",
+      "into a parked", "into the parked", "into a stationary",
+      "into a wall", "into a gate", "into a pole", "into a fence",
+      "into a barrier", "into a bollard", "into a pillar",
+    ];
+    const activeThirdPartyMotionKeywords = [
+      "was driving", "was moving", "came towards", "drove towards",
+      "was travelling", "was traveling", "was coming", "approached",
+      "was approaching", "other driver", "other vehicle was",
+      "third party was driving", "third party was moving",
+    ];
+    const isPassiveThirdParty = passiveObjectKeywords.some(kw => d.includes(kw)) || isParkingLotDamage;
+    const isActiveThirdParty = (
+      isThirdPartyForwardStrike ||
+      activeThirdPartyMotionKeywords.some(kw => d.includes(kw)) ||
+      (hasPoliceReport && !isPassiveThirdParty)
+    );
+    if (impactCausation === "SELF_REVERSING" && isActiveThirdParty && !isPassiveThirdParty) {
+      // Active third party present + claimant reversing = structural contradiction
+      // (either the narrative is wrong, or the causation should be THIRD_PARTY_REAR_STRIKE)
       reversingNarrativeContradiction = true;
     } else {
+      // Passive third party (owner of what was struck) — no contradiction
       reversingNarrativeContradiction = false;
     }
   }

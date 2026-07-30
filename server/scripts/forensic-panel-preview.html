@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>§04 Physics & Forensic Findings — Panel Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1a1a2e; padding: 32px; }
+  h1 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+  .subtitle { font-size: 13px; color: #6b7280; margin-bottom: 32px; }
+  .scenario-label { font-size: 15px; font-weight: 700; color: #374151; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb; }
+  .report-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px; max-width: 900px; }
+  .section-header { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
+  .panel { border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 16px; overflow: hidden; }
+  .panel-header { padding: 10px 16px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+  .panel-header.blue { background: #eff6ff; color: #1d4ed8; border-bottom: 1px solid #bfdbfe; }
+  .panel-header.green { background: #f0fdf4; color: #15803d; border-bottom: 1px solid #bbf7d0; }
+  .panel-header.amber { background: #fffbeb; color: #b45309; border-bottom: 1px solid #fde68a; }
+  .panel-header.red { background: #fef2f2; color: #b91c1c; border-bottom: 1px solid #fecaca; }
+  .panel-body { padding: 16px; }
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.data-table td { padding: 7px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+  table.data-table td:first-child { font-weight: 600; color: #374151; width: 220px; }
+  table.data-table td:last-child { color: #1f2937; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-amber { background: #fef3c7; color: #b45309; }
+  .badge-red { background: #fee2e2; color: #b91c1c; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-gray { background: #f3f4f6; color: #4b5563; }
+  .callout { border-left: 4px solid; padding: 10px 14px; border-radius: 0 4px 4px 0; margin-top: 12px; font-size: 13px; }
+  .callout-green { border-color: #22c55e; background: #f0fdf4; color: #166534; }
+  .callout-amber { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
+  .callout-red { border-color: #ef4444; background: #fef2f2; color: #991b1b; }
+  .callout-title { font-weight: 700; margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .verdict-para { font-size: 13px; line-height: 1.6; color: #374151; padding: 12px; background: #f9fafb; border-radius: 4px; border: 1px solid #e5e7eb; margin-top: 8px; }
+  .row-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 5px 0; }
+  .check-icon { font-size: 15px; }
+</style>
+</head>
+<body>
+
+<h1>§04 Physics &amp; Forensic Findings — Panel Preview</h1>
+<p class="subtitle">KINGA AutoVerify AI · Impact Causation Classification Panel + Forensic Findings Summary Panel</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SCENARIO A: CLEAN RESULT (THIRD_PARTY_REAR_STRIKE, no flags)              -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="scenario-label">SCENARIO A — Clean Result: THIRD_PARTY_REAR_STRIKE, no flags</div>
+<div class="report-section">
+  <div class="section-header">§04 · Physics &amp; Forensic Findings</div>
+
+  <!-- Impact Overview table -->
+  <div class="panel">
+    <div class="panel-header blue">Impact Overview</div>
+    <div class="panel-body">
+      <table class="data-table">
+        <tr><td>Collision Scenario</td><td><span class="badge badge-blue">Rear-End Struck</span></td></tr>
+        <tr><td>Consensus Speed</td><td>60 km/h</td></tr>
+        <tr><td>Braking Distance</td><td>20.2 m &nbsp;<span style="color:#6b7280;font-size:12px">(μ = 0.70, dry tarmac)</span></td></tr>
+        <tr><td>Impact Force</td><td>168,000 N (168 kN)</td></tr>
+        <tr><td>Kinetic Energy</td><td>280,000 J (280 kJ)</td></tr>
+        <tr><td>Damage Direction</td><td>Rear</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Impact Causation Classification panel -->
+  <div class="panel">
+    <div class="panel-header green">Impact Causation Classification</div>
+    <div class="panel-body">
+      <div class="row-grid">
+        <div>
+          <table class="data-table">
+            <tr><td>Causation Type</td><td><span class="badge badge-blue">THIRD_PARTY_REAR_STRIKE</span></td></tr>
+            <tr><td>Speed Ceiling</td><td><span class="badge badge-gray">None (forward impact)</span></td></tr>
+            <tr><td>Ceiling Breach</td><td><span class="badge badge-green">✓ No breach</span></td></tr>
+            <tr><td>Contradiction Flag</td><td><span class="badge badge-green">✓ Suppressed</span></td></tr>
+          </table>
+        </div>
+        <div>
+          <div class="callout callout-green">
+            <div class="callout-title">✓ Causation Consistent</div>
+            The claimant was stationary at a traffic light. The third party struck from behind at approximately 60 km/h. No reversing speed ceiling applies. No narrative contradiction detected.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forensic Findings Summary panel -->
+  <div class="panel">
+    <div class="panel-header green">Forensic Findings Summary</div>
+    <div class="panel-body">
+      <div class="row-grid">
+        <div>
+          <div class="check-row"><span class="check-icon">✅</span> Narrative vs. physics: <strong>Consistent</strong></div>
+          <div class="check-row"><span class="check-icon">✅</span> Causation integrity: <strong>No anomalies</strong></div>
+          <div class="check-row"><span class="check-icon">✅</span> Braking plausibility: <strong>Consistent</strong></div>
+          <div class="check-row"><span class="check-icon">✅</span> Speed ceiling: <strong>Not applicable</strong></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Plain-Language Verdict</div>
+          <div class="verdict-para">
+            The physics evidence is consistent with the stated scenario. The claimant was struck from behind by a third party travelling at approximately 60 km/h. No causation anomalies were detected. This claim may proceed to cost assessment.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SCENARIO B: FLAGGED RESULT — SELF_REVERSING + speed ceiling breach        -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="scenario-label">SCENARIO B — Flagged Result: SELF_REVERSING + Speed Ceiling Breach (45 km/h &gt; 20 km/h ceiling)</div>
+<div class="report-section">
+  <div class="section-header">§04 · Physics &amp; Forensic Findings</div>
+
+  <!-- Impact Overview table -->
+  <div class="panel">
+    <div class="panel-header blue">Impact Overview</div>
+    <div class="panel-body">
+      <table class="data-table">
+        <tr><td>Collision Scenario</td><td><span class="badge badge-amber">Rear-End Striking (Self-Reversing)</span></td></tr>
+        <tr><td>Consensus Speed</td><td>45 km/h</td></tr>
+        <tr><td>Braking Distance</td><td>11.4 m &nbsp;<span style="color:#6b7280;font-size:12px">(μ = 0.70, dry tarmac)</span></td></tr>
+        <tr><td>Impact Force</td><td>94,500 N (94.5 kN)</td></tr>
+        <tr><td>Kinetic Energy</td><td>88,200 J (88.2 kJ)</td></tr>
+        <tr><td>Damage Direction</td><td>Rear</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Impact Causation Classification panel -->
+  <div class="panel">
+    <div class="panel-header red">Impact Causation Classification</div>
+    <div class="panel-body">
+      <div class="row-grid">
+        <div>
+          <table class="data-table">
+            <tr><td>Causation Type</td><td><span class="badge badge-amber">SELF_REVERSING</span></td></tr>
+            <tr><td>Speed Ceiling</td><td>20 km/h (reverse gear physical limit)</td></tr>
+            <tr><td>Ceiling Breach</td><td><span class="badge badge-red">⚠ BREACH — 45 km/h &gt; 20 km/h</span></td></tr>
+            <tr><td>Contradiction Flag</td><td><span class="badge badge-green">✓ Suppressed (passive object)</span></td></tr>
+          </table>
+        </div>
+        <div>
+          <div class="callout callout-red">
+            <div class="callout-title">⚠ Critical: Speed Ceiling Breach</div>
+            A vehicle in reverse gear cannot reach 45 km/h. The reverse gear physical speed ceiling is 20 km/h. The stated speed (45 km/h) exceeds this ceiling by 25 km/h. This claim requires adjuster investigation before settlement.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forensic Findings Summary panel -->
+  <div class="panel">
+    <div class="panel-header red">Forensic Findings Summary</div>
+    <div class="panel-body">
+      <div class="row-grid">
+        <div>
+          <div class="check-row"><span class="check-icon">⚠️</span> Narrative vs. physics: <strong style="color:#b91c1c">BREACH DETECTED</strong></div>
+          <div class="check-row"><span class="check-icon">⚠️</span> Causation integrity: <strong style="color:#b91c1c">Speed ceiling exceeded</strong></div>
+          <div class="check-row"><span class="check-icon">✅</span> Braking plausibility: <strong>Consistent</strong></div>
+          <div class="check-row"><span class="check-icon">✅</span> Contradiction flag: <strong>Suppressed (passive object)</strong></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Plain-Language Verdict</div>
+          <div class="verdict-para" style="border-color:#fecaca;background:#fef2f2;color:#7f1d1d">
+            A vehicle in reverse gear cannot reach 45 km/h. The reverse gear physical speed ceiling is 20 km/h. The stated speed exceeds this ceiling by 25 km/h. This claim requires adjuster investigation before settlement. The narrative contradiction flag was suppressed — the third party appears to be the owner of a stationary object, not an active participant.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SCENARIO C: FLAGGED RESULT — SELF_REVERSING + ACTIVE third party          -->
+<!--             (contradiction flag FIRED)                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="scenario-label">SCENARIO C — Flagged Result: SELF_REVERSING + Active Third Party (Contradiction Flag Fired)</div>
+<div class="report-section">
+  <div class="section-header">§04 · Physics &amp; Forensic Findings</div>
+
+  <!-- Impact Overview table -->
+  <div class="panel">
+    <div class="panel-header blue">Impact Overview</div>
+    <div class="panel-body">
+      <table class="data-table">
+        <tr><td>Collision Scenario</td><td><span class="badge badge-amber">Rear-End Striking (Self-Reversing)</span></td></tr>
+        <tr><td>Consensus Speed</td><td>30 km/h</td></tr>
+        <tr><td>Braking Distance</td><td>5.1 m &nbsp;<span style="color:#6b7280;font-size:12px">(μ = 0.70, dry tarmac)</span></td></tr>
+        <tr><td>Impact Force</td><td>52,500 N (52.5 kN)</td></tr>
+        <tr><td>Kinetic Energy</td><td>43,750 J (43.75 kJ)</td></tr>
+        <tr><td>Damage Direction</td><td>Rear</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Impact Causation Classification panel -->
+  <div class="panel">
+    <div class="panel-header amber">Impact Causation Classification</div>
+    <div class="panel-body">
+      <div class="row-grid">
+        <div>
+          <table class="data-table">
+            <tr><td>Causation Type</td><td><span class="badge badge-amber">SELF_REVERSING</span></td></tr>
+            <tr><td>Speed Ceiling</td><td>20 km/h (reverse gear physical limit)</td></tr>
+            <tr><td>Ceiling Breach</td><td><span class="badge badge-red">⚠ BREACH — 30 km/h &gt; 20 km/h</span></td></tr>
+            <tr><td>Contradiction Flag</td><td><span class="badge badge-amber">⚠ FIRED — Active third party detected</span></td></tr>
+          </table>
+        </div>
+        <div>
+          <div class="callout callout-amber">
+            <div class="callout-title">⚠ Warning: Narrative Contradiction</div>
+            The narrative states the claimant was reversing, but an active third party (a moving vehicle) is also described as involved. Clarify whether the third party was also in motion and whether the causation should be reclassified as THIRD_PARTY_REAR_STRIKE. A police report is present — adjuster review required.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forensic Findings Summary panel -->
+  <div class="panel">
+    <div class="panel-header amber">Forensic Findings Summary</div>
+    <div class="panel-body">
+      <div class="row-grid">
+        <div>
+          <div class="check-row"><span class="check-icon">⚠️</span> Narrative vs. physics: <strong style="color:#b45309">CONTRADICTION DETECTED</strong></div>
+          <div class="check-row"><span class="check-icon">⚠️</span> Causation integrity: <strong style="color:#b91c1c">Speed ceiling exceeded</strong></div>
+          <div class="check-row"><span class="check-icon">✅</span> Braking plausibility: <strong>Consistent</strong></div>
+          <div class="check-row"><span class="check-icon">⚠️</span> Contradiction flag: <strong style="color:#b45309">Active third party present</strong></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Plain-Language Verdict</div>
+          <div class="verdict-para" style="border-color:#fde68a;background:#fffbeb;color:#78350f">
+            The narrative states the claimant was reversing, but a moving third party is also described as causally involved. This is a structural contradiction: either the claimant's narrative is incomplete, or the causation should be reclassified as THIRD_PARTY_REAR_STRIKE. Additionally, the stated speed (30 km/h) exceeds the reverse gear ceiling (20 km/h). Adjuster review is required before settlement.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
