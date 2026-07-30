@@ -7,7 +7,7 @@
  *
  * Domain → Allowed Roles mapping:
  *   /platform  → platform_super_admin
- *   /agency    → agency (user.role = 'agency' or user.role = 'admin')
+ *   /agency    → agency, admin, platform_super_admin (platform_super_admin included for system testing — confirmed 2026-07-30)
  *   /insurer/* → insurer, admin (+ tenantId required for non-admin)
  *   /fleet     → fleet_admin, fleet_manager, fleet_driver, admin
  *   /marketplace → any authenticated user (marketplace profiles are self-managed)
@@ -25,7 +25,8 @@ const t = initTRPC.context<TrpcContext>().create({ transformer: superjson });
 // ─── Role Sets ──────────────────────────────────────────────────────────────
 
 const PLATFORM_ROLES = ["platform_super_admin"] as const;
-const AGENCY_ROLES = ["agency", "admin"] as const;
+// platform_super_admin included for system testing access (confirmed product requirement 2026-07-30)
+const AGENCY_ROLES = ["agency", "admin", "platform_super_admin"] as const;
 const INSURER_ROLES = ["insurer", "admin"] as const;
 const FLEET_ROLES = ["fleet_admin", "fleet_manager", "fleet_driver", "admin"] as const;
 // Marketplace: any authenticated user can browse; profile owners manage their own

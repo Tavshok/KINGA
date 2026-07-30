@@ -14,6 +14,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc, inArray, sql, ne } from "drizzle-orm";
 import { router, protectedProcedure } from "../_core/trpc";
+import { agencyDomainProcedure as agencyProcedure } from "../_core/domain-middleware";
 import { getDb } from "../db";
 import {
   agencyClients,
@@ -25,22 +26,12 @@ import {
 } from "../../drizzle/schema";
 import { randomUUID } from "crypto";
 
-// ─── Agency Guard Middleware ──────────────────────────────────────────────────
-
-// R-INF-09 (ACTIVATED 2026-07-30): 'agency' role is now active in users.role enum.
-// Guard updated to permit role='agency' in addition to 'admin' and 'platform_super_admin'.
+// ─── Agency Guard ────────────────────────────────────────────────────────────
+// R-INF-09 (ACTIVATED 2026-07-30): agencyProcedure is now the canonical
+// agencyDomainProcedure from domain-middleware.ts (imported as alias above).
+// Permitted roles: agency, admin, platform_super_admin.
+// platform_super_admin access is a confirmed product requirement for system testing.
 // See KINGA-Architecture-Freeze-Report-Epic1.md for full audit trail.
-// See also: server/_core/domain-middleware.ts AGENCY_ROLES constant.
-const agencyProcedure = protectedProcedure.use(({ ctx, next }) => {
-  const role = ctx.user?.role;
-  if (role !== "agency" && role !== "admin" && role !== "platform_super_admin") {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Access restricted to agency users only. Platform routes are not accessible from this domain.",
-    });
-  }
-  return next({ ctx });
-});
 
 // ─── Input Schemas ────────────────────────────────────────────────────────────
 

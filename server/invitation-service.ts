@@ -41,7 +41,7 @@ function toTitleCase(str: string): string {
 export async function sendInvitation(params: {
   tenantId: string;
   email: string;
-  role: "user" | "admin" | "insurer" | "assessor" | "panel_beater" | "claimant" | "platform_super_admin" | "fleet_admin" | "fleet_manager" | "fleet_driver";
+  role: "user" | "admin" | "insurer" | "assessor" | "panel_beater" | "claimant" | "platform_super_admin" | "fleet_admin" | "fleet_manager" | "fleet_driver" | "agency";
   insurerRole?: "claims_processor" | "assessor_internal" | "assessor_external" | "risk_manager" | "claims_manager" | "executive" | "insurer_admin" | "recovery_officer";
   createdBy: number;
   expirationDays?: number;

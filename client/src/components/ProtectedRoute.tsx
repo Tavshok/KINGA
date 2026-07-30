@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
  * Domain → Allowed Roles mapping (mirrors server/_core/domain-middleware.ts)
  *
  * /platform  → platform_super_admin
- * /agency    → agency, admin
+ * /agency    → agency, admin, platform_super_admin (system testing access — confirmed 2026-07-30)
  * /insurer   → insurer, admin
  * /fleet     → fleet_admin, fleet_manager, fleet_driver, admin
  * /marketplace → all authenticated roles
@@ -14,7 +14,7 @@ import { Loader2 } from "lucide-react";
  */
 export const DOMAIN_ROLE_MAP: Record<string, string[]> = {
   platform: ["platform_super_admin"],
-  agency: ["agency", "admin"],
+  agency: ["agency", "admin", "platform_super_admin"], // platform_super_admin: system testing access (confirmed 2026-07-30)
   insurer: ["insurer", "admin"],
   fleet: ["fleet_admin", "fleet_manager", "fleet_driver", "admin"],
   marketplace: [
