@@ -20,6 +20,7 @@ export default function Login() {
     assessor: 'Assessor Portal',
     panel_beater: 'Panel Beater Portal',
     claimant: 'Claimant Portal',
+    agency: 'Agency Portal',
   };
   
   const roleLabel = roleParam ? roleLabels[roleParam] || 'KINGA Portal' : 'KINGA Portal';
@@ -36,6 +37,8 @@ export default function Login() {
         return "/panel-beater/dashboard";
       case "claimant":
         return "/claimant/dashboard";
+      case "agency":
+        return "/agency";
       default:
         return "/";
     }
