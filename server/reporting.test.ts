@@ -145,6 +145,8 @@ describe("REPORT_ACCESS catalogue completeness", () => {
       "admin", "insurer_admin", "claims_manager", "fraud_manager",
       "claims_processor", "assessor", "assessor_internal", "assessor_external",
       "panel_beater", "risk_manager", "executive", "recovery_officer",
+      // T7 + T8 (Epic 2): agency role added for vehicle verification/valuation reports
+      "agency",
     ];
     for (const [key, roles] of Object.entries(REPORT_ACCESS)) {
       for (const role of roles) {

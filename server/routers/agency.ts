@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "../_core/trpc";
+import { agencyDomainProcedure as agencyProcedure } from "../_core/domain-middleware";
 import { getDb } from "../db";
 import { 
   quotationRequests,
@@ -18,6 +19,7 @@ import {
 import { eq, desc, and, or, sql } from "drizzle-orm";
 import { storagePut } from "../storage";
 import { nanoid } from "nanoid";
+import { generateVehicleValuation } from "../insurance/valuation-engine";
 
 const db = getDb();
 
@@ -315,15 +317,13 @@ export const agencyRouter = router({
 
   /**
    * Delete a document
-   */
-  deleteDocument: protectedProcedure
+   */  deleteDocument: protectedProcedure
     .input(z.object({
       documentId: z.number(),
     }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-
       // Verify ownership
       const [doc] = await db
         .select()
@@ -332,13 +332,55 @@ export const agencyRouter = router({
           eq(agencyDocuments.id, input.documentId),
           eq(agencyDocuments.uploadedBy, ctx.user!.id)
         ));
-
       if (!doc) throw new Error("Document not found or access denied");
-
       await db
         .delete(agencyDocuments)
         .where(eq(agencyDocuments.id, input.documentId));
-
       return { success: true };
+    }),
+
+  /**
+   * T9: Get vehicle valuation using KINGA claims intelligence.
+   *
+   * Restricted to agency role (agencyProcedure guard).
+   * Optional valuationDate allows historical point-in-time queries:
+   * market data and claims are filtered to records on or before that date.
+   */
+  getValuation: agencyProcedure
+    .input(z.object({
+      make: z.string().min(1).max(100),
+      model: z.string().min(1).max(100),
+      year: z.number().int().min(1950).max(new Date().getFullYear() + 1),
+      registrationNumber: z.string().max(20).optional(),
+      condition: z.enum(["excellent", "good", "fair", "poor"]).optional().default("good"),
+      mileage: z.number().int().min(0).optional(),
+      /**
+       * Optional ISO-8601 date string. When supplied, the engine filters
+       * vehicleMarketValuations.valuation_date <= valuationDate and
+       * claims.created_at <= valuationDate so the result reflects the
+       * market as it stood at that point in time.
+       * Defaults to the current date when omitted.
+       */
+      valuationDate: z.string().datetime({ offset: true }).optional(),
+    }))
+    .query(async ({ input }) => {
+      const valuationDate = input.valuationDate
+        ? new Date(input.valuationDate)
+        : new Date();
+
+      const result = await generateVehicleValuation({
+        make: input.make,
+        model: input.model,
+        year: input.year,
+        registrationNumber: input.registrationNumber,
+        condition: input.condition,
+        mileage: input.mileage,
+        valuationDate,
+      });
+
+      return {
+        ...result,
+        valuationDate: valuationDate.toISOString(),
+      };
     }),
 });

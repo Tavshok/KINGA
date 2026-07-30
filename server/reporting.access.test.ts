@@ -205,7 +205,14 @@ describe("REPORT_ACCESS — role-based access control", () => {
     const reports = reportsFor("insurer", "insurer_admin");
 
     it("can access all insurer reports", () => {
-      const insurerReports = ALL_REPORT_KEYS.filter((k) => !REPORT_ACCESS[k].every((r) => r === "admin"));
+      // Exclude reports that are restricted to non-insurer domains (e.g. agency-only reports)
+      // Agency reports (T7+T8) are intentionally not accessible to insurer_admin.
+      const AGENCY_ONLY_REPORTS = ["agency.vehicle_verification", "agency.vehicle_valuation"];
+      const insurerReports = ALL_REPORT_KEYS.filter(
+        (k) =>
+          !REPORT_ACCESS[k].every((r) => r === "admin") &&
+          !AGENCY_ONLY_REPORTS.includes(k)
+      );
       for (const key of insurerReports) {
         expect(reports).toContain(key);
       }

@@ -50,8 +50,11 @@ export async function generateVehicleValuation(
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
 
+  // T9: Resolve the effective valuation date (defaults to now)
+  const asOf = request.valuationDate ?? new Date();
+
   // Step 1: Check if we have recent market valuation data
-  const marketValuation = await getMarketValuation(request.make, request.model, request.year);
+  const marketValuation = await getMarketValuation(request.make, request.model, request.year, asOf);
   if (marketValuation) {
     return {
       estimatedValue: marketValuation.estimatedMarketValue || 0,
@@ -68,7 +71,7 @@ export async function generateVehicleValuation(
   }
 
   // Step 2: Use claims data to estimate value
-  const claimsValuation = await getClaimsBasedValuation(request.make, request.model, request.year);
+  const claimsValuation = await getClaimsBasedValuation(request.make, request.model, request.year, asOf);
   
   // Step 3: Apply condition and age adjustments
   const baseValue = claimsValuation.averageValue;
@@ -100,11 +103,15 @@ export async function generateVehicleValuation(
 async function getMarketValuation(
   make: string,
   model: string,
-  year: number
+  year: number,
+  asOf: Date = new Date()
 ): Promise<any | null> {
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
-  
+
+  // T9: Filter to records whose valuation_date is on or before the requested date
+  const asOfStr = asOf.toISOString().slice(0, 19).replace('T', ' ');
+
   const result = await db
     .select()
     .from(vehicleMarketValuations)
@@ -112,10 +119,11 @@ async function getMarketValuation(
       and(
         eq(vehicleMarketValuations.vehicleMake, make),
         eq(vehicleMarketValuations.vehicleModel, model),
-        eq(vehicleMarketValuations.vehicleYear, year)
+        eq(vehicleMarketValuations.vehicleYear, year),
+        sql`${vehicleMarketValuations.valuationDate} <= ${asOfStr}`
       )
     )
-    .orderBy(desc(vehicleMarketValuations.id))
+    .orderBy(desc(vehicleMarketValuations.valuationDate))
     .limit(1);
 
   return result[0] || null;
@@ -127,7 +135,8 @@ async function getMarketValuation(
 async function getClaimsBasedValuation(
   make: string,
   model: string,
-  year: number
+  year: number,
+  asOf: Date = new Date()
 ): Promise<{
   averageValue: number;
   confidence: number;
@@ -141,6 +150,9 @@ async function getClaimsBasedValuation(
 }> {
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
+
+  // T9: Filter claims to those created on or before the requested valuation date
+  const asOfStr = asOf.toISOString().slice(0, 19).replace('T', ' ');
 
   // Find similar vehicles in claims database
   const similarClaims = await db
@@ -157,7 +169,8 @@ async function getClaimsBasedValuation(
         eq(claims.vehicleMake, make),
         eq(claims.vehicleModel, model),
         gte(claims.vehicleYear, year - 2), // Within 2 years
-        sql`${aiAssessments.estimatedVehicleValue} IS NOT NULL`
+        sql`${aiAssessments.estimatedVehicleValue} IS NOT NULL`,
+        sql`${claims.createdAt} <= ${asOfStr}`
       )
     )
     .orderBy(desc(claims.createdAt))
