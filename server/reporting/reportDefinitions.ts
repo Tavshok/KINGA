@@ -38,6 +38,8 @@ import {
 } from "./templates/base";
 import { generateClaimsIntelligenceReport } from "./claimsIntelligenceReport";
 import { generateForensicDecisionReport } from "./forensicDecisionReport";
+import { generateVehicleVerificationReport } from "./vehicleVerificationReport";
+import { generateVehicleValuationReport } from "./vehicleValuationReport";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
   chip, pill, callout, scoreCell, physicsIndicator, safeJson,
@@ -123,6 +125,10 @@ export const REPORT_ACCESS: Record<string, string[]> = {
   // ── Panel Beater Reports ──────────────────────────────────────────────────
   "panel_beater.quote_history":        ["insurer_admin", "panel_beater"],
   "panel_beater.job_completion":       ["insurer_admin", "panel_beater"],
+
+  // ── Agency Reports (T7 + T8) ─────────────────────────────────────────────
+  "agency.vehicle_verification":       ["agency"],
+  "agency.vehicle_valuation":          ["agency"],
 };
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
@@ -161,6 +167,8 @@ export async function generateReportHtml(
     case "recovery.case_summary":             return generateRecoveryCaseSummaryReport(params, tenantId);
     case "recovery.performance":              return generateRecoveryPerformanceReport(params, tenantId);
     case "recovery.third_party_profiles":     return generateRecoveryThirdPartyProfilesReport(params, tenantId);
+    case "agency.vehicle_verification":         return generateVehicleVerificationReport(params);
+    case "agency.vehicle_valuation":             return generateVehicleValuationReport(params);
     default: throw new Error(`Unknown report key: ${reportKey}`);
   }
 }

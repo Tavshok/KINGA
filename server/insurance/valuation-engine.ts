@@ -16,6 +16,11 @@ export interface VehicleValuationRequest {
   registrationNumber?: string;
   condition?: "excellent" | "good" | "fair" | "poor";
   mileage?: number;
+  /**
+   * T9: Optional historical valuation date. When provided, market data and claims
+   * are filtered to records on or before this date. Defaults to the current date.
+   */
+  valuationDate?: Date;
 }
 
 export interface VehicleValuationResult {
