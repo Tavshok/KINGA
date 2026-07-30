@@ -114,7 +114,7 @@ export const adminRouter = router({
       z.object({
         tenantId: z.string(),
         email: z.string().email(),
-        role: z.enum(["user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin", "fleet_admin", "fleet_manager", "fleet_driver"]),
+        role: z.enum(["user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin", "fleet_admin", "fleet_manager", "fleet_driver", "agency"]),
         insurerRole: z.enum(["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]).optional(),
         expirationDays: z.number().min(1).max(30).optional(),
       })
@@ -848,7 +848,7 @@ export const adminRouter = router({
   updateUserRole: protectedProcedure
     .input(z.object({
       userId: z.number().int().positive(),
-      role: z.enum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver']).optional(),
+      role: z.enum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver','agency']).optional(),
       insurerRole: z.enum(['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin','recovery_officer']).nullable().optional(),
     }))
     .mutation(async ({ input, ctx }) => {

@@ -15,7 +15,7 @@ import { logRoleAssignment } from "./role-assignment-audit";
  */
 export interface RoleAssignmentRequest {
   userId: number;
-  newRole: "user" | "admin" | "insurer" | "assessor" | "panel_beater" | "claimant";
+  newRole: "user" | "admin" | "insurer" | "assessor" | "panel_beater" | "claimant" | "agency";
   newInsurerRole?: "claims_processor" | "assessor_internal" | "assessor_external" | "risk_manager" | "claims_manager" | "executive" | "insurer_admin" | null;
   changedByUserId: number;
   justification?: string;
