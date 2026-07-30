@@ -60,6 +60,7 @@ const PLATFORM_ROLES = [
   "platform_super_admin",
   "admin",
   "user",
+  "agency",
 ] as const;
 
 const INSURER_ROLES = [

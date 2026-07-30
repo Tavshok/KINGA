@@ -8,7 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import {
   FileText, Clock, CheckCircle, Plus, ChevronRight, AlertCircle,
   Car, MapPin, Calendar, RefreshCw, Shield, FileCheck, Banknote,
-  Wrench, Eye, ArrowRight, Search, X, Building2, ChevronDown, ThumbsUp, MessageSquareWarning, BarChart3
+  Wrench, Eye, ArrowRight, Search, X, Building2, ChevronDown, ThumbsUp, MessageSquareWarning, BarChart3,
+  Loader2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -218,9 +219,20 @@ export default function ClaimantDashboard() {
   ];
 
   // C4 — PortalTabBar tabs
+  // Quotations & Policies data (for the new tabs)
+  const { data: myQuotations = [], isLoading: quotationsLoading } = trpc.agency.myQuotations.useQuery();
+  const { data: myPolicies = [], isLoading: policiesLoading } = trpc.agency.myPolicies.useQuery();
+  const renewalMutation = trpc.agency.requestRenewal.useMutation({
+    onSuccess: () => toast({ title: "Renewal requested", description: "Your renewal request has been submitted." }),
+    onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+  const activePolicies = (myPolicies as any[]).filter((p: any) => p.status === "active");
+
   const claimantTabs: PortalTab[] = [
     { id: "my-claims", label: "My Claims", badge: activeClaims.length > 0 ? activeClaims.length : undefined },
     { id: "completed", label: "Completed", badge: completedClaims.length > 0 ? completedClaims.length : undefined },
+    { id: "quotations", label: "Quotations", badge: (myQuotations as any[]).length > 0 ? (myQuotations as any[]).length : undefined },
+    { id: "policies", label: "Policies", badge: activePolicies.length > 0 ? activePolicies.length : undefined },
     { id: "quick-actions", label: "Quick Actions" },
   ];
 
@@ -247,7 +259,88 @@ export default function ClaimantDashboard() {
         <div className="p11-body-2col">
           {/* ── MAIN COLUMN ── */}
           <div>
-            {/* Claims Table */}
+            {/* ── QUOTATIONS TAB ── */}
+            {activeTab === "quotations" && (
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <FileText style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    My Quotation Requests
+                    {(myQuotations as any[]).length > 0 && <span className="p11-badge amber" style={{ marginLeft: 6 }}>{(myQuotations as any[]).length}</span>}
+                  </div>
+                </div>
+                <div className="p11-card-body" style={{ padding: 0 }}>
+                  {quotationsLoading ? (
+                    <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}><Loader2 style={{ width: 24, height: 24, color: 'var(--g-600)' }} /></div>
+                  ) : (myQuotations as any[]).length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--muted)' }}>
+                      <FileText style={{ width: 32, height: 32, margin: '0 auto 8px', color: '#D1D5DB' }} />
+                      <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>No quotation requests</p>
+                      <p style={{ fontSize: 12, marginTop: 4 }}>Visit the Agency portal to request an insurance quote</p>
+                    </div>
+                  ) : (
+                    <table className="p11-table">
+                      <thead><tr><th>Request #</th><th>Vehicle</th><th>Cover Type</th><th>Status</th><th>Premium</th><th>Submitted</th></tr></thead>
+                      <tbody>
+                        {(myQuotations as any[]).map((q: any) => (
+                          <tr key={q.id}>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{q.requestNumber}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>{[q.vehicleYear, q.vehicleMake, q.vehicleModel].filter(Boolean).join(' ')}{q.vehicleRegistration ? ` (${q.vehicleRegistration})` : ''}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>{q.insuranceType?.replace(/_/g, ' ')}</td>
+                            <td><StatusBadge status={q.status} /></td>
+                            <td style={{ fontWeight: 600, color: q.quotedPremium ? 'var(--g-600)' : 'var(--muted)', fontSize: 12 }}>{q.quotedPremium ? `$${Number(q.quotedPremium).toFixed(2)}/mo` : 'Awaiting quote'}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>{q.createdAt ? new Date(q.createdAt).toLocaleDateString() : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── POLICIES TAB ── */}
+            {activeTab === "policies" && (
+              <div className="p11-card">
+                <div className="p11-card-header">
+                  <div className="p11-card-title">
+                    <Shield style={{ width: 14, height: 14, color: 'var(--g-600)' }} />
+                    My Insurance Policies
+                    {activePolicies.length > 0 && <span className="p11-badge green" style={{ marginLeft: 6 }}>{activePolicies.length} active</span>}
+                  </div>
+                </div>
+                <div className="p11-card-body" style={{ padding: 0 }}>
+                  {policiesLoading ? (
+                    <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}><Loader2 style={{ width: 24, height: 24, color: 'var(--g-600)' }} /></div>
+                  ) : (myPolicies as any[]).length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--muted)' }}>
+                      <Shield style={{ width: 32, height: 32, margin: '0 auto 8px', color: '#D1D5DB' }} />
+                      <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>No insurance policies</p>
+                      <p style={{ fontSize: 12, marginTop: 4 }}>Submit a quotation request to get your first policy</p>
+                    </div>
+                  ) : (
+                    <table className="p11-table">
+                      <thead><tr><th>Policy #</th><th>Status</th><th>Premium</th><th>Coverage Start</th><th>Coverage End</th><th>Action</th></tr></thead>
+                      <tbody>
+                        {(myPolicies as any[]).map((p: any) => (
+                          <tr key={p.id}>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{p.policyNumber}</td>
+                            <td><StatusBadge status={p.status} /></td>
+                            <td style={{ fontWeight: 600, color: 'var(--g-600)', fontSize: 12 }}>${Number(p.premiumAmount).toFixed(2)}/{p.premiumFrequency}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>{p.coverageStartDate ? new Date(p.coverageStartDate).toLocaleDateString() : '—'}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: 12 }}>{p.coverageEndDate ? new Date(p.coverageEndDate).toLocaleDateString() : '—'}</td>
+                            <td>{p.status === 'active' && <button onClick={() => renewalMutation.mutate({ policyId: p.id })} disabled={renewalMutation.isPending} style={{ fontSize: 11, color: 'var(--g-600)', background: 'none', border: '1px solid var(--g-300)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}><RefreshCw style={{ width: 10, height: 10, display: 'inline', marginRight: 3 }} />Renew</button>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Claims Table — shown on my-claims, completed, and quick-actions tabs */}
+            {(activeTab === "my-claims" || activeTab === "completed" || activeTab === "quick-actions") && (
             <div className="p11-card">
               <div className="p11-card-header">
                 <div className="p11-card-title">
@@ -330,6 +423,7 @@ export default function ClaimantDashboard() {
                 )}
               </div>
             </div>
+            )}
           </div>
 
           {/* ── SIDEBAR ── */}
