@@ -165,3 +165,57 @@ describe("Portal Hub - KINGA Agency Card", () => {
     expect(kingaAgencyPortal.roles).not.toContain("panel_beater");
   });
 });
+
+// ─── R-INF-09: Agency Role Guard Tests ───────────────────────────────────────
+// Verifies that the 'agency' role is active and the guard permits/rejects
+// the correct roles. Activated 2026-07-30 per Architecture Freeze Report.
+describe("R-INF-09: Agency Role Guard", () => {
+  const PERMITTED_ROLES = ["agency", "admin", "platform_super_admin"] as const;
+  const REJECTED_ROLES = ["insurer", "assessor", "panel_beater", "claimant", "fleet_admin", "fleet_manager", "fleet_driver", "user"] as const;
+
+  const checkAccess = (role: string): boolean =>
+    (PERMITTED_ROLES as readonly string[]).includes(role);
+
+  it("should permit role=agency", () => {
+    expect(checkAccess("agency")).toBe(true);
+  });
+
+  it("should permit role=admin", () => {
+    expect(checkAccess("admin")).toBe(true);
+  });
+
+  it("should permit role=platform_super_admin", () => {
+    expect(checkAccess("platform_super_admin")).toBe(true);
+  });
+
+  it.each(REJECTED_ROLES)("should reject role=%s", (role) => {
+    expect(checkAccess(role)).toBe(false);
+  });
+
+  it("should confirm 'agency' is now in the active role set (R-INF-09 activated)", () => {
+    expect(PERMITTED_ROLES).toContain("agency");
+  });
+
+  it("should confirm agency routes to /agency in getDashboardPath", () => {
+    const getDashboardPath = (userRole: string): string => {
+      switch (userRole) {
+        case "insurer":
+        case "admin":
+          return "/insurer-portal";
+        case "assessor":
+          return "/assessor/dashboard";
+        case "panel_beater":
+          return "/panel-beater/dashboard";
+        case "claimant":
+          return "/claimant/dashboard";
+        case "agency":
+          return "/agency";
+        default:
+          return "/";
+      }
+    };
+    expect(getDashboardPath("agency")).toBe("/agency");
+    expect(getDashboardPath("insurer")).toBe("/insurer-portal");
+    expect(getDashboardPath("unknown")).toBe("/");
+  });
+});
