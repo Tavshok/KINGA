@@ -21,6 +21,7 @@ export default function Login() {
     panel_beater: 'Panel Beater Portal',
     claimant: 'Claimant Portal',
     agency: 'Agency Portal',
+    platform_super_admin: 'Platform Administration',
   };
   
   const roleLabel = roleParam ? roleLabels[roleParam] || 'KINGA Portal' : 'KINGA Portal';
@@ -39,6 +40,8 @@ export default function Login() {
         return "/claimant/dashboard";
       case "agency":
         return "/agency";
+      case "platform_super_admin":
+        return "/platform/overview"; // primary dashboard; /agency accessible for system testing
       default:
         return "/";
     }
