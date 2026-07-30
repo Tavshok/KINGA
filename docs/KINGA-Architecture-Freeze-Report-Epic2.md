@@ -1,7 +1,7 @@
 # KINGA Architecture Freeze Report — Epic 2 (Agency Activation)
 
 **Date:** 2026-07-30  
-**Status:** FINAL — No code changes made  
+**Status:** FINAL (Amended 2026-07-30 — Change 11 reclassified per product sign-off) — No code changes made  
 **Reviewer:** Chief Software Architect  
 **Author:** Tavonga Shoko  
 **Scope:** Epic P2 as defined in KINGA Engineering Backlog v1.0 and KINGA Implementation Specification v1.0  
@@ -322,30 +322,30 @@ No, provided `kingaDesignSystem.ts` is used exclusively.
 ### Change 11 — P2-E3-F1: Expose `generateVehicleValuation()` as `agency.getValuation` tRPC procedure, with `valuationDate` parameter added to the engine
 
 **1. Is this genuinely required?**  
-The procedure exposure is genuinely required. The `valuationDate` parameter addition is not required for the first cut.
+Yes. Both the procedure exposure and the `valuationDate` parameter are genuinely required. An agency underwriter must be able to request a valuation anchored to a specific date — for example, to produce a pre-insurance certificate reflecting the vehicle's market value as of the policy inception date rather than the current date. Without date scoping, the engine always returns the most recent market data, which may not match the date on the policy document.
 
 **2. Does an existing KINGA implementation already satisfy this requirement?**  
-Yes, for the core requirement. `server/insurance/valuation-engine.ts` already exports `generateVehicleValuation(request: VehicleValuationRequest)` which accepts `{ make, model, year, registrationNumber?, condition?, mileage? }` and returns a complete `VehicleValuationResult`. This function is not currently exposed via any tRPC procedure accessible to the `agency` role. Exposing it requires adding one procedure to `server/routers/agency.ts`.
+Partially. `server/insurance/valuation-engine.ts` already exports `generateVehicleValuation(request: VehicleValuationRequest)` and returns a complete `VehicleValuationResult`. The engine is not currently exposed via any tRPC procedure accessible to the `agency` role, and its `VehicleValuationRequest` type does not include a `valuationDate` field.
 
-The `valuationDate` parameter does not exist in the current `VehicleValuationRequest` type and is not needed for the first cut. The engine already queries `vehicleMarketValuations` for current market data. Historical date scoping is a future enhancement.
+Critically, the `vehicleMarketValuations` table in `drizzle/schema.ts` (line 3422) already contains a `valuationDate timestamp` column (line 3454) and a `validUntil timestamp` column (line 3455). The schema infrastructure for date-scoped market data is therefore already in place. The only changes required are: (a) add `valuationDate?: Date` to `VehicleValuationRequest`; (b) pass it as an upper-bound filter on `valuationDate` in the `getMarketValuation()` helper; and (c) apply the same upper-bound filter on `claims.createdAt` in `getClaimsBasedValuation()`. No schema migration is required.
 
 **3. Can an existing component simply be exposed instead?**  
-Yes. `generateVehicleValuation()` can be called directly from a new `agency.getValuation` procedure. No engine changes are required for the first cut.
+No. A new `agency.getValuation` tRPC procedure is required to expose the engine to the agency role. The engine modification is additive and does not affect any existing callers, as `valuationDate` is an optional parameter that defaults to the current date when omitted.
 
 **4. Is there a smaller change that achieves the same result?**  
-Yes. Add `agency.getValuation` to `server/routers/agency.ts`, guarded by `agencyProcedure`, calling `generateVehicleValuation()` directly. Remove the `valuationDate` parameter from the first cut. This is a single procedure addition.
+No. The three changes listed above (type extension, market data query filter, claims data query filter) are the minimum required to implement date-scoped valuation correctly. Omitting any one of them would produce a partially date-scoped result that could mislead an underwriter.
 
 **5. Does this introduce unnecessary architectural complexity?**  
-The `valuationDate` parameter would require modifying the `VehicleValuationRequest` type, the `generateVehicleValuation()` function signature, and the market data query logic — three changes to an existing engine for a feature not needed in the first cut.
+No. Adding an optional parameter to an existing function with a sensible default (`new Date()`) is a non-breaking, additive change. The `vehicleMarketValuations` table already stores `valuationDate`, so no new concepts are introduced.
 
 **6. Does this duplicate an existing KINGA capability?**  
-No. The engine exists but is not currently exposed to the agency role.
+No. The engine exists but is not currently exposed to the agency role, and date-scoped valuation is not available anywhere in the platform.
 
 **7. Does this violate any platform principles?**  
-No.
+No. The change is additive, non-breaking, and uses existing schema columns.
 
-**Classification: SIMPLIFY**  
-**Approved work:** Add `agency.getValuation` procedure to `server/routers/agency.ts`, guarded by `agencyProcedure`, calling the existing `generateVehicleValuation()` with no engine modifications. Remove `valuationDate` from the Epic 2 scope. Write two targeted tests (valid result, FORBIDDEN for non-agency). One file modified.
+**Classification: APPROVED**  
+**Approved work:** (a) Add optional `valuationDate?: Date` to `VehicleValuationRequest` in `valuation-engine.ts`, defaulting to `new Date()` when omitted. (b) Pass `valuationDate` as an upper-bound filter on `vehicleMarketValuations.valuationDate` in `getMarketValuation()`. (c) Pass `valuationDate` as an upper-bound filter on `claims.createdAt` in `getClaimsBasedValuation()`. (d) Add `agency.getValuation` procedure to `server/routers/agency.ts`, guarded by `agencyProcedure`, accepting `{ make, model, year, registrationNumber?, condition?, mileage?, valuationDate? }`. Write four targeted tests: valid result without date, valid result with historical date, FORBIDDEN for non-agency caller, result with future date falls back to current data.
 
 ---
 
@@ -363,7 +363,7 @@ No.
 | 8 | P2-E2-F4 | AI-generation detection | **APPROVED** | Extend existing vision prompt; no second LLM call |
 | 9 | P2-E2-F5 | Vehicle Verification Report | **APPROVED** | New template using kingaDesignSystem.ts |
 | 10 | P2-E2-F6 | Vehicle Valuation Report | **APPROVED** | New template using kingaDesignSystem.ts |
-| 11 | P2-E3-F1 | agency.getValuation + valuationDate engine change | **SIMPLIFY** | Expose existing engine as one procedure; drop valuationDate |
+| 11 | P2-E3-F1 | agency.getValuation + valuationDate engine change | **APPROVED** | Expose existing engine as one procedure; add optional `valuationDate` parameter using existing `vehicleMarketValuations.valuationDate` column |
 
 ---
 
@@ -436,12 +436,12 @@ The following is the complete, reduced work package for Epic 2 after the Archite
 
 ---
 
-### Task T9 — Add `agency.getValuation` procedure to `server/routers/agency.ts`
+### Task T9 — Add `agency.getValuation` procedure to `server/routers/agency.ts` and extend `valuation-engine.ts` with `valuationDate`
 
-**Files changed:** `server/routers/agency.ts` (one new procedure)  
-**Why:** `generateVehicleValuation()` exists but is not accessible to the `agency` role. A single procedure addition exposes it.  
-**Constraint:** No changes to `valuation-engine.ts`. No `valuationDate` parameter in this cut.  
-**Tests:** Returns valid `VehicleValuationResult` for a test vehicle; FORBIDDEN for non-agency caller.
+**Files changed:** `server/routers/agency.ts` (one new procedure), `server/insurance/valuation-engine.ts` (additive changes to `VehicleValuationRequest` type, `getMarketValuation()`, and `getClaimsBasedValuation()`)  
+**Why:** `generateVehicleValuation()` exists but is not accessible to the `agency` role. The `vehicleMarketValuations` table already has a `valuationDate` column (schema.ts line 3454), making date-scoped valuation achievable with no schema migration. The `valuationDate` parameter is optional and defaults to `new Date()`, preserving all existing behaviour.  
+**Constraint:** `valuationDate` must be optional with a `new Date()` default so that no existing callers are affected. The engine changes must be purely additive.  
+**Tests:** (1) Returns valid `VehicleValuationResult` without a date; (2) Returns valid result with a historical date; (3) FORBIDDEN for non-agency caller; (4) Future date falls back to current market data gracefully.
 
 ---
 
@@ -453,9 +453,10 @@ The following is the complete, reduced work package for Epic 2 after the Archite
 | New tRPC procedures | 2 (admin.assignRole, customer.getCases) | 1 (agency.getValuation) |
 | New routes | 3 (/admin/roles, /customer, /customer/cases) | 0 |
 | New npm libraries | 1 (pHash library) | 0 |
-| Engine modifications | 2 (photoForensicsEngine.ts, valuation-engine.ts) | 1 (photoForensicsEngine.ts — additive only) |
+| Engine modifications | 2 (photoForensicsEngine.ts, valuation-engine.ts) | 2 (photoForensicsEngine.ts — additive; valuation-engine.ts — additive optional param) |
 | DB column additions | 1 (pHash) | 1 (pHash) |
-| Tasks eliminated | — | P2-E1-F1 (done), P2-E1-F3 (reuse), partial P2-E1-F2, partial P2-E1-F4, partial P2-E2-F1, partial P2-E3-F1 |
+| Schema migrations | — | 0 (valuationDate uses existing vehicleMarketValuations.valuationDate column) |
+| Tasks eliminated | — | P2-E1-F1 (done), P2-E1-F3 (reuse), partial P2-E1-F2, partial P2-E1-F4, partial P2-E2-F1 |
 
 The approved work package reduces Epic 2 from 11 backlog features to 9 tasks, eliminates 3 new files, 1 new procedure, 3 new routes, and 1 new library, while delivering the same business capability.
 
@@ -485,7 +486,7 @@ T5 (exifAbsent flag) — independent
 T6 (AI-generation detection) — independent
 T7 (vehicleVerificationReport) — depends on T3, T4, T5, T6 (needs all forensics fields)
 T8 (vehicleValuationReport) — independent
-T9 (agency.getValuation) — independent
+T9 (agency.getValuation + valuationDate engine extension) — independent
 ```
 
 Recommended implementation order: T1 → T2 → T3 → T5 → T6 → T4 → T7 → T8 → T9
@@ -504,7 +505,7 @@ Before Epic 2 is considered complete, all of the following must be true:
 - [ ] T6: `aiGenerationScore` and `aiGenerationFlag` returned by `photoForensicsEngine.ts` with passing tests; no second LLM call added
 - [ ] T7: `vehicleVerificationReport.ts` renders all sections; registered as `agency.vehicle_verification`
 - [ ] T8: `vehicleValuationReport.ts` renders all sections; registered as `agency.vehicle_valuation`
-- [ ] T9: `agency.getValuation` returns valid result; FORBIDDEN for non-agency caller
+- [ ] T9: `agency.getValuation` returns valid result without date; returns valid result with historical date; FORBIDDEN for non-agency caller; future date falls back gracefully
 - [ ] TypeScript error count does not exceed 47 (pre-existing baseline)
 - [ ] All targeted Vitest tests pass
 - [ ] No regression in existing claims pipeline tests
@@ -515,7 +516,6 @@ Before Epic 2 is considered complete, all of the following must be true:
 
 The following items from the original backlog are deferred or eliminated:
 
-- **`valuationDate` parameter** on `generateVehicleValuation()` — deferred to a future enhancement. Not needed for Agency portal launch.
 - **New `/admin/roles` route and `admin.assignRole` procedure** — eliminated. Existing `platformUserRoles.assignRole` and `PlatformUserRoleManager.tsx` satisfy the requirement.
 - **New `/customer` route group and `CustomerLayout.tsx`** — eliminated. Existing `/claimant` portal satisfies the requirement.
 - **New `customer.getCases` procedure** — eliminated. Existing procedures satisfy the requirement.
