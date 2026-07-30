@@ -1865,6 +1865,12 @@ export const ingestionDocuments = mysqlTable("ingestion_documents", {
 	pageCount: int("page_count"),
 	languageDetected: varchar("language_detected", { length: 10 }),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	/**
+	 * 64-char binary string perceptual hash (8x8 DCT thumbnail hash).
+	 * Computed by computeThumbnailHash() in imageIntelligence.ts.
+	 * NULL for non-image documents.
+	 */
+	pHash: varchar("p_hash", { length: 64 }),
 	historicalClaimId: int("historical_claim_id"),
 },
 (table) => [

@@ -284,7 +284,7 @@ async function classifyAmbiguousPool(
 }
 
 // ── Perceptual deduplication (simple pixel-hash approach) ─────────────────────
-async function computeThumbnailHash(url: string): Promise<string | null> {
+export async function computeThumbnailHash(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
     if (!response.ok) return null;
@@ -299,7 +299,7 @@ async function computeThumbnailHash(url: string): Promise<string | null> {
   }
 }
 
-function hammingDistance(a: string, b: string): number {
+export function hammingDistance(a: string, b: string): number {
   let dist = 0;
   for (let i = 0; i < Math.min(a.length, b.length); i++) {
     if (a[i] !== b[i]) dist++;
