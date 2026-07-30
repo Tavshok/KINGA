@@ -328,7 +328,7 @@ export async function runAssemblyStage(
       thirdPartyName: v.thirdPartyName || null,
       policeReportNumber: v.policeReportNumber || null,
     });
-    ctx.log("Stage 5", `Collision scenario: ${scenarioFlags.collisionScenario} | struckParty=${scenarioFlags.isStruckParty} | hitAndRun=${scenarioFlags.isHitAndRun} | parkingLot=${scenarioFlags.isParkingLotDamage} | 3rdPartyRequired=${scenarioFlags.thirdPartyClaimRequired}`);
+    ctx.log("Stage 5", `Collision scenario: ${scenarioFlags.collisionScenario} | struckParty=${scenarioFlags.isStruckParty} | hitAndRun=${scenarioFlags.isHitAndRun} | parkingLot=${scenarioFlags.isParkingLotDamage} | 3rdPartyRequired=${scenarioFlags.thirdPartyClaimRequired} | causation=${scenarioFlags.impactCausation ?? 'N/A'} | speedCeiling=${scenarioFlags.causationSpeedCeilingKmh ?? 'N/A'}km/h | reversingContradiction=${scenarioFlags.reversingNarrativeContradiction ?? false}`);
 
     const accidentDetails: AccidentDetails = {
       date: v.accidentDate || ctx.claim.incidentDate || null,
@@ -376,6 +376,10 @@ export async function runAssemblyStage(
       // scenarioDamageMismatch is set by Stage 7 after damage zones are available
       // Multi-event sequence detected in parallel with incident classification
       multiEventSequence: multiEventSequence ?? null,
+      // Impact causation classification (rear-impact scenarios only)
+      impactCausation: scenarioFlags.impactCausation ?? null,
+      reversingNarrativeContradiction: scenarioFlags.reversingNarrativeContradiction ?? null,
+      causationSpeedCeilingKmh: scenarioFlags.causationSpeedCeilingKmh ?? null,
     };
 
     const policeReport: PoliceReportRecord = {
@@ -977,7 +981,66 @@ function detectCollisionScenario(params: {
   // 3 signals × 0.33 each = max 1.0
   const thirdPartyConfidence = Math.min(1.0, thirdPartySignals * 0.33);
 
-  return { collisionScenario, isStruckParty, thirdPartyClaimRequired, isHitAndRun, isParkingLotDamage, scenarioConfidence, thirdPartyConfidence };
+  // ── Impact causation classification (rear-impact scenarios only) ─────────────
+  // Determines WHO was in motion in reverse, which drives different physics speed
+  // ceilings, damage pattern expectations, and fraud risk profiles.
+  let impactCausation: import('./types').ImpactCausation | null = null;
+  let reversingNarrativeContradiction: boolean | null = null;
+  let causationSpeedCeilingKmh: number | null = null;
+
+  const isRearImpact = collisionScenario === 'rear_end_struck' || collisionScenario === 'rear_end_striking';
+  if (isRearImpact) {
+    // Keyword sets for causation verb analysis
+    const selfReversingKeywords = [
+      "i was reversing", "i reversed", "was reversing", "reversing out",
+      "reversed out", "backing out", "backed out", "reversing from",
+      "reversed from", "i was backing", "my vehicle was reversing",
+      "reversing into", "reversed into", "reversing when",
+    ];
+    const thirdPartyReversingKeywords = [
+      "reversed into me", "reversed into my", "was reversing into",
+      "reversed into the", "third party reversed", "other vehicle reversed",
+      "other car reversed", "they reversed", "he reversed into", "she reversed into",
+      "reversed out of", "reversed from a parking", "reversed from parking",
+    ];
+    const thirdPartyForwardStrikeKeywords = [
+      "hit from behind", "struck from behind", "rammed from behind",
+      "drove into the back", "drove into my", "collided into the back",
+      "came from behind", "came into the back", "another vehicle hit",
+      "another car hit", "third party hit", "third party struck",
+      "other vehicle hit", "other car hit", "was rear-ended", "was rear ended",
+    ];
+
+    const isSelfReversing = selfReversingKeywords.some(kw => d.includes(kw));
+    const isThirdPartyReversing = thirdPartyReversingKeywords.some(kw => d.includes(kw));
+    const isThirdPartyForwardStrike = thirdPartyForwardStrikeKeywords.some(kw => d.includes(kw));
+
+    if (isSelfReversing && !isThirdPartyForwardStrike) {
+      impactCausation = "SELF_REVERSING";
+      causationSpeedCeilingKmh = 20; // Reverse gear physical limit
+    } else if (isThirdPartyReversing) {
+      impactCausation = "THIRD_PARTY_REVERSED_INTO_CLAIMANT";
+      causationSpeedCeilingKmh = 20; // Third party also in reverse
+    } else if (isThirdPartyForwardStrike || isStruckParty) {
+      impactCausation = "THIRD_PARTY_REAR_STRIKE";
+      // Speed ceiling resolved by Stage 7 from speedLimitKmh
+      causationSpeedCeilingKmh = null;
+    } else {
+      impactCausation = "UNKNOWN";
+      causationSpeedCeilingKmh = null;
+    }
+
+    // Plausibility gate: SELF_REVERSING with a named third party is a structural
+    // contradiction. Either the narrative is incomplete (claimant omitted the third
+    // party's forward strike) or the causation is wrong. Flag for adjuster review.
+    if (impactCausation === "SELF_REVERSING" && (hasThirdPartyName || hasThirdPartyVehicle || hasPoliceReport)) {
+      reversingNarrativeContradiction = true;
+    } else {
+      reversingNarrativeContradiction = false;
+    }
+  }
+
+  return { collisionScenario, isStruckParty, thirdPartyClaimRequired, isHitAndRun, isParkingLotDamage, scenarioConfidence, thirdPartyConfidence, impactCausation, reversingNarrativeContradiction, causationSpeedCeilingKmh };
 }
 
 function classifyCollisionDirection(raw: string): CollisionDirection {

@@ -1065,3 +1065,16 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Dashboard query: added submitted, triage, assessment_pending to statuses list (backward-compat for all claim sources)
 - [x] Watchdog timer (db.ts): already sets status='document_failed' + dps='DOCUMENT_FAILED' canonically
 - [x] All claim sources (web, WhatsApp, mobile, simulator) now benefit from startup sweep + recovery job
+
+---
+## Forensic Enhancements (Jul 2026)
+- [x] Impact causation classification: SELF_REVERSING / THIRD_PARTY_REAR_STRIKE / THIRD_PARTY_REVERSED_INTO_STATIONARY_CLAIMANT / THIRD_PARTY_REVERSED_INTO_MOVING_CLAIMANT / MUTUAL_REVERSING / FORWARD_IMPACT / UNKNOWN
+- [x] Causation speed ceiling gate: SELF_REVERSING ≤ 20 km/h, MUTUAL_REVERSING ≤ 15 km/h
+- [x] Reversing narrative contradiction check: SELF_REVERSING + named third party = WARNING flag
+- [x] Braking distance computation: d = v²/(2μg) with road surface detection (dry/wet/gravel)
+- [x] Braking distance persisted in PhysicsTruth JSON and surfaced in §04 Impact Overview
+- [x] CAUSATION_SPEED_CEILING_BREACH integrity flag (CRITICAL) in PhysicsTruth
+- [x] REVERSING_NARRATIVE_CONTRADICTION integrity flag (WARNING) in PhysicsTruth
+- [x] §04 report redesign: new Impact Causation Classification panel + Forensic Findings Summary panel
+- [x] Plain-language verdict paragraph in Forensic Findings Summary
+- [x] Causation fields wired through Stage 5 → orchestrator → PhysicsTruth → report

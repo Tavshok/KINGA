@@ -341,6 +341,22 @@ export interface PhysicsTruth {
   /** Wave 2 — Structural Load Path Engine full result */
   structuralLoadPath: import('./stage-6-5c-slpe').SLPEResult | null;
 
+  // ── Braking distance ─────────────────────────────────────────────────────
+  /** Braking distance at consensus speed: d = v²/(2μg). Null if no speed available. */
+  brakingDistanceM: number | null;
+  /** Friction coefficient μ used for braking distance (0.3–0.7 depending on road surface) */
+  brakingFrictionCoefficient: number | null;
+
+  // ── Impact causation ─────────────────────────────────────────────────────
+  /** Who was in motion in reverse at the time of impact (rear-impact scenarios only) */
+  impactCausation: import('./types').ImpactCausation | null;
+  /** Speed ceiling imposed by causation type (km/h). Null if no ceiling applies. */
+  causationSpeedCeilingKmh: number | null;
+  /** True if a SELF_REVERSING narrative contradicts named third-party evidence */
+  reversingNarrativeContradiction: boolean | null;
+  /** True if consensus speed exceeds the causation speed ceiling */
+  causationSpeedExceedsCeiling: boolean | null;
+
   // ── Physics integrity ────────────────────────────────────────────────────
   integrityCheck: PhysicsIntegrityCheck;
 
@@ -399,6 +415,10 @@ export function buildPhysicsTruth(input: {
   impactDirection: string | null;
   impactZone: string | null;
   slpeResult?: import('./stage-6-5c-slpe').SLPEResult | null;
+  // Impact causation classification from Stage 5
+  impactCausation?: import('./types').ImpactCausation | null;
+  causationSpeedCeilingKmh?: number | null;
+  reversingNarrativeContradiction?: boolean | null;
 }): PhysicsTruth {
   const now = new Date().toISOString();
 
@@ -587,6 +607,45 @@ export function buildPhysicsTruth(input: {
     });
   }
 
+  // Check: causation speed ceiling breach
+  // If the causation type imposes a physical speed ceiling (e.g. SELF_REVERSING ≤ 20 km/h)
+  // and the consensus speed exceeds it, flag as a CRITICAL integrity failure.
+  const causationCeiling = input.causationSpeedCeilingKmh ?? null;
+  const consensusSpeedKmh = canonicalSpeed?.value ?? null;
+  const causationSpeedExceedsCeiling: boolean | null =
+    causationCeiling !== null && consensusSpeedKmh !== null
+      ? consensusSpeedKmh > causationCeiling
+      : null;
+  if (causationSpeedExceedsCeiling === true) {
+    integrityFlags.push({
+      severity: 'CRITICAL',
+      code: 'CAUSATION_SPEED_CEILING_BREACH',
+      description: `Consensus speed (${consensusSpeedKmh!.toFixed(0)} km/h) exceeds the physical ceiling for causation type "${input.impactCausation}" (max ${causationCeiling} km/h). Reverse-gear vehicles cannot exceed ~20 km/h. The stated speed is physically impossible for the claimed scenario.`,
+      affectedMeasurements: ['speed.canonical', 'impactCausation'],
+      recommendation: 'Review driver narrative for accuracy. If speed is correct, causation classification may be wrong (e.g. claimant was stationary, not reversing).',
+    });
+  }
+  // Check: reversing narrative contradiction
+  if (input.reversingNarrativeContradiction === true) {
+    integrityFlags.push({
+      severity: 'WARNING',
+      code: 'REVERSING_NARRATIVE_CONTRADICTION',
+      description: 'Narrative states claimant was reversing (SELF_REVERSING), but a named third party and/or police report is also present. A self-reversing scenario with a named third party typically means the third party struck the reversing claimant — the causation should be THIRD_PARTY_REAR_STRIKE or THIRD_PARTY_REVERSED_INTO_CLAIMANT. Adjuster review required.',
+      affectedMeasurements: ['impactCausation', 'accidentDetails.reversingNarrativeContradiction'],
+      recommendation: 'Request clarification from claimant: was the third party’s vehicle also in motion? Obtain police report to confirm who was at fault.',
+    });
+  }
+
+  // Compute braking distance from canonical speed (d = v² / 2μg)
+  const roadSurfaceForBraking = (input.impactDirection ?? '').toLowerCase();
+  const brakingMu = roadSurfaceForBraking.includes('wet') || roadSurfaceForBraking.includes('rain') ? 0.4
+    : roadSurfaceForBraking.includes('gravel') || roadSurfaceForBraking.includes('dirt') ? 0.3
+    : 0.7; // dry asphalt default
+  const brakingSpeedMs = canonicalSpeed ? canonicalSpeed.value / 3.6 : null;
+  const brakingDistanceM = brakingSpeedMs !== null
+    ? Math.round((brakingSpeedMs * brakingSpeedMs) / (2 * brakingMu * 9.81) * 100) / 100
+    : null;
+
   return {
     schemaVersion: '1.0',
     sealedAt: now,
@@ -697,6 +756,14 @@ export function buildPhysicsTruth(input: {
     } : null,
 
     structuralLoadPath: input.slpeResult ?? null,
+
+    brakingDistanceM,
+    brakingFrictionCoefficient: brakingDistanceM !== null ? brakingMu : null,
+
+    impactCausation: input.impactCausation ?? null,
+    causationSpeedCeilingKmh: input.causationSpeedCeilingKmh ?? null,
+    reversingNarrativeContradiction: input.reversingNarrativeContradiction ?? null,
+    causationSpeedExceedsCeiling,
 
     integrityCheck: {
       passed: integrityFlags.filter(f => f.severity === 'CRITICAL').length === 0,

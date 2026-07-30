@@ -523,6 +523,33 @@ export interface VehicleValuation {
 }
 
 /**
+ * Impact causation classification — determined in Stage 5 from narrative verb analysis.
+ * Distinguishes WHO was in motion in reverse, which drives different physics bounds,
+ * evidence requirements, and fraud risk profiles.
+ *
+ * SELF_REVERSING                      — Claimant's own vehicle was reversing (backing out, parking).
+ *                                       Speed ceiling: ~20 km/h (reverse gear physical limit).
+ *                                       Expected damage: rear panel, bumper, tow-bar zone.
+ *
+ * THIRD_PARTY_REAR_STRIKE             — Third party drove forward into the rear of a stationary
+ *                                       or slow-moving claimant vehicle.
+ *                                       Speed ceiling: road speed limit or narrative-stated speed.
+ *                                       Expected damage: rear panel, bumper, boot lid.
+ *
+ * THIRD_PARTY_REVERSED_INTO_CLAIMANT  — Third party was reversing and struck the claimant vehicle.
+ *                                       Speed ceiling: ~20 km/h (reverse gear physical limit).
+ *                                       Expected damage: depends on point of contact.
+ *
+ * UNKNOWN                             — Insufficient narrative evidence to classify causation.
+ *                                       Conservative assumptions apply.
+ */
+export type ImpactCausation =
+  | "SELF_REVERSING"
+  | "THIRD_PARTY_REAR_STRIKE"
+  | "THIRD_PARTY_REVERSED_INTO_CLAIMANT"
+  | "UNKNOWN";
+
+/**
  * Collision scenario classification — determined in Stage 5 from narrative + collisionDirection.
  * Drives physics routing, evidence requirements, and forensic validator checks.
  */
@@ -628,6 +655,27 @@ export interface AccidentDetails {
    * Used by Stage 7 physics to bound speed estimates.
    */
   speedLimitKmh?: number | null;
+  /**
+   * Granular causation classification for rear-impact scenarios.
+   * Distinguishes self-reversing from third-party rear strike — these have different
+   * speed ceilings, damage patterns, and fraud risk profiles.
+   * Null for non-rear-impact scenarios.
+   */
+  impactCausation?: ImpactCausation | null;
+  /**
+   * True when the narrative indicates reversing but a named third party is also present
+   * in the claim (other driver details, third-party insurer, police report naming another party).
+   * This is a structural contradiction: either the narrative is incomplete or the causation
+   * classification is wrong. Triggers a HIGH forensic flag.
+   */
+  reversingNarrativeContradiction?: boolean | null;
+  /**
+   * Maximum physically plausible speed for the classified causation.
+   * SELF_REVERSING / THIRD_PARTY_REVERSED_INTO_CLAIMANT → 20 km/h (reverse gear ceiling).
+   * THIRD_PARTY_REAR_STRIKE → speed limit or narrative-stated speed.
+   * Null when causation is UNKNOWN or scenario is not rear-impact.
+   */
+  causationSpeedCeilingKmh?: number | null;
 }
 
 export interface PoliceReportRecord {

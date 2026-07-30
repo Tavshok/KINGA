@@ -3001,6 +3001,10 @@ export async function runPipelineV2(
       impactDirection: stage7Data?.impactVector?.direction ?? null,
       impactZone: (stage7Data?.impactVector as any)?.zone ?? (stage6Data?.damagedParts?.[0] as any)?.zone ?? null,
       slpeResult: ctx.slpeResult ?? null,
+      // Impact causation from Stage 5 assembly
+      impactCausation: claimRecord?.accidentDetails?.impactCausation ?? null,
+      causationSpeedCeilingKmh: claimRecord?.accidentDetails?.causationSpeedCeilingKmh ?? null,
+      reversingNarrativeContradiction: claimRecord?.accidentDetails?.reversingNarrativeContradiction ?? null,
     });
       ctx.log("PTL", `Physics Truth Layer built: crushDepth=${physicsTruth.geometry.crushDepth.canonical?.value?.toFixed(3) ?? 'N/A'}m, speed=${physicsTruth.speed.canonical?.value?.toFixed(1) ?? 'N/A'}km/h, DQS=${physicsTruth.evidenceCompleteness.dataQualityScore}`);
 
