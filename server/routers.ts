@@ -138,6 +138,8 @@ import { sanitiseReportNarrative, buildBlockError } from './services/externalRep
 import { treGovernanceRouter } from './routers/tre-governance';
 import { treV4GovernanceRouter } from './routers/tre-v4-governance';
 import { inspectionsRouter } from './routers/inspections'; // Epic 3
+import { vehiclePassportRouter } from './routers/vehicle-passport'; // Epic 4
+import { assetPassportRouter } from './routers/asset-passport'; // Epic 4
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -292,6 +294,8 @@ export const integrityRouter = router({
 export const appRouter = router({
   truthSynthesis: truthSynthesisRouter,
   vehicleRegistry: vehicleRegistryRouter,
+  vehiclePassport: vehiclePassportRouter,
+  assetPassport: assetPassportRouter,
   vehicleStructural: vehicleStructuralIntelligenceRouter,
   vehicleDamageHistory: vehicleDamageHistoryRouter,
   driverRegistry: driverRegistryRouter,
