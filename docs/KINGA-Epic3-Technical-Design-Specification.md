@@ -1,10 +1,19 @@
 # KINGA Epic 3 — Technical Design Specification
 
-**Document status:** Pre-implementation design. No code has been written.  
+**Document status:** Approved with amendments. Pre-implementation design. No code has been written.  
 **Author role:** Principal Platform Architect  
 **Supersedes:** Epic 2 Architecture Freeze Report (approved)  
 **Date:** 2026-07-31  
-**Version:** 1.0
+**Version:** 1.1 — Amended following review (10 amendments incorporated)  
+**Review score:** 9.7/10
+
+---
+
+## Architectural Principle
+
+> An inspection is an examination of an asset supported by evidence, measurements, observations and shared intelligence services. It is not inherently tied to claims, vehicles or insurance.
+
+This principle governs every design decision in this specification. It allows the same architecture to support insurance today while naturally expanding into engineering risk, industrial inspections, renewable energy assets and infrastructure tomorrow — without requiring another major redesign.
 
 ---
 
@@ -14,48 +23,38 @@
 2. [First Principle Analysis — Reuse vs New](#2-first-principle-analysis--reuse-vs-new)
 3. [Codebase Audit Findings](#3-codebase-audit-findings)
 4. [Data Model Design](#4-data-model-design)
-   - 4.1 [Entity Decision: inspections](#41-entity-decision-inspections)
-   - 4.2 [Entity Decision: physicalMeasurements](#42-entity-decision-physicalmeasurements)
-   - 4.3 [Entity Decision: engineerObservations](#43-entity-decision-engineerobservations)
-   - 4.4 [Generic Inspection Model](#44-generic-inspection-model)
-   - 4.5 [Generic Physical Measurement Model](#45-generic-physical-measurement-model)
-   - 4.6 [Engineer Observation Model](#46-engineer-observation-model)
+   - 4.1 [Asset Registry — The Future Master Asset Index](#41-asset-registry--the-future-master-asset-index)
+   - 4.2 [Inspections — Asset-Centric Design](#42-inspections--asset-centric-design)
+   - 4.3 [Physical Measurements — Expanded Fields](#43-physical-measurements--expanded-fields)
+   - 4.4 [Engineer Observations — With Observation Types](#44-engineer-observations--with-observation-types)
 5. [Service Connection Map](#5-service-connection-map)
-   - 5.1 [Evidence](#51-evidence)
-   - 5.2 [Vehicle Passport](#52-vehicle-passport)
-   - 5.3 [Asset Registry](#53-asset-registry)
-   - 5.4 [Workflow Engine](#54-workflow-engine)
-   - 5.5 [Assignment Engine](#55-assignment-engine)
-   - 5.6 [Physics Engine](#56-physics-engine)
-   - 5.7 [Reporting](#57-reporting)
 6. [Measurement → Physics Pipeline Integration](#6-measurement--physics-pipeline-integration)
 7. [Engineering Workspace UI Design](#7-engineering-workspace-ui-design)
 8. [RBAC Design](#8-rbac-design)
-9. [Sequence Diagrams](#9-sequence-diagrams)
-10. [Reuse Matrix](#10-reuse-matrix)
-11. [Dependency Graph](#11-dependency-graph)
-12. [Regression Risk Register](#12-regression-risk-register)
-13. [Migration Strategy](#13-migration-strategy)
-14. [Implementation Sequence](#14-implementation-sequence)
-15. [Acceptance Criteria](#15-acceptance-criteria)
+9. [AI Advisory Policy](#9-ai-advisory-policy)
+10. [Standards Reference Design](#10-standards-reference-design)
+11. [Assignment Engine Extension](#11-assignment-engine-extension)
+12. [Report Roadmap](#12-report-roadmap)
+13. [Sequence Diagrams](#13-sequence-diagrams)
+14. [Reuse Matrix](#14-reuse-matrix)
+15. [Dependency Graph](#15-dependency-graph)
+16. [Regression Risk Register](#16-regression-risk-register)
+17. [Regression Protection Checklist](#17-regression-protection-checklist)
+18. [Migration Strategy](#18-migration-strategy)
+    - 18.1 [Database Migration](#181-database-migration)
+    - 18.2 [Future Migration: Vehicles into Asset Registry](#182-future-migration-vehicles-into-asset-registry)
+19. [Implementation Sequence](#19-implementation-sequence)
+20. [Acceptance Criteria](#20-acceptance-criteria)
 
 ---
 
 ## 1. Executive Summary
 
-Epic 3 introduces the **KINGA Engineering Workspace** — a structured environment for qualified engineers and assessors to conduct physical inspections, capture measurements, record observations, and feed their findings into the existing KINGA physics and reporting pipeline.
+Epic 3 introduces the **KINGA Engineering Workspace** — a structured environment for qualified engineers to conduct physical inspections, capture measurements, record observations, and feed their findings into the existing KINGA physics and reporting pipeline.
 
-The design mandate is explicit: **maximise reuse of existing KINGA services**. The audit conducted before this document was written found that the platform already contains:
+The design mandate is explicit: **maximise reuse of existing KINGA services** and **design for the future asset universe, not just the current vehicle domain**. The audit conducted before this document was written found that the platform already contains every service Epic 3 needs. The net result is that Epic 3 requires 4 new database tables, 1 new router, 2 new report templates (with a third on the roadmap), and additive changes to 6 existing services. It does not require a new physics engine, a new evidence store, a new workflow engine, or a new assignment engine.
 
-- A `PhysicsMeasurement` type with value, min, max, confidence, source, and provenance fields
-- A `crossStageConsistencyEngine` that is the correct integration point for engineer-supplied measurements
-- A `claimDocuments` table that is the correct evidence anchor
-- A `vehicleHistory` table that is the correct vehicle passport
-- A `workload-balancing.ts` service that is the correct assignment engine
-- A `workflow-engine.ts` that is the correct workflow integration point
-- A `reportDefinitions.ts` registry that is the correct report integration point
-
-The net result is that **Epic 3 requires 3 new database tables, 1 new router, 2 new report templates, and additive changes to 4 existing services**. It does not require a new physics engine, a new evidence store, a new workflow engine, or a new assignment engine.
+The most significant architectural decision in this specification is the positioning of `asset_registry` as the **future master asset index** for the entire KINGA platform. Vehicles currently use `vehicleHistory`, but `asset_registry` is designed from the outset with the fields necessary to eventually become the universal asset catalogue — spanning vehicles, equipment, buildings, transformers, conveyors, fire systems, solar plants, and any future asset class. This is a forward-compatible design, not a migration burden.
 
 ---
 
@@ -67,18 +66,18 @@ Before any new entity was designed, each proposed addition was challenged agains
 
 | Proposed Addition | Existing Capability | Decision | Rationale |
 |---|---|---|---|
-| `inspections` table | `claims` table | **NEW TABLE** | Claims are claims-specific. Inspections must support vehicle, engineering, risk survey, fleet, property, and equipment contexts without a `claimId` foreign key. A generic `inspections` table is required. |
-| `physicalMeasurements` table | `vehicleGeometryMeasurements` table | **NEW TABLE** | `vehicleGeometryMeasurements` is claims-scoped and vehicle-geometry-specific. A generic measurement table must support structural, mechanical, electrical, fire protection, and industrial measurements without a `vehicleModelId` FK. |
-| `engineerObservations` table | `claimComments` / `workflowAuditTrail` | **NEW TABLE** | Comments are unstructured and claims-scoped. Observations require severity, recommendation, standards reference, linked measurements, and linked evidence — a distinct entity. |
+| `inspections` table | `claims` table | **NEW TABLE** | Claims are claims-specific. Inspections must support vehicle, engineering, risk survey, fleet, property, equipment, and industrial contexts without a `claimId` FK. A generic, asset-centric `inspections` table is required. |
+| `physicalMeasurements` table | `vehicleGeometryMeasurements` table | **NEW TABLE** | `vehicleGeometryMeasurements` is claims-scoped and vehicle-geometry-specific. A generic measurement table must support structural, mechanical, electrical, fire protection, and industrial measurements. |
+| `engineerObservations` table | `claimComments` / `workflowAuditTrail` | **NEW TABLE** | Comments are unstructured and claims-scoped. Observations require severity, observation type, recommendation, standards reference, linked measurements, and linked evidence — a distinct entity. |
+| `assetRegistry` table | `vehicleHistory` table | **NEW TABLE** | Vehicles continue using `vehicleHistory` for Epic 3. `assetRegistry` is designed as the future master asset index for all asset classes. |
 | Evidence store | `claimDocuments` table | **EXTEND** | Add `inspectionId` nullable FK to `claimDocuments`. No new table. |
-| Vehicle Passport | `vehicleHistory` table | **EXTEND** | Add `lastInspectionId` nullable FK to `vehicleHistory`. No new table. |
-| Asset Registry | `vehicleHistory` table | **EXTEND** | Non-vehicle assets (equipment, property) require a new `assetRegistry` table. Vehicle assets reuse `vehicleHistory`. |
-| Workflow integration | `workflow-engine.ts` | **EXTEND** | Add `inspection_assigned`, `inspection_in_progress`, `inspection_complete` states to the `WorkflowState` union. No new engine. |
-| Assignment engine | `workload-balancing.ts` | **EXTEND** | Add `engineer` role to the workload scorer. No new service. |
-| Physics integration | `crossStageConsistencyEngine.ts` | **EXTEND** | Add `ENGINEER_MEASUREMENT` as a new `MeasurementSource` value. Engineer measurements enter via the existing cross-stage reconciliation path. No new physics engine. |
-| Report generation | `reportDefinitions.ts` | **EXTEND** | Register two new report keys: `inspection.engineer_report` and `inspection.risk_survey`. No new registry. |
+| Vehicle Passport | `vehicleHistory` table | **EXTEND** | Add `lastInspectionId` nullable FK to `vehicleHistory`. Every inspection already has a unique identifier for future Vehicle Passport timeline aggregation. |
+| Workflow integration | `workflow-engine.ts` | **EXTEND** | Add inspection states to the `WorkflowState` union. No new engine. |
+| Assignment engine | `workload-balancing.ts` | **EXTEND** | Add `engineer` role with skills, certifications, region, and availability. No new service. |
+| Physics integration | `crossStageConsistencyEngine.ts` | **EXTEND** | Add `ENGINEER_MEASUREMENT` as a new `MeasurementSource` value. No new physics engine. |
+| Report generation | `reportDefinitions.ts` | **EXTEND** | Register two new report keys (Epic 3). Third report on roadmap. No new registry. |
 
-**Summary: 3 new tables, 0 new services, 0 new engines, 0 new registries.**
+**Summary: 4 new tables, 0 new services, 0 new engines, 0 new registries.**
 
 ---
 
@@ -110,63 +109,90 @@ Before any new entity was designed, each proposed addition was challenged agains
 | Photo Forensics | `server/pipeline-v2/photoForensicsEngine.ts` | Provides AI assistance during evidence capture |
 | Report Definitions | `server/reporting/reportDefinitions.ts` | Registry for new inspection report templates |
 | Voice Transcription | `server/_core/voiceTranscription.ts` | Transcribes engineer voice observations |
-| LLM | `server/_core/llm.ts` | AI assistance for observation drafting and anomaly detection |
+| LLM | `server/_core/llm.ts` | AI assistance for observation drafting and anomaly detection — **advisory only** |
 | Storage | `server/storage.ts` | S3 upload for inspection evidence |
-
-### 3.3 Existing Types Relevant to Epic 3
-
-| Type | File | Epic 3 Role |
-|---|---|---|
-| `PhysicsMeasurement` | `physicsTruth.ts` | Base type for all physical measurements |
-| `MeasurementSource` | `physicsTruth.ts` | Extended with `ENGINEER_MEASUREMENT` |
-| `InsurerRole` | `workflow/types.ts` | Extended with `engineer` |
-| `WorkflowState` | `workflow/types.ts` | Extended with inspection states |
-| `ConsistencyFlag` | `crossStageConsistencyEngine.ts` | Used to surface engineer-AI discrepancies |
 
 ---
 
 ## 4. Data Model Design
 
-### 4.1 Entity Decision: `inspections`
+### 4.1 Asset Registry — The Future Master Asset Index
 
-**Decision: NEW TABLE — `inspections`**
+**Amendment 1 incorporated:** `asset_registry` is designed as the future master asset index for the entire KINGA platform. For Epic 3, vehicles continue using `vehicleHistory`. However, `asset_registry` already contains the fields necessary to eventually become the universal asset catalogue. The Future Migration Strategy is described in Section 18.2.
 
-The `claims` table cannot be generalised to support non-claims inspection contexts (fleet, property, equipment, risk survey) without introducing nullable columns and conditional logic that would violate the single-responsibility principle. A standalone `inspections` table with a polymorphic subject reference is the correct design.
+The asset universe `asset_registry` is designed to accommodate:
 
-**Key design decisions:**
+| Asset Class | Examples |
+|---|---|
+| `vehicle` | Motor vehicles, fleet vehicles, heavy transport |
+| `equipment` | Pumps, boilers, conveyors, compressors, generators |
+| `building` | Commercial buildings, warehouses, industrial facilities |
+| `transformer` | Power transformers, distribution transformers |
+| `fire_system` | Fire pumps, sprinkler systems, suppression systems |
+| `solar_plant` | Solar inverters, PV arrays, battery storage |
+| `wind_turbine` | Wind turbines, nacelles, blades |
+| `substation` | HV/MV substations, switchgear |
+| `industrial` | Process equipment, tanks, pressure vessels |
 
-- `subject_type` + `subject_id` polymorphic reference supports all inspection contexts without foreign key coupling to any single entity.
-- `claim_id` is a nullable convenience FK for the common case where an inspection is triggered by a claim.
-- `inspection_type` is an open enum that can be extended without schema migration (stored as `VARCHAR(50)`).
-- `status` follows the same state-machine pattern as `claims.status`.
-- `tenant_id` is mandatory for multi-tenant isolation.
+```
+TABLE: asset_registry
+─────────────────────────────────────────────────────────────────────────────
+id                    INT AUTO_INCREMENT PRIMARY KEY
+tenant_id             VARCHAR(255) NOT NULL
+asset_ref             VARCHAR(100) NOT NULL UNIQUE          -- human-readable ref e.g. AST-2026-00001
+asset_type            VARCHAR(50) NOT NULL                  -- vehicle | equipment | building |
+                                                            --   transformer | fire_system | solar_plant |
+                                                            --   wind_turbine | substation | industrial
+asset_name            VARCHAR(255) NOT NULL
+asset_description     TEXT NULL
+serial_number         VARCHAR(100) NULL
+manufacturer          VARCHAR(100) NULL
+model                 VARCHAR(100) NULL
+year_manufactured     INT NULL
+-- Location
+location_address      TEXT NULL
+location_lat          DECIMAL(10,7) NULL
+location_lng          DECIMAL(10,7) NULL
+-- Ownership
+owner_id              INT NULL REFERENCES users(id)
+owner_name            VARCHAR(255) NULL                     -- for non-user owners (e.g. corporate)
+-- Vehicle cross-reference (nullable — populated when asset_type = 'vehicle')
+vehicle_registration  VARCHAR(50) NULL                      -- links to vehicle_history
+-- Inspection history
+last_inspection_id    INT NULL REFERENCES inspections(id)
+last_inspected_at     TIMESTAMP NULL
+inspection_count      INT NOT NULL DEFAULT 0
+-- Risk
+risk_rating           ENUM('low','medium','high','critical') NULL
+-- Extensible metadata (asset-type-specific fields)
+metadata_json         JSON NULL
+-- Audit
+created_by            INT NOT NULL REFERENCES users(id)
+created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+updated_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 
-### 4.2 Entity Decision: `physicalMeasurements`
+INDEXES:
+  idx_ar_tenant        (tenant_id)
+  idx_ar_ref           (asset_ref) UNIQUE
+  idx_ar_type          (asset_type)
+  idx_ar_vehicle_reg   (vehicle_registration)
+  idx_ar_owner         (owner_id)
+```
 
-**Decision: NEW TABLE — `physical_measurements`**
+### 4.2 Inspections — Asset-Centric Design
 
-The existing `vehicle_geometry_measurements` table is tightly coupled to `vehicle_model_id` and is designed exclusively for photogrammetric geometry data. It cannot be generalised to support structural, mechanical, electrical, fire protection, and industrial measurements without breaking its existing consumers.
+**Amendment 2 incorporated:** The inspection entity always references an **asset**, not a vehicle. For motor claims, the asset happens to be a vehicle. For engineering work, the asset may be a transformer, pump, boiler, conveyor, fire pump, solar inverter, substation, or wind turbine. This one decision makes the inspection framework reusable across all engineering domains.
 
-The new `physical_measurements` table reuses the `PhysicsMeasurement` type contract (value, min, max, confidence, source) and adds the mandatory fields specified in the brief: measurement type, unit, method, captured-by, timestamp, linked evidence, and linked inspection.
-
-### 4.3 Entity Decision: `engineerObservations`
-
-**Decision: NEW TABLE — `engineer_observations`**
-
-The existing `claim_comments` table is unstructured free text with no severity, recommendation, standards reference, or measurement linkage. The `workflow_audit_trail` is an immutable event log, not an observation record. Neither can be extended to satisfy the observation requirements without corrupting their existing semantics.
-
-The new `engineer_observations` table supports structured observations, free text, voice transcription, severity, recommendation, standards reference, linked measurements, and linked evidence as specified.
-
-### 4.4 Generic Inspection Model
+The `subject_type` / `subject_id` polymorphic reference is replaced by a direct `asset_ref` + `asset_registry_id` reference. For Epic 3, vehicles are referenced by `vehicle_registration` (which maps to `vehicle_history`). As `asset_registry` matures, all assets will be referenced via `asset_registry_id`.
 
 ```
 TABLE: inspections
 ─────────────────────────────────────────────────────────────────────────────
 id                    INT AUTO_INCREMENT PRIMARY KEY
 tenant_id             VARCHAR(255) NOT NULL
-inspection_ref        VARCHAR(50) NOT NULL UNIQUE          -- human-readable ref e.g. INS-2026-00001
-inspection_type       VARCHAR(50) NOT NULL                 -- vehicle | engineering | risk_survey |
-                                                           --   fleet | property | equipment | industrial
+inspection_ref        VARCHAR(50) NOT NULL UNIQUE           -- e.g. INS-2026-00001
+inspection_type       VARCHAR(50) NOT NULL                  -- vehicle | engineering | risk_survey |
+                                                            --   fleet | property | equipment | industrial
 status                ENUM(
                         'scheduled',
                         'assigned',
@@ -181,10 +207,13 @@ status                ENUM(
                         'complete',
                         'cancelled'
                       ) NOT NULL DEFAULT 'scheduled'
--- Polymorphic subject reference (vehicle, asset, property, equipment)
-subject_type          VARCHAR(50) NOT NULL                 -- vehicle | asset | property | equipment
-subject_id            VARCHAR(100) NOT NULL                -- registration, asset_id, property_ref etc.
--- Convenience FK for claim-triggered inspections (nullable)
+-- Asset reference (asset-centric, not vehicle-centric)
+asset_registry_id     INT NULL REFERENCES asset_registry(id)  -- preferred FK once asset is registered
+asset_ref             VARCHAR(100) NULL                     -- fallback for unregistered assets
+asset_type            VARCHAR(50) NOT NULL                  -- vehicle | equipment | building | ...
+-- Vehicle convenience reference (for motor claims — maps to vehicle_history)
+vehicle_registration  VARCHAR(50) NULL
+-- Claim reference (nullable — only for claim-triggered inspections)
 claim_id              INT NULL REFERENCES claims(id)
 -- Assignment
 assigned_engineer_id  INT NULL REFERENCES users(id)
@@ -197,15 +226,16 @@ location_lng          DECIMAL(10,7) NULL
 -- Completion
 completed_at          TIMESTAMP NULL
 duration_minutes      INT NULL
--- AI assistance
-ai_analysis_json      JSON NULL                           -- LLM anomaly detection output
+-- AI assistance (advisory only — see Section 9)
+ai_analysis_json      JSON NULL
 ai_analysis_at        TIMESTAMP NULL
+ai_analysis_approved  TINYINT(1) NOT NULL DEFAULT 0         -- engineer must approve before report
 -- Physics reconciliation
 physics_reconciled    TINYINT(1) NOT NULL DEFAULT 0
 physics_reconciled_at TIMESTAMP NULL
 reconciliation_notes  TEXT NULL
 -- Report
-report_key            VARCHAR(100) NULL                   -- e.g. inspection.engineer_report
+report_key            VARCHAR(100) NULL
 report_id             INT NULL REFERENCES pdf_reports(id)
 -- Audit
 created_by            INT NOT NULL REFERENCES users(id)
@@ -216,24 +246,28 @@ INDEXES:
   idx_inspections_tenant       (tenant_id)
   idx_inspections_claim        (claim_id)
   idx_inspections_engineer     (assigned_engineer_id)
-  idx_inspections_subject      (subject_type, subject_id)
+  idx_inspections_asset        (asset_registry_id)
+  idx_inspections_vehicle      (vehicle_registration)
   idx_inspections_status       (status)
   idx_inspections_ref          (inspection_ref) UNIQUE
 ```
 
-**Supported inspection types and their subject mappings:**
+**Supported inspection types and their asset mappings:**
 
-| Inspection Type | `subject_type` | `subject_id` | `claim_id` |
+| Inspection Type | `asset_type` | Asset Reference | `claim_id` |
 |---|---|---|---|
-| Vehicle inspection (claim) | `vehicle` | registration number | required |
-| Engineering inspection | `asset` | asset registry ID | optional |
-| Risk survey | `property` | property reference | null |
-| Fleet inspection | `vehicle` | fleet vehicle ID | null |
-| Property inspection | `property` | property reference | null |
-| Equipment inspection | `asset` | equipment serial number | null |
-| Future industrial | `asset` | industrial asset ID | null |
+| Vehicle inspection (claim) | `vehicle` | `vehicle_registration` → `vehicle_history` | required |
+| Engineering inspection | `equipment` | `asset_registry_id` | optional |
+| Risk survey | `building` | `asset_registry_id` | null |
+| Fleet inspection | `vehicle` | `vehicle_registration` | null |
+| Fire system inspection | `fire_system` | `asset_registry_id` | null |
+| Transformer inspection | `transformer` | `asset_registry_id` | null |
+| Solar plant inspection | `solar_plant` | `asset_registry_id` | null |
+| Industrial inspection | `industrial` | `asset_registry_id` | null |
 
-### 4.5 Generic Physical Measurement Model
+### 4.3 Physical Measurements — Expanded Fields
+
+**Amendment 3 incorporated:** Three additional fields are added to `physical_measurements` — `instrument`, `measurement_method` (now a structured enum rather than free text), and `calibration_reference`. These cost almost nothing today but become valuable for engineering traceability and audit trails.
 
 ```
 TABLE: physical_measurements
@@ -251,9 +285,24 @@ value                 DECIMAL(15,4) NOT NULL
 value_min             DECIMAL(15,4) NULL                 -- lower bound of 90% CI
 value_max             DECIMAL(15,4) NULL                 -- upper bound of 90% CI
 unit                  VARCHAR(30) NOT NULL               -- mm | m | ohm | kPa | °C | A | V | kg etc.
--- Method and confidence
-measurement_method    VARCHAR(100) NOT NULL              -- tape_measure | laser_scan | caliper |
-                                                         --   multimeter | thermal_camera | load_cell
+-- Instrument (Amendment 3)
+instrument            VARCHAR(255) NULL                  -- e.g. tape measure, laser scanner,
+                                                         --   ultrasonic gauge, multimeter, caliper
+-- Measurement method (Amendment 3 — structured enum)
+measurement_method    ENUM(
+                        'manual',
+                        'laser',
+                        'ai_assisted',
+                        'imported',
+                        'photogrammetric',
+                        'ultrasonic',
+                        'thermal',
+                        'load_cell',
+                        'other'
+                      ) NOT NULL DEFAULT 'manual'
+-- Calibration reference (Amendment 3)
+calibration_reference VARCHAR(255) NULL                  -- e.g. "Cal cert #2026-1234, valid to 2027-03"
+-- Confidence
 confidence            DECIMAL(4,3) NOT NULL DEFAULT 0.900
 -- Provenance
 captured_by           INT NOT NULL REFERENCES users(id)
@@ -262,11 +311,14 @@ captured_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 source                VARCHAR(50) NOT NULL DEFAULT 'ENGINEER_MEASUREMENT'
 -- Evidence linkage
 evidence_document_ids JSON NULL                         -- array of claim_documents.id
--- Location on subject
+-- Location on asset
 location_reference    VARCHAR(255) NULL                 -- e.g. "front-left-sill", "bay-3-column-B"
 location_image_url    TEXT NULL                         -- annotated image showing measurement point
--- Standards
-standards_reference   VARCHAR(255) NULL                 -- e.g. "SANS 10085:2019 §4.3.2"
+-- Standards reference (generic — see Section 10)
+standards_body        VARCHAR(50) NULL                  -- e.g. SANS | NFPA | IEC | ISO | ASTM | API
+standards_code        VARCHAR(100) NULL                 -- e.g. 10085 | 25 | 60076 | 9712
+standards_clause      VARCHAR(100) NULL                 -- e.g. §4.3.2 | Clause 7.1
+standards_description TEXT NULL                         -- plain-English description of the requirement
 -- Notes
 notes                 TEXT NULL
 -- Audit
@@ -292,9 +344,11 @@ INDEXES:
 | `fire_protection` | sprinkler_pressure, detector_sensitivity, egress_width | kPa, dB, mm |
 | `industrial` | tank_wall_thickness, pressure_rating, flow_rate | mm, kPa, L/s |
 
-### 4.6 Engineer Observation Model
+### 4.4 Engineer Observations — With Observation Types
 
-**Decision: Support all requested modes — structured, free text, voice transcription, severity, recommendation, standards reference, linked measurements, linked evidence.**
+**Amendment 4 incorporated:** `observation_type` is added as a structured field to `engineer_observations`. This makes searching, reporting, and analytics significantly easier without adding schema complexity.
+
+**Amendment 5 incorporated:** Standards references are stored as structured fields (`standards_body`, `standards_code`, `standards_clause`, `standards_description`) rather than a single free-text string. This allows the same observation framework to support NFPA, IEC, ISO, ASTM, API, IEEE, and any future standards body without schema changes.
 
 ```
 TABLE: engineer_observations
@@ -302,10 +356,19 @@ TABLE: engineer_observations
 id                    INT AUTO_INCREMENT PRIMARY KEY
 tenant_id             VARCHAR(255) NOT NULL
 inspection_id         INT NOT NULL REFERENCES inspections(id)
+-- Observation type (Amendment 4)
+observation_type      ENUM(
+                        'defect',
+                        'hazard',
+                        'compliance',
+                        'maintenance',
+                        'recommendation',
+                        'general_note'
+                      ) NOT NULL DEFAULT 'general_note'
 -- Observation content
 observation_mode      ENUM('structured','free_text','voice') NOT NULL DEFAULT 'free_text'
 -- Structured observation fields (used when mode = 'structured')
-component             VARCHAR(255) NULL                  -- e.g. "front-left-sill", "roof-panel"
+component             VARCHAR(255) NULL                  -- e.g. "front-left-sill", "bay-3-column-B"
 condition_code        VARCHAR(50) NULL                   -- e.g. "DEFORMED", "CORRODED", "FRACTURED"
 condition_detail      TEXT NULL
 -- Free text (used when mode = 'free_text' or as supplement to structured)
@@ -317,13 +380,17 @@ transcription_language VARCHAR(10) NULL DEFAULT 'en'
 -- Severity and recommendation
 severity              ENUM('info','minor','moderate','major','critical') NOT NULL DEFAULT 'info'
 recommendation        TEXT NULL
--- Standards
-standards_reference   VARCHAR(255) NULL                  -- e.g. "SANS 10085:2019 §4.3.2"
+-- Standards reference (generic — Amendment 5)
+standards_body        VARCHAR(50) NULL                   -- e.g. SANS | NFPA | IEC | ISO | ASTM | API | IEEE
+standards_code        VARCHAR(100) NULL                  -- e.g. 10085 | 25 | 60076 | 9712
+standards_clause      VARCHAR(100) NULL                  -- e.g. §4.3.2 | Clause 7.1
+standards_description TEXT NULL                          -- plain-English description of the requirement
 -- Linkage
 linked_measurement_ids JSON NULL                         -- array of physical_measurements.id
 linked_evidence_ids   JSON NULL                          -- array of claim_documents.id
--- AI assistance
+-- AI assistance (advisory only — Amendment 6)
 ai_draft_used         TINYINT(1) NOT NULL DEFAULT 0      -- was this observation AI-drafted?
+ai_draft_approved     TINYINT(1) NOT NULL DEFAULT 0      -- has the engineer approved the AI draft?
 ai_draft_prompt       TEXT NULL
 -- Authorship
 authored_by           INT NOT NULL REFERENCES users(id)
@@ -335,6 +402,7 @@ updated_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CUR
 INDEXES:
   idx_eo_inspection    (inspection_id)
   idx_eo_tenant        (tenant_id)
+  idx_eo_type          (observation_type)
   idx_eo_severity      (severity)
   idx_eo_authored_by   (authored_by)
 ```
@@ -349,123 +417,60 @@ INDEXES:
 
 **Connection:** Add nullable `inspection_id INT NULL REFERENCES inspections(id)` to `claim_documents`. This is an additive column — all existing rows remain valid with `inspection_id = NULL`. Evidence captured during an inspection is uploaded via the existing `storagePut()` helper and recorded in `claim_documents` with `inspection_id` set.
 
-**No new evidence store is required.**
-
 ### 5.2 Vehicle Passport
 
 **Existing service:** `vehicleHistory` table
 
-**Connection:** Add nullable `last_inspection_id INT NULL REFERENCES inspections(id)` to `vehicle_history`. Updated when an inspection with `subject_type = 'vehicle'` reaches `status = 'complete'`. The Vehicle Verification Report (T7, Epic 2) already queries `vehicle_history` — it will automatically include the last inspection reference.
+**Connection:** Add nullable `last_inspection_id INT NULL REFERENCES inspections(id)` to `vehicle_history`. Updated when an inspection with `asset_type = 'vehicle'` reaches `status = 'complete'`.
 
-**No new vehicle passport table is required.**
+**Amendment 7 incorporated:** Every inspection already has a unique `inspection_ref` identifier (e.g., `INS-2026-00001`). This means Phase 4 Vehicle Passport aggregation becomes a simple query — `SELECT * FROM inspections WHERE vehicle_registration = ? ORDER BY completed_at` — rather than a migration exercise. No data is lost, no schema changes are required in Phase 4.
 
 ### 5.3 Asset Registry
 
-**Decision:** Non-vehicle assets (equipment, property, industrial) require a new `asset_registry` table. Vehicle assets continue to use `vehicle_history`.
-
-```
-TABLE: asset_registry
-─────────────────────────────────────────────────────────────────────────────
-id                    INT AUTO_INCREMENT PRIMARY KEY
-tenant_id             VARCHAR(255) NOT NULL
-asset_ref             VARCHAR(100) NOT NULL UNIQUE
-asset_type            VARCHAR(50) NOT NULL               -- equipment | property | industrial | fleet_vehicle
-asset_name            VARCHAR(255) NOT NULL
-asset_description     TEXT NULL
-serial_number         VARCHAR(100) NULL
-manufacturer          VARCHAR(100) NULL
-model                 VARCHAR(100) NULL
-year_manufactured     INT NULL
-location_address      TEXT NULL
-owner_id              INT NULL REFERENCES users(id)
-last_inspection_id    INT NULL REFERENCES inspections(id)
-last_inspected_at     TIMESTAMP NULL
-risk_rating           ENUM('low','medium','high','critical') NULL
-metadata_json         JSON NULL                          -- extensible asset-type-specific fields
-created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-updated_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-
-INDEXES:
-  idx_ar_tenant        (tenant_id)
-  idx_ar_ref           (asset_ref) UNIQUE
-  idx_ar_type          (asset_type)
-```
+See Section 4.1. `asset_registry` is the future master asset index. For Epic 3, vehicles reference `vehicleHistory` via `vehicle_registration`. As `asset_registry` matures, all assets will be referenced via `asset_registry_id`.
 
 ### 5.4 Workflow Engine
 
 **Existing service:** `server/workflow-engine.ts`
 
-**Connection:** Extend `WorkflowState` in `server/workflow/types.ts` with inspection-specific states:
+**Connection:** Extend `WorkflowState` in `server/workflow/types.ts` with inspection-specific states (additive, prefixed with `inspection_` to prevent naming collision with existing claim states):
 
 ```
-'inspection_assigned'         -- engineer has been assigned
-'inspection_in_progress'      -- engineer has started the inspection
-'inspection_evidence_capture' -- evidence capture phase
-'inspection_measurements'     -- measurements phase
-'inspection_observations'     -- observations phase
-'inspection_ai_analysis'      -- AI analysis running
-'inspection_engineer_review'  -- engineer reviewing AI output
-'inspection_physics_reconciliation' -- physics reconciliation running
-'inspection_complete'         -- inspection finalised
+'inspection_assigned'
+'inspection_in_progress'
+'inspection_evidence_capture'
+'inspection_measurements'
+'inspection_observations'
+'inspection_ai_analysis'
+'inspection_engineer_review'
+'inspection_physics_reconciliation'
+'inspection_complete'
 ```
 
-These states are additive to the `WorkflowState` union. Existing claims workflow states are unchanged. The workflow engine's transition validation, segregation-of-duties checks, and audit trail logging apply automatically to inspection transitions.
-
-**No new workflow engine is required.**
+All existing claim workflow states are unchanged.
 
 ### 5.5 Assignment Engine
 
 **Existing service:** `server/workload-balancing.ts`
 
-**Connection:** Extend `calculateProcessorWorkloadScore()` to accept `engineer` as a valid `insurerRole` filter. Add `assignInspection()` function that wraps the existing `getLowestWorkloadProcessor()` logic with the `engineer` role filter.
-
-**No new assignment service is required.**
+**Amendment 8 incorporated:** The assignment engine is extended with engineer-specific routing fields. See Section 11 for the full design.
 
 ### 5.6 Physics Engine
 
 **Existing service:** `server/pipeline-v2/physicsTruth.ts` + `server/pipeline-v2/crossStageConsistencyEngine.ts`
 
-**Connection design (the preferred solution from the brief):**
-
-```
-Engineer Measurement (physical_measurements row)
-        ↓
-  measurementToPhysicsMeasurement() adapter
-  [new function in server/pipeline-v2/physicsTruth.ts]
-        ↓
-  Cross-Stage Reconciliation
-  [crossStageConsistencyEngine.ts — existing, additive]
-  — adds ENGINEER_MEASUREMENT as a new MeasurementSource value
-  — adds reconcileEngineerMeasurements() function
-        ↓
-  Existing Physics Engine (stage-7-physics.ts)
-  [unchanged — receives reconciled PhysicsMeasurement objects]
-```
-
-**Key design decisions:**
-
-1. `ENGINEER_MEASUREMENT` is added to the `MeasurementSource` union in `physicsTruth.ts`. This is a purely additive change — all existing source values are unchanged.
-
-2. A new `reconcileEngineerMeasurements()` function is added to `crossStageConsistencyEngine.ts`. It accepts an array of `physical_measurements` rows and produces a `PhysicsMeasurement` object for each relevant measurement type, using the existing confidence-weighted provenance hierarchy. Engineer measurements rank between `VGE_CALIBRATED` and `STAGE6_LLM_VISION` in the hierarchy (they are physical but single-point, not photogrammetric consensus).
-
-3. The existing physics engine (`stage-7-physics.ts`) is **not modified**. It receives `PhysicsMeasurement` objects through the existing `PhysicsTruth` contract, which already supports multiple sources.
-
-4. The `physics_validation_records` table receives engineer-reconciled measurements in its `actual*` fields when an inspection is linked to a claim. This closes the validation loop.
-
-**No new physics engine is required. No physics calculations are duplicated.**
+**Connection:** See Section 6 for the full design. `stage-7-physics.ts` is **untouched**.
 
 ### 5.7 Reporting
 
 **Existing service:** `server/reporting/reportDefinitions.ts`
 
-**Connection:** Register two new report keys:
+**Connection:** Register two new report keys for Epic 3. Third report on roadmap (Section 12).
 
 | Report Key | Name | Access Roles | Requires |
 |---|---|---|---|
 | `inspection.engineer_report` | Engineering Inspection Report | `engineer`, `insurer_admin`, `risk_manager` | `inspectionId` |
 | `inspection.risk_survey` | Risk Survey Report | `engineer`, `insurer_admin`, `risk_manager`, `executive` | `inspectionId` |
-
-Both templates use `kingaDesignSystem.ts` and follow the same pattern as `vehicleVerificationReport.ts` (T7, Epic 2).
 
 ---
 
@@ -474,18 +479,14 @@ Both templates use `kingaDesignSystem.ts` and follow the same pattern as `vehicl
 The integration follows the preferred solution specified in the brief exactly:
 
 ```
-Engineer Measurement
-        ↓
-Cross-Stage Reconciliation
-        ↓
-Existing Physics Engine
+Engineer Measurement → Cross-Stage Reconciliation → Existing Physics Engine
 ```
 
 ### 6.1 Detailed Flow
 
 **Step 1 — Engineer captures measurement**
 
-The engineer records a `physical_measurements` row via the Engineering Workspace UI. The measurement includes: `measurement_category`, `measurement_type`, `value`, `unit`, `measurement_method`, `confidence`, `captured_by`, `captured_at`, `evidence_document_ids`, and optionally `standards_reference`.
+The engineer records a `physical_measurements` row via the Engineering Workspace UI. The measurement includes: `measurement_category`, `measurement_type`, `value`, `unit`, `instrument`, `measurement_method`, `calibration_reference`, `confidence`, `captured_by`, `captured_at`, `evidence_document_ids`, and optionally `standards_body/code/clause`.
 
 **Step 2 — Adapter: measurementToPhysicsMeasurement()**
 
@@ -506,19 +507,18 @@ physical_measurements row
 `reconcileEngineerMeasurements()` in `crossStageConsistencyEngine.ts`:
 
 1. Loads all `physical_measurements` rows for the inspection.
-2. For each measurement type that maps to a `PhysicsTruth` field (e.g., `crush_depth_mm` → `CrushDepthEvidence`), applies the provenance hierarchy:
-   - If an `ENGINEER_MEASUREMENT` has higher confidence than the existing source, it becomes the canonical value.
-   - If lower confidence, it is preserved as an audit field.
-3. Raises a `ConsistencyFlag` (severity `HIGH`) if the engineer measurement deviates from the AI-derived value by more than the configurable threshold (default: 15%).
+2. For each measurement type that maps to a `PhysicsTruth` field, applies the provenance hierarchy:
+   - `VGR_CONSENSUS` > `VGE_CALIBRATED` > `ENGINEER_MEASUREMENT` > `STAGE6_LLM_VISION` > `STAGE7_INFERRED`
+3. Raises a `ConsistencyFlag` (severity `HIGH`, rule `E1`) if the engineer measurement deviates from the AI-derived value by more than the configurable threshold (default: 15%).
 4. Returns an updated `PhysicsTruth` object with the reconciled measurements.
 
 **Step 4 — Physics Engine receives reconciled PhysicsTruth**
 
-The existing `stage-7-physics.ts` receives the reconciled `PhysicsTruth` object through its existing input contract. No changes to the physics engine are required.
+The existing `stage-7-physics.ts` receives the reconciled `PhysicsTruth` object through its existing input contract. **No changes to the physics engine are required.**
 
 **Step 5 — Validation loop closure**
 
-If the inspection is linked to a claim (`claim_id IS NOT NULL`), the reconciled measurements are written to `physics_validation_records.actual*` fields, closing the historical validation loop.
+If the inspection is linked to a claim (`claim_id IS NOT NULL`), the reconciled measurements are written to `physics_validation_records.actual*` fields.
 
 ### 6.2 Measurement Type Mapping
 
@@ -530,7 +530,7 @@ If the inspection is linked to a claim (`claim_id IS NOT NULL`), the reconciled 
 | `impact_speed_kmh` | `speedEvidence.canonical` | Delta-V, severity |
 | `structural_intrusion_mm` | `structuralDamage.intrusionMm` | Severity classification |
 
-Measurement types that do not map to a `PhysicsTruth` field (e.g., `insulation_resistance_ohm`, `beam_deflection_mm`) are stored in `physical_measurements` and surfaced in the inspection report only — they do not enter the physics pipeline.
+Measurement types that do not map to a `PhysicsTruth` field are stored in `physical_measurements` and surfaced in the inspection report only.
 
 ---
 
@@ -539,8 +539,6 @@ Measurement types that do not map to a `PhysicsTruth` field (e.g., `insulation_r
 The Engineering Workspace is an extension of the existing `DashboardLayout` pattern. It is not a new application — it is a new role-scoped section within the existing KINGA platform.
 
 ### 7.1 Navigation Structure
-
-The `engineer` role sees the following sidebar navigation items (added to the existing `DashboardLayout`):
 
 ```
 Engineering Workspace
@@ -560,80 +558,23 @@ Engineering Workspace
 
 ### 7.2 Page Designs
 
-**Dashboard (`/engineer`)**
+**Dashboard (`/engineer`):** Active inspections count with status breakdown (donut chart), overdue inspections alert banner, recent assignments feed, quick-action buttons (Start inspection, Upload evidence), physics reconciliation queue.
 
-- Active inspections count with status breakdown (donut chart)
-- Overdue inspections alert banner
-- Recent assignments feed
-- Quick-action: Start inspection, Upload evidence
-- Physics reconciliation queue (inspections awaiting reconciliation)
+**Assignments (`/engineer/assignments`):** Table of assigned inspections with filter by status, inspection type, and date range. Accept assignment and request reassignment actions.
 
-**Assignments (`/engineer/assignments`)**
+**Inspection Details (`/engineer/inspections/:id`):** Header with inspection_ref, asset, type, status badge, assigned engineer, and scheduled date. Progress stepper: Evidence → Measurements → Observations → AI Analysis → Review → Physics → Report. Tab navigation to sub-pages.
 
-- Table: inspection_ref, subject, inspection_type, scheduled_date, status, claim_ref (if applicable)
-- Filter: status, inspection_type, date range
-- Action: Accept assignment, Request reassignment
+**Evidence Capture:** Drag-and-drop upload (reuses `storagePut()` + `claimDocuments` pattern), evidence gallery with category tagging, photo annotation tool, AI-assisted caption generation (advisory only — see Section 9).
 
-**Inspection Details (`/engineer/inspections/:id`)**
+**Measurements:** Measurement entry form with category, type, value, unit, instrument, measurement method, calibration reference, confidence, and standards reference fields. Measurement table with edit/delete. Physics mapping indicator showing which measurements will feed the physics engine. Real-time deviation alert comparing engineer values against AI-derived values.
 
-- Header: inspection_ref, subject, type, status badge, assigned engineer, scheduled date
-- Progress stepper: Evidence → Measurements → Observations → AI Analysis → Review → Physics → Report
-- Tab navigation to sub-pages
+**Observations:** Mode selector (Structured / Free Text / Voice), observation type selector (Defect / Hazard / Compliance / Maintenance / Recommendation / General Note), severity selector, recommendation field, generic standards reference fields (body, code, clause, description). AI draft button (advisory only — engineer must approve before saving). Voice mode: record → Whisper transcription → editable transcript.
 
-**Evidence Capture (`/engineer/inspections/:id/evidence`)**
+**AI Analysis:** Trigger AI analysis button. AI anomaly detection output showing flagged measurements and inconsistencies. Comparison table: AI-derived values vs engineer measurements. Accept / Override / Dispute actions per finding. **All AI output is clearly labelled as advisory. Engineer approval is required before any AI finding enters the final report.**
 
-- Drag-and-drop upload (reuses existing `storagePut()` + `claimDocuments` pattern)
-- Evidence gallery with category tagging
-- Photo annotation tool (mark measurement points)
-- AI-assisted caption generation (reuses `invokeLLM` vision pattern from `photoForensicsEngine.ts`)
+**Physics Reconciliation:** Reconciliation status (Pending / Running / Complete / Conflicts). Conflict table with measurement type, AI value, engineer value, deviation %, and resolution. Resolution actions: Accept AI / Accept Engineer / Manual Override.
 
-**Measurements (`/engineer/inspections/:id/measurements`)**
-
-- Measurement entry form: category → type → value → unit → method → confidence → standards reference
-- Measurement table with edit/delete
-- Physics mapping indicator: shows which measurements will feed the physics engine
-- Deviation alert: real-time comparison against AI-derived values
-
-**Observations (`/engineer/inspections/:id/observations`)**
-
-- Mode selector: Structured | Free Text | Voice
-- Structured mode: component picker, condition code dropdown, detail text
-- Free text mode: rich text editor
-- Voice mode: record button → Whisper transcription → editable transcript
-- AI draft button: generates observation draft from linked measurements and evidence
-- Severity selector: Info | Minor | Moderate | Major | Critical
-- Recommendation field
-- Standards reference field
-- Link to measurements and evidence
-
-**AI Analysis (`/engineer/inspections/:id/ai`)**
-
-- Trigger AI analysis button (calls `invokeLLM` with inspection context)
-- AI anomaly detection output: flagged measurements, inconsistencies
-- Comparison table: AI-derived values vs engineer measurements
-- Accept / Override / Dispute actions per finding
-
-**Physics Reconciliation (`/engineer/inspections/:id/physics`)**
-
-- Reconciliation status: Pending | Running | Complete | Conflicts
-- Conflict table: measurement type, AI value, engineer value, deviation %, resolution
-- Resolution actions: Accept AI | Accept Engineer | Manual Override
-- Physics output preview: reconciled speed, delta-V, crush depth, severity
-
-**Review (`/engineer/inspections/:id/review`)**
-
-- Full inspection summary: subject, evidence count, measurement count, observation count
-- Critical observations highlighted
-- Physics reconciliation summary
-- Sign-off button (transitions inspection to `inspection_complete`)
-- Report generation trigger
-
-**Report Generation**
-
-- Report type selector: Engineering Inspection Report | Risk Survey Report
-- Preview (HTML render)
-- Generate PDF button (reuses existing `pdfRenderer.ts`)
-- Download and share
+**Review:** Full inspection summary. Critical observations highlighted. Physics reconciliation summary. Sign-off button (transitions inspection to `inspection_complete`). Report generation trigger.
 
 ---
 
@@ -641,12 +582,10 @@ Engineering Workspace
 
 ### 8.1 New Role: `engineer`
 
-The `engineer` role is added to the `InsurerRole` union in `server/workflow/types.ts`.
-
 | Attribute | Value |
 |---|---|
 | Role name | `engineer` |
-| Platform role | `engineer` (added to `PLATFORM_ROLES` in `platform-user-roles.ts`) |
+| Platform role | `engineer` (added to `PLATFORM_ROLES`) |
 | Insurer role | `engineer` (added to `InsurerRole` union) |
 | Scope | Tenant-scoped |
 | Assigned by | `insurer_admin` via existing `platformUserRoles.assignRole` procedure |
@@ -667,50 +606,148 @@ The `engineer` role is added to the `InsurerRole` union in `server/workflow/type
 | `view_inspection` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `assign_inspection` | ✗ | ✗ | ✗ | ✓ | ✓ |
 
-### 8.3 Inspection State Access
+---
 
-| State | engineer | risk_manager | insurer_admin | claims_processor |
-|---|---|---|---|---|
-| `scheduled` | view | view | view/assign | view |
-| `assigned` | view/start | view | view | view |
-| `in_progress` | full | view | view | view |
-| `evidence_capture` | full | view | view | view |
-| `measurements_complete` | full | view | view | view |
-| `observations_complete` | full | view | view | view |
-| `ai_analysis` | view | view | view | view |
-| `engineer_review` | full | view | view | view |
-| `physics_reconciliation` | full | override | override | view |
-| `complete` | view | view | view | view |
+## 9. AI Advisory Policy
 
-### 8.4 Report Access (additions to REPORT_ACCESS)
+**Amendment 6 incorporated.** This section establishes the explicit AI advisory policy for the Engineering Workspace.
 
-| Report Key | Roles |
-|---|---|
-| `inspection.engineer_report` | `engineer`, `risk_manager`, `insurer_admin` |
-| `inspection.risk_survey` | `engineer`, `risk_manager`, `insurer_admin`, `executive` |
+### 9.1 Principle
+
+AI assistance in the Engineering Workspace is **advisory only**. It is a tool to assist the engineer, not to replace professional engineering judgement.
+
+### 9.2 Rules
+
+1. **AI-generated content is never automatically included in a final report.** An engineer must explicitly approve each AI suggestion before it becomes part of the inspection record.
+
+2. **Reports clearly distinguish engineer observations from AI suggestions.** The report template uses distinct visual treatment for engineer-authored content vs AI-suggested content. AI suggestions that have not been approved are excluded from the report entirely.
+
+3. **The `ai_draft_approved` flag** in `engineer_observations` must be `1` before an observation with `ai_draft_used = 1` can be included in a report. The router enforces this at the procedure level.
+
+4. **The `ai_analysis_approved` flag** in `inspections` must be `1` before the AI analysis section is included in the report. The engineer approves the AI analysis as a whole before proceeding to physics reconciliation.
+
+5. **AI anomaly detection is surfaced as `ConsistencyFlag` objects** (existing type) — not as measurements, not as observations. The engineer decides whether to act on each flag.
+
+### 9.3 UI Enforcement
+
+- AI-suggested content is displayed with a distinct background colour and an "AI Suggestion" label.
+- An "Approve" button is required before the content can be saved.
+- The "Generate Report" button is disabled if any AI-drafted observation has `ai_draft_approved = 0`.
 
 ---
 
-## 9. Sequence Diagrams
+## 10. Standards Reference Design
 
-### 9.1 Full Engineering Inspection Flow
+**Amendment 5 incorporated.** Standards references are stored as structured fields rather than a single free-text string. This allows the same observation and measurement framework to support any standards body without schema changes.
+
+### 10.1 Structure
+
+All standards references — in both `physical_measurements` and `engineer_observations` — use the same four-field structure:
+
+| Field | Description | Example |
+|---|---|---|
+| `standards_body` | The issuing organisation | `SANS`, `NFPA`, `IEC`, `ISO`, `ASTM`, `API`, `IEEE` |
+| `standards_code` | The standard number or code | `10085`, `25`, `60076`, `9712` |
+| `standards_clause` | The specific clause or section | `§4.3.2`, `Clause 7.1`, `Table 3` |
+| `standards_description` | Plain-English description of the requirement | `Minimum insulation resistance for LV installations` |
+
+### 10.2 Supported Standards Bodies (initial list, extensible)
+
+| Body | Domain |
+|---|---|
+| SANS | South African National Standards |
+| NFPA | National Fire Protection Association |
+| IEC | International Electrotechnical Commission |
+| ISO | International Organization for Standardization |
+| ASTM | American Society for Testing and Materials |
+| API | American Petroleum Institute |
+| IEEE | Institute of Electrical and Electronics Engineers |
+| BS | British Standards |
+| EN | European Standards |
+
+No schema change is required to add a new standards body — `standards_body` is a `VARCHAR(50)` field.
+
+---
+
+## 11. Assignment Engine Extension
+
+**Amendment 8 incorporated.** The existing `workload-balancing.ts` is extended with engineer-specific routing fields. These become valuable when assigning specialised inspections.
+
+### 11.1 Engineer Profile Extension
+
+A new `engineer_profiles` table stores engineer-specific attributes used for intelligent assignment:
+
+```
+TABLE: engineer_profiles
+─────────────────────────────────────────────────────────────────────────────
+id                    INT AUTO_INCREMENT PRIMARY KEY
+user_id               INT NOT NULL UNIQUE REFERENCES users(id)
+tenant_id             VARCHAR(255) NOT NULL
+-- Skills (JSON array of skill codes)
+skills                JSON NULL                           -- e.g. ["vehicle_damage","structural","electrical"]
+-- Certifications (JSON array of {body, code, expiry})
+certifications        JSON NULL                           -- e.g. [{"body":"ECSA","code":"PR Eng","expiry":"2028-06"}]
+-- Geographic region
+region                VARCHAR(100) NULL                   -- e.g. "Harare", "Bulawayo", "Midlands"
+region_lat            DECIMAL(10,7) NULL
+region_lng            DECIMAL(10,7) NULL
+max_travel_radius_km  INT NULL DEFAULT 100
+-- Availability
+is_available          TINYINT(1) NOT NULL DEFAULT 1
+availability_notes    TEXT NULL
+-- Workload (maintained by workload-balancing.ts)
+active_inspections    INT NOT NULL DEFAULT 0
+-- Audit
+created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+updated_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+```
+
+### 11.2 Assignment Logic Extension
+
+`assignInspection()` in `workload-balancing.ts` selects the optimal engineer using:
+
+1. **Skills match** — engineer must have the required skill for the inspection type.
+2. **Certification match** — engineer must hold the required certification (if specified).
+3. **Geographic proximity** — engineer must be within `max_travel_radius_km` of the inspection location.
+4. **Availability** — `is_available = 1`.
+5. **Lowest workload** — among all qualifying engineers, select the one with the lowest `active_inspections` count (existing workload scoring logic).
+
+---
+
+## 12. Report Roadmap
+
+**Amendment 9 incorporated.** Three reports are planned across Epic 3 and the roadmap.
+
+| Report Key | Name | Epic | Description |
+|---|---|---|---|
+| `inspection.engineer_report` | Engineering Inspection Report | Epic 3 | Full inspection report: asset details, evidence gallery, measurements table, observations list, physics reconciliation summary, sign-off |
+| `inspection.risk_survey` | Risk Survey Report | Epic 3 | Risk-focused report: asset details, risk rating, critical observations, recommendations, standards references |
+| `inspection.findings_summary` | Engineering Findings Summary | Roadmap (Epic 4+) | Lightweight multi-inspection report consolidating observations, measurements, and recommendations across multiple inspections for a client managing a fleet or industrial asset portfolio |
+
+The `inspection.findings_summary` report is not implemented in Epic 3 but is registered as a roadmap item in `reportDefinitions.ts` with a `TODO` comment so it is not forgotten.
+
+---
+
+## 13. Sequence Diagrams
+
+### 13.1 Full Engineering Inspection Flow
 
 ```mermaid
 sequenceDiagram
     participant Admin as insurer_admin
     participant WE as Workflow Engine
-    participant WB as Workload Balancer
+    participant WB as Workload Balancer (extended)
     participant Eng as engineer
     participant S3 as Storage (S3)
     participant DB as Database
-    participant AI as LLM / Forensics
+    participant AI as LLM / Forensics (advisory)
     participant Physics as Cross-Stage Reconciliation
     participant Report as Report Generator
 
-    Admin->>WE: createInspection(type, subject, claim_id?)
+    Admin->>WE: createInspection(type, asset_ref, claim_id?)
     WE->>DB: INSERT inspections (status='scheduled')
-    WE->>WB: assignInspection(inspectionId, role='engineer')
-    WB->>DB: SELECT engineers by workload score
+    WE->>WB: assignInspection(inspectionId, skills, region)
+    WB->>DB: SELECT engineers by skills + region + workload
     WB-->>WE: assignedEngineerId
     WE->>DB: UPDATE inspections SET assigned_engineer_id, status='assigned'
     WE->>DB: INSERT workflow_audit_trail (inspection_assigned)
@@ -718,43 +755,39 @@ sequenceDiagram
 
     Eng->>WE: startInspection(inspectionId)
     WE->>DB: UPDATE inspections SET status='in_progress'
-    WE->>DB: INSERT workflow_audit_trail (inspection_started)
 
     loop Evidence Capture
         Eng->>S3: upload(file)
         S3-->>Eng: fileUrl
         Eng->>DB: INSERT claim_documents (inspection_id=inspectionId)
     end
-    WE->>DB: UPDATE inspections SET status='evidence_capture'
 
     loop Measurements
-        Eng->>DB: INSERT physical_measurements (inspection_id, value, unit, method, confidence)
+        Eng->>DB: INSERT physical_measurements (value, unit, instrument, method, calibration_ref)
     end
     WE->>DB: UPDATE inspections SET status='measurements_complete'
 
     loop Observations
-        Eng->>AI: transcribeAudio(audioUrl) [voice mode]
+        Eng->>AI: transcribeAudio(audioUrl) [voice mode — advisory]
         AI-->>Eng: transcript
-        Eng->>AI: invokeLLM(observationDraftPrompt) [AI draft]
-        AI-->>Eng: draftObservation
-        Eng->>DB: INSERT engineer_observations (inspection_id, text, severity, recommendation)
+        Eng->>AI: invokeLLM(observationDraftPrompt) [advisory]
+        AI-->>Eng: draftObservation [labelled as AI suggestion]
+        Eng->>Eng: review and approve AI draft
+        Eng->>DB: INSERT engineer_observations (type, severity, ai_draft_approved=1)
     end
     WE->>DB: UPDATE inspections SET status='observations_complete'
 
-    Eng->>AI: invokeLLM(anomalyDetectionPrompt, measurements, evidence)
-    AI-->>Eng: aiAnalysisJson (anomalies, flags)
-    WE->>DB: UPDATE inspections SET ai_analysis_json, status='ai_analysis'
-
-    Eng->>Eng: review AI analysis, resolve conflicts
-    WE->>DB: UPDATE inspections SET status='engineer_review'
+    Eng->>AI: invokeLLM(anomalyDetectionPrompt) [advisory]
+    AI-->>Eng: aiAnalysisJson [labelled as AI suggestion]
+    Eng->>Eng: review and approve AI analysis
+    WE->>DB: UPDATE inspections SET ai_analysis_json, ai_analysis_approved=1, status='ai_analysis'
 
     Eng->>Physics: reconcileEngineerMeasurements(inspectionId)
     Physics->>DB: SELECT physical_measurements WHERE inspection_id
     Physics->>Physics: measurementToPhysicsMeasurement() for each row
-    Physics->>Physics: apply provenance hierarchy (ENGINEER_MEASUREMENT source)
+    Physics->>Physics: apply provenance hierarchy
     Physics->>Physics: raise ConsistencyFlags for deviations > threshold
-    Physics->>Physics: produce reconciled PhysicsTruth
-    Physics-->>Eng: reconciliationResult (conflicts, resolved values)
+    Physics-->>Eng: reconciliationResult
     WE->>DB: UPDATE inspections SET physics_reconciled=1, status='physics_reconciliation'
 
     opt claim_id IS NOT NULL
@@ -763,6 +796,7 @@ sequenceDiagram
 
     Eng->>Report: generateReport(inspectionId, reportKey)
     Report->>DB: SELECT inspections, physical_measurements, engineer_observations, claim_documents
+    Note over Report: AI-drafted content only included if ai_draft_approved=1
     Report->>Report: render HTML via kingaDesignSystem
     Report->>Report: generate PDF via pdfRenderer
     Report->>DB: INSERT pdf_reports
@@ -771,7 +805,7 @@ sequenceDiagram
     Report-->>Eng: reportUrl
 ```
 
-### 9.2 Measurement → Physics Reconciliation Detail
+### 13.2 Measurement → Physics Reconciliation Detail
 
 ```mermaid
 sequenceDiagram
@@ -779,7 +813,7 @@ sequenceDiagram
     participant Adapter as measurementToPhysicsMeasurement()
     participant Recon as reconcileEngineerMeasurements()
     participant Hier as Provenance Hierarchy
-    participant Physics as stage-7-physics.ts
+    participant Physics as stage-7-physics.ts (UNTOUCHED)
     participant Flags as ConsistencyFlag Engine
 
     Eng->>Recon: reconcile(inspectionId, existingPhysicsTruth)
@@ -789,10 +823,10 @@ sequenceDiagram
         Adapter-->>Recon: PhysicsMeasurement {value, min, max, confidence, source='ENGINEER_MEASUREMENT'}
     end
     Recon->>Hier: applyHierarchy(engineerMeasurements, existingPhysicsTruth)
-    Note over Hier: Hierarchy: VGR_CONSENSUS > VGE_CALIBRATED > ENGINEER_MEASUREMENT > STAGE6_LLM_VISION > STAGE7_INFERRED
+    Note over Hier: VGR_CONSENSUS > VGE_CALIBRATED > ENGINEER_MEASUREMENT > STAGE6_LLM_VISION > STAGE7_INFERRED
     Hier->>Flags: checkDeviation(engineerValue, aiValue, threshold=0.15)
     alt deviation > threshold
-        Flags-->>Recon: ConsistencyFlag {severity='HIGH', ruleId='E1', ...}
+        Flags-->>Recon: ConsistencyFlag {severity='HIGH', ruleId='E1'}
     end
     Hier-->>Recon: reconciledPhysicsTruth
     Recon-->>Physics: reconciledPhysicsTruth (via existing input contract)
@@ -800,16 +834,16 @@ sequenceDiagram
     Physics-->>Recon: Stage7Output
 ```
 
-### 9.3 Voice Observation Flow
+### 13.3 Voice Observation Flow
 
 ```mermaid
 sequenceDiagram
-    participant Eng as engineer (mobile/desktop)
+    participant Eng as engineer
     participant UI as Engineering Workspace UI
     participant tRPC as tRPC Router (inspections)
     participant S3 as Storage
     participant Whisper as transcribeAudio()
-    participant LLM as invokeLLM()
+    participant LLM as invokeLLM() [advisory]
     participant DB as Database
 
     Eng->>UI: press Record
@@ -822,13 +856,13 @@ sequenceDiagram
     Whisper-->>tRPC: {text, language, segments}
     tRPC-->>UI: transcript
     UI->>Eng: display transcript for review
-    Eng->>UI: optionally request AI draft
+    Eng->>UI: optionally request AI draft [advisory]
     UI->>tRPC: draftObservation(transcript, linkedMeasurements)
     tRPC->>LLM: invokeLLM({system: 'You are a technical engineer...', user: transcript + measurements})
-    LLM-->>tRPC: draftObservationText
-    tRPC-->>UI: draft
-    Eng->>UI: edit and confirm
-    UI->>tRPC: saveObservation({inspectionId, mode:'voice', voiceAudioUrl, voiceTranscript, observationText, severity, recommendation})
+    LLM-->>tRPC: draftObservationText [labelled as AI suggestion]
+    tRPC-->>UI: draft [displayed with AI Suggestion label]
+    Eng->>UI: review, edit, and explicitly approve
+    UI->>tRPC: saveObservation({..., ai_draft_used: true, ai_draft_approved: true})
     tRPC->>DB: INSERT engineer_observations
     DB-->>tRPC: observationId
     tRPC-->>UI: saved
@@ -836,14 +870,14 @@ sequenceDiagram
 
 ---
 
-## 10. Reuse Matrix
+## 14. Reuse Matrix
 
 | Epic 3 Requirement | Existing Asset Reused | Change Type | Files Affected |
 |---|---|---|---|
 | Evidence store | `claimDocuments` table | Additive column | `drizzle/schema.ts` |
 | Vehicle passport | `vehicleHistory` table | Additive column | `drizzle/schema.ts` |
 | Workflow engine | `server/workflow-engine.ts` | Additive states | `server/workflow/types.ts` |
-| Assignment engine | `server/workload-balancing.ts` | Additive role filter | `server/workload-balancing.ts` |
+| Assignment engine | `server/workload-balancing.ts` | Additive role + skills routing | `server/workload-balancing.ts` |
 | Physics measurement type | `PhysicsMeasurement` interface | New source value | `server/pipeline-v2/physicsTruth.ts` |
 | Physics reconciliation | `crossStageConsistencyEngine.ts` | New function | `server/pipeline-v2/crossStageConsistencyEngine.ts` |
 | Physics engine | `stage-7-physics.ts` | **UNTOUCHED** | — |
@@ -871,19 +905,24 @@ sequenceDiagram
 | `client/src/pages/InspectionDetail.tsx` | Inspection detail shell with tab navigation |
 | `client/src/pages/InspectionEvidence.tsx` | Evidence capture tab |
 | `client/src/pages/InspectionMeasurements.tsx` | Measurements tab |
-| `client/src/pages/InspectionObservations.tsx` | Observations tab |
-| `client/src/pages/InspectionAIAnalysis.tsx` | AI analysis tab |
+| `client/src/pages/InspectionObservations.tsx` | Observations tab (all 3 modes) |
+| `client/src/pages/InspectionAIAnalysis.tsx` | AI analysis tab (advisory) |
 | `client/src/pages/InspectionPhysics.tsx` | Physics reconciliation tab |
 | `client/src/pages/InspectionReview.tsx` | Review and sign-off tab |
 
 ---
 
-## 11. Dependency Graph
+## 15. Dependency Graph
 
 ```
 NEW TABLES
 ──────────
+asset_registry
+  ├── depends on: users (owner_id, created_by)
+  └── depends on: inspections (last_inspection_id, nullable — FK added after inspections table)
+
 inspections
+  ├── depends on: asset_registry (asset_registry_id, nullable)
   ├── depends on: users (assigned_engineer_id, created_by)
   ├── depends on: claims (claim_id, nullable)
   └── depends on: pdf_reports (report_id, nullable)
@@ -896,9 +935,9 @@ engineer_observations
   ├── depends on: inspections (inspection_id)
   └── depends on: users (authored_by)
 
-asset_registry
-  ├── depends on: users (owner_id, nullable)
-  └── depends on: inspections (last_inspection_id, nullable)
+engineer_profiles
+  ├── depends on: users (user_id)
+  └── no new table dependencies
 
 SCHEMA EXTENSIONS (additive columns only)
 ──────────────────────────────────────────
@@ -912,7 +951,7 @@ inspections router
   ├── depends on: workload-balancing.ts (assignment)
   ├── depends on: storage.ts (evidence upload)
   ├── depends on: voiceTranscription.ts (voice observations)
-  ├── depends on: llm.ts (AI assistance, anomaly detection)
+  ├── depends on: llm.ts (AI assistance — advisory)
   ├── depends on: crossStageConsistencyEngine.ts (physics reconciliation)
   └── depends on: reportDefinitions.ts (report generation)
 
@@ -929,13 +968,13 @@ stage-7-physics.ts (UNTOUCHED)
 
 ---
 
-## 12. Regression Risk Register
+## 16. Regression Risk Register
 
-### 12.1 Files That Must Remain Untouched
+### 16.1 Files That Must Remain Untouched
 
 | File | Reason |
 |---|---|
-| `server/pipeline-v2/stage-7-physics.ts` | Core physics engine — no changes permitted |
+| `server/pipeline-v2/stage-7-physics.ts` | Core physics engine |
 | `server/pipeline-v2/animalStrikePhysicsEngine.ts` | Specialist physics engine |
 | `server/pipeline-v2/damagePhysicsCoherence.ts` | Physics coherence validator |
 | `server/pipeline-v2/physicsNumericalContract.ts` | Numerical contract enforcer |
@@ -948,121 +987,187 @@ stage-7-physics.ts (UNTOUCHED)
 | `server/reporting/templates/kingaDesignSystem.ts` | Design system |
 | `drizzle/schema.ts` (existing columns) | All existing columns are immutable |
 
-### 12.2 Services That Must Not Be Modified (only extended)
+### 16.2 Services That Must Not Be Modified (only extended)
 
 | Service | Permitted Change | Prohibited Change |
 |---|---|---|
 | `workflow-engine.ts` | Add inspection state transitions | Modify existing claim transitions |
-| `workload-balancing.ts` | Add `engineer` role filter | Modify existing workload scoring weights |
+| `workload-balancing.ts` | Add `engineer` role + skills routing | Modify existing workload scoring weights |
 | `crossStageConsistencyEngine.ts` | Add `reconcileEngineerMeasurements()` | Modify existing consistency rules C1–C16 |
 | `physicsTruth.ts` | Add `ENGINEER_MEASUREMENT` source | Modify existing source hierarchy order |
 | `reportDefinitions.ts` | Add new report keys | Modify existing report access rules |
 | `platform-user-roles.ts` | Add `engineer` to `PLATFORM_ROLES` | Modify existing role definitions |
 
-### 12.3 Existing Claims Functionality That Must Not Regress
+---
 
-| Functionality | Risk | Mitigation |
-|---|---|---|
-| Claims pipeline (stages 1–12+) | `crossStageConsistencyEngine.ts` extension could affect existing consistency checks | New function is additive — existing `runCrossStageConsistencyCheck()` is not modified |
-| Physics calculations | `physicsTruth.ts` extension could affect provenance hierarchy | `ENGINEER_MEASUREMENT` is inserted between `VGE_CALIBRATED` and `STAGE6_LLM_VISION` — existing sources are unchanged |
-| Workflow state transitions | New inspection states could conflict with claim states | Inspection states use `inspection_` prefix — no naming collision with existing claim states |
-| Evidence upload | `claim_documents.inspection_id` column addition | Column is nullable — all existing rows remain valid |
-| Vehicle history | `vehicle_history.last_inspection_id` column addition | Column is nullable — all existing rows remain valid |
-| Report access | New report keys in `REPORT_ACCESS` | New keys are additive — existing access rules are unchanged |
-| Role assignment | `engineer` added to `PLATFORM_ROLES` | Additive — existing roles are unchanged |
+## 17. Regression Protection Checklist
+
+**Amendment 10 incorporated.** This checklist is **mandatory** before every checkpoint save. No checkpoint may be saved unless all items are verified.
+
+### Pre-Checkpoint Regression Protection Checklist
+
+```
+CLAIMS PIPELINE
+□ Submit a test claim end-to-end (intake → AI assessment → report)
+□ Confirm all pipeline stages complete without error
+□ Confirm the claims pipeline report generates successfully
+
+VALUATION ENGINE
+□ Call agency.getValuation for a test vehicle
+□ Confirm valuationDate filtering produces correct output
+□ Confirm existing callers (without valuationDate) are unaffected
+
+PHOTO FORENSICS
+□ Run photoForensicsEngine on a test image
+□ Confirm pHash, exifAbsent, and aiGenerationScore fields are populated
+□ Confirm no regression in existing forensics output fields
+
+PHYSICS ENGINE
+□ Run stage-7-physics.ts with a standard collision test case
+□ Confirm output matches the pre-Epic-3 baseline
+□ Confirm existing ConsistencyFlag rules C1–C16 produce identical output
+
+EXISTING REPORTS
+□ Generate a Claims Intelligence Report for a test claim
+□ Generate a Forensic Decision Report for a test claim
+□ Generate a Vehicle Verification Report for a test vehicle
+□ Generate a Vehicle Valuation Report for a test vehicle
+□ Confirm all four reports render without error
+
+EXISTING RBAC
+□ Confirm claims_processor cannot access inspection procedures (FORBIDDEN)
+□ Confirm engineer cannot access claims-only procedures (FORBIDDEN)
+□ Confirm insurer_admin can assign engineer role
+
+EXISTING WORKFLOWS
+□ Confirm claim workflow transitions (created → closed) are unaffected
+□ Confirm workflow_audit_trail records are created for claim transitions
+□ Confirm segregation-of-duties validation is unaffected
+
+TYPESCRIPT BASELINE
+□ Confirm TypeScript error count does not exceed the pre-Epic-3 baseline (47 errors)
+□ Confirm no new errors in Epic 3 files
+```
 
 ---
 
-## 13. Migration Strategy
+## 18. Migration Strategy
 
-### 13.1 Database Migration
+### 18.1 Database Migration
 
-All schema changes are additive. No existing columns are modified or dropped. The migration sequence is:
+All schema changes are additive. No existing columns are modified or dropped.
 
 **Migration 1 — New tables (no FK dependencies on new tables)**
-```
-CREATE TABLE inspections
-CREATE TABLE asset_registry
-```
-
-**Migration 2 — New tables with FK on inspections**
-```
-CREATE TABLE physical_measurements
-CREATE TABLE engineer_observations
+```sql
+CREATE TABLE asset_registry (...)
+CREATE TABLE engineer_profiles (...)
 ```
 
-**Migration 3 — Additive columns on existing tables**
+**Migration 2 — New tables with FK on asset_registry**
+```sql
+CREATE TABLE inspections (...)  -- references asset_registry(id) nullable
 ```
+
+**Migration 3 — New tables with FK on inspections**
+```sql
+CREATE TABLE physical_measurements (...)
+CREATE TABLE engineer_observations (...)
+```
+
+**Migration 4 — Additive FK on asset_registry (back-reference to inspections)**
+```sql
+ALTER TABLE asset_registry ADD COLUMN last_inspection_id INT NULL
+ALTER TABLE asset_registry ADD CONSTRAINT fk_ar_last_inspection FOREIGN KEY (last_inspection_id) REFERENCES inspections(id) ON DELETE SET NULL
+```
+
+**Migration 5 — Additive columns on existing tables**
+```sql
 ALTER TABLE claim_documents ADD COLUMN inspection_id INT NULL
 ALTER TABLE vehicle_history ADD COLUMN last_inspection_id INT NULL
-```
-
-**Migration 4 — FK constraints on additive columns**
-```
 ALTER TABLE claim_documents ADD CONSTRAINT fk_cd_inspection FOREIGN KEY (inspection_id) REFERENCES inspections(id) ON DELETE SET NULL
 ALTER TABLE vehicle_history ADD CONSTRAINT fk_vh_last_inspection FOREIGN KEY (last_inspection_id) REFERENCES inspections(id) ON DELETE SET NULL
 ```
 
 All migrations are non-destructive and can be applied to a live database without downtime.
 
-### 13.2 Code Migration
+### 18.2 Future Migration: Vehicles into Asset Registry
 
-**Phase 1 (schema + types):** Apply database migrations, extend `WorkflowState` and `InsurerRole` types, add `ENGINEER_MEASUREMENT` to `MeasurementSource`.
+**Amendment 1 incorporated.** This section describes how vehicles could eventually become entries in `asset_registry` without breaking existing functionality. This migration is **not part of Epic 3** — it is a future Phase 4 exercise.
 
-**Phase 2 (server):** Add `reconcileEngineerMeasurements()` to `crossStageConsistencyEngine.ts`, add `measurementToPhysicsMeasurement()` adapter to `physicsTruth.ts`, extend `workload-balancing.ts` with engineer role, register new report keys.
+**Current state (Epic 3):**
+```
+Vehicle → vehicleHistory (primary)
+       → asset_registry (optional, via vehicle_registration cross-reference)
+```
 
-**Phase 3 (router):** Create `server/routers/inspections.ts` with all inspection procedures.
+**Future state (Phase 4):**
+```
+Asset Registry (primary)
+  ├── Vehicle (asset_type='vehicle', vehicle_registration FK to vehicleHistory)
+  ├── Equipment (asset_type='equipment')
+  ├── Building (asset_type='building')
+  └── ...
+```
 
-**Phase 4 (report templates):** Create `engineerInspectionReport.ts` and `riskSurveyReport.ts`.
+**Migration path (zero-downtime, zero-data-loss):**
 
-**Phase 5 (UI):** Create all Engineering Workspace pages in the approved sequence.
+1. **Phase 4a — Dual-write:** When a new vehicle inspection is created, write to both `vehicleHistory` and `asset_registry`. Existing reads continue from `vehicleHistory`.
 
----
+2. **Phase 4b — Backfill:** Run a background migration that creates an `asset_registry` entry for every existing `vehicleHistory` row. The `vehicle_registration` cross-reference field ensures the link is maintained.
 
-## 14. Implementation Sequence
+3. **Phase 4c — Read migration:** Update all queries that read from `vehicleHistory` to read from `asset_registry` where `asset_type = 'vehicle'`. `vehicleHistory` becomes a read-only archive.
 
-The recommended task order minimises integration risk by building the data foundation first, then the server layer, then the UI.
+4. **Phase 4d — Deprecation:** Mark `vehicleHistory` as deprecated. Retain for audit trail purposes.
 
-| Task | Description | Dependencies | Risk |
-|---|---|---|---|
-| **E3-T1** | Apply database migrations (4 new tables, 2 additive columns) | None | Low |
-| **E3-T2** | Extend `WorkflowState`, `InsurerRole`, `MeasurementSource` types | E3-T1 | Low |
-| **E3-T3** | Add `engineer` to `PLATFORM_ROLES` (server + client) | E3-T2 | Low |
-| **E3-T4** | Add `measurementToPhysicsMeasurement()` adapter to `physicsTruth.ts` | E3-T2 | Low |
-| **E3-T5** | Add `reconcileEngineerMeasurements()` to `crossStageConsistencyEngine.ts` | E3-T4 | Medium |
-| **E3-T6** | Extend `workload-balancing.ts` with `assignInspection()` | E3-T2 | Low |
-| **E3-T7** | Create `server/routers/inspections.ts` (CRUD + workflow + assignment) | E3-T1, E3-T2, E3-T6 | Medium |
-| **E3-T8** | Create `server/routers/inspections.ts` (measurements + observations + evidence) | E3-T7 | Medium |
-| **E3-T9** | Create `server/routers/inspections.ts` (AI analysis + physics reconciliation) | E3-T5, E3-T8 | High |
-| **E3-T10** | Create `engineerInspectionReport.ts` and `riskSurveyReport.ts`, register in `reportDefinitions.ts` | E3-T7 | Low |
-| **E3-T11** | Create `EngineerDashboard.tsx`, `EngineerAssignments.tsx`, `InspectionList.tsx` | E3-T7 | Low |
-| **E3-T12** | Create `InspectionDetail.tsx` with tab shell | E3-T11 | Low |
-| **E3-T13** | Create `InspectionEvidence.tsx` | E3-T12 | Low |
-| **E3-T14** | Create `InspectionMeasurements.tsx` | E3-T12 | Medium |
-| **E3-T15** | Create `InspectionObservations.tsx` (all 3 modes including voice) | E3-T12 | Medium |
-| **E3-T16** | Create `InspectionAIAnalysis.tsx` | E3-T12 | Medium |
-| **E3-T17** | Create `InspectionPhysics.tsx` (reconciliation UI) | E3-T9, E3-T12 | High |
-| **E3-T18** | Create `InspectionReview.tsx` (sign-off + report generation) | E3-T10, E3-T12 | Medium |
-| **E3-T19** | Write Vitest tests for all 18 tasks | All | Medium |
+**Why this works without breaking anything:**
 
-**Checkpoint schedule:** Save checkpoint after E3-T3, E3-T6, E3-T9, E3-T10, E3-T15, E3-T18, E3-T19.
+- `asset_registry.vehicle_registration` is a cross-reference field that maps to `vehicleHistory.vehicleRegistration`. All existing `vehicleHistory` queries continue to work throughout the migration.
+- The `inspections` table already references assets via `asset_registry_id` (preferred) or `vehicle_registration` (fallback). The fallback ensures Epic 3 inspections remain valid even before Phase 4 migration.
+- The `vehicleHistory.last_inspection_id` FK added in Epic 3 ensures the Vehicle Passport timeline is already populated. Phase 4 aggregation is a query, not a migration.
 
 ---
 
-## 15. Acceptance Criteria
+## 19. Implementation Sequence
 
-### 15.1 Data Model
+| Task | Description | Dependencies | Risk | Checkpoint |
+|---|---|---|---|---|
+| **E3-T1** | Apply database migrations (5 new tables, 2 additive columns) | None | Low | — |
+| **E3-T2** | Extend `WorkflowState`, `InsurerRole`, `MeasurementSource` types | E3-T1 | Low | — |
+| **E3-T3** | Add `engineer` to `PLATFORM_ROLES` (server + client) | E3-T2 | Low | **✓ Checkpoint** |
+| **E3-T4** | Add `measurementToPhysicsMeasurement()` adapter to `physicsTruth.ts` | E3-T2 | Low | — |
+| **E3-T5** | Add `reconcileEngineerMeasurements()` to `crossStageConsistencyEngine.ts` | E3-T4 | Medium | — |
+| **E3-T6** | Extend `workload-balancing.ts` with `assignInspection()` + skills routing | E3-T2 | Low | **✓ Checkpoint** |
+| **E3-T7** | Create `server/routers/inspections.ts` — CRUD + workflow + assignment | E3-T1, E3-T2, E3-T6 | Medium | — |
+| **E3-T8** | Extend `server/routers/inspections.ts` — measurements + observations + evidence | E3-T7 | Medium | — |
+| **E3-T9** | Extend `server/routers/inspections.ts` — AI analysis + physics reconciliation | E3-T5, E3-T8 | High | **✓ Checkpoint** |
+| **E3-T10** | Create `engineerInspectionReport.ts` and `riskSurveyReport.ts`, register in `reportDefinitions.ts` | E3-T7 | Low | **✓ Checkpoint** |
+| **E3-T11** | Create `EngineerDashboard.tsx`, `EngineerAssignments.tsx`, `InspectionList.tsx` | E3-T7 | Low | — |
+| **E3-T12** | Create `InspectionDetail.tsx` with tab shell | E3-T11 | Low | — |
+| **E3-T13** | Create `InspectionEvidence.tsx` | E3-T12 | Low | — |
+| **E3-T14** | Create `InspectionMeasurements.tsx` | E3-T12 | Medium | — |
+| **E3-T15** | Create `InspectionObservations.tsx` (all 3 modes including voice) | E3-T12 | Medium | **✓ Checkpoint** |
+| **E3-T16** | Create `InspectionAIAnalysis.tsx` (advisory — approval required) | E3-T12 | Medium | — |
+| **E3-T17** | Create `InspectionPhysics.tsx` (reconciliation UI) | E3-T9, E3-T12 | High | — |
+| **E3-T18** | Create `InspectionReview.tsx` (sign-off + report generation) | E3-T10, E3-T12 | Medium | **✓ Checkpoint** |
+| **E3-T19** | Write Vitest tests for all 18 tasks. Run Regression Protection Checklist. | All | Medium | **✓ Final Checkpoint** |
+
+---
+
+## 20. Acceptance Criteria
+
+### 20.1 Data Model
 
 - [ ] `inspections` table exists with all specified columns and indexes
-- [ ] `physical_measurements` table exists with all specified columns and indexes
-- [ ] `engineer_observations` table exists with all specified columns and indexes
-- [ ] `asset_registry` table exists with all specified columns and indexes
+- [ ] `physical_measurements` table exists including `instrument`, `measurement_method` (enum), and `calibration_reference` fields
+- [ ] `engineer_observations` table exists including `observation_type` enum and structured standards reference fields
+- [ ] `asset_registry` table exists with `asset_type` supporting all specified asset classes
+- [ ] `engineer_profiles` table exists with `skills`, `certifications`, `region`, and `availability` fields
 - [ ] `claim_documents.inspection_id` nullable FK exists
 - [ ] `vehicle_history.last_inspection_id` nullable FK exists
 - [ ] All existing `claim_documents` rows have `inspection_id = NULL` (no regression)
 - [ ] All existing `vehicle_history` rows have `last_inspection_id = NULL` (no regression)
 
-### 15.2 RBAC
+### 20.2 RBAC
 
 - [ ] `engineer` role exists in `PLATFORM_ROLES` (server and client)
 - [ ] `engineer` exists in `InsurerRole` union
@@ -1070,54 +1175,54 @@ The recommended task order minimises integration risk by building the data found
 - [ ] `engineer` cannot access claims-only procedures (FORBIDDEN)
 - [ ] `engineer` can access all inspection procedures
 - [ ] `risk_manager` can view inspections but cannot record measurements
-- [ ] `inspection.engineer_report` is accessible to `engineer`, `risk_manager`, `insurer_admin`
-- [ ] `inspection.risk_survey` is accessible to `engineer`, `risk_manager`, `insurer_admin`, `executive`
 
-### 15.3 Workflow
+### 20.3 Workflow
 
-- [ ] Inspection transitions from `scheduled` → `assigned` → `in_progress` → `evidence_capture` → `measurements_complete` → `observations_complete` → `ai_analysis` → `engineer_review` → `physics_reconciliation` → `complete`
+- [ ] Inspection transitions through all 9 inspection states in sequence
 - [ ] Each transition is recorded in `workflow_audit_trail`
 - [ ] Invalid transitions are rejected by the workflow engine
 - [ ] Existing claim workflow transitions are unaffected (regression test)
 
-### 15.4 Physics Integration
+### 20.4 Physics Integration
 
 - [ ] `ENGINEER_MEASUREMENT` is a valid `MeasurementSource` value
-- [ ] `measurementToPhysicsMeasurement()` correctly maps all `physical_measurements` fields to `PhysicsMeasurement`
-- [ ] `reconcileEngineerMeasurements()` raises a `ConsistencyFlag` (severity `HIGH`) when engineer measurement deviates from AI value by > 15%
-- [ ] `reconcileEngineerMeasurements()` does not modify existing `ConsistencyFlag` rules C1–C16
-- [ ] `stage-7-physics.ts` receives reconciled `PhysicsTruth` and produces correct output (existing physics tests pass)
-- [ ] `physics_validation_records.actual*` fields are populated when inspection is linked to a claim
+- [ ] `measurementToPhysicsMeasurement()` correctly maps all `physical_measurements` fields
+- [ ] `reconcileEngineerMeasurements()` raises `ConsistencyFlag` (severity `HIGH`, rule `E1`) for deviations > 15%
+- [ ] Existing `ConsistencyFlag` rules C1–C16 produce identical output for identical input
+- [ ] `stage-7-physics.ts` produces correct output (existing physics tests pass)
 
-### 15.5 Evidence
+### 20.5 AI Advisory Policy
 
-- [ ] Evidence uploaded during an inspection is stored in `claim_documents` with `inspection_id` set
-- [ ] Evidence uploaded for a claim (without inspection) continues to work with `inspection_id = NULL`
-- [ ] Evidence is retrievable by `inspection_id`
+- [ ] AI-drafted observations with `ai_draft_approved = 0` are excluded from reports
+- [ ] `ai_analysis_approved = 0` prevents AI analysis section from appearing in reports
+- [ ] UI displays AI suggestions with distinct visual treatment and "AI Suggestion" label
+- [ ] "Generate Report" button is disabled if any unapproved AI content exists
 
-### 15.6 Voice Observations
+### 20.6 Standards References
 
-- [ ] Voice recording is uploaded to S3 via `storagePut()`
-- [ ] `transcribeAudio()` produces a transcript from the S3 URL
-- [ ] Transcript is stored in `engineer_observations.voice_transcript`
-- [ ] AI draft is generated from transcript + linked measurements via `invokeLLM()`
-- [ ] Engineer can edit the draft before saving
+- [ ] Standards references in both `physical_measurements` and `engineer_observations` use the four-field structure (body, code, clause, description)
+- [ ] No hardcoded standards body values — `standards_body` is a free `VARCHAR(50)` field
 
-### 15.7 Reports
+### 20.7 Assignment Engine
 
-- [ ] `inspection.engineer_report` generates a PDF with: subject details, evidence gallery, measurements table, observations list, physics reconciliation summary
-- [ ] `inspection.risk_survey` generates a PDF with: asset details, risk rating, critical observations, recommendations, standards references
-- [ ] Both reports use `kingaDesignSystem.ts` and are visually consistent with existing KINGA reports
+- [ ] `engineer_profiles` table is populated for test engineers with skills, certifications, and region
+- [ ] `assignInspection()` selects the engineer with matching skills, correct region, and lowest workload
+- [ ] Engineers without required skills are not assigned
+
+### 20.8 Reports
+
+- [ ] `inspection.engineer_report` generates a PDF with all specified sections
+- [ ] `inspection.risk_survey` generates a PDF with all specified sections
+- [ ] Both reports use `kingaDesignSystem.ts`
+- [ ] AI-drafted content is clearly distinguished from engineer-authored content in reports
 - [ ] Existing claim reports are unaffected (regression test)
 
-### 15.8 Regression
+### 20.9 Regression (Mandatory — Regression Protection Checklist)
 
-- [ ] All existing Vitest tests pass after Epic 3 implementation
-- [ ] TypeScript baseline error count does not increase beyond the pre-Epic-3 baseline
-- [ ] Claims pipeline (stages 1–12+) processes a test claim end-to-end without error
-- [ ] Existing `crossStageConsistencyEngine` rules C1–C16 produce identical output for identical input
-- [ ] Existing physics engine produces identical output for identical input
+- [ ] All items in the Regression Protection Checklist (Section 17) pass before final checkpoint
+- [ ] All existing Vitest tests pass
+- [ ] TypeScript baseline error count does not exceed the pre-Epic-3 baseline
 
 ---
 
-*End of KINGA Epic 3 Technical Design Specification v1.0*
+*End of KINGA Epic 3 Technical Design Specification v1.1*
