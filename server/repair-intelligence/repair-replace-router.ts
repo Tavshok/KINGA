@@ -17,7 +17,7 @@ import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
 import { claims, aiAssessments } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
-import { scoreAllComponents, recordAdjusterOutcome, inferCategory } from "../pipeline-v2/repairReplaceEngine";
+import { scoreAllComponents, recordFinalizedOutcome, inferCategory } from "../pipeline-v2/repairReplaceEngine";
 
 export const repairReplaceRouter = router({
   /**
@@ -161,10 +161,11 @@ export const repairReplaceRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await recordAdjusterOutcome({
+      const result = await recordFinalizedOutcome({
         ...input,
         adjusterUserId: ctx.user.id,
+        isAdjusterCorrection: true,
       });
-      return { success: true };
+      return { success: result.recorded, skippedReason: result.skippedReason ?? null };
     }),
 });

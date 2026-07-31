@@ -2576,6 +2576,54 @@ export async function triggerAiAssessment(claimId: number) {
   import('./db-pipeline').then(({ recordRunComplete }) => {
     recordRunComplete({ runId: _pipelineRunId, status: 'completed', totalDurationMs: 0, stagesCompleted: 0, stagesFailed: 0, stagesDegraded: 0 }).catch(() => {});
   }).catch(() => {});
+  // ── Learning Table: Automatic Finalization Write (fire-and-forget) ──────────
+  // Writes one row per component to component_repair_outcomes at ANALYSIS_COMPLETE.
+  // Ensures the learning table accumulates data from ALL claims (autonomous + reviewed).
+  // G-1 guard (fraud_score >= 50) is enforced inside recordFinalizedOutcome.
+  // INSERT IGNORE: a subsequent adjuster correction (UPSERT path) wins.
+  setImmediate(async () => {
+    try {
+      const riItems = costAnalysis?.repairIntelligence;
+      if (!Array.isArray(riItems) || riItems.length === 0) return;
+      const _learningDb = await getDb();
+      if (!_learningDb) return;
+      const _assessmentRows = await _learningDb.select({ id: aiAssessments.id })
+        .from(aiAssessments).where(eq(aiAssessments.claimId, claimId)).limit(1);
+      const _assessmentId = _assessmentRows[0]?.id;
+      if (!_assessmentId) return;
+      const { recordFinalizedOutcome, inferCategory } = await import('./pipeline-v2/repairReplaceEngine');
+      const _vehicleMake = claimRecord?.vehicle?.make ?? undefined;
+      const _vehicleModel = claimRecord?.vehicle?.model ?? undefined;
+      const _vehicleYear = claimRecord?.vehicle?.year ?? undefined;
+      for (const item of riItems) {
+        const _componentName = (item as any).component ?? 'Unknown';
+        const _severity = (item as any).severity ?? 'moderate';
+        const _recommendedAction = (item as any).recommendedAction ?? 'repair';
+        const _outcome: 'repair' | 'replace' | 'write_off' =
+          _recommendedAction === 'replace' ? 'replace' :
+          _recommendedAction === 'write_off' ? 'write_off' : 'repair';
+        const _totalCostUsd = (item as any).totalCost ?? null;
+        await recordFinalizedOutcome({
+          claimId,
+          assessmentId: _assessmentId,
+          componentName: _componentName,
+          componentCategory: inferCategory(_componentName),
+          severityAtDecision: _severity,
+          vehicleMake: _vehicleMake,
+          vehicleModel: _vehicleModel,
+          vehicleYear: _vehicleYear,
+          outcome: _outcome,
+          aiSuggestion: _outcome === 'write_off' ? 'replace' : _outcome,
+          repairCostUsd: _outcome === 'repair' && _totalCostUsd ? _totalCostUsd : undefined,
+          replaceCostUsd: _outcome === 'replace' && _totalCostUsd ? _totalCostUsd : undefined,
+          isAdjusterCorrection: false,
+        }).catch(() => { /* non-fatal — never blocks assessment */ });
+      }
+      console.log(`[LearningTable] Claim ${claimId}: finalization write attempted for ${riItems.length} component(s)`);
+    } catch (learningErr: any) {
+      console.warn(`[LearningTable] Claim ${claimId}: finalization write failed (non-fatal):`, learningErr?.message ?? learningErr);
+    }
+  });
 
   console.log(`[KINGA Assessment] Claim ${claimId}: claimUpdate keys = ${Object.keys(claimUpdate).join(', ')}`);
   try {

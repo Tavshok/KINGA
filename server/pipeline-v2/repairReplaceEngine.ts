@@ -15,8 +15,13 @@
  *   < 40   => "Replace recommended"
  *
  * The engine is deliberately probabilistic and never makes a hard decision.
- * The adjuster's confirmed outcome feeds back into component_repair_outcomes
- * so future predictions improve silently over time.
+ * The confirmed outcome feeds back into component_repair_outcomes at claim
+ * finalization (ANALYSIS_COMPLETE) so future predictions improve silently over time.
+ * Adjuster corrections via trpc.repairReplace.recordOutcome perform an UPSERT
+ * that overwrites the finalization record for the same claim+component.
+ *
+ * G-1 GUARD: Claims with fraud_score >= 50 are excluded from the learning table
+ * to prevent contaminated signals from degrading calibration data quality.
  */
 
 import { getRawPool } from "../db";
@@ -52,6 +57,13 @@ export interface VehicleContext {
   make?: string;
   model?: string;
   year?: number;
+}
+
+/** Return type for recordFinalizedOutcome and the adjuster correction path */
+export interface OutcomeRecordResult {
+  recorded: boolean;
+  /** Populated when recorded=false — explains why the write was skipped */
+  skippedReason?: string;
 }
 
 // --- Severity => base repair probability -------------------------------------
@@ -151,6 +163,44 @@ async function queryLearningDB(
   }
 }
 
+// --- G-1 Fraud Guard ---------------------------------------------------------
+/**
+ * Returns true if the claim should be excluded from the learning table.
+ * Claims with fraud_score >= 50 are excluded to prevent contaminated signals.
+ * Fail-safe: if the guard query fails, the write is skipped (not allowed through).
+ */
+async function isExcludedByFraudGuard(claimId: number): Promise<{ excluded: boolean; reason?: string }> {
+  try {
+    const pool = await getRawPool();
+    if (!pool) return { excluded: true, reason: "G-1: pool unavailable — write skipped as fail-safe" };
+
+    const [rows] = await pool.execute(
+      `SELECT fraud_risk_score FROM claims WHERE id = ? LIMIT 1`,
+      [claimId]
+    );
+    const data = rows as Array<{ fraud_risk_score: number | null }>;
+    const score = data[0]?.fraud_risk_score ?? null;
+
+    if (score === null) {
+      // No fraud score available — allow write (no signal to exclude on)
+      return { excluded: false };
+    }
+    if (score >= 50) {
+      return {
+        excluded: true,
+        reason: `G-1: fraud_risk_score=${score} >= 50 — excluded from learning table to protect calibration data quality`,
+      };
+    }
+    return { excluded: false };
+  } catch (err) {
+    // Fail-safe: guard query failed — skip write rather than allow unguarded write
+    return {
+      excluded: true,
+      reason: `G-1: guard query failed (${err instanceof Error ? err.message : String(err)}) — write skipped as fail-safe`,
+    };
+  }
+}
+
 // --- Main scoring function ---------------------------------------------------
 
 export async function scoreRepairProbability(
@@ -230,8 +280,136 @@ export async function scoreAllComponents(
   return Promise.all(components.map(c => scoreRepairProbability(c, vehicleCtx)));
 }
 
-// --- Record adjuster outcome (learning write-back) ---------------------------
+// --- Record finalized outcome (learning write-back) --------------------------
+/**
+ * Writes a component repair/replace outcome to the learning table.
+ *
+ * PRIMARY TRIGGER: Called automatically at claim finalization (ANALYSIS_COMPLETE)
+ * for every component in the AI pipeline's repair intelligence output.
+ * This ensures the learning table accumulates data from all claims — both
+ * autonomous (fast-track) and human-reviewed — not just those where an adjuster
+ * manually annotates a decision.
+ *
+ * SECONDARY TRIGGER: Called via trpc.repairReplace.recordOutcome when an adjuster
+ * explicitly confirms or overrides a component decision. This path performs an
+ * UPSERT so the adjuster correction replaces the finalization record for the
+ * same claim+component, preserving the adjuster's ground-truth signal.
+ *
+ * G-1 GUARD: Claims with fraud_score >= 50 are excluded. The guard is applied
+ * at the start of every write — both the automatic and manual paths.
+ *
+ * @param params.isAdjusterCorrection - When true, performs UPSERT (adjuster path).
+ *   When false (default), performs INSERT IGNORE (finalization path — skips if already written).
+ */
+export async function recordFinalizedOutcome(params: {
+  claimId: number;
+  assessmentId: number;
+  componentName: string;
+  componentCategory?: string;
+  severityAtDecision: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: number;
+  outcome: "repair" | "replace" | "write_off";
+  aiSuggestion: RepairReplaceSuggestion;
+  adjusterUserId?: number;
+  repairCostUsd?: number;
+  replaceCostUsd?: number;
+  /** When true, performs UPSERT (adjuster correction path). Default: false (finalization path). */
+  isAdjusterCorrection?: boolean;
+}): Promise<OutcomeRecordResult> {
+  // ── G-1 Fraud Guard ────────────────────────────────────────────────────────
+  const guard = await isExcludedByFraudGuard(params.claimId);
+  if (guard.excluded) {
+    return { recorded: false, skippedReason: guard.reason };
+  }
 
+  const pool = await getRawPool();
+  if (!pool) return { recorded: false, skippedReason: "pool unavailable" };
+
+  const now = new Date().toISOString();
+  const currentYear = new Date().getFullYear();
+  const vehicleAgeYears = params.vehicleYear ? currentYear - params.vehicleYear : null;
+  const wasOverride = params.outcome !== params.aiSuggestion ? 1 : 0;
+
+  if (params.isAdjusterCorrection) {
+    // UPSERT: adjuster correction replaces the finalization record for same claim+component
+    await pool.execute(
+      `INSERT INTO component_repair_outcomes
+        (claim_id, assessment_id, component_name, component_category,
+         severity_at_decision, vehicle_make, vehicle_model, vehicle_year,
+         vehicle_age_years, outcome, ai_suggestion, was_override,
+         adjuster_user_id, repair_cost_usd, replace_cost_usd,
+         decided_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         outcome           = VALUES(outcome),
+         ai_suggestion     = VALUES(ai_suggestion),
+         was_override      = VALUES(was_override),
+         adjuster_user_id  = VALUES(adjuster_user_id),
+         repair_cost_usd   = VALUES(repair_cost_usd),
+         replace_cost_usd  = VALUES(replace_cost_usd),
+         decided_at        = VALUES(decided_at)`,
+      [
+        params.claimId,
+        params.assessmentId,
+        params.componentName,
+        params.componentCategory ?? null,
+        params.severityAtDecision,
+        params.vehicleMake ?? null,
+        params.vehicleModel ?? null,
+        params.vehicleYear ?? null,
+        vehicleAgeYears,
+        params.outcome,
+        params.aiSuggestion,
+        wasOverride,
+        params.adjusterUserId ?? null,
+        params.repairCostUsd?.toFixed(2) ?? null,
+        params.replaceCostUsd?.toFixed(2) ?? null,
+        now,
+        now,
+      ]
+    );
+  } else {
+    // INSERT IGNORE: finalization path — skips silently if already written
+    await pool.execute(
+      `INSERT IGNORE INTO component_repair_outcomes
+        (claim_id, assessment_id, component_name, component_category,
+         severity_at_decision, vehicle_make, vehicle_model, vehicle_year,
+         vehicle_age_years, outcome, ai_suggestion, was_override,
+         adjuster_user_id, repair_cost_usd, replace_cost_usd,
+         decided_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        params.claimId,
+        params.assessmentId,
+        params.componentName,
+        params.componentCategory ?? null,
+        params.severityAtDecision,
+        params.vehicleMake ?? null,
+        params.vehicleModel ?? null,
+        params.vehicleYear ?? null,
+        vehicleAgeYears,
+        params.outcome,
+        params.aiSuggestion,
+        wasOverride,
+        params.adjusterUserId ?? null,
+        params.repairCostUsd?.toFixed(2) ?? null,
+        params.replaceCostUsd?.toFixed(2) ?? null,
+        now,
+        now,
+      ]
+    );
+  }
+
+  return { recorded: true };
+}
+
+/**
+ * @deprecated Use recordFinalizedOutcome instead.
+ * This alias is retained for backward compatibility during the migration period.
+ * It calls recordFinalizedOutcome with isAdjusterCorrection=true (UPSERT behaviour).
+ */
 export async function recordAdjusterOutcome(params: {
   claimId: number;
   assessmentId: number;
@@ -246,41 +424,8 @@ export async function recordAdjusterOutcome(params: {
   adjusterUserId?: number;
   repairCostUsd?: number;
   replaceCostUsd?: number;
-}): Promise<void> {
-  const now = new Date().toISOString();
-  const currentYear = new Date().getFullYear();
-  const vehicleAgeYears = params.vehicleYear ? currentYear - params.vehicleYear : null;
-
-  const pool = await getRawPool();
-  if (!pool) return;
-  await pool.execute(
-    `INSERT INTO component_repair_outcomes
-      (claim_id, assessment_id, component_name, component_category,
-       severity_at_decision, vehicle_make, vehicle_model, vehicle_year,
-       vehicle_age_years, outcome, ai_suggestion, was_override,
-       adjuster_user_id, repair_cost_usd, replace_cost_usd,
-       decided_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      params.claimId,
-      params.assessmentId,
-      params.componentName,
-      params.componentCategory ?? null,
-      params.severityAtDecision,
-      params.vehicleMake ?? null,
-      params.vehicleModel ?? null,
-      params.vehicleYear ?? null,
-      vehicleAgeYears,
-      params.outcome,
-      params.aiSuggestion,
-      params.outcome !== params.aiSuggestion ? 1 : 0,
-      params.adjusterUserId ?? null,
-      params.repairCostUsd?.toFixed(2) ?? null,
-      params.replaceCostUsd?.toFixed(2) ?? null,
-      now,
-      now,
-    ]
-  );
+}): Promise<OutcomeRecordResult> {
+  return recordFinalizedOutcome({ ...params, isAdjusterCorrection: true });
 }
 
 // --- Helpers -----------------------------------------------------------------
