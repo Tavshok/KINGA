@@ -627,3 +627,89 @@ export function runCrossStageConsistencyCheck(
 
   return { flags, criticalCount, highCount, status, summary, blockAutoApproval };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Epic 3 — E3-T5: Engineer Measurement Reconciliation
+// ─────────────────────────────────────────────────────────────────────────────
+import type { PhysicsMeasurement } from "./physicsTruth";
+import { measurementToPhysicsMeasurement, type EngineerMeasurementRow } from "./engineerMeasurementAdapter";
+
+/**
+ * Deviation threshold above which a ConsistencyFlag (severity HIGH) is raised.
+ * 15% is the design-specified threshold from the Epic 3 TDS.
+ */
+const ENGINEER_DEVIATION_THRESHOLD = 0.15;
+
+export interface EngineerReconciliationResult {
+  /** Converted PhysicsMeasurement objects (one per input row) */
+  measurements: Array<{ measurementType: string; unit: string; physics: PhysicsMeasurement }>;
+  /** Consistency flags raised when engineer measurements deviate from pipeline values */
+  flags: ConsistencyFlag[];
+}
+
+/**
+ * Reconcile engineer physical measurements against existing pipeline measurements.
+ *
+ * For each engineer measurement that has a corresponding pipeline measurement,
+ * this function:
+ *   1. Converts the engineer row to a PhysicsMeasurement via the adapter
+ *   2. Computes the percentage deviation from the pipeline value
+ *   3. Raises a ConsistencyFlag (severity HIGH) if deviation > 15%
+ *
+ * The physics engine (stage-7-physics.ts) is NOT called here. The flags
+ * produced by this function are surfaced in the Engineering Workspace review
+ * UI and appended to the claim's consistency check result.
+ *
+ * @param engineerRows - Rows from physical_measurements for this inspection
+ * @param pipelineMeasurements - Map of measurementType → PhysicsMeasurement from the pipeline
+ * @param inspectionRef - Inspection reference for flag descriptions
+ */
+export function reconcileEngineerMeasurements(
+  engineerRows: EngineerMeasurementRow[],
+  pipelineMeasurements: Map<string, PhysicsMeasurement>,
+  inspectionRef: string
+): EngineerReconciliationResult {
+  const flags: ConsistencyFlag[] = [];
+  const measurements: Array<{ measurementType: string; unit: string; physics: PhysicsMeasurement }> = [];
+
+  for (const row of engineerRows) {
+    const physics = measurementToPhysicsMeasurement(row);
+    measurements.push({ measurementType: row.measurementType, unit: row.unit, physics });
+
+    const pipeline = pipelineMeasurements.get(row.measurementType);
+    if (!pipeline || pipeline.source === "NOT_AVAILABLE") continue;
+
+    const pipelineValue = pipeline.value;
+    if (pipelineValue === 0) continue; // Avoid division by zero
+
+    const deviation = Math.abs(physics.value - pipelineValue) / Math.abs(pipelineValue);
+
+    if (deviation > ENGINEER_DEVIATION_THRESHOLD) {
+      const deviationPct = (deviation * 100).toFixed(1);
+      flags.push({
+        ruleId: `E3-REC-${row.measurementType.toUpperCase().replace(/\s+/g, "_")}`,
+        severity: "HIGH",
+        title: `Engineer measurement deviates from pipeline: ${row.measurementType}`,
+        description:
+          `Inspection ${inspectionRef}: engineer measured ${row.measurementType} as ` +
+          `${physics.value} ${row.unit} (confidence ${(physics.confidence * 100).toFixed(0)}%), ` +
+          `but the pipeline value (source: ${pipeline.source}) is ${pipelineValue} ${row.unit}. ` +
+          `Deviation: ${deviationPct}% (threshold: ${(ENGINEER_DEVIATION_THRESHOLD * 100).toFixed(0)}%).`,
+        conflictA: {
+          source: `Engineer (inspection ${inspectionRef})`,
+          value: `${physics.value} ${row.unit}`,
+        },
+        conflictB: {
+          source: pipeline.source,
+          value: `${pipelineValue} ${row.unit}`,
+        },
+        adjusterAction:
+          `Review the engineer measurement for ${row.measurementType} against the pipeline ` +
+          `estimate. If the engineer measurement is from a calibrated instrument, it should ` +
+          `take precedence. Update the physics truth object if the engineer value is accepted.`,
+      });
+    }
+  }
+
+  return { measurements, flags };
+}
