@@ -122,6 +122,11 @@ const IntegrityMetricsDashboard = lazy(() => import("./pages/admin/IntegrityMetr
 const PhysicsAccuracyDashboard = lazy(() => import("./pages/admin/PhysicsAccuracyDashboard"));
 const KingaAgency = lazy(() => import("./pages/KingaAgency"));
 const AgencyFleetQuotes = lazy(() => import("./pages/AgencyFleetQuotes"));
+// Engineering Workspace pages
+const EngineerDashboard = lazy(() => import("./pages/EngineerDashboard"));
+const EngineerAssignments = lazy(() => import("./pages/EngineerAssignments"));
+const EngineerInspectionList = lazy(() => import("./pages/EngineerInspectionList"));
+const EngineerInspectionDetail = lazy(() => import("./pages/EngineerInspectionDetail"));
 const InsurerFleetRFQs = lazy(() => import("./pages/InsurerFleetRFQs"));
 
 // Feature pages
@@ -815,6 +820,27 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
+        {/* Engineering Workspace Routes — /engineer domain */}
+        <Route path="/engineer/dashboard">
+          <ProtectedRoute domain="engineer">
+            <EngineerDashboard />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/engineer/assignments">
+          <ProtectedRoute domain="engineer">
+            <EngineerAssignments />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/engineer/inspections">
+          <ProtectedRoute domain="engineer">
+            <EngineerInspectionList />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/engineer/inspections/:id">
+          <ProtectedRoute domain="engineer">
+            <EngineerInspectionDetail />
+          </ProtectedRoute>
+        </Route>
         <Route path="/404">
           <NotFound />
         </Route>
