@@ -37,7 +37,7 @@ export async function generateForensicDecisionReport(
               a.narrative_analysis_json, a.physics_analysis, a.physics_truth_json,
               a.forensic_audit_validation_json, a.claim_quality_json,
               a.created_at AS assessment_date, a.model_version,
-              a.enriched_photos_json
+              a.enriched_photos_json, a.cross_validation_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""}
@@ -129,6 +129,18 @@ export async function generateForensicDecisionReport(
     const slpeWarnings: string[] = ptlSLPE?.warnings ?? [];
     const narrative    = safeJson(c.narrative_analysis_json);
     const forensicAudit = safeJson(c.forensic_audit_validation_json);
+    // Cross-validation JSON — three-way speed comparison, XV risk, impact direction
+    const xv = safeJson(c.cross_validation_json) as any;
+    const xvThreeWay     = xv?.threeWaySpeedComparison ?? null;
+    const xvClaimedSpeed: number | null  = xvThreeWay?.claimedSpeedKmh ?? null;
+    const xvConsensusSpeed: number | null = xvThreeWay?.consensusSpeedKmh ?? null;
+    const xvSeverityImplied: string | null = xvThreeWay?.severityImpliedSpeed ?? null;
+    const xvSpeedVerdict: string | null = xvThreeWay?.verdict ?? null;
+    const xvRisk         = xv?.xvRisk ?? null;
+    const xvRiskScore: number = xvRisk?.score ?? 0;
+    const xvRiskLevel: string = xvRisk?.level ?? '';
+    const xvRiskFactors: string[] = xvRisk?.factors ?? [];
+    const xvImpactDir: string | null = xv?.impactDirection ?? pt?.geometry?.impactDirection ?? null;
     const claimQuality  = safeJson(c.claim_quality_json);
     // Bug #1/#12: enriched_photos_json is the canonical photo source (14 photos for VOLTRON)
     // claim_documents may be empty for pipeline-only claims; enriched_photos_json is always populated
@@ -142,8 +154,10 @@ export async function generateForensicDecisionReport(
 
     // ── 5. Derived values ────────────────────────────────────────────────────
     const fraudScore  = Number(c.fraud_score ?? 0);
+    // repair_to_value_ratio is stored as a percentage integer (e.g. 5 = 5%)
     const rtvRatio    = Number(c.repair_to_value_ratio ?? 0);
-    const marketValue = Number(c.vehicle_market_value ?? 0);
+    // vehicle_market_value is stored in cents — divide by 100 for display
+    const marketValue = Number(c.vehicle_market_value ?? 0) / 100;
     const estimatedCost = Number(c.estimated_cost ?? 0);
 
     const quoteArr = quotes as Record<string, unknown>[];
@@ -370,7 +384,14 @@ export async function generateForensicDecisionReport(
     const matchedComponents = Number(costIntel?.matchedComponents ?? repairIntel?.matchedComponents ?? 0);
     const missingFromQuote  = Number(costIntel?.missingFromQuote ?? repairIntel?.missingFromQuote ?? 0);
     const extraInQuote      = Number(costIntel?.extraInQuote ?? repairIntel?.extraInQuote ?? 0);
-    const copyQuotation = forensicAudit?.copyQuotation as {detected: boolean; similarity: number} | null;
+    // Copy-quotation data lives in fraud_score_breakdown_json.quoteSimilarity, NOT in forensic_audit_validation_json
+    const quoteSimilarityRaw = (fraudBreak as any)?.quoteSimilarity ?? null;
+    const copyQuotation = quoteSimilarityRaw ? {
+      detected: quoteSimilarityRaw.overall_verdict === "confirmed" || quoteSimilarityRaw.overall_verdict === "suspected",
+      similarity: quoteSimilarityRaw.pairs?.[0]?.structural_similarity ?? 0,
+      verdict: quoteSimilarityRaw.overall_verdict ?? "none",
+      highestPairSimilarity: Math.round((quoteSimilarityRaw.pairs?.[0]?.structural_similarity ?? 0) * 100),
+    } : null;
 
     // Linked claims / impossibility flag
     const linkedClaims: string[] = (forensicAudit?.linkedClaims as string[]) ??
@@ -524,7 +545,7 @@ export async function generateForensicDecisionReport(
         const stubY = baselineY - stubH;
         return `<rect x="${x}" y="${stubY}" width="${barWidth}" height="${stubH}" fill="#e0e0e0" stroke="#c0c0c0" stroke-width="0.5" stroke-dasharray="3,2"/>
 <text x="${x + barWidth/2}" y="${stubY - 3}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="8" fill="#9e9e9e">N/A</text>
-<text x="${x + barWidth/2}" y="120" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="6.5" fill="#9e9e9e">${esc(m.label)}</text>`;
+<text transform="translate(${x + barWidth/2},118) rotate(-35)" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="6.5" fill="#9e9e9e">${esc(m.label.length > 14 ? m.label.slice(0,13) + '…' : m.label)}</text>`;
       }
       const h = Math.max(4, Math.round((m.speed / maxSpeed) * maxBarHeight));
       const y = baselineY - h;
@@ -532,7 +553,7 @@ export async function generateForensicDecisionReport(
       const textFill = m.danger ? "#a83232" : "#171717";
       return `<rect x="${x}" y="${y}" width="${barWidth}" height="${h}" fill="${fill}"/>
 <text x="${x + barWidth/2}" y="${y - 4}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="700" fill="${textFill}">${m.speed}</text>
-<text x="${x + barWidth/2}" y="120" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="7.5" fill="#4a4a4a">${esc(m.label)}</text>`;
+<text transform="translate(${x + barWidth/2},118) rotate(-35)" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="7" fill="#4a4a4a">${esc(m.label.length > 14 ? m.label.slice(0,13) + '…' : m.label)}</text>`;
     }).join("\n");
 
     const speedDiscrepancy = preImpactSpeed > 0 && consensusSpeed > 0 && preImpactSpeed > consensusSpeed
@@ -641,8 +662,8 @@ export async function generateForensicDecisionReport(
     </div>
     <div class="verdict-cell">
       <div class="label">Repair Ratio</div>
-      <div class="value">${rtvRatio > 0 ? Math.round(rtvRatio * 100) + "%" : "—"}</div>
-      <div class="sub">${rtvRatio > 0 ? `<span class="pill ${rtvRatio >= 0.75 ? "red" : "green"}">${rtvRatio >= 0.75 ? "Write-off threshold" : "Repair — below write-off"}</span>` : "—"}</div>
+      <div class="value">${rtvRatio > 0 ? rtvRatio.toFixed(1) + "%" : "—"}</div>
+      <div class="sub">${rtvRatio > 0 ? `<span class="pill ${rtvRatio >= 75 ? "red" : "green"}">${rtvRatio >= 75 ? "Write-off threshold" : "Repair — below write-off"}</span>` : "—"}</div>
     </div>
     <div class="verdict-cell">
       <div class="label">Cost Verdict</div>
@@ -747,7 +768,7 @@ export async function generateForensicDecisionReport(
 
   <div class="footer-strip sans">
     <div><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:14px;vertical-align:middle;margin-right:5px;display:inline-block">KINGA · Confidential Forensic Audit Report</div>
-    <div>${docRef} · Page 1 of 4</div>
+    <div>${docRef}</div>
   </div>
 </div>`;
 
@@ -933,6 +954,35 @@ export async function generateForensicDecisionReport(
       </div>
     </div>` : ""}
 
+    ${xvThreeWay ? `
+    <!-- Three-Way Speed Comparison (Cross-Validation) -->
+    <div class="box" style="margin-top:12px;">
+      ${sectionTab("04c", "Three-Way Speed Comparison",
+        xvSpeedVerdict === "ALL_AGREE" ? "All Sources Agree" :
+        xvSpeedVerdict === "ALL_DIVERGE" ? "All Sources Diverge" :
+        xvSpeedVerdict === "CLAIMED_OUTLIER" ? "Claimed Speed Outlier" : "Speed Discrepancy",
+        xvSpeedVerdict === "ALL_AGREE" ? "ok" : xvSpeedVerdict === "ALL_DIVERGE" ? "high" : "mid"
+      )}
+      <table class="kv">
+        ${xvClaimedSpeed !== null ? kvRow("Claimant-stated speed", `${xvClaimedSpeed} km/h`) : ""}
+        ${xvConsensusSpeed !== null ? kvRow("Physics consensus speed", `<b>${xvConsensusSpeed} km/h</b>`) : ""}
+        ${xvSeverityImplied ? kvRow("Severity-implied speed range", esc(xvSeverityImplied)) : ""}
+        ${kvRow("Verdict", xvSpeedVerdict === "ALL_AGREE"
+          ? `<span style="color:var(--green);">&#10003; All three sources agree</span>`
+          : xvSpeedVerdict === "ALL_DIVERGE"
+          ? `<span style="color:var(--red);font-weight:600;">&#9888; All three sources diverge — adjuster review required</span>`
+          : xvSpeedVerdict === "CLAIMED_OUTLIER"
+          ? `<span style="color:var(--amber);font-weight:600;">&#9888; Claimant-stated speed is an outlier vs. physics and damage severity</span>`
+          : `<span style="color:var(--amber);">&#9888; ${esc(xvSpeedVerdict ?? "Discrepancy detected")}</span>`
+        )}
+        ${xvImpactDir ? kvRow("Impact direction", esc(xvImpactDir.charAt(0).toUpperCase() + xvImpactDir.slice(1))) : ""}
+      </table>
+      ${xvRiskScore > 0 ? `<div class="callout ${xvRiskLevel === 'HIGH' ? 'red' : xvRiskLevel === 'MEDIUM' ? 'amber' : 'green'}" style="margin-top:8px;">
+        <b>Cross-Validation Risk (${xvRiskScore}/100):</b> ${xvRiskFactors.map(f => esc(f)).join(' · ')}
+      </div>` : ""}
+      <p class="caption" style="margin-top:8px;">Three-way comparison cross-references the claimant-stated speed, physics consensus speed (from the Speed Inference Ensemble), and the damage-severity-implied speed range. Divergence across all three sources is a strong indicator of misrepresentation or measurement error.</p>
+    </div>` : ""}
+
     ${physicsTruth && (integrityFlags.length > 0 || ptlEvidence) ? `
     <!-- PTL Evidence Quality & Integrity panel -->
     <div class="cols-2" style="margin-top:12px;">
@@ -1105,9 +1155,9 @@ export async function generateForensicDecisionReport(
   </div>
 
   ${w3 ? `
-  <!-- §W3 PHYSICS EVIDENCE CHAIN -->
+  <!-- §04d PHYSICS EVIDENCE CHAIN (integrated into §04 flow) -->
   <div class="section">
-    ${sectionTab("W3", "Physics Evidence Chain & Methodology", w3Grade ? `Grade ${w3Grade}` : undefined, w3Grade === 'A' || w3Grade === 'B' ? 'ok' : w3Grade === 'C' ? 'mid' : 'high')}
+    ${sectionTab("04d", "Physics Evidence Chain & Methodology", w3Grade ? `Grade ${w3Grade}` : undefined, w3Grade === 'A' || w3Grade === 'B' ? 'ok' : w3Grade === 'C' ? 'mid' : 'high')}
     <div class="cols-2">
       <!-- Left: Key findings + uncertainty summary -->
       <div>
@@ -1146,7 +1196,7 @@ export async function generateForensicDecisionReport(
 
   <div class="footer-strip sans">
     <div><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:14px;vertical-align:middle;margin-right:5px;display:inline-block">KINGA · Confidential Forensic Audit Report</div>
-    <div>${docRef} · Page 2 of 4</div>
+    <div>${docRef}</div>
   </div>
 </div>`;
 
@@ -1201,7 +1251,7 @@ export async function generateForensicDecisionReport(
       </div>
       <div class="box">
         <h4>Integrity Flags</h4>
-        ${copyQuotation?.detected ? co(`<b>Copy-quotation signal</b> — structural fingerprint analysis indicates multiple submitted quotes were likely authored from the same source document.`, "amber") : ""}
+        ${copyQuotation?.detected ? co(`<b>Copy-quotation signal (${esc(copyQuotation.verdict?.toUpperCase() ?? "DETECTED")})</b> — structural fingerprint analysis indicates multiple submitted quotes were likely authored from the same source document. Highest pair structural similarity: ${copyQuotation.highestPairSimilarity}%. Manual adjuster review of all submitted quotations is required before settlement.`, copyQuotation.verdict === "confirmed" ? "red" : "amber") : ""}
         <p class="small" style="margin-top:8px;">${esc(String(repairIntel?.reconciliationNote ?? costIntel?.reconciliationNote ?? "Scope discrepancies flagged for adjuster verification. Review all line items against confirmed damage scope."))}</p>
       </div>
     </div>
@@ -1283,7 +1333,7 @@ export async function generateForensicDecisionReport(
 
   <div class="footer-strip sans">
     <div><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:14px;vertical-align:middle;margin-right:5px;display:inline-block">KINGA · Confidential Forensic Audit Report</div>
-    <div>${docRef} · Page 3 of 4</div>
+    <div>${docRef}</div>
   </div>
 </div>`;
 
@@ -1392,7 +1442,7 @@ export async function generateForensicDecisionReport(
 
   <div class="footer-strip sans" style="position:static; margin-top:10px;">
     <div><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/dOfoldGKvKSMqKYG.png" alt="KINGA" style="height:14px;vertical-align:middle;margin-right:5px;display:inline-block">CONFIDENTIAL — For authorised insurer use only · KINGA · Not legal advice · Requires qualified human adjuster review before any claim decision is finalised</div>
-    <div>${docRef} · Page 4 of 4</div>
+    <div>${docRef}</div>
   </div>
 </div>`;
 

@@ -52,6 +52,9 @@ export const KINGA_REPORT_CSS = `
     .page{margin:0; box-shadow:none; width:auto; min-height:auto;}
     .no-print{display:none;}
     .page-break{page-break-before:always;}
+    /* Prevent sentence fragments at page breaks */
+    p, li, tr, .box, .callout, .kv-row { page-break-inside: avoid; orphans: 3; widows: 3; }
+    h4, h3, h2 { page-break-after: avoid; }
   }
   @page{ size:A4; margin:12mm; }
 

@@ -329,7 +329,11 @@ function buildPhysicsInsight(
   velocityKmh: number,
   deltaV: number,
   severity: string,
-  componentCount: number
+  componentCount: number,
+  /** Optional: impact direction ("front", "rear", "left", "right") from physics geometry */
+  impactDirection?: string | null,
+  /** Optional: causation scenario (e.g. "SELF_REVERSING", "THIRD_PARTY_REAR_END", "SELF_FORWARD") */
+  causationScenario?: string | null
 ): string {
   const speedDesc = velocityKmh < 30 ? "Low-speed"
     : velocityKmh < 60 ? "Moderate-speed"
@@ -342,8 +346,30 @@ function buildPhysicsInsight(
     : severity === "catastrophic" ? "catastrophic"
     : "cosmetic";
 
+  // Derive damage zone label from impact direction and causation scenario.
+  // Impact direction tells us which end of the vehicle was struck;
+  // causation scenario provides narrative framing (self-reversing vs third-party).
+  function getDamageZoneLabel(): string {
+    const dir = (impactDirection ?? "").toLowerCase();
+    const scenario = (causationScenario ?? "").toUpperCase();
+
+    if (dir === "rear" || scenario.includes("REVERS") || scenario.includes("REAR")) {
+      if (scenario.includes("SELF_REVERS")) return "rear-end damage (self-reversing impact)";
+      if (scenario.includes("THIRD_PARTY_REAR")) return "rear-end damage (third-party rear-end collision)";
+      return "rear-end damage";
+    }
+    if (dir === "left" || scenario.includes("SIDE_SWIPE_LEFT")) return "left-side damage";
+    if (dir === "right" || scenario.includes("SIDE_SWIPE_RIGHT")) return "right-side damage";
+    if (dir === "side" || scenario.includes("SIDE")) return "side-impact damage";
+    if (dir === "rollover" || scenario.includes("ROLLOVER")) return "rollover damage";
+    // Default: front-end (forward collision or no direction data)
+    return "front-end damage";
+  }
+
+  const damageZoneLabel = getDamageZoneLabel();
+
   const parts = [
-    `${speedDesc} impact (estimated ${Math.round(velocityKmh)} km/h) consistent with ${severityDesc} ${componentCount > 0 ? `${componentCount}-component` : ""} front-end damage.`,
+    `${speedDesc} impact (estimated ${Math.round(velocityKmh)} km/h) consistent with ${severityDesc} ${componentCount > 0 ? `${componentCount}-component` : ""} ${damageZoneLabel}.`,
     deltaV > 0 ? `Delta-V of ${deltaV} km/h indicates a ${deltaV < 20 ? "low-energy" : deltaV < 40 ? "moderate-energy" : "high-energy"} collision event.` : null,
     severity === "moderate" || severity === "severe"
       ? "Structural inspection recommended to assess hidden frame deformation."
@@ -1032,7 +1058,10 @@ export function applyIntelligenceEnforcement(input: EnforcementInput): Intellige
     speedForInsight,
     input.deltaVKmh,
     input.accidentSeverity,
-    input.damageComponents.length
+    input.damageComponents.length,
+    input.impactDirection,
+    // causationScenario is derived from incidentType or physics truth layer
+    (input as any).causationScenario ?? null
   );
 
   // 3. Impact consistency enforcement

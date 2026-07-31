@@ -129,7 +129,7 @@ export function ReportChooser({ active, onSelect, tierLocked = false, claimNumbe
   const reports = [CLAIMS_REPORT, INTELLIGENCE_REPORT, FORENSIC_REPORT];
 
   return (
-    <div style={{ marginBottom: 24 }}>
+    <div className="no-print" style={{ marginBottom: 24 }}>
       {/* Section header */}
       <div style={{
         display: 'flex',

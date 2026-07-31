@@ -46,6 +46,15 @@ export interface MatrixRow {
 
 export interface AdvisoryFlag {
   componentName?: string;
+  // QND fields (actual data shape from compositeOptimisation.quotedNotDamaged)
+  quotedByRepairers?: string[];
+  totalQuotedCostUsd?: number | null;
+  classification?: string;
+  reportSignal?: string;
+  // DNQ fields (actual data shape from compositeOptimisation.damagedNotQuoted)
+  severity?: string;
+  benchmarkP50Usd?: number | null;
+  // Legacy / fallback fields
   repairerName?: string;
   quotedAmountUsd?: number | null;
   estimatedCostUsd?: number | null;
@@ -481,11 +490,18 @@ export function ComponentCostMatrix({
                   {qndFlags.map((f, fi) => (
                     <tr key={fi}>
                       <td style={td}>{f.componentName ?? "—"}</td>
-                      <td style={td}>{f.repairerName ? truncateName(f.repairerName, 3) : "—"}</td>
-                      <td style={{ ...tdRight }}>{f.quotedAmountUsd != null ? fmtMoney(f.quotedAmountUsd) : "—"}</td>
+                      <td style={td}>
+                        {f.quotedByRepairers && f.quotedByRepairers.length > 0
+                          ? f.quotedByRepairers.map(r => truncateName(r, 3)).join(", ")
+                          : f.repairerName ? truncateName(f.repairerName, 3) : "—"}
+                      </td>
+                      <td style={{ ...tdRight }}>
+                        {f.totalQuotedCostUsd != null ? fmtMoney(f.totalQuotedCostUsd)
+                          : f.quotedAmountUsd != null ? fmtMoney(f.quotedAmountUsd) : "—"}
+                      </td>
                       <td style={td}>
                         <span style={{ fontSize: 10, fontWeight: 700, background: "#fef3c7", color: "#92400e", borderRadius: 3, padding: "1px 5px" }}>
-                          {f.flag ?? "VERIFY"}
+                          {f.classification ? f.classification.replace(/_/g, " ").toUpperCase() : f.flag ?? "VERIFY"}
                         </span>
                       </td>
                     </tr>
@@ -524,13 +540,28 @@ export function ComponentCostMatrix({
                     <tr key={fi}>
                       <td style={td}>{f.componentName ?? "—"}</td>
                       <td style={tdRight}>
-                        {f.estimatedCostUsd != null ? fmtMoney(f.estimatedCostUsd) : f.estimatedCost != null ? fmtMoney(f.estimatedCost) : "—"}
+                        {f.benchmarkP50Usd != null ? fmtMoney(f.benchmarkP50Usd)
+                          : f.estimatedCostUsd != null ? fmtMoney(f.estimatedCostUsd)
+                          : f.estimatedCost != null ? fmtMoney(f.estimatedCost) : "—"}
                       </td>
-                      <td style={td}>{f.source ?? "—"}</td>
+                      <td style={td}>
+                        {f.severity ? (
+                          <span style={{ fontSize: 10, fontWeight: 700,
+                            background: f.severity === "high" ? "#fee2e2" : f.severity === "medium" ? "#fef3c7" : "#f3f4f6",
+                            color: f.severity === "high" ? "#991b1b" : f.severity === "medium" ? "#92400e" : "#374151",
+                            borderRadius: 3, padding: "1px 5px" }}>
+                            {f.severity.toUpperCase()}
+                          </span>
+                        ) : f.source ?? "—"}
+                      </td>
                       <td style={{ ...tdRight }}>
                         {f.probability != null ? (
                           <span style={{ fontSize: 10, fontWeight: 700, background: "#f3f4f6", color: "#374151", borderRadius: 3, padding: "1px 5px" }}>
                             {Math.round(f.probability * 100)}%
+                          </span>
+                        ) : f.reportSignal ? (
+                          <span style={{ fontSize: 10, color: "#64748b" }}>
+                            {f.reportSignal.length > 60 ? f.reportSignal.slice(0, 57) + "…" : f.reportSignal}
                           </span>
                         ) : "—"}
                       </td>

@@ -308,7 +308,7 @@ async function generateClaimAssessmentReport(
     </tr>
     <tr>
       <td style="padding:4px 8px 4px 0;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Registration</div><div style="font-weight:600;font-family:monospace">${esc(String(claim.vehicle_registration ?? "—"))}</div></td>
-      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Market Value</div><div style="font-weight:600">${fmtUSD(claim.vehicle_market_value)}</div></td>
+      <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Market Value</div><div style="font-weight:600">${fmtUSD(claim.vehicle_market_value != null ? Number(claim.vehicle_market_value) / 100 : null)}</div></td>
       <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Submitted</div><div style="font-weight:600">${fmtD(claim.created_at)}</div></td>
       <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Assessment Date</div><div style="font-weight:600">${fmtD(claim.assessment_date)}</div></td>
       <td style="padding:4px 8px;vertical-align:top"><div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px">Location</div><div style="font-weight:600">${esc(String(claim.incident_location ?? "—"))}</div></td>
@@ -870,7 +870,7 @@ async function generateRepairDecisionReport(
         <div class="kv-grid cols-3">
           <div class="kv-item"><div class="kv-label">Vehicle</div><div class="kv-value">${escHtml(String(claim.vehicle_description ?? "—"))}</div></div>
           <div class="kv-item"><div class="kv-label">Repair Cost Estimate</div><div class="kv-value">${fmtCurrency(claim.estimated_cost as number)}</div></div>
-          <div class="kv-item"><div class="kv-label">Vehicle Market Value</div><div class="kv-value">${claim.vehicle_market_value ? fmtCurrency(claim.vehicle_market_value as number) : "—"}</div></div>
+          <div class="kv-item"><div class="kv-label">Vehicle Market Value</div><div class="kv-value">${claim.vehicle_market_value ? fmtCurrency(Number(claim.vehicle_market_value) / 100) : "—"}</div></div>
         </div>
       </div>
 
@@ -892,7 +892,7 @@ async function generateRepairDecisionReport(
       <div class="section">
         <div class="section-title">3. Vehicle Market Value</div>
         <div class="kv-grid cols-2">
-          <div class="kv-item"><div class="kv-label">Market Value</div><div class="kv-value">${fmtCurrency(claim.vehicle_market_value as number)}</div></div>
+          <div class="kv-item"><div class="kv-label">Market Value</div><div class="kv-value">${fmtCurrency(Number(claim.vehicle_market_value) / 100)}</div></div>
           <div class="kv-item"><div class="kv-label">Vehicle</div><div class="kv-value">${escHtml(String(claim.vehicle_description ?? "—"))}</div></div>
         </div>
       </div>` : ""}

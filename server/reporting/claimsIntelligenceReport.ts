@@ -179,7 +179,7 @@ export async function generateClaimsIntelligenceReport(
     const chipCls = recLabel.includes("APPROVE") || recLabel.includes("ACCEPT") ? "approve" : recLabel.includes("REJECT") ? "reject" : "review";
     const chipIcon = chipCls === "approve" ? "✓" : chipCls === "reject" ? "✗" : "⚠";
     const scoreCardFraudCls = fraudScore >= 70 ? "bad" : fraudScore >= 40 ? "warn" : "good";
-    const scoreCardRtvCls = rtvRatio >= 0.7 ? "bad" : rtvRatio >= 0.5 ? "warn" : "good";
+    const scoreCardRtvCls = rtvRatio >= 70 ? "bad" : rtvRatio >= 50 ? "warn" : "good";
     const scoreCardDataCls = dataComplete >= 80 ? "good" : dataComplete >= 60 ? "warn" : "bad";
     const scoreCardQCls = quoteArr.length >= 3 ? "good" : quoteArr.length >= 2 ? "warn" : "bad";
     const delayFlag = dayDelay !== null && dayDelay > 90;
@@ -205,9 +205,9 @@ export async function generateClaimsIntelligenceReport(
   <div class="score-cell ${scoreCardFraudCls}"><div class="label">Fraud Score</div><div class="value">${fraudScore}</div><div class="sub">${fraudBadgeLabel}</div></div>
   <div class="score-cell ${scoreCardDataCls}"><div class="label">Data Complete</div><div class="value">${Math.round(dataComplete)}<span style="font-size:12px">%</span></div><div class="sub">${dataComplete >= 80 ? "Good" : dataComplete >= 60 ? "Partial" : "Incomplete"}</div></div>
   <div class="score-cell ${scoreCardQCls}"><div class="label">Quotes Received</div><div class="value">${quoteArr.length}</div><div class="sub">${quoteArr.length >= 3 ? "Sufficient" : "Below minimum"}</div></div>
-  <div class="score-cell ${scoreCardRtvCls}"><div class="label">Repair-to-Value</div><div class="value">${fmtPct(rtvRatio * 100, 0)}</div><div class="sub">${rtvRatio >= 0.7 ? "Total loss risk" : rtvRatio >= 0.5 ? "Monitor" : "Within range"}</div></div>
+  <div class="score-cell ${scoreCardRtvCls}"><div class="label">Repair-to-Value</div><div class="value">${fmtPct(rtvRatio, 0)}</div><div class="sub">${rtvRatio >= 70 ? "Total loss risk" : rtvRatio >= 50 ? "Monitor" : "Within range"}</div></div>
 </div>
-${delayFlag ? `<div class="callout red" style="margin-bottom:14px"><b>Reject — claim submitted ${dayDelay} days after incident.</b> A written explanation is required before this claim can proceed. Adjuster sign-off is required before settlement authorisation, regardless of the fraud score.</div>` : ""}
+${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Submission Flag — claim submitted ${dayDelay} days after incident.</b> A written explanation is required before this claim can proceed. This flag does not override the system recommendation; adjuster review is required before settlement authorisation.</div>` : ""}
 <!-- ── VERDICT STRIP ── -->
 <div class="verdict-strip">
   <div class="verdict-cell"><div class="label">Highest Submitted Quote</div><div class="value">${fmtUSD(highestQuote)}</div><div class="sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div></div>
@@ -386,8 +386,8 @@ ${delayFlag ? `<div class="callout red" style="margin-bottom:14px"><b>Reject —
   ${totalExclusions > 0 || exclusions.length > 0 ? `
   <div class="callout red" style="margin-top:8px;"><b>Policy Exclusion — Remove from Settlement.</b> One or more repair line items are specifically excluded under the applicable policy wording. These items must be removed from the settlement calculation before any payment is authorised. Confirm with policy §14.3 before communicating to claimant.</div>` : ""}
 
-  ${rtvRatio >= 0.5 ? `
-  <div class="callout amber" style="margin-top:8px;"><b>Repair Cost Approaching Total-Loss Threshold.</b> At ${fmtPct(rtvRatio * 100)} of market value, the repair cost is approaching the typical total-loss threshold. Confirm the insurer's total-loss policy before authorising repairs.</div>` : ""}
+  ${rtvRatio >= 50 ? `
+  <div class="callout amber" style="margin-top:8px;"><b>Repair Cost Approaching Total-Loss Threshold.</b> At ${fmtPct(rtvRatio)} of market value, the repair cost is approaching the typical total-loss threshold. Confirm the insurer's total-loss policy before authorising repairs.</div>` : ""}
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
@@ -465,9 +465,9 @@ ${delayFlag ? `<div class="callout red" style="margin-bottom:14px"><b>Reject —
         <tr><td class="k">KINGA optimised estimate</td><td class="v">${fmtUSD(kingaOptimised)}</td></tr>
         <tr><td class="k">Recommended settlement</td><td class="v">${fmtUSD(recommendedSettlement)}</td></tr>
         <tr><td class="k">Negotiation gap</td><td class="v">${savings > 0 ? fmtUSD(savings) + " (" + fmtPct(savingsPct) + ")" : "None detected"}</td></tr>
-        <tr><td class="k">Repair-to-value ratio</td><td class="v">${fmtPct(rtvRatio * 100)}</td></tr>
+        <tr><td class="k">Repair-to-value ratio</td><td class="v">${fmtPct(rtvRatio)}</td></tr>
       </table>
-      <div class="callout green" style="margin-top:8px;"><span class="pill green">${rtvRatio >= 0.7 ? "Total Loss — above write-off threshold" : "Repair — well below write-off threshold"}</span></div>
+      <div class="callout green" style="margin-top:8px;"><span class="pill green">${rtvRatio >= 70 ? "Total Loss — above write-off threshold" : "Repair — well below write-off threshold"}</span></div>
     </div>
   </div>
 
@@ -512,7 +512,7 @@ ${delayFlag ? `<div class="callout red" style="margin-bottom:14px"><b>Reject —
     } else {
       // Fallback: derive from available data fields
       fraudIndicators.push(
-        { name: "Repair Cost vs Market Value", score: rtvRatio >= 0.5 ? 15 : 0, threshold: "> 50%", finding: `${fmtPct(rtvRatio * 100)} — ${rtvRatio >= 0.5 ? "approaching total-loss threshold" : "within normal range"}`, status: rtvRatio >= 0.5 ? "warn" : "pass" },
+        { name: "Repair Cost vs Market Value", score: rtvRatio >= 50 ? 15 : 0, threshold: "> 50%", finding: `${fmtPct(rtvRatio)} — ${rtvRatio >= 50 ? "approaching total-loss threshold" : "within normal range"}`, status: rtvRatio >= 50 ? "warn" : "pass" },
         { name: "Late Claim Submission", score: dayDelay !== null && dayDelay > 90 ? 7 : 0, threshold: "> 90 days", finding: dayDelay !== null ? `${dayDelay} days — ${dayDelay > 90 ? "written explanation required" : "within normal range"}` : "—", status: dayDelay !== null && dayDelay > 90 ? "warn" : "pass" },
         { name: "Quote Spread", score: 0, threshold: "> 40%", finding: quoteArr.length > 1 ? "Spread within normal range" : "Insufficient quotes to assess", status: quoteArr.length > 1 ? "pass" : "neutral" },
         { name: "Damage Inconsistency", score: 0, threshold: "> 30 pts", finding: "No physics anomaly detected at this tier", status: "pass" },
@@ -555,8 +555,8 @@ ${delayFlag ? `<div class="callout red" style="margin-bottom:14px"><b>Reject —
     </table>
   </div>
 
-  ${rtvRatio >= 0.5 ? `
-  <div class="callout amber" style="margin-top:8px;"><b>Repair Cost Approaching Total-Loss Threshold.</b> At ${fmtPct(rtvRatio * 100)} of market value, the repair cost is approaching the typical total-loss threshold. Confirm the insurer's total-loss policy before authorising repairs.</div>` : ""}
+  ${rtvRatio >= 50 ? `
+  <div class="callout amber" style="margin-top:8px;"><b>Repair Cost Approaching Total-Loss Threshold.</b> At ${fmtPct(rtvRatio)} of market value, the repair cost is approaching the typical total-loss threshold. Confirm the insurer's total-loss policy before authorising repairs.</div>` : ""}
   <p class="small" style="margin-top:8px;">Full fraud radar breakdown, cross-engine consistency checks, copy-quotation fingerprint analysis, and accident-date validation are available in the Forensic Claim Decision Report.</p>
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
@@ -639,7 +639,7 @@ ${delayFlag ? `<div class="callout red" style="margin-bottom:14px"><b>Reject —
     if (!hasPolice) actions.push({ action: "Obtain police report — required for all accident claims", owner: "Claimant", priority: "High", ref: "§4" });
     if (dayDelay !== null && dayDelay > 90) actions.push({ action: `Obtain written explanation from claimant for ${dayDelay}-day submission delay`, owner: "Adjuster", priority: "Medium", ref: "§1" });
     if (photoYield < 40) actions.push({ action: "Request focused damage photographs — underbody, engine bay, and interior zones", owner: "Claimant", priority: "Medium", ref: "§4" });
-    if (rtvRatio >= 0.5) actions.push({ action: "Confirm total-loss threshold with insurer before authorising structural repairs", owner: "Adjuster", priority: "Medium", ref: "§3" });
+    if (rtvRatio >= 50) actions.push({ action: "Confirm total-loss threshold with insurer before authorising structural repairs", owner: "Adjuster", priority: "Medium", ref: "§3" });
 
     const actionRows = actions.map((a, i) => `<tr class="${a.priority === "High" ? "at-high" : "at-medium"}">
       <td>${i + 1}</td>
@@ -654,7 +654,7 @@ ${delayFlag ? `<div class="callout red" style="margin-bottom:14px"><b>Reject —
     if (criticalStructural.length > 0) upgradeSignals.push(`${criticalStructural.length} structural gap${criticalStructural.length !== 1 ? "s" : ""} unquoted`);
     if (photoYield < 40) upgradeSignals.push(`Photo yield ${photoYield}%`);
     if (dayDelay !== null && dayDelay > 90) upgradeSignals.push(`Late submission ${dayDelay} days`);
-    if (rtvRatio >= 0.5) upgradeSignals.push(`Repair-to-value ${fmtPct(rtvRatio * 100)}`);
+    if (rtvRatio >= 50) upgradeSignals.push(`Repair-to-value ${fmtPct(rtvRatio)}`);
 
     const s5 = `
 <div class="page page-break">
