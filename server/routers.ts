@@ -137,6 +137,7 @@ import { validateClaimAnalysisResponse } from './services/apiResponseValidator';
 import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
 import { treGovernanceRouter } from './routers/tre-governance';
 import { treV4GovernanceRouter } from './routers/tre-v4-governance';
+import { inspectionsRouter } from './routers/inspections'; // Epic 3
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -324,6 +325,7 @@ export const appRouter = router({
   marketQuotes: marketQuotesRouter,
   agency: agencyRouter,
   agencyBroker: agencyBrokerRouter,
+  inspections: inspectionsRouter,
   fleetAccounts: fleetAccountsRouter,
   workflow: workflowRouter,
   workflowQueries: workflowQueriesRouter,

@@ -43,6 +43,8 @@ const MARKETPLACE_ROLES = [
   "platform_super_admin",
 ] as const;
 const PORTAL_ROLES = ["claimant", "admin"] as const;
+// Engineer: field engineers + admin + platform_super_admin (Epic 3)
+const ENGINEER_ROLES = ["engineer", "admin", "platform_super_admin"] as const;
 
 // ─── Helper ─────────────────────────────────────────────────────────────────
 
@@ -147,6 +149,18 @@ const requirePortal = t.middleware(({ ctx, next }) => {
 
 export const portalDomainProcedure = t.procedure.use(requirePortal);
 
+// ─── /engineering → engineer roles only (Epic 3) ────────────────────────────
+
+const requireEngineer = t.middleware(({ ctx, next }) => {
+  if (!ctx.user) unauthorized();
+  if (!ENGINEER_ROLES.includes(ctx.user.role as typeof ENGINEER_ROLES[number])) {
+    forbidden(`Access denied. /engineering requires engineer role. Current role: ${ctx.user.role}`);
+  }
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+
+export const engineerDomainProcedure = t.procedure.use(requireEngineer);
+
 // ─── Domain Role Map (for frontend reference) ───────────────────────────────
 
 export const DOMAIN_ROLE_MAP = {
@@ -156,6 +170,7 @@ export const DOMAIN_ROLE_MAP = {
   fleet: [...FLEET_ROLES],
   marketplace: [...MARKETPLACE_ROLES],
   portal: [...PORTAL_ROLES],
+  engineering: [...ENGINEER_ROLES],
 } as const;
 
 export type DomainKey = keyof typeof DOMAIN_ROLE_MAP;
