@@ -28,6 +28,15 @@ export type WorkflowState =
   | "inspection_complete"    // Inspection finished, report generated
   | "inspection_cancelled";  // Inspection cancelled
 
+/** Runtime array of all workflow states (mirrors the WorkflowState union type) */
+export const WORKFLOW_STATES = [
+  "created", "intake_verified", "assigned", "under_assessment",
+  "internal_review", "technical_approval", "financial_decision",
+  "payment_authorized", "closed", "disputed",
+  "inspection_scheduled", "inspection_assigned", "inspection_in_progress",
+  "inspection_complete", "inspection_cancelled",
+] as const;
+
 /**
  * Standard insurer roles with defined responsibilities
  */
@@ -40,6 +49,12 @@ export type InsurerRole =
   | "executive"             // Oversight, redirection, strategic view
   | "insurer_admin"         // Configuration management
   | "engineer";              // Field engineer conducting inspections (Epic 3)
+
+/** Runtime array of all insurer roles (mirrors the InsurerRole union type) */
+export const INSURER_ROLES = [
+  "claims_processor", "assessor_internal", "assessor_external",
+  "risk_manager", "claims_manager", "executive", "insurer_admin", "engineer",
+] as const;
 
 /**
  * Permissions that can be granted to roles

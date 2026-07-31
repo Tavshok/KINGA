@@ -44,7 +44,7 @@ const MARKETPLACE_ROLES = [
 ] as const;
 const PORTAL_ROLES = ["claimant", "admin"] as const;
 // Engineer: field engineers + admin + platform_super_admin (Epic 3)
-const ENGINEER_ROLES = ["engineer", "admin", "platform_super_admin"] as const;
+export const ENGINEER_ROLES = ["engineer", "admin", "platform_super_admin"] as const;
 
 // ─── Helper ─────────────────────────────────────────────────────────────────
 
