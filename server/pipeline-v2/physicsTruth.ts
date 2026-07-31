@@ -52,6 +52,7 @@ export type MeasurementSource =
   | 'DOCUMENT_STATED'        // Explicitly stated in a submitted document
   | 'ENSEMBLE_CONSENSUS'     // Speed ensemble weighted mean
   | 'PHYSICS_DERIVED'        // Derived from other measurements via physics formula
+  | 'ENGINEER_MEASUREMENT'  // Physical measurement captured by a field engineer (Epic 3)
   | 'NOT_AVAILABLE';         // No measurement available
 
 export interface PhysicsMeasurement {

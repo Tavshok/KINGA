@@ -29,6 +29,7 @@ export const PLATFORM_ROLES = [
   "fleet_manager",
   "fleet_driver",
   "agency",
+  "engineer",
 ] as const;
 
 export const INSURER_ROLES = [

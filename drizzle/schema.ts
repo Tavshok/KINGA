@@ -5392,3 +5392,227 @@ export const physicsValidationRecords = mysqlTable("physics_validation_records",
 
 export type InsertPhysicsValidationRecord = typeof physicsValidationRecords.$inferInsert;
 export type SelectPhysicsValidationRecord = typeof physicsValidationRecords.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EPIC 3 — ENGINEERING WORKSPACE
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Asset Registry — future master asset index for all asset classes.
+ */
+export const assetRegistry = mysqlTable("asset_registry", {
+  id:                   int().autoincrement().notNull(),
+  tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
+  assetRef:             varchar("asset_ref", { length: 100 }).notNull(),
+  assetType:            mysqlEnum("asset_type", [
+                          'vehicle','equipment','building','transformer',
+                          'fire_system','solar_plant','wind_turbine','substation','industrial'
+                        ]).notNull(),
+  assetName:            varchar("asset_name", { length: 255 }).notNull(),
+  assetDescription:     text("asset_description"),
+  serialNumber:         varchar("serial_number", { length: 100 }),
+  manufacturer:         varchar("manufacturer", { length: 100 }),
+  model:                varchar("model", { length: 100 }),
+  yearManufactured:     int("year_manufactured"),
+  locationAddress:      text("location_address"),
+  locationLat:          decimal("location_lat", { precision: 10, scale: 7 }),
+  locationLng:          decimal("location_lng", { precision: 10, scale: 7 }),
+  ownerId:              int("owner_id"),
+  ownerName:            varchar("owner_name", { length: 255 }),
+  vehicleRegistration:  varchar("vehicle_registration", { length: 50 }),
+  lastInspectionId:     int("last_inspection_id"),
+  lastInspectedAt:      timestamp("last_inspected_at", { mode: 'string' }),
+  inspectionCount:      int("inspection_count").default(0).notNull(),
+  riskRating:           mysqlEnum("risk_rating", ['low','medium','high','critical']),
+  metadataJson:         json("metadata_json"),
+  createdBy:            int("created_by").notNull(),
+  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  uniqueIndex("idx_ar_ref").on(table.assetRef),
+  index("idx_ar_tenant").on(table.tenantId),
+  index("idx_ar_type").on(table.assetType),
+  index("idx_ar_vehicle_reg").on(table.vehicleRegistration),
+  index("idx_ar_owner").on(table.ownerId),
+]);
+export type InsertAssetRegistry = typeof assetRegistry.$inferInsert;
+export type SelectAssetRegistry = typeof assetRegistry.$inferSelect;
+
+/**
+ * Inspections — asset-centric inspection entity.
+ */
+export const inspections = mysqlTable("inspections", {
+  id:                   int().autoincrement().notNull(),
+  tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
+  inspectionRef:        varchar("inspection_ref", { length: 50 }).notNull(),
+  inspectionType:       mysqlEnum("inspection_type", [
+                          'vehicle','engineering','risk_survey','fleet',
+                          'property','equipment','industrial'
+                        ]).notNull(),
+  status:               mysqlEnum("status", [
+                          'scheduled','assigned','in_progress','evidence_capture',
+                          'measurements_complete','observations_complete','ai_analysis',
+                          'engineer_review','physics_reconciliation','report_generation',
+                          'complete','cancelled'
+                        ]).notNull().default('scheduled'),
+  assetRegistryId:      int("asset_registry_id"),
+  assetRef:             varchar("asset_ref", { length: 100 }),
+  assetType:            varchar("asset_type", { length: 50 }).notNull(),
+  vehicleRegistration:  varchar("vehicle_registration", { length: 50 }),
+  claimId:              int("claim_id"),
+  assignedEngineerId:   int("assigned_engineer_id"),
+  assignedAt:           timestamp("assigned_at", { mode: 'string' }),
+  scheduledDate:        timestamp("scheduled_date", { mode: 'string' }),
+  locationAddress:      text("location_address"),
+  locationLat:          decimal("location_lat", { precision: 10, scale: 7 }),
+  locationLng:          decimal("location_lng", { precision: 10, scale: 7 }),
+  completedAt:          timestamp("completed_at", { mode: 'string' }),
+  durationMinutes:      int("duration_minutes"),
+  aiAnalysisJson:       json("ai_analysis_json"),
+  aiAnalysisAt:         timestamp("ai_analysis_at", { mode: 'string' }),
+  aiAnalysisApproved:   tinyint("ai_analysis_approved").notNull().default(0),
+  physicsReconciled:    tinyint("physics_reconciled").notNull().default(0),
+  physicsReconciledAt:  timestamp("physics_reconciled_at", { mode: 'string' }),
+  reconciliationNotes:  text("reconciliation_notes"),
+  reportKey:            varchar("report_key", { length: 100 }),
+  reportId:             int("report_id"),
+  createdBy:            int("created_by").notNull(),
+  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  uniqueIndex("idx_inspections_ref").on(table.inspectionRef),
+  index("idx_inspections_tenant").on(table.tenantId),
+  index("idx_inspections_claim").on(table.claimId),
+  index("idx_inspections_engineer").on(table.assignedEngineerId),
+  index("idx_inspections_asset").on(table.assetRegistryId),
+  index("idx_inspections_vehicle").on(table.vehicleRegistration),
+  index("idx_inspections_status").on(table.status),
+]);
+export type InsertInspection = typeof inspections.$inferInsert;
+export type SelectInspection = typeof inspections.$inferSelect;
+
+/**
+ * Physical Measurements — structured measurements with PhysicsMeasurement contract.
+ */
+export const physicalMeasurements = mysqlTable("physical_measurements", {
+  id:                   int().autoincrement().notNull(),
+  tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
+  inspectionId:         int("inspection_id").notNull(),
+  measurementCategory:  mysqlEnum("measurement_category", [
+                          'vehicle_crush','structural','mechanical',
+                          'electrical','fire_protection','industrial'
+                        ]).notNull(),
+  measurementType:      varchar("measurement_type", { length: 100 }).notNull(),
+  value:                decimal("value", { precision: 15, scale: 4 }).notNull(),
+  valueMin:             decimal("value_min", { precision: 15, scale: 4 }),
+  valueMax:             decimal("value_max", { precision: 15, scale: 4 }),
+  unit:                 varchar("unit", { length: 30 }).notNull(),
+  instrument:           varchar("instrument", { length: 255 }),
+  measurementMethod:    mysqlEnum("measurement_method", [
+                          'manual','laser','ai_assisted','imported',
+                          'photogrammetric','ultrasonic','thermal','load_cell','other'
+                        ]).notNull().default('manual'),
+  calibrationReference: varchar("calibration_reference", { length: 255 }),
+  confidence:           decimal("confidence", { precision: 4, scale: 3 }).notNull().default('0.900'),
+  capturedBy:           int("captured_by").notNull(),
+  capturedAt:           timestamp("captured_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  source:               varchar("source", { length: 50 }).notNull().default('ENGINEER_MEASUREMENT'),
+  evidenceDocumentIds:  json("evidence_document_ids"),
+  locationReference:    varchar("location_reference", { length: 255 }),
+  locationImageUrl:     text("location_image_url"),
+  standardsBody:        varchar("standards_body", { length: 50 }),
+  standardsCode:        varchar("standards_code", { length: 100 }),
+  standardsClause:      varchar("standards_clause", { length: 100 }),
+  standardsDescription: text("standards_description"),
+  notes:                text("notes"),
+  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("idx_pm_inspection").on(table.inspectionId),
+  index("idx_pm_tenant").on(table.tenantId),
+  index("idx_pm_category").on(table.measurementCategory),
+  index("idx_pm_captured_by").on(table.capturedBy),
+  index("idx_pm_captured_at").on(table.capturedAt),
+]);
+export type InsertPhysicalMeasurement = typeof physicalMeasurements.$inferInsert;
+export type SelectPhysicalMeasurement = typeof physicalMeasurements.$inferSelect;
+
+/**
+ * Engineer Observations — structured observations with severity, type, standards reference.
+ */
+export const engineerObservations = mysqlTable("engineer_observations", {
+  id:                   int().autoincrement().notNull(),
+  tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
+  inspectionId:         int("inspection_id").notNull(),
+  observationType:      mysqlEnum("observation_type", [
+                          'defect','hazard','compliance','maintenance',
+                          'recommendation','general_note'
+                        ]).notNull().default('general_note'),
+  observationMode:      mysqlEnum("observation_mode", [
+                          'structured','free_text','voice'
+                        ]).notNull().default('free_text'),
+  component:            varchar("component", { length: 255 }),
+  conditionCode:        varchar("condition_code", { length: 50 }),
+  conditionDetail:      text("condition_detail"),
+  observationText:      text("observation_text"),
+  voiceAudioUrl:        text("voice_audio_url"),
+  voiceTranscript:      text("voice_transcript"),
+  transcriptionLanguage: varchar("transcription_language", { length: 10 }).default('en'),
+  severity:             mysqlEnum("severity", [
+                          'info','minor','moderate','major','critical'
+                        ]).notNull().default('info'),
+  recommendation:       text("recommendation"),
+  standardsBody:        varchar("standards_body", { length: 50 }),
+  standardsCode:        varchar("standards_code", { length: 100 }),
+  standardsClause:      varchar("standards_clause", { length: 100 }),
+  standardsDescription: text("standards_description"),
+  linkedMeasurementIds: json("linked_measurement_ids"),
+  linkedEvidenceIds:    json("linked_evidence_ids"),
+  aiDraftUsed:          tinyint("ai_draft_used").notNull().default(0),
+  aiDraftApproved:      tinyint("ai_draft_approved").notNull().default(0),
+  aiDraftPrompt:        text("ai_draft_prompt"),
+  authoredBy:           int("authored_by").notNull(),
+  authoredAt:           timestamp("authored_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("idx_eo_inspection").on(table.inspectionId),
+  index("idx_eo_tenant").on(table.tenantId),
+  index("idx_eo_type").on(table.observationType),
+  index("idx_eo_severity").on(table.severity),
+  index("idx_eo_authored_by").on(table.authoredBy),
+]);
+export type InsertEngineerObservation = typeof engineerObservations.$inferInsert;
+export type SelectEngineerObservation = typeof engineerObservations.$inferSelect;
+
+/**
+ * Engineer Profiles — engineer-specific attributes for intelligent assignment.
+ */
+export const engineerProfiles = mysqlTable("engineer_profiles", {
+  id:                   int().autoincrement().notNull(),
+  userId:               int("user_id").notNull(),
+  tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
+  skills:               json("skills"),
+  certifications:       json("certifications"),
+  region:               varchar("region", { length: 100 }),
+  regionLat:            decimal("region_lat", { precision: 10, scale: 7 }),
+  regionLng:            decimal("region_lng", { precision: 10, scale: 7 }),
+  maxTravelRadiusKm:    int("max_travel_radius_km").default(100),
+  isAvailable:          tinyint("is_available").notNull().default(1),
+  availabilityNotes:    text("availability_notes"),
+  activeInspections:    int("active_inspections").notNull().default(0),
+  createdAt:            timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt:            timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  uniqueIndex("idx_ep_user_id").on(table.userId),
+  index("idx_ep_tenant").on(table.tenantId),
+  index("idx_ep_region").on(table.region),
+  index("idx_ep_available").on(table.isAvailable),
+]);
+export type InsertEngineerProfile = typeof engineerProfiles.$inferInsert;
+export type SelectEngineerProfile = typeof engineerProfiles.$inferSelect;

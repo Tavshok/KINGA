@@ -20,7 +20,13 @@ export type WorkflowState =
   | "financial_decision"   // Claims Manager reviewing for payment
   | "payment_authorized"   // Payment approved and authorized
   | "closed"               // Claim fully resolved
-  | "disputed";            // Claim in dispute resolution
+  | "disputed"            // Claim in dispute resolution
+  // Engineering Workspace inspection states (Epic 3)
+  | "inspection_scheduled"   // Inspection created and scheduled
+  | "inspection_assigned"    // Engineer assigned to inspection
+  | "inspection_in_progress" // Engineer actively conducting inspection
+  | "inspection_complete"    // Inspection finished, report generated
+  | "inspection_cancelled";  // Inspection cancelled
 
 /**
  * Standard insurer roles with defined responsibilities
@@ -32,7 +38,8 @@ export type InsurerRole =
   | "risk_manager"          // Technical approval (not payment)
   | "claims_manager"        // Financial decision and payment authorization
   | "executive"             // Oversight, redirection, strategic view
-  | "insurer_admin";        // Configuration management
+  | "insurer_admin"         // Configuration management
+  | "engineer";              // Field engineer conducting inspections (Epic 3)
 
 /**
  * Permissions that can be granted to roles
