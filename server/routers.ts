@@ -28,7 +28,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
 import { parsePhysicsAnalysis } from "./types/physics-validation";
-import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments, recoveryCases, recoveryCorrespondenceLog, fraudRules } from "../drizzle/schema";
+import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments, recoveryCases, recoveryCorrespondenceLog, fraudRules, aiAssessments as aiAssessmentsTable } from "../drizzle/schema";
 import { eq, and, desc, asc, inArray, notInArray, gt, gte, lte, or, sql, count, avg, isNotNull } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
@@ -148,37 +148,38 @@ import { inspectionsRouter } from './routers/inspections'; // Epic 3
 export const integrityRouter = router({
   getMetrics: protectedProcedure
     .input(z.object({
-      tenantId: z.number().optional(),
+      // tenantId is a string (varchar) — matches users.tenantId and aiAssessments.tenantId
+      tenantId: z.string().optional(),
       days: z.number().default(30),
     }))
     .query(async ({ ctx, input }) => {
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
 
-      // Fetch recent assessments with forensic_analysis JSON
-      const tenantFilter = input.tenantId
-        ? `AND a.tenant_id = ${input.tenantId}`
-        : (ctx.user.role === 'admin' ? '' : `AND a.tenant_id = ${(ctx.user as any).tenantId || 0}`);
+      // Determine effective tenant ID using typed session context — no raw SQL interpolation
+      const effectiveTenantId: string | null =
+        input.tenantId ?? (ctx.user.role === 'admin' ? null : (ctx.user.tenantId ?? null));
 
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      const [rows] = await (db as any).execute(`
-        SELECT
-          a.id,
-          a.fcdi_score,
-          a.fraud_score,
-          a.recommendation,
-          a.created_at,
-          a.forensic_analysis,
-          c.claim_number
-        FROM ai_assessments a
-        LEFT JOIN claims c ON a.claim_id = c.id
-        WHERE a.created_at >= ?
-        ${tenantFilter}
-        ORDER BY a.created_at DESC
-        LIMIT 500
-      `, [since]);
+      // Build parameterised Drizzle query — eliminates SQL injection risk
+      const whereConditions = [
+        gte(aiAssessmentsTable.createdAt, since.toISOString()),
+        ...(effectiveTenantId ? [eq(aiAssessmentsTable.tenantId, effectiveTenantId)] : []),
+      ];
 
-      const assessments = (rows as unknown) as any[];
+      const assessments = await db
+        .select({
+          id: aiAssessmentsTable.id,
+          fcdiScore: aiAssessmentsTable.fcdiScore,
+          fraudScore: aiAssessmentsTable.fraudScore,
+          recommendation: aiAssessmentsTable.recommendation,
+          createdAt: aiAssessmentsTable.createdAt,
+          forensicAnalysis: aiAssessmentsTable.forensicAnalysis,
+        })
+        .from(aiAssessmentsTable)
+        .where(and(...whereConditions))
+        .orderBy(desc(aiAssessmentsTable.createdAt))
+        .limit(500);
 
       // Aggregate integrity gate outcomes
       const gateCounts = { CLEAR: 0, WARNINGS: 0, BLOCKED: 0, UNKNOWN: 0 };
@@ -196,7 +197,7 @@ export const integrityRouter = router({
       for (const row of assessments) {
         let fa: any = null;
         try {
-          fa = row.forensic_analysis ? JSON.parse(row.forensic_analysis) : null;
+          fa = row.forensicAnalysis ? JSON.parse(row.forensicAnalysis) : null;
         } catch { /* skip malformed */ }
 
         // Integrity gate
