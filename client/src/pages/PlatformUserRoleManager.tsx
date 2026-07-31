@@ -48,32 +48,9 @@ import {
   Zap,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const PLATFORM_ROLES = [
-  "claimant",
-  "panel_beater",
-  "assessor",
-  "insurer",
-  "broker",
-  "platform_super_admin",
-  "admin",
-  "user",
-  "agency",
-  "engineer",
-] as const;
-
-const INSURER_ROLES = [
-  "claims_processor",
-  "assessor_internal",
-  "risk_manager",
-  "claims_manager",
-  "executive",
-] as const;
-
-type PlatformRole = (typeof PLATFORM_ROLES)[number];
-type InsurerRole = (typeof INSURER_ROLES)[number];
+// Single source of truth — shared/roles.ts
+import { PLATFORM_ROLES, INSURER_ROLES } from "@shared/roles";
+import type { PlatformRole, InsurerRole } from "@shared/roles";
 
 // Quick-assign presets
 const QUICK_PRESETS: {

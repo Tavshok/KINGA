@@ -13,32 +13,10 @@ import { TRPCError } from "@trpc/server";
 import { eq, sql, and, like, or } from "drizzle-orm";
 import { router, superAdminProcedure } from "../_core/trpc";
 import { users, roleAssignmentAudit } from "../../drizzle/schema";
-
-// ─── Shared enums (kept in sync with drizzle schema) ─────────────────────────
-
-export const PLATFORM_ROLES = [
-  "claimant",
-  "panel_beater",
-  "assessor",
-  "insurer",
-  "broker",
-  "platform_super_admin",
-  "admin",
-  "user",
-  "fleet_admin",
-  "fleet_manager",
-  "fleet_driver",
-  "agency",
-  "engineer",
-] as const;
-
-export const INSURER_ROLES = [
-  "claims_processor",
-  "assessor_internal",
-  "risk_manager",
-  "claims_manager",
-  "executive",
-] as const;
+// Single source of truth — shared/roles.ts
+import { PLATFORM_ROLES, INSURER_ROLES } from "../../shared/roles";
+// Re-export so any existing import from this module continues to work
+export { PLATFORM_ROLES, INSURER_ROLES };
 
 // ─── Input schemas ────────────────────────────────────────────────────────────
 

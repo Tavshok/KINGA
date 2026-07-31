@@ -147,6 +147,10 @@ describe("REPORT_ACCESS catalogue completeness", () => {
       "panel_beater", "risk_manager", "executive", "recovery_officer",
       // T7 + T8 (Epic 2): agency role added for vehicle verification/valuation reports
       "agency",
+      // Epic 3: engineer role added for engineering workspace reports
+      "engineer",
+      // Platform super-admin has access to all reports
+      "platform_super_admin",
     ];
     for (const [key, roles] of Object.entries(REPORT_ACCESS)) {
       for (const role of roles) {

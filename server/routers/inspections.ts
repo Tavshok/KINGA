@@ -381,6 +381,16 @@ export const inspectionsRouter = router({
         notes: input.notes ?? null,
       });
 
+      // Backfill inspectionId on any linked claimDocuments so the FK is populated.
+      if (input.evidenceDocumentIds && input.evidenceDocumentIds.length > 0) {
+        for (const docId of input.evidenceDocumentIds) {
+          await ctx.db
+            .update(claimDocuments)
+            .set({ inspectionId: input.inspectionId })
+            .where(eq(claimDocuments.id, docId));
+        }
+      }
+
       return { success: true, measurementId: result.insertId };
     }),
 
@@ -436,6 +446,16 @@ export const inspectionsRouter = router({
         authoredBy: ctx.user!.id,
         authoredAt: new Date(),
       });
+
+      // Backfill inspectionId on any linked claimDocuments so the FK is populated.
+      if (input.linkedEvidenceIds && input.linkedEvidenceIds.length > 0) {
+        for (const docId of input.linkedEvidenceIds) {
+          await ctx.db
+            .update(claimDocuments)
+            .set({ inspectionId: input.inspectionId })
+            .where(eq(claimDocuments.id, docId));
+        }
+      }
 
       return { success: true, observationId: result.insertId };
     }),

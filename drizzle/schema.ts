@@ -660,6 +660,10 @@ export const claimDocuments = mysqlTable("claim_documents", {
 	documentDescription: text("document_description"),
 	documentCategory: mysqlEnum("document_category", ['damage_photo','repair_quote','invoice','police_report','medical_report','insurance_policy','correspondence','other']).default('other').notNull(),
 	visibleToRoles: text("visible_to_roles"),
+	/** Optional link to an engineering inspection — populated when a document is
+	 *  captured as evidence during an inspection workflow. Nullable FK so that
+	 *  documents uploaded outside an inspection context are unaffected. */
+	inspectionId: int("inspection_id").references(() => inspections.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
@@ -667,6 +671,7 @@ export const claimDocuments = mysqlTable("claim_documents", {
 	index("idx_claim_id").on(table.claimId),
 	index("idx_uploaded_by").on(table.uploadedBy),
 	index("idx_category").on(table.documentCategory),
+	index("idx_cd_inspection_id").on(table.inspectionId),
 ]);
 
 export const claimEvents = mysqlTable("claim_events", {
@@ -5443,7 +5448,7 @@ export type SelectAssetRegistry = typeof assetRegistry.$inferSelect;
  * Inspections — asset-centric inspection entity.
  */
 export const inspections = mysqlTable("inspections", {
-  id:                   int().autoincrement().notNull(),
+  id:                   int().autoincrement().primaryKey().notNull(),
   tenantId:             varchar("tenant_id", { length: 255 }).notNull(),
   inspectionRef:        varchar("inspection_ref", { length: 50 }).notNull(),
   inspectionType:       mysqlEnum("inspection_type", [

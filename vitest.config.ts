@@ -19,6 +19,8 @@ export default defineConfig({
       // Integration tests that make real LLM calls — run separately with: pnpm test:integration
       "server/pipeline-v2/regression.CI-024NATPHARM.test.ts",
       "server/workflow-integration.test.ts",
+      // Debug/trigger/voltron scripts relocated to server/scripts/ (Fix 7) — not unit tests
+      "server/scripts/**",
     ],
     pool: "forks",
     poolOptions: {
