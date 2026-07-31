@@ -40,6 +40,8 @@ import { generateClaimsIntelligenceReport } from "./claimsIntelligenceReport";
 import { generateForensicDecisionReport } from "./forensicDecisionReport";
 import { generateVehicleVerificationReport } from "./vehicleVerificationReport";
 import { generateVehicleValuationReport } from "./vehicleValuationReport";
+import { generateEngineerInspectionReport } from "./engineerInspectionReport";
+import { generateRiskSurveyReport } from "./riskSurveyReport";
 import {
   buildKingaHtml, esc, fmtUSD, fmtD, fmtPct as kFmtPct,
   chip, pill, callout, scoreCell, physicsIndicator, safeJson,
@@ -129,6 +131,10 @@ export const REPORT_ACCESS: Record<string, string[]> = {
   // ── Agency Reports (T7 + T8) ─────────────────────────────────────────────
   "agency.vehicle_verification":       ["agency"],
   "agency.vehicle_valuation":          ["agency"],
+  // ── Engineering Workspace reports (Epic 3) ──────────────────────────────
+  "engineer.inspection_report":         ["engineer", "admin", "platform_super_admin"],
+  "engineer.risk_survey":               ["engineer", "admin", "insurer_admin", "platform_super_admin"],
+  // TODO Epic 3: "engineer.findings_summary" — Engineering Findings Summary (roadmap)
 };
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
@@ -169,6 +175,9 @@ export async function generateReportHtml(
     case "recovery.third_party_profiles":     return generateRecoveryThirdPartyProfilesReport(params, tenantId);
     case "agency.vehicle_verification":         return generateVehicleVerificationReport(params);
     case "agency.vehicle_valuation":             return generateVehicleValuationReport(params);
+    // ── Engineering Workspace reports (Epic 3) ─────────────────────────────
+    case "engineer.inspection_report":           return generateEngineerInspectionReport(params);
+    case "engineer.risk_survey":                 return generateRiskSurveyReport(params);
     default: throw new Error(`Unknown report key: ${reportKey}`);
   }
 }
