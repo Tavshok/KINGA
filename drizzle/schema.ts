@@ -5621,3 +5621,109 @@ export const engineerProfiles = mysqlTable("engineer_profiles", {
 ]);
 export type InsertEngineerProfile = typeof engineerProfiles.$inferInsert;
 export type SelectEngineerProfile = typeof engineerProfiles.$inferSelect;
+
+// ============================================================
+// EPIC 4 — INTELLIGENCE PLATFORM AGGREGATION TABLES
+// These tables are WRITE-ONLY from aggregation jobs.
+// All Epic 4 modules READ from canonical tables via views.
+// Created: 2026-07-31
+// ============================================================
+
+/**
+ * Vehicle Passport Snapshots
+ * Cached aggregated intelligence for a vehicle at a point in time.
+ * Source of truth: vehicle_registry + all canonical tables via vw_vehicle_* views.
+ * Never modify source data — this is a derived cache only.
+ */
+export const vehiclePassportSnapshots = mysqlTable("vehicle_passport_snapshots", {
+  id:                    int().autoincrement().notNull(),
+  vehicleRegistryId:     int("vehicle_registry_id").notNull(),
+  registrationNumber:    varchar("registration_number", { length: 50 }).notNull(),
+  tenantId:              varchar("tenant_id", { length: 255 }),
+  snapshotVersion:       int("snapshot_version").default(1).notNull(),
+  totalClaims:           int("total_claims").default(0).notNull(),
+  completedClaims:       int("completed_claims").default(0).notNull(),
+  openClaims:            int("open_claims").default(0).notNull(),
+  totalSettlementCents:  int("total_settlement_cents").default(0).notNull(),
+  avgSettlementCents:    int("avg_settlement_cents").default(0).notNull(),
+  totalFraudSignals:     int("total_fraud_signals").default(0).notNull(),
+  repeatDamageSignals:   int("repeat_damage_signals").default(0).notNull(),
+  totalDamageEvents:     int("total_damage_events").default(0).notNull(),
+  repeatZoneCount:       int("repeat_zone_count").default(0).notNull(),
+  distinctDamageZones:   int("distinct_damage_zones").default(0).notNull(),
+  totalInspections:      int("total_inspections").default(0).notNull(),
+  lastClaimDate:         timestamp("last_claim_date", { mode: 'string' }),
+  lastInspectionDate:    timestamp("last_inspection_date", { mode: 'string' }),
+  lastFraudSignalDate:   timestamp("last_fraud_signal_date", { mode: 'string' }),
+  intelligenceJson:      json("intelligence_json"),
+  generatedAt:           timestamp("generated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  generatedBy:           varchar("generated_by", { length: 100 }).default('system').notNull(),
+}, (table) => [
+  index("idx_vps_vehicle_registry_id").on(table.vehicleRegistryId),
+  index("idx_vps_registration_number").on(table.registrationNumber),
+  index("idx_vps_tenant_id").on(table.tenantId),
+  index("idx_vps_generated_at").on(table.generatedAt),
+]);
+export type InsertVehiclePassportSnapshot = typeof vehiclePassportSnapshots.$inferInsert;
+export type SelectVehiclePassportSnapshot = typeof vehiclePassportSnapshots.$inferSelect;
+
+/**
+ * Fleet Intelligence Snapshots
+ * Cached aggregated intelligence for a fleet at a point in time.
+ * Source of truth: fleet_vehicles + fleet_drivers + all canonical tables.
+ */
+export const fleetIntelligenceSnapshots = mysqlTable("fleet_intelligence_snapshots", {
+  id:                      int().autoincrement().notNull(),
+  fleetId:                 int("fleet_id").notNull(),
+  tenantId:                varchar("tenant_id", { length: 255 }).notNull(),
+  snapshotVersion:         int("snapshot_version").default(1).notNull(),
+  totalVehicles:           int("total_vehicles").default(0).notNull(),
+  totalDrivers:            int("total_drivers").default(0).notNull(),
+  totalClaims:             int("total_claims").default(0).notNull(),
+  openClaims:              int("open_claims").default(0).notNull(),
+  totalSettlementCents:    int("total_settlement_cents").default(0).notNull(),
+  avgSettlementCents:      int("avg_settlement_cents").default(0).notNull(),
+  totalFraudSignals:       int("total_fraud_signals").default(0).notNull(),
+  highRiskVehicleCount:    int("high_risk_vehicle_count").default(0).notNull(),
+  highRiskDriverCount:     int("high_risk_driver_count").default(0).notNull(),
+  fleetRiskScore:          int("fleet_risk_score").default(0).notNull(),
+  intelligenceJson:        json("intelligence_json"),
+  generatedAt:             timestamp("generated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  generatedBy:             varchar("generated_by", { length: 100 }).default('system').notNull(),
+}, (table) => [
+  index("idx_fis_fleet_id").on(table.fleetId),
+  index("idx_fis_tenant_id").on(table.tenantId),
+  index("idx_fis_generated_at").on(table.generatedAt),
+]);
+export type InsertFleetIntelligenceSnapshot = typeof fleetIntelligenceSnapshots.$inferInsert;
+export type SelectFleetIntelligenceSnapshot = typeof fleetIntelligenceSnapshots.$inferSelect;
+
+/**
+ * Predictive Risk Scores
+ * Deterministic risk scores computed by the Predictive Analytics service.
+ * Scores are computed from canonical data — never from other scores.
+ * entity_type: 'vehicle' | 'driver' | 'fleet' | 'portfolio'
+ */
+export const predictiveRiskScores = mysqlTable("predictive_risk_scores", {
+  id:              int().autoincrement().notNull(),
+  entityType:      mysqlEnum("entity_type", ['vehicle','driver','fleet','portfolio']).notNull(),
+  entityId:        varchar("entity_id", { length: 100 }).notNull(),
+  tenantId:        varchar("tenant_id", { length: 255 }),
+  scoreType:       varchar("score_type", { length: 100 }).notNull(),
+  scoreValue:      decimal("score_value", { precision: 8, scale: 4 }).notNull(),
+  scoreLabel:      mysqlEnum("score_label", ['very_low','low','medium','high','very_high','critical']).notNull(),
+  confidenceLevel: decimal("confidence_level", { precision: 5, scale: 2 }).notNull(),
+  modelVersion:    varchar("model_version", { length: 50 }).default('v1.0').notNull(),
+  factorsJson:     json("factors_json"),
+  validFrom:       timestamp("valid_from", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  validUntil:      timestamp("valid_until", { mode: 'string' }),
+  computedAt:      timestamp("computed_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  computedBy:      varchar("computed_by", { length: 100 }).default('system').notNull(),
+}, (table) => [
+  index("idx_prs_entity").on(table.entityType, table.entityId),
+  index("idx_prs_tenant_id").on(table.tenantId),
+  index("idx_prs_score_type").on(table.scoreType),
+  index("idx_prs_valid_from").on(table.validFrom),
+]);
+export type InsertPredictiveRiskScore = typeof predictiveRiskScores.$inferInsert;
+export type SelectPredictiveRiskScore = typeof predictiveRiskScores.$inferSelect;
