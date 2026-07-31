@@ -1086,3 +1086,21 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] stage-5-assembly.ts TypeScript errors fixed: ImpactCausation import added, return type updated, nullable declarations corrected
 - [x] Preview HTML v2 (forensic-panel-preview-v2.html): all 3 states rendered (clean/speed-breach/contradiction), Scenario C speed ceiling copy-paste error fixed
 - [x] Screenshot rendered: kinga-screenshots/forensic-panels-v2-restyled.png
+
+---
+## Platform Readiness Remediation Sprint (July 2026)
+
+### Phase 1 (checkpoint 391f494d)
+- [x] Fix 1: SQL injection in integrityRouter — replaced raw sql interpolation with Drizzle parameterised queries (gte + eq conditions)
+- [x] Fix 7: Script relocation — moved debug-insert.ts, trigger-pipeline.ts, voltron-trigger.ts, stuck-assessment-recovery-job.ts to server/scripts/; added server/scripts/** to vitest exclude list; TypeScript errors reduced from 47 → 7
+
+### Phase 2 (checkpoint d211290d)
+- [x] Fix 4: Shared PLATFORM_ROLES — created shared/roles.ts as single source of truth (14 platform roles + 5 insurer roles); updated server/routers/platform-user-roles.ts and client/src/pages/PlatformUserRoleManager.tsx to import from shared/roles.ts; client now includes fleet_admin/fleet_manager/fleet_driver (previously missing)
+- [x] Fix 5: inspection_id FK on claim_documents — added inspectionId nullable FK column to drizzle/schema.ts; applied via SQL ALTER TABLE; added PRIMARY KEY to inspections.id (was missing — pre-existing Epic 3 schema bug); updated inspections.ts addMeasurement + addObservation to backfill inspectionId on linked claimDocuments
+- [x] Test fixes: added 'engineer' + 'platform_super_admin' to KNOWN_ROLES in reporting.test.ts; added engineer reports to domain-only exclusion list in reporting.access.test.ts; added server/scripts/** to vitest exclude list
+
+### Phase 3 (checkpoint — current)
+- [x] Fix 2+3: Workflow engine consolidation (BLOCKER) — audited all three workflow implementations; redirected the one remaining call site in routers.ts from deprecated transitionWorkflowState() to canonical workflow-engine.ts transition() (full governance: audit trail + segregation of duties + role permission matrix); added @deprecated JSDoc to transitionWorkflowState(); documented consolidation in workflow.ts module header
+
+### Remaining (not in this sprint)
+- [ ] Fix 6: Remove @ts-nocheck from workflow-engine.ts and the ~40 remaining high-value server files

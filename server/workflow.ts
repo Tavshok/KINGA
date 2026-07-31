@@ -1,9 +1,24 @@
 // @ts-nocheck
 /**
  * Workflow Management for KINGA RBAC System
- * 
- * Handles workflow state transitions, comment management, and approval tracking
- * for the hierarchical role-based access control system.
+ *
+ * ⚠️  CONSOLIDATION NOTE (Fix 2+3 — Platform Readiness Remediation)
+ * ─────────────────────────────────────────────────────────────────
+ * `transitionWorkflowState()` in this file is DEPRECATED.
+ * All claim state transitions MUST go through `workflow-engine.ts transition()`
+ * which enforces the full governance stack:
+ *   - Audit trail (workflowAuditTrail table)
+ *   - Segregation of duties (claimInvolvementTracking)
+ *   - Role permission matrix (ROLE_TRANSITION_PERMISSIONS)
+ *   - Configuration constraints (workflowConfiguration)
+ *
+ * The remaining exports (addClaimComment, getClaimComments,
+ * checkGMConsultationRequired, approveTechnicalBasis, authorizePayment,
+ * closeClaim, getClaimsByWorkflowState, etc.) are still active helpers.
+ *
+ * `workflow/state-machine.ts` (WorkflowStateMachine) is a SEPARATE concern:
+ * it is used only by workflow/integration.ts for tenant configuration CRUD
+ * and does NOT handle live claim transitions.
  */
 
 import { getDb } from "./db";
@@ -14,7 +29,10 @@ import { requireValidTransition, requiresGMConsultation } from "./rbac";
 import { TRPCError } from "@trpc/server";
 
 /**
- * Transition claim to new workflow state
+ * @deprecated Use `transition()` from `./workflow-engine` instead.
+ * This function bypasses the full governance stack (no audit trail, no
+ * segregation-of-duties check, no role permission matrix).
+ * Kept for reference only — no active call sites remain.
  */
 export async function transitionWorkflowState(
   claimId: number,

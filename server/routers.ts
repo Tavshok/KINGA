@@ -4752,14 +4752,21 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Automatically progress status to quotes_pending (legacy field only)
         await updateClaimStatus(input.claimId, "quotes_pending", ctx.user.id, "assessor_internal", claim.tenantId || "default");
         
-        // Progress workflow state to internal_review (assessor completed their work)
-        const { transitionWorkflowState } = await import("./workflow");
-        await transitionWorkflowState(
-          input.claimId,
-          "internal_review",
-          ctx.user.id,
-          "assessor_internal"
-        );
+        // Progress workflow state to internal_review (assessor completed their work).
+        // Use the canonical workflow-engine transition() for full governance enforcement
+        // (audit trail, segregation of duties, role permission checks).
+        const { transition: engineTransition } = await import("./workflow-engine");
+        const { statusToWorkflowState } = await import("./workflow-migration");
+        const latestClaim = await getClaimById(input.claimId);
+        const fromWfState = (latestClaim as any)?.workflowState
+          || statusToWorkflowState((latestClaim as any)?.status);
+        await engineTransition({
+          claimId: input.claimId,
+          fromState: fromWfState,
+          toState: "internal_review",
+          userId: ctx.user.id,
+          userRole: "assessor_internal" as any,
+        });
 
         // Create audit entry
         await createAuditEntry({
