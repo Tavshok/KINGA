@@ -38,6 +38,7 @@ export async function generateClaimsIntelligenceReport(
               a.cost_intelligence_json, a.repair_intelligence_json,
               a.fraud_score_breakdown_json, a.ife_result_json,
               a.narrative_analysis_json, a.physics_analysis,
+              a.cross_validation_json,
               a.enriched_photos_json,
               a.created_at AS assessment_date, a.model_version
        FROM claims c
@@ -88,6 +89,14 @@ export async function generateClaimsIntelligenceReport(
     const ife        = safeJson(c.ife_result_json as string) as any;
     const physics    = safeJson(c.physics_analysis as string) as any;
     const narrative  = safeJson(c.narrative_analysis_json as string) as any;
+    const crossVal   = safeJson(c.cross_validation_json as string) as any;
+    // Three-way speed comparison from cross_validation_json
+    const cvThreeWay  = crossVal?.threeWaySpeedComparison ?? crossVal?.speedComparison ?? null;
+    const cvXvRisk    = crossVal?.xvRiskBanner ?? crossVal?.crossValidationRisk ?? null;
+    const claimedSpd  = cvThreeWay?.claimedSpeedKmh ?? physics?.velocityKmh ?? null;
+    const consensusSpd = cvThreeWay?.consensusSpeedKmh ?? physics?.deltaVKmh ?? null;
+    const severitySpd  = cvThreeWay?.severityImpliedSpeedLabel ?? null;
+    const speedVerdict = cvThreeWay?.verdict ?? (claimedSpd && consensusSpd && Math.abs(Number(claimedSpd) - Number(consensusSpd)) > 5 ? 'DIVERGE' : 'CONSISTENT');
 
     // ── 5. Derived values ────────────────────────────────────────────────────
     const fraudScore   = Number(c.fraud_score ?? 0);
@@ -257,7 +266,7 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
           <tr><td style="width:40%;color:var(--ink-mid)">Policy Number</td><td class="mono bold">${policyNum}</td></tr>
           <tr><td style="color:var(--ink-mid)">Insurer</td><td>${insurer}</td></tr>
           <tr><td style="color:var(--ink-mid)">Cover Type</td><td>${esc(c.cover_type ?? c.policy_type ?? "Comprehensive")}</td></tr>
-          <tr><td style="color:var(--ink-mid)">Sum Insured</td><td>${fmtUSD(c.sum_insured as string | number | null | undefined ?? c.vehicle_market_value as string | number | null | undefined)}</td></tr>
+          <tr><td style="color:var(--ink-mid)">Sum Insured</td><td>${fmtUSD(c.sum_insured != null ? Number(c.sum_insured) : c.vehicle_market_value != null ? Number(c.vehicle_market_value) / 100 : null)}</td></tr>
           <tr><td style="color:var(--ink-mid)">Policy Excess</td><td>${fmtUSD(excess)}</td></tr>
           <tr><td style="color:var(--ink-mid)">Claim Lodged</td><td>${fmtD(c.created_at)}</td></tr>
           <tr><td style="color:var(--ink-mid)">Submission Delay</td><td>${dayDelay !== null ? `${dayDelay} days` : "—"} ${dayDelay !== null && dayDelay > 90 ? chip("Flagged", "warn") : dayDelay !== null ? chip("Normal", "pass") : ""}</td></tr>
@@ -309,6 +318,23 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
 
   ${physics ? `
   <div class="callout" style="margin-top:8px;">${physics.deltaV != null ? `Estimated Delta-V: <strong>${physics.deltaV} km/h</strong>. ` : ""}${physics.summary ? esc(String(physics.summary)) : "Physics analysis was performed at the standard tier. No significant anomalies detected at this assessment level."}${physicsAnomaly > 30 ? ` <em>Physics anomaly score ${physicsAnomaly}/100 — full reconstruction available in the Forensic Report.</em>` : ""}</div>` : ""}
+  ${(claimedSpd != null || consensusSpd != null) ? `
+  <div style="margin-top:10pt;">
+    <h4 style="margin:0 0 6pt 0;font-size:9pt;">Speed Comparison</h4>
+    <table style="width:100%;border-collapse:collapse;font-size:8pt;">
+      <thead><tr style="background:var(--rule);">
+        <th style="padding:4pt 6pt;text-align:left;">Source</th>
+        <th style="padding:4pt 6pt;text-align:right;">Speed</th>
+        <th style="padding:4pt 6pt;text-align:left;">Basis</th>
+      </tr></thead>
+      <tbody>
+        ${claimedSpd != null ? `<tr><td style="padding:3pt 6pt;">Claimant-stated</td><td style="padding:3pt 6pt;text-align:right;">${claimedSpd} km/h</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Claimant declaration</td></tr>` : ''}
+        ${consensusSpd != null ? `<tr><td style="padding:3pt 6pt;">Physics consensus</td><td style="padding:3pt 6pt;text-align:right;font-weight:700;">${consensusSpd} km/h</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Multi-method ensemble</td></tr>` : ''}
+        ${severitySpd ? `<tr><td style="padding:3pt 6pt;">Severity-implied</td><td style="padding:3pt 6pt;text-align:right;">${severitySpd}</td><td style="padding:3pt 6pt;color:var(--ink-mid);">Damage pattern analysis</td></tr>` : ''}
+      </tbody>
+    </table>
+    ${speedVerdict && speedVerdict !== 'CONSISTENT' ? `<div class="callout amber" style="margin-top:6pt;font-size:8pt;"><b>Speed Discrepancy Detected.</b> Claimed speed diverges from physics consensus. Full three-way analysis available in the Forensic Report.</div>` : `<div class="callout green" style="margin-top:6pt;font-size:8pt;">Speed sources are consistent.</div>`}
+  </div>` : ''}
 
 </div>
 </div>
@@ -356,7 +382,7 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
       <h4>Coverage Status</h4>
       <table class="kv">
         <tr><td class="k">Cover type</td><td class="v">${esc(c.cover_type ?? c.policy_type ?? "Comprehensive")}</td></tr>
-        <tr><td class="k">Sum insured</td><td class="v">${fmtUSD(c.sum_insured as string | number | null | undefined ?? c.vehicle_market_value as string | number | null | undefined)}</td></tr>
+        <tr><td class="k">Sum insured</td><td class="v">${fmtUSD(c.sum_insured != null ? Number(c.sum_insured) : c.vehicle_market_value != null ? Number(c.vehicle_market_value) / 100 : null)}</td></tr>
         <tr><td class="k">Policy excess applicable</td><td class="v">${fmtUSD(excess)}</td></tr>
         <tr><td class="k">Exclusions triggered</td><td class="v">${exclusions.length > 0 ? `<span class="pill amber">${exclusions.length} detected</span>` : `<span class="pill green">None detected</span>`}</td></tr>
       </table>
@@ -557,6 +583,18 @@ ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Sub
 
   ${rtvRatio >= 50 ? `
   <div class="callout amber" style="margin-top:8px;"><b>Repair Cost Approaching Total-Loss Threshold.</b> At ${fmtPct(rtvRatio)} of market value, the repair cost is approaching the typical total-loss threshold. Confirm the insurer's total-loss policy before authorising repairs.</div>` : ""}
+  ${(() => {
+    const qs = fraudBreak?.quoteSimilarity;
+    if (!qs) return '';
+    const verdict = qs.overall_verdict ?? qs.verdict;
+    const pairSim = qs.highestPairSimilarity ?? qs.maxSimilarity;
+    if (verdict === 'confirmed' || verdict === 'high_risk') {
+      return `<div class="callout" style="margin-top:8px;border-color:var(--red);background:#fff5f5;"><b>Copy-Quotation Detected.</b> Quote similarity analysis flagged a potential copy-quotation pattern (highest pair similarity: ${pairSim != null ? Math.round(Number(pairSim) * 100) + '%' : 'N/A'}). This indicates two or more repair quotes may share a common origin. Refer to the Forensic Report for full pair-by-pair analysis.</div>`;
+    } else if (verdict === 'possible' || verdict === 'moderate_risk') {
+      return `<div class="callout amber" style="margin-top:8px;"><b>Copy-Quotation — Possible.</b> Quote similarity analysis detected a moderate similarity pattern (highest pair: ${pairSim != null ? Math.round(Number(pairSim) * 100) + '%' : 'N/A'}). Further review recommended.</div>`;
+    }
+    return '';
+  })()} 
   <p class="small" style="margin-top:8px;">Full fraud radar breakdown, cross-engine consistency checks, copy-quotation fingerprint analysis, and accident-date validation are available in the Forensic Claim Decision Report.</p>
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">

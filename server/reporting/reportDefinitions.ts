@@ -202,7 +202,8 @@ async function generateClaimAssessmentReport(
               a.damage_description, a.total_loss_indicated, a.repair_to_value_ratio,
               a.model_version, a.created_at AS assessment_date,
               a.decision_authority_json, a.physics_analysis,
-              a.fraud_score_breakdown_json, a.cost_intelligence_json
+              a.fraud_score_breakdown_json, a.cost_intelligence_json,
+              a.cross_validation_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""} ORDER BY a.created_at DESC LIMIT 1`,
@@ -216,6 +217,12 @@ async function generateClaimAssessmentReport(
     const fraud = safeJson(claim.fraud_score_breakdown_json);
     const costIntel = safeJson(claim.cost_intelligence_json);
     const decisionAuth = safeJson(claim.decision_authority_json);
+    const crossValCA   = safeJson(claim.cross_validation_json) as any;
+    const cvThreeWayCA = crossValCA?.threeWaySpeedComparison ?? crossValCA?.speedComparison ?? null;
+    const claimedSpdCA  = cvThreeWayCA?.claimedSpeedKmh ?? (physics as any)?.velocityKmh ?? null;
+    const consensusSpdCA = cvThreeWayCA?.consensusSpeedKmh ?? (physics as any)?.deltaVKmh ?? null;
+    const severitySpdCA  = cvThreeWayCA?.severityImpliedSpeedLabel ?? null;
+    const speedVerdictCA = cvThreeWayCA?.verdict ?? (claimedSpdCA && consensusSpdCA && Math.abs(Number(claimedSpdCA) - Number(consensusSpdCA)) > 5 ? 'DIVERGE' : 'CONSISTENT');
 
     // Damaged components are stored in damaged_components_json on ai_assessments
     // (JSON array of DamagedComponent objects from Stage 6 / Stage 8)
@@ -412,6 +419,18 @@ ${comps.length > 0 ? `
 <div class="section">
   <div class="section-tab sans"><span class="num">05</span> Fraud &amp; Physics</div>
   ${physicsIndicator(physicsAnomalyScore, String(claim.claim_reference ?? claim.id))}
+  ${(() => {
+    const qs = (fraud as any)?.quoteSimilarity;
+    if (!qs) return '';
+    const verdict = qs.overall_verdict ?? qs.verdict;
+    const pairSim = qs.highestPairSimilarity ?? qs.maxSimilarity;
+    if (verdict === 'confirmed' || verdict === 'high_risk') {
+      return `<div style="margin-top:8px;padding:8px 12px;border:1px solid #a83232;background:#fbe9e7;border-radius:3px;font-size:11px;"><strong>Copy-Quotation Detected.</strong> Quote similarity analysis flagged a potential copy-quotation pattern (highest pair similarity: ${pairSim != null ? Math.round(Number(pairSim) * 100) + '%' : 'N/A'}). Two or more repair quotes may share a common origin. Refer to the Forensic Report for full analysis.</div>`;
+    } else if (verdict === 'possible' || verdict === 'moderate_risk') {
+      return `<div style="margin-top:8px;padding:8px 12px;border:1px solid #b8720b;background:#fbf1de;border-radius:3px;font-size:11px;"><strong>Copy-Quotation — Possible.</strong> Moderate quote similarity detected (highest pair: ${pairSim != null ? Math.round(Number(pairSim) * 100) + '%' : 'N/A'}). Further review recommended.</div>`;
+    }
+    return '';
+  })()}
   <div style="font-size:10px;color:#8a8a8a;margin-top:8px">Full physics methodology, impact force analysis, and ΔV calculations are available in the Forensic Report (Prove Tier).</div>
 </div>
 
@@ -450,7 +469,7 @@ async function generateForensicReport(
               a.forensic_audit_validation_json, a.narrative_analysis_json,
               a.damage_description, a.model_version,
               a.created_at AS assessment_date, a.ife_result_json,
-              a.decision_authority_json
+              a.decision_authority_json, a.cross_validation_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""} ORDER BY a.created_at DESC LIMIT 1`,
@@ -470,6 +489,12 @@ async function generateForensicReport(
     const forensic = parseJson(claim.forensic_audit_validation_json);
     const narrative = parseJson(claim.narrative_analysis_json);
     const ife = parseJson(claim.ife_result_json);
+    const crossValF   = parseJson(claim.cross_validation_json) as any;
+    const cvThreeWayF = crossValF?.threeWaySpeedComparison ?? crossValF?.speedComparison ?? null;
+    const claimedSpdCA  = cvThreeWayF?.claimedSpeedKmh ?? (physics as any)?.velocityKmh ?? null;
+    const consensusSpdCA = cvThreeWayF?.consensusSpeedKmh ?? (physics as any)?.deltaVKmh ?? null;
+    const severitySpdCA  = cvThreeWayF?.severityImpliedSpeedLabel ?? null;
+    const speedVerdictCA = cvThreeWayF?.verdict ?? (claimedSpdCA && consensusSpdCA && Math.abs(Number(claimedSpdCA) - Number(consensusSpdCA)) > 5 ? 'DIVERGE' : 'CONSISTENT');
 
     const meta: ReportMeta = {
       title: "Forensic Analysis Report",
@@ -538,6 +563,17 @@ async function generateForensicReport(
         ${physics.anomalies?.length ? `
           <div class="subsection-title">Physics Anomalies</div>
           <ul>${physics.anomalies.map((a: string) => `<li>${escHtml(a)}</li>`).join("")}</ul>` : ""}
+        ${(claimedSpdCA != null || consensusSpdCA != null) ? `
+        <div class="subsection-title">Speed Comparison</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">
+          <thead><tr style="background:#f5f5f5;"><th style="padding:4px 8px;text-align:left;">Source</th><th style="padding:4px 8px;text-align:right;">Speed</th><th style="padding:4px 8px;text-align:left;">Basis</th></tr></thead>
+          <tbody>
+            ${claimedSpdCA != null ? `<tr><td style="padding:3px 8px;">Claimant-stated</td><td style="padding:3px 8px;text-align:right;">${claimedSpdCA} km/h</td><td style="padding:3px 8px;color:#666;">Claimant declaration</td></tr>` : ''}
+            ${consensusSpdCA != null ? `<tr><td style="padding:3px 8px;">Physics consensus</td><td style="padding:3px 8px;text-align:right;font-weight:700;">${consensusSpdCA} km/h</td><td style="padding:3px 8px;color:#666;">Multi-method ensemble</td></tr>` : ''}
+            ${severitySpdCA ? `<tr><td style="padding:3px 8px;">Severity-implied</td><td style="padding:3px 8px;text-align:right;">${severitySpdCA}</td><td style="padding:3px 8px;color:#666;">Damage pattern analysis</td></tr>` : ''}
+          </tbody>
+        </table>
+        ${speedVerdictCA !== 'CONSISTENT' ? `<div class="finding-box warning" style="margin-top:6px;"><strong>Speed Discrepancy:</strong> Claimed speed diverges from physics consensus. Forensic Report recommended.</div>` : `<div class="finding-box" style="margin-top:6px;">Speed sources are consistent.</div>`}` : ''}
       </div>` : ""}
 
       <!-- Narrative Analysis -->
