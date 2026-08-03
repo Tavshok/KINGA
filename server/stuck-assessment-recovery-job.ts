@@ -54,10 +54,12 @@
  *     These claims have a source document and CAN be re-processed.
  *     Action: Reset to intake_pending and re-trigger. Auto-retry up to MAX_RECOVERY_RETRIES.
  *
- *   CASE 12 — intake_pending + ai_assessment_triggered=0 + sourceDocumentId IS NOT NULL + >3 min
- *     PRIMARY FIX for the 'upload and disappear' bug.
- *     Claims created with intake_pending but the setImmediate trigger was lost (server restart,
- *     tsx watch reload, or any in-process crash before the trigger fired).
+  *   CASE 12 — intake_pending + ai_assessment_triggered=1 + aiAssessmentCompleted=0 + sourceDocumentId IS NOT NULL + >3 min
+ *     Recovery for the 'upload and disappear' bug — but ONLY for claims that were explicitly
+ *     routed to KINGA AI assessment (aiAssessmentTriggered=1).
+ *     The setImmediate trigger was lost (server restart, tsx watch reload, or in-process crash).
+ *     Claims with aiAssessmentTriggered=0 have NOT been approved for KINGA processing — the
+ *     claims processor may be routing them to a human assessor or waiting for documentation.
  *     Action: Fire the pipeline immediately. No pre-reset needed.
  *
  * PERSISTENT RETRY COUNTER:
@@ -256,11 +258,20 @@ export async function runStartupCleanup(): Promise<void> {
       console.log("[StartupCleanup] No orphaned pipeline claims found.");
     }
 
-    // ── Part B: Trigger intake_pending claims whose setImmediate was lost on restart ────────
-    // On every server start, find all intake_pending claims with a source document
-    // that have NOT been triggered yet. These are claims where the upload succeeded
-    // but the in-process setImmediate trigger was killed when the server restarted.
-    // This is the permanent fix for the 'upload and disappear' bug.
+    // ── Part B: Recover intake_pending claims whose setImmediate was lost on restart ────────
+    // On every server start, find intake_pending claims that were EXPLICITLY routed to KINGA
+    // (aiAssessmentTriggered=1) but whose pipeline trigger was lost (server restart, tsx watch
+    // reload, or in-process crash before the trigger fired).
+    //
+    // CRITICAL GUARD — aiAssessmentTriggered=1 is REQUIRED:
+    // Claims with aiAssessmentTriggered=0 have NOT been approved for KINGA processing.
+    // The claims processor may be:
+    //   - Routing to a human assessor instead
+    //   - Waiting for additional documentation (police report, medical cert, etc.)
+    //   - Holding for dispute / legal review
+    // We must NOT auto-run KINGA on those claims — doing so overrides the processor's
+    // deliberate routing decision and violates the platform governance principle that
+    // the system must not act on claims without explicit approval.
     const untriggered = await db
       .select({ id: claims.id, claimNumber: claims.claimNumber })
       .from(claims)
@@ -268,7 +279,7 @@ export async function runStartupCleanup(): Promise<void> {
       .where(
         and(
           eq(claims.status, "intake_pending" as any),
-          eq(claims.aiAssessmentTriggered, 0),
+          eq(claims.aiAssessmentTriggered, 1),
           eq(claims.aiAssessmentCompleted, 0),
           isNotNull(ingestionDocuments.s3Url)
         )
@@ -842,11 +853,16 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
-    // ── CASE 12: status='intake_pending' + ai_assessment_triggered=0 + sourceDocumentId IS NOT NULL + >3 min ──
-    // Claims that were created with intake_pending but the setImmediate trigger was lost
-    // (server restart, tsx watch reload, or any in-process crash before the trigger fired).
-    // These claims have a source document and are ready to be processed immediately.
-    // This is the PRIMARY fix for the 'upload and disappear' bug.
+    // ── CASE 12: status='intake_pending' + ai_assessment_triggered=1 + aiAssessmentCompleted=0 + sourceDocumentId IS NOT NULL + >3 min ──
+    // Recovery for the 'upload and disappear' bug — ONLY for claims explicitly routed to KINGA.
+    // These are claims where aiAssessmentTriggered was set to 1 (KINGA was chosen) but the
+    // setImmediate pipeline trigger was lost (server restart, tsx watch reload, in-process crash).
+    //
+    // CRITICAL GUARD — aiAssessmentTriggered=1 is REQUIRED:
+    // Claims with aiAssessmentTriggered=0 have NOT been approved for KINGA processing.
+    // The claims processor may be routing them to a human assessor, waiting for additional
+    // documentation, or holding for legal review. The system must NOT auto-trigger KINGA
+    // on those claims — doing so overrides the processor's deliberate routing decision.
     const untriggeredIntakePending = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -857,7 +873,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         .where(
           and(
             eq(claims.status, "intake_pending" as any),
-            eq(claims.aiAssessmentTriggered, 0),
+            eq(claims.aiAssessmentTriggered, 1),
             eq(claims.aiAssessmentCompleted, 0),
             isNotNull(ingestionDocuments.s3Url),
             olderThanMinutes(claims.updatedAt, 3)
@@ -874,15 +890,15 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         const triggered = await retriggerWithTracking(
           claim.id, claim.claimNumber, 'Case12',
           async () => {
-            // No pre-reset needed — claim is already in intake_pending with triggered=0
-            // Just increment the retry counter and fire
+            // No pre-reset needed — claim is already in intake_pending with triggered=1
+            // Just increment the retry counter and fire the lost trigger
           }
         );
         if (triggered) totalFixed++;
         else totalFixed++;
         console.log(
           `[StuckRecovery] CASE 12: Triggered pipeline for intake_pending claim ` +
-          `${claim.claimNumber} (id=${claim.id}) — trigger was lost on previous server start`
+          `${claim.claimNumber} (id=${claim.id}) — KINGA was approved but trigger was lost on previous server start`
         );
       }
     }

@@ -353,7 +353,15 @@ function evaluateContract(input: DocumentHealthGateInput): EvidenceCompletenessC
     // Semantic classification (Stage 2.6B) runs AFTER this gate, so vehicleDamageImageCount
     // is always 0 at gate time for document-ingested claims. We only require that pages were
     // rendered (pagesRendered > 0) — the gate already checks this via the Page Rendering dimension.
-    { label: 'Document integrity verified', value: input.pdfSizeBytes > 0 ? 'yes' : null },
+    //
+    // NOTE: 'Document integrity verified' (pdfSizeBytes > 0) is NOT required for document-ingested
+    // claims. A zero-byte pdfBuffer means the presigned URL expired or the download failed
+    // transiently — the document exists in S3 and the LLM reads it via the file_url proxy.
+    // For document-ingested claims, computeDecision bypasses confidence scoring entirely, so
+    // this contract check is moot — but we exclude it here for clarity and correctness.
+    ...(input.isDocumentIngested ? [] : [
+      { label: 'Document integrity verified', value: input.pdfSizeBytes > 0 ? 'yes' : null },
+    ] as Array<{ label: string; value: string | null | undefined | number }>),
   ];
 
   for (const check of requiredChecks) {
@@ -437,17 +445,23 @@ function detectFailureModes(input: DocumentHealthGateInput): string[] {
 /**
  * Compute the routing decision from the overall score and critical failures.
  *
- * DESIGN CHANGE: The gate is now advisory-only for document-ingested claims.
- * The gate records quality issues as warnings but NEVER blocks the pipeline
- * when a PDF was found and pages were successfully rendered.
+ * DESIGN PRINCIPLE: Confidence score is NOT a blocking factor for document-ingested claims.
  *
- * Hard-block conditions (apply to ALL claims):
- *   1. No source document found (F1) — nothing to analyse
- *   2. PDF rendered 0 pages AND pdfSizeBytes=0 — file is empty/corrupt
+ * For document-ingested claims (isDocumentIngested=true), the gate is advisory-only.
+ * The ONLY hard-block condition is: no source document found (nothing to analyse).
+ * All other quality issues (low score, missing text, non-vehicle images, transient
+ * PDF download failures, document structure differences) produce PROCEED_WITH_WARNING.
+ * The pipeline runs and flags quality issues in the forensic report.
  *
- * All other issues (low score, missing text, non-vehicle images, contract
- * violations on pipeline-output fields) produce PROCEED_WITH_WARNING so the
- * pipeline runs and flags the issues in the forensic report.
+ * Rationale: Human assessor reports, completed assessment PDFs, and other structured
+ * documents have different internal structure from raw claim documents. The confidence
+ * scorer penalises them for lacking vehicle photos and text — but these documents are
+ * equally valid KINGA inputs for cross-validation. The confidence score was designed
+ * for raw claim submissions, not for document ingestion.
+ *
+ * Hard-block conditions:
+ *   ALL claims:              No source document found (F1) — nothing to analyse
+ *   Form-submitted only:     Contract NOT_READY_FOR_ANALYSIS, critical failure, score < 40%
  */
 function computeDecision(
   overallScore: number,
@@ -455,32 +469,30 @@ function computeDecision(
   contractStatus: ContractStatus,
   input?: DocumentHealthGateInput
 ): IngestionDecision {
+  // ── Document-ingested claims: confidence score is NOT a blocking factor ──────────────────
+  // For any claim created via document ingestion (sourceDocumentId IS NOT NULL), the ONLY
+  // hard-block is a missing source document. Everything else proceeds with a warning.
+  // This covers human assessor reports, completed assessment PDFs, and all other uploaded
+  // documents regardless of their internal structure or confidence score.
+  if (input?.isDocumentIngested) {
+    // Hard-block: no source document at all — nothing to analyse
+    if (!input.sourceDocumentFound) {
+      return 'BLOCK_ASSESSMENT';
+    }
+    // Source document found — proceed regardless of confidence score, text extraction,
+    // page rendering, or any other quality dimension. The pipeline runs and flags issues.
+    return 'PROCEED_WITH_WARNING';
+  }
+
+  // ── Form-submitted claims: use the original strict routing ──────────────────────────────
   // Hard-block 1: No source document at all — nothing to analyse
   if (input && !input.sourceDocumentFound) {
     return 'BLOCK_ASSESSMENT';
   }
   // Hard-block 2: Empty/corrupt file (0 bytes AND 0 pages rendered)
-  // EXCEPTION: document-ingested claims where the source document was found — a zero-byte
-  // pdfBuffer means the presigned URL expired or the download failed transiently. The document
-  // exists in S3; the LLM can still read it via the file_url proxy. Do NOT hard-block.
   if (input && input.pdfSizeBytes === 0 && input.pagesRendered === 0) {
-    if (!(input.isDocumentIngested && input.sourceDocumentFound)) {
-      return 'BLOCK_ASSESSMENT';
-    }
-    // Document-ingested + source found but PDF download failed → downgrade to warning
-    // The pipeline will attempt direct LLM PDF reading via file_url proxy
-    return 'PROCEED_WITH_WARNING';
+    return 'BLOCK_ASSESSMENT';
   }
-  // For document-ingested claims: always proceed, downgrade blocking to warning
-  if (input?.isDocumentIngested && input.sourceDocumentFound) {
-    if (overallScore >= SCORE_THRESHOLDS.PROCEED_AUTOMATICALLY) {
-      return 'PROCEED_AUTOMATICALLY';
-    }
-    // Downgrade REQUIRE_REVIEW and BLOCK_ASSESSMENT to PROCEED_WITH_WARNING
-    // The gate records the issues; the pipeline runs and flags them in the report
-    return 'PROCEED_WITH_WARNING';
-  }
-  // For form-submitted claims: use the original strict routing
   if (contractStatus === 'NOT_READY_FOR_ANALYSIS') {
     return 'BLOCK_ASSESSMENT';
   }
