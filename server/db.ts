@@ -1400,11 +1400,13 @@ export async function triggerAiAssessment(claimId: number) {
       }).catch(() => {});
       // DRA: Route PipelineIncompleteError to DRA terminal state, not legacy failed/intake_pending.
       // This ensures the stuck-recovery-job and UI see the correct state.
+      // IMPORTANT: Do NOT reset aiAssessmentTriggered to 0 here.
+      // If KINGA was actively running and hit a PipelineIncompleteError,
+      // the claim must remain visible as a KINGA failure so the processor can retry.
       await db.update(claims).set({
         documentProcessingStatus: "DOCUMENT_FAILED",
         status: "document_failed",
         workflowState: "intake_queue",
-        aiAssessmentTriggered: 0,
         updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, claimId));
       // Notify owner of pipeline incomplete failure
@@ -2910,13 +2912,16 @@ export async function triggerAiAssessment(claimId: number) {
           const transientStates = ['parsing', 'extracting', 'analysing', 'DOCUMENT_VALIDATING', 'DOCUMENT_READY', 'ANALYSIS_RUNNING', 'RECOVERY_ATTEMPTED'];
           if (currentState && transientStates.includes(currentState.dps as string)) {
             console.error(`[KINGA Assessment] SAFETY NET: Claim ${claimId} still in '${currentState.dps}' after pipeline failure — forcing to DOCUMENT_FAILED.`);
-            await dbFinally.update(claims).set({
-              documentProcessingStatus: "DOCUMENT_FAILED",
-              status: "document_failed",
-              workflowState: "intake_queue",
-              aiAssessmentTriggered: 0,
-              updatedAt: new Date().toISOString(),
-            }).where(eq(claims.id, claimId));
+          // IMPORTANT: Do NOT reset aiAssessmentTriggered to 0 here.
+          // If KINGA was actively running (aiAssessmentTriggered=1) and failed mid-pipeline,
+          // the claim must remain visible in the UI as a KINGA failure — not disappear
+          // as if it was never triggered. The processor needs to see it to retry.
+          await dbFinally.update(claims).set({
+            documentProcessingStatus: "DOCUMENT_FAILED",
+            status: "document_failed",
+            workflowState: "intake_queue",
+            updatedAt: new Date().toISOString(),
+          }).where(eq(claims.id, claimId));
           }
         }      } catch (finallyErr) {
         console.error(`[KINGA Assessment] SAFETY NET DB update failed for claim ${claimId}:`, finallyErr);
