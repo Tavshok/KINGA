@@ -988,6 +988,14 @@ export const claims = mysqlTable("claims", {
 	// Current pipeline stage label — updated as the AI assessment progresses.
 	// Format: "Stage N — Label" e.g. "Stage 2 — Extracting". Cleared when assessment completes or fails.
 	pipelineCurrentStage: varchar("pipeline_current_stage", { length: 100 }),
+	// UUID of the active pipeline_runs row for this claim. Persisted at pipeline start so that
+	// a resumed pipeline can call loadCompletedStages(runUuid) and skip already-completed stages.
+	// Cleared when assessment completes or fails permanently.
+	pipelineRunUuid: varchar("pipeline_run_uuid", { length: 64 }),
+	// Heartbeat timestamp — updated every 30 seconds by the running pipeline stage.
+	// The recovery job uses this to detect stuck pipelines: if this is >2 minutes old and the
+	// claim is in a running state, the pipeline process is dead and the claim needs recovery.
+	pipelineHeartbeatAt: timestamp("pipeline_heartbeat_at", { mode: 'string' }),
 	// Fleet / Company claimant fields ----------------------------------------
 	// FK → fleet_accounts.id — set when claimant_type = 'company' and claim is auto-linked to a fleet account.
 	fleetAccountId: int("fleet_account_id"),

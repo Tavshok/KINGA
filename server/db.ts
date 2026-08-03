@@ -1302,7 +1302,27 @@ export async function triggerAiAssessment(claimId: number) {
   }).where(eq(claims.id, claimId)).catch(() => {});
 
   // ── Phase 1 Observability: generate a unique runId for this pipeline execution ──
-  const _pipelineRunId = `${claimId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // DURABLE RESUME: If the claim already has a pipelineRunUuid from a prior run that was
+  // interrupted, reuse it so loadCompletedStages() can skip already-completed stages.
+  // If not, generate a new runId and persist it immediately so the next trigger can resume.
+  const _existingRunUuid = (claim as any).pipelineRunUuid as string | null | undefined;
+  const _pipelineRunId = (_existingRunUuid && _existingRunUuid.length > 0)
+    ? _existingRunUuid
+    : `${claimId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const _isResume = !!(_existingRunUuid && _existingRunUuid.length > 0);
+  if (_isResume) {
+    console.log(`[KINGA Assessment] Claim ${claimId}: RESUMING prior run ${_pipelineRunId} — will skip completed stages.`);
+  }
+  // Persist runId to claims table immediately so it survives server restarts.
+  // Also update heartbeat so the recovery job knows the pipeline is alive.
+  try {
+    await db.update(claims).set({
+      pipelineRunUuid: _pipelineRunId,
+      pipelineHeartbeatAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    }).where(eq(claims.id, claimId));
+  } catch (runUuidErr: any) {
+    console.warn(`[KINGA Assessment] Claim ${claimId}: Failed to persist pipelineRunUuid (non-fatal): ${runUuidErr.message}`);
+  }
   // Record the run start (fire-and-forget — never blocks the pipeline)
   import('./db-pipeline').then(({ recordRunStart }) => {
     recordRunStart({
@@ -1346,6 +1366,10 @@ export async function triggerAiAssessment(claimId: number) {
         if (dbInst) {
           await dbInst.update(claims).set({
             pipelineCurrentStage: stageLabel,
+            // HEARTBEAT: update every stage start so the recovery job can detect dead pipelines.
+            // If pipelineHeartbeatAt is >2 minutes old and the claim is still in a running state,
+            // the pipeline process is dead and the claim needs recovery.
+            pipelineHeartbeatAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
             updatedAt: new Date().toISOString(),
           }).where(eq(claims.id, claimId));
         }
@@ -2498,6 +2522,8 @@ export async function triggerAiAssessment(claimId: number) {
     aiAssessmentCompletedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
     updatedAt: new Date().toISOString(),
     pipelineCurrentStage: null, // Clear stage label once assessment is complete
+    pipelineRunUuid: null, // Clear run UUID — pipeline completed successfully, no resume needed
+    pipelineHeartbeatAt: null, // Clear heartbeat — pipeline is done
   };
   // Helper: safely truncate a string to a max byte length to avoid MySQL varchar truncation errors
   const trunc = (val: string | null | undefined, maxLen: number): string | null =>

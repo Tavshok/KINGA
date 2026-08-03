@@ -664,6 +664,63 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
+    // ── CASE 7b: Heartbeat-based dead pipeline detection ────────────────────────────────
+    // The pipeline updates pipelineHeartbeatAt on every stage start.
+    // If pipelineHeartbeatAt is set but >2 minutes old AND the claim is still in a running
+    // state, the pipeline process is dead (server restart, OOM, tsx hot-reload killed it).
+    // This is faster than the 5-minute wall-clock check in Case 7 — it fires within 2 minutes
+    // of the pipeline dying, regardless of when the claim was last updated.
+    const deadHeartbeat = await withDbRetry(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db
+        .select({ id: claims.id, claimNumber: claims.claimNumber, status: claims.status, documentProcessingStatus: claims.documentProcessingStatus, pipelineRunUuid: (claims as any).pipelineRunUuid })
+        .from(claims)
+        .where(
+          and(
+            inArray(claims.status, PIPELINE_RUNNING_STATUSES as unknown as string[]),
+            eq(claims.aiAssessmentCompleted, 0),
+            sql`${(claims as any).pipelineHeartbeatAt} IS NOT NULL`,
+            sql`${(claims as any).pipelineHeartbeatAt} < DATE_SUB(NOW(), INTERVAL 2 MINUTE)`
+          )
+        )
+        .limit(20);
+    }, 3, 2000, 'StuckRecovery case-7b query');
+    if (deadHeartbeat.length > 0) {
+      console.log(
+        `[StuckRecovery] CASE 7b: Found ${deadHeartbeat.length} claim(s) with dead heartbeat ` +
+        `(>2min stale) — pipeline process is dead, resetting to intake_pending for resume`
+      );
+      for (const claim of deadHeartbeat) {
+        try {
+          await withDbRetry(async () => {
+            const db = await getDb();
+            if (!db) return;
+            // Reset to intake_pending but PRESERVE pipelineRunUuid so the next trigger
+            // can resume from the last completed stage (durable resume).
+            // Also preserve aiAssessmentTriggered so the claim stays visible.
+            return db.update(claims).set({
+              status: 'intake_pending' as any,
+              workflowState: 'intake_queue',
+              documentProcessingStatus: 'intake_pending',
+              aiAssessmentCompleted: 0,
+              pipelineCurrentStage: null,
+              pipelineHeartbeatAt: null,
+              updatedAt: new Date().toISOString() as any,
+              // pipelineRunUuid is intentionally NOT cleared — preserved for durable resume
+            }).where(eq(claims.id, claim.id));
+          }, 3, 2000, `StuckRecovery case-7b reset claim ${claim.id}`);
+          console.log(
+            `[StuckRecovery] CASE 7b: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
+            `[dead heartbeat in ${claim.status}/${claim.documentProcessingStatus}] → intake_pending (runUuid preserved for resume)`
+          );
+          totalFixed++;
+        } catch (err) {
+          console.error(`[StuckRecovery] Failed to heartbeat-reset claim ${claim.id}:`, err);
+        }
+      }
+    }
+
     // ── CASE 8: status='submitted' OR workflowState='created', >2 hours, no ai_assessment_triggered ──
     // Claims that were submitted but never picked up by the intake pipeline.
     const stuckSubmitted = await withDbRetry(async () => {
