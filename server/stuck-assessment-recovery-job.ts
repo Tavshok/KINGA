@@ -220,14 +220,22 @@ export async function runStartupCleanup(): Promise<void> {
     if (!db) return;
 
     // ── Part A: Reset orphaned pipeline claims (active transient states) ──────────────────
-    // Any claim still in extracting/analysing/parsing from a previous server run is dead.
+    // Any claim still in a pipeline-active status from a previous server run is dead.
+    // Covers ALL transient statuses: assessment_in_progress, document_validating,
+    // document_ready, analysis_running — any of these left over from a killed server
+    // process must be reset to intake_pending so the processor can retry.
+    const STARTUP_ORPHAN_STATUSES = [
+      "assessment_in_progress",
+      "document_validating",
+      "document_ready",
+      "analysis_running",
+    ];
     const orphaned = await db
-      .select({ id: claims.id, claimNumber: claims.claimNumber, documentProcessingStatus: claims.documentProcessingStatus })
+      .select({ id: claims.id, claimNumber: claims.claimNumber, documentProcessingStatus: claims.documentProcessingStatus, aiAssessmentTriggered: claims.aiAssessmentTriggered })
       .from(claims)
       .where(
         and(
-          eq(claims.status, "assessment_in_progress" as any),
-          inArray(claims.documentProcessingStatus, ["extracting", "analysing", "parsing"]),
+          inArray(claims.status as any, STARTUP_ORPHAN_STATUSES),
           // Use 1 minute threshold — any claim in a transient state for >1 min on server
           // start is guaranteed orphaned (the pipeline process was killed with the server).
           olderThanMinutes(claims.updatedAt, 1)
@@ -240,19 +248,25 @@ export async function runStartupCleanup(): Promise<void> {
         const ok = await canRetrigger(claim.id);
         if (!ok) {
           console.warn(`[StartupCleanup] Claim ${claim.claimNumber} (id=${claim.id}) has reached max retries — skipping reset.`);
-          await db.update(claims).set({
-            documentProcessingStatus: "failed",
-            aiAssessmentTriggered: 0,
-            updatedAt: new Date().toISOString() as any,
-          }).where(eq(claims.id, claim.id));
-          continue;
-        }
         await db.update(claims).set({
-          documentProcessingStatus: "pending",
-          aiAssessmentTriggered: 0,
+          status: 'intake_pending' as any,
+          documentProcessingStatus: 'failed',
+          workflowState: 'intake_queue',
+          pipelineCurrentStage: null,
           updatedAt: new Date().toISOString() as any,
         }).where(eq(claims.id, claim.id));
-        console.log(`[StartupCleanup] Reset claim ${claim.claimNumber} (id=${claim.id}) from '${claim.documentProcessingStatus}' → 'pending'`);
+        continue;
+        }
+        // Preserve aiAssessmentTriggered — if KINGA was actively running when the server
+        // died, keep triggered=1 so the claim stays visible and Part B re-fires the pipeline.
+        await db.update(claims).set({
+          status: 'intake_pending' as any,
+          documentProcessingStatus: 'intake_pending',
+          workflowState: 'intake_queue',
+          pipelineCurrentStage: null,
+          updatedAt: new Date().toISOString() as any,
+        }).where(eq(claims.id, claim.id));
+        console.log(`[StartupCleanup] Reset claim ${claim.claimNumber} (id=${claim.id}) from '${claim.documentProcessingStatus}' → intake_pending (aiAssessmentTriggered=${claim.aiAssessmentTriggered})`);
       }
     } else {
       console.log("[StartupCleanup] No orphaned pipeline claims found.");
@@ -586,10 +600,13 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
-        // ── CASE 7: ANY pipeline-running status + >30 min (hard wall-clock guard) ──────────
+        // ── CASE 7: ANY pipeline-running status + >5 min (hard wall-clock guard) ──────────
     // Covers ALL pipeline-running statuses: assessment_in_progress, analysis_running,
     // document_validating, document_ready, recovery_attempted.
-    // Claims stuck >30 min are reset to document_failed so Case 11 auto-retries them.
+    // Claims stuck >5 min are reset to intake_pending so the processor can retry.
+    // Threshold reduced from 30 min — a pipeline should never be stuck >5 min without
+    // progressing. The watchdog fires at 8 min, so 5 min catches server-restart orphans
+    // that the startup cleanup missed (e.g. claim was updated <1 min before restart).
     const PIPELINE_RUNNING_STATUSES = [
       "assessment_in_progress",
       "analysis_running",
@@ -609,7 +626,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             eq(claims.aiAssessmentCompleted, 0),
             // Use aiAssessmentStartedAt if available, otherwise fall back to updatedAt.
             // This prevents onStageStart updatedAt refreshes from resetting the clock.
-            sql`COALESCE(${claims.aiAssessmentStartedAt}, ${claims.updatedAt}) < DATE_SUB(NOW(), INTERVAL 30 MINUTE)`
+            sql`COALESCE(${claims.aiAssessmentStartedAt}, ${claims.updatedAt}) < DATE_SUB(NOW(), INTERVAL 5 MINUTE)`
           )
         )
         .limit(20);
@@ -625,21 +642,20 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             const db = await getDb();
             if (!db) return;
             return db.update(claims).set({
-              // Reset to document_failed so Case 11 picks it up and auto-retries
-              // (Case 11 checks sourceDocumentId IS NOT NULL, so claims without a
-              // source doc will stay in document_failed and require manual action)
-              status: "document_failed" as any,
-              workflowState: "intake_queue",
-              documentProcessingStatus: "DOCUMENT_FAILED",
-              aiAssessmentTriggered: 0,
+              // Reset to intake_pending — preserve aiAssessmentTriggered so the claim
+              // stays visible in the attention panel and the processor can retry via KINGA button.
+              // Part B of StartupCleanup (and Case 12) will auto-re-fire if triggered=1.
+              status: 'intake_pending' as any,
+              workflowState: 'intake_queue',
+              documentProcessingStatus: 'intake_pending',
               aiAssessmentCompleted: 0,
+              pipelineCurrentStage: null,
               updatedAt: new Date().toISOString() as any,
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-7 reset claim ${claim.id}`);
-          const hasDoc = claim.sourceDocumentId ? '(has source doc — Case 11 will auto-retry)' : '(no source doc — manual re-trigger required)';
           console.log(
-            `[StuckRecovery] CASE 7: Hard-reset claim ${claim.claimNumber} (id=${claim.id}) ` +
-            `[stuck >30min in ${claim.status}/${claim.documentProcessingStatus}] → document_failed ${hasDoc}`
+            `[StuckRecovery] CASE 7: Reset claim ${claim.claimNumber} (id=${claim.id}) ` +
+            `[stuck >5min in ${claim.status}/${claim.documentProcessingStatus}] → intake_pending for retry`
           );
           totalFixed++;
         } catch (err) {
