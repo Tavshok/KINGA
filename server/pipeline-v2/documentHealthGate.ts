@@ -460,11 +460,19 @@ function computeDecision(
     return 'BLOCK_ASSESSMENT';
   }
   // Hard-block 2: Empty/corrupt file (0 bytes AND 0 pages rendered)
+  // EXCEPTION: document-ingested claims where the source document was found — a zero-byte
+  // pdfBuffer means the presigned URL expired or the download failed transiently. The document
+  // exists in S3; the LLM can still read it via the file_url proxy. Do NOT hard-block.
   if (input && input.pdfSizeBytes === 0 && input.pagesRendered === 0) {
-    return 'BLOCK_ASSESSMENT';
+    if (!(input.isDocumentIngested && input.sourceDocumentFound)) {
+      return 'BLOCK_ASSESSMENT';
+    }
+    // Document-ingested + source found but PDF download failed → downgrade to warning
+    // The pipeline will attempt direct LLM PDF reading via file_url proxy
+    return 'PROCEED_WITH_WARNING';
   }
-  // For document-ingested claims with rendered pages: always proceed, downgrade blocking to warning
-  if (input?.isDocumentIngested && input.pagesRendered > 0) {
+  // For document-ingested claims: always proceed, downgrade blocking to warning
+  if (input?.isDocumentIngested && input.sourceDocumentFound) {
     if (overallScore >= SCORE_THRESHOLDS.PROCEED_AUTOMATICALLY) {
       return 'PROCEED_AUTOMATICALLY';
     }
