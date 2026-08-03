@@ -799,12 +799,18 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
-    // ── CASE 11: status='document_failed' + sourceDocumentId IS NOT NULL + >5 min ──────────────────────
+    // ── CASE 11: status='document_failed' + ai_assessment_triggered=1 + sourceDocumentId IS NOT NULL + >5 min ──
     // Claims that reached document_failed because:
     //   a) The watchdog timer fired (server restart killed the setImmediate trigger)
     //   b) A transient error occurred during pipeline startup
     // These claims have a source document (PDF/photos) and CAN be re-processed.
     // Auto-retry once; after MAX_RECOVERY_RETRIES, leave as document_failed for manual action.
+    //
+    // CRITICAL GUARD — aiAssessmentTriggered=1 is REQUIRED:
+    // Claims with aiAssessmentTriggered=0 in document_failed were never approved for KINGA.
+    // The claims processor may have uploaded a document but routed it to a human assessor.
+    // We must NOT auto-retry KINGA on those claims — they should stay in document_failed
+    // until the processor explicitly clicks the KINGA button.
     const stuckDocumentFailed = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -815,6 +821,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         .where(
           and(
             eq(claims.status, "document_failed" as any),
+            eq(claims.aiAssessmentTriggered, 1),
             eq(claims.aiAssessmentCompleted, 0),
             isNotNull(ingestionDocuments.s3Url),
             olderThanMinutes(claims.updatedAt, 5)
