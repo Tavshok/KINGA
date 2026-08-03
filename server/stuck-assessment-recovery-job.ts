@@ -727,28 +727,31 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
-    // ── CASE 10: status='assessment_pending' + >30 min ──────────────────────────────────────
-    // Claims reach assessment_pending when assignClaimToAssessor() is called, but
-    // triggerAiAssessment() is a separate step. If the server crashed or the trigger
-    // was never sent, these claims sit in assessment_pending indefinitely.
-    // The recovery job previously had no case for this status — they were invisible.
-    // Action: Reset to intake_pending so the standard pipeline trigger path picks them up.
+    // ── CASE 10: assessment_pending + aiAssessmentTriggered=1 + aiAssessmentCompleted=0 + >30 min ──
+    // A claim in assessment_pending with aiAssessmentTriggered=1 means the claims processor
+    // explicitly chose KINGA AI assessment, but the pipeline start step failed silently
+    // (e.g. server crash between setting the flag and calling triggerAiAssessment).
+    //
+    // CRITICAL GUARD — aiAssessmentTriggered=1 is REQUIRED:
+    // A claim in assessment_pending WITHOUT this flag was intentionally placed there by the
+    // claims processor and has NOT been routed to KINGA. They may be:
+    //   - Assigning it to a human assessor instead
+    //   - Waiting for additional documentation (police report, medical cert, etc.)
+    //   - Holding it for dispute / legal review
+    // We must NOT auto-run KINGA on those claims — doing so would override the processor's
+    // deliberate routing decision.
     const stuckAssessmentPending = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
-      // CRITICAL: Only re-trigger claims that have an actual ingestion document with an S3 URL.
-      // Claims with no evidence (no PDF, no photos) should NOT be re-triggered — they will
-      // immediately hit the No Evidence hard block, route to DOCUMENT_FAILED, and spam
-      // owner notifications. Filter by source_document_id IS NOT NULL to ensure evidence exists.
       return db
         .select({ id: claims.id, claimNumber: claims.claimNumber, status: claims.status })
         .from(claims)
-        .innerJoin(ingestionDocuments, eq(claims.sourceDocumentId, ingestionDocuments.id))
         .where(
           and(
             eq(claims.status, "assessment_pending" as any),
-            olderThanMinutes(claims.updatedAt, 30),
-            isNotNull(ingestionDocuments.s3Url)
+            eq(claims.aiAssessmentTriggered, 1),
+            eq(claims.aiAssessmentCompleted, 0),
+            olderThanMinutes(claims.updatedAt, 30)
           )
         )
         .limit(20);
