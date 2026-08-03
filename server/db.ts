@@ -670,28 +670,35 @@ export async function triggerAiAssessment(claimId: number) {
   console.log(`[PipelineSemaphore] Claim ${claimId} acquired pipeline slot (active: ${_activePipelineCount}, queued: ${_pipelineQueue.length})`);
 
   // ── PRE-PIPELINE MEMORY CHECK ──────────────────────────────────────────────
-  // Check available heap before starting the pipeline. The pipeline allocates
-  // ~150-400MB for PDF rendering, image buffers, and LLM response payloads.
-  // If less than 300MB is available, defer the claim rather than starting and
-  // failing at Stage 6 (which leaves the claim in a confusing failed state).
+  // Check available system RAM before starting the pipeline. The pipeline
+  // allocates ~150-400MB for PDF rendering, image buffers, and LLM payloads.
+  // If less than 300MB of system RAM is available, defer the claim gracefully.
   //
-  // This guard is especially important in the dev sandbox where the tsc watcher
-  // can consume 2GB of RAM. In production (Cloud Run 512MB), the pipeline is the
-  // only significant process and this guard provides a safety margin.
+  // NOTE: We check system free RAM (via /proc/meminfo), NOT Node heap free space.
+  // Node.js heap grows dynamically up to --max-old-space-size, so heapTotal-heapUsed
+  // is not a reliable indicator of available memory.
+  let systemFreeRamMB = Infinity; // default: assume enough RAM if we can't read
+  try {
+    const { readFileSync } = await import('fs');
+    const meminfo = readFileSync('/proc/meminfo', 'utf8');
+    const availableMatch = meminfo.match(/MemAvailable:\s+(\d+)\s+kB/);
+    if (availableMatch) systemFreeRamMB = parseInt(availableMatch[1]) / 1024;
+  } catch { /* /proc/meminfo not available (non-Linux) — skip check */ }
+  const MINIMUM_FREE_RAM_MB = 300; // require 300MB system RAM free before starting
   const memUsage = process.memoryUsage();
-  const heapUsedMB = memUsage.heapUsed / 1024 / 1024;
-  const heapTotalMB = memUsage.heapTotal / 1024 / 1024;
-  const heapFreeMB = heapTotalMB - heapUsedMB;
-  const MINIMUM_FREE_HEAP_MB = 200; // require 200MB free before starting
-  if (heapFreeMB < MINIMUM_FREE_HEAP_MB) {
+  console.log(
+    `[KINGA Assessment] Claim ${claimId}: Memory check — ` +
+    `systemFree=${systemFreeRamMB.toFixed(0)}MB, ` +
+    `rss=${(memUsage.rss / 1024 / 1024).toFixed(0)}MB, ` +
+    `heapUsed=${(memUsage.heapUsed / 1024 / 1024).toFixed(0)}MB`
+  );
+  if (systemFreeRamMB < MINIMUM_FREE_RAM_MB) {
     console.warn(
-      `[KINGA Assessment] Claim ${claimId}: Memory guard — only ${heapFreeMB.toFixed(0)}MB heap free ` +
-      `(used=${heapUsedMB.toFixed(0)}MB / total=${heapTotalMB.toFixed(0)}MB). ` +
+      `[KINGA Assessment] Claim ${claimId}: Memory guard — only ${systemFreeRamMB.toFixed(0)}MB system RAM free. ` +
       `Deferring pipeline start. Claim will be retried by recovery job.`
     );
     releasePipelineSlot();
-    // Re-queue: set to intake_pending so the stuck-recovery-job picks it up
-    // after memory pressure subsides. Keep aiAssessmentTriggered=1 so it stays visible.
+    // Re-queue: keep aiAssessmentTriggered=1 so the claim stays visible to the processor.
     const dbDefer = await getDb();
     if (dbDefer) {
       await dbDefer.update(claims).set({
@@ -702,9 +709,9 @@ export async function triggerAiAssessment(claimId: number) {
         updatedAt: new Date().toISOString(),
       }).where(eq(claims.id, claimId));
     }
-    throw new Error(`Pipeline deferred: insufficient heap memory (${heapFreeMB.toFixed(0)}MB free, need ${MINIMUM_FREE_HEAP_MB}MB). Claim queued for retry.`);
+    throw new Error(`Pipeline deferred: insufficient system RAM (${systemFreeRamMB.toFixed(0)}MB free, need ${MINIMUM_FREE_RAM_MB}MB). Claim queued for retry.`);
   }
-  console.log(`[KINGA Assessment] Claim ${claimId}: Memory check passed — ${heapFreeMB.toFixed(0)}MB heap free.`);
+  console.log(`[KINGA Assessment] Claim ${claimId}: Memory check passed — ${systemFreeRamMB.toFixed(0)}MB system RAM free.`);
   // ─────────────────────────────────────────────────────────────────────────────
 
   const db = await getDb();
