@@ -669,6 +669,44 @@ export async function triggerAiAssessment(claimId: number) {
   await acquirePipelineSlot();
   console.log(`[PipelineSemaphore] Claim ${claimId} acquired pipeline slot (active: ${_activePipelineCount}, queued: ${_pipelineQueue.length})`);
 
+  // ── PRE-PIPELINE MEMORY CHECK ──────────────────────────────────────────────
+  // Check available heap before starting the pipeline. The pipeline allocates
+  // ~150-400MB for PDF rendering, image buffers, and LLM response payloads.
+  // If less than 300MB is available, defer the claim rather than starting and
+  // failing at Stage 6 (which leaves the claim in a confusing failed state).
+  //
+  // This guard is especially important in the dev sandbox where the tsc watcher
+  // can consume 2GB of RAM. In production (Cloud Run 512MB), the pipeline is the
+  // only significant process and this guard provides a safety margin.
+  const memUsage = process.memoryUsage();
+  const heapUsedMB = memUsage.heapUsed / 1024 / 1024;
+  const heapTotalMB = memUsage.heapTotal / 1024 / 1024;
+  const heapFreeMB = heapTotalMB - heapUsedMB;
+  const MINIMUM_FREE_HEAP_MB = 200; // require 200MB free before starting
+  if (heapFreeMB < MINIMUM_FREE_HEAP_MB) {
+    console.warn(
+      `[KINGA Assessment] Claim ${claimId}: Memory guard — only ${heapFreeMB.toFixed(0)}MB heap free ` +
+      `(used=${heapUsedMB.toFixed(0)}MB / total=${heapTotalMB.toFixed(0)}MB). ` +
+      `Deferring pipeline start. Claim will be retried by recovery job.`
+    );
+    releasePipelineSlot();
+    // Re-queue: set to intake_pending so the stuck-recovery-job picks it up
+    // after memory pressure subsides. Keep aiAssessmentTriggered=1 so it stays visible.
+    const dbDefer = await getDb();
+    if (dbDefer) {
+      await dbDefer.update(claims).set({
+        status: 'intake_pending' as any,
+        documentProcessingStatus: 'intake_pending',
+        workflowState: 'intake_queue',
+        pipelineCurrentStage: null,
+        updatedAt: new Date().toISOString(),
+      }).where(eq(claims.id, claimId));
+    }
+    throw new Error(`Pipeline deferred: insufficient heap memory (${heapFreeMB.toFixed(0)}MB free, need ${MINIMUM_FREE_HEAP_MB}MB). Claim queued for retry.`);
+  }
+  console.log(`[KINGA Assessment] Claim ${claimId}: Memory check passed — ${heapFreeMB.toFixed(0)}MB heap free.`);
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const db = await getDb();
   if (!db) {
     releasePipelineSlot();
@@ -723,8 +761,10 @@ export async function triggerAiAssessment(claimId: number) {
         if (dbInner) {
           // Use canonical document_failed status so the recovery job (Case 11)
           // and the dashboard both surface this claim correctly for manual/auto retry.
+          // IMPORTANT: Do NOT reset aiAssessmentTriggered to 0 here.
+          // The pipeline was actively running — the claim must remain visible
+          // as a KINGA failure so the processor can see it and retry.
           await dbInner.update(claims).set({
-            aiAssessmentTriggered: 0,
             status: 'document_failed' as any,
             documentProcessingStatus: 'DOCUMENT_FAILED',
             workflowState: 'intake_queue',
