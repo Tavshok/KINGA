@@ -602,22 +602,29 @@ export function scoreCell(score: number, label: string, invert = false): string 
 
 /**
  * PhotoZonePanel — renders photo thumbnails in a table-based grid.
- * @param photos Array of { url, zone, caption, usable }
+ * @param photos Array of { url, zone, caption, usable, directionContradiction }
  * @param cols   Number of columns (default 4)
  */
 export function photoZonePanel(
-  photos: Array<{ url: string; zone?: string; caption?: string; usable?: boolean }>,
+  photos: Array<{ url: string; zone?: string; caption?: string; usable?: boolean; directionContradiction?: boolean }>,
   cols = 4
 ): string {
   if (!photos.length) return `<p style="color:#8a8a8a;font-size:11px;font-style:italic">No photographs available for this claim.</p>`;
   const cells = photos.map(p => {
-    const border = p.usable === false ? "2px solid #a83232" : "1px solid #d9d9d9";
+    // directionContradiction overrides the border to amber to distinguish from low-quality (red)
+    const border = p.directionContradiction
+      ? "2px solid #b8720b"
+      : p.usable === false ? "2px solid #a83232" : "1px solid #d9d9d9";
     const zoneLabel = p.zone ? `<div style="font-size:9px;color:#437D87;text-transform:uppercase;letter-spacing:0.4px;margin-top:3px">${esc(p.zone)}</div>` : "";
     const caption = p.caption ? `<div style="font-size:9px;color:#4a4a4a;margin-top:2px">${esc(p.caption)}</div>` : "";
     const unusable = p.usable === false ? `<div style="font-size:9px;color:#a83232;font-weight:600;margin-top:2px">Low quality</div>` : "";
+    // ⚠ Direction contradiction badge — display-only, does not affect scoring
+    const contradictionBadge = p.directionContradiction
+      ? `<div style="font-size:9px;color:#b8720b;font-weight:700;margin-top:2px">⚠ Zone contradicts narrative direction</div>`
+      : "";
     return `<td style="padding:4px;vertical-align:top">
       <img src="${esc(p.url)}" style="width:100%;height:70px;object-fit:cover;border:${border};border-radius:2px;display:block" />
-      ${zoneLabel}${caption}${unusable}
+      ${zoneLabel}${caption}${unusable}${contradictionBadge}
     </td>`;
   });
   // Pad to fill last row

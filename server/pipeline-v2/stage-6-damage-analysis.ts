@@ -775,9 +775,30 @@ async function readDamageFromPhotos(
 
   // ── STEP H: Persist enriched photo metadata to ctx ───────────────────────────────────────────────────────────────────────────────────────
   // Stage 7 and Stage 7b read ctx.enrichedPhotosJson for severity consensus. R-B-03: typed in PipelineContext.
+
+  // Fix B: direction contradiction map — zones that are directionally incompatible with each collision direction.
+  // Used to set directionContradiction: true on enriched photos (display-only badge; does NOT affect scoring).
+  const DIRECTION_INCOMPATIBLE_ZONES: Record<string, string[]> = {
+    rear:           ["front"],
+    frontal:        ["rear"],
+    side_driver:    [],   // side impacts can produce front/rear scatter — no contradiction flag
+    side_passenger: [],
+    rollover:       [],   // multi-zone by definition
+    multi_impact:   [],
+  };
+  const claimCollisionDir = (claimRecord.accidentDetails.collisionDirection ?? "unknown").toLowerCase();
+  const incompatibleZonesForDir: string[] = DIRECTION_INCOMPATIBLE_ZONES[claimCollisionDir] ?? [];
+
   const enrichedPhotoSummary = processedResults.map((r, idx) => {
     // Attach semantic classification metadata if available (from Stage 2.6B)
     const semanticMeta = ctx.semanticImageClassifications?.get(r.url);
+    const derivedZone = (r.components[0]?.location ?? 'unknown').toLowerCase();
+    // Fix B: flag photos where the vision-derived zone contradicts the narrative collision direction.
+    // This is a display-only flag — it does not feed into fraud or physics scoring.
+    const directionContradiction: boolean =
+      incompatibleZonesForDir.length > 0 &&
+      r.components.length > 0 &&
+      incompatibleZonesForDir.some(bz => derivedZone === bz || derivedZone.startsWith(bz));
     return {
       url: r.url,
       index: idx,
@@ -798,6 +819,8 @@ async function readDamageFromPhotos(
       // Stage 2.6B semantic classification metadata
       semanticType: semanticMeta?.semanticType ?? null,
       semanticConfidence: semanticMeta?.semanticConfidence ?? null,
+      // Fix B: direction contradiction flag (display-only)
+      directionContradiction,
     };
   });
   ctx.enrichedPhotosJson = JSON.stringify(enrichedPhotoSummary);
@@ -1309,6 +1332,14 @@ Please scan EVERY page and identify all pages that contain photographs. Be thoro
 
 /**
  * Infer damage components from accident description when no components are available.
+ *
+ * Fix A: The former `else` branch injected `{ name: "Front Bumper", location: "front" }` for any
+ * unrecognised collision direction (null, "multi_impact", "other", "unknown", etc.). This was a
+ * stale-default that silently produced front-zone labels on claims with unknown direction.
+ * Replaced with an empty array + assumption entry (confidence: 0, reason: collision_direction_unknown).
+ *
+ * Fix C: All injected components now carry `source: "inferred"` so they are distinguishable from
+ * vision-detected components in downstream report rendering.
  */
 function inferDamageFromDescription(
   claimRecord: ClaimRecord,
@@ -1317,62 +1348,75 @@ function inferDamageFromDescription(
   const impactPoint = (claimRecord.accidentDetails.impactPoint || "").toLowerCase();
   const direction = claimRecord.accidentDetails.collisionDirection;
 
+  // Fix C: helper to stamp every inferred component with source: "inferred"
+  const infer = (comp: Omit<DamageAnalysisComponent, 'source'>): DamageAnalysisComponent =>
+    ({ ...comp, source: 'inferred' as const });
+
   const inferred: DamageAnalysisComponent[] = [];
 
   if (direction === "frontal" || /front/i.test(impactPoint)) {
     inferred.push(
-      { name: "Front Bumper", location: "front", damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 },
-      { name: "Bonnet", location: "front", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 },
-      { name: "Grille", location: "front", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.1 },
-      { name: "LH Headlamp", location: "front", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
-      { name: "RH Headlamp", location: "front", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
+      infer({ name: "Front Bumper", location: "front", damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 }),
+      infer({ name: "Bonnet", location: "front", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 }),
+      infer({ name: "Grille", location: "front", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.1 }),
+      infer({ name: "LH Headlamp", location: "front", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 }),
+      infer({ name: "RH Headlamp", location: "front", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 }),
     );
   } else if (direction === "rear" || /rear|back/i.test(impactPoint)) {
     inferred.push(
-      { name: "Rear Bumper", location: "rear", damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 },
-      { name: "Boot Lid", location: "rear", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 },
-      { name: "LH Tail Lamp", location: "rear", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
-      { name: "RH Tail Lamp", location: "rear", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
+      infer({ name: "Rear Bumper", location: "rear", damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 }),
+      infer({ name: "Boot Lid", location: "rear", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 }),
+      infer({ name: "LH Tail Lamp", location: "rear", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 }),
+      infer({ name: "RH Tail Lamp", location: "rear", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 }),
     );
   } else if (direction === "side_driver" || direction === "side_passenger") {
     const side = direction === "side_driver" ? "LH" : "RH";
     const sideLabel = direction === "side_driver" ? "left" : "right";
     inferred.push(
-      { name: `${side} Front Door`, location: sideLabel, damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 },
-      { name: `${side} Rear Door`, location: sideLabel, damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0.5 },
-      { name: `${side} B-Pillar`, location: sideLabel, damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 },
-      { name: `${side} Sill Panel`, location: sideLabel, damageType: "deformation", severity: "minor", visible: true, distanceFromImpact: 0.4 },
-      { name: `${side} Front Fender`, location: sideLabel, damageType: "deformation", severity: "minor", visible: true, distanceFromImpact: 0.6 },
-      { name: `${side} Rear Quarter Panel`, location: sideLabel, damageType: "deformation", severity: "minor", visible: true, distanceFromImpact: 0.7 },
-      { name: `${side} Door Glass`, location: sideLabel, damageType: "shatter", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
-      { name: `${side} Door Mirror`, location: sideLabel, damageType: "breakage", severity: "minor", visible: true, distanceFromImpact: 0.1 },
+      infer({ name: `${side} Front Door`, location: sideLabel, damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 }),
+      infer({ name: `${side} Rear Door`, location: sideLabel, damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0.5 }),
+      infer({ name: `${side} B-Pillar`, location: sideLabel, damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 }),
+      infer({ name: `${side} Sill Panel`, location: sideLabel, damageType: "deformation", severity: "minor", visible: true, distanceFromImpact: 0.4 }),
+      infer({ name: `${side} Front Fender`, location: sideLabel, damageType: "deformation", severity: "minor", visible: true, distanceFromImpact: 0.6 }),
+      infer({ name: `${side} Rear Quarter Panel`, location: sideLabel, damageType: "deformation", severity: "minor", visible: true, distanceFromImpact: 0.7 }),
+      infer({ name: `${side} Door Glass`, location: sideLabel, damageType: "shatter", severity: "moderate", visible: true, distanceFromImpact: 0.2 }),
+      infer({ name: `${side} Door Mirror`, location: sideLabel, damageType: "breakage", severity: "minor", visible: true, distanceFromImpact: 0.1 }),
     );
   } else if (direction === "rollover") {
     inferred.push(
-      { name: "Roof Panel", location: "roof", damageType: "deformation", severity: "severe", visible: true, distanceFromImpact: 0 },
-      { name: "Roof Lining", location: "roof", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.1 },
-      { name: "LH A-Pillar", location: "left", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.2 },
-      { name: "RH A-Pillar", location: "right", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.2 },
-      { name: "LH B-Pillar", location: "left", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.3 },
-      { name: "RH B-Pillar", location: "right", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.3 },
-      { name: "LH Front Door", location: "left", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.4 },
-      { name: "RH Front Door", location: "right", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.4 },
-      { name: "Windscreen", location: "front", damageType: "shatter", severity: "severe", visible: true, distanceFromImpact: 0.5 },
-      { name: "Rear Windscreen", location: "rear", damageType: "shatter", severity: "moderate", visible: true, distanceFromImpact: 0.5 },
-      { name: "LH Sill Panel", location: "left", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.6 },
-      { name: "RH Sill Panel", location: "right", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.6 },
+      infer({ name: "Roof Panel", location: "roof", damageType: "deformation", severity: "severe", visible: true, distanceFromImpact: 0 }),
+      infer({ name: "Roof Lining", location: "roof", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.1 }),
+      infer({ name: "LH A-Pillar", location: "left", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.2 }),
+      infer({ name: "RH A-Pillar", location: "right", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.2 }),
+      infer({ name: "LH B-Pillar", location: "left", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.3 }),
+      infer({ name: "RH B-Pillar", location: "right", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.3 }),
+      infer({ name: "LH Front Door", location: "left", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.4 }),
+      infer({ name: "RH Front Door", location: "right", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.4 }),
+      infer({ name: "Windscreen", location: "front", damageType: "shatter", severity: "severe", visible: true, distanceFromImpact: 0.5 }),
+      infer({ name: "Rear Windscreen", location: "rear", damageType: "shatter", severity: "moderate", visible: true, distanceFromImpact: 0.5 }),
+      infer({ name: "LH Sill Panel", location: "left", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.6 }),
+      infer({ name: "RH Sill Panel", location: "right", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.6 }),
     );
   } else {
-    inferred.push(
-      { name: "Front Bumper", location: "front", damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 },
-    );
+    // Fix A: stale-default removed. When collision direction is unknown/unrecognised
+    // (null, "multi_impact", "other", "unknown", or any unmatched value), do NOT inject
+    // front-zone components. Return empty array with assumption entry (confidence: 0).
+    assumptions.push({
+      field: "damagedParts",
+      assumedValue: "no_damage_detected",
+      reason: `Collision direction '${direction ?? 'null'}' is unrecognised or absent. Cannot safely infer damage zone. No components injected.`,
+      strategy: "none" as const,
+      confidence: 0,
+      stage: "Stage 6",
+    });
+    return [];
   }
 
   if (inferred.length > 0) {
     assumptions.push({
       field: "damagedParts",
-      assumedValue: `${inferred.length} inferred components`,
-      reason: `No damage components extracted from documents or vision. Inferred ${inferred.length} likely damaged components from collision direction (${direction}) and impact point.`,
+      assumedValue: `${inferred.length} inferred components (source: narrative)`,
+      reason: `No damage components extracted from documents or vision. Inferred ${inferred.length} likely damaged components from collision direction (${direction}) and impact point. Components marked source=inferred.`,
       strategy: "contextual_inference",
       confidence: 35,
       stage: "Stage 6",

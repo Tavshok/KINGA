@@ -830,6 +830,13 @@ export interface DamageAnalysisComponent {
    * Stage 7 gates M1/M5 on 'confirmed_damage_photo' only.
    */
   inputSource?: 'confirmed_damage_photo' | 'ambiguous_page' | 'fallback_page' | 'document_inferred' | 'pdf_direct_vision';
+  /**
+   * Fix C: Component origin — distinguishes vision-detected from narrative-inferred components.
+   * - 'vision': component was detected by the LLM vision model from actual image content
+   * - 'inferred': component was injected by inferDamageFromDescription() from the claim narrative
+   * Absence of this field means the component came from structured claim data (pre-existing).
+   */
+  source?: 'vision' | 'inferred';
 }
 
 export interface DamageZone {

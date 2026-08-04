@@ -152,6 +152,8 @@ export async function generateForensicDecisionReport(
       url: string; index: number; severity: string; impactZone: string;
       componentCount: number; confidenceScore: number; caption?: string;
       semanticType?: string; detectedComponents?: string[];
+      /** Fix B: true when vision-derived zone contradicts narrative collision direction (display-only) */
+      directionContradiction?: boolean;
     };
     const enrichedPhotosRaw = safeJson(c.enriched_photos_json);
     const enrichedPhotos: EnrichedPhoto[] = Array.isArray(enrichedPhotosRaw) ? (enrichedPhotosRaw as EnrichedPhoto[]) : [];
@@ -1398,6 +1400,8 @@ export async function generateForensicDecisionReport(
               zone: p.impactZone ?? undefined,
               caption: p.caption ?? undefined,
               usable: Number(p.confidenceScore ?? 0) >= 70,
+              // Fix B: pass contradiction flag to render ⚠ badge (display-only, no scoring impact)
+              directionContradiction: p.directionContradiction === true,
             })),
             4
           )
