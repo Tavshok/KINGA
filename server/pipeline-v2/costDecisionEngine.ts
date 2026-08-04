@@ -202,7 +202,8 @@ export interface CostDecisionOutput {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-// CALIBRATION: All threshold and factor constants below are engineering-judgment.
+// KINGA-N-03 CALIBRATION: All threshold and factor constants below are engineering-judgment.
+// Pending external validation by Eng. Shoko. Do not adjust without benchmarking.
 // Do not change without benchmarking against a labelled claim dataset.
 
 /** Fraction above TRUE_COST at which a quote is flagged as overpriced */

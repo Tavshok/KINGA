@@ -422,6 +422,9 @@ export function extendPhysicsValidationOutput(
   
   // Determine severity level from damage consistency score
   const consistencyScore = existingPhysicsData.damageConsistency?.score || 50;
+  // KINGA-N-03 CALIBRATION: Damage consistency score -> severity thresholds (40/60/80).
+  // Engineering-judgment; no KINGA-specific claim dataset used.
+  // Pending external validation by Eng. Shoko. Do not adjust without benchmarking.
   const severityLevel = 
     consistencyScore >= 80 ? "low" :
     consistencyScore >= 60 ? "medium" :

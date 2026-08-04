@@ -1179,7 +1179,7 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 
 ## Batch 4 — Structural Hardening & Confirmations
 
-- [ ] Ticket 4.1 (M-07): Move audit trail write inside transitionLifecycle so every state change is atomically logged regardless of caller
-- [ ] Ticket 4.2 (N-09): Confirm predictiveAnalyticsRouter exists and is wired — getPortfolioLossForecast and getVehicleRenewalRisk both present
-- [ ] Ticket 4.3 (N-01): Document 1-year session duration decision; confirm stale-tenantId is a non-issue (tenantId not in JWT payload, always fetched from DB)
-- [ ] Ticket 4.4 (N-03): Add KINGA-N-03 calibration flag comments to accidentPhysics.ts, physics-deviation-calculator.ts, and existing calibration blocks
+- [x] Ticket 4.1 (M-07): Move audit trail write inside transitionLifecycle so every state change is atomically logged regardless of caller
+- [x] Ticket 4.2 (N-09): Confirm predictiveAnalyticsRouter exists and is wired — getPortfolioLossForecast and getVehicleRenewalRisk both present
+- [x] Ticket 4.3 (N-01): Document 1-year session duration decision; confirm stale-tenantId is a non-issue (tenantId not in JWT payload, always fetched from DB)
+- [x] Ticket 4.4 (N-03): Add KINGA-N-03 calibration flag comments to accidentPhysics.ts, physics-deviation-calculator.ts, and existing calibration blocks

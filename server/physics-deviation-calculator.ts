@@ -155,6 +155,10 @@ export function parsePhysicsAnalysis(physicsAnalysisJson: string | null): Physic
   }
 }
 
+// KINGA-N-03 CALIBRATION: Fraud risk deviation score thresholds (40/70).
+// score >= 70 → 'high', >= 40 → 'medium', < 40 → 'low'.
+// Engineering-judgment; no KINGA-specific claim dataset used.
+// Pending external validation by Eng. Shoko. Do not adjust without benchmarking.
 /**
  * Get fraud risk classification from deviation score
  */

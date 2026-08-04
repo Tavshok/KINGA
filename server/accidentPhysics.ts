@@ -342,6 +342,10 @@ export async function analyzeAccidentPhysics(
 // DUAL-SPEED FORENSICS ENGINE
 // ============================================================================
 
+// KINGA-N-03 CALIBRATION: Speed-to-injury-risk thresholds (20/40/70 km/h).
+// Engineering-judgment based on general road-safety literature. No KINGA-specific
+// claim dataset was used. Pending external validation by Eng. Shoko.
+// Do not adjust without benchmarking against a labelled claim dataset.
 function injuryRiskFromSpeed(speedKmh: number): 'low' | 'medium' | 'high' | 'critical' {
   if (speedKmh < 20) return 'low';
   if (speedKmh < 40) return 'medium';

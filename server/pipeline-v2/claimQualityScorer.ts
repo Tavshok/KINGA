@@ -79,7 +79,7 @@ export interface ClaimQualityResult {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scoring constants
-// CALIBRATION: All thresholds, weights, deductions, and band boundaries below
+// KINGA-N-03 CALIBRATION: All thresholds, weights, deductions, and band boundaries below
 // were set by engineering judgment during initial build.
 // No historical claim dataset was used to derive them.
 // Do not change without benchmarking against a labelled claim sample.

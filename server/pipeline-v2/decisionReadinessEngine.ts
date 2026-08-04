@@ -476,7 +476,8 @@ function checkCostAvailable(input: CostAvailableInput): ReadinessCheck {
  *   - Low cost confidence (< 60): −5 points
  *   - Conflict detected: −5 points
  *
- * CALIBRATION: All point values and thresholds below are engineering-judgment.
+ * KINGA-N-03 CALIBRATION: All point values and thresholds below are engineering-judgment.
+ * Pending external validation by Eng. Shoko. Do not adjust without benchmarking.
  */
 // Points awarded per check status
 const CONF_POINTS_PER_PASS = 25;
