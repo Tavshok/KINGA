@@ -277,7 +277,8 @@ export async function generateForensicDecisionReport(
     const physicsScore = physics?.damageConsistencyScore ? Number(physics.damageConsistencyScore)
       : (physics?.physicsScore ? Number(physics.physicsScore) : (physics?.anomalyScore ? Number(physics.anomalyScore) : 50));
     const ebsSeverity  = String(physics?.accidentSeverity ?? physics?.ebsSeverity ?? "Moderate");
-    const impactDirection = String((physics?.impactVector as any)?.direction ?? physics?.impactDirection ?? "front").toLowerCase();
+    const _narrativeImpliedDir = String((narrative as any)?.extracted_facts?.implied_direction ?? "");
+    const impactDirection = String((physics?.impactVector as any)?.direction ?? physics?.impactDirection ?? (_narrativeImpliedDir || null) ?? "unknown").toLowerCase();
 
     // Bug #2: Speed methods must come from speedInferenceEnsemble.methods[].speedKmh (6-method ensemble)
     // The old physics.speedMethods field does not exist in the v2 pipeline output.
@@ -464,14 +465,14 @@ export async function generateForensicDecisionReport(
     const docCompleteness: Record<string, number> = (ife?.documentCompleteness as Record<string, number>) ?? {};
 
     // Narrative
-    const narrativeText = String(narrative?.summary ?? narrative?.narrativeText ?? c.incident_description ?? "No narrative available.");
-    const narrativeFlag = String(narrative?.flag ?? narrative?.consistencyNote ?? "");
+    const narrativeText = String(narrative?.reasoning_summary ?? narrative?.summary ?? narrative?.narrativeText ?? c.incident_description ?? "No narrative available.");
+    const narrativeFlag = String(narrative?.consistency_verdict ?? narrative?.flag ?? narrative?.consistencyNote ?? "");
     // DIRECTION-FIX: Default to "Not assessed" rather than "Consistent" so missing data is visible.
     // "Consistent" should only appear when the narrative engine explicitly sets it.
-    const physicsVsNarrative = String(narrative?.physicsConsistency ?? "Not assessed");
+    const physicsVsNarrative = String((narrative as any)?.cross_validation?.physics_verdict ?? narrative?.physicsConsistency ?? "Not assessed");
     // DIRECTION-FIX: Programmatic direction cross-check.
     // If the narrative engine did not assess damage consistency, derive it from enriched photo zones vs impactDirection.
-    const damageVsNarrativeRaw = narrative?.damageConsistency;
+    const damageVsNarrativeRaw = (narrative as any)?.cross_validation?.damage_verdict ?? narrative?.damageConsistency;
     const damageVsNarrative: string = (() => {
       if (damageVsNarrativeRaw) return String(damageVsNarrativeRaw);
       // Derive from enriched photos: compare the majority severe-damage zone against impactDirection
@@ -486,6 +487,7 @@ export async function generateForensicDecisionReport(
         const majorityZone = Object.entries(zoneCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
         if (majorityZone) {
           const dir = impactDirection; // e.g. "front", "rear", "left", "right"
+          if (dir === "unknown") return "Not assessed — impact direction not determined";
           const zoneMatchesDir = majorityZone.includes(dir) || dir.includes(majorityZone.split(" ")[0]);
           // Cross-check: rear-impact narrative with front-zone damage = Inconsistent
           const rearNarrative = dir.includes("rear") || dir.includes("back");
@@ -503,7 +505,11 @@ export async function generateForensicDecisionReport(
     // DIRECTION-FIX: Default crossEngineAgreement to null (not 100) so missing data is visible
     const crossEngineAgreementRaw = narrative?.crossEngineAgreement;
     const crossEngineAgreement = crossEngineAgreementRaw != null ? Number(crossEngineAgreementRaw) : null;
-    const policeAlignment = String(narrative?.policeAlignment ?? "Partial");
+    // policeAlignment: NarrativeAnalysis has no policeAlignment field — derive from stakeholder_analysis
+    const _saStakeholder = (narrative as any)?.stakeholder_analysis;
+    const policeAlignment = _saStakeholder
+      ? (_saStakeholder.claimant_charged ? "Charged at scene" : _saStakeholder.under_investigation ? "Under investigation" : "Not charged")
+      : "Not assessed";
 
     // Vehicle structural intel
     const ancapRating = String(physics?.ancapRating ?? repairIntel?.ancapRating ?? "—");

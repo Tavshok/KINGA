@@ -38,7 +38,7 @@ export async function generateClaimsIntelligenceReport(
               a.cost_intelligence_json, a.repair_intelligence_json,
               a.fraud_score_breakdown_json, a.ife_result_json,
               a.narrative_analysis_json, a.physics_analysis, a.physics_truth_json,
-              a.cross_validation_json,
+              a.cross_validation_json, a.claim_truth_json,
               a.enriched_photos_json,
               a.created_at AS assessment_date, a.model_version
        FROM claims c
@@ -98,6 +98,8 @@ export async function generateClaimsIntelligenceReport(
       : '';
     const narrative  = safeJson(c.narrative_analysis_json as string) as any;
     const crossVal   = safeJson(c.cross_validation_json as string) as any;
+    // ARCH-01: Canonical CTL call-site for CI tier
+    const claimTruthCI  = safeJson(c.claim_truth_json as string) as any;
     // Three-way speed comparison from cross_validation_json
     const cvThreeWay  = crossVal?.threeWaySpeedComparison ?? crossVal?.speedComparison ?? null;
     const cvXvRisk    = crossVal?.xvRiskBanner ?? crossVal?.crossValidationRisk ?? null;
@@ -198,9 +200,18 @@ export async function generateClaimsIntelligenceReport(
 
     // ── COVER ────────────────────────────────────────────────────────────────
     // Derived values for masthead decision chip
-    const recLabel = String(c.recommendation ?? "REVIEW REQUIRED").toUpperCase();
+    const _recRawCI = String(c.recommendation ?? "review").toLowerCase();
+    const recLabel = _recRawCI.includes("approve") || _recRawCI.includes("accept") ? "APPROVED"
+      : _recRawCI.includes("reject") ? "REJECTED"
+      : "REVIEW REQUIRED";
     const chipCls = recLabel.includes("APPROVE") || recLabel.includes("ACCEPT") ? "approve" : recLabel.includes("REJECT") ? "reject" : "review";
     const chipIcon = chipCls === "approve" ? "✓" : chipCls === "reject" ? "✗" : "⚠";
+    // ARCH-01: Use CTL reviewTriggers as canonical source for review context note
+    const ctlTriggersCI: string[] = Array.isArray(claimTruthCI?.decision?.reviewTriggers)
+      ? (claimTruthCI.decision.reviewTriggers as string[]).slice(0, 3)
+      : [];
+    const costVerdictCI = String(c.cost_verdict ?? claimTruthCI?.costBasis?.costVerdict ?? "").toUpperCase();
+    const showCIReviewNote = chipCls === "review" && (costVerdictCI === "FAIR" || costVerdictCI === "UNDERPRICED") && ctlTriggersCI.length > 0;
     const scoreCardFraudCls = fraudScore >= 70 ? "bad" : fraudScore >= 40 ? "warn" : "good";
     const scoreCardRtvCls = rtvRatio >= 70 ? "bad" : rtvRatio >= 50 ? "warn" : "good";
     const scoreCardDataCls = dataComplete >= 80 ? "good" : dataComplete >= 60 ? "warn" : "bad";
@@ -231,6 +242,7 @@ export async function generateClaimsIntelligenceReport(
   <div class="score-cell ${scoreCardRtvCls}"><div class="label">Repair-to-Value</div><div class="value">${fmtPct(rtvRatio, 0)}</div><div class="sub">${rtvRatio >= 70 ? "Total loss risk" : rtvRatio >= 50 ? "Monitor" : "Within range"}</div></div>
 </div>
 ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Submission Flag — claim submitted ${dayDelay} days after incident.</b> A written explanation is required before this claim can proceed. This flag does not override the system recommendation; adjuster review is required before settlement authorisation.</div>` : ""}
+${showCIReviewNote ? `<div class="callout amber" style="margin-bottom:14px"><b>Review Trigger Note —</b> The cost assessment is within the acceptable range (${costVerdictCI}), but this claim has been flagged for review due to non-cost factors: ${ctlTriggersCI.join("; ")}. Settlement authorisation requires adjuster sign-off on these items.</div>` : ""}
 <!-- ── VERDICT STRIP ── -->
 <div class="verdict-strip">
   <div class="verdict-cell"><div class="label">Highest Submitted Quote</div><div class="value">${fmtUSD(highestQuote)}</div><div class="sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div></div>

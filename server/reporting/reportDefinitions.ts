@@ -204,7 +204,7 @@ async function generateClaimAssessmentReport(
               a.model_version, a.created_at AS assessment_date,
               a.decision_authority_json, a.physics_analysis, a.physics_truth_json,
               a.fraud_score_breakdown_json, a.cost_intelligence_json,
-              a.cross_validation_json
+              a.cross_validation_json, a.claim_truth_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""} ORDER BY a.created_at DESC LIMIT 1`,
@@ -224,6 +224,8 @@ async function generateClaimAssessmentReport(
     const costIntel = safeJson(claim.cost_intelligence_json);
     const decisionAuth = safeJson(claim.decision_authority_json);
     const crossValCA   = safeJson(claim.cross_validation_json) as any;
+    // ARCH-01: Canonical CTL call-site for CL tier
+    const claimTruthCL  = safeJson(claim.claim_truth_json) as any;
     const cvThreeWayCA = crossValCA?.threeWaySpeedComparison ?? crossValCA?.speedComparison ?? null;
     const claimedSpdCA  = cvThreeWayCA?.claimedSpeedKmh ?? (physics as any)?.velocityKmh ?? null;
     const consensusSpdCA = cvThreeWayCA?.consensusSpeedKmh ?? (physics as any)?.deltaVKmh ?? null;
@@ -296,7 +298,10 @@ async function generateClaimAssessmentReport(
     const claimRef2 = esc(String(claim.claim_reference ?? claim.id));
     const genDate2 = new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
     const insurer2 = esc(String(claim.insurer_name ?? "—"));
-    const decisionLabel = String(claim.recommendation ?? "REVIEW").toUpperCase();
+    const _recRaw = String(claim.recommendation ?? "review").toLowerCase();
+    const decisionLabel = _recRaw.includes("approve") || _recRaw.includes("accept") ? "APPROVED"
+      : _recRaw.includes("reject") ? "REJECTED"
+      : "REVIEW REQUIRED";
     const decisionChipCls2 = decisionLabel.includes("APPROVE") || decisionLabel.includes("ACCEPT") ? "approve" : decisionLabel.includes("REJECT") ? "reject" : "review";
     const decisionIcon2 = decisionChipCls2 === "approve" ? "✓" : decisionChipCls2 === "reject" ? "✗" : "⚠";
     // ARCH-04: Generate a stable machine-readable report reference for the CL tier.
@@ -516,7 +521,7 @@ async function generateForensicReport(
               a.forensic_audit_validation_json, a.narrative_analysis_json,
               a.damage_description, a.model_version,
               a.created_at AS assessment_date, a.ife_result_json,
-              a.decision_authority_json, a.cross_validation_json
+              a.decision_authority_json, a.cross_validation_json, a.claim_truth_json
        FROM claims c
        LEFT JOIN ai_assessments a ON a.claim_id = c.id
        WHERE c.id = ? ${tenantId ? "AND c.tenant_id = ?" : ""} ORDER BY a.created_at DESC LIMIT 1`,
@@ -533,6 +538,8 @@ async function generateForensicReport(
 
     const physics = parseJson(claim.physics_analysis);
     const fraud = parseJson(claim.fraud_score_breakdown_json);
+    // ARCH-01: Canonical CTL call-site for CL tier (function 2)
+    const claimTruthCL2 = parseJson(claim.claim_truth_json) as any;
     const forensic = parseJson(claim.forensic_audit_validation_json);
     const narrative = parseJson(claim.narrative_analysis_json);
     const ife = parseJson(claim.ife_result_json);
