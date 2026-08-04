@@ -86,6 +86,12 @@ export default function ClaimsProcessorDashboard() {
   // Track when each re-run was triggered (claimId → timestamp ms).
   // Completion is only valid if aiAssessmentCompletedAt > rerunStartedAt.
   const rerunStartedAtRef = useRef<Map<number, number>>(new Map());
+  // Track which claims have been seen in a running/transient state at least once.
+  // A claim can only be considered failed AFTER it has been seen running — this
+  // prevents the false-failure toast that fires when a claim is still in
+  // intake_pending/intake_queue immediately after the KINGA button is clicked
+  // (before the pipeline has had a chance to set documentProcessingStatus='parsing').
+  const hasBeenRunningRef = useRef<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   // Sync active tab with sidebar navigation.
   // Sidebar uses hash fragments: /insurer-portal/claims-processor#intake-queue etc.
@@ -307,11 +313,23 @@ export default function ClaimsProcessorDashboard() {
           completedIds.add(id);
         }
       }
+      // Mark claim as "has been running" once we see it in a transient pipeline state.
+      // This is required before failure detection can fire — prevents false failure
+      // toasts when the claim is still in intake_pending right after the button click.
+      if (isTransient) {
+        hasBeenRunningRef.current.add(id);
+      }
+
       // Claim failed — backend reset it to intake_pending/intake_queue with failed doc status.
+      // Only fire if the claim was previously seen in a running state (hasBeenRunning).
       // Use a 2-poll debounce to avoid false positives during transient state transitions.
-      const isInFailureState =
+      const hasBeenRunning = hasBeenRunningRef.current.has(id);
+      const isInFailureState = hasBeenRunning && (
         claim.documentProcessingStatus === "failed" ||
-        (claim.status === "intake_pending" && claim.workflowState === "intake_queue");
+        (claim.status === "intake_pending" && claim.workflowState === "intake_queue" &&
+         claim.documentProcessingStatus !== "parsing" &&
+         claim.documentProcessingStatus !== "processing")
+      );
       if (isInFailureState) {
         const prev = failureDebounceRef.current.get(id) ?? 0;
         const next = prev + 1;
@@ -319,8 +337,9 @@ export default function ClaimsProcessorDashboard() {
         if (next >= 2) {
           failedIds.add(id);
           failureDebounceRef.current.delete(id);
+          hasBeenRunningRef.current.delete(id); // reset for potential future re-trigger
         }
-      } else {
+      } else if (!isInFailureState && !isTransient && !isComplete) {
         // Clear debounce counter if claim recovered from the failure state
         failureDebounceRef.current.delete(id);
       }
@@ -364,6 +383,10 @@ export default function ClaimsProcessorDashboard() {
       // Immediately add to aiProcessingClaimIds so the claim moves to In Review
       // before the server even responds. This prevents the "stuck in Pending" flash.
       setAiProcessingClaimIds(prev => new Set(prev).add(variables.claimId));
+      // Reset the hasBeenRunning flag for this claim so failure detection
+      // requires a fresh running-state observation before it can fire.
+      hasBeenRunningRef.current.delete(variables.claimId);
+      failureDebounceRef.current.delete(variables.claimId);
     },
     onSuccess: (_data, variables) => {
       // Record the timestamp so completion detection can ignore the pre-existing
