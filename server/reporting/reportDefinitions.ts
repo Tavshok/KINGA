@@ -195,7 +195,7 @@ async function generateClaimAssessmentReport(
       `SELECT c.id, c.claim_reference, c.incident_type, c.incident_date, c.incident_location,
               c.lodger_name, c.policy_number, c.vehicle_make, c.vehicle_model, c.vehicle_year,
               c.vehicle_registration, c.vehicle_market_value, c.insurer_name, c.status,
-              c.created_at, c.confidence_score, c.vehicle_vin,
+              c.workflow_state, c.created_at, c.confidence_score, c.vehicle_vin,
               c.excess_amount_cents, c.policy_excess, c.deductible,
               CONCAT(c.vehicle_make,' ',c.vehicle_model,' ',c.vehicle_year) AS vehicle_description,
               a.fraud_score, a.fraud_risk_level, a.recommendation,
@@ -332,6 +332,45 @@ async function generateClaimAssessmentReport(
   </div>
 </div>
 
+<!-- ── PIPELINE STATUS STRIP ── -->
+${(() => {
+  const ws = String(claim.workflow_state ?? claim.status ?? '');
+  const stageMap: Record<string, number> = {
+    'created': 0, 'intake_queue': 1, 'intake_verified': 1,
+    'ai_assessment_pending': 2, 'under_assessment': 2, 'assigned': 2,
+    'ai_assessment_completed': 3, 'internal_review': 3, 'technical_approval': 3,
+    'financial_decision': 4, 'payment_authorized': 4, 'manual_review': 4,
+    'closed': 5, 'disputed': 4,
+  };
+  const currentStage = stageMap[ws] ?? (claim.recommendation ? 4 : 2);
+  const stages = [
+    { label: 'Intake', icon: '○' },
+    { label: 'Physics', icon: '○' },
+    { label: 'Cost Analysis', icon: '○' },
+    { label: 'Fraud Analysis', icon: '○' },
+    { label: 'Decision', icon: '○' },
+    { label: 'Report', icon: '○' },
+  ];
+  const stageHtml = stages.map((s, i) => {
+    const done = i < currentStage;
+    const active = i === currentStage;
+    const bg = done ? '#3C7844' : active ? '#4a7cbf' : '#e8e8e8';
+    const textCol = (done || active) ? '#fff' : '#8a8a8a';
+    const labelCol = done ? '#3C7844' : active ? '#4a7cbf' : '#8a8a8a';
+    const connector = i < stages.length - 1 ? `<div style="flex:1;height:2px;background:${done ? '#3C7844' : '#e8e8e8'};margin:0 2px;align-self:center"></div>` : '';
+    return `<div style="display:flex;align-items:center;flex:1">
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div style="width:18px;height:18px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:9px;color:${textCol};font-weight:700">${done ? '✓' : i + 1}</div>
+        <div style="font-size:7.5px;color:${labelCol};font-family:'Helvetica Neue',Arial,sans-serif;margin-top:3px;text-align:center;white-space:nowrap">${s.label}</div>
+      </div>
+      ${connector}
+    </div>`;
+  }).join('');
+  return `
+<div style="display:flex;align-items:flex-start;padding:10px 16px;background:var(--paper);border:1px solid var(--hairline-strong);margin-bottom:12px">
+  ${stageHtml}
+</div>`;
+})()}
 <!-- ── §1 CLAIM OVERVIEW ── -->
 <div class="section">
   <div class="section-tab sans"><span class="num">01</span> Claim, Vehicle &amp; Policy</div>
@@ -384,8 +423,17 @@ async function generateClaimAssessmentReport(
   <div style="margin-top:8px;padding:6px 10px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#4a4a4a;">
     <b>Score reconciliation note:</b> The fraud breakdown engine computed a score of <b>${fraudScore}</b> (from ${fraudIndicators.length} indicator${fraudIndicators.length !== 1 ? 's' : ''}). The pipeline stored a score of <b>${fraudScoreRaw}</b> in the assessment record (set by a separate stage). This report uses the breakdown engine score as the authoritative value. If these differ significantly, re-run the assessment to synchronise.
   </div>` : ""}
-  ${fraudIndicators.length > 0 ? `
+    ${fraudIndicators.length > 0 ? (() => {
+      // Find the top indicator by score for the plain-language callout
+      const topInd = fraudIndicators.reduce((best: Record<string,unknown>, cur: Record<string,unknown>) =>
+        Number(cur.points ?? cur.score ?? 0) > Number(best.points ?? best.score ?? 0) ? cur : best,
+        fraudIndicators[0]);
+      const topDesc = String(topInd.description ?? topInd.reason ?? topInd.explanation ?? "");
+      const topName = String(topInd.name ?? topInd.indicator ?? "");
+      const topScore = Number(topInd.points ?? topInd.score ?? 0);
+      return `
   <div style="margin-top:12px">
+    ${topDesc ? `<div style="margin-bottom:8px;padding:8px 12px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:11px;color:#171717;line-height:1.5;"><strong>Primary risk driver (${topScore} pts):</strong> ${esc(topDesc)}</div>` : ""}
     <div style="font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Triggered Fraud Indicators</div>
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <thead><tr style="border-bottom:2px solid #d9d9d9">
@@ -394,14 +442,18 @@ async function generateClaimAssessmentReport(
         <th style="text-align:right;padding:3px 8px;font-size:10px;color:#4a4a4a">Score</th>
       </tr></thead>
       <tbody>
-        ${fraudIndicators.map((ind: Record<string,unknown>) => `<tr style="border-bottom:1px solid #e8e8e8">
-          <td style="padding:3px 8px">${esc(String(ind.name ?? ind.indicator ?? ""))}</td>
+        ${fraudIndicators.map((ind: Record<string,unknown>) => {
+          const indDesc = String(ind.description ?? ind.reason ?? ind.explanation ?? "");
+          return `<tr style="border-bottom:1px solid #e8e8e8">
+          <td style="padding:3px 8px"><div style="font-weight:600">${esc(String(ind.name ?? ind.indicator ?? ""))}</div>${indDesc ? `<div style="font-size:10px;color:#4a4a4a;margin-top:2px;line-height:1.4">${esc(indDesc)}</div>` : ""}</td>
           <td style="padding:3px 8px;color:#4a4a4a">${esc(String(ind.category ?? ""))}</td>
           <td style="padding:3px 8px;text-align:right;font-weight:600">${ind.points ?? ind.score ?? 0}</td>
-        </tr>`).join("")}
+        </tr>`;
+        }).join("")}
       </tbody>
     </table>
-  </div>` : ""}
+  </div>`;
+    })() : ""}
 </div>
 
 <!-- ── §3 DAMAGED COMPONENTS ── -->

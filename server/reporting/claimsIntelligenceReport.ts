@@ -243,12 +243,46 @@ export async function generateClaimsIntelligenceReport(
 </div>
 ${delayFlag ? `<div class="callout amber" style="margin-bottom:14px"><b>Late Submission Flag — claim submitted ${dayDelay} days after incident.</b> A written explanation is required before this claim can proceed. This flag does not override the system recommendation; adjuster review is required before settlement authorisation.</div>` : ""}
 ${showCIReviewNote ? `<div class="callout amber" style="margin-bottom:14px"><b>Review Trigger Note —</b> The cost assessment is within the acceptable range (${costVerdictCI}), but this claim has been flagged for review due to non-cost factors: ${ctlTriggersCI.join("; ")}. Settlement authorisation requires adjuster sign-off on these items.</div>` : ""}
-<!-- ── VERDICT STRIP ── -->
-<div class="verdict-strip">
-  <div class="verdict-cell"><div class="label">Highest Submitted Quote</div><div class="value">${fmtUSD(highestQuote)}</div><div class="sub">${quoteArr.length} quote${quoteArr.length !== 1 ? "s" : ""} received</div></div>
-  <div class="verdict-cell accent"><div class="label">KINGA Optimised Estimate</div><div class="value" style="color:var(--green)">${fmtUSD(kingaOptimised)}</div><div class="sub">AI-benchmarked estimate</div></div>
-  <div class="verdict-cell"><div class="label">Recommended Settlement</div><div class="value" style="color:var(--green)">${fmtUSD(recommendedSettlement)}</div><div class="sub">Less exclusions &amp; excess</div></div>
-</div>
+<!-- ── SETTLEMENT WATERFALL ── -->
+${(() => {
+  // Build waterfall steps: Highest Quote → KINGA Optimised → Less Exclusions → Less Excess → Settlement
+  const wfSteps = [
+    { label: 'Highest Quote', amount: highestQuote, type: 'base' as const },
+    { label: 'KINGA Optimised', amount: kingaOptimised, type: 'reduction' as const, delta: highestQuote - kingaOptimised },
+    ...(totalExclusions > 0 ? [{ label: 'Less Exclusions', amount: kingaOptimised - totalExclusions, type: 'reduction' as const, delta: totalExclusions }] : []),
+    ...(excess > 0 ? [{ label: 'Less Excess', amount: (totalExclusions > 0 ? kingaOptimised - totalExclusions : kingaOptimised) - excess, type: 'reduction' as const, delta: excess }] : []),
+    { label: 'Recommended Settlement', amount: recommendedSettlement, type: 'final' as const },
+  ];
+  const maxAmt = Math.max(highestQuote, 1);
+  const barW = 56; const gap = 18; const chartH = 90; const labelH = 28;
+  const totalW = wfSteps.length * (barW + gap) - gap;
+  const bars = wfSteps.map((step, i) => {
+    const barH = Math.max(4, Math.round((step.amount / maxAmt) * chartH));
+    const y = chartH - barH;
+    const x = i * (barW + gap);
+    const fill = step.type === 'final' ? '#3C7844' : step.type === 'reduction' ? '#4a7cbf' : '#6b7280';
+    const textY = y - 3;
+    return `<g>
+      <rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${fill}" rx="2"/>
+      <text x="${x + barW / 2}" y="${textY < 8 ? y + barH / 2 + 4 : textY}" text-anchor="middle" font-size="7" font-family="monospace" fill="${textY < 8 ? '#fff' : '#171717'}" font-weight="600">${fmtUSD(step.amount)}</text>
+      ${step.type === 'reduction' && step.delta ? `<text x="${x + barW / 2}" y="${chartH + 10}" text-anchor="middle" font-size="6.5" font-family="monospace" fill="#a83232">−${fmtUSD(step.delta)}</text>` : ''}
+      <text x="${x + barW / 2}" y="${chartH + (step.type === 'reduction' && step.delta ? 20 : 12)}" text-anchor="middle" font-size="7" font-family="'Helvetica Neue',Arial,sans-serif" fill="#4a4a4a">${step.label.replace(' ', '\n')}</text>
+    </g>`;
+  }).join('');
+  return `
+<div style="background:var(--paper);border:1px solid var(--hairline-strong);padding:12px 16px;margin-bottom:12px">
+  <div style="font-size:9px;font-family:'Helvetica Neue',Arial,sans-serif;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Settlement Waterfall</div>
+  <svg viewBox="0 0 ${totalW} ${chartH + labelH}" width="100%" height="${chartH + labelH}" style="overflow:visible">
+    ${bars}
+    <line x1="0" y1="${chartH}" x2="${totalW}" y2="${chartH}" stroke="#d9d9d9" stroke-width="0.5"/>
+  </svg>
+  <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
+    <span style="font-size:8.5px;color:#6b7280;font-family:'Helvetica Neue',Arial,sans-serif"><span style="display:inline-block;width:8px;height:8px;background:#6b7280;border-radius:1px;margin-right:3px;vertical-align:middle"></span>Submitted</span>
+    <span style="font-size:8.5px;color:#4a7cbf;font-family:'Helvetica Neue',Arial,sans-serif"><span style="display:inline-block;width:8px;height:8px;background:#4a7cbf;border-radius:1px;margin-right:3px;vertical-align:middle"></span>Deductions</span>
+    <span style="font-size:8.5px;color:#3C7844;font-family:'Helvetica Neue',Arial,sans-serif"><span style="display:inline-block;width:8px;height:8px;background:#3C7844;border-radius:1px;margin-right:3px;vertical-align:middle"></span>Settlement</span>
+  </div>
+</div>`;
+})()}
 <!-- ── TOC ── -->
 <div style="display:flex;flex-wrap:wrap;gap:1px;background:var(--hairline);border:1px solid var(--hairline-strong);margin-bottom:16px">
   <div style="flex:1;min-width:120px;background:var(--paper);padding:8px 10px"><div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:9px;font-weight:700;color:var(--ink-soft)">§1</div><div style="font-size:10px;color:var(--ink)">Claim Identity &amp; Policy</div><div style="font-size:8.5px;color:var(--green);font-family:'Helvetica Neue',Arial,sans-serif">✓ Included</div></div>
@@ -450,6 +484,19 @@ ${showCIReviewNote ? `<div class="callout amber" style="margin-bottom:14px"><b>R
 
   ${rtvRatio >= 50 ? `
   <div class="callout amber" style="margin-top:8px;"><b>Repair Cost Approaching Total-Loss Threshold.</b> At ${fmtPct(rtvRatio)} of market value, the repair cost is approaching the typical total-loss threshold. Confirm the insurer's total-loss policy before authorising repairs.</div>` : ""}
+  ${(() => {
+    // Quoted-not-damaged: components quoted by a panel beater but not identified in damage analysis
+    const qnd: Array<{componentName?: string; classification?: string; reason?: string}> =
+      (costIntel?.compositeOptimisation?.quotedNotDamaged as Array<{componentName?: string; classification?: string; reason?: string}>) ?? [];
+    const scopeInflation = qnd.filter(q => q.classification === 'potential_scope_inflation');
+    const plausible = qnd.filter(q => q.classification === 'plausible_scope_extension');
+    if (scopeInflation.length === 0 && plausible.length === 0) return '';
+    const names = scopeInflation.map(q => esc(String(q.componentName ?? ''))).join(', ');
+    const plausibleNames = plausible.map(q => esc(String(q.componentName ?? ''))).join(', ');
+    return `
+  ${scopeInflation.length > 0 ? `<div class="callout" style="margin-top:8px;border-color:var(--red);background:#fff5f5;"><b>Potential Scope Inflation — ${scopeInflation.length} component${scopeInflation.length !== 1 ? 's' : ''} quoted but not damaged.</b> ${names}. These items appear in the repair quote but were not identified in the damage analysis. <strong>Action required: these line items must be individually verified before inclusion in the settlement calculation.</strong> If they cannot be substantiated, they must be removed from the approved scope.</div>` : ''}
+  ${plausible.length > 0 ? `<div class="callout amber" style="margin-top:8px;"><b>Plausible Scope Extension — ${plausible.length} adjacent component${plausible.length !== 1 ? 's' : ''} flagged.</b> ${plausibleNames}. These components are adjacent to confirmed damage zones and may legitimately require repair. Verify with the assessing repairer before approving.</div>` : ''}`;
+  })()}
 </div>
   <div class="footer-strip sans" style="position:static;margin-top:10px;">
     <div>KINGA AI · Confidential Claims Intelligence Report</div>
@@ -627,7 +674,7 @@ ${showCIReviewNote ? `<div class="callout amber" style="margin-bottom:14px"><b>R
     const rawPairSim = qs.pairs?.[0]?.structural_similarity ?? qs.highestPairSimilarity ?? qs.maxSimilarity;
     const pairSimPct = rawPairSim != null ? Math.round(Number(rawPairSim) * 100) : null;
     if (verdict === 'confirmed' || verdict === 'high_risk') {
-      return `<div class="callout" style="margin-top:8px;border-color:var(--red);background:#fff5f5;"><b>Copy-Quotation Detected.</b> Quote similarity analysis flagged a potential copy-quotation pattern (highest pair similarity: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). This indicates two or more repair quotes may share a common origin — the quotes may have been produced by the same person or from the same template, which is a fraud indicator. Refer to the Forensic Report for full pair-by-pair analysis and structural fingerprint breakdown.</div>`;
+      return `<div class="callout" style="margin-top:8px;border-color:var(--red);background:#fff5f5;"><b>Copy-Quotation Detected.</b> Quote similarity analysis flagged a potential copy-quotation pattern (highest pair similarity: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). This indicates two or more repair quotes may share a common origin — the quotes may have been produced by the same person or from the same template, which is a fraud indicator. <strong>Action required: all quotes from the flagged pair must be excluded from the settlement calculation. An independent quote from a repairer with no connection to the flagged parties must be obtained before settlement can be authorised.</strong> Refer to the Forensic Report for full pair-by-pair analysis and structural fingerprint breakdown.</div>`;
     } else if (verdict === 'possible' || verdict === 'moderate_risk') {
       return `<div class="callout amber" style="margin-top:8px;"><b>Copy-Quotation — Possible.</b> Quote similarity analysis detected a moderate similarity pattern (highest pair: ${pairSimPct != null ? pairSimPct + '%' : 'N/A'}). Quotes may share structural similarities. Further review recommended before settlement.</div>`;
     }

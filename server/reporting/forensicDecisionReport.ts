@@ -857,7 +857,7 @@ export async function generateForensicDecisionReport(
             damageVsNarrative.startsWith("Partial") ? "amber" : "red"
           ))}
           ${kvRow("Cross-engine agreement", crossEngineAgreement != null ? `${crossEngineAgreement}/100` : `<span style="color:var(--ink-soft);">Not assessed</span>`)}
-          ${kvRow("Police alignment", p(policeAlignment, policeAlignment === "Consistent" ? "green" : policeAlignment === "Partial" ? "amber" : "red"))}
+          ${kvRow("Police alignment", p(policeAlignment, (policeAlignment as string) === "Consistent" ? "green" : (policeAlignment as string) === "Partial" ? "amber" : (policeAlignment as string) === "Not assessed" ? "grey" : "red"))}
         </table>
         <p class="small" style="margin-top:8px;">${esc(String(narrative?.crossValidationNote ?? "Damage pattern and narrative are cross-validated against physics engine output."))}</p>
       </div>
@@ -1417,6 +1417,34 @@ export async function generateForensicDecisionReport(
       <p class="caption" style="margin-top:4px;">${enrichedPhotos.length > 0 ? `${enrichedPhotos.length} photos from pipeline analysis · showing up to 8 · zone labels = pipeline-detected impact zone · red border = confidence <70%` : 'Thumbnails illustrate layout only — replace with source images from the claim asset store at export time.'}</p>
     </div>` : ""}
 
+    ${rawDamageZones.length > 0 ? `
+    <div class="box" style="margin-top:8px;">
+      <h4 style="margin:0 0 6px">Classified Damage Zones vs Photographic Coverage</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:10px">
+        <thead><tr style="border-bottom:2px solid #d9d9d9">
+          <th style="text-align:left;padding:3px 8px;font-size:9px;color:#4a4a4a">Classified Zone</th>
+          <th style="text-align:left;padding:3px 8px;font-size:9px;color:#4a4a4a">Severity</th>
+          <th style="text-align:left;padding:3px 8px;font-size:9px;color:#4a4a4a">Photo Coverage</th>
+          <th style="text-align:left;padding:3px 8px;font-size:9px;color:#4a4a4a">Note</th>
+        </tr></thead>
+        <tbody>
+          ${rawDamageZones.map((dz: {zone: string; severity: string}) => {
+            const zKey = String(dz.zone ?? '').toLowerCase();
+            const covered = enrichedPhotos.length > 0
+              ? enrichedPhotos.some(p => String(p.impactZone ?? '').toLowerCase().includes(zKey.split(' ')[0]))
+              : coveredZoneSet.has(zKey);
+            const sevColour = dz.severity === 'severe' ? '#a83232' : dz.severity === 'moderate' ? '#b45309' : '#4a4a4a';
+            return `<tr style="border-bottom:1px solid #e8e8e8">
+              <td style="padding:3px 8px;font-weight:600">${esc(String(dz.zone ?? ''))}</td>
+              <td style="padding:3px 8px;color:${sevColour};font-weight:600;text-transform:capitalize">${esc(String(dz.severity ?? ''))}</td>
+              <td style="padding:3px 8px">${covered ? '<span style="color:#3C7844;font-weight:600">✓ Photographed</span>' : '<span style="color:#a83232;font-weight:600">⚠ No photos</span>'}</td>
+              <td style="padding:3px 8px;color:#4a4a4a;font-size:9.5px">${covered ? '' : 'Damage claimed in this zone but not photographically corroborated. Independent inspection recommended.'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      ${rawDamageZones.some((dz: {zone: string; severity: string}) => !coveredZoneSet.has(String(dz.zone ?? '').toLowerCase())) ? `<div style="margin-top:6px;padding:5px 8px;background:#fff8e1;border-left:3px solid #f59e0b;font-size:10px;color:#4a4a4a"><b>Coverage gap detected.</b> One or more classified damage zones have no photographic corroboration. Settlement for these zones must not be authorised until additional photos or an independent inspection report is provided.</div>` : ''}
+    </div>` : ''}
     <div class="box" style="margin-top:8px;">
       ${["Rear Zone", "Underbody Zone", "Interior Zone"].map(zone => {
         const covered = rawDamageZones.some(z => z.zone.toLowerCase().includes(zone.toLowerCase().split(" ")[0]));
