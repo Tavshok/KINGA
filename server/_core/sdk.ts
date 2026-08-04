@@ -230,6 +230,26 @@ class SDKServer {
     options: { expiresInMs?: number } = {}
   ): Promise<string> {
     const issuedAt = Date.now();
+    // ── SESSION-DURATION-N-01 ────────────────────────────────────────────────────
+    // Default session duration: 1 year (ONE_YEAR_MS).
+    //
+    // Rationale: KINGA's primary intake channel is WhatsApp, where claimants and
+    // assessors interact via mobile. Forcing re-authentication every 7–30 days
+    // creates friction for field users who are mid-claim. The 1-year default is
+    // intentional, not an oversight.
+    //
+    // Revocation: The isActive=0 check in authenticateRequest() provides the
+    // revocation mechanism — deactivated accounts are rejected at request time
+    // even if their JWT is still cryptographically valid. See Pre-Batch-3 fix.
+    //
+    // No stale-tenantId risk: tenantId is NOT stored in the JWT payload. It is
+    // loaded fresh from the database on every request via getUserByOpenId().
+    // Changing a user's tenantId in the DB takes effect on the next request.
+    //
+    // Known constraint: If the database is unavailable, the isActive check cannot
+    // run and the request will fail with INTERNAL_SERVER_ERROR (not a security
+    // bypass — the request is rejected, not allowed through).
+    // ────────────────────────────────────────────────────────────────────────────
     const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
     const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
     const secretKey = this.getSessionSecret();
