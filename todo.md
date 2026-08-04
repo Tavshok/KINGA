@@ -1172,3 +1172,14 @@ Reference pattern: Recovery T10 migration (rendering-only, no data source change
 - [x] Full test suite: 280 files, 8403 passed, 3 skipped, 0 failed
 - [x] TypeScript: 0 new errors in Batch 3 files (44 pre-existing in unrelated files)
 - [x] Final Batch 3 checkpoint
+
+## Test Suite Stability
+
+- [ ] KINGA-TEST-STABILITY-01: Two independent flaky tests observed across consecutive batches — both pass in isolation, both failed once under full-suite parallel run. (1) truthReconciliationEngine.test.ts (Batch 2 full run); (2) e2e-real-claim.test.ts (Batch 3 full run). Likely cause: shared DB state or timing sensitivity under parallel worker contention. Investigate with --reporter=verbose --pool=forks to isolate; consider adding beforeEach DB cleanup or test-specific tenant IDs to prevent cross-test state bleed.
+
+## Batch 4 — Structural Hardening & Confirmations
+
+- [ ] Ticket 4.1 (M-07): Move audit trail write inside transitionLifecycle so every state change is atomically logged regardless of caller
+- [ ] Ticket 4.2 (N-09): Confirm predictiveAnalyticsRouter exists and is wired — getPortfolioLossForecast and getVehicleRenewalRisk both present
+- [ ] Ticket 4.3 (N-01): Document 1-year session duration decision; confirm stale-tenantId is a non-issue (tenantId not in JWT payload, always fetched from DB)
+- [ ] Ticket 4.4 (N-03): Add KINGA-N-03 calibration flag comments to accidentPhysics.ts, physics-deviation-calculator.ts, and existing calibration blocks

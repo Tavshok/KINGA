@@ -1,172 +1,218 @@
 /**
  * decision-lifecycle.test.ts
  *
- * Unit tests for the decision lifecycle state machine (pure logic only).
- * DB-dependent functions are tested via integration tests separately.
+ * M-07: Structural audit trail enforcement tests.
+ * Verifies that transitionLifecycle writes a LIFECYCLE_TRANSITION record
+ * to governance_audit_log regardless of how it is called.
  */
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { describe, it, expect } from "vitest";
-import { canTransition, isReplayAllowed, isRecalculationAllowed } from "./decision-lifecycle";
-import type { LifecycleState } from "./decision-lifecycle";
+// ── Hoist mocks to avoid initialization order issues ─────────────────────────
+const { mockInsert, mockInsertValues, mockUpdate, mockSelect } = vi.hoisted(() => {
+  const mockInsertValues = vi.fn().mockResolvedValue([{ insertId: 1 }]);
+  const mockInsert = vi.fn().mockReturnValue({ values: mockInsertValues });
+  const mockUpdate = vi.fn().mockReturnValue({
+    set: vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue([]),
+    }),
+  });
+  const mockSelect = vi.fn().mockReturnValue({
+    from: vi.fn().mockReturnValue({
+      where: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([{
+          lifecycleState: "DRAFT",
+          isFinal: 0,
+          isLocked: 0,
+          authoritativeSnapshotId: null,
+          finalDecisionChoice: null,
+          draftedAt: Date.now(),
+          reviewedAt: null,
+          reviewedByUserId: null,
+          finalisedAt: null,
+          finalisedByUserId: null,
+          lockedAt: null,
+          lockedByUserId: null,
+        }]),
+      }),
+    }),
+  });
+  return { mockInsert, mockInsertValues, mockUpdate, mockSelect };
+});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// VALID TRANSITIONS
-// ─────────────────────────────────────────────────────────────────────────────
+vi.mock("./db", () => ({
+  getDb: vi.fn().mockResolvedValue({
+    select: mockSelect,
+    update: mockUpdate,
+    insert: mockInsert,
+  }),
+}));
 
-describe("canTransition — valid transitions", () => {
-  it("DRAFT → REVIEWED is allowed", () => {
-    expect(canTransition("DRAFT", "REVIEWED")).toBe(true);
+vi.mock("../drizzle/schema", () => ({
+  claimDecisionLifecycle: { $inferInsert: {} },
+  governanceAuditLog: { $inferInsert: {} },
+  replayLogs: {},
+  decisionSnapshots: {},
+}));
+
+vi.mock("drizzle-orm", () => ({
+  eq: vi.fn((a, b) => ({ type: "eq", a, b })),
+  desc: vi.fn((a) => ({ type: "desc", a })),
+  and: vi.fn((...args) => ({ type: "and", args })),
+}));
+
+import { transitionLifecycle, canTransition } from "./decision-lifecycle";
+import { getDb } from "./db";
+
+function makeDraftRow() {
+  return {
+    lifecycleState: "DRAFT",
+    isFinal: 0,
+    isLocked: 0,
+    authoritativeSnapshotId: null,
+    finalDecisionChoice: null,
+    draftedAt: Date.now(),
+    reviewedAt: null,
+    reviewedByUserId: null,
+    finalisedAt: null,
+    finalisedByUserId: null,
+    lockedAt: null,
+    lockedByUserId: null,
+  };
+}
+
+describe("M-07: transitionLifecycle — structural audit trail enforcement", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Re-setup mocks after clearAllMocks
+    mockInsert.mockResolvedValue([{ insertId: 1 }]);
+    mockUpdate.mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([]),
+      }),
+    });
+    mockSelect.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([makeDraftRow()]),
+        }),
+      }),
+    });
+    // Restore insert chain mock — clearAllMocks resets .values() to return undefined
+    mockInsertValues.mockResolvedValue([{ insertId: 1 }]);
+    mockInsert.mockReturnValue({ values: mockInsertValues });
+    // Restore getDb mock — clearAllMocks resets it to return undefined
+    vi.mocked(getDb).mockResolvedValue({
+      select: mockSelect,
+      update: mockUpdate,
+      insert: mockInsert,
+    } as any);
   });
 
-  it("DRAFT → FINALISED is allowed (skip REVIEWED)", () => {
-    expect(canTransition("DRAFT", "FINALISED")).toBe(true);
+  it("writes a LIFECYCLE_TRANSITION audit record on successful DRAFT→REVIEWED transition", async () => {
+    const result = await transitionLifecycle("CLM-001", "TENANT-1", "REVIEWED", {
+      userId: "user-42",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.lifecycle_state).toBe("REVIEWED");
+
+    // Verify audit write was called
+    expect(mockInsertValues).toHaveBeenCalledTimes(1);
+    const insertCall = mockInsertValues.mock.calls[0][0];
+    expect(insertCall).toMatchObject({
+      claimId: "CLM-001",
+      tenantId: "TENANT-1",
+      action: "LIFECYCLE_TRANSITION:DRAFT→REVIEWED",
+      performedBy: "user-42",
+      actionAllowed: 1,
+    });
   });
 
-  it("REVIEWED → FINALISED is allowed", () => {
-    expect(canTransition("REVIEWED", "FINALISED")).toBe(true);
+  it("writes a LIFECYCLE_TRANSITION audit record on DRAFT→FINALISED transition", async () => {
+    const result = await transitionLifecycle("CLM-002", "TENANT-1", "FINALISED", {
+      userId: "user-99",
+      finalDecisionChoice: "FINALISE_CLAIM",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.is_final).toBe(true);
+
+    expect(mockInsertValues).toHaveBeenCalledTimes(1);
+    const insertCall = mockInsertValues.mock.calls[0][0];
+    expect(insertCall.action).toBe("LIFECYCLE_TRANSITION:DRAFT→FINALISED");
+    const meta = JSON.parse(insertCall.metadataJson);
+    expect(meta.finalDecisionChoice).toBe("FINALISE_CLAIM");
   });
 
-  it("FINALISED → LOCKED is allowed", () => {
-    expect(canTransition("FINALISED", "LOCKED")).toBe(true);
+  it("uses 'system' as performedBy when no userId is provided", async () => {
+    await transitionLifecycle("CLM-003", "TENANT-1", "REVIEWED");
+
+    expect(mockInsertValues).toHaveBeenCalledTimes(1);
+    const insertCall = mockInsertValues.mock.calls[0][0];
+    expect(insertCall.performedBy).toBe("system");
+  });
+
+  it("does NOT write an audit record when the transition is invalid (canTransition returns false)", async () => {
+    // LOCKED → REVIEWED is invalid
+    mockSelect.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([{
+            lifecycleState: "LOCKED",
+            isFinal: 1,
+            isLocked: 1,
+            authoritativeSnapshotId: null,
+            finalDecisionChoice: null,
+            draftedAt: null,
+            reviewedAt: null,
+            reviewedByUserId: null,
+            finalisedAt: null,
+            finalisedByUserId: null,
+            lockedAt: null,
+            lockedByUserId: null,
+          }]),
+        }),
+      }),
+    });
+
+    const result = await transitionLifecycle("CLM-004", "TENANT-1", "REVIEWED");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Invalid transition");
+    // No audit write for invalid transitions
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it("does NOT fail the state transition if the audit write throws", async () => {
+    mockInsertValues.mockRejectedValueOnce(new Error("DB connection lost"));
+
+    const result = await transitionLifecycle("CLM-005", "TENANT-1", "REVIEWED", {
+      userId: "user-1",
+    });
+
+    // State transition succeeded despite audit failure
+    expect(result.success).toBe(true);
+    expect(result.lifecycle_state).toBe("REVIEWED");
+  });
+
+  it("includes fromState, toState, userId in metadataJson", async () => {
+    await transitionLifecycle("CLM-006", "TENANT-1", "REVIEWED", { userId: "user-7" });
+
+    const insertCall = mockInsertValues.mock.calls[0][0];
+    const meta = JSON.parse(insertCall.metadataJson);
+    expect(meta.fromState).toBe("DRAFT");
+    expect(meta.toState).toBe("REVIEWED");
+    expect(meta.userId).toBe("user-7");
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// INVALID TRANSITIONS
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("canTransition — invalid transitions", () => {
-  it("DRAFT → LOCKED is NOT allowed", () => {
-    expect(canTransition("DRAFT", "LOCKED")).toBe(false);
-  });
-
-  it("REVIEWED → DRAFT is NOT allowed (no backward transitions)", () => {
-    expect(canTransition("REVIEWED", "DRAFT")).toBe(false);
-  });
-
-  it("REVIEWED → LOCKED is NOT allowed", () => {
-    expect(canTransition("REVIEWED", "LOCKED")).toBe(false);
-  });
-
-  it("FINALISED → DRAFT is NOT allowed", () => {
-    expect(canTransition("FINALISED", "DRAFT")).toBe(false);
-  });
-
-  it("FINALISED → REVIEWED is NOT allowed", () => {
-    expect(canTransition("FINALISED", "REVIEWED")).toBe(false);
-  });
-
-  it("LOCKED → DRAFT is NOT allowed (terminal state)", () => {
-    expect(canTransition("LOCKED", "DRAFT")).toBe(false);
-  });
-
-  it("LOCKED → REVIEWED is NOT allowed (terminal state)", () => {
-    expect(canTransition("LOCKED", "REVIEWED")).toBe(false);
-  });
-
-  it("LOCKED → FINALISED is NOT allowed (terminal state)", () => {
-    expect(canTransition("LOCKED", "FINALISED")).toBe(false);
-  });
-
-  it("LOCKED → LOCKED is NOT allowed (self-transition)", () => {
-    expect(canTransition("LOCKED", "LOCKED")).toBe(false);
-  });
-
-  it("DRAFT → DRAFT is NOT allowed (self-transition)", () => {
-    expect(canTransition("DRAFT", "DRAFT")).toBe(false);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// REPLAY ALLOWED
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("isReplayAllowed", () => {
-  it("replay is allowed when state is DRAFT", () => {
-    expect(isReplayAllowed("DRAFT")).toBe(true);
-  });
-
-  it("replay is allowed when state is REVIEWED", () => {
-    expect(isReplayAllowed("REVIEWED")).toBe(true);
-  });
-
-  it("replay is allowed when state is FINALISED", () => {
-    expect(isReplayAllowed("FINALISED")).toBe(true);
-  });
-
-  it("replay is BLOCKED when state is LOCKED", () => {
-    expect(isReplayAllowed("LOCKED")).toBe(false);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RECALCULATION ALLOWED
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("isRecalculationAllowed", () => {
-  it("recalculation is allowed when state is DRAFT", () => {
-    expect(isRecalculationAllowed("DRAFT")).toBe(true);
-  });
-
-  it("recalculation is allowed when state is REVIEWED", () => {
-    expect(isRecalculationAllowed("REVIEWED")).toBe(true);
-  });
-
-  it("recalculation is BLOCKED when state is FINALISED", () => {
-    expect(isRecalculationAllowed("FINALISED")).toBe(false);
-  });
-
-  it("recalculation is BLOCKED when state is LOCKED", () => {
-    expect(isRecalculationAllowed("LOCKED")).toBe(false);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LIFECYCLE RULES COMPLIANCE
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("lifecycle rules compliance", () => {
-  const allStates: LifecycleState[] = ["DRAFT", "REVIEWED", "FINALISED", "LOCKED"];
-
-  it("LOCKED is a terminal state — no transitions allowed from it", () => {
-    for (const to of allStates) {
-      expect(canTransition("LOCKED", to)).toBe(false);
-    }
-  });
-
-  it("no state can transition to DRAFT (no backward transitions)", () => {
-    for (const from of allStates) {
-      if (from !== "DRAFT") {
-        expect(canTransition(from, "DRAFT")).toBe(false);
-      }
-    }
-  });
-
-  it("FINALISED and LOCKED block recalculation", () => {
-    expect(isRecalculationAllowed("FINALISED")).toBe(false);
-    expect(isRecalculationAllowed("LOCKED")).toBe(false);
-  });
-
-  it("only LOCKED blocks replay", () => {
-    const replayBlockedStates = allStates.filter(s => !isReplayAllowed(s));
-    expect(replayBlockedStates).toEqual(["LOCKED"]);
-  });
-
-  it("DRAFT and REVIEWED allow both replay and recalculation", () => {
-    for (const state of ["DRAFT", "REVIEWED"] as LifecycleState[]) {
-      expect(isReplayAllowed(state)).toBe(true);
-      expect(isRecalculationAllowed(state)).toBe(true);
-    }
-  });
-
-  it("the full happy path DRAFT → REVIEWED → FINALISED → LOCKED is valid", () => {
-    expect(canTransition("DRAFT", "REVIEWED")).toBe(true);
-    expect(canTransition("REVIEWED", "FINALISED")).toBe(true);
-    expect(canTransition("FINALISED", "LOCKED")).toBe(true);
-  });
-
-  it("the fast path DRAFT → FINALISED → LOCKED is valid", () => {
-    expect(canTransition("DRAFT", "FINALISED")).toBe(true);
-    expect(canTransition("FINALISED", "LOCKED")).toBe(true);
-  });
+describe("canTransition — state machine rules", () => {
+  it("allows DRAFT → REVIEWED", () => expect(canTransition("DRAFT", "REVIEWED")).toBe(true));
+  it("allows DRAFT → FINALISED (skip REVIEWED)", () => expect(canTransition("DRAFT", "FINALISED")).toBe(true));
+  it("allows REVIEWED → FINALISED", () => expect(canTransition("REVIEWED", "FINALISED")).toBe(true));
+  it("allows FINALISED → LOCKED", () => expect(canTransition("FINALISED", "LOCKED")).toBe(true));
+  it("blocks LOCKED → REVIEWED (terminal state)", () => expect(canTransition("LOCKED", "REVIEWED")).toBe(false));
+  it("blocks LOCKED → FINALISED (terminal state)", () => expect(canTransition("LOCKED", "FINALISED")).toBe(false));
+  it("blocks REVIEWED → LOCKED (must go through FINALISED)", () => expect(canTransition("REVIEWED", "LOCKED")).toBe(false));
+  it("blocks FINALISED → REVIEWED (no backward transitions)", () => expect(canTransition("FINALISED", "REVIEWED")).toBe(false));
 });

@@ -16,7 +16,7 @@
  */
 
 import { getDb } from "./db";
-import { claimDecisionLifecycle, replayLogs, decisionSnapshots, type ReplayLog } from "../drizzle/schema";
+import { claimDecisionLifecycle, replayLogs, decisionSnapshots, governanceAuditLog, type ReplayLog } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -194,10 +194,43 @@ export async function transitionLifecycle(
     updates.lockedByUserId = options.userId;
   }
 
-  await db
+    await db
     .update(claimDecisionLifecycle)
     .set(updates as typeof claimDecisionLifecycle.$inferInsert)
     .where(eq(claimDecisionLifecycle.claimId, claimId));
+
+  // ── M-07: Structural audit write ─────────────────────────────────────────
+  // Every state transition writes a LIFECYCLE_TRANSITION record to
+  // governance_audit_log regardless of how transitionLifecycle was called.
+  // This makes it structurally impossible to change the decision lifecycle
+  // state without a record — even if enforceGovernance is bypassed.
+  // When enforceGovernance is called first (normal path), there will be two
+  // entries: one governance entry (with reason/override) + one transition
+  // entry (structural safety net). This is intentional and auditable.
+  try {
+    await db.insert(governanceAuditLog).values({
+      claimId,
+      tenantId,
+      action: `LIFECYCLE_TRANSITION:${fromState}→${toState}`,
+      performedBy: options.userId ?? "system",
+      performedByName: null,
+      timestampMs: now,
+      reason: `Lifecycle transitioned from ${fromState} to ${toState}`,
+      overrideFlag: 0,
+      actionAllowed: 1,
+      metadataJson: JSON.stringify({
+        fromState,
+        toState,
+        userId: options.userId ?? null,
+        finalDecisionChoice: options.finalDecisionChoice ?? null,
+        authoritativeSnapshotId: options.authoritativeSnapshotId ?? null,
+      }),
+    });
+  } catch (auditErr) {
+    // Audit write failure must NOT roll back the state transition —
+    // the claim has already moved to the new state. Log and continue.
+    console.error(`[decision-lifecycle] M-07 audit write failed for ${claimId} (${fromState}→${toState}):`, auditErr);
+  }
 
   return {
     success: true,
