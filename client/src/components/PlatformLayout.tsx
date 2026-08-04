@@ -18,6 +18,7 @@ import {
   Users,
   FlaskConical,
   Wrench,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +70,12 @@ const navItems = [
     href: "/platform/claim-simulator",
     icon: FlaskConical,
     description: "Synthetic claim testing",
+  },
+  {
+    label: "Operations Centre",
+    href: "/platform/operations",
+    icon: BarChart3,
+    description: "Operational intelligence",
   },
 ];
 

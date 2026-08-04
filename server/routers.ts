@@ -110,6 +110,7 @@ import { reviewQueueRouter } from "./routers/review-queue";
 import { monetizationRouter } from "./routers/monetization";
 import { operationalHealthRouter } from "./routers/operational-health";
 import { platformObservabilityRouter } from "./routers/platform-observability";
+import { platformOperationsRouter } from "./routers/platform-operations"; // Epic 5-C
 import { auditRouter } from "./routers/audit";
 import { superAuditRouter } from "./routers/super-audit";
 import { governanceRouter } from "./routers/governance";
@@ -328,6 +329,7 @@ export const appRouter = router({
   monetization: monetizationRouter,
   operationalHealth: operationalHealthRouter,
   platformObservability: platformObservabilityRouter,
+  platformOperations: platformOperationsRouter, // Epic 5-C
   audit: auditRouter,
   superAudit: superAuditRouter,
   governance: governanceRouter,

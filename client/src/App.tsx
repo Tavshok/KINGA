@@ -79,6 +79,7 @@ const PlatformClaimDebug = lazy(() => import("./pages/PlatformClaimDebug"));
 const PipelineDebug = lazy(() => import("./pages/PipelineDebug"));
 const PlatformUserRoleManager = lazy(() => import("./pages/PlatformUserRoleManager"));
 const ClaimSimulator = lazy(() => import("./pages/platform/ClaimSimulator"));
+const PlatformOperationsCentre = lazy(() => import("./pages/PlatformOperationsCentre")); // Epic 5-C
 const VehicleRegistry = lazy(() => import("./pages/VehicleRegistry"));
 import PlatformLayout from "./components/PlatformLayout";
 import InsurerPortalLayout from "./components/InsurerPortalLayout";
@@ -282,6 +283,11 @@ function Router() {
         <Route path="/platform/claim-simulator">
           <ProtectedRoute domain="platform">
             <PlatformLayout><ClaimSimulator /></PlatformLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/platform/operations">
+          <ProtectedRoute domain="platform">
+            <PlatformLayout><PlatformOperationsCentre /></PlatformLayout>
           </ProtectedRoute>
         </Route>
         {/* Assessment Results */}
