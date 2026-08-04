@@ -115,8 +115,10 @@ export const workflowQueriesRouter = router({
         }
       }
 
+      // The z.enum includes UI-layer states not in the workflowState schema enum.
+      // Cast to `any` to satisfy the Drizzle column type guard; unknown states return 0 rows (safe).
       const whereConditions = and(
-        eq(claims.workflowState, input.state),
+        eq(claims.workflowState, input.state as any),
         eq(claims.tenantId, insurerTenantId)   // ← strict tenant isolation
       );
 

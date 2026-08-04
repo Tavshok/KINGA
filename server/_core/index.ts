@@ -48,8 +48,8 @@ import { serveStatic, setupVite } from "./vite";
 import { uploadAssessmentRouter } from "../upload-assessment";
 import { uploadDocumentsRouter } from "../upload-documents";
 import { setupWebSocketServer } from "../websocket";
-import { startIntakeEscalationJob } from "../intake-escalation-job";
-import { startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
+import { runIntakeEscalationJob, startIntakeEscalationJob } from "../intake-escalation-job";
+import { runStuckAssessmentRecoveryJob, startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
 import { checkRecoveryDeadlines } from "../recovery/recoveryDeadlineAlerts";
 import { sdk } from "./sdk";
 
@@ -193,6 +193,66 @@ async function startServer() {
     } catch (err: any) {
       console.error('[ScheduledSweep] Recovery deadline sweep failed:', err);
       return res.status(500).json({ error: 'Sweep failed', detail: err?.message ?? String(err) });
+    }
+  });
+
+  // ── Heartbeat: intake escalation job (every 30 minutes) ───────────────────────────────────────
+  // Replaces the in-process setInterval in intake-escalation-job.ts once deployed.
+  // The setInterval remains as a fallback until Heartbeat registration is confirmed.
+  app.post("/api/scheduled/intake-escalation", async (req: express.Request, res: express.Response) => {
+    try {
+      let isCronCaller = false;
+      try {
+        const user = await sdk.authenticateRequest(req);
+        isCronCaller = !!(user as any).isCron;
+      } catch {
+        return res.status(401).json({ error: 'Unauthorized — valid session cookie required' });
+      }
+      if (!isCronCaller) {
+        return res.status(403).json({ error: 'Forbidden — Heartbeat cron callers only' });
+      }
+      console.log('[Heartbeat] intake-escalation triggered');
+      await runIntakeEscalationJob();
+      console.log('[Heartbeat] intake-escalation complete');
+      return res.status(200).json({ ok: true, job: 'intake-escalation', ts: Date.now() });
+    } catch (err: any) {
+      console.error('[Heartbeat] intake-escalation failed:', err);
+      return res.status(500).json({
+        error: 'Job failed',
+        detail: err?.message ?? String(err),
+        context: { url: req.url },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
+  // ── Heartbeat: stuck assessment recovery job (every 5 minutes) ───────────────────────────────
+  // Replaces the in-process setInterval in stuck-assessment-recovery-job.ts once deployed.
+  // The setInterval remains as a fallback until Heartbeat registration is confirmed.
+  app.post("/api/scheduled/stuck-recovery", async (req: express.Request, res: express.Response) => {
+    try {
+      let isCronCaller = false;
+      try {
+        const user = await sdk.authenticateRequest(req);
+        isCronCaller = !!(user as any).isCron;
+      } catch {
+        return res.status(401).json({ error: 'Unauthorized — valid session cookie required' });
+      }
+      if (!isCronCaller) {
+        return res.status(403).json({ error: 'Forbidden — Heartbeat cron callers only' });
+      }
+      console.log('[Heartbeat] stuck-recovery triggered');
+      await runStuckAssessmentRecoveryJob();
+      console.log('[Heartbeat] stuck-recovery complete');
+      return res.status(200).json({ ok: true, job: 'stuck-recovery', ts: Date.now() });
+    } catch (err: any) {
+      console.error('[Heartbeat] stuck-recovery failed:', err);
+      return res.status(500).json({
+        error: 'Job failed',
+        detail: err?.message ?? String(err),
+        context: { url: req.url },
+        timestamp: new Date().toISOString(),
+      });
     }
   });
 

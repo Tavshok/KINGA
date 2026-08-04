@@ -106,7 +106,7 @@ function emptyExtraction(): ExtractedClaimFields {
     assessorName: null, panelBeater: null, repairerCompany: null,
     quoteTotalCents: null, agreedCostCents: null, labourCostCents: null, partsCostCents: null,
     damageDescription: null, damagedComponents: [],
-    structuralDamage: null, airbagDeployment: null,
+    structuralDamage: null, airbagDeployment: null, seatbeltPretensioner: null,
     maxCrushDepthM: null, totalDamageAreaM2: null,
     thirdPartyVehicle: null, thirdPartyRegistration: null,
     // New fields

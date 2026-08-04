@@ -1954,7 +1954,7 @@ export async function runPipelineV2(
         // fraudRiskScore is still the pre-injection value from Stage 8.
         // Recompute using the exported weighted scoring function so the final
         // DB-stored score reflects ALL signals including cross-validation.
-        const scenarioScoreForRecompute = stage8Data.scenarioFraudResult?.fraudScore ?? null;
+        const scenarioScoreForRecompute = stage8Data.scenarioFraudResult?.fraud_score ?? null;
         const { score: xvAdjustedScore, riskLevel: xvAdjustedLevel } =
           recomputeFraudScore(stage8Data.indicators, scenarioScoreForRecompute);
         if (xvAdjustedScore !== stage8Data.fraudRiskScore) {
@@ -3260,6 +3260,7 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
       totalDamageAreaM2: null,
       structuralDamage: null,
       airbagDeployment: null,
+      seatbeltPretensioner: null,
       policeReportNumber: null,
       policeStation: null,
       policeOfficerName: null,

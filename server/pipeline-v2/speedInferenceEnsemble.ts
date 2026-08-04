@@ -706,7 +706,7 @@ function computeClaimedSpeedDeviation(
   const deviationPct = maxSpeed > 0 ? Math.round((Math.abs(deviationKmh) / maxSpeed) * 100) : 0;
   const absDevKmh = Math.abs(deviationKmh);
 
-  let deviationClass: SpeedInferenceResult['claimedSpeedDeviationFlag']['deviationClass'];
+  let deviationClass: NonNullable<SpeedInferenceResult['claimedSpeedDeviationFlag']>['deviationClass'];
   if (deviationPct < 20 && absDevKmh < 10) {
     deviationClass = 'consistent';
   } else if (deviationPct <= 35 || absDevKmh <= 20) {

@@ -622,7 +622,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         .from(claims)
         .where(
           and(
-            inArray(claims.status, PIPELINE_RUNNING_STATUSES as unknown as string[]),
+            inArray(claims.status as any, [...PIPELINE_RUNNING_STATUSES]),
             eq(claims.aiAssessmentCompleted, 0),
             // Use aiAssessmentStartedAt if available, otherwise fall back to updatedAt.
             // This prevents onStageStart updatedAt refreshes from resetting the clock.
@@ -678,7 +678,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         .from(claims)
         .where(
           and(
-            inArray(claims.status, PIPELINE_RUNNING_STATUSES as unknown as string[]),
+            inArray(claims.status as any, [...PIPELINE_RUNNING_STATUSES]),
             eq(claims.aiAssessmentCompleted, 0),
             sql`${(claims as any).pipelineHeartbeatAt} IS NOT NULL`,
             sql`${(claims as any).pipelineHeartbeatAt} < DATE_SUB(NOW(), INTERVAL 8 MINUTE)`

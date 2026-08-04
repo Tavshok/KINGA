@@ -18,6 +18,53 @@ import type {
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
+// ── Heartbeat cron identity support ──────────────────────────────────────────
+// These must be declared before SDKServer because authenticateRequest uses them.
+
+const CRON_OPEN_ID_PREFIX = "cron_";
+
+export type AuthenticatedUser = import("../../drizzle/schema").User & {
+  /** Set only for Heartbeat cron callers (openId starts with "cron_"). */
+  taskUid?: string;
+  /** True only for Heartbeat cron callers. */
+  isCron?: boolean;
+};
+
+function buildCronUser(userInfo: GetUserInfoWithJwtResponse): AuthenticatedUser {
+  const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  // Cast via unknown: cron callers are synthetic identities and intentionally
+  // omit DB-only fields (passwordHash, organizationId, etc.).
+  return {
+    id: -1,
+    openId: userInfo.openId,
+    name: userInfo.name || "Manus Scheduled Task",
+    email: null,
+    passwordHash: null,
+    loginMethod: null,
+    role: "user" as const,
+    insurerRole: null,
+    organizationId: null,
+    tenantId: null,
+    emailVerified: 0,
+    createdAt: nowStr,
+    updatedAt: nowStr,
+    lastSignedIn: nowStr,
+    assessorTier: null,
+    tierActivatedAt: null,
+    tierExpiresAt: null,
+    performanceScore: null,
+    totalAssessmentsCompleted: null,
+    averageVarianceFromFinal: null,
+    accuracyScore: null,
+    avgCompletionTime: null,
+    marketplaceProfileId: null,
+    isActive: 1,
+    deactivatedAt: null,
+    taskUid: userInfo.taskUid ?? undefined,
+    isCron: true,
+  } as unknown as AuthenticatedUser;
+}
+
 export type SessionPayload = {
   openId: string;
   appId: string;
@@ -256,7 +303,7 @@ class SDKServer {
     } as GetUserInfoWithJwtResponse;
   }
 
-  async authenticateRequest(req: Request): Promise<User> {
+  async authenticateRequest(req: Request): Promise<AuthenticatedUser> {
     // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
@@ -265,6 +312,16 @@ class SDKServer {
     if (!session) {
       throw ForbiddenError("Invalid session cookie");
     }
+
+    // ── Heartbeat cron short-circuit ──────────────────────────────────────────────────
+    // Heartbeat cron callers have openId prefixed with "cron_".
+    // They are not real users — skip the DB lookup and return a synthetic user.
+    if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
+      const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
+      if (!userInfo.taskUid) throw ForbiddenError("Cron session missing task_uid");
+      return buildCronUser(userInfo);
+    }
+    // ── Regular user path (unchanged) ───────────────────────────────────────
 
     const sessionUserId = session.openId;
     const signedInAt = new Date().toISOString();

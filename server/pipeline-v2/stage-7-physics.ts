@@ -1121,7 +1121,6 @@ export async function runPhysicsStage(
       try {
         const { classifyDamage } = await import('./damageClassificationEngine');
         const observedComponents: string[] = [
-          ...(damageAnalysis.damagedComponents ?? []).map((c: { name: string }) => c.name),
           ...(damageAnalysis.damagedParts ?? []).map((c: { name: string }) => c.name),
         ].filter(Boolean);
         const imageDetectedZones: string[] = [
