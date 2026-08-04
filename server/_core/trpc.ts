@@ -325,3 +325,60 @@ export { loggedProcedure as publicProcedureWithLogging };
 
 // ─── Exported helpers (for testing) ──────────────────────────────────────────
 export { logTenantIsolationViolation, extractIp, logSystemError };
+
+// ─── Shared Tenant Scope Helper (Batch 2 — 2026-08-04) ───────────────────────
+/**
+ * Resolve the effective tenant scope for any tRPC query/mutation.
+ *
+ * Fail-closed model:
+ *   - Non-admin: ctx.user.tenantId MUST be non-null → returns it; null → throws FORBIDDEN (logged)
+ *   - Non-admin: inputTenantId is IGNORED (callers cannot override their session scope)
+ *   - platform_super_admin: may pass inputTenantId to scope to a specific tenant
+ *   - platform_super_admin: omitting inputTenantId returns null (cross-tenant view, logged)
+ *
+ * @param ctx            tRPC context (must have ctx.user with tenantId and role)
+ * @param inputTenantId  Optional caller-supplied tenantId (only honoured for super-admin)
+ * @param procedureName  Procedure name for audit logging
+ * @returns tenantId string (scoped) or null (platform_super_admin cross-tenant)
+ */
+export function requireTenantScope(
+  ctx: { user: { id: number; tenantId?: string | null; role: string }; req?: any },
+  inputTenantId: string | undefined,
+  procedureName: string
+): string | null {
+  const isSuperAdmin = ctx.user.role === 'platform_super_admin';
+
+  if (!isSuperAdmin) {
+    const tenantId = ctx.user.tenantId ?? null;
+    if (!tenantId) {
+      logTenantIsolationViolation({
+        userId: ctx.user.id,
+        userTenantId: null,
+        targetTenantId: null,
+        procedureName,
+        ipAddress: extractIp(ctx.req),
+        userAgent: ctx.req?.headers?.['user-agent'] ?? null,
+      });
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'User is not associated with a tenant. Access denied.',
+      });
+    }
+    return tenantId;
+  }
+
+  // platform_super_admin cross-tenant access — log it
+  if (!inputTenantId) {
+    logTenantIsolationViolation({
+      userId: ctx.user.id,
+      userTenantId: ctx.user.tenantId ?? null,
+      targetTenantId: null,
+      procedureName,
+      ipAddress: extractIp(ctx.req),
+      userAgent: ctx.req?.headers?.['user-agent'] ?? null,
+    });
+    return null;
+  }
+
+  return inputTenantId;
+}

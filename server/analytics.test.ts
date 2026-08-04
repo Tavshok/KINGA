@@ -11,7 +11,8 @@ import { appRouter } from './routers';
 import type { Context } from './_core/context';
 
 // Mock context - must use a role allowed by analyticsRoleProcedure
-const createMockContext = (userId?: number, insurerRole = 'claims_manager'): Context => ({
+// Note: tenantId is required after Batch 2 fail-closed fix — null tenantId now throws FORBIDDEN
+const createMockContext = (userId?: number, insurerRole = 'claims_manager', tenantId = 'test-tenant-001'): Context => ({
   user: userId ? {
     id: userId,
     openId: 'test-openid',
@@ -19,6 +20,7 @@ const createMockContext = (userId?: number, insurerRole = 'claims_manager'): Con
     email: 'test@example.com',
     role: 'insurer',
     insurerRole,
+    tenantId,
     createdAt: new Date(),
     updatedAt: new Date(),
   } : null,

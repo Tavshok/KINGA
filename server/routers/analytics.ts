@@ -15,7 +15,7 @@
  * @module routers/analytics-optimized
  */
 
-import { router, protectedProcedure, executiveOnlyProcedure } from "../_core/trpc";
+import { router, protectedProcedure, executiveOnlyProcedure, requireTenantScope } from "../_core/trpc";
 import { notifyOwner } from "../_core/notification";
 import { ANALYTICS_ALLOWED_ROLES } from "../../shared/role-permissions";
 import { getDb } from "../db";
@@ -70,6 +70,18 @@ const analyticsRoleProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 /**
  * Optimized Analytics Router
  */
+
+// resolveAnalyticsTenant: alias to the shared requireTenantScope helper (Ticket 2.3 — Batch 2)
+// For analytics, admin and platform_super_admin get cross-tenant view (null return).
+// All other roles must have a non-null tenantId or receive FORBIDDEN.
+function resolveAnalyticsTenant(ctx: { user: { id?: number; tenantId?: string | null; role: string }; req?: any }): string | null {
+  const crossTenantRoles = ['admin', 'platform_super_admin'];
+  if (crossTenantRoles.includes(ctx.user.role)) {
+    return null;
+  }
+  return requireTenantScope(ctx as any, undefined, 'analytics');
+}
+
 export const analyticsRouter = router({
   
   /**
@@ -92,7 +104,7 @@ export const analyticsRouter = router({
         }
 
         const searchTerm = `%${input.query}%`;
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
 
         // Build where clause with tenant filtering if applicable
         const whereClause = tenantId 
@@ -165,7 +177,7 @@ export const analyticsRouter = router({
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
         }
 
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
         const tenantFilter = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -212,15 +224,24 @@ export const analyticsRouter = router({
           : 0;
 
         // QUERY 2: Consolidated governance metrics (30-day window)
-        const governanceFilter = tenantId 
-          ? `tenant_id = '${tenantId}' AND` 
+        // Note: workflow_audit_trail has no tenant_id column — tenant scope via claims subquery.
+        // role_assignment_audit has tenant_id directly.
+        // claim_involvement_tracking scopes via claims.tenant_id join.
+        const watTenantFilter = tenantId
+          ? `claim_id IN (SELECT id FROM claims WHERE tenant_id = '${tenantId}') AND`
+          : '';
+        const directTenantFilter = tenantId
+          ? `tenant_id = '${tenantId}' AND`
+          : '';
+        const citTenantFilter = tenantId
+          ? `c.tenant_id = '${tenantId}' AND`
           : '';
         
         const governanceMetricsResult = await db.execute(sql`
           SELECT 
             (SELECT COUNT(*) 
              FROM workflow_audit_trail 
-             WHERE ${sql.raw(governanceFilter)} executive_override = 1 
+             WHERE ${sql.raw(watTenantFilter)} executive_override = 1 
                AND created_at >= ${thirtyDaysAgo.toISOString()}
             ) as total_overrides,
             (SELECT COUNT(DISTINCT subq.user_id)
@@ -228,7 +249,7 @@ export const analyticsRouter = router({
                SELECT cit.user_id, cit.claim_id
                FROM claim_involvement_tracking cit
                INNER JOIN claims c ON cit.claim_id = c.id
-               WHERE ${sql.raw(governanceFilter.replace('tenant_id', 'c.tenant_id'))} 
+               WHERE ${sql.raw(citTenantFilter)} 
                  cit.created_at >= ${thirtyDaysAgo.toISOString()}
              GROUP BY cit.user_id, cit.claim_id
              HAVING COUNT(DISTINCT cit.workflow_stage) > 1
@@ -236,7 +257,7 @@ export const analyticsRouter = router({
             ) as segregation_violations,
             (SELECT COUNT(*) 
              FROM role_assignment_audit 
-             WHERE ${sql.raw(governanceFilter)} timestamp >= ${thirtyDaysAgo.toISOString()}
+             WHERE ${sql.raw(directTenantFilter)} timestamp >= ${thirtyDaysAgo.toISOString()}
             ) as role_changes
         `);
 
@@ -313,7 +334,7 @@ export const analyticsRouter = router({
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
         }
 
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
         const tenantFilter = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
 
         // SINGLE UNION QUERY for all alert types
@@ -451,7 +472,7 @@ export const analyticsRouter = router({
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
         }
 
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
         const tenantFilter = tenantId ? eq(users.tenantId, tenantId) : undefined;
 
         const whereClause = tenantFilter 
@@ -521,7 +542,7 @@ export const analyticsRouter = router({
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
         }
 
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
 
         const beaterStats = await db
           .select({
@@ -606,7 +627,7 @@ export const analyticsRouter = router({
     try {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-      const tenantId = ctx.user.tenantId;
+      const tenantId = resolveAnalyticsTenant(ctx);
       const tenantFilter = tenantId ? eq(claims.tenantId, tenantId) : undefined;
       const whereClause = tenantFilter
         ? and(tenantFilter, sql`${claims.approvedAmount} IS NOT NULL`, sql`${aiAssessments.estimatedCost} IS NOT NULL`, sql`${claims.createdAt} >= DATE_SUB(NOW(), INTERVAL 6 MONTH)`)
@@ -645,7 +666,7 @@ export const analyticsRouter = router({
     try {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-      const tenantId = ctx.user.tenantId;
+      const tenantId = resolveAnalyticsTenant(ctx);
       const bottlenecksQuery = tenantId
         ? sql`WITH latest_states AS (SELECT w.claim_id, w.new_state, TIMESTAMPDIFF(HOUR, w.created_at, NOW()) as hours_in_state FROM workflow_audit_trail w INNER JOIN claims c ON w.claim_id = c.id INNER JOIN (SELECT claim_id, MAX(created_at) as max_time FROM workflow_audit_trail GROUP BY claim_id) latest ON w.claim_id = latest.claim_id AND w.created_at = latest.max_time WHERE w.new_state NOT IN ('closed','rejected') AND c.tenant_id = ${tenantId}) SELECT new_state as state, COUNT(*) as count, AVG(hours_in_state) as avg_hours, MAX(hours_in_state) as max_hours FROM latest_states GROUP BY new_state ORDER BY AVG(hours_in_state) DESC`
         : sql`WITH latest_states AS (SELECT w.claim_id, w.new_state, TIMESTAMPDIFF(HOUR, w.created_at, NOW()) as hours_in_state FROM workflow_audit_trail w INNER JOIN (SELECT claim_id, MAX(created_at) as max_time FROM workflow_audit_trail GROUP BY claim_id) latest ON w.claim_id = latest.claim_id AND w.created_at = latest.max_time WHERE w.new_state NOT IN ('closed','rejected')) SELECT new_state as state, COUNT(*) as count, AVG(hours_in_state) as avg_hours, MAX(hours_in_state) as max_hours FROM latest_states GROUP BY new_state ORDER BY AVG(hours_in_state) DESC`;
@@ -671,7 +692,7 @@ export const analyticsRouter = router({
     try {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-      const tenantId = ctx.user.tenantId;
+      const tenantId = resolveAnalyticsTenant(ctx);
       const tenantFilter = tenantId ? eq(claims.tenantId, tenantId) : undefined;
       const payoutsFilter = tenantFilter
         ? and(tenantFilter, sql`${claims.approvedAmount} IS NOT NULL`)
@@ -739,7 +760,7 @@ export const analyticsRouter = router({
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Risk Manager role required' });
         }
 
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
 
         // Tier gate — query tenants table
         if (tenantId) {
@@ -906,7 +927,7 @@ export const analyticsRouter = router({
       }
 
       const { months, recipientEmail, recipientName, summaryKpis } = input;
-      const tenantId = ctx.user.tenantId ?? 'Enterprise';
+      const tenantId = resolveAnalyticsTenant(ctx);
       const rangeLabel = `Last ${months} months`;
       const generatedAt = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -968,7 +989,7 @@ export const analyticsRouter = router({
     try {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-      const tenantId = ctx.user.tenantId;
+      const tenantId = resolveAnalyticsTenant(ctx);
       const tenantFilter = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
 
       const now = new Date();
@@ -1062,7 +1083,7 @@ export const analyticsRouter = router({
       try {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
         const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
         const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -1183,7 +1204,7 @@ export const analyticsRouter = router({
       try {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
         const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
 
         const result = await db.execute(sql`
@@ -1231,7 +1252,7 @@ export const analyticsRouter = router({
       try {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
         const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
 
         const now = new Date();
@@ -1293,7 +1314,7 @@ export const analyticsRouter = router({
       try {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
         const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
         const monthsBack = input.months;
 
@@ -1347,7 +1368,7 @@ export const analyticsRouter = router({
       try {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
-        const tenantId = ctx.user.tenantId;
+        const tenantId = resolveAnalyticsTenant(ctx);
         const tf = tenantId ? `c.tenant_id = '${tenantId}'` : '1=1';
 
         const result = await db.execute(sql`

@@ -13,7 +13,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc, inArray, sql, ne } from "drizzle-orm";
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure, requireTenantScope } from "../_core/trpc";
 import { agencyDomainProcedure as agencyProcedure } from "../_core/domain-middleware";
 import { getDb } from "../db";
 import {
@@ -94,7 +94,7 @@ export const agencyBrokerRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const tenantId = (ctx.tenant as { id?: string } | null)?.id ?? ctx.user.tenantId ?? "agency";
+      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
 
       const [result] = await db.insert(agencyClients).values({
         agencyTenantId: tenantId,
@@ -125,7 +125,7 @@ export const agencyBrokerRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const tenantId = (ctx.tenant as { id?: string } | null)?.id ?? ctx.user.tenantId ?? "agency";
+      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
 
       const { id, ...updates } = input;
       const filtered: Record<string, unknown> = {};
@@ -156,7 +156,7 @@ export const agencyBrokerRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const tenantId = (ctx.tenant as { id?: string } | null)?.id ?? ctx.user.tenantId ?? "agency";
+      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
 
       const clients = await db
         .select()
@@ -183,7 +183,7 @@ export const agencyBrokerRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const tenantId = (ctx.tenant as { id?: string } | null)?.id ?? ctx.user.tenantId ?? "agency";
+      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
 
       const [client] = await db
         .select()
@@ -209,7 +209,7 @@ export const agencyBrokerRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const tenantId = (ctx.tenant as { id?: string } | null)?.id ?? ctx.user.tenantId ?? "agency";
+      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
 
       // Verify client belongs to this agency
       const [client] = await db
@@ -259,7 +259,7 @@ export const agencyBrokerRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const tenantId = (ctx.tenant as { id?: string } | null)?.id ?? ctx.user.tenantId ?? "agency";
+      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
       const now = new Date().toISOString().slice(0, 19).replace("T", " ");
 
       // Check for existing requests to avoid duplicates
@@ -699,7 +699,7 @@ export const agencyBrokerRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
-      const tenantId = (ctx.tenant as { id?: string } | null)?.id ?? ctx.user.tenantId ?? "agency";
+      const tenantId = requireTenantScope(ctx, undefined, 'agency-broker') as string;
 
       const conditions = [eq(insurerQuoteRequests.agencyTenantId, tenantId)];
       if (input.status) conditions.push(eq(insurerQuoteRequests.status, input.status));

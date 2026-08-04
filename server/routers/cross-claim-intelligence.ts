@@ -8,38 +8,68 @@
  *   crossClaim.getStats          — global signal stats for the dashboard
  *   crossClaim.dismissSignal     — assessor dismisses a false-positive signal
  *   crossClaim.runForClaim       — manually trigger the engine for a claim
+ *   crossClaim.getTopEntities    — top entities by signal count
+ *
+ * Tenant Isolation Model (Batch 2 — 2026-08-04)
+ * ───────────────────────────────────────────────
+ * All procedures enforce tenant scoping via resolveTenantScope():
+ *   - Non-admin users: ctx.user.tenantId is MANDATORY; null → FORBIDDEN (fails closed)
+ *   - Non-admin users: input.tenantId is IGNORED to prevent caller-supplied scope override
+ *   - platform_super_admin: may omit tenantId for cross-tenant view (logged to tenant_isolation_violations)
+ *   - platform_super_admin: may supply explicit input.tenantId to scope to a specific tenant
+ *
+ * This matches the pattern established in insurerDomainProcedure (server/_core/trpc.ts).
+ * Will be refactored to use the shared requireTenantScope middleware in Ticket 2.3.
  */
 
 import { z } from "zod";
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure, requireTenantScope, logTenantIsolationViolation, extractIp } from "../_core/trpc";
 import { getDb } from "../db";
 import { crossClaimSignals, claims } from "../../drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { runCrossClaimIntelligence } from "../cross-claim-intelligence";
+import { TRPCError } from "@trpc/server";
+
+// resolveTenantScope is the shared requireTenantScope from server/_core/trpc.ts
+// See Ticket 2.3 — Batch 2 tenant isolation
+const resolveTenantScope = requireTenantScope;
 
 export const crossClaimIntelligenceRouter = router({
   /**
    * Fetch all cross-claim signals for a specific claim.
+   * Tenant isolation: enforces session tenantId on the crossClaimSignals row.
    */
   getByClaim: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
+
+      const tenantId = resolveTenantScope(ctx, undefined, 'crossClaim.getByClaim');
+
+      const conditions: ReturnType<typeof eq>[] = [
+        eq(crossClaimSignals.claimId, input.claimId),
+      ];
+      if (tenantId) {
+        conditions.push(eq(crossClaimSignals.tenantId, tenantId));
+      }
+
       return db
         .select()
         .from(crossClaimSignals)
-        .where(eq(crossClaimSignals.claimId, input.claimId))
+        .where(and(...conditions))
         .orderBy(desc(crossClaimSignals.scoreContribution));
     }),
 
   /**
    * Real-time fraud feed: most recent undismissed signals across all claims.
-   * Used by the fraud operations dashboard.
+   * Tenant isolation: session tenantId is mandatory for non-admin; input.tenantId ignored.
    */
   getFraudFeed: protectedProcedure
     .input(z.object({
       limit: z.number().min(1).max(200).default(50),
+      // tenantId input is accepted for platform_super_admin scoping only;
+      // non-admin callers cannot override their session tenant via this field.
       tenantId: z.string().optional(),
       confidenceFilter: z.enum(['low', 'medium', 'high']).optional(),
       signalTypeFilter: z.enum([
@@ -54,12 +84,19 @@ export const crossClaimIntelligenceRouter = router({
         'total_loss_repeat_signal',
       ]).optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
 
-      const conditions = [sql`is_dismissed = 0`];
-      if (input.tenantId) conditions.push(eq(crossClaimSignals.tenantId, input.tenantId));
+      const isSuperAdmin = ctx.user.role === 'platform_super_admin';
+      const tenantId = resolveTenantScope(
+        ctx,
+        isSuperAdmin ? input.tenantId : undefined,
+        'crossClaim.getFraudFeed'
+      );
+
+      const conditions: any[] = [sql`is_dismissed = 0`];
+      if (tenantId) conditions.push(eq(crossClaimSignals.tenantId, tenantId));
       if (input.confidenceFilter) conditions.push(eq(crossClaimSignals.confidence, input.confidenceFilter));
       if (input.signalTypeFilter) conditions.push(eq(crossClaimSignals.signalType, input.signalTypeFilter));
 
@@ -73,6 +110,7 @@ export const crossClaimIntelligenceRouter = router({
 
   /**
    * Fetch all signals of a specific type across all claims.
+   * Tenant isolation: session tenantId is mandatory for non-admin.
    */
   getBySignalType: protectedProcedure
     .input(z.object({
@@ -90,12 +128,19 @@ export const crossClaimIntelligenceRouter = router({
       limit: z.number().min(1).max(200).default(50),
       tenantId: z.string().optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
 
-      const conditions = [eq(crossClaimSignals.signalType, input.signalType)];
-      if (input.tenantId) conditions.push(eq(crossClaimSignals.tenantId, input.tenantId));
+      const isSuperAdmin = ctx.user.role === 'platform_super_admin';
+      const tenantId = resolveTenantScope(
+        ctx,
+        isSuperAdmin ? input.tenantId : undefined,
+        'crossClaim.getBySignalType'
+      );
+
+      const conditions: any[] = [eq(crossClaimSignals.signalType, input.signalType)];
+      if (tenantId) conditions.push(eq(crossClaimSignals.tenantId, tenantId));
 
       return db
         .select()
@@ -107,18 +152,27 @@ export const crossClaimIntelligenceRouter = router({
 
   /**
    * Global cross-claim intelligence stats for the executive dashboard.
+   * Tenant isolation: session tenantId is mandatory for non-admin.
    */
   getStats: protectedProcedure
-    .input(z.object({ tenantId: z.string().optional() }))
-    .query(async ({ input }) => {
+    .input(z.object({
+      tenantId: z.string().optional(),
+    }))
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return null;
 
-      const conditions = input.tenantId
-        ? [eq(crossClaimSignals.tenantId, input.tenantId)]
+      const isSuperAdmin = ctx.user.role === 'platform_super_admin';
+      const tenantId = resolveTenantScope(
+        ctx,
+        isSuperAdmin ? input.tenantId : undefined,
+        'crossClaim.getStats'
+      );
+
+      const conditions = tenantId
+        ? [eq(crossClaimSignals.tenantId, tenantId)]
         : [];
 
-      // Overall counts
       const [totals] = await db
         .select({
           totalSignals: sql<number>`COUNT(*)`,
@@ -133,7 +187,6 @@ export const crossClaimIntelligenceRouter = router({
         .from(crossClaimSignals)
         .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-      // Breakdown by signal type
       const byType = await db
         .select({
           signalType: crossClaimSignals.signalType,
@@ -146,7 +199,6 @@ export const crossClaimIntelligenceRouter = router({
         .groupBy(crossClaimSignals.signalType)
         .orderBy(desc(sql`COUNT(*)`));
 
-      // Recent trend (last 30 days vs prior 30 days)
       const [recentTrend] = await db
         .select({
           last30Days: sql<number>`SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END)`,
@@ -160,6 +212,7 @@ export const crossClaimIntelligenceRouter = router({
 
   /**
    * Assessor dismisses a signal as a false positive.
+   * Tenant isolation: verifies the signal belongs to the caller's tenant before updating.
    */
   dismissSignal: protectedProcedure
     .input(z.object({
@@ -169,6 +222,26 @@ export const crossClaimIntelligenceRouter = router({
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error('Database unavailable');
+
+      const tenantId = resolveTenantScope(ctx, undefined, 'crossClaim.dismissSignal');
+
+      // Verify ownership before mutating — prevents cross-tenant dismissal
+      const whereConditions = tenantId
+        ? and(eq(crossClaimSignals.id, input.signalId), eq(crossClaimSignals.tenantId, tenantId))
+        : eq(crossClaimSignals.id, input.signalId);
+
+      const [existing] = await db
+        .select({ id: crossClaimSignals.id })
+        .from(crossClaimSignals)
+        .where(whereConditions)
+        .limit(1);
+
+      if (!existing) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Signal not found or access denied.',
+        });
+      }
 
       await db
         .update(crossClaimSignals)
@@ -185,8 +258,9 @@ export const crossClaimIntelligenceRouter = router({
     }),
 
   /**
-   * Get Top Entities — returns the most frequently appearing entities (vehicles, drivers, repairers)
+   * Get Top Entities — returns the most frequently appearing entities (vehicles, drivers)
    * across cross-claim signals. Used by the Cross-Claim Intelligence panel.
+   * Tenant isolation: session tenantId is mandatory for non-admin.
    */
   getTopEntities: protectedProcedure
     .input(z.object({
@@ -198,8 +272,15 @@ export const crossClaimIntelligenceRouter = router({
       const db = await getDb();
       if (!db) return { vehicles: [], drivers: [], repairers: [], summary: { totalSignals: 0, highConfidence: 0, dismissed: 0 } };
 
-      const tenantId = input.tenantId ?? ctx.user.tenantId ?? null;
-      const tf = tenantId ? `ccs.tenant_id = '${tenantId}'` : '1=1';
+      const isSuperAdmin = ctx.user.role === 'platform_super_admin';
+      const tenantId = resolveTenantScope(
+        ctx,
+        isSuperAdmin ? input.tenantId : undefined,
+        'crossClaim.getTopEntities'
+      );
+
+      // Build tenant filter for raw SQL queries
+      const tf = tenantId ? `ccs.tenant_id = ${JSON.stringify(tenantId)}` : '1=1';
 
       // Summary stats
       const summaryResult = await db.execute(sql`
@@ -289,15 +370,21 @@ export const crossClaimIntelligenceRouter = router({
 
   /**
    * Manually trigger the cross-claim intelligence engine for a specific claim.
-   * Useful for re-running after new data is available or for testing.
+   * Tenant isolation: claim lookup is scoped to session tenantId.
    */
   runForClaim: protectedProcedure
     .input(z.object({ claimId: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new Error('Database unavailable');
 
-      // Fetch claim context
+      const tenantId = resolveTenantScope(ctx, undefined, 'crossClaim.runForClaim');
+
+      // Fetch claim context — scoped to tenant to prevent cross-tenant engine triggers
+      const claimConditions = tenantId
+        ? and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId))
+        : eq(claims.id, input.claimId);
+
       const [claim] = await db
         .select({
           vehicleRegistryId: claims.vehicleRegistryId,
@@ -308,10 +395,15 @@ export const crossClaimIntelligenceRouter = router({
           incidentDate: claims.incidentDate,
         })
         .from(claims)
-        .where(eq(claims.id, input.claimId))
+        .where(claimConditions)
         .limit(1);
 
-      if (!claim) throw new Error(`Claim ${input.claimId} not found`);
+      if (!claim) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Claim ${input.claimId} not found or access denied.`,
+        });
+      }
 
       const result = await runCrossClaimIntelligence({
         claimId: input.claimId,
