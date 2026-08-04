@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { VehiclePassportPanel } from "@/components/VehiclePassportPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,10 +155,12 @@ function VehicleProfile({ id }: { id: number }) {
     undercarriage: "bg-gray-500",
   };
 
+  const [detailTab, setDetailTab] = useState<'overview' | 'passport' | 'timeline'>('overview');
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 p-6">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <Button
           variant="ghost"
           size="sm"
@@ -178,6 +181,39 @@ function VehicleProfile({ id }: { id: number }) {
         <div className="ml-auto">{riskBadge(vehicle.vehicleRiskScore)}</div>
       </div>
 
+      {/* Tab bar */}
+      <div className="flex gap-1 mb-5 border-b border-gray-800">
+        {([
+          { id: 'overview', label: 'Overview' },
+          { id: 'passport', label: '🛂 Vehicle Passport' },
+          { id: 'timeline', label: '🕐 Timeline' },
+        ] as const).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setDetailTab(t.id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              detailTab === t.id
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Passport tab */}
+      {detailTab === 'passport' && (
+        <VehiclePassportPanel vehicleRegistryId={id} />
+      )}
+
+      {/* Timeline tab — full timeline via passport router */}
+      {detailTab === 'timeline' && (
+        <VehicleTimelineTab vehicleRegistryId={id} />
+      )}
+
+      {/* Overview tab */}
+      {detailTab === 'overview' && (
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left column: Identity + Technical + Flags */}
         <div className="space-y-4">
@@ -525,6 +561,40 @@ function VehicleProfile({ id }: { id: number }) {
               )}
             </CardContent>
           </Card>
+        </div>
+      </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Vehicle Timeline Tab ─────────────────────────────────────────────────────
+
+function VehicleTimelineTab({ vehicleRegistryId }: { vehicleRegistryId: number }) {
+  const { data, isLoading } = trpc.vehiclePassport.getTimeline.useQuery(
+    { vehicleRegistryId, limit: 50 },
+    { staleTime: 5 * 60 * 1000 }
+  );
+  if (isLoading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" /></div>;
+  if (!data?.events?.length) return <div className="text-center py-12 text-gray-500 text-sm">No timeline events found for this vehicle.</div>;
+  return (
+    <div className="max-w-2xl">
+      <div className="relative pl-5">
+        <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-800" />
+        <div className="space-y-4">
+          {data.events.map((ev: any, i: number) => (
+            <div key={i} className="relative">
+              <div className="absolute -left-3.5 top-1.5 w-2.5 h-2.5 rounded-full bg-blue-600 border-2 border-gray-950" />
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-medium text-gray-200 capitalize">{ev.eventType?.replace(/_/g, ' ')}</span>
+                  <span className="ml-auto text-xs text-gray-500">{formatDate(ev.eventDate)}</span>
+                </div>
+                {ev.description && <p className="text-xs text-gray-400">{ev.description}</p>}
+                <span className="text-[10px] text-gray-600 capitalize">Source: {ev.sourceTable?.replace(/_/g, ' ')}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

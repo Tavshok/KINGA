@@ -7,6 +7,7 @@
  * Shows KPIs, active inspections, recent activity, and quick actions.
  */
 import { useState } from "react";
+import { EngineeringIntelligencePanel } from "@/components/EngineeringIntelligencePanel";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -254,6 +255,11 @@ export default function EngineerDashboard() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* ── Engineering Intelligence (Epic 4) ──────────────────────────── */}
+      <div style={{ marginTop: "32px", background: "#111", border: "1px solid #2a2a2a", borderRadius: "8px", padding: "24px" }}>
+        <EngineeringIntelligencePanel />
       </div>
 
       {/* ── Quick Actions ───────────────────────────────────────────────────── */}

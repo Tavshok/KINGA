@@ -17,6 +17,7 @@ import {
   Upload, Car, DollarSign, RefreshCw, ArrowLeft, Search, Eye,
   Trash2, Download, Calendar, Phone, Mail, User, Building2
 } from "lucide-react";
+import { TimelineIntelligenceTab } from "@/components/TimelineIntelligenceTab";
 
 export default function KingaAgency() {
   const { user } = useAuth();
@@ -28,6 +29,7 @@ export default function KingaAgency() {
     { id: 'quotations', label: 'Quotations' },
     { id: 'policies', label: 'Policies' },
     { id: 'documents', label: 'Documents' },
+    { id: 'timeline-intelligence', label: '📅 Timeline Intelligence' },
   ];
 
   return (
@@ -111,6 +113,7 @@ export default function KingaAgency() {
             {activeTab === 'quotations' && <QuotationsTab />}
             {activeTab === 'policies' && <PoliciesTab />}
             {activeTab === 'documents' && <DocumentsTab />}
+            {activeTab === 'timeline-intelligence' && <TimelineIntelligenceTab />}
           </div>
           {/* ── SIDEBAR ── */}
           <div className="p11-sidebar">

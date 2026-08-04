@@ -31,6 +31,7 @@ import ReportsBadgeWidget from "@/components/ReportsBadgeWidget";
 import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/components/PortalHeroBand";
 import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { GeographicRiskClustersPanel } from "@/components/risk/GeographicRiskClustersPanel";
+import { PortfolioIntelligenceTab } from "@/components/executive/PortfolioIntelligenceTab";
 ChartJS.register(Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -326,6 +327,7 @@ export default function RiskManagerDashboard() {
           { id: 'financial', label: 'Financial Decisions', count: financialQueue.length, countClass: '' },
           { id: 'escalations', label: 'Escalations', count: escalatedClaims.length, countClass: escalatedClaims.length > 0 ? 'alert' : '' },
           { id: 'oversight', label: 'Portfolio Oversight', count: 0, countClass: '' },
+          { id: 'portfolio-intelligence', label: '📊 Portfolio Intelligence', count: 0, countClass: '' },
           { id: 'notifications', label: 'Notifications', count: 0, countClass: '' },
         ].map(tab => (
           <div
@@ -563,6 +565,12 @@ export default function RiskManagerDashboard() {
                       </table>
                     </div>
                   )}
+                </div>
+              )}
+
+              {activeTab === 'portfolio-intelligence' && (
+                <div className="p11-card" style={{ padding: '24px' }}>
+                  <PortfolioIntelligenceTab />
                 </div>
               )}
 

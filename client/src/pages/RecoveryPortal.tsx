@@ -9,6 +9,7 @@ import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { SLADeadlineChip } from "@/components/portal/SLADeadlineChip";
 import { KingaPortalShell, PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { PortalHeroBand, ProtoAlertBar } from "@/components/PortalHeroBand";
+import { CrossModuleIntelligencePanel } from "@/components/CrossModuleIntelligencePanel";
 
 // Maps each status card tab to the DB status value(s) used in getCases
 const STATUS_CARDS = [
@@ -286,6 +287,12 @@ export default function RecoveryPortal() {
               </div>
             </div>
 
+            {/* Cross-Module Intelligence (Epic 4) */}
+            <div className="p11-card">
+              <div className="p11-card-body" style={{ padding: '16px' }}>
+                <CrossModuleIntelligencePanel />
+              </div>
+            </div>
             {/* Insurer Intelligence */}
             <div className="p11-card">
               <div className="p11-card-header">

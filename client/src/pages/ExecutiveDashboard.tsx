@@ -39,6 +39,7 @@ import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type Portal
 import { ExecutiveAlertsCenter } from "@/components/executive/ExecutiveAlertsCenter";
 import { ExecutiveEscalationQueue } from "@/components/executive/ExecutiveEscalationQueue";
 import { ExecutiveReportTab } from "@/components/executive/ExecutiveReportTab";
+import { PortfolioIntelligenceTab } from "@/components/executive/PortfolioIntelligenceTab";
 import { ClaimsAgeingPanel } from "@/components/executive/ClaimsAgeingPanel";
 import { FraudInvestigationFunnel } from "@/components/executive/FraudInvestigationFunnel";
 import { EscalationsDashboard } from "@/components/executive/EscalationsDashboard";
@@ -487,6 +488,7 @@ export default function ExecutiveDashboard() {
         {([
           { value: 'overview', label: 'Overview' },
           { value: 'operational-health', label: 'Operational Health' },
+          { value: 'portfolio-intelligence', label: 'Portfolio Intelligence' },
           { value: 'escalations', label: 'Escalations' },
           { value: 'roi-breakdown', label: 'ROI & Financials' },
           { value: 'notifications', label: 'Notifications', badge: true },
@@ -532,6 +534,7 @@ export default function ExecutiveDashboard() {
             {([
               { value: 'overview', label: 'Overview' },
               { value: 'operational-health', label: 'Operational Health' },
+              { value: 'portfolio-intelligence', label: 'Portfolio Intelligence' },
               { value: 'escalations', label: 'Escalations' },
               { value: 'roi-breakdown', label: 'ROI & Financials' },
               { value: 'notifications', label: 'Notifications', badge: true },
@@ -1284,6 +1287,11 @@ export default function ExecutiveDashboard() {
           {/* ── Tab 6: Executive Report ── */}
           <TabsContent value="reports" className="mt-6">
             <ExecutiveReportTab />
+          </TabsContent>
+
+          {/* ── Tab 7: Portfolio Intelligence (Epic 4) ── */}
+          <TabsContent value="portfolio-intelligence" className="mt-6">
+            <PortfolioIntelligenceTab />
           </TabsContent>
         </Tabs>
       </div>

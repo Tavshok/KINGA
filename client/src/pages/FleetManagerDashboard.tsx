@@ -55,6 +55,8 @@ import { FleetVehicleTrackingTab } from "@/components/FleetVehicleTrackingTab";
 import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/components/PortalHeroBand";
 import { PortalHeader, PortalKPIStrip, PortalAlerts, type PortalKPI, type PortalAlert } from "@/components/KingaPortalShell";
 import { FleetRiskAnalyticsTab } from "@/components/FleetRiskAnalyticsTab";
+import { FleetIntelligenceTab } from "@/components/FleetIntelligenceTab";
+import { PredictiveAnalyticsTab } from "@/components/PredictiveAnalyticsTab";
 import {
   Dialog,
   DialogContent,
@@ -385,6 +387,8 @@ export default function FleetManagerDashboard() {
           { id: 'claims', label: 'Claims', count: allClaims.length, countClass: '' },
           { id: 'vehicles', label: 'Vehicle Tracking', count: 0, countClass: '' },
           { id: 'risk', label: 'Risk Analytics', count: 0, countClass: '' },
+          { id: 'intelligence', label: '🛡 Fleet Intelligence', count: 0, countClass: '' },
+          { id: 'predictive', label: '📈 Predictive Analytics', count: 0, countClass: '' },
         ].map(t => (
           <div
             key={t.id}
@@ -414,6 +418,16 @@ export default function FleetManagerDashboard() {
         )}
         {mainTab === 'risk' && (
           <FleetRiskAnalyticsTab claims={allClaims} accountName={primaryAccount?.accountName ?? ''} />
+        )}
+        {mainTab === 'intelligence' && (
+          <div className="p-6">
+            <FleetIntelligenceTab />
+          </div>
+        )}
+        {mainTab === 'predictive' && (
+          <div className="p-6">
+            <PredictiveAnalyticsTab />
+          </div>
         )}
         {mainTab === 'claims' && (
           <div className="p11-body-2col">

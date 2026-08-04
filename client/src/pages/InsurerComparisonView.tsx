@@ -42,6 +42,7 @@ import { KingaClaimsReport } from "@/components/KingaClaimsReport";
 import ClaimCurrencyOverride from "@/components/ClaimCurrencyOverride";
 import ClaimCurrencyHistory from "@/components/ClaimCurrencyHistory";
 import { ClaimsIntelligenceReportView } from "@/components/ClaimsIntelligenceReportView";
+import { VehiclePassportPanel } from "@/components/VehiclePassportPanel";
 
 // Insurer role labels for the Push Report dialog
 const INSURER_ROLE_OPTIONS = [
@@ -1093,6 +1094,22 @@ export default function InsurerComparisonView() {
         )}
 
         {/* ══ OPERATIONAL PANELS — only actionable items kept ══ */}
+
+        {/* ── Vehicle Passport (Epic 4) ── */}
+        {claim?.vehicleRegistration && (
+          <div className="comparison-section">
+            <div className="comparison-section-header" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
+              <span className="bi-section-num" style={{ background: '#1a3a2a' }}>VP</span>
+              <div>
+                <p className="font-bold" style={{ color: '#0F172A' }}>Vehicle Passport — Intelligence</p>
+                <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>Epic 4 · Historical claims, fraud signals, market valuation, and predictive risk for {claim.vehicleRegistration}</p>
+              </div>
+            </div>
+            <div className="comparison-section-body" style={{ background: '#ffffff', padding: '20px' }}>
+              <VehiclePassportPanel vehicleRegistration={claim.vehicleRegistration} />
+            </div>
+          </div>
+        )}
 
         {/* ── Approval Workflow ── */}
         {aiAssessment && (

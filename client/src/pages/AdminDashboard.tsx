@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Users, TrendingUp, AlertTriangle, CheckCircle, XCircle, Settings,
   Brain, Database, BarChart3, Target, Loader2, FileText, ArrowUpDown,
-  Activity, Zap, Shield, GitBranch, LogOut, Download
+  Activity, Zap, Shield, GitBranch, LogOut, Download, Package
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { PortalHeroBand, ProtoAlertBar, ProtoTabBar, ProtoCard, P } from "@/components/PortalHeroBand";
@@ -27,6 +27,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
+import { AssetPassportPanel } from "@/components/AssetPassportPanel";
 
 /**
  * Admin Dashboard
@@ -41,7 +42,7 @@ import { useState, useMemo } from "react";
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
-  const [selectedTab, setSelectedTab] = useState<"panel-beaters" | "analytics" | "intelligence" | "settings" | "tenants">("panel-beaters");
+  const [selectedTab, setSelectedTab] = useState<"panel-beaters" | "analytics" | "intelligence" | "asset-passport" | "settings" | "tenants">("panel-beaters");
 
   // Tenant management
   const { data: tenantList = [], isLoading: tenantsLoading, refetch: refetchTenants } = trpc.tenant.list.useQuery();
@@ -413,6 +414,12 @@ export default function AdminDashboard() {
             )}
 
             {/* Settings Tab */}
+            {/* Asset Passport Tab (Epic 4) */}
+            {selectedTab === "asset-passport" && (
+              <div className="p11-card" style={{ marginTop: 16, padding: '20px' }}>
+                <AssetPassportPanel />
+              </div>
+            )}
             {selectedTab === "settings" && (
               <div className="p11-card" style={{ marginTop: 16 }}>
                 <div className="p11-card-header">
@@ -466,6 +473,7 @@ export default function AdminDashboard() {
                   { id: 'panel-beaters', label: 'Panel Beaters', icon: Users },
                   { id: 'analytics', label: 'Analytics', icon: TrendingUp },
                   { id: 'intelligence', label: 'KINGA Intelligence', icon: Brain },
+                  { id: 'asset-passport', label: 'Asset Passport', icon: Package },
                   { id: 'tenants', label: 'Tenants', icon: GitBranch },
                   { id: 'settings', label: 'Settings', icon: Settings },
                 ].map(item => {
