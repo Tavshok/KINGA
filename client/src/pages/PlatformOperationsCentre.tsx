@@ -247,8 +247,42 @@ function AiProcessingPanel() {
     refetchInterval: 30_000,
   });
 
+  const cb = data?.circuitBreaker;
+  const cbColor =
+    cb?.state === "OPEN" ? "text-red-600" :
+    cb?.state === "HALF_OPEN" ? "text-amber-500" :
+    "text-emerald-600";
+
   return (
     <div className="space-y-4">
+      {/* M-03: Circuit Breaker Status Card */}
+      <Card className="p-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-xs text-muted-foreground mb-0.5">LLM Circuit Breaker</div>
+            <div className={`text-sm font-bold font-mono ${cbColor}`}>
+              {isLoading ? "…" : (cb?.state ?? "CLOSED")}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground mb-0.5">Consecutive Failures</div>
+            <div className="text-sm font-bold tabular-nums">
+              {isLoading ? "…" : (cb?.consecutiveFailures ?? 0)}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground mb-0.5">Total Trips</div>
+            <div className="text-sm font-bold tabular-nums">
+              {isLoading ? "…" : (cb?.totalTrips ?? 0)}
+            </div>
+          </div>
+        </div>
+        {cb?.state === "OPEN" && cb.openedAt && (
+          <div className="mt-2 text-xs text-red-500">
+            Opened {new Date(cb.openedAt).toLocaleTimeString()} — auto-probe in 60s
+          </div>
+        )}
+      </Card>
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-3">
           <div className="text-xs text-muted-foreground mb-1">Processed (24 h)</div>

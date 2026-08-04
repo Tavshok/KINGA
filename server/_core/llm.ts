@@ -270,6 +270,23 @@ const normalizeResponseFormat = ({
 
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   assertApiKey();
+  // M-03: Circuit breaker check — throws CIRCUIT_OPEN if the circuit is OPEN.
+  // HALF_OPEN allows exactly one probe through; onSuccess/onFailure update state.
+  llmCircuitBreaker.allowRequest();
+  let _circuitResult: InvokeResult;
+  try {
+    _circuitResult = await _invokeLLMRaw(params);
+  } catch (err) {
+    llmCircuitBreaker.onFailure(err);
+    throw err;
+  }
+  llmCircuitBreaker.onSuccess();
+  return _circuitResult;
+}
+
+/** Internal implementation — does not interact with the circuit breaker. */
+async function _invokeLLMRaw(params: InvokeParams): Promise<InvokeResult> {
+  assertApiKey();
 
   const {
     messages,
@@ -369,6 +386,141 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   }
   clearTimeout(timeoutId);
   return result;
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// LlmCircuitBreaker — M-03: prevent cascading LLM failures
+// ────────────────────────────────────────────────────────────────────────────────
+
+export type CircuitState = "CLOSED" | "OPEN" | "HALF_OPEN";
+
+export interface CircuitBreakerState {
+  state: CircuitState;
+  /** Number of consecutive failures in the current window. */
+  consecutiveFailures: number;
+  /** Timestamp (ms) when the circuit was last opened. */
+  openedAt: number | null;
+  /** Timestamp (ms) when the circuit was last closed. */
+  lastClosedAt: number | null;
+  /** Total times the circuit has opened since process start. */
+  totalTrips: number;
+}
+
+/**
+ * Simple in-process circuit breaker for LLM calls.
+ *
+ * States:
+ *   CLOSED    — normal operation; failures are counted.
+ *   OPEN      — requests are rejected immediately (CIRCUIT_OPEN error).
+ *   HALF_OPEN — one probe request is allowed through;
+ *               success → CLOSED, failure → OPEN.
+ *
+ * Configuration (defaults):
+ *   failureThreshold = 5  consecutive failures before opening
+ *   windowMs         = 60_000 ms  (not used for window, just documents intent)
+ *   cooldownMs       = 60_000 ms  time in OPEN before probing
+ */
+export class LlmCircuitBreaker {
+  private _state: CircuitState = "CLOSED";
+  private _consecutiveFailures = 0;
+  private _openedAt: number | null = null;
+  private _lastClosedAt: number | null = null;
+  private _totalTrips = 0;
+  private readonly _failureThreshold: number;
+  private readonly _cooldownMs: number;
+
+  constructor(
+    failureThreshold = 5,
+    _windowMs = 60_000,
+    cooldownMs = 60_000,
+  ) {
+    this._failureThreshold = failureThreshold;
+    this._cooldownMs = cooldownMs;
+  }
+
+  get state(): CircuitState {
+    // Promote OPEN → HALF_OPEN if cooldown has elapsed
+    if (
+      this._state === "OPEN" &&
+      this._openedAt !== null &&
+      Date.now() - this._openedAt >= this._cooldownMs
+    ) {
+      this._state = "HALF_OPEN";
+    }
+    return this._state;
+  }
+
+  getSnapshot(): CircuitBreakerState {
+    return {
+      state: this.state,
+      consecutiveFailures: this._consecutiveFailures,
+      openedAt: this._openedAt,
+      lastClosedAt: this._lastClosedAt,
+      totalTrips: this._totalTrips,
+    };
+  }
+
+  /**
+   * Check whether a call should be allowed through.
+   * Throws a CIRCUIT_OPEN error when the circuit is OPEN.
+   */
+  allowRequest(): void {
+    const s = this.state;
+    if (s === "OPEN") {
+      throw new Error(
+        `CIRCUIT_OPEN: LLM circuit breaker is open after ${
+          this._consecutiveFailures
+        } consecutive failures. Retry after ${
+          Math.ceil(this._cooldownMs / 1000)
+        }s.`
+      );
+    }
+    // HALF_OPEN: allow exactly one probe through (caller must call onSuccess/onFailure)
+  }
+
+  onSuccess(): void {
+    if (this._state === "HALF_OPEN" || this._state === "OPEN") {
+      this._lastClosedAt = Date.now();
+    }
+    this._state = "CLOSED";
+    this._consecutiveFailures = 0;
+  }
+
+  onFailure(err: unknown): void {
+    this._consecutiveFailures++;
+    if (
+      this._state === "HALF_OPEN" ||
+      this._consecutiveFailures >= this._failureThreshold
+    ) {
+      this._state = "OPEN";
+      this._openedAt = Date.now();
+      this._totalTrips++;
+      logger.error(
+        "LlmCircuitBreaker",
+        `Circuit OPENED after ${this._consecutiveFailures} consecutive failures`,
+        { consecutiveFailures: this._consecutiveFailures, totalTrips: this._totalTrips, err }
+      );
+    }
+  }
+
+  /** Reset to CLOSED state (for testing or manual recovery). */
+  reset(): void {
+    this._state = "CLOSED";
+    this._consecutiveFailures = 0;
+    this._openedAt = null;
+    this._lastClosedAt = Date.now();
+  }
+}
+
+/** Singleton circuit breaker for all LLM calls in this process. */
+export const llmCircuitBreaker = new LlmCircuitBreaker();
+
+/**
+ * Get a snapshot of the current LLM circuit breaker state.
+ * Used by the Operations Centre to surface health status.
+ */
+export function getCircuitBreakerState(): CircuitBreakerState {
+  return llmCircuitBreaker.getSnapshot();
 }
 
 // ────────────────────────────────────────────────────────────────────────────────

@@ -103,7 +103,8 @@ export const analyticsRouter = router({
           );
         }
 
-        const searchTerm = `%${input.query}%`;
+        const searchTerm = `%${input.query}%`;      // free-text columns
+        const searchPrefix = `${input.query}%`;     // M-05: identifier columns (uses B-tree index)
         const tenantId = resolveAnalyticsTenant(ctx);
 
         // Build where clause with tenant filtering if applicable
@@ -111,16 +112,16 @@ export const analyticsRouter = router({
           ? and(
               eq(claims.tenantId, tenantId),
               or(
-                sql`${claims.vehicleRegistration} LIKE ${searchTerm}`,
-                sql`${claims.claimNumber} LIKE ${searchTerm}`,
-                sql`${claims.policyNumber} LIKE ${searchTerm}`,
+                sql`${claims.vehicleRegistration} LIKE ${searchPrefix}` /* M-05 */,
+                sql`${claims.claimNumber} LIKE ${searchPrefix}` /* M-05 */,
+                sql`${claims.policyNumber} LIKE ${searchPrefix}` /* M-05 */,
                 sql`${users.name} LIKE ${searchTerm}`
               )
             )
           : or(
-              sql`${claims.vehicleRegistration} LIKE ${searchTerm}`,
-              sql`${claims.claimNumber} LIKE ${searchTerm}`,
-              sql`${claims.policyNumber} LIKE ${searchTerm}`,
+              sql`${claims.vehicleRegistration} LIKE ${searchPrefix}` /* M-05 */,
+              sql`${claims.claimNumber} LIKE ${searchPrefix}` /* M-05 */,
+              sql`${claims.policyNumber} LIKE ${searchPrefix}` /* M-05 */,
               sql`${users.name} LIKE ${searchTerm}`
             );
 
@@ -492,7 +493,8 @@ export const analyticsRouter = router({
           })
           .from(users)
           .where(whereClause)
-          .orderBy(desc(users.performanceScore));
+          .orderBy(desc(users.performanceScore))
+          .limit(100); // M-01: cap assessor list
 
         return createAnalyticsResponse({
           summaryMetrics: {
@@ -556,7 +558,8 @@ export const analyticsRouter = router({
           .leftJoin(panelBeaterQuotes, eq(panelBeaters.id, panelBeaterQuotes.panelBeaterId))
           .leftJoin(claims, eq(panelBeaterQuotes.claimId, claims.id))
           .groupBy(sql`${panelBeaters.id}`, sql`${panelBeaters.businessName}`)
-          .orderBy(desc(sql`COUNT(${panelBeaterQuotes.id})`));
+          .orderBy(desc(sql`COUNT(${panelBeaterQuotes.id})`))
+          .limit(50); // M-01: cap panel beater list
 
         return createAnalyticsResponse({
           summaryMetrics: {
@@ -643,7 +646,8 @@ export const analyticsRouter = router({
         .leftJoin(aiAssessments, eq(claims.id, aiAssessments.claimId))
         .where(whereClause)
         .groupBy(sql`DATE_FORMAT(${claims.createdAt}, '%Y-%m')`)
-        .orderBy(sql`DATE_FORMAT(${claims.createdAt}, '%Y-%m')`);
+        .orderBy(sql`DATE_FORMAT(${claims.createdAt}, '%Y-%m')`)
+        .limit(24); // M-01: cap trend months to 24
       const mappedTrends = trends.map(t => {
         const est = safeNumber(t.totalAiEstimate, 0);
         const appr = safeNumber(t.totalApproved, 0);

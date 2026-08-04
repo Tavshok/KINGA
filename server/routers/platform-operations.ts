@@ -11,6 +11,7 @@
 
 import { router } from "../_core/trpc";
 import { platformSuperAdminProcedure } from "../_core/platform-super-admin-guard";
+import { getCircuitBreakerState } from "../_core/llm";
 import { getDb } from "../db";
 import {
   pipelineJobs,
@@ -124,7 +125,8 @@ export const platformOperationsRouter = router({
       .from(pipelineJobs)
       .where(gte(pipelineJobs.startedAt, hoursAgo(24)));
 
-    return { stageStats, last24h };
+    const circuitBreaker = getCircuitBreakerState();
+    return { stageStats, last24h, circuitBreaker };
   }),
 
   /**

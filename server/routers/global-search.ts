@@ -132,7 +132,11 @@ export const globalSearchRouter = router({
       const user = ctx.user!;
       const role = user.role as UserRole;
       const tenantId = user.tenantId ?? null;
-      const q = `%${query}%`;
+      // M-05: Use prefix LIKE for structured identifiers (uses B-tree indexes).
+      // Use full substring LIKE only for free-text columns (name, email, etc.)
+      const qPrefix = `${query}%`;   // Identifier columns: claimNumber, vehicleReg, vin, policyNumber, etc.
+      const qFull = `%${query}%`;    // Free-text columns: name, email, businessName, etc.
+      const q = qFull; // Fallback for any remaining uses
 
       const results: SearchResultItem[] = [];
 
@@ -143,49 +147,49 @@ export const globalSearchRouter = router({
             ? and(
                 eq(claims.tenantId, tenantId),
                 or(
-                  like(claims.claimNumber, q),
-                  like(claims.vehicleRegistration, q),
-                  like(claims.vehicleVin, q),
-                  like(claims.policyNumber, q),
+                  like(claims.claimNumber, qPrefix) /* M-05: prefix-only */,
+                  like(claims.vehicleRegistration, qPrefix) /* M-05: prefix-only */,
+                  like(claims.vehicleVin, qPrefix) /* M-05: prefix-only */,
+                  like(claims.policyNumber, qPrefix) /* M-05: prefix-only */,
                   like(claims.claimantEmail, q)
                 )
               )
             : or(
-                like(claims.claimNumber, q),
-                like(claims.vehicleRegistration, q),
-                like(claims.vehicleVin, q),
-                like(claims.policyNumber, q),
+                like(claims.claimNumber, qPrefix) /* M-05: prefix-only */,
+                like(claims.vehicleRegistration, qPrefix) /* M-05: prefix-only */,
+                like(claims.vehicleVin, qPrefix) /* M-05: prefix-only */,
+                like(claims.policyNumber, qPrefix) /* M-05: prefix-only */,
                 like(claims.claimantEmail, q)
               )
           : role === "claimant"
           ? and(
               eq(claims.claimantId, user.id),
               or(
-                like(claims.claimNumber, q),
-                like(claims.vehicleRegistration, q)
+                like(claims.claimNumber, qPrefix) /* M-05: prefix-only */,
+                like(claims.vehicleRegistration, qPrefix) /* M-05: prefix-only */
               )
             )
           : role === "assessor"
           ? or(
-              like(claims.claimNumber, q),
-              like(claims.vehicleRegistration, q)
+              like(claims.claimNumber, qPrefix) /* M-05: prefix-only */,
+              like(claims.vehicleRegistration, qPrefix) /* M-05: prefix-only */
             )
           : role === "panel_beater"
           ? or(
-              like(claims.claimNumber, q),
-              like(claims.vehicleRegistration, q)
+              like(claims.claimNumber, qPrefix) /* M-05: prefix-only */,
+              like(claims.vehicleRegistration, qPrefix) /* M-05: prefix-only */
             )
           : FLEET_ROLES.includes(role)
           ? and(
               tenantId ? eq(claims.tenantId, tenantId) : sql`1=1`,
               or(
-                like(claims.claimNumber, q),
-                like(claims.vehicleRegistration, q)
+                like(claims.claimNumber, qPrefix) /* M-05: prefix-only */,
+                like(claims.vehicleRegistration, qPrefix) /* M-05: prefix-only */
               )
             )
           : or(
-              like(claims.claimNumber, q),
-              like(claims.vehicleRegistration, q)
+              like(claims.claimNumber, qPrefix) /* M-05: prefix-only */,
+              like(claims.vehicleRegistration, qPrefix) /* M-05: prefix-only */
             );
 
         if (claimWhere) {
@@ -225,8 +229,8 @@ export const globalSearchRouter = router({
       if (role !== "claimant") {
         try {
           const vehicleWhere = or(
-            like(vehicleRegistry.registrationNumber, q),
-            like(vehicleRegistry.vin, q),
+            like(vehicleRegistry.registrationNumber, qPrefix) /* M-05: prefix-only */,
+            like(vehicleRegistry.vin, qPrefix) /* M-05: prefix-only */,
             like(vehicleRegistry.make, q),
             like(vehicleRegistry.model, q),
             like(vehicleRegistry.currentOwnerName, q)
@@ -268,15 +272,15 @@ export const globalSearchRouter = router({
             ? and(
                 eq(inspections.tenantId, tenantId),
                 or(
-                  like(inspections.inspectionRef, q),
-                  like(inspections.vehicleRegistration, q),
-                  like(inspections.assetRef, q)
+                  like(inspections.inspectionRef, qPrefix) /* M-05: prefix-only */,
+                  like(inspections.vehicleRegistration, qPrefix) /* M-05: prefix-only */,
+                  like(inspections.assetRef, qPrefix) /* M-05: prefix-only */
                 )
               )
             : or(
-                like(inspections.inspectionRef, q),
-                like(inspections.vehicleRegistration, q),
-                like(inspections.assetRef, q)
+                like(inspections.inspectionRef, qPrefix) /* M-05: prefix-only */,
+                like(inspections.vehicleRegistration, qPrefix) /* M-05: prefix-only */,
+                like(inspections.assetRef, qPrefix) /* M-05: prefix-only */
               );
 
           const rows = await db
@@ -315,16 +319,16 @@ export const globalSearchRouter = router({
             ? and(
                 eq(assetRegistry.tenantId, tenantId),
                 or(
-                  like(assetRegistry.assetRef, q),
+                  like(assetRegistry.assetRef, qPrefix) /* M-05: prefix-only */,
                   like(assetRegistry.assetName, q),
-                  like(assetRegistry.serialNumber, q),
+                  like(assetRegistry.serialNumber, qPrefix) /* M-05: prefix-only */,
                   like(assetRegistry.ownerName, q)
                 )
               )
             : or(
-                like(assetRegistry.assetRef, q),
+                like(assetRegistry.assetRef, qPrefix) /* M-05: prefix-only */,
                 like(assetRegistry.assetName, q),
-                like(assetRegistry.serialNumber, q),
+                like(assetRegistry.serialNumber, qPrefix) /* M-05: prefix-only */,
                 like(assetRegistry.ownerName, q)
               );
 
@@ -408,7 +412,7 @@ export const globalSearchRouter = router({
             .where(
               or(
                 like(drivers.fullName, q),
-                like(drivers.licenseNumber, q),
+                like(drivers.licenseNumber, qPrefix) /* M-05: prefix-only */,
                 like(drivers.email, q),
                 like(drivers.phone, q)
               )
@@ -493,7 +497,7 @@ export const globalSearchRouter = router({
               or(
                 like(users.name, q),
                 like(users.email, q),
-                like(assessors.professionalLicenseNumber, q)
+                like(assessors.professionalLicenseNumber, qPrefix) /* M-05: prefix-only */
               )
             )
             .limit(limit);
@@ -521,12 +525,12 @@ export const globalSearchRouter = router({
                 eq(generatedReports.tenantId, Number(tenantId) || 0),
                 or(
                   like(generatedReports.reportType, q),
-                  like(generatedReports.s3Key, q)
+                  like(generatedReports.s3Key, qPrefix) /* M-05: prefix-only */
                 )
               )
             : or(
                 like(generatedReports.reportType, q),
-                like(generatedReports.s3Key, q)
+                like(generatedReports.s3Key, qPrefix) /* M-05: prefix-only */
               );
 
           const rows = await db

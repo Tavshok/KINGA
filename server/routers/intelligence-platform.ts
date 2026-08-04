@@ -279,7 +279,8 @@ export const fleetIntelligenceRouter = router({
         .where(and(
           eq(fleetVehicles.fleetId, input.fleetId),
           eq(fleetVehicles.tenantId, ctx.user.tenantId ?? ""),
-        ));
+        ))
+        .limit(500); // M-01: cap fleet vehicle list for IN clause
 
       const registrations = fleetVehicleList.map(v => v.registrationNumber);
       let claimCount = 0;
@@ -393,7 +394,8 @@ export const fleetIntelligenceRouter = router({
         })
         .from(fleets)
         .where(eq(fleets.tenantId, ctx.user.tenantId ?? ""))
-        .orderBy(desc(fleets.totalVehicles));
+        .orderBy(desc(fleets.totalVehicles))
+        .limit(100); // M-01: cap fleet list
 
       return {
         fleets: fleetList,
@@ -578,7 +580,8 @@ export const engineeringIntelligenceRouter = router({
           gte(inspections.createdAt, since),
         ))
         .groupBy(inspections.inspectionType)
-        .orderBy(desc(count(inspections.id)));
+        .orderBy(desc(count(inspections.id)))
+        .limit(20); // M-01: cap inspection type groups
 
       return {
         period: { days: input.days },
@@ -954,7 +957,8 @@ export const portfolioIntelligenceRouter = router({
           gte(claims.createdAt, since),
         ))
         .groupBy(claims.claimantType)
-        .orderBy(desc(count(claims.id)));
+        .orderBy(desc(count(claims.id)))
+        .limit(20); // M-01: cap claim type groups
 
       return {
         period: { days: input.days },
